@@ -1,0 +1,7 @@
+postgresql:
+  user: USER_NAME
+  dbname: DB_NAME
+  password: YOUR_PW
+smtp:
+  password: SMTP_AUTH_PW
+  user: SMTP_AUTH_USER
