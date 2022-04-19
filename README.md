@@ -3,7 +3,27 @@
 This repository contains the command line tools to schedule and run the measurement report
 as well as a web interface to view the measured metrics in some nice charts.
 
-This README will guide you through the installation on your server / cloud instance.
+## Measurement methodology
+
+The software can orchestrate Docker containers according to a given specificaion in a usage-flow.json file.
+
+These containers will be setup on the host system and the testing specification in the usage-flow will be
+run by sending the commands to the containers accordingly.
+
+During this process the performance metrics of the containers are read through the stream of 
+`docker stats`.
+
+The current limitation of this approach is:
+- The resolution of 1s is pretty low
+- Docker stats gives sometime out different value than top / /proc/stat depending on your OS configuration
+- It does not directly translate into energy without an appropriate transfer model.
+
+These problems are currently addressed by doing research on either using onboard hardware sensors or measuring 
+the electrical signals directly on-chip or on the cables of the machine.
+
+We hope to refine the approach soon and update the tool accordingly (Thanks for @mrchrisadams requesting this clarification)
+
+The next part README will guide you through the installation on your server / cloud instance.
 
 ## Installation
 
