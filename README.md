@@ -176,7 +176,7 @@ A sample setup for the file can be found in `/var/www/config.yml.example`
 First you have to create a project through the web interface, so the cron runner will pick it up from the database.
 
 Go to http://YOUR_CONFIGURED_URL/request.html
-Note: You must enter a Github Repo URL with a repository that has the usage_scenario.json in a valid format. Consult [https://github.com/green-coding-berlin/green-metric-demo-software](Github Repository for the Demo software) for more info
+Note: You must enter a Github Repo URL with a repository that has the usage_scenario.json in a valid format. Consult [Github Repository for the Demo software](https://github.com/green-coding-berlin/green-metric-demo-software) for more info
 
 After creating project run:
 
