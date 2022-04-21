@@ -197,8 +197,23 @@ If you have no MTA installed you can also pipe the output to a specific file lik
 If you have docker configured to run in rootless mode be sure to issue the exports for the cron command beforehand.
 A cronjob in the `crontab -e` of the non-root may look similar to this one:
 
-`*/5     *       *       *       *       export PATH=/home/USERNAME/bin:$PATH; export DOCKER_HOST=unix:///run/user/1000/docker.sock; rm -Rf /tmp/repo; python3 /var/www/cron/runner.py cron 2>&1 >> /var/log/cron-green-metric.log`
+`
+export PATH=/home/USERNAME/bin:$PATH
+export DOCKER_HOST=unix:///run/user/1000/docker.sock
+*/5     *       *       *       *       rm -Rf /tmp/repo; python3 /var/www/cron/runner.py cron 2>&1 >> /var/log/cron-green-metric.log`
 
 Also make sure that `/var/log/cron-green-metric.log` is writeable by the user:
 
 `sudo touch /var/log/cron-green-metric.log && sudo chown MY_USER:MY_USER /var/log/cron-green-metric.log`
+
+### Locking and Timeout for cron
+Depending on how often you run the cronjob and how long your jobs are the cronjobs may interleave which
+will cause problems.
+
+On a typical Linux system you can use timeout / flock to prevent this.
+This example creates a exclusive lock and timeouts to 4 minutes
+
+`
+export PATH=/home/USERNAME/bin:$PATH
+export DOCKER_HOST=unix:///run/user/1000/docker.sock
+*/5     *       *       *       *       timeout 240s flock -nx /var/lock/greencoding-runner rm -Rf /tmp/repo && python3 /var/www/cron/runner.py cron 2>&1 >> /var/log/cron-green-metric.log`
