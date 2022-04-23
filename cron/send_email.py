@@ -5,14 +5,9 @@ def send_report_email(receiver_email, report_id):
         config = yaml.load(config_file,yaml.FullLoader)
 
     import smtplib, ssl
-
-    port = 465  # For SSL
-    smtp_server = "smtp.mailfence.com"
-    sender_email = "info@green-coding.org"
-    password = config['smtp']['password']
     message = """\
+From: {smtp_sender}
 To: {receiver_email}
-From: info@green-coding.org
 Subject: Your Green Metric report is ready
 
 Your report is now accessible under the URL: https://green-metric.codetactics.de/?id={report_id}
@@ -22,9 +17,15 @@ Green Coding Berlin
 https://www.green-coding.org
 
     """
+    message = message.format(
+        receiver_email=receiver_email,
+        report_id=report_id,
+        smtp_sender=config['smtp']['sender'])
 
-    message = message.format(receiver_email=receiver_email, report_id=report_id)
     context = ssl.create_default_context()
-    with smtplib.SMTP_SSL(smtp_server, port, context=context) as server:
-        server.login("JonathanSaudhof", password)
-        server.sendmail(sender_email, receiver_email, message)
+    with smtplib.SMTP_SSL(config['smtp']['server'], config['smtp']['port'], context=context) as server:
+        # No need to set server.auth manually. server.login will iterater over all available methods
+        # see https://github.com/python/cpython/blob/main/Lib/smtplib.py
+        server.login(config['smtp']['user'], config['smtp']['password'])
+
+        server.sendmail(config['smtp']['sender'], receiver_email, message)

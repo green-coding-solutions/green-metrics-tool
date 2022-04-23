@@ -3,5 +3,8 @@ postgresql:
   dbname: DB_NAME
   password: YOUR_PW
 smtp:
+  server: SMTP_SERVER
+  sender: SMTP_SENDER
+  port: SMTP_PORT
   password: SMTP_AUTH_PW
   user: SMTP_AUTH_USER
