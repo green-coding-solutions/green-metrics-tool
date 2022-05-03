@@ -42,7 +42,7 @@ remains in memory or on disk.
 
 `sudo apt dist-upgrade -y`
 
-`sudo apt install postgresql python3 pyhton3-pip gunicorn nginx docker.io libpq-dev python-dev postgresql-contrib -y`
+`sudo apt install postgresql python3 python3-pip gunicorn nginx docker.io libpq-dev python-dev postgresql-contrib -y`
 
 `pip3 install psycopg2 flask`
 
@@ -51,8 +51,10 @@ remains in memory or on disk.
 Docker config should be finished right after installing through apt.
 
 If you want rootless mode however be sure to follow the instructions here: https://docs.docker.com/engine/security/rootless/
+After running the dockerd-rootless-setuptool.sh script, you may need to add some lines to your .bashrc file.
 
 And you must also enable the cgroup2 support with the metrics granted for the user: https://rootlesscontaine.rs/getting-started/common/cgroup2/
+Make sure to also enable the CPU, CPUTSET, and I/O delegation.
 
 ### Postgres
 `sudo -i -u postgres`
@@ -61,17 +63,25 @@ And you must also enable the cgroup2 support with the metrics granted for the us
 
 `createdb --encoding=UTF-8 --owner=my_user my_user # DB is often already created with previous command`
 
-`psql # make sure you are postgres user (whoiam)`
+`psql # make sure you are postgres user (whoami)`
 
 this command in psql: ` ALTER USER my_user WITH SUPERUSER;`
+
+leave the psql shell (ctrl+c)
 
 `psql -U my_user # needs PW entry`
 
 this command in psql: `CREATE EXTENSION "uuid-ossp";`
 
-`psql # make sure you are postgres user (whoiam)`
+leave the psql shell (ctrl+c)
+
+make sure you are a postgres user with `sudo -i -u postgres`
+
+`psql` 
 
 this command in psql: `ALTER USER my_user WITH SUPERUSER;`
+
+leave the psql shell (ctrl+c)
 
 now we import the structure
 
