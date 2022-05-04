@@ -45,15 +45,33 @@ remains in memory or on disk.
 
 `sudo apt dist-upgrade -y`
 
-`sudo apt install postgresql python3 python3-pip gunicorn nginx docker.io libpq-dev python-dev postgresql-contrib -y`
+`sudo apt install postgresql python3 python3-pip gunicorn nginx libpq-dev python-dev postgresql-contrib -y`
 
 `pip3 install psycopg2 flask`
 
 
 ### Docker
-Docker config should be finished right after installing through apt.
+Docker provides a great installation help on their website that will probably be more up2date than this readme: https://docs.docker.com/engine/install/
 
-You can check if all is working fine by running `docker stats`. It should output a "top" like view, which is empty for now.
+However, we provide here what we typed in on our Ubuntu system, but be sure to double check on the official website. Especially if you are not running Ubuntu.
+
+#### Base install
+
+`sudo apt remove docker docker-engine docker.io containerd runc`
+
+`sudo apt-get install ca-certificates curl gnupg lsb-release`
+
+`curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg`
+
+`echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null`
+
+`sudo apt update`
+
+`sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin`
+
+You can check if all is working fine by running `docker stats`. It should connect to the docker daemon and output a "top" like view, which is empty for now.
+
+#### Rootless mode (strongly recommended)
 
 If you want rootless mode however be sure to follow the instructions here: https://docs.docker.com/engine/security/rootless/
 After running the dockerd-rootless-setuptool.sh script, you may need to add some lines to your .bashrc file.
@@ -71,9 +89,6 @@ A switch with "su my_user" will break and make install impossible.
 
 `sudo apt install uidmap`
 
-`curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg`
-
-`echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null`
 
 `sudo apt update` 
 
