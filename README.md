@@ -61,6 +61,11 @@ Also you need to have a non-root user in place before you go through this proces
 
 The process may pose some challenges, as depending on your system some steps might fail. We created a small summary of our commands,
 but these are subject to change.
+
+#### Important: 
+Before doing these steps be sure to relog into your system (either through relogging, or doing a new ssh login) with the non-root user.
+A switch with "su my_user" will break and make install impossible.
+
 `sudo apt install uidmap`
 `curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg`
 `echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null`
