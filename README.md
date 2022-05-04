@@ -27,12 +27,15 @@ The next part README will guide you through the installation on your server / cl
 
 ## Installation
 
-The tool requires a linux distribution as foundation, a webserver (instructions only give for NGINX, but any webserver will do)
+Installing the toolchain takes about 30 Minutes to 1 hour, depending on linux knowledge.
+
+The tool requires a linux distribution as foundation, a webserver (instructions only given for NGINX, but any webserver will do)
 python3 including some packages and docker installed (rootless optional).
 
 We will directly install to /var/www as the tool should be run on a dedicated node anyway.
 This is because of the competing resource allocation when run in a shared mode and also
 because of security concerns.
+
 We recommend to fully reset the node after every run, so no data from the previous run
 remains in memory or on disk.
 
@@ -50,8 +53,28 @@ remains in memory or on disk.
 ### Docker
 Docker config should be finished right after installing through apt.
 
+You can check if all is working fine by running `docker stats`. It should output a "top" like view, which is empty for now.
+
 If you want rootless mode however be sure to follow the instructions here: https://docs.docker.com/engine/security/rootless/
 After running the dockerd-rootless-setuptool.sh script, you may need to add some lines to your .bashrc file.
+Also you need to have a non-root user in place before you go through this process :)
+
+The process may pose some challenges, as depending on your system some steps might fail. We created a small summary of our commands,
+but these are subject to change.
+`sudo apt install uidmap`
+`curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg`
+`echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null`
+`sudo apt update` 
+`sudo apt-get install -y docker-ce-rootless-extras`
+`sudo apt install dbus-user-session`
+`sudo systemctl disable --now docker.service docker.socket`
+`dockerd-rootless-setuptool.sh install`
+Be sure now to add the export commands that are outputted to your .bashrc or similar.
+`systemctl --user enable docker`
+`sudo loginctl enable-linger $(whoami)`
+
+
+
 
 And you must also enable the cgroup2 support with the metrics granted for the user: https://rootlesscontaine.rs/getting-started/common/cgroup2/
 Make sure to also enable the CPU, CPUTSET, and I/O delegation.
