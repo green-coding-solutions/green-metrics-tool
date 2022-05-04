@@ -64,18 +64,27 @@ but these are subject to change.
 
 #### Important: 
 Before doing these steps be sure to relog into your system (either through relogging, or doing a new ssh login) with the non-root user.
+
 A switch with "su my_user" will break and make install impossible.
 
-`sudo apt install uidmap`
-`curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg`
-`echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null`
-`sudo apt update` 
-`sudo apt-get install -y docker-ce-rootless-extras`
-`sudo apt install dbus-user-session`
 `sudo systemctl disable --now docker.service docker.socket`
+
+`sudo apt install uidmap`
+
+`curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg`
+
+`echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null`
+
+`sudo apt update` 
+
+`sudo apt-get install -y docker-ce-rootless-extras dbus-user-session`
+
 `dockerd-rootless-setuptool.sh install`
+
 Be sure now to add the export commands that are outputted to your .bashrc or similar.
+
 `systemctl --user enable docker`
+
 `sudo loginctl enable-linger $(whoami)`
 
 
