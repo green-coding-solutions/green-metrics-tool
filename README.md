@@ -29,6 +29,8 @@ The next part README will guide you through the installation on your server / cl
 
 Installing the toolchain takes about 30 Minutes to 1 hour, depending on linux knowledge.
 
+Important: If you ever get stuck during this installation, be sure to reboot the machine once. It may help to correctly load / reload some configuration and / or daemons.
+
 The tool requires a linux distribution as foundation, a webserver (instructions only given for NGINX, but any webserver will do)
 python3 including some packages and docker installed (rootless optional).
 
@@ -47,8 +49,8 @@ remains in memory or on disk.
 
 `sudo apt install postgresql python3 python3-pip gunicorn nginx libpq-dev python-dev postgresql-contrib -y`
 
-`pip3 install psycopg2 flask`
-
+`sudo pip3 install psycopg2 flask`\
+The sudo in the last command is very important, as it will tell pip to install to /usr directory instead to the home directory. So we can find the package later with other users on the system. If you do not want that use a venv in Python.
 
 ### Docker
 Docker provides a great installation help on their website that will probably be more up2date than this readme: https://docs.docker.com/engine/install/
@@ -145,9 +147,11 @@ check first if 12 is really used version and then maybe replace number in next c
 
 `sudo nano /etc/postgresql/12/main/pg_hba.conf`
 
-add the following line to the config, but remember to change the IP from 0.0.0.0. to your external IP
+add the following lines to the config. It must come BEFORE any lines that are talking about "peer" authentication.\
+Otherwise peer authentication will be prefered and password login will fail in python3-psycopg2:
 
-`host all all 0.0.0.0/0 md5`
+`host my_user my_user 0.0.0.0/0 md5`\
+`local my_user my_user md5`
 
 maybe even remove other hosts as needed. Then reload
 
