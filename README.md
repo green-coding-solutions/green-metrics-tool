@@ -32,14 +32,14 @@ Installing the toolchain takes about 30 Minutes to 1 hour, depending on linux kn
 The tool requires a linux distribution as foundation, a webserver (instructions only given for NGINX, but any webserver will do)
 python3 including some packages and docker installed (rootless optional).
 
-We will directly install to /var/www as the tool should be run on a dedicated node anyway.
+We will directly install to /w as the tool should be run on a dedicated node anyway.
 This is because of the competing resource allocation when run in a shared mode and also
 because of security concerns.
 
 We recommend to fully reset the node after every run, so no data from the previous run
 remains in memory or on disk.
 
-`git clone https://github.com/green-coding-berlin/green-metrics-tool /var/www`
+`git clone https://github.com/green-coding-berlin/green-metrics-tool /var/www/green-metrics-tool`
 
 `sudo apt update`
 
@@ -57,15 +57,15 @@ However, we provide here what we typed in on our Ubuntu system, but be sure to d
 
 #### Base install
 
-`sudo apt remove docker docker-engine docker.io containerd runc`
-
-`sudo apt-get install ca-certificates curl gnupg lsb-release`
-
 `curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg`
 
 `echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null`
 
 `sudo apt update`
+
+`sudo apt remove docker docker-engine docker.io containerd runc`
+
+`sudo apt-get install ca-certificates curl gnupg lsb-release`
 
 `sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin`
 
@@ -103,8 +103,6 @@ Be sure now to add the export commands that are outputted to your .bashrc or sim
 `sudo loginctl enable-linger $(whoami)`
 
 
-
-
 And you must also enable the cgroup2 support with the metrics granted for the user: https://rootlesscontaine.rs/getting-started/common/cgroup2/
 Make sure to also enable the CPU, CPUTSET, and I/O delegation.
 
@@ -119,13 +117,13 @@ Make sure to also enable the CPU, CPUTSET, and I/O delegation.
 
 this command in psql: ` ALTER USER my_user WITH SUPERUSER;`
 
-leave the psql shell (ctrl+c)
+leave the psql shell (ctrl+d) and also logout of "postgres" bash
 
 `psql -U my_user # needs PW entry`
 
 this command in psql: `CREATE EXTENSION "uuid-ossp";`
 
-leave the psql shell (ctrl+c)
+leave the psql shell (ctrl+d)
 
 make sure you are a postgres user with `sudo -i -u postgres`
 
@@ -133,11 +131,11 @@ make sure you are a postgres user with `sudo -i -u postgres`
 
 this command in psql: `ALTER USER my_user WITH SUPERUSER;`
 
-leave the psql shell (ctrl+c)
+leave the psql shell (ctrl+d) and logout of "postgres" bash
 
 now we import the structure
 
-`psql -U my_user < /var/www/structure.sql`
+`psql -U my_user < /var/www/green-metrics-tool/structure.sql`
 
 
 #### Postgres Remote access (optional)
@@ -147,7 +145,7 @@ check first if 12 is really used version and then maybe replace number in next c
 
 `sudo nano /etc/postgresql/12/main/pg_hba.conf`
 
-add the following line to the config
+add the following line to the config, but remember to change the IP from 0.0.0.0. to your external IP
 
 `host all all 0.0.0.0/0 md5`
 
@@ -156,26 +154,31 @@ maybe even remove other hosts as needed. Then reload
 `sudo systemctl reload postgresql`
 
 ### Webservice
-we are using `/var/www/html` for static files and as document root
-and `/var/www/api` for the API
+we are using `/var/www/green-metrics-tool/website` for static files and as document root
+and `/var/www/green-metrics-tool/api` for the API
 
 all must be owned by www-data (or the nginx user if different)
 
-`sudo chwon -R /var/www www-data:www-data`
+`sudo chown -R www-data:www-data /var/www`
 
 now we replace the references in the code with the real server address you are running on
-`cd /var/www`
+`cd /var/www/green-metrics-tool`
 
-`sed -i "s/https:\/\/green-metric\.codetactics\.de/YOUR_URL_OR_IP_ESCAPED_HERE/" cron/send_email.py`
+`sudo sed -i "s/https:\/\/green-metric\.codetactics\.de/YOUR_URL_OR_IP_ESCAPED_HERE/" cron/send_email.py`
 
-`sed -i "s/https:\/\/green-metric\.codetactics\.de/YOUR_URL_OR_IP_ESCAPED_HERE/" website/index.html`
+`sudo sed -i "s/https:\/\/green-metric\.codetactics\.de/YOUR_URL_OR_IP_ESCAPED_HERE/" website/index.html`
 
-`sed -i "s/https:\/\/green-metric\.codetactics\.de/YOUR_URL_OR_IP_ESCAPED_HERE/" website/request.html`
+`sudo sed -i "s/https:\/\/green-metric\.codetactics\.de/YOUR_URL_OR_IP_ESCAPED_HERE/" website/request.html`
+
+
+## Configuring the command line application
+Create the file `/var/www/green-metrics-tool/config.yml` with the correct Database and SMTP credentials. 
+A sample setup for the file can be found in `/var/www/green-metrics-tool/config.yml.example`
 
 
 #### Gunicorn
 test if gunicorn is working in general
-`gunicorn --bind 0.0.0.0:5000 wsgi:app`
+`cd /var/www/green-metrics-tool/api && gunicorn --bind 0.0.0.0:5000 wsgi:app`
 
 if all is working, we create the service for gunicorn
 `sudo nano /etc/systemd/system/green-coding-api.service`
@@ -189,7 +192,7 @@ After=network.target
 [Service]
 User=www-data
 Group=www-data
-WorkingDirectory=/var/www/api
+WorkingDirectory=/var/www/green-metrics-tool/api
 ExecStart=/bin/gunicorn --workers 3 --bind unix:green-coding-api.sock -m 007 wsgi:app
 
 [Install]
@@ -221,17 +224,13 @@ and we also must change the default document root
 
 `sudo nano /etc/nginx/sites-available/default`
 
-here you must modify the root directive to: `root /var/www/website;`
+here you must modify the root directive to: `root /var/www/green-metrics-tool/website;`
 
 Then reload all:
 `sudo systemctl restart nginx`
 
-## Configuring the command line application
-Create the file `/var/www/config.yml` with the correct Database and SMTP credentials. 
-A sample setup for the file can be found in `/var/www/config.yml.example`
 
-
-***Now create a snapshot of the machine to reaload this state later on***
+***Now create a snapshot of the machine to reload this state later on***
 
 
 ## Testing the command line application
