@@ -1,4 +1,6 @@
 postgresql:
+# leave the host line empty if you do want to use Unix Domain socket connection
+  host: HOST_NAME
   user: USER_NAME
   dbname: DB_NAME
   password: YOUR_PW

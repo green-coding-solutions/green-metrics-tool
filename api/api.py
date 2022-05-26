@@ -10,7 +10,10 @@ with open("{path}/../config.yml".format(path=os.path.dirname(os.path.realpath(__
     config = yaml.load(config_file,yaml.FullLoader)
 
 import psycopg2
-conn = psycopg2.connect("user=%s dbname=%s password=%s" % (config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
+if config['postgresql']['host'] is None: # force domain socket connection
+        conn = psycopg2.connect("user=%s dbname=%s password=%s" % (config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
+else:
+        conn = psycopg2.connect("host=%s user=%s dbname=%s password=%s" % (config['postgresql']['host'], config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
