@@ -27,6 +27,12 @@ The next part README will guide you through the installation on your server / cl
 
 ## Installation
 
+### Method 1: Use our provided Dockerfiles
+
+Please see the documentation under [Dockerfiles method](https://github.com/green-coding-berlin/green-metrics-tool/tree/main/Docker)
+
+### Method 2: Install directly on linux machine
+
 Installing the toolchain takes about 30 Minutes to 1 hour, depending on linux knowledge.
 
 Important: If you ever get stuck during this installation, be sure to reboot the machine once. It may help to correctly load / reload some configuration and / or daemons.
