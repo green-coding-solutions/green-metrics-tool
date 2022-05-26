@@ -10,7 +10,7 @@ From: {smtp_sender}
 To: {receiver_email}
 Subject: Your Green Metric report is ready
 
-Your report is now accessible under the URL: https://green-metric.codetactics.de/?id={report_id}
+Your report is now accessible under the URL: http://127.0.0.1:8080/?id={report_id}
 
 --
 Green Coding Berlin
