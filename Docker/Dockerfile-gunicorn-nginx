@@ -1,0 +1,63 @@
+# syntax=docker/dockerfile:1
+
+# create network: docker network create green-coding-net
+# Build with: docker build . --tag green-coding-nginx-gunicorn -f Dockerfile-gunicorn-nginx --build-arg postgres_pw=asd1234
+# Run with: docker run  -d -p 8000:80 -p 8080:8080 --net green-coding-net --name green-coding-nginx-gunicorn-container green-coding-nginx-gunicorn
+# Apply --no-cache if you experience problems
+
+
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+ARG postgres_pw
+
+
+RUN rm -rf /var/lib/apt/lists/*
+RUN apt update
+RUN apt install python3 python3-pip gunicorn nginx libpq-dev git -y
+RUN pip3 install psycopg2 flask pyyaml
+RUN rm -rf /var/lib/apt/lists/*
+
+
+WORKDIR "/var/www"
+
+RUN git clone https://github.com/green-coding-berlin/green-metrics-tool.git /var/www/green-metrics-tool
+
+RUN chown -R www-data:www-data /var/www
+
+
+RUN printf "postgresql:\n\
+  host: green-coding-postgres-container\n\
+  user: postgres\n\
+  dbname: green-coding\n\
+  password: ${postgres_pw}" > /var/www/green-metrics-tool/config.yml
+
+## Now the NGINX part
+
+RUN printf "server {\n\
+    listen 8080;\n\
+    server_name your_domain.com www.your_domain.com;\n\
+\n\
+    location / {\n\
+        include proxy_params;\n\
+        proxy_pass http://unix:/var/www/green-metrics-tool/api/green-coding-api.sock;\n\
+    }\n\
+}\n"\
+> /etc/nginx/sites-available/green-coding-api
+
+RUN ln -s /etc/nginx/sites-available/green-coding-api /etc/nginx/sites-enabled/
+
+RUN sed -i -e "s/\/var\/www\/html/\/var\/www\/green-metrics-tool\/website/" /etc/nginx/sites-available/default
+
+#RUN /etc/init.d/nginx restart
+
+EXPOSE 80 8080
+
+USER root
+
+WORKDIR /var/www/green-metrics-tool/api
+
+COPY ./docker-entrypoint.sh /docker-entrypoint.sh
+CMD ["bash", "/docker-entrypoint.sh"]
+
+# Important: Dockerfile may NOT contain an empty line at the end!
