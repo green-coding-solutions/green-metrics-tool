@@ -139,7 +139,7 @@ all must be owned by www-data (or the nginx user if different)
 now we replace the references in the code with the real server address you are running on
 `cd /var/www/green-metrics-tool`
 
-`sudo sed -i "s/http:\/\/127\.0\.0\.1:8080/http://YOUR_URL_OR_IP_ESCAPED_HERE/" cron/send_email.py`
+`sudo sed -i "s/http:\/\/127\.0\.0\.1:8080/http://YOUR_URL_OR_IP_ESCAPED_HERE/" tools/send_email.py`
 
 `sudo sed -i "s/http:\/\/127\.0\.0\.1:8080/http://YOUR_URL_OR_IP_ESCAPED_HERE/" website/index.html`
 
@@ -216,7 +216,7 @@ Note: You must enter a Github Repo URL with a repository that has the usage_scen
 
 After creating project run:
 
-`/var/www/cron/runner.sh cron`
+`/var/www/tools/runner.sh cron`
 
 ## Implement a cronjob (optional)
 Run this command as the user for which docker is configured:
@@ -224,18 +224,18 @@ Run this command as the user for which docker is configured:
 
 Then install following cron for `root` to run job every 15 min:
 
-`*/15     *       *       *       *       rm -Rf /tmp/repo; python3 /var/www/cron/runner.py cron`
+`*/15     *       *       *       *       rm -Rf /tmp/repo; python3 /var/www/tools/runner.py cron`
 
 If you have no MTA installed you can also pipe the output to a specific file like so:
 
-`*/15     *       *       *       *       rm -Rf /tmp/repo; python3 /var/www/cron/runner.py cron 2>&1 >> /var/log/cron-green-metric.log`
+`*/15     *       *       *       *       rm -Rf /tmp/repo; python3 /var/www/tools/runner.py cron 2>&1 >> /var/log/cron-green-metric.log`
 
 If you have docker configured to run in rootless mode be sure to issue the exports for the cron command beforehand.
 A cronjob in the `crontab -e` of the non-root may look similar to this one:
 
 `
 DOCKER_HOST=unix:///run/user/1000/docker.sock
-*/5     *       *       *       *       export PATH=/home/USERNAME/bin:$PATH; rm -Rf /tmp/repo; python3 /var/www/cron/runner.py cron 2>&1 >> /var/log/cron-green-metric.log`
+*/5     *       *       *       *       export PATH=/home/USERNAME/bin:$PATH; rm -Rf /tmp/repo; python3 /var/www/tools/runner.py cron 2>&1 >> /var/log/cron-green-metric.log`
 
 Also make sure that `/var/log/cron-green-metric.log` is writeable by the user:
 
@@ -251,4 +251,4 @@ This example creates a exclusive lock and timeouts to 4 minutes
 `
 DOCKER_HOST=unix:///run/user/1000/docker.sock
 */5     *       *       *       *       export PATH=/home/USERNAME/bin:$PATH
-; timeout 240s flock -nx /var/lock/greencoding-runner rm -Rf /tmp/repo && python3 /var/www/cron/runner.py cron 2>&1 >> /var/log/cron-green-metric.log`
+; timeout 240s flock -nx /var/lock/greencoding-runner rm -Rf /tmp/repo && python3 /var/www/tools/runner.py cron 2>&1 >> /var/log/cron-green-metric.log`

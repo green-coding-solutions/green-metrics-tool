@@ -8,7 +8,7 @@ Therefore some IP configurations are hardcoded to 127.0.0.1.
 
 If you do not want that please make these changes inside the container `green-coding-nginx-gunicorn-container` once built
 
-`sudo sed -i "s/http:\/\/127\.0\.0\.1:8080/http://YOUR_URL_OR_IP_ESCAPED_HERE/" cron/send_email.py`
+`sudo sed -i "s/http:\/\/127\.0\.0\.1:8080/http://YOUR_URL_OR_IP_ESCAPED_HERE/" tools/send_email.py`
 
 `sudo sed -i "s/http:\/\/127\.0\.0\.1:8080/http://YOUR_URL_OR_IP_ESCAPED_HERE/" website/index.html`
 
