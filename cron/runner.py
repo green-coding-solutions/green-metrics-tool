@@ -8,6 +8,8 @@ import os
 import signal
 from parse_stats import import_stats # local import
 import time
+import sys
+import traceback
 
 # TODO:
 # - Exception Logic is not really readable. Better encapsulate docker calls and fetch exception there
@@ -21,7 +23,14 @@ def end_error(*errors):
 
 def log_error(*errors):
     print("Error: ", *errors)
-    # log to file
+    exception_type, exception_object, exception_traceback = sys.exc_info()
+    filename = exception_traceback.tb_frame.f_code.co_filename
+    line_number = exception_traceback.tb_lineno
+    print("Exception type: ", exception_type)
+    print("File name: ", filename)
+    print("Line number: ", line_number)
+    traceback.print_exc()
+    # TODO: log to file
 
 
 import yaml # conditional import. therefore here
@@ -29,7 +38,10 @@ with open("{path}/../config.yml".format(path=os.path.dirname(os.path.realpath(__
     config = yaml.load(config_file,yaml.FullLoader)
 import psycopg2 # conditional import. therefore here
 import psycopg2.extras
-conn = psycopg2.connect("host=%s user=%s dbname=%s password=%s" % (config['postgresql']['host'], config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
+if config['postgresql']['host'] is None: # force domain socket connection
+        conn = psycopg2.connect("user=%s dbname=%s password=%s" % (config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
+else:
+        conn = psycopg2.connect("host=%s user=%s dbname=%s password=%s" % (config['postgresql']['host'], config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
 
 
 parser = argparse.ArgumentParser()
@@ -56,6 +68,7 @@ if args.mode == 'manual' :
                     (%s,%s,\'manual\',FALSE,NULL,NOW()) RETURNING id;', (name,url))
         conn.commit()
         project_id = cur.fetchone()[0]
+
         cur.close()
 
 elif args.mode == 'cron':
@@ -116,7 +129,7 @@ try:
 
             print("Creating container")
             ps = subprocess.run(
-                ['docker', 'run', '-i', '-d', '--name', container_name, '-d', '-p', el['portmapping'], '-v', '/tmp/repo:/tmp/repo', el['identifier']],
+                ['docker', 'run', '-i', '-d', '--name', container_name, '-p', el['portmapping'], '-v', '/tmp/repo:/tmp/repo', el['identifier']],
                 check=True,
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -146,7 +159,7 @@ try:
 
     kill_stats_process = True
     stats_process = subprocess.Popen(
-        ["docker stats --no-trunc --format '{{.Name}};{{.CPUPerc}};{{.MemUsage}};{{.NetIO}}' > /tmp/docker_stats.log &"],
+        ["docker stats --no-trunc --format '{{.Name}};{{.CPUPerc}};{{.MemUsage}};{{.NetIO}}' " + ' '.join(containers) + "  > /tmp/docker_stats.log &"],
         shell=True,
         preexec_fn=os.setsid
     )
@@ -178,11 +191,16 @@ try:
     print("Re-idling containers")
     time.sleep(5) # 5 seconds buffer at the end to idle container
 
-    print("Parsing stats")
-    import_stats(project_id, "/tmp/docker_stats.log", containers=containers)
+    if(kill_stats_process): os.killpg(os.getpgid(stats_process.pid), signal.SIGTERM) # always kill the stats process. May
 
-    from send_email import send_report_email
-    send_report_email(email, project_id)
+    print("Parsing stats")
+    import_stats(project_id, "/tmp/docker_stats.log")
+
+    if args.mode == 'manual':
+        print(f"Please access your report with the ID: {project_id}")
+    else:
+        from send_email import send_report_email
+        send_report_email(email, project_id)
 
 except FileNotFoundError as e:
     log_error("Docker command failed.", e)

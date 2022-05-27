@@ -392,14 +392,14 @@
                                       my_series['cpu'][el[0]]['data'].push({x: el[1], y:el[2]/100})
                                   }
                                   if(my_series['mem'][el[0]] == undefined) {
-                                      my_series['mem'][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/100}]}
+                                      my_series['mem'][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/1000000}]}
                                   } else {
-                                      my_series['mem'][el[0]]['data'].push({x: el[1], y:el[3]/100})
+                                      my_series['mem'][el[0]]['data'].push({x: el[1], y:el[3]/1000000})
                                   }
                                   if(my_series['net_in'][el[0]] == undefined) {
-                                      my_series['net_in'][el[0]] = {name: el[0], data: [{x: el[1], y:el[2]/100}]}
+                                      my_series['net_in'][el[0]] = {name: el[0], data: [{x: el[1], y:el[2]/1000000}]}
                                   } else {
-                                      my_series['net_in'][el[0]]['data'].push({x: el[1], y:el[5]/100})
+                                      my_series['net_in'][el[0]]['data'].push({x: el[1], y:el[5]/1000000})
                                   }
 
                                   /*

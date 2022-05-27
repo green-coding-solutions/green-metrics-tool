@@ -1,7 +1,6 @@
 
-def import_stats(project_id, filename, containers):
+def import_stats(project_id, filename):
     import pandas as pd
-
     from io import StringIO
 
     with open(filename, 'r') as f:
@@ -23,14 +22,16 @@ def import_stats(project_id, filename, containers):
     def convert_values(el):
         if el == None:
             return None
-        elif 'MiB' in el or 'MB' in el:
-            return float(el.replace('MiB' ,'').replace('MB' ,''))*100
         elif 'GiB' in el or 'GB' in el:
-            return float(el.replace('GiB' ,'').replace('GB' ,''))*100000
+            return float(el.replace('GiB' ,'').replace('GB' ,'')) * (10**9)
+        elif 'MiB' in el or 'MB' in el:
+            return float(el.replace('MiB' ,'').replace('MB' ,'')) * (10**6)
         elif 'KiB' in el or 'KB' in el or 'kB' in el:
-            return float(el.replace('KiB' ,'').replace('KB' ,'').replace('kB' ,''))/10
+            return float(el.replace('KiB' ,'').replace('KB' ,'').replace('kB' ,'')) * (10**3)
+        elif 'B' in el:
+            return float(el.replace('B' ,''))
         else:
-            raise Exception("Could not convert value: ", el)
+            raise Exception("convert_values: Could not convert value: ", el)
 
     for container_name in df['name'].unique():
         df.loc[df.name == container_name, 'seconds'] = range(0,df.loc[df.name == container_name].shape[0])
@@ -41,7 +42,10 @@ def import_stats(project_id, filename, containers):
         config = yaml.load(config_file,yaml.FullLoader)
 
     import psycopg2
-    conn = psycopg2.connect("host=%s user=%s dbname=%s password=%s" % (config['postgresql']['host'], config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
+    if config['postgresql']['host'] is None: # force domain socket connection
+            conn = psycopg2.connect("user=%s dbname=%s password=%s" % (config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
+    else:
+            conn = psycopg2.connect("host=%s user=%s dbname=%s password=%s" % (config['postgresql']['host'], config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
 
     cur = conn.cursor()
     import numpy as np
