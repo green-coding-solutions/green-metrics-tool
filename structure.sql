@@ -13,10 +13,10 @@ CREATE TABLE stats (
     project_id uuid REFERENCES projects(id),
     container_name text,
     cpu integer,
-    mem integer,
-    mem_max integer,
-    net_in integer,
-    net_out integer,
+    mem bigint,
+    mem_max bigint,
+    net_in bigint,
+    net_out bigint,
     time integer,
     created_at timestamp with time zone DEFAULT now()
 );
