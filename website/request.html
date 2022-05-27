@@ -354,7 +354,7 @@
       document.forms[0].onsubmit = async(e) => {
           e.preventDefault();
           const params = new URLSearchParams([...new FormData(e.target).entries()]);
-          fetch("https://green-metric.codetactics.de:8080/api/v1/project/add", {
+          fetch("http://127.0.0.1:8080/api/v1/project/add", {
               method:"POST",
               body:params
           })
