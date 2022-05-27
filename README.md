@@ -29,9 +29,13 @@ The next part README will guide you through the installation on your server / cl
 
 ## Method 1: Use our provided Dockerfiles
 
+Very fast installation method mainly for development purposes and getting to know the tool.
+
 Please see the documentation under [Dockerfiles method](https://github.com/green-coding-berlin/green-metrics-tool/tree/main/Docker)
 
 ## Method 2: Install directly on linux machine
+
+Production ready installation method, which may require some Linux experience.
 
 Please see the documentation under [Manual installation](https://github.com/green-coding-berlin/green-metrics-tool/blob/main/MANUAL_INSTALLATION.md)
 
@@ -49,7 +53,6 @@ you must make a copy of the `tools` directory of this repository as well as crea
 These must be run outside of the Docker containers, because otherwise you would run into a "Docker inside Docker" case, which has caveats.\
 So here please create a new directory, copy the `config.yml.example` and rename it to `config.yml` and populate it with the connection details
 of the database from the Docker container which you have seen in [Dockerfiles method](https://github.com/green-coding-berlin/green-metrics-tool/tree/main/Docker).\
-The email credentials are not needed
 
 Then copy `tools` directory also into that folder.
 
@@ -66,14 +69,14 @@ on your Host OS or in your Docker containers depending on the installation mode 
 ## Manual mode
 
 If have opted for the Manual Installation and want to use the manual mode of the `runner.py`
-just go  `/tools` folder.
+just go  `tools` folder.
 
 Now you can use the `runner.py` tool to trigger a run of the tool manually.
 \
 \
 An example call would be like so: `runner.py manual --folder /path/to/my_demo_software`
 
-The tool expects a **usage_scenario.json** inside of that folder. It will read it, orchestrate the containers
+The tool expects a `usage_scenario.json` inside of that folder. It will read it, orchestrate the containers
 and give you the ID which you can then plugin into the web interface to access the report.
 
 **Example: http://YOUR_URL_OR_IP_ESCAPED_HERE/?id=77960e45-372f-4295-a950-6af5ecfda205**

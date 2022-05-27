@@ -31,9 +31,7 @@ If you do not want that please make these changes inside the container `green-co
 ## Connecting to DB
 You can now connect to the db directly on port 5432, which is exposed to your host system.
 
-the db name is green-coding, user is postgres, and the password is what you have specified during the docker build command.
+The database name is `green-coding`, user is `postgres`, and the password is what you have specified during the docker build command.
 
 ## Limitations
-These docker files are not meant to be used in production. The reason for this is that the containers depend on each other and have to be started and stopped alltogether, and never all at once.
-
-Additionally, if you the green metrics tool inside of these containers, it will create a docker container within a docker container, which comes with its own caveats.
+These Dockerfiles are not meant to be used in production. The reason for this is that the containers depend on each other and have to be started and stopped alltogether, and never on their own.
