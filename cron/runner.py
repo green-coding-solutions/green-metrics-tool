@@ -24,30 +24,42 @@ def log_error(*errors):
     # log to file
 
 
+import yaml # conditional import. therefore here
+with open("{path}/../config.yml".format(path=os.path.dirname(os.path.realpath(__file__)))) as config_file:
+    config = yaml.load(config_file,yaml.FullLoader)
+import psycopg2 # conditional import. therefore here
+import psycopg2.extras
+conn = psycopg2.connect("host=%s user=%s dbname=%s password=%s" % (config['postgresql']['host'], config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
+
+
 parser = argparse.ArgumentParser()
-parser.add_argument("mode", help="Select the operation mode. Select `manual` to supply a repository url on the command line. Or select `cron` to process database queue. For database mode the config.yml file will be read", choices=['manual', 'cron'])
+parser.add_argument("mode", help="Select the operation mode. Select `manual` to supply a directory or url on the command line. Or select `cron` to process database queue. For database mode the config.yml file will be read", choices=['manual', 'cron'])
 parser.add_argument("--url", type=str, help="The url. Will only be read in manual mode")
-parser.add_argument("--usage-scenario", type=str, help="The usage scenario as local path")
+parser.add_argument("--folder", type=str, help="The folder that contains your usage scenario as local path")
 
 args = parser.parse_args() # script will exit if url is not present
 
 if args.mode == 'manual' :
-    if(args.usage_scenario is None or  args.url is None):
-        print('In manual mode please supply --usage-scenario as file path and url as URI\n')
+    if(args.folder is None and args.url is None):
+        print('In manual mode please supply --folder as folder path or --url as URI\n')
         parser.print_help()
         exit(2)
     else:
-        usage_scenario_file = args.usage_scenario
+        folder = args.folder
         url = args.url
+        name = "manual-job"
+        usage_scenario_file = folder +'/usage_scenario.json'
+
+        cur = conn.cursor()
+        cur.execute('INSERT INTO "projects" ("name","url","email","crawled","last_crawl","created_at") \
+                    VALUES \
+                    (%s,%s,\'manual\',FALSE,NULL,NOW()) RETURNING id;', (name,url))
+        conn.commit()
+        project_id = cur.fetchone()[0]
+        cur.close()
 
 elif args.mode == 'cron':
-    import yaml # conditional import. therefore here
-    with open("{path}/../config.yml".format(path=os.path.dirname(os.path.realpath(__file__)))) as config_file:
-        config = yaml.load(config_file,yaml.FullLoader)
 
-    import psycopg2 # conditional import. therefore here
-    import psycopg2.extras
-    conn = psycopg2.connect("user=%s dbname=%s password=%s" % (config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
     cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM projects WHERE crawled = False ORDER BY created_at ASC LIMIT 1")
     data = cur.fetchone()
@@ -66,6 +78,8 @@ elif args.mode == 'cron':
     conn.commit()
     cur.close()
 
+
+
 else:
     raise Exception('Unknown mode: ', args.mode)
 
@@ -74,7 +88,8 @@ containers = []
 kill_stats_process = False
 
 try:
-    subprocess.run(["git", "clone", url, "/tmp/repo"], check=True, capture_output=True, encoding='UTF-8') # always name target-dir repo according to spec
+    if url is not None :
+        subprocess.run(["git", "clone", url, "/tmp/repo"], check=True, capture_output=True, encoding='UTF-8') # always name target-dir repo according to spec
     # TODO error handling
 
     with open(usage_scenario_file) as fp:
@@ -164,7 +179,7 @@ try:
     time.sleep(5) # 5 seconds buffer at the end to idle container
 
     print("Parsing stats")
-    import_stats(project_id, "/tmp/docker_stats.log")
+    import_stats(project_id, "/tmp/docker_stats.log", containers=containers)
 
     from send_email import send_report_email
     send_report_email(email, project_id)

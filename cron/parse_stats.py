@@ -1,5 +1,5 @@
 
-def import_stats(project_id, filename):
+def import_stats(project_id, filename, containers):
     import pandas as pd
 
     from io import StringIO
@@ -41,7 +41,7 @@ def import_stats(project_id, filename):
         config = yaml.load(config_file,yaml.FullLoader)
 
     import psycopg2
-    conn = psycopg2.connect("user=%s dbname=%s password=%s" % (config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
+    conn = psycopg2.connect("host=%s user=%s dbname=%s password=%s" % (config['postgresql']['host'], config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
 
     cur = conn.cursor()
     import numpy as np
