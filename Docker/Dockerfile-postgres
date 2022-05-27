@@ -12,7 +12,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN rm -rf /var/lib/apt/lists/*
 RUN apt update
-RUN apt install net-tools postgresql-14 postgresql-contrib python3 python3-pip gunicorn nginx libpq-dev git -y
+RUN apt install net-tools postgresql-14 postgresql-contrib libpq-dev git -y
 RUN rm -rf /var/lib/apt/lists/*
 ARG postgres_pw
 

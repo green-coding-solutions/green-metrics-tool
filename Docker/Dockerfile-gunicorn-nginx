@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # create network: docker network create green-coding-net
-# Build with: docker build . --tag green-coding-nginx-gunicorn -f Dockerfile-gunicorn-nginx --build-arg postgres_pw=asd1234
+# Build with: docker build . --tag green-coding-nginx-gunicorn -f Dockerfile-gunicorn-nginx --build-arg postgres_pw=XXXXXX
 # Run with: docker run  -d -p 8000:80 -p 8080:8080 --net green-coding-net --name green-coding-nginx-gunicorn-container green-coding-nginx-gunicorn
 # Apply --no-cache if you experience problems
 

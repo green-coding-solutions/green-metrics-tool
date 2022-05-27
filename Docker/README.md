@@ -2,7 +2,7 @@
 
 The Dockerfiles will provide you with a running setup of the working system with just a few commands.
 
-It can be used in production, is however technically designed to run on your local machine for testing purposes.
+It can technically be used in production, however it is designed to run on your local machine for testing purposes.
 
 Therefore some IP configurations are hardcoded to 127.0.0.1.
 
@@ -27,3 +27,13 @@ If you do not want that please make these changes inside the container `green-co
 
 
 **Important:** Apply --no-cache option to the build commands if you experience problems. That might help.
+
+## Connecting to DB
+You can now connect to the db directly on port 5432, which is exposed to your host system.
+
+the db name is green-coding, user is postgres, and the password is what you have specified during the docker build command.
+
+## Limitations
+These docker files are not meant to be used in production. The reason for this is that the containers depend on each other and have to be started and stopped alltogether, and never all at once.
+
+Additionally, if you the green metrics tool inside of these containers, it will create a docker container within a docker container, which comes with its own caveats.
