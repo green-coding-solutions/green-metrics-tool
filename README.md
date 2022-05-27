@@ -55,7 +55,7 @@ remains in memory or on disk.
 
 `sudo apt install postgresql python3 python3-pip gunicorn nginx libpq-dev python-dev postgresql-contrib -y`
 
-`sudo pip3 install psycopg2 flask`\
+`sudo pip3 install psycopg2 flask pandas pyyaml`\
 The sudo in the last command is very important, as it will tell pip to install to /usr directory instead to the home directory. So we can find the package later with other users on the system. If you do not want that use a venv in Python.
 
 ### Docker

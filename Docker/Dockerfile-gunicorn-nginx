@@ -15,7 +15,7 @@ ARG postgres_pw
 RUN rm -rf /var/lib/apt/lists/*
 RUN apt update
 RUN apt install python3 python3-pip gunicorn nginx libpq-dev git -y
-RUN pip3 install psycopg2 flask pyyaml
+RUN pip3 install psycopg2 flask pandas pyyaml
 RUN rm -rf /var/lib/apt/lists/*
 
 
