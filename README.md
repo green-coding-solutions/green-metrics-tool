@@ -3,6 +3,9 @@
 This repository contains the command line tools to schedule and run the measurement report
 as well as a web interface to view the measured metrics in some nice charts.
 
+![Web Charts demo with docker stats provider instead of energy](images/demo-interface.png "Web Charts demo with docker stats provider instead of energy")
+> Web Charts demo with docker stats provider instead of energy
+
 # Measurement methodology
 
 The software can orchestrate Docker containers according to a given specificaion in a usage-flow.json file.
@@ -60,6 +63,12 @@ Then copy `tools` directory also into that folder.
 ## Cron mode
 
 If you have installed a cronjob you can insert a new job at http://YOUR_URL_OR_IP_ESCAPED_HERE/request.html
+
+<p align="center">
+  <img src="images/demo-submit-form.png" width="50%" title="Cron mode job insertion for green metrics tool">
+</p>
+>  Cron mode job insertion for green metrics tool
+
 
 It will be automatically picked up and you will get sent an email with the link to the results.
 
