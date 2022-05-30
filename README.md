@@ -92,5 +92,5 @@ and give you the ID which you can then plugin into the web interface to access t
 
 If you have questions regarding how to create a `usage_scenario.json` please see: https://github.com/green-coding-berlin/green-metric-demo-software
 
-To see a working live example with some metrics go to: https://green-metric.codetactics.de/?id=04ca9a03-a6a0-4fa5-ac84-2e0a2a5a1375
+To see a working live example with some metrics go to: https://metrics.green-coding.org/?id=04ca9a03-a6a0-4fa5-ac84-2e0a2a5a1375
 
