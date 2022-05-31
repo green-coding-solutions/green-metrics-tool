@@ -91,7 +91,7 @@ else:
 
 
 containers = []
-kill_stats_process = False
+pids_to_kill = []
 
 try:
     if url is not None :
@@ -157,12 +157,12 @@ try:
 
     # start the measurement
 
-    kill_stats_process = True
     stats_process = subprocess.Popen(
         ["docker stats --no-trunc --format '{{.Name}};{{.CPUPerc}};{{.MemUsage}};{{.NetIO}}' " + ' '.join(containers) + "  > /tmp/docker_stats.log &"],
         shell=True,
         preexec_fn=os.setsid
     )
+    pids_to_kill.append(stats_process.pid)
 
     notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
 
@@ -178,14 +178,30 @@ try:
 
             if inner_el['type'] == 'console':
                 print("Console command", inner_el['command'], "on container", el['container'])
-                ps = subprocess.run(
-                    ['docker', 'exec', '-t', el['container'], *(inner_el['command'].split(' ')) ],
-                    check=True,
+
+                docker_exec_command = ['docker', 'exec', '-t']
+
+
+                if ("detach" in inner_el) and inner_el["detach"] == True :
+                    print("Detaching")
+                    docker_exec_command.append('-d')
+
+                docker_exec_command.append(el['container'])
+                docker_exec_command.extend( inner_el['command'].split(' ') )
+
+                ps = subprocess.Popen(
+                    " ".join(docker_exec_command),
+                    shell=True,
                     stderr=subprocess.PIPE,
                     stdout=subprocess.PIPE,
-                    encoding="UTF-8"
+                    encoding="UTF-8",
+                    preexec_fn=os.setsid
                 )
-                print("Output of command ", inner_el['command'], "\n", ps.stdout.strip())
+
+                if ("detach" in inner_el) and inner_el["detach"] == True :
+                    pids_to_kill.append(ps.pid)
+
+                print("Output of command ", inner_el['command'], "\n", ps.stdout.read())
             else:
                 end_error('Unknown command type in flows: ', inner_el['type'])
 
@@ -194,7 +210,12 @@ try:
     print("Re-idling containers")
     time.sleep(5) # 5 seconds buffer at the end to idle container
 
-    if(kill_stats_process): os.killpg(os.getpgid(stats_process.pid), signal.SIGTERM) # always kill the stats process. May
+    for pid in pids_to_kill:
+        print("Killing: ", pid)
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
+        except ProcessLookupError:
+            pass # process may have already ended
 
     print("Parsing stats")
     import_stats(conn, project_id, "/tmp/docker_stats.log")
@@ -220,7 +241,14 @@ finally:
     for container_name in containers:
         subprocess.run(['docker', 'stop', container_name])  # often not running. so no check=true
         subprocess.run(['docker', 'rm', container_name])  # often not running. so no check=true
-    if(kill_stats_process): os.killpg(os.getpgid(stats_process.pid), signal.SIGTERM) # always kill the stats process. May fail though
+
+    for pid in pids_to_kill:
+        print("Killing: ", pid)
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
+        except ProcessLookupError:
+            pass # process may have already ended
+
     exit(2)
 
 
