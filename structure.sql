@@ -12,11 +12,21 @@ CREATE TABLE stats (
     id SERIAL PRIMARY KEY,
     project_id uuid REFERENCES projects(id),
     container_name text,
+    energy bigint,
     cpu integer,
     mem bigint,
     mem_max bigint,
     net_in bigint,
     net_out bigint,
-    time integer,
+    time bigint,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE notes (
+    id SERIAL PRIMARY KEY,
+    project_id uuid REFERENCES projects(id),
+    container_name text,
+    note text,
+    time bigint,
     created_at timestamp with time zone DEFAULT now()
 );

@@ -6,10 +6,12 @@ import subprocess
 import json
 import os
 import signal
-from parse_stats import import_stats # local import
 import time
 import sys
 import traceback
+from import_stats import import_stats # local file import
+from save_notes import save_notes # local file import
+from lib.setup_functions import get_db_connection, get_config
 
 # TODO:
 # - Exception Logic is not really readable. Better encapsulate docker calls and fetch exception there
@@ -32,17 +34,8 @@ def log_error(*errors):
     traceback.print_exc()
     # TODO: log to file
 
-
-import yaml # conditional import. therefore here
-with open("{path}/../config.yml".format(path=os.path.dirname(os.path.realpath(__file__)))) as config_file:
-    config = yaml.load(config_file,yaml.FullLoader)
-import psycopg2 # conditional import. therefore here
-import psycopg2.extras
-if config['postgresql']['host'] is None: # force domain socket connection
-        conn = psycopg2.connect("user=%s dbname=%s password=%s" % (config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
-else:
-        conn = psycopg2.connect("host=%s user=%s dbname=%s password=%s" % (config['postgresql']['host'], config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
-
+config = get_config()
+conn = get_db_connection(config)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("mode", help="Select the operation mode. Select `manual` to supply a directory or url on the command line. Or select `cron` to process database queue. For database mode the config.yml file will be read", choices=['manual', 'cron'])
@@ -128,8 +121,16 @@ try:
             subprocess.run(['docker', 'rm', container_name]) # often not running. so no check=true
 
             print("Creating container")
+            docker_run_string = ['docker', 'run', '-i', '-d', '--name', container_name, '-v', '/tmp/repo:/tmp/repo']
+
+            if 'portmapping' in el:
+                docker_run_string.append('-p')
+                docker_run_string.append(el['portmapping'])
+
+            docker_run_string.append(el['identifier'])
+
             ps = subprocess.run(
-                ['docker', 'run', '-i', '-d', '--name', container_name, '-p', el['portmapping'], '-v', '/tmp/repo:/tmp/repo', el['identifier']],
+                docker_run_string,
                 check=True,
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -154,8 +155,7 @@ try:
 
     # --- setup finished
 
-    # setup the measurement
-
+    # start the measurement
 
     kill_stats_process = True
     stats_process = subprocess.Popen(
@@ -163,6 +163,8 @@ try:
         shell=True,
         preexec_fn=os.setsid
     )
+
+    notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
 
     print("Pre-idling containers")
     time.sleep(5) # 5 seconds buffer at the start to idle container
@@ -184,9 +186,10 @@ try:
                     encoding="UTF-8"
                 )
                 print("Output of command ", inner_el['command'], "\n", ps.stdout.strip())
-
             else:
                 end_error('Unknown command type in flows: ', inner_el['type'])
+
+            if "note" in inner_el: notes.append({"note" : inner_el['note'], 'container_name' : el['container'], "timestamp": time.time_ns()})
 
     print("Re-idling containers")
     time.sleep(5) # 5 seconds buffer at the end to idle container
@@ -194,13 +197,14 @@ try:
     if(kill_stats_process): os.killpg(os.getpgid(stats_process.pid), signal.SIGTERM) # always kill the stats process. May
 
     print("Parsing stats")
-    import_stats(project_id, "/tmp/docker_stats.log")
+    import_stats(conn, project_id, "/tmp/docker_stats.log")
+    save_notes(conn, project_id, notes)
 
     if args.mode == 'manual':
         print(f"Please access your report with the ID: {project_id}")
     else:
-        from send_email import send_report_email
-        send_report_email(email, project_id)
+        from send_report_email import send_report_email # local file import
+        send_report_email(config, email, project_id)
 
 except FileNotFoundError as e:
     log_error("Docker command failed.", e)

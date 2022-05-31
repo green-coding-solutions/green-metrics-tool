@@ -139,8 +139,6 @@ all must be owned by www-data (or the nginx user if different)
 now we replace the references in the code with the real server address you are running on
 `cd /var/www/green-metrics-tool`
 
-`sudo sed -i "s/http:\/\/127\.0\.0\.1:8080/http://YOUR_URL_OR_IP_ESCAPED_HERE/" tools/send_email.py`
-
 `sudo sed -i "s/http:\/\/127\.0\.0\.1:8080/http://YOUR_URL_OR_IP_ESCAPED_HERE/" website/index.html`
 
 `sudo sed -i "s/http:\/\/127\.0\.0\.1:8080/http://YOUR_URL_OR_IP_ESCAPED_HERE/" website/request.html`

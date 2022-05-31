@@ -1,5 +1,5 @@
 
-def import_stats(project_id, filename):
+def import_stats(conn, project_id, filename):
     import pandas as pd
     from io import StringIO
 
@@ -36,17 +36,6 @@ def import_stats(project_id, filename):
     for container_name in df['name'].unique():
         df.loc[df.name == container_name, 'seconds'] = range(0,df.loc[df.name == container_name].shape[0])
 
-    import yaml
-    import os
-    with open("{path}/../config.yml".format(path=os.path.dirname(os.path.realpath(__file__)))) as config_file:
-        config = yaml.load(config_file,yaml.FullLoader)
-
-    import psycopg2
-    if config['postgresql']['host'] is None: # force domain socket connection
-            conn = psycopg2.connect("user=%s dbname=%s password=%s" % (config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
-    else:
-            conn = psycopg2.connect("host=%s user=%s dbname=%s password=%s" % (config['postgresql']['host'], config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
-
     cur = conn.cursor()
     import numpy as np
 
@@ -71,6 +60,7 @@ def import_stats(project_id, filename):
 
 if __name__ == "__main__":
     import argparse
+    from lib.setup_functions import get_db_connection
 
     parser = argparse.ArgumentParser()
     parser.add_argument("stats_file", help="Please specify filename where to find the docker stats file. Usually /tmp/docker_stats.log")
@@ -78,6 +68,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args() # script will exit if url is not present
 
-    import_stats(args.project_id, args.stats_file)
+    conn = get_db_connection()
+
+    import_stats(conn, args.project_id, args.stats_file)
 
 

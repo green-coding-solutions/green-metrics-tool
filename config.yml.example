@@ -10,3 +10,6 @@ smtp:
   port: SMTP_PORT
   password: SMTP_AUTH_PW
   user: SMTP_AUTH_USER
+project:
+  name: My test project
+  url: https://metrics.green-coding.org/
