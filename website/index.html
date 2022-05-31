@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Material Dash</title>
+  <title>Green Metrics Tool - Experimental 0.1</title>
   <!-- plugins:css -->
   <link rel="stylesheet" href="/assets/vendors/mdi/css/materialdesignicons.min.css">
   <link rel="stylesheet" href="/assets/vendors/css/vendor.bundle.base.css">
@@ -255,9 +255,9 @@
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card info-card info-card--success">
                   <div class="card-inner">
-                    <h5 class="card-title">Borrowed</h5>
-                    <h5 class="font-weight-light pb-2 mb-1 border-bottom">$62,0076.00</h5>
-                    <p class="tx-12 text-muted">48% target reached</p>
+                    <h5 class="card-title">AVG CPU Load</h5>
+                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="avg-cpu-load">%</h5>
+                    <p class="tx-12 text-muted">XX% target reached</p>
                     <div class="card-icon-wrapper">
                       <i class="material-icons">dvr</i>
                     </div>
@@ -267,21 +267,9 @@
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card info-card info-card--danger">
                   <div class="card-inner">
-                    <h5 class="card-title">Annual Profit</h5>
-                    <h5 class="font-weight-light pb-2 mb-1 border-bottom">$1,958,104.00</h5>
+                    <h5 class="card-title">MAX CPU Load</h5>
+                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="max-cpu-load"></h5>
                     <p class="tx-12 text-muted">55% target reached</p>
-                    <div class="card-icon-wrapper">
-                      <i class="material-icons">attach_money</i>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
-                <div class="mdc-card info-card info-card--primary">
-                  <div class="card-inner">
-                    <h5 class="card-title">Lead Conversion</h5>
-                    <h5 class="font-weight-light pb-2 mb-1 border-bottom">$234,769.00</h5>
-                    <p class="tx-12 text-muted">87% target reached</p>
                     <div class="card-icon-wrapper">
                       <i class="material-icons">trending_up</i>
                     </div>
@@ -289,17 +277,38 @@
                 </div>
               </div>
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
-                <div class="mdc-card info-card info-card--info">
+                <div class="mdc-card info-card info-card--danger">
                   <div class="card-inner">
-                    <h5 class="card-title">Average Income</h5>
-                    <h5 class="font-weight-light pb-2 mb-1 border-bottom">$1,200.00</h5>
-                    <p class="tx-12 text-muted">87% target reached</p>
+                    <h5 class="card-title">Currently unused</h5>
+                    <h5 class="font-weight-light pb-2 mb-1 border-bottom"></h5>
+                    <p class="tx-12 text-muted">55% target reached</p>
                     <div class="card-icon-wrapper">
-                      <i class="material-icons">credit_card</i>
+                      <i class="material-icons">trending_up</i>
                     </div>
                   </div>
                 </div>
               </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">Currently unused</h5>
+                    <h5 class="font-weight-light pb-2 mb-1 border-bottom"></h5>
+                    <p class="tx-12 text-muted">55% target reached</p>
+                    <div class="card-icon-wrapper">
+                      <i class="material-icons">trending_up</i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12-desktop mdc-layout-grid__cell--span-12-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">IMPORTANT</h5>
+                    <p class="tx-12">The Green Metrics Tool is currently experimental. Please use it for development purposes only.</p>
+                  </div>
+                </div>
+              </div>
+
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
 			     <div id="chart-cpu"></div>
@@ -310,6 +319,13 @@
                              <div id="chart-mem"></div>
                 </div>
               </div>
+
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card">
+                 <div id="chart-energy"></div>
+                </div>
+              </div>
+
 	      <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
                              <div id="chart-net-in"></div>
@@ -320,6 +336,7 @@
 
 
     <script>
+        var cpu_load = [];
         var options = {
             series: [],
             chart: {
@@ -347,6 +364,9 @@
         };
         var options_cpu = { ...options}
         options_cpu.title = {text: 'CPU Load in %'}
+
+        var options_energy = { ...options}
+        options_energy.title = {text: 'Energy in J'}
 
         var options_mem = { ...options}
         options_mem.title = {text: 'Memory Load in MB'}
@@ -379,6 +399,10 @@
                                   if(my_series['cpu'] == undefined) {
                                       my_series['cpu'] = {}
                                   }
+                                  if(my_series['energy'] == undefined) {
+                                      my_series['energy'] = {}
+                                  }
+
                                   if(my_series['mem'] == undefined) {
                                       my_series['mem'] = {}
                                   }
@@ -386,11 +410,19 @@
                                       my_series['net_in'] = {}
                                   }
 
+                                  cpu_load.push(el[2])
+
                                   if(my_series['cpu'][el[0]] == undefined) {
                                       my_series['cpu'][el[0]] = {name: el[0], data: [{x: el[1], y:el[2]/100}]}
                                   } else {
                                       my_series['cpu'][el[0]]['data'].push({x: el[1], y:el[2]/100})
                                   }
+                                  if(my_series['energy'][el[0]] == undefined) {
+                                      my_series['energy'][el[0]] = {name: el[0], data: [{x: el[1], y:el[7]}]}
+                                  } else {
+                                      my_series['energy'][el[0]]['data'].push({x: el[1], y:el[7]})
+                                  }
+
                                   if(my_series['mem'][el[0]] == undefined) {
                                       my_series['mem'][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/1000000}]}
                                   } else {
@@ -406,24 +438,33 @@
                                   el[0] // container_id
                                   el[1] // time
                                   el[2] // cpu in 10 ms
+                                  el[2] // cpu in 10 ms
                                   el[3] // mem_cur
                                   el[4] // mem_max
                                   el[5] // net_in
                                   el[6] // net_out
+                                  el[7] // energy
+
                                   '*/
                         })
 
                         options_cpu.series = Object.values(my_series.cpu)
+                        options_energy.series = Object.values(my_series.energy)
                         options_mem.series = Object.values(my_series.mem)
                         options_net_in.series = Object.values(my_series.net_in)
 
                         var chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
+                        var chart_energy = new ApexCharts(document.querySelector("#chart-energy"), options_energy);
                         var chart_mem = new ApexCharts(document.querySelector("#chart-mem"), options_mem);
                         var chart_net_in = new ApexCharts(document.querySelector("#chart-net-in"), options_net_in);
 
                         chart_cpu.render();
                         chart_mem.render();
+                        chart_energy.render();
                         chart_net_in.render();
+
+                        document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
+                        document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a,b) => a + b, 0) / cpu_load.length) / 100, 10).toPrecision(2) + " %"
 
                   })
               } catch(e) {
