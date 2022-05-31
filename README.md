@@ -1,3 +1,13 @@
+# Disclaimer
+
+This tool is currently in experimental status and only suitable for development purposes. 
+
+Please do not run in a production environment. Especially not without proper isolation of the containers.
+
+Currently no special setup is done to isolate the containers from the host OS and an escape may easily be possible.
+
+Ensure that you run this only in an isolated VM / dedicated server.
+
 # Introduction
 
 This repository contains the command line tools to schedule and run the measurement report
