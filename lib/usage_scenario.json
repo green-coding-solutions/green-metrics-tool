@@ -1,0 +1,25 @@
+{
+    "name": "Test-Scenario",
+    "author": "Arne Tarara",
+    "version": 1.0,
+    "architecture": "linux",
+    "setup": [
+        {
+            "name": "Arne_load_Container",
+            "type": "container",
+            "identifier": "ubuntu:22.04"
+        }
+    ],
+    "flow": [
+        {
+            "name": "Load 1000",
+            "container": "Arne_load_Container",
+            "commands": [
+                {"type": "console", "command": "sleep 10", "note": "Starting everything"},
+                {"type": "console", "command": "find /tmp", "note": "Running find"},
+                {"type": "console", "command": "sleep 2", "note": "Now doing sleep 2", "detach": true},
+                {"type": "console", "command": "echo 'asd'", "note": "Just time"}
+            ]
+        }
+    ]
+}
