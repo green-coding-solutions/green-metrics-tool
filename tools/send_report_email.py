@@ -30,7 +30,9 @@ if __name__ == "__main__":
     import argparse
     import yaml
     import os
-    from lib.setup_functions import get_config
+    import sys
+    sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
+    from setup_functions import get_config
 
 
     parser = argparse.ArgumentParser()

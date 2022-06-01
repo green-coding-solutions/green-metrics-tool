@@ -18,7 +18,10 @@ def save_notes(conn, project_id, notes):
 
 if __name__ == "__main__":
     import argparse
-    from lib.setup_functions import get_db_connection
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
+    from setup_functions import get_db_connection
     import time
 
     parser = argparse.ArgumentParser()

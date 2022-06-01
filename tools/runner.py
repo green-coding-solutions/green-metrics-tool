@@ -7,11 +7,13 @@ import json
 import os
 import signal
 import time
-import sys
 import traceback
+import sys
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 from import_stats import import_stats # local file import
 from save_notes import save_notes # local file import
-from lib.setup_functions import get_db_connection, get_config
+from setup_functions import get_db_connection, get_config
 
 # TODO:
 # - Exception Logic is not really readable. Better encapsulate docker calls and fetch exception there

@@ -60,7 +60,10 @@ def import_stats(conn, project_id, filename):
 
 if __name__ == "__main__":
     import argparse
-    from lib.setup_functions import get_db_connection
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
+    from setup_functions import get_db_connection
 
     parser = argparse.ArgumentParser()
     parser.add_argument("stats_file", help="Please specify filename where to find the docker stats file. Usually /tmp/docker_stats.log")

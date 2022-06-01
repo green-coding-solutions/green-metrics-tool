@@ -2,18 +2,14 @@
 
 import flask
 from flask import request, jsonify
-
-
 import yaml
 import os
-with open("{path}/../config.yml".format(path=os.path.dirname(os.path.realpath(__file__)))) as config_file:
-    config = yaml.load(config_file,yaml.FullLoader)
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 
-import psycopg2
-if config['postgresql']['host'] is None: # force domain socket connection
-        conn = psycopg2.connect("user=%s dbname=%s password=%s" % (config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
-else:
-        conn = psycopg2.connect("host=%s user=%s dbname=%s password=%s" % (config['postgresql']['host'], config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
+from setup_functions import get_db_connection
+
+conn = get_db_connection()
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
