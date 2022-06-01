@@ -27,12 +27,6 @@ def end_error(*errors):
 
 def log_error(*errors):
     print("Error: ", *errors)
-    exception_type, exception_object, exception_traceback = sys.exc_info()
-    filename = exception_traceback.tb_frame.f_code.co_filename
-    line_number = exception_traceback.tb_lineno
-    print("Exception type: ", exception_type)
-    print("File name: ", filename)
-    print("Line number: ", line_number)
     traceback.print_exc()
     # TODO: log to file
 
@@ -68,15 +62,17 @@ if args.mode == 'manual' :
 
 elif args.mode == 'cron':
 
-    cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM projects WHERE crawled = False ORDER BY created_at ASC LIMIT 1")
+    cur = conn.cursor()
+    cur.execute("SELECT id,url,email FROM projects WHERE crawled = False ORDER BY created_at ASC LIMIT 1")
     data = cur.fetchone()
+
     if(data is None or data == []):
         print("No job to process. Exiting")
         exit(1)
-    url = data['url']
-    email = data['email']
-    project_id = data['id']
+
+    project_id = data[0]
+    url = data[1]
+    email = data[2]
     usage_scenario_file = '/tmp/repo/usage_scenario.json'
     cur.close()
 
@@ -85,8 +81,6 @@ elif args.mode == 'cron':
     cur.execute("UPDATE projects SET crawled = True WHERE id = %s", (project_id,))
     conn.commit()
     cur.close()
-
-
 
 else:
     raise Exception('Unknown mode: ', args.mode)
@@ -111,7 +105,7 @@ try:
     output = ps.stdout.strip().lower()
 
     if obj.get('architecture') is not None and output != obj['architecture']:
-        end_error("Specified architecture does not match system architecture: system (%s) != specified (%s)", output, obj['architecture'])
+        raise Exception("Specified architecture does not match system architecture: system (%s) != specified (%s)", output, obj['architecture'])
 
     for el in obj['setup']:
         if el['type'] == 'container':
@@ -152,8 +146,10 @@ try:
                     encoding="UTF-8"
                 )
                 print("Stdout:", ps.stdout)
+        elif el['type'] == 'Dockerfile':
+            raise NotImplementedError("Green Metrics Tool can currently not consume Dockerfiles. This will be a premium feature, as it creates a lot of server usage and thus slows down Tests per Minute for our server.")
         else:
-            end_error("Unknwown type detected in setup: ", el.get('type', None))
+            raise Exception("Unknown type detected in setup: ", el.get('type', None))
 
     # --- setup finished
 
@@ -205,7 +201,7 @@ try:
 
                 print("Output of command ", inner_el['command'], "\n", ps.stdout.read())
             else:
-                end_error('Unknown command type in flows: ', inner_el['type'])
+                raise Exception('Unknown command type in flows: ', inner_el['type'])
 
             if "note" in inner_el: notes.append({"note" : inner_el['note'], 'container_name' : el['container'], "timestamp": time.time_ns()})
 
