@@ -359,6 +359,9 @@
             xaxis: {
               tickAmount: 20,
             },
+            annotations: {
+                xaxis: []
+            }
 
 
         };
@@ -384,6 +387,10 @@
             alert("Please supply id in URL")
 
         } else {
+            var chart_cpu = null;
+            var chart_energy = null;
+            var chart_mem = null;
+            var chart_net_in = null;
             try {
                 fetch('http://127.0.0.1:8080/api/v1/stats/single?id='+url_params.get('id'))
                   .then(response => response.json())
@@ -434,6 +441,35 @@
                                       my_series['net_in'][el[0]]['data'].push({x: el[1], y:el[5]/1000000})
                                   }
 
+                                  if(el[8] != null) {
+                                      options_cpu.annotations.xaxis.push({
+                                        x: el[1],
+                                        strokeDashArray: 0,
+                                        borderColor: "#775DD0",
+                                        label: {
+                                          borderColor: "#775DD0",
+                                          position: "bottom",
+                                              /*
+                                          mouseEnter: (e) => {
+                                              if(e.label.position == "top")
+                                                  e.label.position = "bottom";
+                                              else
+                                                  e.label.position = "top";
+                                              chart_cpu.destroy();
+                                              chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
+                                              chart_cpu.render();
+                                        },
+                                        */
+                                          style: {
+                                            color: "#fff",
+                                            background: "#775DD0"
+                                          },
+                                          text: el[8],
+                                          //orientation: "horizontal"
+                                        }
+                                      })
+                                  }
+
                                   /*
                                   el[0] // container_id
                                   el[1] // time
@@ -453,10 +489,10 @@
                         options_mem.series = Object.values(my_series.mem)
                         options_net_in.series = Object.values(my_series.net_in)
 
-                        var chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
-                        var chart_energy = new ApexCharts(document.querySelector("#chart-energy"), options_energy);
-                        var chart_mem = new ApexCharts(document.querySelector("#chart-mem"), options_mem);
-                        var chart_net_in = new ApexCharts(document.querySelector("#chart-net-in"), options_net_in);
+                        chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
+                        chart_energy = new ApexCharts(document.querySelector("#chart-energy"), options_energy);
+                        chart_mem = new ApexCharts(document.querySelector("#chart-mem"), options_mem);
+                        chart_net_in = new ApexCharts(document.querySelector("#chart-net-in"), options_net_in);
 
                         chart_cpu.render();
                         chart_mem.render();

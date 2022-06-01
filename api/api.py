@@ -36,9 +36,21 @@ def api_all():
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response
 
-
     cur.execute("""
-        SELECT container_name, time, cpu, mem, mem_max, net_in, net_out, energy FROM stats WHERE project_id = %s ORDER BY time ASC
+        SELECT
+            stats.container_name, stats.time, stats.cpu, stats.mem, stats.mem_max, stats.net_in, stats.net_out, stats.energy, notes.note
+        FROM
+            stats
+        LEFT JOIN
+            notes
+        ON
+            notes.project_id = stats.project_id
+            AND
+            notes.time = stats.time
+            AND
+            notes.container_name = stats.container_name
+        WHERE
+            stats.project_id = %s
         """,
         (project_id,)
     )
