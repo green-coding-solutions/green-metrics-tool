@@ -148,6 +148,8 @@ try:
                 print("Stdout:", ps.stdout)
         elif el['type'] == 'Dockerfile':
             raise NotImplementedError("Green Metrics Tool can currently not consume Dockerfiles. This will be a premium feature, as it creates a lot of server usage and thus slows down Tests per Minute for our server.")
+        elif el['type'] == 'Docker-Compose':
+            raise NotImplementedError("Green Metrics Tool will not support that, because we wont support all features from docker compose, like for instance volumes and binding arbitrary directories")
         else:
             raise Exception("Unknown type detected in setup: ", el.get('type', None))
 
