@@ -16,12 +16,12 @@ If you do not want that please make these changes inside the container `green-co
 ## Setup
 
 - create network: `docker network create green-coding-net`
-- Build with: `docker build . --tag green-coding-nginx-gunicorn -f Dockerfile-gunicorn-nginx --build-arg postgres_pw=XXXX`
-- - Please use a password here for XXXX
-- Run with: `docker run  -d -p 8000:80 -p 8080:8080 --net green-coding-net --name green-coding-nginx-gunicorn-container green-coding-nginx-gunicorn`
-- Build next container with: `docker build . --tag green-coding-postgres -f Dockerfile-postgres --build-arg postgres_pw=XXXX`
-- - Please use the same password here
-- Run with: `docker run -d -p 5432:5432 --net green-coding-net --name green-coding-postgres-container green-coding-postgres`
+- Build build both containers. Please use the same password indicated in the placeholder `XXXX` for both: 
+- - `docker build . --tag green-coding-nginx-gunicorn -f Dockerfile-gunicorn-nginx --build-arg postgres_pw=XXXX`
+- - `docker build . --tag green-coding-postgres -f Dockerfile-postgres --build-arg postgres_pw=XXXX`
+- Run the containers in the following order: 
+- - `docker run -d -p 5432:5432 --net green-coding-net --name green-coding-postgres-container green-coding-postgres`
+- - `docker run  -d -p 8000:80 -p 8080:8080 --net green-coding-net --name green-coding-nginx-gunicorn-container green-coding-nginx-gunicorn`
 
 
 **Important:** Apply --no-cache option to the build commands if you experience problems. That might help.
