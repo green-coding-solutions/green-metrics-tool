@@ -47,6 +47,8 @@ def api_all():
             notes.container_name = stats.container_name
         WHERE
             stats.project_id = %s
+        ORDER BY
+            stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
         """,
         (project_id,)
     )
