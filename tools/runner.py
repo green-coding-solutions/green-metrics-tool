@@ -35,30 +35,40 @@ conn = get_db_connection(config)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("mode", help="Select the operation mode. Select `manual` to supply a directory or url on the command line. Or select `cron` to process database queue. For database mode the config.yml file will be read", choices=['manual', 'cron'])
-parser.add_argument("--url", type=str, help="The url. Will only be read in manual mode")
-parser.add_argument("--folder", type=str, help="The folder that contains your usage scenario as local path")
+parser.add_argument("--url", type=str, help="The url to download the repository with the usage_scenario.json from. Will only be read in manual mode.")
+parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others. Will only be read in manual mode.")
+parser.add_argument("--folder", type=str, help="The folder that contains your usage scenario as local path. Will only be read in manual mode.")
 
 args = parser.parse_args() # script will exit if url is not present
+
+if(args.folder is not None and args.url is not None):
+        print('Please supply only either --folder or --url\n')
+        parser.print_help()
+        exit(2)
 
 if args.mode == 'manual' :
     if(args.folder is None and args.url is None):
         print('In manual mode please supply --folder as folder path or --url as URI\n')
         parser.print_help()
         exit(2)
-    else:
-        folder = args.folder
-        url = args.url
-        name = "manual-job"
-        usage_scenario_file = folder +'/usage_scenario.json'
 
-        cur = conn.cursor()
-        cur.execute('INSERT INTO "projects" ("name","url","email","crawled","last_crawl","created_at") \
-                    VALUES \
-                    (%s,%s,\'manual\',FALSE,NULL,NOW()) RETURNING id;', (name,url))
-        conn.commit()
-        project_id = cur.fetchone()[0]
+    if(args.name is None):
+        print('In manual mode please supply --name\n')
+        parser.print_help()
+        exit(2)
 
-        cur.close()
+    folder = args.folder
+    url = args.url
+    name = args.name
+
+    cur = conn.cursor()
+    cur.execute('INSERT INTO "projects" ("name","url","email","crawled","last_crawl","created_at") \
+                VALUES \
+                (%s,%s,\'manual\',TRUE,NOW(),NOW()) RETURNING id;', (name,url or folder))
+    conn.commit()
+    project_id = cur.fetchone()[0]
+
+    cur.close()
 
 elif args.mode == 'cron':
 
@@ -73,7 +83,6 @@ elif args.mode == 'cron':
     project_id = data[0]
     url = data[1]
     email = data[2]
-    usage_scenario_file = '/tmp/repo/usage_scenario.json'
     cur.close()
 
     # set to crawled = 1, so we don't error loop
@@ -92,9 +101,9 @@ pids_to_kill = []
 try:
     if url is not None :
         subprocess.run(["git", "clone", url, "/tmp/repo"], check=True, capture_output=True, encoding='UTF-8') # always name target-dir repo according to spec
-    # TODO error handling
+        folder = '/tmp/repo'
 
-    with open(usage_scenario_file) as fp:
+    with open(folder+'/usage_scenario.json') as fp:
         obj = json.load(fp)
 
     print("Having Usage Scenario ", obj['name'])
