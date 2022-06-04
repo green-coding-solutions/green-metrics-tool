@@ -96,6 +96,7 @@ else:
 
 
 containers = []
+networks = []
 pids_to_kill = []
 
 try:
@@ -132,6 +133,10 @@ try:
                 docker_run_string.append('-p')
                 docker_run_string.append(el['portmapping'])
 
+            if 'network' in el:
+                docker_run_string.append('--net')
+                docker_run_string.append(el['network'])
+
             docker_run_string.append(el['identifier'])
 
             ps = subprocess.run(
@@ -155,6 +160,11 @@ try:
                     encoding="UTF-8"
                 )
                 print("Stdout:", ps.stdout)
+        elif el['type'] == 'network':
+            print("Creating network: ", el['name'])
+            subprocess.run(['docker', 'network', 'rm', el['name']]) # remove first if present to not get error
+            subprocess.run(['docker', 'network', 'create', el['name']])
+            networks.append(el['name'])
         elif el['type'] == 'Dockerfile':
             raise NotImplementedError("Green Metrics Tool can currently not consume Dockerfiles. This will be a premium feature, as it creates a lot of server usage and thus slows down Tests per Minute for our server.")
         elif el['type'] == 'Docker-Compose':
@@ -191,7 +201,7 @@ try:
                 docker_exec_command = ['docker', 'exec', '-t']
 
 
-                if ("detach" in inner_el) and inner_el["detach"] == True :
+                if inner_el.get('detach', None) == True :
                     print("Detaching")
                     docker_exec_command.append('-d')
 
@@ -207,7 +217,7 @@ try:
                     preexec_fn=os.setsid
                 )
 
-                if ("detach" in inner_el) and inner_el["detach"] == True :
+                if inner_el.get('detach', None) == True :
                     pids_to_kill.append(ps.pid)
 
                 print("Output of command ", inner_el['command'], "\n", ps.stdout.read())
@@ -248,8 +258,11 @@ except BaseException as e:
     log_error("Base exception occured: ", e)
 finally:
     for container_name in containers:
-        subprocess.run(['docker', 'stop', container_name])  # often not running. so no check=true
-        subprocess.run(['docker', 'rm', container_name])  # often not running. so no check=true
+        subprocess.run(['docker', 'stop', container_name])
+        subprocess.run(['docker', 'rm', container_name])
+
+    for network_name in networks:
+        subprocess.run(['docker', 'network', 'rm', network_name])
 
     for pid in pids_to_kill:
         print("Killing: ", pid)
