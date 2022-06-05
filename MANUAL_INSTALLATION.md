@@ -106,7 +106,7 @@ this command in psql: `ALTER USER my_user WITH SUPERUSER;`
 
 leave the psql shell (ctrl+d) and logout of "postgres" bash
 
-now we import the structure
+now we import the structure. Please use the file from the `Docker` subfolder:
 
 `psql -U my_user < /var/www/green-metrics-tool/structure.sql`
 
@@ -128,7 +128,7 @@ maybe even remove other hosts as needed. Then reload
 
 `sudo systemctl reload postgresql`
 
-### Webservice
+### Webservice and API
 we are using `/var/www/green-metrics-tool/website` for static files and as document root
 and `/var/www/green-metrics-tool/api` for the API
 
@@ -139,15 +139,16 @@ all must be owned by www-data (or the nginx user if different)
 now we replace the references in the code with the real server address you are running on
 `cd /var/www/green-metrics-tool`
 
-`sudo sed -i "s/http:\/\/127\.0\.0\.1:8080/http://YOUR_URL_OR_IP_ESCAPED_HERE/" website/index.html`
+The server responds on requests to `http://metrics.green-coding.local:8000` for the interface \
+and on `http://api.green-coding.local:8000` for the API.
 
-`sudo sed -i "s/http:\/\/127\.0\.0\.1:8080/http://YOUR_URL_OR_IP_ESCAPED_HERE/" website/request.html`
+Please set an entry in your `/etc/hosts` file accordingly like so:
 
+`127.0.0.1 api.green-coding.local metrics.green-coding.local`
 
 ## Configuring the command line application
 Create the file `/var/www/green-metrics-tool/config.yml` with the correct Database and SMTP credentials. 
 A sample setup for the file can be found in `/var/www/green-metrics-tool/config.yml.example`
-
 
 #### Gunicorn
 test if gunicorn is working in general
@@ -178,11 +179,11 @@ WantedBy=multi-user.target
 
 `sudo nano /etc/nginx/sites-available/green-coding-api`
 
-Paste this, but change "your-domain.com" to either your domain or the server ip:
+Paste this:
 ```
 server {
-    listen 8080;
-    server_name your_domain.com www.your_domain.com;
+    listen 80;
+    server_name api.green-coding.org api.green-coding.local;
 
     location / {
         include proxy_params;
@@ -209,7 +210,7 @@ Then reload all:
 ## Testing the command line application
 First you have to create a project through the web interface, so the cron runner will pick it up from the database.
 
-Go to http://YOUR_CONFIGURED_URL/request.html
+Go to http://metrics.green-coding.local:8000/request.html
 Note: You must enter a Github Repo URL with a repository that has the usage_scenario.json in a valid format. Consult [Github Repository for the Demo software](https://github.com/green-coding-berlin/green-metric-demo-software) for more info
 
 After creating project run:

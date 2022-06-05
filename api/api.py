@@ -19,10 +19,37 @@ def home():
     return '''<h1>Welcome to the API help page</h1>
 <p>The API is not made to be called with a webrowser directly. Please use XHR access to it's REST interface</p>'''
 
+# A route to return all of the available entries in our catalog.
+@app.route('/v1/projects', methods=['GET'])
+def get_projects():
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT
+            *
+        FROM
+            projects
+        ORDER BY
+            created_at DESC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
+        """
+    )
+    data = cur.fetchall()
+
+    cur.close()
+
+    if(data is None or data == []):
+        response = flask.jsonify({'success': False, 'err': 'Data is empty'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+
+
+    response = flask.jsonify({"success": True, "data": data})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
+
 
 # A route to return all of the available entries in our catalog.
-@app.route('/api/v1/stats/single', methods=['GET'])
-def api_all():
+@app.route('/v1/stats/single', methods=['GET'])
+def get_stats_single():
     query_parameters = request.args
     cur = conn.cursor()
     project_id = query_parameters.get('id')
@@ -66,8 +93,8 @@ def api_all():
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
 
-@app.route('/api/v1/project/add', methods=['POST'])
-def project_add():
+@app.route('/v1/project/add', methods=['POST'])
+def post_project_add():
 
     url = request.form.get('url')
     name = request.form.get('name')

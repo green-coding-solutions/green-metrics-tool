@@ -56,7 +56,7 @@ Please see the documentation under [Manual installation](https://github.com/gree
 # Usage
 
 Once you have the tool either installed through the Dockerfiles or directly on your machine you can access the
-web interface through: http://YOUR_URL_OR_IP_ESCAPED_HERE
+web interface through: http://metrics.green-coding.local:8000
 
 ## Important note on usage
 
@@ -72,7 +72,7 @@ Then copy `tools` directory also into that folder.
 
 ## Cron mode
 
-If you have installed a cronjob you can insert a new job at http://YOUR_URL_OR_IP_ESCAPED_HERE/request.html
+If you have installed a cronjob you can insert a new job at http://metrics.green-coding.local:8000/request.html
 
 <p align="center">
   <img src="images/demo-submit-form.png" width="50%" title="Cron mode job insertion for green metrics tool">
@@ -93,12 +93,10 @@ just go  `tools` folder.
 Now you can use the `runner.py` tool to trigger a run of the tool manually.
 \
 \
-An example call would be like so: `runner.py manual --folder /path/to/my_demo_software`
+An example call would be like so: `runner.py manual --folder /path/to/my_demo_software --name My_Name`
 
 The tool expects a `usage_scenario.json` inside of that folder. It will read it, orchestrate the containers
-and give you the ID which you can then plugin into the web interface to access the report.
-
-**Example: http://YOUR_URL_OR_IP_ESCAPED_HERE/?id=77960e45-372f-4295-a950-6af5ecfda205**
+and give you the ID of the run.
 
 If you have questions regarding how to create a `usage_scenario.json` please see: https://github.com/green-coding-berlin/green-metric-demo-software
 

@@ -1,33 +1,25 @@
 # syntax=docker/dockerfile:1
-
-# create network: docker network create green-coding-net
-# Build with: docker build . --tag green-coding-postgres -f Dockerfile-postgres --build-arg postgres_pw=XXXXXXXX
-# Run with: docker run -d -p 5432:5432 --net green-coding-net --name green-coding-postgres-container green-coding-postgres
-
-# Apply --no-cache if you experience problems
-
 FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 
 RUN rm -rf /var/lib/apt/lists/*
-RUN apt update
-RUN apt install net-tools postgresql-14 postgresql-contrib libpq-dev git -y
+RUN apt update && \
+    apt install net-tools postgresql-14 postgresql-contrib libpq-dev git -y
 RUN rm -rf /var/lib/apt/lists/*
 ARG postgres_pw
 
-RUN git clone https://github.com/green-coding-berlin/green-metrics-tool.git /green-metrics-tool
-
+COPY ./structure.sql /tmp/structure.sql
 
 # rm -rf /var/lib/apt/lists/* after the install command in order to prevent the cached apt lists (which are fetched by apt update) from ending up in the container image
 USER postgres
 
 # /etc/init.d must be connected with && instead of multiple RUN commands. Otherwise database will shut down in between
 RUN /etc/init.d/postgresql start && \
-psql --command "ALTER USER postgres WITH PASSWORD '${postgres_pw}';" && \
-createdb --encoding=UTF-8 --owner="postgres" "green-coding" && \
-psql -d "green-coding" --command 'CREATE EXTENSION "uuid-ossp";' && \
-psql -U postgres -d "green-coding" < /green-metrics-tool/structure.sql
+    psql --command "ALTER USER postgres WITH PASSWORD '${postgres_pw}';" && \
+    createdb --encoding=UTF-8 --owner="postgres" "green-coding" && \
+    psql -d "green-coding" --command 'CREATE EXTENSION "uuid-ossp";' && \
+    psql -U postgres -d "green-coding" < /tmp/structure.sql
 
 
 RUN echo "listen_addresses = '*'" >> /etc/postgresql/14/main/postgresql.conf
@@ -40,4 +32,8 @@ RUN /etc/init.d/postgresql restart
 EXPOSE 5432
 
 CMD ["/usr/lib/postgresql/14/bin/postgres", "-D", "/var/lib/postgresql/14/main", "-c", "config_file=/etc/postgresql/14/main/postgresql.conf"]
-# Important: Dockerfile may NOT contain an empty line at the end!
+# create network: docker network create green-coding-net
+# Build with: docker build . --tag green-coding-postgres -f Dockerfile-postgres --build-arg postgres_pw=XXXXXXXX
+# Run with: docker run -d -p 5432:5432 --net green-coding-net --name green-coding-postgres-container green-coding-postgres
+
+# Apply --no-cache if you experience problems

@@ -38,11 +38,17 @@
             <div class="mdc-list-item mdc-drawer-item">
               <a class="mdc-drawer-link" href="index.html">
                 <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">home</i>
-                Dashboard
+                Home
               </a>
             </div>
             <div class="mdc-list-item mdc-drawer-item">
-              <a class="mdc-drawer-link" href="request.html">
+              <a class="mdc-drawer-link" href="stats.html">
+                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">show_chart</i>
+                Stats
+              </a>
+            </div>
+            <div class="mdc-list-item mdc-drawer-item">
+              <a class="mdc-drawer-link" href="/request.html">
                 <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">track_changes</i>
                 Certify new Software
               </a>
@@ -249,7 +255,7 @@
       </header>
       <!-- partial -->
       <div class="page-wrapper mdc-toolbar-fixed-adjust">
-          <form action="http://127.0.0.1:8080/api/v1/project/add" method="POST">
+          <form action="/" method="POST">
         <main class="content-wrapper">
 
           <div class="mdc-layout-grid">
@@ -363,7 +369,13 @@
       document.forms[0].onsubmit = async(e) => {
           e.preventDefault();
           const params = new URLSearchParams([...new FormData(e.target).entries()]);
-          fetch("http://127.0.0.1:8080/api/v1/project/add", {
+
+          if(document.location.host.indexOf('metrics.green-coding.local') === 0)
+            api_url = "http://api.green-coding.local:8000"
+          else
+            api_url = "https://api.green-coding.org"
+
+          fetch(api_url+"/v1/project/add", {
               method:"POST",
               body:params
           })

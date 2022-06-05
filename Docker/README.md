@@ -4,13 +4,11 @@ The Dockerfiles will provide you with a running setup of the working system with
 
 It can technically be used in production, however it is designed to run on your local machine for testing purposes.
 
-Therefore some IP configurations are hardcoded to 127.0.0.1.
+The system binds in your host OS to port 8000. So it will be accessible through `http://metrics.green-coding.local:8000`
 
-If you do not want that please make these changes inside the container `green-coding-nginx-gunicorn-container` once built
+Please set an entry in your `/etc/hosts` file accordingly like so:
 
-`sudo sed -i "s/http:\/\/127\.0\.0\.1:8080/http://YOUR_URL_OR_IP_ESCAPED_HERE/" website/index.html`
-
-`sudo sed -i "s/http:\/\/127\.0\.0\.1:8080/http://YOUR_URL_OR_IP_ESCAPED_HERE/" website/request.html`
+`127.0.0.1 api.green-coding.local metrics.green-coding.local`
 
 
 ## Setup
@@ -21,13 +19,14 @@ If you do not want that please make these changes inside the container `green-co
 - - `docker build . --tag green-coding-postgres -f Dockerfile-postgres --build-arg postgres_pw=XXXX`
 - Run the containers in the following order: 
 - - `docker run -d -p 5432:5432 --net green-coding-net --name green-coding-postgres-container green-coding-postgres`
-- - `docker run  -d -p 8000:80 -p 8080:8080 --net green-coding-net --name green-coding-nginx-gunicorn-container green-coding-nginx-gunicorn`
+- - `docker run  -d -p 8000:80 --net green-coding-net --name green-coding-nginx-gunicorn-container green-coding-nginx-gunicorn`
 
 
 **Important:** Apply --no-cache option to the build commands if you experience problems. That might help.
 
 ## Connecting to DB
-You can now connect to the db directly on port 5432, which is exposed to your host system.
+You can now connect to the db directly on port 5432, which is exposed to your host system.\
+The expose to the host system is not needed. If you do not want to access the db directly just remove the `-p 5432:5432` option.
 
 The database name is `green-coding`, user is `postgres`, and the password is what you have specified during the docker build command.
 
