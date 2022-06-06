@@ -66,7 +66,7 @@ if __name__ == "__main__":
     from setup_functions import get_db_connection
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("stats_file", help="Please specify filename where to find the docker stats file. Usually /tmp/docker_stats.log")
+    parser.add_argument("stats_file", help="Please specify filename where to find the docker stats file. Usually /tmp/green-metrics-tool/docker_stats.log")
     parser.add_argument("project_id", help="Please supply a project_id to attribute the stats to")
 
     args = parser.parse_args() # script will exit if url is not present

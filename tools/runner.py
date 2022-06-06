@@ -102,11 +102,11 @@ pids_to_kill = []
 try:
     # always remove the folder, cause -v directory binding always creates it
     # no check cause might fail when directory might be missing due to manual delete
-    ps = subprocess.run(["rm", "-R", "/tmp/repo"])
+    ps = subprocess.run(["rm", "-R", "/tmp/green-metrics-tool/repo"])
 
     if url is not None :
-        subprocess.run(["git", "clone", url, "/tmp/repo"], check=True, capture_output=True, encoding='UTF-8') # always name target-dir repo according to spec
-        folder = '/tmp/repo'
+        subprocess.run(["git", "clone", url, "/tmp/green-metrics-tool/repo"], check=True, capture_output=True, encoding='UTF-8') # always name target-dir repo according to spec
+        folder = '/tmp/green-metrics-tool/repo'
 
     with open(folder+'/usage_scenario.json') as fp:
         obj = json.load(fp)
@@ -135,7 +135,7 @@ try:
             # This helps to keep an excecutable-only container open, which would otherwise exit
             # This MAY break in the future, as some docker CLI implementation do not allow this and require
             # the command args to be passed on run only
-            docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name, '-v', '/tmp/repo:/tmp/repo']
+            docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name, '-v', '/tmp/green-metrics-tool/repo:/tmp/repo']
 
             if 'portmapping' in el:
                 docker_run_string.append('-p')
@@ -185,9 +185,9 @@ try:
     # start the measurement
 
     print("Starting measurement provider docker stats")
-    ps = subprocess.run(["rm", "-R", "/tmp/docker_stats.log"]) # no check cause file might be missing
+    ps = subprocess.run(["rm", "-R", "/tmp/green-metrics-tool/docker_stats.log"]) # no check cause file might be missing
     stats_process = subprocess.Popen(
-        ["docker stats --no-trunc --format '{{.Name}};{{.CPUPerc}};{{.MemUsage}};{{.NetIO}}' " + ' '.join(containers) + "  > /tmp/docker_stats.log &"],
+        ["docker stats --no-trunc --format '{{.Name}};{{.CPUPerc}};{{.MemUsage}};{{.NetIO}}' " + ' '.join(containers) + "  > /tmp/green-metrics-tool/docker_stats.log &"],
         shell=True,
         preexec_fn=os.setsid,
         encoding="UTF-8"
@@ -253,7 +253,7 @@ try:
             pass # process may have already ended
 
     print("Parsing stats")
-    import_stats(conn, project_id, "/tmp/docker_stats.log")
+    import_stats(conn, project_id, "/tmp/green-metrics-tool/docker_stats.log")
     save_notes(conn, project_id, notes)
 
     if args.mode == 'manual':
@@ -280,8 +280,8 @@ finally:
     for network_name in networks:
         subprocess.run(['docker', 'network', 'rm', network_name])
 
-    ps = subprocess.run(["rm", "-R", "/tmp/repo"])
-    ps = subprocess.run(["rm", "-R", "/tmp/docker_stats.log"])
+    ps = subprocess.run(["rm", "-R", "/tmp/green-metrics-tool/repo"])
+    ps = subprocess.run(["rm", "-R", "/tmp/green-metrics-tool/docker_stats.log"])
 
     for pid in pids_to_kill:
         print("Killing: ", pid)
