@@ -47,6 +47,56 @@ def get_projects():
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
 
+# A route to return all of the available entries in our catalog.
+@app.route('/v1/stats/url', methods=['GET'])
+def get_stats_by_url():
+    query_parameters = request.args
+    cur = conn.cursor()
+    url = query_parameters.get('url')
+
+    if(url is None or url.strip() == ''):
+        response = flask.jsonify({'success': False, 'err': 'URL is empty'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+
+    cur.execute("""
+        SELECT
+            projects.id as project_id, stats.container_name, stats.time, stats.cpu, stats.mem, stats.mem_max, stats.net_in, stats.net_out, stats.energy, notes.note
+        FROM
+            stats
+        LEFT JOIN
+            projects
+        ON
+            projects.id = stats.project_id
+        LEFT JOIN
+            notes
+        ON
+            notes.project_id = stats.project_id
+            AND
+            notes.time = stats.time
+            AND
+            notes.container_name = stats.container_name
+        WHERE
+            projects.url = %s
+        ORDER BY
+            stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
+        """,
+        (url,)
+    )
+    data = cur.fetchall()
+
+    cur.close()
+
+    if(data is None or data == []):
+        response = flask.jsonify({'success': False, 'err': 'Data is empty'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+
+
+    response = flask.jsonify({"success": True, "data": data})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
+
 
 # A route to return all of the available entries in our catalog.
 @app.route('/v1/stats/single', methods=['GET'])
