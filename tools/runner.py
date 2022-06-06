@@ -100,6 +100,10 @@ networks = []
 pids_to_kill = []
 
 try:
+    # always remove the folder, cause -v directory binding always creates it
+    # no check cause might fail when directory might be missing due to manual delete
+    ps = subprocess.run(["rm", "-R", "/tmp/repo"])
+
     if url is not None :
         subprocess.run(["git", "clone", url, "/tmp/repo"], check=True, capture_output=True, encoding='UTF-8') # always name target-dir repo according to spec
         folder = '/tmp/repo'
@@ -180,17 +184,14 @@ try:
 
     # start the measurement
 
+    print("Starting measurement provider docker stats")
+    ps = subprocess.run(["rm", "-R", "/tmp/docker_stats.log"]) # no check cause file might be missing
     stats_process = subprocess.Popen(
         ["docker stats --no-trunc --format '{{.Name}};{{.CPUPerc}};{{.MemUsage}};{{.NetIO}}' " + ' '.join(containers) + "  > /tmp/docker_stats.log &"],
         shell=True,
         preexec_fn=os.setsid,
-        stderr=subprocess.PIPE,
         encoding="UTF-8"
     )
-
-    docker_stats_stderr = stats_process.stderr.read()
-    if docker_stats_stderr != '':
-        raise Exception('Docker stats returned an error: ', docker_stats_stderr)
 
     pids_to_kill.append(stats_process.pid)
 
@@ -209,7 +210,7 @@ try:
             if inner_el['type'] == 'console':
                 print("Console command", inner_el['command'], "on container", el['container'])
 
-                docker_exec_command = ['docker', 'exec', '-t']
+                docker_exec_command = ['docker', 'exec']
 
 
                 if inner_el.get('detach', None) == True :
@@ -278,6 +279,9 @@ finally:
 
     for network_name in networks:
         subprocess.run(['docker', 'network', 'rm', network_name])
+
+    ps = subprocess.run(["rm", "-R", "/tmp/repo"])
+    ps = subprocess.run(["rm", "-R", "/tmp/docker_stats.log"])
 
     for pid in pids_to_kill:
         print("Killing: ", pid)
