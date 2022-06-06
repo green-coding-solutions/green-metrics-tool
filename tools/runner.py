@@ -127,7 +127,11 @@ try:
             subprocess.run(['docker', 'rm', container_name]) # often not running. so no check=true
 
             print("Creating container")
-            docker_run_string = ['docker', 'run', '-i', '-d', '--name', container_name, '-v', '/tmp/repo:/tmp/repo']
+            # We are attaching the -it option here to keep STDIN open and a terminal attached.
+            # This helps to keep an excecutable-only container open, which would otherwise exit
+            # This MAY break in the future, as some docker CLI implementation do not allow this and require
+            # the command args to be passed on run only
+            docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name, '-v', '/tmp/repo:/tmp/repo']
 
             if 'portmapping' in el:
                 docker_run_string.append('-p')
@@ -151,7 +155,7 @@ try:
             if "setup-commands" not in el.keys(): continue # setup commands are optional
             print("Running commands")
             for cmd in el['setup-commands']:
-                print("Running command: docker exec -t", cmd)
+                print("Running command: docker exec ", cmd)
                 ps = subprocess.run(
                     ['docker', 'exec', container_name, *cmd.split()],
                     check=True,
@@ -179,8 +183,15 @@ try:
     stats_process = subprocess.Popen(
         ["docker stats --no-trunc --format '{{.Name}};{{.CPUPerc}};{{.MemUsage}};{{.NetIO}}' " + ' '.join(containers) + "  > /tmp/docker_stats.log &"],
         shell=True,
-        preexec_fn=os.setsid
+        preexec_fn=os.setsid,
+        stderr=subprocess.PIPE,
+        encoding="UTF-8"
     )
+
+    docker_stats_stderr = stats_process.stderr.read()
+    if docker_stats_stderr != '':
+        raise Exception('Docker stats returned an error: ', docker_stats_stderr)
+
     pids_to_kill.append(stats_process.pid)
 
     notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
@@ -216,6 +227,10 @@ try:
                     encoding="UTF-8",
                     preexec_fn=os.setsid
                 )
+
+                docker_exec_stderr = ps.stderr.read()
+                if docker_exec_stderr != '':
+                    raise Exception('Docker exec returned an error: ', docker_exec_stderr)
 
                 if inner_el.get('detach', None) == True :
                     pids_to_kill.append(ps.pid)
