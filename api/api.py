@@ -5,6 +5,7 @@ from flask import request, jsonify
 import yaml
 import os
 import sys
+import psycopg2.extras
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 
 from setup_functions import get_db_connection
@@ -12,7 +13,7 @@ from setup_functions import get_db_connection
 conn = get_db_connection()
 
 app = flask.Flask(__name__)
-app.config["DEBUG"] = True
+app.config["DEBUG"] = False
 
 @app.route('/', methods=['GET'])
 def home():
@@ -80,7 +81,6 @@ def get_stats_single():
         (project_id,)
     )
     data = cur.fetchall()
-
     cur.close()
 
     if(data is None or data == []):
@@ -89,7 +89,7 @@ def get_stats_single():
         return response
 
 
-    response = flask.jsonify({"success": True, "data": data})
+    response = flask.jsonify({"success": True, "data": data, "project": get_project(project_id)})
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
 
@@ -124,7 +124,23 @@ def post_project_add():
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
 
+def get_project(project_id):
+    cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
 
+    cur.execute("""
+        SELECT
+            *
+        FROM
+            projects
+        WHERE
+            id = %s
+        """,
+        (project_id,)
+    )
+    project = cur.fetchone()
+    cur.close()
+
+    return project
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0')

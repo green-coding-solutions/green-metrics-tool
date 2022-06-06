@@ -258,6 +258,20 @@
         <main class="content-wrapper">
           <div class="mdc-layout-grid">
             <div class="mdc-layout-grid__inner">
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-6-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">Project Data</h5>
+                      <table class="table-hover">
+                        <tbody>
+                            <tr><td>Project Name</td><td id="project-name"></td></tr>
+                            <tr><td>Project URL / Folder</td><td id="project-url"></td></tr>
+                            <tr><td>Last Crawl</td><td id="project-last-crawl"></td></tr>
+                        </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card info-card info-card--success">
                   <div class="card-inner">
@@ -275,30 +289,6 @@
                   <div class="card-inner">
                     <h5 class="card-title">MAX CPU Load</h5>
                     <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="max-cpu-load"></h5>
-                    <p class="tx-12 text-muted">55% target reached</p>
-                    <div class="card-icon-wrapper">
-                      <i class="material-icons">trending_up</i>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
-                <div class="mdc-card info-card info-card--danger">
-                  <div class="card-inner">
-                    <h5 class="card-title">Currently unused</h5>
-                    <h5 class="font-weight-light pb-2 mb-1 border-bottom"></h5>
-                    <p class="tx-12 text-muted">55% target reached</p>
-                    <div class="card-icon-wrapper">
-                      <i class="material-icons">trending_up</i>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
-                <div class="mdc-card info-card info-card--danger">
-                  <div class="card-inner">
-                    <h5 class="card-title">Currently unused</h5>
-                    <h5 class="font-weight-light pb-2 mb-1 border-bottom"></h5>
                     <p class="tx-12 text-muted">55% target reached</p>
                     <div class="card-icon-wrapper">
                       <i class="material-icons">trending_up</i>
@@ -411,8 +401,11 @@
                           return;
                       }
 
+                      document.querySelector("#project-last-crawl").innerText = my_json.project.last_crawl;
+                      document.querySelector("#project-name").innerText = my_json.project.name;
+                      document.querySelector("#project-url").innerText = my_json.project.url;
 
-                        my_json.data.forEach(el => {
+                      my_json.data.forEach(el => {
                                   el[0] = 'Container '+el[0]
                                   if(my_series['cpu'] == undefined) {
                                       my_series['cpu'] = {}
