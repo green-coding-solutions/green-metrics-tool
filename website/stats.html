@@ -511,7 +511,7 @@
                         chart_net_in.render();
 
                         document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
-                        document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a,b) => a + b, 0) / cpu_load.length) / 100, 10).toPrecision(2) + " %"
+                        document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a,b) => a + b, 0) / cpu_load.length) / 100).toPrecision(4) + " %"
 
                   })
               } catch(e) {
