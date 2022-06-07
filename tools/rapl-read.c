@@ -263,7 +263,7 @@ static int detect_packages(void) {
 	return 0;
 }
 
-static double sleep_time=1;
+unsigned int msleep_time=1000;
 
 /*******************************/
 /* MSR code                    */
@@ -312,7 +312,7 @@ static int rapl_msr(int core, int cpu_model) {
 		close(fd);
 	}
 
-	sleep(sleep_time);
+	usleep(msleep_time*1000);
 
 	for(j=0;j<total_packages;j++) {
 		fd=open_msr(package_map[j]);
@@ -323,7 +323,7 @@ static int rapl_msr(int core, int cpu_model) {
 		float energy_output = package_after[j]-package_before[j];
 		if (energy_output != 0.0) {
 			gettimeofday(&now, NULL);
-			printf("%ld%ld %.9f\n", now.tv_sec, now.tv_usec, energy_output);
+			printf("%ld%06ld %.9f\n", now.tv_sec, now.tv_usec, energy_output);
 		}
 
 		close(fd);
@@ -343,7 +343,7 @@ char rapl_domain_names[NUM_RAPL_DOMAINS][30]= {
 	"energy-psys",
 };
 
-
+//TODO: Analyze output - some timestamps are smaller. investigate why.
 int main(int argc, char **argv) {
 
 	int c;
@@ -362,14 +362,14 @@ int main(int argc, char **argv) {
 			printf("Usage: %s [-c core] [-h] [-m]\n\n",argv[0]);
 			printf("\t-c core : specifies which core to measure\n");
 			printf("\t-h      : displays this help\n");
-			printf("\t-t      : specifies how many seconds to run for. Will run indefinitely if left empty\n");
-			printf("\t-i      : specifies the interval that will be slept between measurements");
+			printf("\t-t      : specifies how many runs to measure. Will run indefinitely if left empty\n");
+			printf("\t-i      : specifies the interval (in microseconds) that will be slept between measurements");
 			exit(0);
 		case 't':
 			time = atoi(optarg);
 			break;
 		case 'i':
-			sleep_time = atoi(optarg);
+			msleep_time = atoi(optarg);
 			break;
 		default:
 			fprintf(stderr,"Unknown option %c\n",c);
@@ -393,14 +393,9 @@ int main(int argc, char **argv) {
 
 	}
 
-	result=rapl_msr(core,cpu_model);
-
 	if (result<0) {
 
-		printf("Unable to read RAPL counters.\n");
-		printf("* Verify you have an Intel Sandybridge or newer processor\n");
-		printf("* You may need to run as root or have /proc/sys/kernel/perf_event_paranoid set properly\n");
-		printf("* Make sure msr module is installed\n");
+		printf("Something has gone wrong.\n");
 		printf("\n");
 
 		return -1;
