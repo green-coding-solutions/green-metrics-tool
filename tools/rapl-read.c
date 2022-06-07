@@ -390,17 +390,13 @@ int main(int argc, char **argv) {
 		for(i=0;i<time;i++) {
 			result=rapl_msr(core,cpu_model);
 		}
-
 	}
 
 	if (result<0) {
-
 		printf("Something has gone wrong.\n");
 		printf("\n");
 
 		return -1;
-
 	}
-
 	return 0;
 }

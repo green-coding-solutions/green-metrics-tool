@@ -19,7 +19,7 @@ static double read_cpu(FILE *fd) {
 		return cpu_usage;
 	}
 	else {
-		printf("Error - CPU usage could not be read");
+		fprintf(stderr, "Error - CPU usage could not be read");
 		exit(1);
 	}
 }
@@ -30,7 +30,7 @@ double get_cpu_stat(char* filename) {
 
 	fd = fopen(filename, "r+");	// read+ is important! if readonly, cpu stats won't get updated by os :-(
 	if ( fd == NULL) {
-			printf("Error - file failed to open: errno: %d\n", errno);
+			fprintf(stderr, "Error - file failed to open: errno: %d\n", errno);
 			exit(1);
 	}
 	result = read_cpu(fd);
@@ -50,19 +50,18 @@ int output_stats(struct container *containers, int length) {
 	FILE* cpu_stat_files[length];
 	FILE *main_cpu_file;
 
-	double main_cpu_reading_before;
-	double main_cpu_reading_after;
-	double main_cpu_reading;
-
+	double main_cpu_reading_before, main_cpu_reading_after, main_cpu_reading;
 	double cpu_readings_before[length];
 	double cpu_readings_after[length];
 	double container_reading;
 
 	struct timeval now;
-	
 	char filename[BUFSIZ];
 	int i;
 
+
+	// Get Energy Readings, set timestamp mark
+	gettimeofday(&now, NULL);
 	main_cpu_reading_before = get_cpu_stat("/sys/fs/cgroup/cpu.stat");
 	for(i=0; i<length; i++) {
 		cpu_readings_before[i]=get_cpu_stat(containers[i].path);
@@ -70,11 +69,14 @@ int output_stats(struct container *containers, int length) {
 
 	usleep(interval*1000);
 
-	gettimeofday(&now, NULL);
 	main_cpu_reading_after = get_cpu_stat("/sys/fs/cgroup/cpu.stat");
 	for(i=0; i<length; i++) {
 		cpu_readings_after[i]=get_cpu_stat(containers[i].path);
+	}
 
+	// Display Energy Readings
+	// This is in a seperate loop, so that all energy readings are done beforehand as close together as possible	
+	for(i=0; i<length; i++) {
 		container_reading = cpu_readings_after[i] - cpu_readings_before[i];
 		main_cpu_reading = main_cpu_reading_after - main_cpu_reading_before;
 
@@ -87,14 +89,15 @@ int output_stats(struct container *containers, int length) {
 				reading = container_reading / main_cpu_reading;
 			}
 			else {
-				printf("Error - container CPU usage negative: %f", container_reading);
+				fprintf(stderr, "Error - container CPU usage negative: %f", container_reading);
 				return -1;
 			}
 		}
 		else {
-			printf("Error - main CPU reading returning strange data: %f\n", main_cpu_reading);
+			fprintf(stderr, "Error - main CPU reading returning strange data: %f\n", main_cpu_reading);
 			return -1;
 		}
+
 		printf("%ld%06ld %f %s\n", now.tv_sec, now.tv_usec, reading, containers[i].id);
 	}
 	return 1;
@@ -120,7 +123,7 @@ int main(int argc, char **argv) {
 	    }
 	}
 	else {
-		printf("Please provide at least two arguements - one interval (in milliseconds), and at least one container id.\n");
+		fprintf(stderr, "Please provide at least two arguements - one interval (in milliseconds), and at least one container id.\n");
 		return -1;
 	}
 
@@ -132,7 +135,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (result<0) {
-		printf("Something has gone wrong.\n");
+		fprintf(stderr, "Something has gone wrong.\n");
 		return -1;
 	}
 
