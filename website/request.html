@@ -290,11 +290,11 @@
                   <div class="template-demo">
                       <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
                         <div class="mdc-text-field mdc-text-field--outlined">
-                          <input class="mdc-text-field__input" id="text-field-hero-input" name="name">
+                          <input class="mdc-text-field__input" id="text-field-hero-input1" name="name">
                           <div class="mdc-notched-outline">
                             <div class="mdc-notched-outline__leading"></div>
                             <div class="mdc-notched-outline__notch">
-                              <label for="text-field-hero-input" class="mdc-floating-label">Name (optional)</label>
+                              <label for="text-field-hero-input1" class="mdc-floating-label">Name (optional)</label>
                             </div>
                             <div class="mdc-notched-outline__trailing"></div>
                           </div>
@@ -302,11 +302,11 @@
                       </div>
                       <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
                         <div class="mdc-text-field mdc-text-field--outlined">
-                          <input class="mdc-text-field__input" id="text-field-hero-input" name="email">
+                          <input class="mdc-text-field__input" id="text-field-hero-input2" name="email">
                           <div class="mdc-notched-outline">
                             <div class="mdc-notched-outline__leading"></div>
                             <div class="mdc-notched-outline__notch">
-                              <label for="text-field-hero-input" class="mdc-floating-label">E-Mail</label>
+                              <label for="text-field-hero-input2" class="mdc-floating-label">E-Mail</label>
                             </div>
                             <div class="mdc-notched-outline__trailing"></div>
                           </div>
@@ -315,11 +315,11 @@
                       <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
                         <div class="mdc-text-field mdc-text-field--outlined mdc-text-field--with-leading-icon">
                           <i class="material-icons mdc-text-field__icon">favorite</i>
-                          <input class="mdc-text-field__input" id="text-field-hero-input" name="url">
+                          <input class="mdc-text-field__input" id="text-field-hero-input3" name="url">
                           <div class="mdc-notched-outline">
                             <div class="mdc-notched-outline__leading"></div>
                             <div class="mdc-notched-outline__notch">
-                              <label for="text-field-hero-input" class="mdc-floating-label">Github-URL</label>
+                              <label for="text-field-hero-input3" class="mdc-floating-label">Github-URL</label>
                             </div>
                             <div class="mdc-notched-outline__trailing"></div>
                           </div>
@@ -342,12 +342,10 @@
                   </div>
                 </div>
               </div>
-            </div>
+            </main>
+          </form>
           </div>
-        </main>
-    </form>
     <!-- partial -->
-      </div>
     </div>
   </div>
   <!-- plugins:js -->
@@ -359,13 +357,13 @@
   <script src="/assets/vendors/jvectormap/jquery-jvectormap-world-mill-en.js"></script>
   <!-- End plugin js for this page-->
   <!-- inject:js -->
-  <script src="/assets/js/material.js"></script>
+  <!-- <script src="/assets/js/material.js"></script> -->
   <script src="/assets/js/misc.js"></script>
   <!-- endinject -->
   <!-- Custom js for this page-->
   <script src="/assets/js/dashboard.js"></script>
   <!-- End custom js for this page-->
-  <script type="text/javascript">
+  <script>
       document.forms[0].onsubmit = async(e) => {
           e.preventDefault();
           const params = new URLSearchParams([...new FormData(e.target).entries()]);
