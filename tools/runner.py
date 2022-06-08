@@ -137,6 +137,18 @@ try:
             # the command args to be passed on run only
             docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name, '-v', '/tmp/green-metrics-tool/repo:/tmp/repo']
 
+            if 'env' in el:
+                import re
+                for docker_env_var in el['env']:
+                    if re.search("^[A-Z_]+$", docker_env_var[0]) is None:
+                        raise Exception(f"Docker container setup env var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var[0]}")
+                    if re.search("^[a-zA-Z_]+[a-zA-Z0-9_]*$", docker_env_var[1]) is None:
+                        raise Exception(f"Docker container setup env var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {docker_env_var[1]}")
+
+                    docker_run_string.append('-e')
+                    docker_run_string.append(f"{docker_env_var[0]}={docker_env_var[1]}")
+
+
             if 'portmapping' in el:
                 docker_run_string.append('-p')
                 docker_run_string.append(el['portmapping'])
@@ -146,6 +158,8 @@ try:
                 docker_run_string.append(el['network'])
 
             docker_run_string.append(el['identifier'])
+
+            print(f"Running docker run with: {docker_run_string}")
 
             ps = subprocess.run(
                 docker_run_string,
