@@ -108,7 +108,7 @@ leave the psql shell (ctrl+d) and logout of "postgres" bash
 
 now we import the structure. Please use the file from the `Docker` subfolder:
 
-`psql -U my_user < /var/www/green-metrics-tool/structure.sql`
+`psql -U my_user < /var/www/green-metrics-tool/Docker/structure.sql`
 
 
 #### Postgres Remote access (optional)
