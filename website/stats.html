@@ -307,7 +307,16 @@
 
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
-                 <div id="chart-cpu"></div>
+                 <div id="chart-cpu">
+                    <!-- Alex code starts here -->
+                    <div class="form-check form-check-primary">
+                      <label class="form-check-label">
+                        <input type="checkbox" class="form-check-input" checked="" onchange="toggleNotes()">Show notes
+                        <i class="input-helper"></i>
+                      </label>
+                    </div>
+                    <!-- Alex code finishes here -->
+                 </div>
                 </div>
               </div>
           <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
@@ -477,7 +486,6 @@
                                   /*
                                   el[0] // container_id
                                   el[1] // time
-                                  el[2] // cpu in 10 ms
                                   el[2] // cpu in 10 ms
                                   el[3] // mem_cur
                                   el[4] // mem_max
@@ -685,5 +693,14 @@
   <!-- Custom js for this page-->
   <script src="../assets/js/dashboard.js"></script>
   <!-- End custom js for this page-->
+  <script>
+    const toggleNotes = () => {
+      const notes = document.getElementsByClassName('apexcharts-xaxis-annotations');
+      for (let i = 0; i < notes.length; i++) {
+        if (!notes[i].style.display) notes[i].style.display = "none";
+        else notes[i].style.display = "";
+      }
+    }
+  </script>
 </body>
 </html> 
