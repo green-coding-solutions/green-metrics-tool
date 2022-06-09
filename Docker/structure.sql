@@ -10,7 +10,7 @@ CREATE TABLE projects (
 
 CREATE TABLE stats (
     id SERIAL PRIMARY KEY,
-    project_id uuid REFERENCES projects(id),
+    project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
     container_name text,
     energy bigint,
     cpu integer,
@@ -24,7 +24,7 @@ CREATE TABLE stats (
 
 CREATE TABLE notes (
     id SERIAL PRIMARY KEY,
-    project_id uuid REFERENCES projects(id),
+    project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
     container_name text,
     note text,
     time bigint,
