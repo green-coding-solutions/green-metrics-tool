@@ -370,10 +370,10 @@
           e.preventDefault();
           const params = new URLSearchParams([...new FormData(e.target).entries()]);
 
-          if(document.location.host.indexOf('metrics.green-coding.local') === 0)
-            api_url = "http://api.green-coding.local:8000"
+          if(document.location.host.indexOf('metrics.green-coding.org') === 0)
+            api_url = "https://api.green-coding.org";
           else
-            api_url = "https://api.green-coding.org"
+            api_url = "http://api.green-coding.local:8000";
 
           fetch(api_url+"/v1/project/add", {
               method:"POST",
