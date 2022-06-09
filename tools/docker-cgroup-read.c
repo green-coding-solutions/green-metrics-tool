@@ -12,7 +12,27 @@
 
 static char *user_id = "1000"; //TODO: Figure out user_id dynamically, or request
 
-static double read_cpu(FILE *fd) {
+static double read_cpu_proc(FILE *fd) {
+    int cpu_usage = -1;
+    //char buffer[512];
+    //fread(buffer, 512, 1, fd);
+    //fscanf(fd, "cpu %*s %*s %*s %s", buffer);
+
+    //printf("Content: %s", buffer);
+
+    fscanf(fd, "cpu %*s %*s %*s %d", &cpu_usage);
+    //printf("CPU Usage global: %d", cpu_usage);
+    if(cpu_usage>0) {
+        return cpu_usage*10;
+    }
+    else {
+        fprintf(stderr, "Error - CPU usage could not be read");
+        exit(1);
+    }
+}
+
+
+static double read_cpu_cgroup(FILE *fd) {
 	double cpu_usage = -1;
 	fscanf(fd, "usage_usec %lf", &cpu_usage);
 	if(cpu_usage>0) {
@@ -24,16 +44,20 @@ static double read_cpu(FILE *fd) {
 	}
 }
 
-double get_cpu_stat(char* filename) {
+double get_cpu_stat(char* filename, int mode) {
 	FILE* fd = NULL;
 	double result=-1;
 
-	fd = fopen(filename, "r+");	// read+ is important! if readonly, cpu stats won't get updated by os :-(
+	fd = fopen(filename, "r");
 	if ( fd == NULL) {
-			fprintf(stderr, "Error - file failed to open: errno: %d\n", errno);
+			fprintf(stderr, "Error - file %s failed to open: errno: %d\n", filename, errno);
 			exit(1);
 	}
-	result = read_cpu(fd);
+    if(mode == 1) {
+    	result = read_cpu_cgroup(fd);
+    } else {
+        result = read_cpu_proc(fd);
+    }
 	fclose(fd);
 	return result;
 }
@@ -62,16 +86,16 @@ int output_stats(struct container *containers, int length) {
 
 	// Get Energy Readings, set timestamp mark
 	gettimeofday(&now, NULL);
-	main_cpu_reading_before = get_cpu_stat("/sys/fs/cgroup/cpu.stat");
+	main_cpu_reading_before = get_cpu_stat("/proc/stat", 0);
 	for(i=0; i<length; i++) {
-		cpu_readings_before[i]=get_cpu_stat(containers[i].path);
+		cpu_readings_before[i]=get_cpu_stat(containers[i].path, 1);
 	}
 
 	usleep(interval*1000);
 
-	main_cpu_reading_after = get_cpu_stat("/sys/fs/cgroup/cpu.stat");
+	main_cpu_reading_after = get_cpu_stat("/proc/stat", 0);
 	for(i=0; i<length; i++) {
-		cpu_readings_after[i]=get_cpu_stat(containers[i].path);
+		cpu_readings_after[i]=get_cpu_stat(containers[i].path, 1);
 	}
 
 	// Display Energy Readings
@@ -79,6 +103,8 @@ int output_stats(struct container *containers, int length) {
 	for(i=0; i<length; i++) {
 		container_reading = cpu_readings_after[i] - cpu_readings_before[i];
 		main_cpu_reading = main_cpu_reading_after - main_cpu_reading_before;
+
+        //printf("Main CPU Reading: %f - Container CPU Reading: %f", main_cpu_reading, container_reading);
 
 		double reading;
 		if(main_cpu_reading >= 0) {
