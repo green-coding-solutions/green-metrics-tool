@@ -310,7 +310,7 @@
                  <div id="chart-cpu"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
-                    <input type="checkbox" checked="" onchange="toggleNotes(0)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                    <input type="checkbox" checked="" onchange="toggleNote(0)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
                     <i class="input-helper"></i>
                   </label>
                 </div>
@@ -322,7 +322,7 @@
                  <div id="chart-mem"></div>
                  <div class="form-check form-check-primary">
                    <label class="form-check-label">
-                     <input type="checkbox" checked="" onchange="toggleNotes(1)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                     <input type="checkbox" checked="" onchange="toggleNote(1)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
                      <i class="input-helper"></i>
                    </label>
                  </div>
@@ -334,7 +334,7 @@
                  <div id="chart-energy"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
-                    <input type="checkbox" checked="" onchange="toggleNotes(2)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                    <input type="checkbox" checked="" onchange="toggleNote(2)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
                     <i class="input-helper"></i>
                   </label>
                 </div>
@@ -346,7 +346,7 @@
                  <div id="chart-net-in"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
-                    <input type="checkbox" checked="" onchange="toggleNotes(3)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                    <input type="checkbox" checked="" onchange="toggleNote(3)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
                     <i class="input-helper"></i>
                   </label>
                 </div>
@@ -707,7 +707,7 @@
   <!-- End custom js for this page-->
   
   <script>
-    const toggleNotes = (id) => {
+    const toggleNote = (id) => {
       const note = document.getElementsByClassName('apexcharts-xaxis-annotations')[id];
       if (!note.style.display) note.style.display = "none";
       else note.style.display = "";
