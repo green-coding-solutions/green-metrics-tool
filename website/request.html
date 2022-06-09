@@ -12,6 +12,7 @@
   <!-- Plugin css for this page -->
   <link rel="stylesheet" href="/assets/vendors/flag-icon-css/css/flag-icon.min.css">
   <link rel="stylesheet" href="/assets/vendors/jvectormap/jquery-jvectormap.css">
+  <link rel="stylesheet" href="/assets/vendors/css/jquery.toast.min.css">
   <!-- End plugin css for this page -->
   <!-- Layout styles -->
   <link rel="stylesheet" href="/assets/css/demo/style.css">
@@ -330,15 +331,16 @@
                           <button class="mdc-button mdc-button--raised filled-button--success mdc-ripple-upgraded">
                       Submit software for certification
                     </button>
+                    <!-- <button type="button" class="btn btn-success btn-fw __web-inspector-hide-shortcut__" onclick="showSuccessToast()">Success<div class="ripple-container"></div></button> -->
                           </div>
                         </div>
                       </div>
 
                     </div>
-                    <div class="alert alert-success mt-4 d-flex align-items-center" style="display:none;" id="save-success">
+                    <!-- <div class="alert alert-success mt-4 d-flex align-items-center" style="display:none;" id="save-success">
                         <i class="material-icons mr-3">info</i>
                         <p>Save successful. Check your mail in 10-15 minutes</p>
-                      </div>
+                      </div> -->
                   </div>
                 </div>
               </div>
@@ -362,6 +364,8 @@
   <!-- endinject -->
   <!-- Custom js for this page-->
   <script src="/assets/js/dashboard.js"></script>
+  <script src="/assets/vendors/js/jquery.toast.min.js"></script>
+  <script src="/assets/js/toastDemo.js"></script>
   <!-- End custom js for this page-->
   <script>
       document.forms[0].onsubmit = async(e) => {
@@ -381,15 +385,13 @@
           .then(data => {
               if(data.status == "success") {
                   document.forms[0].reset()
-                  document.getElementById('save-success').style.display = 'block';
-                  setTimeout(function(){document.getElementById('save-success').style.display = 'none'}, 2000)
+                  showSuccessToast()
               } else {
                   alert(data.err)
               }
           })
         }
-
   </script>
-
+  
 </body>
 </html> 
