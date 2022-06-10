@@ -377,7 +377,8 @@
               text: 'REPLACE',
             },
             xaxis: {
-              tickAmount: 20,
+              tickAmount: 6,
+              type: "datetime"
             },
             annotations: {
                 xaxis: []
@@ -431,6 +432,7 @@
 
                       my_json.data.forEach(el => {
                                   el[0] = 'Container '+el[0]
+                                  el[1] = el[1]/1000;
                                   if(my_series['cpu'] == undefined) {
                                       my_series['cpu'] = {}
                                   }

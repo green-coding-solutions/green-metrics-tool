@@ -85,6 +85,32 @@ def import_cgroup_stats(conn, project_id, filename):
         conn.commit()
     cur.close()
 
+def import_rapl(conn, project_id, filename):
+    import pandas as pd
+    from io import StringIO
+
+    with open(filename, 'r') as f:
+        csv_data = f.read()
+
+    csv_data = csv_data[:csv_data.rfind('\n')] # remove the last line from the string
+
+    df = pd.read_csv(StringIO(csv_data), sep=" ", names=["timestamp", "energy"])
+
+    cur = conn.cursor()
+    import numpy as np
+
+    for i, row in df.iterrows():
+        print(row)
+        cur.execute("""
+                INSERT INTO stats
+                ("project_id", "container_name", "energy", "time")
+                VALUES
+                (%s, %s, %s, %s)
+                """,
+                (project_id, 'not given', float(row.energy)*1000, row.timestamp)
+        )
+        conn.commit()
+    cur.close()
 
 
 if __name__ == "__main__":

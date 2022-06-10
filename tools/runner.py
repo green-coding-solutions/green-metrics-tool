@@ -11,7 +11,7 @@ import traceback
 import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
-from import_stats import import_docker_stats, import_cgroup_stats # local file import
+from import_stats import import_docker_stats, import_cgroup_stats, import_rapl # local file import
 from save_notes import save_notes # local file import
 from setup_functions import get_db_connection, get_config
 
@@ -38,7 +38,7 @@ parser.add_argument("mode", help="Select the operation mode. Select `manual` to 
 parser.add_argument("--url", type=str, help="The url to download the repository with the usage_scenario.json from. Will only be read in manual mode.")
 parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others. Will only be read in manual mode.")
 parser.add_argument("--folder", type=str, help="The folder that contains your usage scenario as local path. Will only be read in manual mode.")
-
+parser.add_argument("--no-file-cleanup", type=str, help="Do not delete files in /tmp/green-metrics-tool")
 args = parser.parse_args() # script will exit if url is not present
 
 if(args.folder is not None and args.url is not None):
@@ -102,10 +102,12 @@ pids_to_kill = []
 
 try:
 
+    subprocess.run(["rm", "-R", "/tmp/green-metrics-tool"])
+    subprocess.run(["mkdir", "/tmp/green-metrics-tool"])
+
     if url is not None :
         # always remove the folder if URL provided, cause -v directory binding always creates it
         # no check cause might fail when directory might be missing due to manual delete
-        subprocess.run(["rm", "-R", "/tmp/green-metrics-tool/repo"])
         subprocess.run(["git", "clone", url, "/tmp/green-metrics-tool/repo"], check=True, capture_output=True, encoding='UTF-8') # always name target-dir repo according to spec
         folder = '/tmp/green-metrics-tool/repo'
 
@@ -206,7 +208,6 @@ try:
     # start the measurement
 
     print("Starting measurement provider docker stats")
-    ps = subprocess.run(["rm", "-R", "/tmp/green-metrics-tool/docker_stats.log"]) # no check cause file might be missing
     stats_process = subprocess.Popen(
         ["docker stats --no-trunc --format '{{.Name}};{{.CPUPerc}};{{.MemUsage}};{{.NetIO}}' " + ' '.join(container_names) + "  > /tmp/green-metrics-tool/docker_stats.log &"],
         shell=True,
@@ -215,15 +216,28 @@ try:
     )
     pids_to_kill.append(stats_process.pid)
 
-    #print("Starting measurement provider docker cgroup read")
-    #print("../tools/docker-read-lima 10  " + ' '.join(container_ids) + "  > /tmp/green-metrics-tool/docker_cgroup_read.log &")
-    #ps = subprocess.run(["rm", "-R", "/tmp/green-metrics-tool/docker_cgroup_read.log"]) # no check cause file might be missing
-    #docker_cgroup_read_process = subprocess.Popen(
-    #    ["../tools/docker-read-lima 10 " + ' '.join(container_ids) + " > /tmp/green-metrics-tool/docker_cgroup_read.log"],
-    #    shell=True,
-    #    preexec_fn=os.setsid
-    #)
-    #pids_to_kill.append(docker_cgroup_read_process.pid)
+    print("Starting measurement provider docker cgroup read")
+    docker_cgroup_read_process = subprocess.Popen(
+        ["stdbuf -oL /home/arne/Code/green-metrics-tool/tools/docker-read 100 " + ' '.join(container_ids) + " > /tmp/green-metrics-tool/docker_cgroup_read.log"],
+        shell=True,
+        preexec_fn=os.setsid
+    )
+    pids_to_kill.append(docker_cgroup_read_process.pid)
+
+
+    # To issue this command as sudo it must be specifically allowed in the /etc/sudoers like so:
+    # docker run  -d -p 8000:80 --net green-coding-net --name green-coding-nginx-gunicorn-container green-coding-nginx-gunicorn
+    # arne	ALL=(ALL) NOPASSWD: PATH_TO/green-metrics-tool/tools/rapl-read
+    print("Starting measurement provider RAPL read")
+    rapl_process = subprocess.Popen(
+        ["sudo /usr/bin/stdbuf -oL /home/arne/Code/green-metrics-tool/tools/rapl-read -i 100 > /tmp/green-metrics-tool/rapl.log &"],
+        shell=True,
+        preexec_fn=os.setsid,
+        encoding="UTF-8"
+    )
+
+    pids_to_kill.append(rapl_process.pid)
+
 
     notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
 
@@ -257,6 +271,8 @@ try:
                     preexec_fn=os.setsid
                 )
 
+                print(ps.stderr.readable())
+
                 docker_exec_stderr = ps.stderr.read()
                 if docker_exec_stderr != '':
                     raise Exception('Docker exec returned an error: ', docker_exec_stderr)
@@ -282,8 +298,9 @@ try:
 
     print("Parsing stats")
 
-    import_docker_stats(conn, project_id, "/tmp/green-metrics-tool/docker_stats.log")
-    #import_cgroup_stats(conn, project_id, "/tmp/green-metrics-tool/docker_cgroup_read.log")
+    #import_docker_stats(conn, project_id, "/tmp/green-metrics-tool/docker_stats.log")
+    import_cgroup_stats(conn, project_id, "/tmp/green-metrics-tool/docker_cgroup_read.log")
+    import_rapl(conn, project_id, "/tmp/green-metrics-tool/rapl.log")
 
     save_notes(conn, project_id, notes)
 
@@ -311,8 +328,8 @@ finally:
     for network_name in networks:
         subprocess.run(['docker', 'network', 'rm', network_name])
 
-    ps = subprocess.run(["rm", "-R", "/tmp/green-metrics-tool/repo"])
-    ps = subprocess.run(["rm", "-R", "/tmp/green-metrics-tool/docker_stats.log"])
+    if args.no_file_cleanup is None:
+        subprocess.run(["rm", "-R", "/tmp/green-metrics-tool"])
 
     for pid in pids_to_kill:
         print("Killing: ", pid)
