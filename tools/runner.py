@@ -135,7 +135,7 @@ try:
             # This helps to keep an excecutable-only container open, which would otherwise exit
             # This MAY break in the future, as some docker CLI implementation do not allow this and require
             # the command args to be passed on run only
-            docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name, '-v', '/tmp/green-metrics-tool/repo:/tmp/repo']
+            docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name, '--mount', f'source={folder},destination=/tmp/repo,readonly']
 
             if 'env' in el:
                 import re
