@@ -1,5 +1,5 @@
 
-def import_stats(conn, project_id, filename):
+def import_docker_stats(conn, project_id, filename):
     import pandas as pd
     from io import StringIO
 
@@ -33,7 +33,7 @@ def import_stats(conn, project_id, filename):
         else:
             raise Exception("convert_values: Could not convert value: ", el)
 
-    for container_name in df['name'].unique():
+    for container_name in df['name'].unique(): # create a new row named seconds that is ascending indexed
         df.loc[df.name == container_name, 'seconds'] = range(0,df.loc[df.name == container_name].shape[0])
 
     cur = conn.cursor()
@@ -58,6 +58,35 @@ def import_stats(conn, project_id, filename):
         conn.commit()
     cur.close()
 
+def import_cgroup_stats(conn, project_id, filename):
+    import pandas as pd
+    from io import StringIO
+
+    with open(filename, 'r') as f:
+        csv_data = f.read()
+
+    csv_data = csv_data[:csv_data.rfind('\n')] # remove the last line from the string
+
+    df = pd.read_csv(StringIO(csv_data), sep=" ", names=["timestamp", "cpu", "container_id"])
+
+    cur = conn.cursor()
+    import numpy as np
+
+    for i, row in df.iterrows():
+        print(row)
+        cur.execute("""
+                INSERT INTO stats
+                ("project_id", "container_name", "cpu", "time")
+                VALUES
+                (%s, %s, %s, %s)
+                """,
+                (project_id, 'not given', float(row.cpu)*100, row.timestamp)
+        )
+        conn.commit()
+    cur.close()
+
+
+
 if __name__ == "__main__":
     import argparse
     import sys
@@ -69,10 +98,15 @@ if __name__ == "__main__":
     parser.add_argument("stats_file", help="Please specify filename where to find the docker stats file. Usually /tmp/green-metrics-tool/docker_stats.log")
     parser.add_argument("project_id", help="Please supply a project_id to attribute the stats to")
 
+    parser.add_argument("mode", help="Please supply a mode. Either cgroup or docker-stats", choices=['cgroup', 'docker-stats'])
+
     args = parser.parse_args() # script will exit if url is not present
 
     conn = get_db_connection()
 
-    import_stats(conn, args.project_id, args.stats_file)
+    if args.mode == 'cgroup':
+        import_cgroup_stats(conn, args.project_id, args.stats_file)
+    else:
+        import_docker_stats(conn, args.project_id, args.stats_file)
 
 
