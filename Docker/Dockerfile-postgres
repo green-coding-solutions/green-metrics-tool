@@ -32,8 +32,3 @@ RUN /etc/init.d/postgresql restart
 EXPOSE 5432
 
 CMD ["/usr/lib/postgresql/14/bin/postgres", "-D", "/var/lib/postgresql/14/main", "-c", "config_file=/etc/postgresql/14/main/postgresql.conf"]
-# create network: docker network create green-coding-net
-# Build with: docker build . --tag green-coding-postgres -f Dockerfile-postgres --build-arg postgres_pw=XXXXXXXX
-# Run with: docker run -d -p 5432:5432 --net green-coding-net --name green-coding-postgres-container green-coding-postgres
-
-# Apply --no-cache if you experience problems

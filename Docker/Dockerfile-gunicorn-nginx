@@ -7,7 +7,7 @@ ARG postgres_pw
 RUN rm -rf /var/lib/apt/lists/*
 RUN apt update && \
     apt install python3 python3-pip gunicorn nginx libpq-dev git -y
-RUN pip3 install psycopg2 flask pandas pyyaml
+RUN pip3 install psycopg2 fastapi "uvicorn[standard]" pandas pyyaml
 RUN rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/green-metrics-tool
@@ -48,8 +48,3 @@ WORKDIR /var/www/green-metrics-tool/api
 
 COPY ./docker-entrypoint.sh /docker-entrypoint.sh
 CMD ["bash", "/docker-entrypoint.sh"]
-
-# create network: docker network create green-coding-net
-# Build with: docker build . --tag green-coding-nginx-gunicorn -f Dockerfile-gunicorn-nginx --build-arg postgres_pw=XXXXXX
-# Run with: docker run  -d -p 8000:80 --net green-coding-net --name green-coding-nginx-gunicorn-container green-coding-nginx-gunicorn
-# Apply --no-cache if you experience problems
