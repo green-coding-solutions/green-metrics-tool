@@ -20,7 +20,7 @@ remains in memory or on disk.
 
 `sudo apt install postgresql python3 python3-pip gunicorn nginx libpq-dev python-dev postgresql-contrib -y`
 
-`sudo pip3 install psycopg2 flask pandas pyyaml`\
+`sudo pip3 install psycopg2 fastapi "uvicorn[standard]" pandas pyyaml`\
 The sudo in the last command is very important, as it will tell pip to install to /usr directory instead to the home directory. So we can find the package later with other users on the system. If you do not want that use a venv in Python.
 
 ### Docker
@@ -167,7 +167,7 @@ After=network.target
 User=www-data
 Group=www-data
 WorkingDirectory=/var/www/green-metrics-tool/api
-ExecStart=/bin/gunicorn --workers 3 --bind unix:green-coding-api.sock -m 007 wsgi:app
+ExecStart=/bin/gunicorn --workers 3 --bind unix:/tmp/green-coding-api.sock -m 007 api:app --user www-data -k uvicorn.workers.UvicornWorker --error-logfile /var/log/gunicorn-error.log
 
 [Install]
 WantedBy=multi-user.target
@@ -187,7 +187,7 @@ server {
 
     location / {
         include proxy_params;
-        proxy_pass http://unix:/var/www/api/green-coding-api.sock;
+        proxy_pass http://unix:/tmp/green-coding-api.sock;
     }
 }
 ```

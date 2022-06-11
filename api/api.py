@@ -12,6 +12,7 @@ conn = get_db_connection()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -61,10 +62,8 @@ async def get_projects():
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/stats/url')
-async def get_stats_by_url():
-    query_parameters = request.args
+async def get_stats_by_url(url: str):
     cur = conn.cursor()
-    url = query_parameters.get('url')
 
     if(url is None or url.strip() == ''):
         response = {'success': False, 'err': 'URL is empty'}
@@ -108,11 +107,9 @@ async def get_stats_by_url():
 
 
 # A route to return all of the available entries in our catalog.
-@app.get('/v1/stats/single')
-async def get_stats_single():
-    query_parameters = request.args
+@app.get('/v1/stats/single/{project_id}')
+async def get_stats_single(project_id: str):
     cur = conn.cursor()
-    project_id = query_parameters.get('id')
 
     if(project_id is None or project_id.strip() == ''):
         response = {'success': False, 'err': 'Project_id is empty'}
@@ -149,19 +146,24 @@ async def get_stats_single():
     response = {"success": True, "data": data, "project": get_project(project_id)}
     return response
 
+class Project(BaseModel):
+    name: str
+    url: str
+    email: str
+
 @app.post('/v1/project/add')
-async def post_project_add():
+async def post_project_add(project: Project):
 
-    url = request.form.get('url')
-    name = request.form.get('name')
-    email = request.form.get('email')
-
-    if(url is None or url.strip() == ''):
+    if(project.url is None or project.url.strip() == ''):
         response = {'success': False, 'err': 'URL is empty'}
         return response
 
-    if(email is None or email.strip() == ''):
-        response = {'success': False, 'err': 'E-Mail is empty'}
+    if(project.name is None or project.name.strip() == ''):
+        response = {'success': False, 'err': 'Name is empty'}
+        return response
+
+    if(project.email is None or project.email.strip() == ''):
+        response = {'success': False, 'err': 'E-mail is empty'}
         return response
 
     cur = conn.cursor()
@@ -169,7 +171,7 @@ async def post_project_add():
     cur.execute("""
         INSERT INTO projects (url,name,email) VALUES (%s, %s, %s)
         """,
-        (url,name,email)
+        (project.url,project.name,project.email)
     )
     conn.commit()
 

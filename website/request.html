@@ -370,7 +370,9 @@
   <script>
       document.forms[0].onsubmit = async(e) => {
           e.preventDefault();
-          const params = new URLSearchParams([...new FormData(e.target).entries()]);
+
+        const data = new FormData(document.getElementsByTagName('form')[0]);
+        const values = Object.fromEntries(data.entries());
 
           if(document.location.host.indexOf('metrics.green-coding.org') === 0)
             api_url = "https://api.green-coding.org";
@@ -379,7 +381,10 @@
 
           fetch(api_url+"/v1/project/add", {
               method:"POST",
-              body:params
+              body:JSON.stringify(values),
+              headers: {
+                  'Content-Type': 'application/json'
+              }
           })
           .then(response => response.json())
           .then(data => {
