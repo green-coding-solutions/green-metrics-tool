@@ -129,7 +129,7 @@ maybe even remove other hosts as needed. Then reload
 `sudo systemctl reload postgresql`
 
 ### Webservice and API
-we are using `/var/www/green-metrics-tool/website` for static files and as document root
+we are using `/var/www/green-metrics-tool/frontend` for static files and as document root
 and `/var/www/green-metrics-tool/api` for the API
 
 all must be owned by www-data (or the nginx user if different)
@@ -198,7 +198,7 @@ and we also must change the default document root
 
 `sudo nano /etc/nginx/sites-available/default`
 
-here you must modify the root directive to: `root /var/www/green-metrics-tool/website;`
+here you must modify the root directive to: `root /var/www/green-metrics-tool/frontend;`
 
 Then reload all:
 `sudo systemctl restart nginx`

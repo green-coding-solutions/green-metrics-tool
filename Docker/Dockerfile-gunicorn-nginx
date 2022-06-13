@@ -40,7 +40,7 @@ RUN printf "server {\n\
 > /etc/nginx/sites-available/green-coding-api
 
 RUN ln -s /etc/nginx/sites-available/green-coding-api /etc/nginx/sites-enabled/
-RUN sed -i -e "s/\/var\/www\/html/\/var\/www\/green-metrics-tool\/website/" /etc/nginx/sites-available/default
+RUN sed -i -e "s/\/var\/www\/html/\/var\/www\/green-metrics-tool\/frontend/" /etc/nginx/sites-available/default
 
 EXPOSE 80
 
