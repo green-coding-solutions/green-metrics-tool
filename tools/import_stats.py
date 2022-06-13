@@ -58,7 +58,7 @@ def import_docker_stats(conn, project_id, filename):
         conn.commit()
     cur.close()
 
-def import_cgroup_stats(conn, project_id, filename):
+def import_cgroup_stats(conn, project_id, containers, filename):
     import pandas as pd
     from io import StringIO
 
@@ -80,7 +80,7 @@ def import_cgroup_stats(conn, project_id, filename):
                 VALUES
                 (%s, %s, %s, %s)
                 """,
-                (project_id, 'not given', float(row.cpu)*100, row.timestamp)
+                (project_id, containers[row.container_id], float(row.cpu)*100, row.timestamp)
         )
         conn.commit()
     cur.close()
@@ -107,7 +107,7 @@ def import_rapl(conn, project_id, filename):
                 VALUES
                 (%s, %s, %s, %s)
                 """,
-                (project_id, 'not given', float(row.energy)*1000, row.timestamp)
+                (project_id, "RAPL CPU-Package", float(row.energy)*1000, row.timestamp)
         )
         conn.commit()
     cur.close()

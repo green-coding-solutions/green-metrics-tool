@@ -95,8 +95,7 @@ else:
     raise Exception('Unknown mode: ', args.mode)
 
 
-container_names = []
-container_ids = []
+containers = {}
 networks = []
 pids_to_kill = []
 
@@ -126,7 +125,6 @@ try:
 
     for el in obj['setup']:
         if el['type'] == 'container':
-            container_names.append(el['name'])
             container_name = el['name']
 
             print("Resetting container")
@@ -173,7 +171,7 @@ try:
             )
 
             container_id = ps.stdout.strip()
-            container_ids.append(container_id)
+            containers[container_id] = container_name
             print("Stdout:", container_id)
 
             if "setup-commands" not in el.keys(): continue # setup commands are optional
@@ -202,14 +200,13 @@ try:
 
     # --- setup finished
 
-    print("Current known containers: ", container_names)
-    print("Current known containers: ", container_ids)
+    print("Current known containers: ", containers)
 
     # start the measurement
 
     print("Starting measurement provider docker stats")
     stats_process = subprocess.Popen(
-        ["docker stats --no-trunc --format '{{.Name}};{{.CPUPerc}};{{.MemUsage}};{{.NetIO}}' " + ' '.join(container_names) + "  > /tmp/green-metrics-tool/docker_stats.log &"],
+        ["docker stats --no-trunc --format '{{.Name}};{{.CPUPerc}};{{.MemUsage}};{{.NetIO}}' " + ' '.join(containers.values()) + "  > /tmp/green-metrics-tool/docker_stats.log &"],
         shell=True,
         preexec_fn=os.setsid,
         encoding="UTF-8"
@@ -218,7 +215,7 @@ try:
 
     print("Starting measurement provider docker cgroup read")
     docker_cgroup_read_process = subprocess.Popen(
-        ["stdbuf -oL /home/arne/Code/green-metrics-tool/tools/docker-read 100 " + ' '.join(container_ids) + " > /tmp/green-metrics-tool/docker_cgroup_read.log"],
+        ["stdbuf -oL /home/arne/Code/green-metrics-tool/tools/docker-read 100 " + ' '.join(containers.keys()) + " > /tmp/green-metrics-tool/docker_cgroup_read.log"],
         shell=True,
         preexec_fn=os.setsid
     )
@@ -299,7 +296,7 @@ try:
     print("Parsing stats")
 
     #import_docker_stats(conn, project_id, "/tmp/green-metrics-tool/docker_stats.log")
-    import_cgroup_stats(conn, project_id, "/tmp/green-metrics-tool/docker_cgroup_read.log")
+    import_cgroup_stats(conn, project_id, containers, "/tmp/green-metrics-tool/docker_cgroup_read.log")
     import_rapl(conn, project_id, "/tmp/green-metrics-tool/rapl.log")
 
     save_notes(conn, project_id, notes)
@@ -321,7 +318,7 @@ except KeyError as e:
 except BaseException as e:
     log_error("Base exception occured: ", e)
 finally:
-    for container_name in container_names:
+    for container_name in containers.values():
         subprocess.run(['docker', 'stop', container_name])
         subprocess.run(['docker', 'rm', container_name])
 
