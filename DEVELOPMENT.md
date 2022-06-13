@@ -49,12 +49,10 @@ Listen 9875
     ServerName  my-custom-container
     ....
 </VirtualHost>
-``
+```
 
 Then in the docker run command set the hostname and map the docker internal port to the host OS port: ` --name my-custom-container -d 9875:9875`
 
 You then must also map the containers in your `/etc/hosts` on the host OS to access them also through their internal hostname inside of the containers:
 
-```
-127.0.0.1 my-custom-container
-``
+`127.0.0.1 my-custom-container`
