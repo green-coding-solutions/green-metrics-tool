@@ -10,7 +10,9 @@ import time
 import traceback
 import sys
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(f"{current_dir}/../lib")
+
 from import_stats import import_docker_stats, import_cgroup_stats, import_rapl # local file import
 from save_notes import save_notes # local file import
 from setup_functions import get_db_connection, get_config
@@ -110,7 +112,7 @@ try:
         subprocess.run(["git", "clone", url, "/tmp/green-metrics-tool/repo"], check=True, capture_output=True, encoding='UTF-8') # always name target-dir repo according to spec
         folder = '/tmp/green-metrics-tool/repo'
 
-    with open(folder+'/usage_scenario.json') as fp:
+    with open(f"{folder}/usage_scenario.json") as fp:
         obj = json.load(fp)
 
     print("Having Usage Scenario ", obj['name'])
@@ -215,7 +217,7 @@ try:
 
     print("Starting measurement provider docker cgroup read")
     docker_cgroup_read_process = subprocess.Popen(
-        ["stdbuf -oL /home/arne/Code/green-metrics-tool/tools/docker-read 100 " + ' '.join(containers.keys()) + " > /tmp/green-metrics-tool/docker_cgroup_read.log"],
+        [f"stdbuf -oL {current_dir}/docker-read 100 {join(containers.keys())} > /tmp/green-metrics-tool/docker_cgroup_read.log"],
         shell=True,
         preexec_fn=os.setsid
     )
@@ -227,7 +229,7 @@ try:
     # arne	ALL=(ALL) NOPASSWD: PATH_TO/green-metrics-tool/tools/rapl-read
     print("Starting measurement provider RAPL read")
     rapl_process = subprocess.Popen(
-        ["sudo /usr/bin/stdbuf -oL /home/arne/Code/green-metrics-tool/tools/rapl-read -i 100 > /tmp/green-metrics-tool/rapl.log &"],
+        [f"sudo /usr/bin/stdbuf -oL {current_dir}/rapl-read -i 100 > /tmp/green-metrics-tool/rapl.log &"],
         shell=True,
         preexec_fn=os.setsid,
         encoding="UTF-8"
