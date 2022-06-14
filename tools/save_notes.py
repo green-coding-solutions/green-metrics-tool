@@ -1,17 +1,41 @@
 
 def save_notes(conn, project_id, notes):
 
-    cur = conn.cursor()
     import numpy as np
+    cur = conn.cursor()
+    
 
     for note in notes:
+        if note['container_name'] == "[SYSTEM]":
+            cur.execute("""
+                INSERT INTO stats
+                ("project_id", "container_name", "cpu", "mem", "mem_max", "net_in", "net_out", "time")
+                VALUES
+                (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (project_id, "[SYSTEM]", 0, 0, 0, 0, 0, note['timestamp'])
+            )
+            conn.commit()
+            stat_line_time = note['timestamp']
+        else:
+            cur.execute("""
+            SELECT time FROM stats 
+            WHERE time < %s 
+            AND project_id = %s
+            AND container_name = %s
+            ORDER BY time DESC LIMIT 1;
+            """,
+            (note['timestamp'], project_id, note['container_name']))
+            conn.commit()
+            stat_line_time = cur.fetchone()[0]
+            
         cur.execute("""
                 INSERT INTO notes
                 ("project_id", "container_name", "note", "time", "created_at")
                 VALUES
                 (%s, %s, %s, %s, NOW())
                 """,
-                (project_id, note['container_name'], note['note'], note["timestamp"])
+                (project_id, note['container_name'], note['note'], stat_line_time)
         )
         conn.commit()
     cur.close()

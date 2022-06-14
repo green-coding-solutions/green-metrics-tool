@@ -243,10 +243,15 @@ try:
     print("Pre-idling containers")
     time.sleep(5) # 5 seconds buffer at the start to idle container
 
+    notes.append({"note" : "[START MEASUREMENT]", 'container_name' : '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
+
     # run the flows
     for el in obj['flow']:
         print("Running flow: ", el['name'])
         for inner_el in el['commands']:
+
+            if "note" in inner_el: 
+                notes.append({"note" : inner_el['note'], 'container_name' : el['container'], "timestamp": int(time.time_ns() / 1_000)})
 
             if inner_el['type'] == 'console':
                 print("Console command", inner_el['command'], "on container", el['container'])
@@ -283,7 +288,8 @@ try:
             else:
                 raise Exception('Unknown command type in flows: ', inner_el['type'])
 
-            if "note" in inner_el: notes.append({"note" : inner_el['note'], 'container_name' : el['container'], "timestamp": time.time_ns()})
+    notes.append({"note" : "[END MEASUREMENT]", 'container_name' : '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
+
 
     print("Re-idling containers")
     time.sleep(5) # 5 seconds buffer at the end to idle container
