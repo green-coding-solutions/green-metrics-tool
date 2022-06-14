@@ -7,8 +7,10 @@ import os
 import sys
 import psycopg2.extras
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
+sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../tools')
 
 from setup_functions import get_db_connection
+from send_email import send_email
 
 conn = get_db_connection()
 
@@ -168,11 +170,34 @@ def post_project_add():
         (url,name,email)
     )
     conn.commit()
+    project_id = cur.fetchone()[0]
 
     cur.close()
     response = flask.jsonify({"status": "success"})
     response.headers.add('Access-Control-Allow-Origin', '*')
+    notify_admin(name, project_id)
     return response
+
+def notify_admin(name, project_id):
+    config = get_config()
+    message = """\
+From: {smtp_sender}
+To: {receiver_email}
+Subject: Someone has added a new project
+
+{name} has added a new project. ID: {project_id}
+
+--
+Green Coding Berlin
+https://www.green-coding.org
+
+    """
+    message = message.format(
+        receiver_email=config['admin']['email'],
+        name=name,
+        project_id=project_id,
+        smtp_sender=config['smtp']['sender'])
+    send_email(config, message, receiver_email)
 
 def get_project(project_id):
     cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)

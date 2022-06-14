@@ -9,26 +9,19 @@ import signal
 import time
 import traceback
 import sys
+import re
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 from import_stats import import_stats # local file import
 from save_notes import save_notes # local file import
 from setup_functions import get_db_connection, get_config
+from errors import log_error, end_error, email_error
 
 # TODO:
 # - Exception Logic is not really readable. Better encapsulate docker calls and fetch exception there
-# - MAke function for arg reading and checking it's presence. More readable than el.get and exception and bottom
+# - Make function for arg reading and checking it's presence. More readable than el.get and exception and bottom
 # - No cleanup is currently done if exception fails. System is in unclean state
 # - No checks for possible command injections are done at the moment
-
-def end_error(*errors):
-    log_error(*errors)
-    exit(2)
-
-def log_error(*errors):
-    print("Error: ", *errors)
-    traceback.print_exc()
-    # TODO: log to file
 
 config = get_config()
 conn = get_db_connection(config)
@@ -40,6 +33,8 @@ parser.add_argument("--name", type=str, help="A name which will be stored to the
 parser.add_argument("--folder", type=str, help="The folder that contains your usage scenario as local path. Will only be read in manual mode.")
 
 args = parser.parse_args() # script will exit if url is not present
+
+user_email,project_id=None
 
 if(args.folder is not None and args.url is not None):
         print('Please supply only either --folder or --url\n')
@@ -83,6 +78,7 @@ elif args.mode == 'cron':
     project_id = data[0]
     url = data[1]
     email = data[2]
+    user_email = email
     cur.close()
 
     # set to crawled = 1, so we don't error loop
@@ -94,6 +90,7 @@ elif args.mode == 'cron':
 else:
     raise Exception('Unknown mode: ', args.mode)
 
+insert_hw_info(conn, project_id)
 
 containers = []
 networks = []
@@ -226,7 +223,6 @@ try:
 
                 docker_exec_command = ['docker', 'exec']
 
-
                 if inner_el.get('detach', None) == True :
                     print("Detaching")
                     docker_exec_command.append('-d')
@@ -273,19 +269,23 @@ try:
     if args.mode == 'manual':
         print(f"Please access your report with the ID: {project_id}")
     else:
-        from send_report_email import send_report_email # local file import
+        from send_email import send_report_email # local file import
         send_report_email(config, email, project_id)
 
 except FileNotFoundError as e:
     log_error("Docker command failed.", e)
+    email_error("Docker command failed.", e, user_email=user_email, project_id=project_id)
 except subprocess.CalledProcessError as e:
     log_error("Docker command failed")
     log_error("Stdout:", e.stdout)
     log_error("Stderr:", e.stderr)
+    email_error("Docker command failed", "Stdout:", e.stdout, "Stderr:", e.stderr, user_email=user_email, project_id=project_id)
 except KeyError as e:
     log_error("Was expecting a value inside the JSON file, but value was missing: ", e)
+    email_error("Was expecting a value inside the JSON file, but value was missing: ", e, user_email=user_email, project_id=project_id)
 except BaseException as e:
     log_error("Base exception occured: ", e)
+    email_error("Base exception occured: ", e, user_email=user_email, project_id=project_id)
 finally:
     for container_name in containers:
         subprocess.run(['docker', 'stop', container_name])
@@ -307,4 +307,30 @@ finally:
     exit(2)
 
 
+def insert_hw_info(conn, project_id):
+    with open("/proc/cpuinfo", "r")  as f:
+        info = f.readlines()
+    
+    cpuinfo = [x.strip().split(": ")[1] for x in info if "model name"  in x]
+    #print(cpuinfo[0])
 
+    with open("/proc/meminfo", "r") as f:
+        lines = f.readlines()
+    memtotal = re.search(r"\d+", lines[0].strip())
+    #print(memtotal.group())
+
+    #lshw_output = subprocess.check_output(["lshw", "-C", "display"])
+    #gpuinfo = re.search(r"product: (.*)$", lshw_output.decode("UTF-8"))
+    #print(gpuinfo.group())
+
+    cur = conn.cursor()
+    cur.execute("""UPDATE projects 
+        SET cpu=%s, memtotal=%s
+        WHERE id = %s
+        """, (cpuinfo[0], memtotal.group(), project_id))
+    conn.commit()
+    cur.close()
+
+
+if __name__ == "__main__":
+    print('hello')
