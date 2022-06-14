@@ -217,7 +217,7 @@ try:
 
     print("Starting measurement provider docker cgroup read")
     docker_cgroup_read_process = subprocess.Popen(
-        [f"stdbuf -oL {current_dir}/docker-read 100 {join(containers.keys())} > /tmp/green-metrics-tool/docker_cgroup_read.log"],
+        [f"stdbuf -oL {current_dir}/docker-read 100 " + " ".join(containers.keys()) + " > /tmp/green-metrics-tool/docker_cgroup_read.log"],
         shell=True,
         preexec_fn=os.setsid
     )
