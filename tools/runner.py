@@ -10,8 +10,10 @@ import time
 import traceback
 import sys
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
-from import_stats import import_stats # local file import
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(f"{current_dir}/../lib")
+
+from import_stats import import_docker_stats, import_cgroup_stats, import_rapl # local file import
 from save_notes import save_notes # local file import
 from setup_functions import get_db_connection, get_config
 
@@ -38,7 +40,7 @@ parser.add_argument("mode", help="Select the operation mode. Select `manual` to 
 parser.add_argument("--url", type=str, help="The url to download the repository with the usage_scenario.json from. Will only be read in manual mode.")
 parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others. Will only be read in manual mode.")
 parser.add_argument("--folder", type=str, help="The folder that contains your usage scenario as local path. Will only be read in manual mode.")
-
+parser.add_argument("--no-file-cleanup", type=str, help="Do not delete files in /tmp/green-metrics-tool")
 args = parser.parse_args() # script will exit if url is not present
 
 if(args.folder is not None and args.url is not None):
@@ -95,20 +97,22 @@ else:
     raise Exception('Unknown mode: ', args.mode)
 
 
-containers = []
+containers = {}
 networks = []
 pids_to_kill = []
 
 try:
-    # always remove the folder, cause -v directory binding always creates it
-    # no check cause might fail when directory might be missing due to manual delete
-    ps = subprocess.run(["rm", "-R", "/tmp/green-metrics-tool/repo"])
+
+    subprocess.run(["rm", "-R", "/tmp/green-metrics-tool"])
+    subprocess.run(["mkdir", "/tmp/green-metrics-tool"])
 
     if url is not None :
+        # always remove the folder if URL provided, cause -v directory binding always creates it
+        # no check cause might fail when directory might be missing due to manual delete
         subprocess.run(["git", "clone", url, "/tmp/green-metrics-tool/repo"], check=True, capture_output=True, encoding='UTF-8') # always name target-dir repo according to spec
         folder = '/tmp/green-metrics-tool/repo'
 
-    with open(folder+'/usage_scenario.json') as fp:
+    with open(f"{folder}/usage_scenario.json") as fp:
         obj = json.load(fp)
 
     print("Having Usage Scenario ", obj['name'])
@@ -123,7 +127,6 @@ try:
 
     for el in obj['setup']:
         if el['type'] == 'container':
-            containers.append(el['name'])
             container_name = el['name']
 
             print("Resetting container")
@@ -135,6 +138,7 @@ try:
             # This helps to keep an excecutable-only container open, which would otherwise exit
             # This MAY break in the future, as some docker CLI implementation do not allow this and require
             # the command args to be passed on run only
+
             docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name, '-v', f'{folder}:/tmp/repo:ro']
 
             if 'env' in el:
@@ -168,7 +172,10 @@ try:
                 stdout=subprocess.PIPE,
                 encoding="UTF-8"
             )
-            print("Stdout:", ps.stdout)
+
+            container_id = ps.stdout.strip()
+            containers[container_id] = container_name
+            print("Stdout:", container_id)
 
             if "setup-commands" not in el.keys(): continue # setup commands are optional
             print("Running commands")
@@ -196,30 +203,56 @@ try:
 
     # --- setup finished
 
+    print("Current known containers: ", containers)
+
     # start the measurement
 
     print("Starting measurement provider docker stats")
-    ps = subprocess.run(["rm", "-R", "/tmp/green-metrics-tool/docker_stats.log"]) # no check cause file might be missing
     stats_process = subprocess.Popen(
-        ["docker stats --no-trunc --format '{{.Name}};{{.CPUPerc}};{{.MemUsage}};{{.NetIO}}' " + ' '.join(containers) + "  > /tmp/green-metrics-tool/docker_stats.log &"],
+        ["docker stats --no-trunc --format '{{.Name}};{{.CPUPerc}};{{.MemUsage}};{{.NetIO}}' " + ' '.join(containers.values()) + "  > /tmp/green-metrics-tool/docker_stats.log &"],
+        shell=True,
+        preexec_fn=os.setsid,
+        encoding="UTF-8"
+    )
+    pids_to_kill.append(stats_process.pid)
+
+    print("Starting measurement provider docker cgroup read")
+    docker_cgroup_read_process = subprocess.Popen(
+        [f"stdbuf -oL {current_dir}/docker-read 100 " + " ".join(containers.keys()) + " > /tmp/green-metrics-tool/docker_cgroup_read.log"],
+        shell=True,
+        preexec_fn=os.setsid
+    )
+    pids_to_kill.append(docker_cgroup_read_process.pid)
+
+
+    # To issue this command as sudo it must be specifically allowed in the /etc/sudoers like so:
+    # docker run  -d -p 8000:80 --net green-coding-net --name green-coding-nginx-gunicorn-container green-coding-nginx-gunicorn
+    # arne	ALL=(ALL) NOPASSWD: PATH_TO/green-metrics-tool/tools/rapl-read
+    print("Starting measurement provider RAPL read")
+    rapl_process = subprocess.Popen(
+        [f"sudo /usr/bin/stdbuf -oL {current_dir}/rapl-read -i 100 > /tmp/green-metrics-tool/rapl.log &"],
         shell=True,
         preexec_fn=os.setsid,
         encoding="UTF-8"
     )
 
-    pids_to_kill.append(stats_process.pid)
+    pids_to_kill.append(rapl_process.pid)
+
 
     notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
 
     print("Pre-idling containers")
     time.sleep(5) # 5 seconds buffer at the start to idle container
 
-    print("Current known containers: ", containers)
+    notes.append({"note" : "[START MEASUREMENT]", 'container_name' : '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
 
     # run the flows
     for el in obj['flow']:
         print("Running flow: ", el['name'])
         for inner_el in el['commands']:
+
+            if "note" in inner_el:
+                notes.append({"note" : inner_el['note'], 'container_name' : el['container'], "timestamp": int(time.time_ns() / 1_000)})
 
             if inner_el['type'] == 'console':
                 print("Console command", inner_el['command'], "on container", el['container'])
@@ -243,6 +276,8 @@ try:
                     preexec_fn=os.setsid
                 )
 
+                print(ps.stderr.readable())
+
                 docker_exec_stderr = ps.stderr.read()
                 if docker_exec_stderr != '':
                     raise Exception('Docker exec returned an error: ', docker_exec_stderr)
@@ -254,7 +289,8 @@ try:
             else:
                 raise Exception('Unknown command type in flows: ', inner_el['type'])
 
-            if "note" in inner_el: notes.append({"note" : inner_el['note'], 'container_name' : el['container'], "timestamp": time.time_ns()})
+    notes.append({"note" : "[END MEASUREMENT]", 'container_name' : '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
+
 
     print("Re-idling containers")
     time.sleep(5) # 5 seconds buffer at the end to idle container
@@ -267,7 +303,11 @@ try:
             pass # process may have already ended
 
     print("Parsing stats")
-    import_stats(conn, project_id, "/tmp/green-metrics-tool/docker_stats.log")
+
+    #import_docker_stats(conn, project_id, "/tmp/green-metrics-tool/docker_stats.log")
+    import_cgroup_stats(conn, project_id, containers, "/tmp/green-metrics-tool/docker_cgroup_read.log")
+    import_rapl(conn, project_id, "/tmp/green-metrics-tool/rapl.log")
+
     save_notes(conn, project_id, notes)
 
     if args.mode == 'manual':
@@ -287,15 +327,15 @@ except KeyError as e:
 except BaseException as e:
     log_error("Base exception occured: ", e)
 finally:
-    for container_name in containers:
+    for container_name in containers.values():
         subprocess.run(['docker', 'stop', container_name])
         subprocess.run(['docker', 'rm', container_name])
 
     for network_name in networks:
         subprocess.run(['docker', 'network', 'rm', network_name])
 
-    ps = subprocess.run(["rm", "-R", "/tmp/green-metrics-tool/repo"])
-    ps = subprocess.run(["rm", "-R", "/tmp/green-metrics-tool/docker_stats.log"])
+    if args.no_file_cleanup is None:
+        subprocess.run(["rm", "-R", "/tmp/green-metrics-tool"])
 
     for pid in pids_to_kill:
         print("Killing: ", pid)

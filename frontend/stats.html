@@ -258,7 +258,7 @@
         <main class="content-wrapper">
           <div class="mdc-layout-grid">
             <div class="mdc-layout-grid__inner">
-              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-6-tablet">
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12-desktop mdc-layout-grid__cell--span-10-tablet">
                 <div class="mdc-card info-card info-card--danger">
                   <div class="card-inner">
                     <h5 class="card-title">Project Data</h5>
@@ -275,9 +275,9 @@
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card info-card info-card--success">
                   <div class="card-inner">
-                    <h5 class="card-title">AVG CPU Load</h5>
+                    <h5 class="card-title">AVG CPU Load (Estimate)</h5>
                     <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="avg-cpu-load">%</h5>
-                    <p class="tx-12 text-muted">XX% target reached</p>
+                    <p class="tx-12 text-muted">Over all containers. (See disclaimer)</p>
                     <div class="card-icon-wrapper">
                       <i class="material-icons">dvr</i>
                     </div>
@@ -289,7 +289,19 @@
                   <div class="card-inner">
                     <h5 class="card-title">MAX CPU Load</h5>
                     <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="max-cpu-load">&nbsp;</h5>
-                    <p class="tx-12 text-muted">55% target reached</p>
+                    <p class="tx-12 text-muted">Over all containers</p>
+                    <div class="card-icon-wrapper">
+                      <i class="material-icons">trending_up</i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">Total Energy</h5>
+                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="total-energy">&nbsp;</h5>
+                    <p class="tx-12 text-muted">For whole machine. NOT per container.</p>
                     <div class="card-icon-wrapper">
                       <i class="material-icons">trending_up</i>
                     </div>
@@ -378,9 +390,7 @@
             },
             xaxis: {
               tickAmount: 6,
-              labels: {
-                show: false
-              },
+              type: "datetime"
             },
             annotations: {
                 xaxis: []
@@ -414,6 +424,8 @@
             var chart_energy = null;
             var chart_mem = null;
             var chart_net_in = null;
+            var total_energy = null;
+            var accumulate = 0;
             try {
               if(document.location.host.indexOf('metrics.green-coding.org') === 0)
                 api_url = "https://api.green-coding.org";
@@ -433,7 +445,21 @@
                       document.querySelector("#project-url").innerText = my_json.project.url;
 
                       my_json.data.forEach(el => {
+                                  if(el[0] == '[SYSTEM]' && el[8] == '[START MEASUREMENT]') {
+                                    accumulate = 1;
+                                    return
+                                  } else if(el[0] == '[SYSTEM]' && el[8] == '[END MEASUREMENT]') {
+                                    accumulate = 0;
+                                    return;
+                                  }
+
+                                  if(accumulate === 1) {
+                                    total_energy += el[7];
+                                    cpu_load.push(el[2])
+                                  }
+
                                   el[0] = 'Container '+el[0]
+                                  el[1] = el[1]/1000;
                                   if(my_series['cpu'] == undefined) {
                                       my_series['cpu'] = {}
                                   }
@@ -447,8 +473,6 @@
                                   if(my_series['net_in'] == undefined) {
                                       my_series['net_in'] = {}
                                   }
-
-                                  cpu_load.push(el[2])
 
                                   if(my_series['cpu'][el[0]] == undefined) {
                                       my_series['cpu'][el[0]] = {name: el[0], data: [{x: el[1], y:el[2]/100}]}
@@ -530,7 +554,8 @@
                         chart_net_in.render();
 
                         document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
-                        document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a,b) => a + b, 0) / cpu_load.length) / 100).toPrecision(4) + " %"
+                        document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " mJ"
+                        document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a,b) => a + b, 0) / cpu_load.length) / 100).toFixed(2) + " %"
 
                   })
               } catch(e) {
