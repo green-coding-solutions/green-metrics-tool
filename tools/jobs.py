@@ -1,5 +1,5 @@
-#from setup_functions import get_db_connection, get_config
-#from errors import log_error
+from setup_functions import get_db_connection, get_config
+from errors import log_error
 
 def insert_job(conn, job_type, project_id=None):
 	cur = conn.cursor()
@@ -49,11 +49,12 @@ def check_job_running(conn, job_type, job_id):
 		exit(0) #is this the right way to exit here?
 	else:
 		cur.execute("UPDATE jobs SET running=true WHERE id=%s", (job_id,))
+		conn.commit()
 	cur.close()
 
 def clear_old_jobs(conn):
 	cur = conn.cursor()
-	cur.execute( "DELETE FROM jobs WHERE created_at < NOW() - INTERVAL '20 minutes'") # AND failed=false?
+	cur.execute( "DELETE FROM jobs WHERE created_at < NOW() - INTERVAL '20 minutes' AND failed=false")
 	conn.commit()
 	cur.close()
 
@@ -65,7 +66,8 @@ def do_mail_job(conn, job_id, project_id):
 		cur.execute("SELECT email FROM projects WHERE id = %s", (project_id,))
 		data = cur.fetchone()
 		if(data is None or data == []):
-			raise Exception("couldn't find project w/ id: %s" % project_id)
+			raise Exception(f"couldn't find project w/ id: {project_id}")
+			
 		from send_email import send_report_email
 		#print(data[0])
 		send_report_email(config, data[0], project_id)
