@@ -34,7 +34,7 @@ RUN printf "server {\n\
 \n\
     location / {\n\
         include proxy_params;\n\
-        proxy_pass http://unix:/tmp/green-metrics-tool/green-coding-api.sock;\n\
+        proxy_pass http://unix:/tmp/green-coding-api.sock;\n\
     }\n\
 }\n"\
 > /etc/nginx/sites-available/green-coding-api
