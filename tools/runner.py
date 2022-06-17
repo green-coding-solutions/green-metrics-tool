@@ -41,6 +41,8 @@ parser.add_argument("--url", type=str, help="The url to download the repository 
 parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others. Will only be read in manual mode.")
 parser.add_argument("--folder", type=str, help="The folder that contains your usage scenario as local path. Will only be read in manual mode.")
 parser.add_argument("--no-file-cleanup", type=str, help="Do not delete files in /tmp/green-metrics-tool")
+parser.add_argument("--debug", type=str, help="Activate steppable debug mode")
+
 args = parser.parse_args() # script will exit if url is not present
 
 if(args.folder is not None and args.url is not None):
@@ -139,18 +141,24 @@ try:
             # This MAY break in the future, as some docker CLI implementation do not allow this and require
             # the command args to be passed on run only
 
-            docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name, '-v', f'{folder}:/tmp/repo:ro']
+            docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
+
+            docker_run_string.append('-v')
+            if 'folder-destination' in el:
+                docker_run_string.append(f"{folder}:{el['folder-destination']}:ro")
+            else:
+                docker_run_string.append(f"{folder}:/tmp/repo:ro")
 
             if 'env' in el:
                 import re
                 for docker_env_var in el['env']:
-                    if re.search("^[A-Z_]+$", docker_env_var[0]) is None:
-                        raise Exception(f"Docker container setup env var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var[0]}")
-                    if re.search("^[a-zA-Z_]+[a-zA-Z0-9_]*$", docker_env_var[1]) is None:
-                        raise Exception(f"Docker container setup env var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {docker_env_var[1]}")
+                    if re.search("^[A-Z_]+$", docker_env_var) is None:
+                        raise Exception(f"Docker container setup env var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var}")
+                    if re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", el['env'][docker_env_var]) is None:
+                        raise Exception(f"Docker container setup env var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {el['env'][docker_env_var]}")
 
                     docker_run_string.append('-e')
-                    docker_run_string.append(f"{docker_env_var[0]}={docker_env_var[1]}")
+                    docker_run_string.append(f"{docker_env_var}={el['env'][docker_env_var]}")
 
             if 'network' in el:
                 docker_run_string.append('--net')
@@ -177,7 +185,7 @@ try:
             for cmd in el['setup-commands']:
                 print("Running command: docker exec ", cmd)
                 ps = subprocess.run(
-                    ['docker', 'exec', container_name, *cmd.split()],
+                    ["docker", "exec", container_name, *cmd.split()],
                     check=True,
                     stderr=subprocess.PIPE,
                     stdout=subprocess.PIPE,
@@ -237,7 +245,12 @@ try:
     notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
 
     print("Pre-idling containers")
+
     time.sleep(5) # 5 seconds buffer at the start to idle container
+
+    if args.debug is not None:
+        print("Debug mode is active. Pausing. Please press any key to continue ...")
+        sys.stdin.readline()
 
     notes.append({"note" : "[START MEASUREMENT]", 'container_name' : '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
 
@@ -245,6 +258,11 @@ try:
     for el in obj['flow']:
         print("Running flow: ", el['name'])
         for inner_el in el['commands']:
+
+            if args.debug is not None:
+                print("Debug mode is active. Pausing. Please press any key to continue ...")
+                sys.stdin.readline()
+
 
             if "note" in inner_el:
                 notes.append({"note" : inner_el['note'], 'container_name' : el['container'], "timestamp": int(time.time_ns() / 1_000)})
