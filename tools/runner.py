@@ -62,11 +62,12 @@ if args.mode == 'manual' :
     folder = args.folder
     url = args.url
     name = args.name
+    obj = json.load(open(f"{folder}/usage_scenario.json"))
 
     cur = conn.cursor()
-    cur.execute('INSERT INTO "projects" ("name","url","email","crawled","last_crawl","created_at") \
+    cur.execute('INSERT INTO "projects" ("name","url","email","crawled","last_crawl","created_at","usage_scenario") \
                 VALUES \
-                (%s,%s,\'manual\',TRUE,NOW(),NOW()) RETURNING id;', (name,url or folder))
+                (%s,%s,\'manual\',TRUE,NOW(),NOW(),%s) RETURNING id;', (name,url or folder,json.dumps(obj)))
     conn.commit()
     project_id = cur.fetchone()[0]
 
@@ -112,8 +113,8 @@ try:
         subprocess.run(["git", "clone", url, "/tmp/green-metrics-tool/repo"], check=True, capture_output=True, encoding='UTF-8') # always name target-dir repo according to spec
         folder = '/tmp/green-metrics-tool/repo'
 
-    with open(f"{folder}/usage_scenario.json") as fp:
-        obj = json.load(fp)
+    # with open(f"{folder}/usage_scenario.json") as fp:
+    #     obj = json.load(fp)
 
     print("Having Usage Scenario ", obj['name'])
     print("From: ", obj['author'])
