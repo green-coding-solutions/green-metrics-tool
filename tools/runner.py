@@ -152,11 +152,6 @@ try:
                     docker_run_string.append('-e')
                     docker_run_string.append(f"{docker_env_var[0]}={docker_env_var[1]}")
 
-
-            if 'portmapping' in el:
-                docker_run_string.append('-p')
-                docker_run_string.append(el['portmapping'])
-
             if 'network' in el:
                 docker_run_string.append('--net')
                 docker_run_string.append(el['network'])
