@@ -3,6 +3,7 @@ CREATE TABLE projects (
     name text,
     url text,
     email text,
+    usage_scenario jsonb,
     crawled boolean DEFAULT false,
     last_crawl timestamp with time zone,
     created_at timestamp with time zone DEFAULT now()
