@@ -7,12 +7,13 @@ RUN rm -rf /var/lib/apt/lists/*
 RUN apt update && \
     apt install net-tools postgresql-14 postgresql-contrib libpq-dev git -y
 RUN rm -rf /var/lib/apt/lists/*
-ARG postgres_pw
 
 COPY ./structure.sql /tmp/structure.sql
 
 # rm -rf /var/lib/apt/lists/* after the install command in order to prevent the cached apt lists (which are fetched by apt update) from ending up in the container image
 USER postgres
+
+ARG postgres_pw
 
 # /etc/init.d must be connected with && instead of multiple RUN commands. Otherwise database will shut down in between
 RUN /etc/init.d/postgresql start && \

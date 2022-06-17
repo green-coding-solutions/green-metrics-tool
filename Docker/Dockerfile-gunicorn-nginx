@@ -2,8 +2,6 @@
 FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
-ARG postgres_pw
-
 RUN rm -rf /var/lib/apt/lists/*
 RUN apt update && \
     apt install python3 python3-pip gunicorn nginx libpq-dev git -y
@@ -15,6 +13,8 @@ WORKDIR /var/www/green-metrics-tool
 RUN git clone https://github.com/green-coding-berlin/green-metrics-tool.git /var/www/green-metrics-tool
 
 RUN chown -R www-data:www-data /var/www
+
+ARG postgres_pw
 
 RUN printf "postgresql:\n\
   host: green-coding-postgres-container\n\
