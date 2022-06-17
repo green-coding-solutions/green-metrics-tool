@@ -13,7 +13,7 @@ Please set an entry in your `/etc/hosts` file accordingly like so:
 
 ## Setup
 
-- Please consider chaning the password in the `compose.yml` file for the database. This is just a simple one for development setup
+- Open the `compose.yml.example` change the default password and save the file as `compose.yml`
 - Build and run with `docker compose up`
 - The compose file uses volumes to persist the state of the database even between rebuilds. If you want a fresh start use: `docker compose down -v && docker compose up`
 - To start in detached mode just use `docker compose -d`
