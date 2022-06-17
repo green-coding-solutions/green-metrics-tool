@@ -9,8 +9,6 @@ services:
     restart: always
     volumes:
       - green-coding-postgres-data:/var/lib/postgresql/14/main
-    networks:
-      - green-coding-net
     expose:
       - 5432
     ports:
@@ -22,14 +20,10 @@ services:
       args:
         - postgres_pw=cccvvv
     container_name: green-coding-nginx-gunicorn-container
-    networks:
-      - green-coding-net
     depends_on:
       - green-coding-postgres
     ports:
       - 8000:80
     restart: always
-networks:
-  green-coding-net:
 volumes:
   green-coding-postgres-data:
