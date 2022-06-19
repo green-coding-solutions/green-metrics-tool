@@ -13,3 +13,5 @@ smtp:
 project:
   name: My test project
   url: https://metrics.green-coding.org/
+admin:
+  email: dan@green-coding.org

@@ -5,8 +5,11 @@ import os
 import sys
 import psycopg2.extras
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
+sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../tools')
 
-from setup_functions import get_db_connection
+from setup_functions import get_db_connection, get_config
+from send_email import send_email
+
 conn = get_db_connection()
 
 from fastapi import FastAPI
@@ -53,12 +56,9 @@ async def get_projects():
     cur.close()
 
     if(data is None or data == []):
-        response = {'success': False, 'err': 'Data is empty'}
-        return response
+        return {'success': False, 'err': 'Data is empty'}
 
-
-    response = {"success": True, "data": data}
-    return response
+    return {"success": True, "data": data}
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/stats/url/{url}')
@@ -67,8 +67,7 @@ async def get_stats_by_url(url: str):
     cur = conn.cursor()
 
     if(url is None or url.strip() == ''):
-        response = {'success': False, 'err': 'URL is empty'}
-        return response
+        return {'success': False, 'err': 'URL is empty'}
 
     cur.execute("""
         SELECT
@@ -99,13 +98,9 @@ async def get_stats_by_url(url: str):
     cur.close()
 
     if(data is None or data == []):
-        response = {'success': False, 'err': 'Data is empty'}
-        return response
+        return {'success': False, 'err': 'Data is empty'}
 
-
-    response = {"success": True, "data": data}
-    return response
-
+    return {"success": True, "data": data}
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/stats/single/{project_id}')
@@ -113,8 +108,7 @@ async def get_stats_single(project_id: str):
     cur = conn.cursor()
 
     if(project_id is None or project_id.strip() == ''):
-        response = {'success': False, 'err': 'Project_id is empty'}
-        return response
+        return {'success': False, 'err': 'Project_id is empty'}
 
     cur.execute("""
         SELECT
@@ -140,12 +134,10 @@ async def get_stats_single(project_id: str):
     cur.close()
 
     if(data is None or data == []):
-        response = {'success': False, 'err': 'Data is empty'}
-        return response
+        return {'success': False, 'err': 'Data is empty'}
 
 
-    response = {"success": True, "data": data, "project": get_project(project_id)}
-    return response
+    return {"success": True, "data": data, "project": get_project(project_id)}
 
 class Project(BaseModel):
     name: str
@@ -156,29 +148,52 @@ class Project(BaseModel):
 async def post_project_add(project: Project):
 
     if(project.url is None or project.url.strip() == ''):
-        response = {'success': False, 'err': 'URL is empty'}
-        return response
+        return {'success': False, 'err': 'URL is empty'}
 
     if(project.name is None or project.name.strip() == ''):
-        response = {'success': False, 'err': 'Name is empty'}
-        return response
+        return {'success': False, 'err': 'Name is empty'}
 
     if(project.email is None or project.email.strip() == ''):
-        response = {'success': False, 'err': 'E-mail is empty'}
-        return response
+        return {'success': False, 'err': 'E-mail is empty'}
 
     cur = conn.cursor()
 
     cur.execute("""
-        INSERT INTO projects (url,name,email) VALUES (%s, %s, %s)
+        INSERT INTO
+            projects (url,name,email)
+        VALUES (%s, %s, %s)
+        RETURNING id
         """,
         (project.url,project.name,project.email)
     )
     conn.commit()
-
+    project_id = cur.fetchone()[0]
     cur.close()
-    response = {"status": "success"}
-    return response
+
+    notify_admin(project.name, project_id)
+
+    return {"status": "success"}
+
+def notify_admin(name, project_id):
+    config = get_config()
+    message = """\
+From: {smtp_sender}
+To: {receiver_email}
+Subject: Someone has added a new project
+
+{name} has added a new project. ID: {project_id}
+
+--
+Green Coding Berlin
+https://www.green-coding.org
+
+    """
+    message = message.format(
+        receiver_email=config['admin']['email'],
+        name=name,
+        project_id=project_id,
+        smtp_sender=config['smtp']['sender'])
+    send_email(config, message, config['admin']['email'])
 
 def get_project(project_id):
     cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
