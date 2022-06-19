@@ -61,7 +61,8 @@ async def get_projects():
     return response
 
 # A route to return all of the available entries in our catalog.
-@app.get('/v1/stats/url')
+@app.get('/v1/stats/url/{url}')
+@app.get('/v1/stats/url', deprecated=True) # Here you can see, that URL is nevertheless accessible as variable later if supplied. Also deprecation shall be used once we move to v2 for all v1 routesthrough
 async def get_stats_by_url(url: str):
     cur = conn.cursor()
 
