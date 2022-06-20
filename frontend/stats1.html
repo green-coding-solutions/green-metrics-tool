@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Green Metrics Tool - Experimental 0.1</title>
+  <!-- plugins:css -->
+  <link rel="stylesheet" href="/assets/vendors/mdi/css/materialdesignicons.min.css">
+  <link rel="stylesheet" href="/assets/vendors/css/vendor.bundle.base.css">
+  <!-- endinject -->
+  <!-- Plugin css for this page -->
+  <link rel="stylesheet" href="/assets/vendors/flag-icon-css/css/flag-icon.min.css">
+  <link rel="stylesheet" href="/assets/vendors/jvectormap/jquery-jvectormap.css">
+  <!-- End plugin css for this page -->
+  <!-- Layout styles -->
+  <link rel="stylesheet" href="/assets/css/demo/style.css">
+  <!-- End layout styles -->
+  <link rel="shortcut icon" href="/assets/images/favicon.png" />
+</head>
+<body>
+<script src="../assets/js/preloader.js"></script>
+  <div class="body-wrapper">
+    <!-- partial:partials/_sidebar.html -->
+    <aside class="mdc-drawer mdc-drawer--dismissible mdc-drawer--open">
+      <div class="mdc-drawer__header">
+        <a href="index.html" class="brand-logo">
+          <img src="../assets/images/logo.svg" alt="logo">
+        </a>
+      </div>
+      <div class="mdc-drawer__content">
+        <div class="user-info">
+          <p class="name">Demo User</p>
+          <p class="email">info@green-coding.org</p>
+        </div>
+        <div class="mdc-list-group">
+          <nav class="mdc-list mdc-drawer-menu">
+            <div class="mdc-list-item mdc-drawer-item">
+              <a class="mdc-drawer-link" href="index.html">
+                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">home</i>
+                Home
+              </a>
+            </div>
+            <div class="mdc-list-item mdc-drawer-item">
+              <a class="mdc-drawer-link" href="/request.html">
+                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">track_changes</i>
+                Certify new Software
+              </a>
+            </div>
+            <div class="mdc-list-item mdc-drawer-item">
+              <a class="mdc-drawer-link" href="/data_analysis.html">
+                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">pie_chart</i>
+                Data Analysis
+              </a>
+            </div>
+          </nav>
+        </div>
+        <div class="profile-actions">
+          <a href="javascript:;">Settings</a>
+          <span class="divider"></span>
+          <a href="javascript:;">Logout</a>
+        </div>
+      </div>
+    </aside>
+    <!-- partial -->
+    <div class="main-wrapper mdc-drawer-app-content">
+      <!-- partial:partials/_navbar.html -->
+      <header class="mdc-top-app-bar">
+        <div class="mdc-top-app-bar__row">
+          <div class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
+            <button class="material-icons mdc-top-app-bar__navigation-icon mdc-icon-button sidebar-toggler">menu</button>
+            <span class="mdc-top-app-bar__title">Greetings Demo User!</span>
+            <div class="mdc-text-field mdc-text-field--outlined mdc-text-field--with-leading-icon search-text-field d-none d-md-flex">
+              <i class="material-icons mdc-text-field__icon">search</i>
+              <input class="mdc-text-field__input" id="text-field-hero-input">
+              <div class="mdc-notched-outline">
+                <div class="mdc-notched-outline__leading"></div>
+                <div class="mdc-notched-outline__notch">
+                  <label for="text-field-hero-input" class="mdc-floating-label">Search..</label>
+                </div>
+                <div class="mdc-notched-outline__trailing"></div>
+              </div>
+            </div>
+          </div>
+          <div class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end mdc-top-app-bar__section-right">
+            <div class="menu-button-container menu-profile d-none d-md-block">
+              <button class="mdc-button mdc-menu-button">
+                <span class="d-flex align-items-center">
+                  <span class="figure">
+                    <img src="../assets/images/faces/face1.jpg" alt="user" class="user">
+                  </span>
+                  <span class="user-name">Demo User</span>
+                </span>
+              </button>
+              <div class="mdc-menu mdc-menu-surface" tabindex="-1">
+                <ul class="mdc-list" role="menu" aria-hidden="true" aria-orientation="vertical">
+                  <li class="mdc-list-item" role="menuitem">
+                    <div class="item-thumbnail item-thumbnail-icon-only">
+                      <i class="mdi mdi-account-edit-outline text-primary"></i>
+                    </div>
+                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                      <h6 class="item-subject font-weight-normal">Edit profile</h6>
+                    </div>
+                  </li>
+                  <li class="mdc-list-item" role="menuitem">
+                    <div class="item-thumbnail item-thumbnail-icon-only">
+                      <i class="mdi mdi-settings-outline text-primary"></i>
+                    </div>
+                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                      <h6 class="item-subject font-weight-normal">Logout</h6>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="divider d-none d-md-block"></div>
+            <div class="menu-button-container d-none d-md-block">
+              <button class="mdc-button mdc-menu-button">
+                <i class="mdi mdi-settings"></i>
+              </button>
+              <div class="mdc-menu mdc-menu-surface" tabindex="-1">
+                <ul class="mdc-list" role="menu" aria-hidden="true" aria-orientation="vertical">
+                  <li class="mdc-list-item" role="menuitem">
+                    <div class="item-thumbnail item-thumbnail-icon-only">
+                      <i class="mdi mdi-alert-circle-outline text-primary"></i>
+                    </div>
+                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                      <h6 class="item-subject font-weight-normal">Settings</h6>
+                    </div>
+                  </li>
+                  <li class="mdc-list-item" role="menuitem">
+                    <div class="item-thumbnail item-thumbnail-icon-only">
+                      <i class="mdi mdi-progress-download text-primary"></i>
+                    </div>
+                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                      <h6 class="item-subject font-weight-normal">Update</h6>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="menu-button-container">
+              <button class="mdc-button mdc-menu-button">
+                <i class="mdi mdi-bell"></i>
+              </button>
+              <div class="mdc-menu mdc-menu-surface" tabindex="-1">
+                <h6 class="title"> <i class="mdi mdi-bell-outline mr-2 tx-16"></i> Notifications</h6>
+                <ul class="mdc-list" role="menu" aria-hidden="true" aria-orientation="vertical">
+                  <li class="mdc-list-item" role="menuitem">
+                    <div class="item-thumbnail item-thumbnail-icon">
+                      <i class="mdi mdi-email-outline"></i>
+                    </div>
+                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                      <h6 class="item-subject font-weight-normal">You received a new message</h6>
+                      <small class="text-muted"> 6 min ago </small>
+                    </div>
+                  </li>
+                  <li class="mdc-list-item" role="menuitem">
+                    <div class="item-thumbnail item-thumbnail-icon">
+                      <i class="mdi mdi-account-outline"></i>
+                    </div>
+                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                      <h6 class="item-subject font-weight-normal">New user registered</h6>
+                      <small class="text-muted"> 15 min ago </small>
+                    </div>
+                  </li>
+                  <li class="mdc-list-item" role="menuitem">
+                    <div class="item-thumbnail item-thumbnail-icon">
+                      <i class="mdi mdi-alert-circle-outline"></i>
+                    </div>
+                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                      <h6 class="item-subject font-weight-normal">System Alert</h6>
+                      <small class="text-muted"> 2 days ago </small>
+                    </div>
+                  </li>
+                  <li class="mdc-list-item" role="menuitem">
+                    <div class="item-thumbnail item-thumbnail-icon">
+                      <i class="mdi mdi-update"></i>
+                    </div>
+                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                      <h6 class="item-subject font-weight-normal">You have a new update</h6>
+                      <small class="text-muted"> 3 days ago </small>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="menu-button-container">
+              <button class="mdc-button mdc-menu-button">
+                <i class="mdi mdi-email"></i>
+                <span class="count-indicator">
+                  <span class="count">3</span>
+                </span>
+              </button>
+              <div class="mdc-menu mdc-menu-surface" tabindex="-1">
+                <h6 class="title"><i class="mdi mdi-email-outline mr-2 tx-16"></i> Messages</h6>
+                <ul class="mdc-list" role="menu" aria-hidden="true" aria-orientation="vertical">
+                  <li class="mdc-list-item" role="menuitem">
+                    <div class="item-thumbnail">
+                      <img src="../assets/images/faces/face4.jpg" alt="user">
+                    </div>
+                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                      <h6 class="item-subject font-weight-normal">Mark send you a message</h6>
+                      <small class="text-muted"> 1 Minutes ago </small>
+                    </div>
+                  </li>
+                  <li class="mdc-list-item" role="menuitem">
+                    <div class="item-thumbnail">
+                      <img src="../assets/images/faces/face2.jpg" alt="user">
+                    </div>
+                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                      <h6 class="item-subject font-weight-normal">Cregh send you a message</h6>
+                      <small class="text-muted"> 15 Minutes ago </small>
+                    </div>
+                  </li>
+                  <li class="mdc-list-item" role="menuitem">
+                    <div class="item-thumbnail">
+                      <img src="../assets/images/faces/face3.jpg" alt="user">
+                    </div>
+                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                      <h6 class="item-subject font-weight-normal">Profile picture updated</h6>
+                      <small class="text-muted"> 18 Minutes ago </small>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="menu-button-container d-none d-md-block">
+              <button class="mdc-button mdc-menu-button">
+                <i class="mdi mdi-arrow-down-bold-box"></i>
+              </button>
+              <div class="mdc-menu mdc-menu-surface" tabindex="-1">
+                <ul class="mdc-list" role="menu" aria-hidden="true" aria-orientation="vertical">
+                  <li class="mdc-list-item" role="menuitem">
+                    <div class="item-thumbnail item-thumbnail-icon-only">
+                      <i class="mdi mdi-lock-outline text-primary"></i>
+                    </div>
+                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                      <h6 class="item-subject font-weight-normal">Lock screen</h6>
+                    </div>
+                  </li>
+                  <li class="mdc-list-item" role="menuitem">
+                    <div class="item-thumbnail item-thumbnail-icon-only">
+                      <i class="mdi mdi-logout-variant text-primary"></i>
+                    </div>
+                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
+                      <h6 class="item-subject font-weight-normal">Logout</h6>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+      <!-- partial -->
+      <div class="page-wrapper mdc-toolbar-fixed-adjust">
+        <main class="content-wrapper">
+          <div class="mdc-layout-grid">
+            <div class="mdc-layout-grid__inner">
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12-desktop mdc-layout-grid__cell--span-10-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">Project Data</h5>
+                      <table class="table-hover">
+                        <tbody>
+                            <tr><td>Project Name</td><td id="project-name"></td></tr>
+                            <tr><td>Project URL / Folder</td><td id="project-url"></td></tr>
+                            <tr><td>Last Crawl</td><td id="project-last-crawl"></td></tr>
+                        </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card info-card info-card--success">
+                  <div class="card-inner">
+                    <h5 class="card-title">AVG CPU Load (Estimate)</h5>
+                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="avg-cpu-load">%</h5>
+                    <p class="tx-12 text-muted">Over all containers. (See disclaimer)</p>
+                    <div class="card-icon-wrapper">
+                      <i class="material-icons">dvr</i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">MAX CPU Load</h5>
+                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="max-cpu-load">&nbsp;</h5>
+                    <p class="tx-12 text-muted">Over all containers</p>
+                    <div class="card-icon-wrapper">
+                      <i class="material-icons">trending_up</i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">Total Energy</h5>
+                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="total-energy">&nbsp;</h5>
+                    <p class="tx-12 text-muted">For whole machine. NOT per container.</p>
+                    <div class="card-icon-wrapper">
+                      <i class="material-icons">trending_up</i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">Total CO2</h5>
+                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="total-co2">&nbsp;</h5>
+                    <p class="tx-12 text-muted">For whole machine. NOT per container.</p>
+                    <div class="card-icon-wrapper">
+                      <i class="material-icons">trending_up</i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12-desktop mdc-layout-grid__cell--span-12-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">IMPORTANT</h5>
+                    <p class="tx-12">The Green Metrics Tool is currently experimental. Please use it for development purposes only.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card">
+                 <div id="chart-cpu"></div>
+                 <div class="form-check form-check-primary">
+                  <label class="form-check-label">
+                    <input type="checkbox" checked="" onchange="toggleNote(0)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                    <i class="input-helper"></i>
+                  </label>
+                </div>
+                </div>
+              </div>
+          
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card">
+                 <div id="chart-mem"></div>
+                 <div class="form-check form-check-primary">
+                   <label class="form-check-label">
+                     <input type="checkbox" checked="" onchange="toggleNote(1)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                     <i class="input-helper"></i>
+                   </label>
+                 </div>
+                </div>
+              </div>
+
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card">
+                 <div id="chart-energy"></div>
+                 <div class="form-check form-check-primary">
+                  <label class="form-check-label">
+                    <input type="checkbox" checked="" onchange="toggleNote(2)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                    <i class="input-helper"></i>
+                  </label>
+                </div>
+                </div>
+              </div>
+
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card">
+                 <div id="chart-net-in"></div>
+                 <div class="form-check form-check-primary">
+                  <label class="form-check-label">
+                    <input type="checkbox" checked="" onchange="toggleNote(3)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                    <i class="input-helper"></i>
+                  </label>
+                </div>
+                </div>
+              </div>
+
+        <script src="/dist/apexcharts.min.js"></script>
+
+    <script>
+        var cpu_load = [];
+        var options = {
+            series: [],
+            chart: {
+                type: 'area'
+            },
+            dataLabels: {
+                enabled: false
+            },
+            stroke: {
+                curve: 'smooth'
+            },
+            tooltip: {
+                x: {
+                    format: 'dd/MM/yy HH:mm'
+                },
+            },
+            title: {
+              text: 'REPLACE',
+            },
+            xaxis: {
+              tickAmount: 6,
+              type: "datetime"
+            },
+            annotations: {
+                xaxis: []
+            }
+
+
+        };
+        var options_cpu = { ...options}
+        options_cpu.title = {text: 'CPU Load in %'}
+
+        var options_energy = { ...options}
+        options_energy.title = {text: 'Energy in mJ'}
+
+        var options_mem = { ...options}
+        options_mem.title = {text: 'Memory Load in MB'}
+
+        var options_net_in = { ...options}
+        options_net_in.title = {text: 'Network inbound in MB'}
+
+        var my_series = {}
+
+        var project_data = {}
+
+        const query_string = window.location.search;
+        const url_params = (new URLSearchParams(query_string))
+        if(!url_params.has('id')) {
+            alert("Please supply id in URL")
+
+        } else {
+            var chart_cpu = null;
+            var chart_energy = null;
+            var chart_mem = null;
+            var chart_net_in = null;
+            var total_energy = null;
+            var accumulate = 0;
+            try {
+              if(document.location.host.indexOf('metrics.green-coding.org') === 0)
+                api_url = "https://api.green-coding.org";
+              else
+                api_url = "http://api.green-coding.local:8000";
+
+                fetch(api_url +'/v1/stats/single/'+url_params.get('id'))
+                  .then(response => response.json())
+                  .then(my_json => {
+                      if(my_json.success != true) {
+                          alert(my_json.err);
+                          return;
+                      }
+
+                      document.querySelector("#project-last-crawl").innerText = my_json.project.last_crawl;
+                      document.querySelector("#project-name").innerText = my_json.project.name;
+                      document.querySelector("#project-url").innerText = my_json.project.url;
+
+                      my_json.data.forEach(el => {
+                                  if(el[0] == '[SYSTEM]' && el[8] == '[START MEASUREMENT]') {
+                                    accumulate = 1;
+                                    return
+                                  } else if(el[0] == '[SYSTEM]' && el[8] == '[END MEASUREMENT]') {
+                                    accumulate = 0;
+                                    return;
+                                  }
+
+                                  if(accumulate === 1) {
+                                    total_energy += el[7];
+                                    cpu_load.push(el[2])
+                                  }
+
+                                  el[0] = 'Container '+el[0]
+                                  el[1] = el[1]/1000;
+                                  if(my_series['cpu'] == undefined) {
+                                      my_series['cpu'] = {}
+                                  }
+                                  if(my_series['energy'] == undefined) {
+                                      my_series['energy'] = {}
+                                  }
+
+                                  if(my_series['mem'] == undefined) {
+                                      my_series['mem'] = {}
+                                  }
+                                  if(my_series['net_in'] == undefined) {
+                                      my_series['net_in'] = {}
+                                  }
+
+                                  if(my_series['cpu'][el[0]] == undefined) {
+                                      my_series['cpu'][el[0]] = {name: el[0], data: [{x: el[1], y:el[2]/100}]}
+                                  } else {
+                                      my_series['cpu'][el[0]]['data'].push({x: el[1], y:el[2]/100})
+                                  }
+                                  if(my_series['energy'][el[0]] == undefined) {
+                                      my_series['energy'][el[0]] = {name: el[0], data: [{x: el[1], y:el[7]}]}
+                                  } else {
+                                      my_series['energy'][el[0]]['data'].push({x: el[1], y:el[7]})
+                                  }
+
+                                  if(my_series['mem'][el[0]] == undefined) {
+                                      my_series['mem'][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/1000000}]}
+                                  } else {
+                                      my_series['mem'][el[0]]['data'].push({x: el[1], y:el[3]/1000000})
+                                  }
+                                  if(my_series['net_in'][el[0]] == undefined) {
+                                      my_series['net_in'][el[0]] = {name: el[0], data: [{x: el[1], y:el[2]/1000000}]}
+                                  } else {
+                                      my_series['net_in'][el[0]]['data'].push({x: el[1], y:el[5]/1000000})
+                                  }
+
+                                  if(el[8] != null) {
+                                      options_cpu.annotations.xaxis.push({
+                                        x: el[1],
+                                        strokeDashArray: 0,
+                                        borderColor: "#775DD0",
+                                        label: {
+                                          borderColor: "#775DD0",
+                                          position: "bottom",
+                                              /*
+                                          mouseEnter: (e) => {
+                                              if(e.label.position == "top")
+                                                  e.label.position = "bottom";
+                                              else
+                                                  e.label.position = "top";
+                                              chart_cpu.destroy();
+                                              chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
+                                              chart_cpu.render();
+                                        },
+                                        */
+                                          style: {
+                                            color: "#fff",
+                                            background: "#775DD0"
+                                          },
+                                          text: el[8],
+                                          //orientation: "horizontal"
+                                        }
+                                      })
+                                  }
+
+                                  /*
+                                  el[0] // container_id
+                                  el[1] // time
+                                  el[2] // cpu in 10 ms
+                                  el[3] // mem_cur
+                                  el[4] // mem_max
+                                  el[5] // net_in
+                                  el[6] // net_out
+                                  el[7] // energy
+
+                                  '*/
+                        })
+
+                        options_cpu.series = Object.values(my_series.cpu)
+                        options_energy.series = Object.values(my_series.energy)
+                        options_mem.series = Object.values(my_series.mem)
+                        options_net_in.series = Object.values(my_series.net_in)
+
+                        chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
+                        chart_energy = new ApexCharts(document.querySelector("#chart-energy"), options_energy);
+                        chart_mem = new ApexCharts(document.querySelector("#chart-mem"), options_mem);
+                        chart_net_in = new ApexCharts(document.querySelector("#chart-net-in"), options_net_in);
+
+                        chart_cpu.render();
+                        chart_mem.render();
+                        chart_energy.render();
+                        chart_net_in.render();
+
+                        document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
+                        document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
+                        document.querySelector("#total-co2").innerText = (total_energy / 1000 / 3600000 * 0.519 * 1000000).toFixed(2) + " ugCO2eq"
+                        document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a,b) => a + b, 0) / cpu_load.length) / 100).toFixed(2) + " %"
+
+                  })
+              } catch(e) {
+                  alert("Fetch failed: "+e)
+              }
+            }
+    </script>
+                      
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card bg-success text-white">
+                  <div class="d-flex justify-content-between">
+                    <h3 class="font-weight-normal">DEMO</h3>
+                    <i class="material-icons options-icon text-white">more_vert</i>
+                  </div>
+                  <div class="mdc-layout-grid__inner align-items-center">
+                    <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-4-desktop mdc-layout-grid__cell--span-3-tablet mdc-layout-grid__cell--span-2-phone">
+                      <div>
+                        <h5 class="font-weight-normal mt-2">Customers 58.39k</h5>
+                        <h2 class="font-weight-normal mt-3 mb-0">636,757K</h2>
+                      </div>
+                    </div>
+                    <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-8-desktop mdc-layout-grid__cell--span-5-tablet mdc-layout-grid__cell--span-2-phone">
+                      <canvas id="impressions-chart" height="80"></canvas>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card bg-info text-white">
+                    <div class="d-flex justify-content-between">
+                      <h3 class="font-weight-normal">DEMO</h3>
+                      <i class="material-icons options-icon text-white">more_vert</i>
+                    </div>
+                    <div class="mdc-layout-grid__inner align-items-center">
+                      <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-4-desktop mdc-layout-grid__cell--span-3-tablet mdc-layout-grid__cell--span-2-phone">
+                        <div>
+                          <h5 class="font-weight-normal mt-2">Customers 58.39k</h5>
+                          <h2 class="font-weight-normal mt-3 mb-0">636,757K</h2>
+                        </div>
+                      </div>
+                      <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-8-desktop mdc-layout-grid__cell--span-5-tablet mdc-layout-grid__cell--span-2-phone">
+                        <canvas id="traffic-chart" height="80"></canvas>
+                      </div>
+                    </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-8">
+                <div class="mdc-card">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <h4 class="card-title mb-2 mb-sm-0">DEMO</h4>
+                    <div class="d-flex justtify-content-between align-items-center">
+                      <p class="d-none d-sm-block text-muted tx-12 mb-0 mr-2">Goal reached</p>
+                      <i class="material-icons options-icon">more_vert</i>
+                    </div>
+                  </div>
+                  <div class="d-block d-sm-flex justify-content-between align-items-center">
+                    <h6 class="card-sub-title mb-0">Sales performance revenue based by country</h6>
+                    <div class="mdc-tab-wrapper revenue-tab mdc-tab--secondary"> 
+                      <div class="mdc-tab-bar" role="tablist">
+                        <div class="mdc-tab-scroller">
+                          <div class="mdc-tab-scroller__scroll-area">
+                            <div class="mdc-tab-scroller__scroll-content">
+                              <button class="mdc-tab mdc-tab--active" role="tab" aria-selected="true" tabindex="0">
+                                <span class="mdc-tab__content">
+                                  <span class="mdc-tab__text-label">1W</span>
+                                </span>
+                                <span class="mdc-tab-indicator mdc-tab-indicator--active">
+                                  <span class="mdc-tab-indicator__content mdc-tab-indicator__content--underline"></span>
+                                </span>
+                                <span class="mdc-tab__ripple"></span>
+                              </button>
+                              <button class="mdc-tab mdc-tab" role="tab" aria-selected="true" tabindex="0">
+                                <span class="mdc-tab__content">
+                                  <span class="mdc-tab__text-label">1M</span>
+                                </span>
+                                <span class="mdc-tab-indicator mdc-tab-indicator">
+                                  <span class="mdc-tab-indicator__content mdc-tab-indicator__content--underline"></span>
+                                </span>
+                                <span class="mdc-tab__ripple"></span>
+                              </button>
+                              <button class="mdc-tab mdc-tab" role="tab" aria-selected="true" tabindex="0">
+                                <span class="mdc-tab__content">
+                                  <span class="mdc-tab__text-label">3M</span>
+                                </span>
+                                <span class="mdc-tab-indicator mdc-tab-indicator">
+                                  <span class="mdc-tab-indicator__content mdc-tab-indicator__content--underline"></span>
+                                </span>
+                                <span class="mdc-tab__ripple"></span>
+                              </button>
+                              <button class="mdc-tab mdc-tab" role="tab" aria-selected="true" tabindex="0">
+                                <span class="mdc-tab__content">
+                                  <span class="mdc-tab__text-label">1Y</span>
+                                </span>
+                                <span class="mdc-tab-indicator mdc-tab-indicator">
+                                  <span class="mdc-tab-indicator__content mdc-tab-indicator__content--underline"></span>
+                                </span>
+                                <span class="mdc-tab__ripple"></span>
+                              </button>
+                              <button class="mdc-tab mdc-tab" role="tab" aria-selected="true" tabindex="0">
+                                <span class="mdc-tab__content">
+                                  <span class="mdc-tab__text-label">ALL</span>
+                                </span>
+                                <span class="mdc-tab-indicator mdc-tab-indicator">
+                                  <span class="mdc-tab-indicator__content mdc-tab-indicator__content--underline"></span>
+                                </span>
+                                <span class="mdc-tab__ripple"></span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="content content--active">    
+                      </div>
+                      <div class="content">
+                      </div>
+                      <div class="content">    
+                      </div>
+                      <div class="content">
+                      </div>
+                      <div class="content">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="chart-container mt-4">
+                    <canvas id="revenue-chart" height="260"></canvas>
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-4 mdc-layout-grid__cell--span-8-tablet">
+                <div class="mdc-card">
+                  <div class="d-flex d-lg-block d-xl-flex justify-content-between">
+                    <div>
+                      <h4 class="card-title">DEMO</h4>
+                      <h6 class="card-sub-title">Customers 58.39k</h6>
+                    </div>
+                    <div id="sales-legend" class="d-flex flex-wrap"></div>
+                  </div>
+                  <div class="chart-container mt-4">
+                    <canvas id="chart-sales" height="260"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+        <!-- partial:partials/_footer.html -->
+        <footer>
+          <div class="mdc-layout-grid">
+            <div class="mdc-layout-grid__inner">
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
+                <span class="text-center text-sm-left d-block d-sm-inline-block tx-14">Copyright © <a href="https://www.bootstrapdash.com/" target="_blank">bootstrapdash.com </a>2020</span>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop d-flex justify-content-end">
+                <span class="float-none float-sm-right d-block mt-1 mt-sm-0 text-center tx-14">Free <a href="https://www.bootstrapdash.com/material-design-dashboard/" target="_blank"> material admin </a> dashboards from Bootstrapdash.com</span>
+              </div>
+            </div>
+          </div>
+        </footer>
+        <!-- partial -->
+      </div>
+    </div>
+  </div>
+  <!-- plugins:js -->
+  <script src="../assets/vendors/js/vendor.bundle.base.js"></script>
+  <!-- endinject -->
+  <!-- Plugin js for this page-->
+  <script src="../assets/vendors/chartjs/Chart.min.js"></script>
+  <script src="../assets/vendors/jvectormap/jquery-jvectormap.min.js"></script>
+  <script src="../assets/vendors/jvectormap/jquery-jvectormap-world-mill-en.js"></script>
+  <!-- End plugin js for this page-->
+  <!-- inject:js -->
+  <!-- <script src="../assets/js/material.js"></script> -->
+  <script src="../assets/js/misc.js"></script>
+  <!-- endinject -->
+  <!-- Custom js for this page-->
+  <script src="../assets/js/dashboard.js"></script>
+  <!-- End custom js for this page-->
+  
+  <script>
+    const toggleNote = (id) => {
+      const note = document.getElementsByClassName('apexcharts-xaxis-annotations')[id];
+      if (!note.style.display) note.style.display = "none";
+      else note.style.display = "";
+    }
+  </script>
+</body>
+</html> 
