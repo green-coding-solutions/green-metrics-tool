@@ -396,7 +396,8 @@
             },
             stroke: {
                 // curve: 'smooth'
-                curve: 'straight'
+                curve: 'straight',
+                width: 2
             },
             tooltip: {
                 x: {
@@ -412,6 +413,9 @@
             },
             annotations: {
                 xaxis: []
+            },
+            animations: {
+              enabled: false
             }
         };
         var options_cpu = { ...options}
