@@ -233,8 +233,7 @@ try:
 
 
     # To issue this command as sudo it must be specifically allowed in the /etc/sudoers like so:
-    # docker run  -d -p 8000:80 --net green-coding-net --name green-coding-nginx-gunicorn-container green-coding-nginx-gunicorn
-    # arne	ALL=(ALL) NOPASSWD: PATH_TO/green-metrics-tool/tools/rapl-read
+    # arne	ALL=(ALL) NOPASSWD: PATH_TO/green-metrics-tool/tools/rapl-read -i 100
     print("Starting measurement provider RAPL read")
     rapl_process = subprocess.Popen(
         [f"sudo /usr/bin/stdbuf -oL {current_dir}/rapl-read -i 100 > /tmp/green-metrics-tool/rapl.log &"],
