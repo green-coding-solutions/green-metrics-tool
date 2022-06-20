@@ -104,7 +104,7 @@ pids_to_kill = []
 
 try:
 
-    subprocess.run(["rm", "-R", "/tmp/green-metrics-tool"])
+    subprocess.run(["rm", "-Rf", "/tmp/green-metrics-tool"])
     subprocess.run(["mkdir", "/tmp/green-metrics-tool"])
 
     if url is not None :
@@ -354,7 +354,7 @@ finally:
         subprocess.run(['docker', 'network', 'rm', network_name])
 
     if args.no_file_cleanup is None:
-        subprocess.run(["rm", "-R", "/tmp/green-metrics-tool"])
+        subprocess.run(["rm", "-Rf", "/tmp/green-metrics-tool"])
 
     for pid in pids_to_kill:
         print("Killing: ", pid)
