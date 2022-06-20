@@ -95,7 +95,6 @@ elif args.mode == 'cron':
 else:
     raise Exception('Unknown mode: ', args.mode)
 
-insert_hw_info(conn, project_id)
 
 containers = {}
 networks = []
@@ -103,6 +102,8 @@ pids_to_kill = []
 
 
 try:
+
+    insert_hw_info(conn, project_id)
 
     subprocess.run(["rm", "-Rf", "/tmp/green-metrics-tool"])
     subprocess.run(["mkdir", "/tmp/green-metrics-tool"])
