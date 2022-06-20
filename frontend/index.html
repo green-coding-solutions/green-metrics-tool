@@ -267,11 +267,8 @@
                         <thead>
                           <tr>
                             <th> Name </th>
-                            <th> URL / Folder</th>
-                            <th> E-mail </th>
-                            <th> Crawled </th>
+                            <th> URI</th>
                             <th> Last Crawl </th>
-                            <th> Created at </th>
                           </tr>
                         </thead>
                         <tbody id="projects-table">
@@ -314,25 +311,9 @@
                         link_node.href = "/stats.html?id="+el[0];
                         li_node.appendChild(link_node);
                         li_node.innerHTML = '<td>'+li_node.innerHTML + '</td><td>'+el[2]+'</td><td>'+el[3]+'</td>';
-                        if(el[4] == true) {
-                            li_node.innerHTML += '<td><label class="badge badge-success">'+el[4]+'</label></td>';
-                        } else {
-                            li_node.innerHTML += '<td><label class="badge badge-warning">'+el[4]+'</label></td>';
-                        }
-
-                        li_node.innerHTML += '<td>'+el[5]+'</td><td>'+el[5]+'</td>'
 
                         document.getElementById("projects-table").appendChild(li_node);
-                                  /*
-                                  el[0] // project_id
-                                  el[1] // name
-                                  el[2] // folder / url
-                                  el[3] // ???
-                                  el[4] // crawled
-                                  el[5] // last_crawl
-                                  el[6] // created_at
-
-                                  '*/
+            
                      })
 
                   })

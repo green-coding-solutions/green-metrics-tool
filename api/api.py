@@ -44,7 +44,7 @@ async def get_projects():
     cur = conn.cursor()
     cur.execute("""
         SELECT
-            *
+            id, name, url, last_crawl
         FROM
             projects
         ORDER BY

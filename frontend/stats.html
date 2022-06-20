@@ -264,8 +264,10 @@
                     <h5 class="card-title">Project Data</h5>
                       <table class="table-hover">
                         <tbody>
-                            <tr><td>Project Name</td><td id="project-name"></td></tr>
-                            <tr><td>Project URL / Folder</td><td id="project-url"></td></tr>
+                            <tr><td>Name</td><td id="project-name"></td></tr>
+                            <tr><td>URI</td><td id="project-url"></td></tr>
+                            <tr><td>CPU</td><td id="project-cpu"></td></tr>
+                            <tr><td>Total Memory</td><td id="project-memtotal"></td></tr>
                             <tr><td>Last Crawl</td><td id="project-last-crawl"></td></tr>
                         </tbody>
                     </table>
@@ -384,7 +386,10 @@
         var options = {
             series: [],
             chart: {
-                type: 'area'
+                type: 'area',
+                animations: {
+                  enabled: false
+                }
             },
             dataLabels: {
                 enabled: false
@@ -455,7 +460,9 @@
                       document.querySelector("#project-last-crawl").innerText = my_json.project.last_crawl;
                       document.querySelector("#project-name").innerText = my_json.project.name;
                       document.querySelector("#project-url").innerText = my_json.project.url;
-
+                      document.querySelector("#project-cpu").innerText = my_json.project.cpu;
+                      document.querySelector("#project-memtotal").innerText = my_json.project.memtotal;
+                      
                       my_json.data.forEach(el => {
                                   if(el[0] == '[SYSTEM]' && el[8] == '[START MEASUREMENT]') {
                                     accumulate = 1;
