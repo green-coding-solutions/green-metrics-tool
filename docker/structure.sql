@@ -1,3 +1,9 @@
+ALTER USER postgres WITH PASSWORD 'cccvvv';
+CREATE DATABASE "green-coding";
+\c green-coding;
+
+CREATE EXTENSION "uuid-ossp";
+
 CREATE TABLE projects (
     id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
     name text,
