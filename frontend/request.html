@@ -388,7 +388,7 @@
           })
           .then(response => response.json())
           .then(data => {
-              if(data.status == "success") {
+              if(data.success == true) {
                   document.forms[0].reset()
                   showSuccessToast()
               } else {

@@ -156,23 +156,31 @@ async def post_project_add(project: Project):
     if(project.email is None or project.email.strip() == ''):
         return {'success': False, 'err': 'E-mail is empty'}
 
-    cur = conn.cursor()
+    try:
+        cur = conn.cursor()
 
-    cur.execute("""
-        INSERT INTO
-            projects (url,name,email)
-        VALUES (%s, %s, %s)
-        RETURNING id
-        """,
-        (project.url,project.name,project.email)
-    )
-    conn.commit()
-    project_id = cur.fetchone()[0]
-    cur.close()
+        cur.execute("""
+            INSERT INTO
+                projects (url,name,email)
+            VALUES (%s, %s, %s)
+            RETURNING id
+            """,
+            (project.url,project.name,project.email)
+        )
+        project_id = cur.fetchone()[0]
+            
+        print("Having: ", project_id)
+        
+        notify_admin(project.name, project_id)
+        conn.commit()
+        cur.close()
+        return {"success": True}
 
-    notify_admin(project.name, project_id)
-
-    return {"status": "success"}
+    except BaseException as e:
+        conn.rollback()
+        cur.close()
+        return {"success": False, "err": f"Problem with sending email / saving to database: {str(e)}"}
+    
 
 def notify_admin(name, project_id):
     config = get_config()

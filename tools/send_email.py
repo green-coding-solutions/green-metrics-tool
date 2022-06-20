@@ -1,5 +1,8 @@
 def send_email(config, message, receiver_email):
     import smtplib, ssl    
+
+    if(config['admin']['no_emails'] == True): return
+
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL(config['smtp']['server'], config['smtp']['port'], context=context) as server:
         # No need to set server.auth manually. server.login will iterater over all available methods

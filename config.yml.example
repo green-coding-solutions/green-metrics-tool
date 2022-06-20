@@ -14,4 +14,7 @@ project:
   name: My test project
   url: https://metrics.green-coding.org/
 admin:
-  email: dan@green-coding.org
+  # This address will get an email, when a new project was added through the frontend
+  email: myemail@dev.local
+  # no_emails: True will suppress all emails. Helpful in development servers
+  no_emails: True
