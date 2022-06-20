@@ -19,6 +19,25 @@
   <link rel="shortcut icon" href="/assets/images/favicon.png" />
 </head>
 <body>
+  <style> /* set the CSS */
+
+    /* body { font: 12px Arial;} */
+    
+    path { 
+        stroke: steelblue;
+        stroke-width: 2;
+        fill: none;
+    }
+    
+    .axis path,
+    .axis line {
+        fill: none;
+        stroke: grey;
+        stroke-width: 1;
+        shape-rendering: crispEdges;
+    }
+    
+    </style>
 <script src="../assets/js/preloader.js"></script>
   <div class="body-wrapper">
     <!-- partial:partials/_sidebar.html -->
@@ -323,7 +342,7 @@
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12-desktop mdc-layout-grid__cell--span-12-tablet">
                 <div class="mdc-card info-card info-card--danger">
                   <div class="card-inner">
-                    <h5 class="card-title">IMPORTANT</h5>
+                    <h5 class="card-title">IMPORTANT - d3.js - SCROLL DOWN TO THE BOTTOM OF THE PAGE</h5>
                     <p class="tx-12">The Green Metrics Tool is currently experimental. Please use it for development purposes only.</p>
                   </div>
                 </div>
@@ -377,7 +396,7 @@
                 </div>
               </div>
 
-        <script src="/dist/apexcharts.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
 
     <script>
         var cpu_load = [];
@@ -428,6 +447,66 @@
         var my_series = {}
 
         var project_data = {}
+
+        var margin = {top: 30, right: 20, bottom: 30, left: 300},
+        width = 700 - margin.left - margin.right,
+        height = 270 - margin.top - margin.bottom;
+
+        // Parse the date / time
+        // var parseDate = d3.time.format("%d-%b-%y").parse;
+
+        // Set the ranges
+        var x = d3.time.scale().range([0, width]);
+        var y = d3.scale.linear().range([height, 0]);
+
+        // Define the axes
+        var xAxis = d3.svg.axis().scale(x)
+            .orient("bottom").ticks(5);
+
+        var yAxis = d3.svg.axis().scale(y)
+            .orient("left").ticks(5);
+
+        // Define the line
+        var valueline = d3.svg.line()
+            .x(function(d) { return x(d.time); })
+            .y(function(d) { return y(d.cpu); });
+            
+        // Adds the svg canvas
+        var svg = d3.select("body")
+            .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+                .attr("transform", 
+                      "translate(" + margin.left + "," + margin.top + ")");
+
+        // Get the data
+        d3.csv("data3.csv", function(error, data) {
+            data.forEach(function(d) {
+                d.time = d.time;
+                d.cpu = +d.cpu;
+            });
+
+            // Scale the range of the data
+            x.domain(d3.extent(data, function(d) { return d.time; }));
+            y.domain([0, d3.max(data, function(d) { return d.cpu; })]);
+
+            // Add the valueline path.
+            svg.append("path")
+                .attr("class", "line")
+                .attr("d", valueline(data));
+
+            // Add the X Axis
+            svg.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(0," + height + ")")
+                .call(xAxis);
+
+            // Add the Y Axis
+            svg.append("g")
+                .attr("class", "y axis")
+                .call(yAxis);
+        });
 
         const query_string = window.location.search;
         const url_params = (new URLSearchParams(query_string))
