@@ -1,4 +1,5 @@
 from setup_functions import get_config
+import traceback
 from send_email import send_error_email
 
 def end_error(*errors):
@@ -8,8 +9,9 @@ def end_error(*errors):
 def email_error(*errors, email_admin=True, user_email=None, project_id=None):
     config = get_config()
     err = "Error: "
+
     for e in errors:
-        err+=e
+        err+= str(e)
 
     if email_admin:
         send_error_email(config, config['admin']['email'], err, project_id)
@@ -18,10 +20,7 @@ def email_error(*errors, email_admin=True, user_email=None, project_id=None):
 
 def log_error(*errors):
     err = "Error: "
-    for e in errors:
-        err+=e
-    print(err)
-    traceback.print_exc()
+    print("Error: ", *errors)
     # TODO: log to file
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ from import_stats import import_docker_stats, import_cgroup_stats, import_rapl #
 from save_notes import save_notes # local file import
 from setup_functions import get_db_connection, get_config
 from errors import log_error, end_error, email_error
+from insert_hw_info import insert_hw_info
 
 # TODO:
 # - Exception Logic is not really readable. Better encapsulate docker calls and fetch exception there
@@ -38,7 +39,7 @@ parser.add_argument("--debug", type=str, help="Activate steppable debug mode")
 
 args = parser.parse_args() # script will exit if url is not present
 
-user_email,project_id=None
+user_email,project_id=None,None
 
 if(args.folder is not None and args.url is not None):
         print('Please supply only either --folder or --url\n')
@@ -99,6 +100,7 @@ insert_hw_info(conn, project_id)
 containers = {}
 networks = []
 pids_to_kill = []
+
 
 try:
 
@@ -360,34 +362,6 @@ finally:
             os.killpg(os.getpgid(pid), signal.SIGTERM)
         except ProcessLookupError:
             pass # process may have already ended
-
-    exit(2)
-
-
-def insert_hw_info(conn, project_id):
-    with open("/proc/cpuinfo", "r")  as f:
-        info = f.readlines()
-    
-    cpuinfo = [x.strip().split(": ")[1] for x in info if "model name"  in x]
-    #print(cpuinfo[0])
-
-    with open("/proc/meminfo", "r") as f:
-        lines = f.readlines()
-    memtotal = re.search(r"\d+", lines[0].strip())
-    #print(memtotal.group())
-
-    #lshw_output = subprocess.check_output(["lshw", "-C", "display"])
-    #gpuinfo = re.search(r"product: (.*)$", lshw_output.decode("UTF-8"))
-    #print(gpuinfo.group())
-
-    cur = conn.cursor()
-    cur.execute("""UPDATE projects 
-        SET cpu=%s, memtotal=%s
-        WHERE id = %s
-        """, (cpuinfo[0], memtotal.group(), project_id))
-    conn.commit()
-    cur.close()
-
 
 if __name__ == "__main__":
     print('hello')
