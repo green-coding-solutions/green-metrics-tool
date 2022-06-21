@@ -571,7 +571,7 @@
                         // chart_cpu = new Dygraph(document.querySelector("#chart-cpu"), options_cpu.series[0].data, {rollPeriod: 7, showRoller: true});
 
                         let data_cpu = [];
-                        let containerName;
+                        let containerName = [];
                         let containerX;
                         let containerY;
 
@@ -585,22 +585,26 @@
                         // }
 
                         for (let i = 0; i < Object.values(my_series.cpu).length; i++) {
-                          containerName = Object.values(my_series.cpu)[i].name;
+                          containerName.push(Object.values(my_series.cpu)[i].name);
                           for (let j = 0; j < Object.values(my_series.cpu)[i].data.length; j++) {
                             // containerX = new Date(Object.values(my_series.cpu)[i].data[j].x); // GMT +0200
                             containerX = Object.values(my_series.cpu)[i].data[j].x;
                             containerY = Object.values(my_series.cpu)[i].data[j].y;
-                            data_cpu.push([containerX, containerY, ""]);
+                            if (i === 0) data_cpu.push([containerX, containerY, "", ""]);
+                            else if (i === 1) data_cpu.push([containerX, "", containerY, ""]);
+                            else if (i === 2) data_cpu.push([containerX, "", "", containerY]);
                           }
                         }
 
                         console.log('data_cpu now', data_cpu)
 
                         function getFormatedData(dataArray) {
-		                      var r = "Time,CPU\n";
+		                      var r = `Time,${containerName[0]},${containerName[1]},${containerName[2]}\n`;
 		                      for (var i = 0; i < dataArray.length; i++) {
 		                        r += dataArray[i][0];		      
 		                        r += "," + dataArray[i][1];
+                            r += "," + dataArray[i][2];
+                            r += "," + dataArray[i][3];
 		                        r += "\n";
 		                      }
 		                      console.log(r);
