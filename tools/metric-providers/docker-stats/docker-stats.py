@@ -1,4 +1,3 @@
-
 def import_docker_stats(conn, project_id, filename):
     import pandas as pd
     from io import StringIO
@@ -58,60 +57,6 @@ def import_docker_stats(conn, project_id, filename):
         conn.commit()
     cur.close()
 
-def import_cgroup_stats(conn, project_id, containers, filename):
-    import pandas as pd
-    from io import StringIO
-
-    with open(filename, 'r') as f:
-        csv_data = f.read()
-
-    csv_data = csv_data[:csv_data.rfind('\n')] # remove the last line from the string
-
-    df = pd.read_csv(StringIO(csv_data), sep=" ", names=["timestamp", "cpu", "container_id"])
-
-    cur = conn.cursor()
-    import numpy as np
-
-    for i, row in df.iterrows():
-        print(row)
-        cur.execute("""
-                INSERT INTO stats
-                ("project_id", "container_name", "cpu", "time")
-                VALUES
-                (%s, %s, %s, %s)
-                """,
-                (project_id, containers[row.container_id], float(row.cpu)*100, row.timestamp)
-        )
-        conn.commit()
-    cur.close()
-
-def import_rapl(conn, project_id, filename):
-    import pandas as pd
-    from io import StringIO
-
-    with open(filename, 'r') as f:
-        csv_data = f.read()
-
-    csv_data = csv_data[:csv_data.rfind('\n')] # remove the last line from the string
-
-    df = pd.read_csv(StringIO(csv_data), sep=" ", names=["timestamp", "energy"])
-
-    cur = conn.cursor()
-    import numpy as np
-
-    for i, row in df.iterrows():
-        print(row)
-        cur.execute("""
-                INSERT INTO stats
-                ("project_id", "container_name", "energy", "time")
-                VALUES
-                (%s, %s, %s, %s)
-                """,
-                (project_id, "RAPL CPU-Package", float(row.energy)*1000, row.timestamp)
-        )
-        conn.commit()
-    cur.close()
-
 
 if __name__ == "__main__":
     import argparse
@@ -130,9 +75,6 @@ if __name__ == "__main__":
 
     conn = get_db_connection()
 
-    if args.mode == 'cgroup':
-        import_cgroup_stats(conn, args.project_id, args.stats_file)
-    else:
-        import_docker_stats(conn, args.project_id, args.stats_file)
+    import_docker_stats(conn, args.project_id, args.stats_file)
 
 

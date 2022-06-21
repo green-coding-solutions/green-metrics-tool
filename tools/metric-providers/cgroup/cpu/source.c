@@ -1,6 +1,6 @@
 /*
 	TODO: Document what this does
-	Compile: gcc -o2 -o docker-read docker-cgroup-read.c 
+	Compile: gcc -o3 -o docker-read docker-cgroup-read.c -static -static-libgcc 
 	Run: ./docker-read [interval] [container1] [container2]... [containerN]
 */
 
@@ -9,8 +9,10 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/time.h>
-
+#include <time.h>
 static char *user_id = "1000"; //TODO: Figure out user_id dynamically, or request
+
+static long int user_hz;
 
 static double read_cpu_proc(FILE *fd) {
     int cpu_usage = -1;
@@ -23,7 +25,7 @@ static double read_cpu_proc(FILE *fd) {
     fscanf(fd, "cpu %*s %*s %*s %d", &cpu_usage);
     //printf("CPU Usage global: %d", cpu_usage);
     if(cpu_usage>0) {
-        return cpu_usage*10;
+        return (cpu_usage*1000000)/user_hz;
     }
     else {
         fprintf(stderr, "Error - CPU usage could not be read");
@@ -104,7 +106,7 @@ int output_stats(struct container *containers, int length) {
 		container_reading = cpu_readings_after[i] - cpu_readings_before[i];
 		main_cpu_reading = main_cpu_reading_after - main_cpu_reading_before;
 
-        //printf("Main CPU Reading: %f - Container CPU Reading: %f", main_cpu_reading, container_reading);
+        // printf("Main CPU Reading: %f - Container CPU Reading: %f", main_cpu_reading, container_reading);
 
 		double reading;
 		if(main_cpu_reading >= 0) {
@@ -120,8 +122,8 @@ int output_stats(struct container *containers, int length) {
 			}
 		}
 		else {
+			reading = -1;
 			fprintf(stderr, "Error - main CPU reading returning strange data: %f\n", main_cpu_reading);
-			return -1;
 		}
 
 		printf("%ld%06ld %f %s\n", now.tv_sec, now.tv_usec, reading, containers[i].id);
@@ -139,6 +141,7 @@ int main(int argc, char **argv) {
 
 	int result=-1;
 
+	user_hz = sysconf(_SC_CLK_TCK);
 	if(argc>=3) {
 		interval = atoi(argv[1]);
 		for (i = 2; i < argc && i < BUFSIZ; i++) {
@@ -149,6 +152,18 @@ int main(int argc, char **argv) {
 	    }
 	}
 	else {
+	    struct timespec res;
+	    double resolution;
+
+	    printf("UserHZ   %ld\n", user_hz);
+
+	    clock_getres(CLOCK_REALTIME, &res);
+	    resolution = res.tv_sec + (((double)res.tv_nsec)/1.0e9);
+
+	    printf("SystemHZ %ld\n", (unsigned long)(1/resolution + 0.5));
+
+	    printf("CLOCKS_PER_SEC %ld\n", CLOCKS_PER_SEC);
+
 		fprintf(stderr, "Please provide at least two arguements - one interval (in milliseconds), and at least one container id.\n");
 		return -1;
 	}

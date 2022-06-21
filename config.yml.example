@@ -13,6 +13,13 @@ smtp:
 project:
   name: My test project
   url: https://metrics.green-coding.org/
+
+# Please select the needed providers according to the working ones on your system
+# More info https://docs.green-coding.org/docs/measuring/metric-providers
+metric-providers:
+  - cgroup.cpu.provider
+  - rapl.system.MSR.provider
+
 admin:
   # This address will get an email, when a new project was added through the frontend
   email: myemail@dev.local

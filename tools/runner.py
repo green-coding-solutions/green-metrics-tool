@@ -10,11 +10,12 @@ import time
 import traceback
 import sys
 import re
+import importlib
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{current_dir}/../lib")
+sys.path.append(f"{current_dir}/metric-providers")
 
-from import_stats import import_docker_stats, import_cgroup_stats, import_rapl # local file import
 from save_notes import save_notes # local file import
 from setup_functions import get_db_connection, get_config
 from errors import log_error, end_error, email_error
@@ -99,11 +100,9 @@ else:
 containers = {}
 networks = []
 pids_to_kill = []
-
+metric_providers = []
 
 try:
-
-    insert_hw_info(conn, project_id)
 
     subprocess.run(["rm", "-Rf", "/tmp/green-metrics-tool"])
     subprocess.run(["mkdir", "/tmp/green-metrics-tool"])
@@ -120,6 +119,13 @@ try:
     print("Having Usage Scenario ", obj['name'])
     print("From: ", obj['author'])
     print("Version ", obj['version'], "\n")
+
+    insert_hw_info(conn, project_id)
+    
+    for metric_provider in config['metric-providers']:
+        print(f"Importing metric provider: {metric_provider}")
+        metric_providers.append(importlib.import_module(metric_provider))
+
 
     ps = subprocess.run(["uname", "-s"], check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8')
     output = ps.stdout.strip().lower()
@@ -212,38 +218,12 @@ try:
 
     print("Current known containers: ", containers)
 
-    # start the measurement
-
-    print("Starting measurement provider docker stats")
-    stats_process = subprocess.Popen(
-        ["docker stats --no-trunc --format '{{.Name}};{{.CPUPerc}};{{.MemUsage}};{{.NetIO}}' " + ' '.join(containers.values()) + "  > /tmp/green-metrics-tool/docker_stats.log &"],
-        shell=True,
-        preexec_fn=os.setsid,
-        encoding="UTF-8"
-    )
-    pids_to_kill.append(stats_process.pid)
-
-    print("Starting measurement provider docker cgroup read")
-    docker_cgroup_read_process = subprocess.Popen(
-        [f"stdbuf -oL {current_dir}/docker-read 100 " + " ".join(containers.keys()) + " > /tmp/green-metrics-tool/docker_cgroup_read.log"],
-        shell=True,
-        preexec_fn=os.setsid
-    )
-    pids_to_kill.append(docker_cgroup_read_process.pid)
+    for metric_provider in metric_providers:        
+        print(f"Starting measurement provider {metric_provider}")
+        pids_to_kill.append(metric_provider.read(100, containers))
 
 
-    # To issue this command as sudo it must be specifically allowed in the /etc/sudoers like so:
-    # arne	ALL=(ALL) NOPASSWD: PATH_TO/green-metrics-tool/tools/rapl-read -i 100
-    print("Starting measurement provider RAPL read")
-    rapl_process = subprocess.Popen(
-        [f"sudo /usr/bin/stdbuf -oL {current_dir}/rapl-read -i 100 > /tmp/green-metrics-tool/rapl.log &"],
-        shell=True,
-        preexec_fn=os.setsid,
-        encoding="UTF-8"
-    )
-
-    pids_to_kill.append(rapl_process.pid)
-
+    
 
     notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
 
@@ -319,10 +299,11 @@ try:
 
     print("Parsing stats")
 
-    #import_docker_stats(conn, project_id, "/tmp/green-metrics-tool/docker_stats.log")
-    import_cgroup_stats(conn, project_id, containers, "/tmp/green-metrics-tool/docker_cgroup_read.log")
-    import_rapl(conn, project_id, "/tmp/green-metrics-tool/rapl.log")
 
+    for metric_reporter in metric_providers:
+        metric_reporter.import_stats(conn, project_id, containers)
+    
+    
     save_notes(conn, project_id, notes)
 
     if args.mode == 'manual':

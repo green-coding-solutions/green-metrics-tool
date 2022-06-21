@@ -21,7 +21,7 @@
 /* the sysfs powercap interface got into the kernel in 			*/
 /*	2d281d8196e38dd (3.13)						*/
 /*									*/
-/* Compile with:   gcc -O2 -Wall -o rapl-read rapl-read.c -lm		*/
+/* Compile with:   gcc -O2 -Wall -o rapl-read rapl-read.c -lm -static -static-libgcc		*/
 /*									*/
 /* Vince Weaver -- vincent.weaver @ maine.edu -- 11 September 2015	*/
 /*									*/
