@@ -395,7 +395,6 @@
                 enabled: false
             },
             stroke: {
-                // curve: 'smooth'
                 curve: 'straight',
                 width: 2
             },
@@ -539,6 +538,8 @@
                         options_energy.series = Object.values(my_series["system-energy"])
                         options_mem.series = Object.values(my_series["mem"])
                         options_net_in.series = Object.values(my_series["net_in"])
+
+                        console.log("options_cpu.series", options_cpu.series)
 
                         chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
                         chart_energy = new ApexCharts(document.querySelector("#chart-energy"), options_energy);
