@@ -26,3 +26,13 @@ The database name is `green-coding`, user is `postgres`, and the password is wha
 
 ## Limitations
 These Dockerfiles are not meant to be used in production. The reason for this is that the containers depend on each other and have to be started and stopped alltogether, and never on their own.
+
+
+## Architecture explanation:
+- The postgres container has a volume mount. This means that data in the database will persists between container removals / restarts
+- The interconnect between the gunicorn and the nginx container runs through a shared volume mount in the filesystem. Both use the user `www-data` to read and write to
+a UNIX socket in `/tmp`
+- all webserver configuration files are mounted on start of the container as read-only. This allows for changing configuration of the server through git-pull / yourself
+without having to rebuild the docker image.
+- postgresql can detect changes to the structure.sql. If you issue a `docker compose down -v` the attached volume will be cleared and the postgres container
+will import the database structure fresh.
