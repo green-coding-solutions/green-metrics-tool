@@ -20,7 +20,7 @@ def import_stats(conn, project_id, containers):
                 VALUES
                 (%s, %s, %s, %s)
                 """,
-                (project_id, containers[row.container_id], float(row.cpu)*100, row.timestamp)
+                (project_id, containers[row.container_id], float(row.cpu)*10000, row.timestamp)
         )
         conn.commit()
     cur.close()

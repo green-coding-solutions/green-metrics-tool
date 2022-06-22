@@ -14,41 +14,27 @@ static char *user_id = "1000"; //TODO: Figure out user_id dynamically, or reques
 
 static long int user_hz;
 
-static double read_cpu_proc(FILE *fd) {
-    int cpu_usage = -1;
-    //char buffer[512];
-    //fread(buffer, 512, 1, fd);
-    //fscanf(fd, "cpu %*s %*s %*s %s", buffer);
+long int read_cpu_proc(FILE *fd) {
+    long int user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time, guest_time;
 
-    //printf("Content: %s", buffer);
+    fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld", &user_time, &nice_time, &system_time, &idle_time, &iowait_time, &irq_time, &softirq_time, &steal_time, &guest_time);
 
-    fscanf(fd, "cpu %*s %*s %*s %d", &cpu_usage);
-    //printf("CPU Usage global: %d", cpu_usage);
-    if(cpu_usage>0) {
-        return (cpu_usage*1000000)/user_hz;
-    }
-    else {
-        fprintf(stderr, "Error - CPU usage could not be read");
-        exit(1);
-    }
+    // printf("Read: cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time, guest_time);
+    if(idle_time <= 0) fprintf(stderr, "Idle time strange value %ld \n", idle_time);
+
+    return ((user_time+nice_time+system_time+idle_time+iowait_time+irq_time+softirq_time+steal_time+guest_time)*1000000)/user_hz;
 }
 
 
-static double read_cpu_cgroup(FILE *fd) {
-	double cpu_usage = -1;
-	fscanf(fd, "usage_usec %lf", &cpu_usage);
-	if(cpu_usage>0) {
-		return cpu_usage;
-	}
-	else {
-		fprintf(stderr, "Error - CPU usage could not be read");
-		exit(1);
-	}
+long int read_cpu_cgroup(FILE *fd) {
+	long int cpu_usage = -1;
+	fscanf(fd, "usage_usec %ld", &cpu_usage);
+	return cpu_usage;
 }
 
-double get_cpu_stat(char* filename, int mode) {
+long int get_cpu_stat(char* filename, int mode) {
 	FILE* fd = NULL;
-	double result=-1;
+	long int result=-1;
 
 	fd = fopen(filename, "r");
 	if ( fd == NULL) {
@@ -57,8 +43,10 @@ double get_cpu_stat(char* filename, int mode) {
 	}
     if(mode == 1) {
     	result = read_cpu_cgroup(fd);
+        // printf("Got cgroup: %ld", result);
     } else {
         result = read_cpu_proc(fd);
+        // printf("Got /proc/stat: %ld", result);
     }
 	fclose(fd);
 	return result;
@@ -71,18 +59,13 @@ struct container {
 };
 
 int output_stats(struct container *containers, int length) {
-	int result = -1;
-	
-	FILE* cpu_stat_files[length];
-	FILE *main_cpu_file;
 
-	double main_cpu_reading_before, main_cpu_reading_after, main_cpu_reading;
-	double cpu_readings_before[length];
-	double cpu_readings_after[length];
-	double container_reading;
+	long int main_cpu_reading_before, main_cpu_reading_after, main_cpu_reading;
+	long int cpu_readings_before[length];
+	long int cpu_readings_after[length];
+	long int container_reading;
 
 	struct timeval now;
-	char filename[BUFSIZ];
 	int i;
 
 
@@ -106,7 +89,7 @@ int output_stats(struct container *containers, int length) {
 		container_reading = cpu_readings_after[i] - cpu_readings_before[i];
 		main_cpu_reading = main_cpu_reading_after - main_cpu_reading_before;
 
-        // printf("Main CPU Reading: %f - Container CPU Reading: %f", main_cpu_reading, container_reading);
+        // printf("Main CPU Reading: %ld - Container CPU Reading: %ld\n", main_cpu_reading, container_reading);
 
 		double reading;
 		if(main_cpu_reading >= 0) {
@@ -114,16 +97,16 @@ int output_stats(struct container *containers, int length) {
 				reading = 0;
 			}
 			else if(container_reading > 0) {
-				reading = container_reading / main_cpu_reading;
+				reading = (double) container_reading / (double) main_cpu_reading;
 			}
 			else {
-				fprintf(stderr, "Error - container CPU usage negative: %f", container_reading);
+				fprintf(stderr, "Error - container CPU usage negative: %ld", container_reading);
 				return -1;
 			}
 		}
 		else {
 			reading = -1;
-			fprintf(stderr, "Error - main CPU reading returning strange data: %f\n", main_cpu_reading);
+			fprintf(stderr, "Error - main CPU reading returning strange data: %ld\n", main_cpu_reading);
 		}
 
 		printf("%ld%06ld %f %s\n", now.tv_sec, now.tv_usec, reading, containers[i].id);
@@ -134,12 +117,11 @@ int output_stats(struct container *containers, int length) {
 // TODO: better arguement parsing, atm it assumes first argument is interval, 
 // 		 and rest are container ids with no real error checking
 int main(int argc, char **argv) {
-	int c;
 	int i;
 
 	struct container containers[argc-2];
 
-	int result=-1;
+	int result=-1; // for status value of output_stats. therefore int not long
 
 	user_hz = sysconf(_SC_CLK_TCK);
 	if(argc>=3) {

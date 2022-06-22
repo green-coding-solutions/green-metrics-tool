@@ -494,9 +494,9 @@
                                   }
 
                                   if(my_series['cpu'][el[0]] == undefined) {
-                                      my_series['cpu'][el[0]] = {name: el[0], data: [{x: el[1], y:el[2]}]}
+                                      my_series['cpu'][el[0]] = {name: el[0], data: [{x: el[1], y:el[2]/100}]}
                                   } else {
-                                      my_series['cpu'][el[0]]['data'].push({x: el[1], y:el[2]})
+                                      my_series['cpu'][el[0]]['data'].push({x: el[1], y:el[2]/100})
                                   }
                                   if(my_series['energy'][el[0]] == undefined) {
                                       my_series['energy'][el[0]] = {name: el[0], data: [{x: el[1], y:el[7]}]}
