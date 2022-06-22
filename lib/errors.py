@@ -14,13 +14,14 @@ def email_error(*errors, email_admin=True, user_email=None, project_id=None):
         err+= str(e)
 
     if email_admin:
-        send_error_email(config, config['admin']['email'], err, project_id)
+        send_error_email(config, config['admin']['email'], f"{err}\n{traceback.format_exc()}" , project_id)
     if user_email is not None:
         send_error_email(config, user_email, err, project_id)
 
 def log_error(*errors):
     err = "Error: "
     print("Error: ", *errors)
+    traceback.print_exc()
     # TODO: log to file
 
 if __name__ == "__main__":
