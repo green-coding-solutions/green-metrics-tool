@@ -16,9 +16,9 @@ def import_stats(conn, project_id, containers = None): # Containers argument is 
         print(row)
         cur.execute("""
                 INSERT INTO stats
-                ("project_id", "container_name", "energy", "time")
+                ("project_id", "container_name", "metric", "value", "time")
                 VALUES
-                (%s, %s, %s, %s)
+                (%s, %s, 'system-energy', %s, %s)
                 """,
                 (project_id, "RAPL CPU-Package", float(row.energy)*1000, row.timestamp)
         )

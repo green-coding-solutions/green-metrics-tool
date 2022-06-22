@@ -112,7 +112,7 @@ async def get_stats_single(project_id: str):
 
     cur.execute("""
         SELECT
-            stats.container_name, stats.time, stats.cpu, stats.mem, stats.mem_max, stats.net_in, stats.net_out, stats.energy, notes.note
+            stats.container_name, stats.time, stats.metric, stats.value, notes.note
         FROM
             stats
         LEFT JOIN

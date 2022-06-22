@@ -7,7 +7,6 @@ import json
 import os
 import signal
 import time
-import traceback
 import sys
 import re
 import importlib

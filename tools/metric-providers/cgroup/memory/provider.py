@@ -16,9 +16,9 @@ def import_stats(conn, project_id, containers):
         print(row)
         cur.execute("""
                 INSERT INTO stats
-                ("project_id", "container_name", "mem", "time")
+                ("project_id", "container_name", "metric", "value", "time")
                 VALUES
-                (%s, %s, %s, %s)
+                (%s, %s, 'mem', %s, %s)
                 """,
                 (project_id, containers[row.container_id], float(row.mem), row.timestamp)
         )

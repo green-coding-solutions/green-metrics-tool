@@ -20,12 +20,8 @@ CREATE TABLE stats (
     id SERIAL PRIMARY KEY,
     project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
     container_name text,
-    energy bigint,
-    cpu integer,
-    mem bigint,
-    mem_max bigint,
-    net_in bigint,
-    net_out bigint,
+    metric text,
+    value bigint,
     time bigint,
     created_at timestamp with time zone DEFAULT now()
 );

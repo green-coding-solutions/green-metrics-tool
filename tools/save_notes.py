@@ -9,11 +9,11 @@ def save_notes(conn, project_id, notes):
         if note['container_name'] == "[SYSTEM]":
             cur.execute("""
                 INSERT INTO stats
-                ("project_id", "container_name", "cpu", "mem", "mem_max", "net_in", "net_out", "time")
+                ("project_id", "container_name", "time")
                 VALUES
-                (%s, %s, %s, %s, %s, %s, %s, %s)
+                (%s, %s, %s)
                 """,
-                (project_id, "[SYSTEM]", 0, 0, 0, 0, 0, note['timestamp'])
+                (project_id, "[SYSTEM]", note['timestamp'])
             )
             conn.commit()
             stat_line_time = note['timestamp']
