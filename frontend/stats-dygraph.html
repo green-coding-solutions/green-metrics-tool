@@ -333,7 +333,7 @@
 
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
-                 <div id="chart-cpu" style="width:400px; height:300px;"></div>
+                 <div id="chart-cpu" style="width:720px; height:447px;"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
                     <input type="checkbox" checked="" onchange="toggleNote(0)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
@@ -345,7 +345,7 @@
           
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
-                 <div id="chart-mem"></div>
+                 <div id="chart-mem" style="width:720px; height:447px;"></div>
                  <div class="form-check form-check-primary">
                    <label class="form-check-label">
                      <input type="checkbox" checked="" onchange="toggleNote(1)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
@@ -357,7 +357,7 @@
 
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
-                 <div id="chart-energy"></div>
+                 <div id="chart-energy" style="width:720px; height:447px;"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
                     <input type="checkbox" checked="" onchange="toggleNote(2)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
@@ -369,7 +369,7 @@
 
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
-                 <div id="chart-net-in"></div>
+                 <div id="chart-net-in" style="width:720px; height:447px;"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
                     <input type="checkbox" checked="" onchange="toggleNote(3)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
@@ -567,22 +567,12 @@
                         // chart_net_in = new ApexCharts(document.querySelector("#chart-net-in"), options_net_in);
 
                         console.log("options_cpu", options_cpu.series[0].data)
-
-                        // chart_cpu = new Dygraph(document.querySelector("#chart-cpu"), options_cpu.series[0].data, {rollPeriod: 7, showRoller: true});
+                        console.log("options_energy", options_energy.series[0].data)
 
                         let data_cpu = [];
                         let containerName = [];
                         let containerX;
                         let containerY;
-
-                        // for (let i = 0; i < Object.values(my_series.cpu).length; i++) {
-                        //   containerName = Object.values(my_series.cpu)[i].name;
-                        //   for (let j = 0; j < Object.values(my_series.cpu)[i].data.length; j++) {
-                        //     containerX = Object.values(my_series.cpu)[i].data[j].x;
-                        //     containerY = Object.values(my_series.cpu)[i].data[j].y;
-                        //     data_cpu.push([containerName, containerX, containerY]);
-                        //   }
-                        // }
 
                         for (let i = 0; i < Object.values(my_series.cpu).length; i++) {
                           containerName.push(Object.values(my_series.cpu)[i].name);
@@ -596,24 +586,89 @@
                           }
                         }
 
+                        let data_energy = [];
+                        for (let i = 0; i < Object.values(my_series.energy).length; i++) {
+                          for (let j = 0; j < Object.values(my_series.energy)[i].data.length; j++) {
+                            // containerX = new Date(Object.values(my_series.energy)[i].data[j].x); // GMT +0200
+                            containerX = Object.values(my_series.energy)[i].data[j].x;
+                            containerY = Object.values(my_series.energy)[i].data[j].y || 0; // || 0 otherwise I'd get 'dygraph.min.js:3 Unable to parse 'null' as a number on line 12443 ('1655389435466.451,null,,') of CSV.
+                            if (i === 0) data_energy.push([containerX, containerY, "", ""]);
+                            else if (i === 1) data_energy.push([containerX, "", containerY, ""]);
+                            else if (i === 2) data_energy.push([containerX, "", "", containerY]);
+                          }
+                        }
+
+                        // let data_mem = [];
+                        // for (let i = 0; i < Object.values(my_series.mem).length; i++) {
+                        //   for (let j = 0; j < Object.values(my_series.mem)[i].data.length; j++) {
+                        //     // containerX = new Date(Object.values(my_series.mem)[i].data[j].x); // GMT +0200
+                        //     containerX = Object.values(my_series.mem)[i].data[j].x;
+                        //     containerY = Object.values(my_series.mem)[i].data[j].y;
+                        //     if (i === 0) data_mem.push([containerX, containerY, "", ""]);
+                        //     else if (i === 1) data_mem.push([containerX, "", containerY, ""]);
+                        //     else if (i === 2) data_mem.push([containerX, "", "", containerY]);
+                        //   }
+                        // }
+
+                        // let data_net_in = [];
+                        // for (let i = 0; i < Object.values(my_series.net_in).length; i++) {
+                        //   for (let j = 0; j < Object.values(my_series.net_in)[i].data.length; j++) {
+                        //     // containerX = new Date(Object.values(my_series.net_in)[i].data[j].x); // GMT +0200
+                        //     containerX = Object.values(my_series.net_in)[i].data[j].x;
+                        //     containerY = Object.values(my_series.net_in)[i].data[j].y;
+                        //     if (i === 0) data_net_in.push([containerX, containerY, "", ""]);
+                        //     else if (i === 1) data_net_in.push([containerX, "", containerY, ""]);
+                        //     else if (i === 2) data_net_in.push([containerX, "", "", containerY]);
+                        //   }
+                        // }
+
                         console.log('data_cpu now', data_cpu)
 
+                        console.log('containerName.length', containerName.length)
+
                         function getFormatedData(dataArray) {
-		                      var r = `Time,${containerName[0]},${containerName[1]},${containerName[2]}\n`;
-		                      for (var i = 0; i < dataArray.length; i++) {
-		                        r += dataArray[i][0];		      
-		                        r += "," + dataArray[i][1];
-                            r += "," + dataArray[i][2];
-                            r += "," + dataArray[i][3];
-		                        r += "\n";
-		                      }
+		                      var r;
+                          if (containerName.length === 1) {
+                            r = `Time,${containerName[0]}\n`;
+                            for (var i = 0; i < dataArray.length; i++) {
+                              r += dataArray[i][0];		      
+                              r += "," + dataArray[i][1];
+                              r += "\n";
+                            }
+                          }
+                          else if (containerName.length === 2) {
+                            r = `Time,${containerName[0]},${containerName[1]}\n`;
+                            for (var i = 0; i < dataArray.length; i++) {
+                              r += dataArray[i][0];		      
+                              r += "," + dataArray[i][1];
+                              r += "," + (dataArray[i][2] || "");
+                              r += "\n";
+                            }
+                          }
+                          else if (containerName.length === 3) {
+                            r = `Time,${containerName[0]},${containerName[1]},${containerName[2]}\n`;
+                            for (var i = 0; i < dataArray.length; i++) {
+                              r += dataArray[i][0];		      
+                              r += "," + dataArray[i][1];
+                              r += "," + (dataArray[i][2] || "");
+                              r += "," + (dataArray[i][3] || "");
+                              r += "\n";
+                            }
+                          }
+                          		                      
 		                      console.log(r);
 		                      return r;
 		                    }
 
                         data_cpu = getFormatedData(data_cpu);
+                        data_energy = getFormatedData(data_energy);
+                        // data_mem = getFormatedData(data_mem);
+                        // data_net_in = getFormatedData(data_net_in);
 
                         console.log('data_cpu after formatting', data_cpu)
+                        console.log('data_energy after formatting', data_energy)
+                        // console.log('data_mem after formatting', data_mem)
+                        // console.log('data_net_in after formatting', data_net_in)
 
                         chart_cpu = new Dygraph(document.querySelector("#chart-cpu"),
                                                 data_cpu,
@@ -621,22 +676,69 @@
                                                   fillGraph: true,
                                                   rollPeriod: 10,
                                                   showRoller: true,
+                                                  title: 'CPU Load in %',
+			                                            legend: 'always' ,
+			                                            labelsSeparateLines: true,
                                                   axes: {
                                                     x: {
-                                                      valueFormatter: Dygraph.dateString_,
+                                                      // valueFormatter: Dygraph.dateString_,
                                                       // valueParser: function(x) { return 1000*parseInt(x); },
+                                                      axisLabelFormatter: Dygraph.dateAxisLabelFormatter,
+                                                      // valueFormatter: Dygraph.dateValueFormatter,
                                                       ticker: Dygraph.dateTicker,
                                                     }
                                                   }
                                                 });
-                        // chart_energy = new Dygraph(document.querySelector("#chart-energy"), options_energy.series[0].data, {rollPeriod: 7, showRoller: true});
-                        // chart_mem = new Dygraph(document.querySelector("#chart-mem"), options_mem.series[0].data, {rollPeriod: 7, showRoller: true});
-                        // chart_net_in = new Dygraph(document.querySelector("#chart-net-in"), options_net_in.series[0].data, {rollPeriod: 7, showRoller: true});
 
-                        // chart_cpu.render();
-                        // chart_mem.render();
-                        // chart_energy.render();
-                        // chart_net_in.render();
+                        chart_energy = new Dygraph(document.querySelector("#chart-energy"),
+                                              data_energy,
+                                              {
+                                                fillGraph: true,
+                                                rollPeriod: 10,
+                                                showRoller: true,
+                                                title: 'Energy in mJ',
+                                                legend: 'always' ,
+                                                labelsSeparateLines: true,
+                                                axes: {
+                                                  x: {
+                                                      // valueFormatter: Dygraph.dateString_,
+                                                      // valueParser: function(x) { return 1000*parseInt(x); },
+                                                      axisLabelFormatter: Dygraph.dateAxisLabelFormatter,
+                                                      // valueFormatter: Dygraph.dateValueFormatter,
+                                                      ticker: Dygraph.dateTicker,
+                                                    }
+                                                }
+                                              });
+
+                        // chart_mem = new Dygraph(document.querySelector("#chart-mem"),
+                        // data_mem,
+                        // {
+                        //   fillGraph: true,
+                        //   rollPeriod: 10,
+                        //   showRoller: true,
+                        //   axes: {
+                        //     x: {
+                        //       valueFormatter: Dygraph.dateString_,
+                        //       // valueParser: function(x) { return 1000*parseInt(x); },
+                        //       ticker: Dygraph.dateTicker,
+                        //     }
+                        //   }
+                        // });
+                        
+                        // chart_net_in = new Dygraph(document.querySelector("#chart-net-in"),
+                        // data_net_in,
+                        // {
+                        //   fillGraph: true,
+                        //   rollPeriod: 10,
+                        //   showRoller: true,
+                        //   axes: {
+                        //     x: {
+                        //       valueFormatter: Dygraph.dateString_,
+                        //       // valueParser: function(x) { return 1000*parseInt(x); },
+                        //       ticker: Dygraph.dateTicker,
+                        //     }
+                        //   }
+                        // });                        
 
                         document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
                         document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
