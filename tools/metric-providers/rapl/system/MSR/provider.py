@@ -32,7 +32,7 @@ def read(resolution, containers):
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     ps = subprocess.Popen(
-        [f"sudo /usr/bin/stdbuf -oL {current_dir}/static-binary -i {resolution} > /tmp/green-metrics-tool/rapl-system.log &"],
+        [f"sudo /usr/bin/stdbuf -oL {current_dir}/static-binary -i {resolution} > /tmp/green-metrics-tool/rapl-system.log"],
         shell=True,
         preexec_fn=os.setsid,
         encoding="UTF-8"

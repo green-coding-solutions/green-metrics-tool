@@ -106,7 +106,7 @@ int output_stats(struct container *containers, int length) {
 		}
 		else {
 			reading = -1;
-			fprintf(stderr, "Error - main CPU reading returning strange data: %ld\n", main_cpu_reading);
+			fprintf(stderr, "Error - main CPU reading returning strange data: %ld\nBefore: %ld, After %ld", main_cpu_reading, main_cpu_reading_before, main_cpu_reading_after);
 		}
 
 		printf("%ld%06ld %f %s\n", now.tv_sec, now.tv_usec, reading, containers[i].id);
