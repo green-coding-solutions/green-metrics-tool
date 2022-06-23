@@ -384,51 +384,7 @@
 
     <script>
         var cpu_load = [];
-        var options = {
-            series: [],
-            chart: {
-                type: 'area',
-                animations: {
-                  enabled: false
-                }
-            },
-            dataLabels: {
-                enabled: false
-            },
-            stroke: {
-                curve: 'straight',
-                width: 2
-            },
-            tooltip: {
-                x: {
-                    format: 'dd/MM/yy HH:mm'
-                },
-            },
-            title: {
-              text: 'REPLACE',
-            },
-            xaxis: {
-              tickAmount: 6,
-              type: "datetime"
-            },
-            annotations: {
-                xaxis: []
-            }
-        };
-        var options_cpu = { ...options}
-        options_cpu.title = {text: 'CPU Load in %'}
-
-        var options_energy = { ...options}
-        options_energy.title = {text: 'Energy in mJ'}
-
-        var options_mem = { ...options}
-        options_mem.title = {text: 'Memory Load in MB'}
-
-        var options_net_in = { ...options}
-        options_net_in.title = {text: 'Network inbound in MB'}
-
         var my_series = {}
-
         var project_data = {}
 
         const query_string = window.location.search;
@@ -437,13 +393,8 @@
             alert("Please supply id in URL")
 
         } else {
-            var chart_cpu = null;
-            var chart_energy = null;
-            var chart_mem = null;
-            var chart_net_in = null;
             var total_energy = null;
             var accumulate = 0;
-            var containersArray = [];
             try {
               if(document.location.host.indexOf('metrics.green-coding.org') === 0)
                 api_url = "https://api.green-coding.org";
@@ -480,7 +431,6 @@
                                   }
 
                                   // el[0] = 'Container '+el[0]
-                                  // if (containersArray.indexOf(el[0]) === -1) containersArray.push(el[0]);
                                   el[1] = el[1]/1000;
 
                                   if(el[2] == 'cpu' && accumulate === 1) {
@@ -496,34 +446,35 @@
                                       my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/100})
                                   }
 
-                                  if(el[4] != null) {
-                                      options_cpu.annotations.xaxis.push({
-                                        x: el[1],
-                                        strokeDashArray: 0,
-                                        borderColor: "#775DD0",
-                                        label: {
-                                          borderColor: "#775DD0",
-                                          position: "bottom",
-                                              /*
-                                          mouseEnter: (e) => {
-                                              if(e.label.position == "top")
-                                                  e.label.position = "bottom";
-                                              else
-                                                  e.label.position = "top";
-                                              chart_cpu.destroy();
-                                              chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
-                                              chart_cpu.render();
-                                        },
-                                        */
-                                          style: {
-                                            color: "#fff",
-                                            background: "#775DD0"
-                                          },
-                                          text: el[4],
-                                          //orientation: "horizontal"
-                                        }
-                                      })
-                                  }
+                                  // Annotations
+                                  // if(el[4] != null) {
+                                  //     options_cpu.annotations.xaxis.push({
+                                  //       x: el[1],
+                                  //       strokeDashArray: 0,
+                                  //       borderColor: "#775DD0",
+                                  //       label: {
+                                  //         borderColor: "#775DD0",
+                                  //         position: "bottom",
+                                  //             /*
+                                  //         mouseEnter: (e) => {
+                                  //             if(e.label.position == "top")
+                                  //                 e.label.position = "bottom";
+                                  //             else
+                                  //                 e.label.position = "top";
+                                  //             chart_cpu.destroy();
+                                  //             chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
+                                  //             chart_cpu.render();
+                                  //       },
+                                  //       */
+                                  //         style: {
+                                  //           color: "#fff",
+                                  //           background: "#775DD0"
+                                  //         },
+                                  //         text: el[4],
+                                  //         //orientation: "horizontal"
+                                  //       }
+                                  //     })
+                                  // }
 
                                   /*
                                   el[0] // container_id
@@ -534,22 +485,8 @@
                                   '*/
                         })
 
-                        console.log('my_series.cpu:', my_series.cpu)
-                        console.log('my_series', my_series)
-
-                        options_cpu.series = Object.values(my_series["cpu"])
-                        options_energy.series = Object.values(my_series["system-energy"])
-                        options_mem.series = Object.values(my_series["mem"])
-                        options_net_in.series = Object.values(my_series["net_in"])
-
-                        let data_cpu = [];
-                        let labels_cpu = ["Time"];
-                        let containerX;
-                        let containerY;
-
                         const formatData = (totalContainers, currentContainer, X, Y) => {
                           let arr = [X];
-                          // let empties = Array.from({length: totalContainers}, () => NaN);
                           for (let i = 0; i < totalContainers; i++) {
                             if (i === currentContainer) arr.push(Y);
                             else arr.push(NaN);  
@@ -557,36 +494,52 @@
                           return arr;
                         }
 
-                        for (let i = 0; i < options_cpu.series.length; i++) {
-                          labels_cpu.push(options_cpu.series[i].name);
-                          for (let j = 0; j < options_cpu.series[i].data.length; j++) {
-                            // containerX = new Date(Object.values(my_series.cpu)[i].data[j].x); // GMT +0200
-                            containerX = options_cpu.series[i].data[j].x;
-                            containerY = options_cpu.series[i].data[j].y;
-                            data_cpu.push(formatData(options_cpu.series.length, i, containerX, containerY));
+                        const getDataAndLabels = (series) => {
+                          let containerX;
+                          let containerY;
+                          let data = [];
+                          let labels = ["Time"];
+
+                          for (let i = 0; i < series.length; i++) {
+                            labels.push(series[i].name);
+                            for (let j = 0; j < series[i].data.length; j++) {
+                              containerX = series[i].data[j].x;
+                              containerY = series[i].data[j].y;
+                              data.push(formatData(series.length, i, containerX, containerY));
+                            }
                           }
+                          return { data, labels };
                         }
 
-                        chart_cpu = new Dygraph(document.querySelector("#chart-cpu"),
-                                                data_cpu,
+                        const createGraph = (element, data, labels, title) => {
+                          return new Dygraph(document.querySelector(element),
+                                                data,
                                                 {
-                                                  labels: labels_cpu,
+                                                  labels,
                                                   fillGraph: true,
                                                   rollPeriod: 10,
                                                   showRoller: true,
-                                                  title: 'CPU Load in %',
+                                                  title,
 			                                            legend: 'always' ,
 			                                            labelsSeparateLines: true,
                                                   axes: {
                                                     x: {
-                                                      // valueFormatter: Dygraph.dateString_,
-                                                      // valueParser: function(x) { return 1000*parseInt(x); },
                                                       axisLabelFormatter: Dygraph.dateAxisLabelFormatter,
-                                                      // valueFormatter: Dygraph.dateValueFormatter,
                                                       ticker: Dygraph.dateTicker,
                                                     }
                                                   }
                                                 });
+                        }
+
+                        const { data: data_cpu, labels: labels_cpu } = getDataAndLabels(Object.values(my_series["cpu"]));
+                        const { data: data_energy, labels: labels_energy } = getDataAndLabels(Object.values(my_series["system-energy"]));
+                        const { data: data_mem, labels: labels_mem } = getDataAndLabels(Object.values(my_series["mem"]));
+                        const { data: data_net_in, labels: labels_net_in } = getDataAndLabels(Object.values(my_series["net_in"]));
+                        
+                        const chart_cpu = createGraph("#chart-cpu", data_cpu, labels_cpu, "CPU Load in %")
+                        const chart_energy = createGraph("#chart-energy", data_energy, labels_energy, "Energy in mJ")
+                        const chart_mem = createGraph("#chart-mem", data_mem, labels_mem, "Memory Load in MB")
+                        const chart_net_in = createGraph("#chart-net-in", data_net_in, labels_net_in, "Network inbound in MB")
 
                         document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
                         document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
