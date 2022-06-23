@@ -395,6 +395,7 @@
         } else {
             var total_energy = null;
             var accumulate = 0;
+            let annotations = { "cpu": [], "energy": [], "mem": [], "net_in": [] };
             try {
               if(document.location.host.indexOf('metrics.green-coding.org') === 0)
                 api_url = "https://api.green-coding.org";
@@ -430,7 +431,6 @@
                                     return;
                                   }
 
-                                  // el[0] = 'Container '+el[0]
                                   el[1] = el[1]/1000;
 
                                   if(el[2] == 'cpu' && accumulate === 1) {
@@ -446,35 +446,14 @@
                                       my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/100})
                                   }
 
-                                  // Annotations
-                                  // if(el[4] != null) {
-                                  //     options_cpu.annotations.xaxis.push({
-                                  //       x: el[1],
-                                  //       strokeDashArray: 0,
-                                  //       borderColor: "#775DD0",
-                                  //       label: {
-                                  //         borderColor: "#775DD0",
-                                  //         position: "bottom",
-                                  //             /*
-                                  //         mouseEnter: (e) => {
-                                  //             if(e.label.position == "top")
-                                  //                 e.label.position = "bottom";
-                                  //             else
-                                  //                 e.label.position = "top";
-                                  //             chart_cpu.destroy();
-                                  //             chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
-                                  //             chart_cpu.render();
-                                  //       },
-                                  //       */
-                                  //         style: {
-                                  //           color: "#fff",
-                                  //           background: "#775DD0"
-                                  //         },
-                                  //         text: el[4],
-                                  //         //orientation: "horizontal"
-                                  //       }
-                                  //     })
-                                  // }
+                                  if(el[4] != null) {
+                                      annotations[el[2]].push({
+                                        series: el[0],
+                                        x: el[1],
+                                        shortText: el[4][0], // first letter of the message
+                                        text: el[4],
+                                      })
+                                  }
 
                                   /*
                                   el[0] // container_id
@@ -540,6 +519,11 @@
                         const chart_energy = createGraph("#chart-energy", data_energy, labels_energy, "Energy in mJ")
                         const chart_mem = createGraph("#chart-mem", data_mem, labels_mem, "Memory Load in MB")
                         const chart_net_in = createGraph("#chart-net-in", data_net_in, labels_net_in, "Network inbound in MB")
+
+                        chart_cpu.setAnnotations(annotations["cpu"]);
+                        chart_energy.setAnnotations(annotations["energy"]);
+                        chart_mem.setAnnotations(annotations["mem"]);
+                        chart_net_in.setAnnotations(annotations["net_in"]);
 
                         document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
                         document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
