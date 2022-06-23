@@ -12,8 +12,6 @@
   <!-- Plugin css for this page -->
   <link rel="stylesheet" href="/assets/vendors/flag-icon-css/css/flag-icon.min.css">
   <link rel="stylesheet" href="/assets/vendors/jvectormap/jquery-jvectormap.css">
-  <!-- <link rel='stylesheet' href='node_modules/dygraphs/dist/dygraph.min.css' /> -->
-  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.css" />
   <!-- End plugin css for this page -->
   <!-- Layout styles -->
   <link rel="stylesheet" href="/assets/css/demo/style.css">
@@ -266,8 +264,10 @@
                     <h5 class="card-title">Project Data</h5>
                       <table class="table-hover">
                         <tbody>
-                            <tr><td>Project Name</td><td id="project-name"></td></tr>
-                            <tr><td>Project URL / Folder</td><td id="project-url"></td></tr>
+                            <tr><td>Name</td><td id="project-name"></td></tr>
+                            <tr><td>URI</td><td id="project-url"></td></tr>
+                            <tr><td>CPU</td><td id="project-cpu"></td></tr>
+                            <tr><td>Total Memory</td><td id="project-memtotal"></td></tr>
                             <tr><td>Last Crawl</td><td id="project-last-crawl"></td></tr>
                         </tbody>
                     </table>
@@ -333,7 +333,7 @@
 
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
-                 <div id="chart-cpu" style="width:720px; height:447px;"></div>
+                 <div id="chart-cpu"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
                     <input type="checkbox" checked="" onchange="toggleNote(0)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
@@ -345,7 +345,7 @@
           
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
-                 <div id="chart-mem" style="width:720px; height:447px;"></div>
+                 <div id="chart-mem"></div>
                  <div class="form-check form-check-primary">
                    <label class="form-check-label">
                      <input type="checkbox" checked="" onchange="toggleNote(1)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
@@ -357,7 +357,7 @@
 
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
-                 <div id="chart-energy" style="width:720px; height:447px;"></div>
+                 <div id="chart-energy"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
                     <input type="checkbox" checked="" onchange="toggleNote(2)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
@@ -369,7 +369,7 @@
 
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
-                 <div id="chart-net-in" style="width:720px; height:447px;"></div>
+                 <div id="chart-net-in"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
                     <input type="checkbox" checked="" onchange="toggleNote(3)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
@@ -379,20 +379,24 @@
                 </div>
               </div>
 
-        <!-- <script src="/dist/apexcharts.min.js"></script> -->
+        <script src="/dist/apexcharts.min.js"></script>
 
     <script>
         var cpu_load = [];
         var options = {
             series: [],
             chart: {
-                type: 'area'
+                type: 'area',
+                animations: {
+                  enabled: false
+                }
             },
             dataLabels: {
                 enabled: false
             },
             stroke: {
-                curve: 'smooth'
+                curve: 'straight',
+                width: 2
             },
             tooltip: {
                 x: {
@@ -408,9 +412,10 @@
             },
             annotations: {
                 xaxis: []
+            },
+            animations: {
+              enabled: false
             }
-
-
         };
         var options_cpu = { ...options}
         options_cpu.title = {text: 'CPU Load in %'}
@@ -454,65 +459,44 @@
                           return;
                       }
 
-                      console.log("my_json", my_json)
                       document.querySelector("#project-last-crawl").innerText = my_json.project.last_crawl;
                       document.querySelector("#project-name").innerText = my_json.project.name;
                       document.querySelector("#project-url").innerText = my_json.project.url;
+                      document.querySelector("#project-cpu").innerText = my_json.project.cpu;
+                      document.querySelector("#project-memtotal").innerText = my_json.project.memtotal;
+
+                      my_series['cpu'] = {}
+                      my_series['system-energy'] = {}
+                      my_series['mem'] = {}
+                      my_series['net_in'] = {}
 
                       my_json.data.forEach(el => {
-                                  if(el[0] == '[SYSTEM]' && el[8] == '[START MEASUREMENT]') {
+                                  if(el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
                                     accumulate = 1;
                                     return
-                                  } else if(el[0] == '[SYSTEM]' && el[8] == '[END MEASUREMENT]') {
+                                  } else if(el[0] == '[SYSTEM]' && el[4] == '[END MEASUREMENT]') {
                                     accumulate = 0;
                                     return;
                                   }
 
-                                  if(accumulate === 1) {
-                                    total_energy += el[7];
-                                    cpu_load.push(el[2])
-                                    // console.log('pushing cpu load with ', el[2])
-                                  }
 
                                   el[0] = 'Container '+el[0]
                                   el[1] = el[1]/1000;
-                                  if(my_series['cpu'] == undefined) {
-                                      my_series['cpu'] = {}
+
+                                  if(el[2] == 'cpu' && accumulate === 1) {
+                                    cpu_load.push(el[3])
                                   }
-                                  if(my_series['energy'] == undefined) {
-                                      my_series['energy'] = {}
+                                  else if(el[2] == 'system-energy' && accumulate === 1) {
+                                    total_energy += el[3];
                                   }
 
-                                  if(my_series['mem'] == undefined) {
-                                      my_series['mem'] = {}
-                                  }
-                                  if(my_series['net_in'] == undefined) {
-                                      my_series['net_in'] = {}
+                                  if(my_series[el[2]][el[0]] == undefined) {
+                                      my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/100}]}
+                                  } else {
+                                      my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/100})
                                   }
 
-                                  if(my_series['cpu'][el[0]] == undefined) {
-                                      my_series['cpu'][el[0]] = {name: el[0], data: [{x: el[1], y:el[2]/100}]}
-                                  } else {
-                                      my_series['cpu'][el[0]]['data'].push({x: el[1], y:el[2]/100})
-                                  }
-                                  if(my_series['energy'][el[0]] == undefined) {
-                                      my_series['energy'][el[0]] = {name: el[0], data: [{x: el[1], y:el[7]}]}
-                                  } else {
-                                      my_series['energy'][el[0]]['data'].push({x: el[1], y:el[7]})
-                                  }
-
-                                  if(my_series['mem'][el[0]] == undefined) {
-                                      my_series['mem'][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/1000000}]}
-                                  } else {
-                                      my_series['mem'][el[0]]['data'].push({x: el[1], y:el[3]/1000000})
-                                  }
-                                  if(my_series['net_in'][el[0]] == undefined) {
-                                      my_series['net_in'][el[0]] = {name: el[0], data: [{x: el[1], y:el[2]/1000000}]}
-                                  } else {
-                                      my_series['net_in'][el[0]]['data'].push({x: el[1], y:el[5]/1000000})
-                                  }
-
-                                  if(el[8] != null) {
+                                  if(el[4] != null) {
                                       options_cpu.annotations.xaxis.push({
                                         x: el[1],
                                         strokeDashArray: 0,
@@ -535,7 +519,7 @@
                                             color: "#fff",
                                             background: "#775DD0"
                                           },
-                                          text: el[8],
+                                          text: el[4],
                                           //orientation: "horizontal"
                                         }
                                       })
@@ -544,201 +528,28 @@
                                   /*
                                   el[0] // container_id
                                   el[1] // time
-                                  el[2] // cpu in 10 ms
-                                  el[3] // mem_cur
-                                  el[4] // mem_max
-                                  el[5] // net_in
-                                  el[6] // net_out
-                                  el[7] // energy
-
+                                  el[2] // metric name
+                                  el[3] // value
+                                  el[4] // note
                                   '*/
                         })
 
-                        console.log('my_series.cpu:', my_series.cpu)
+                        options_cpu.series = Object.values(my_series["cpu"])
+                        options_energy.series = Object.values(my_series["system-energy"])
+                        options_mem.series = Object.values(my_series["mem"])
+                        options_net_in.series = Object.values(my_series["net_in"])
 
-                        options_cpu.series = Object.values(my_series.cpu)
-                        options_energy.series = Object.values(my_series.energy)
-                        options_mem.series = Object.values(my_series.mem)
-                        options_net_in.series = Object.values(my_series.net_in)
+                        console.log("options_cpu.series", options_cpu.series)
 
-                        // chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
-                        // chart_energy = new ApexCharts(document.querySelector("#chart-energy"), options_energy);
-                        // chart_mem = new ApexCharts(document.querySelector("#chart-mem"), options_mem);
-                        // chart_net_in = new ApexCharts(document.querySelector("#chart-net-in"), options_net_in);
+                        chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
+                        chart_energy = new ApexCharts(document.querySelector("#chart-energy"), options_energy);
+                        chart_mem = new ApexCharts(document.querySelector("#chart-mem"), options_mem);
+                        chart_net_in = new ApexCharts(document.querySelector("#chart-net-in"), options_net_in);
 
-                        console.log("options_cpu", options_cpu.series[0].data)
-                        console.log("options_energy", options_energy.series[0].data)
-
-                        let data_cpu = [];
-                        let containerName = [];
-                        let containerX;
-                        let containerY;
-
-                        for (let i = 0; i < Object.values(my_series.cpu).length; i++) {
-                          containerName.push(Object.values(my_series.cpu)[i].name);
-                          for (let j = 0; j < Object.values(my_series.cpu)[i].data.length; j++) {
-                            // containerX = new Date(Object.values(my_series.cpu)[i].data[j].x); // GMT +0200
-                            containerX = Object.values(my_series.cpu)[i].data[j].x;
-                            containerY = Object.values(my_series.cpu)[i].data[j].y;
-                            if (i === 0) data_cpu.push([containerX, containerY, "", ""]);
-                            else if (i === 1) data_cpu.push([containerX, "", containerY, ""]);
-                            else if (i === 2) data_cpu.push([containerX, "", "", containerY]);
-                          }
-                        }
-
-                        let data_energy = [];
-                        for (let i = 0; i < Object.values(my_series.energy).length; i++) {
-                          for (let j = 0; j < Object.values(my_series.energy)[i].data.length; j++) {
-                            // containerX = new Date(Object.values(my_series.energy)[i].data[j].x); // GMT +0200
-                            containerX = Object.values(my_series.energy)[i].data[j].x;
-                            containerY = Object.values(my_series.energy)[i].data[j].y || 0; // || 0 otherwise I'd get 'dygraph.min.js:3 Unable to parse 'null' as a number on line 12443 ('1655389435466.451,null,,') of CSV.
-                            if (i === 0) data_energy.push([containerX, containerY, "", ""]);
-                            else if (i === 1) data_energy.push([containerX, "", containerY, ""]);
-                            else if (i === 2) data_energy.push([containerX, "", "", containerY]);
-                          }
-                        }
-
-                        // let data_mem = [];
-                        // for (let i = 0; i < Object.values(my_series.mem).length; i++) {
-                        //   for (let j = 0; j < Object.values(my_series.mem)[i].data.length; j++) {
-                        //     // containerX = new Date(Object.values(my_series.mem)[i].data[j].x); // GMT +0200
-                        //     containerX = Object.values(my_series.mem)[i].data[j].x;
-                        //     containerY = Object.values(my_series.mem)[i].data[j].y;
-                        //     if (i === 0) data_mem.push([containerX, containerY, "", ""]);
-                        //     else if (i === 1) data_mem.push([containerX, "", containerY, ""]);
-                        //     else if (i === 2) data_mem.push([containerX, "", "", containerY]);
-                        //   }
-                        // }
-
-                        // let data_net_in = [];
-                        // for (let i = 0; i < Object.values(my_series.net_in).length; i++) {
-                        //   for (let j = 0; j < Object.values(my_series.net_in)[i].data.length; j++) {
-                        //     // containerX = new Date(Object.values(my_series.net_in)[i].data[j].x); // GMT +0200
-                        //     containerX = Object.values(my_series.net_in)[i].data[j].x;
-                        //     containerY = Object.values(my_series.net_in)[i].data[j].y;
-                        //     if (i === 0) data_net_in.push([containerX, containerY, "", ""]);
-                        //     else if (i === 1) data_net_in.push([containerX, "", containerY, ""]);
-                        //     else if (i === 2) data_net_in.push([containerX, "", "", containerY]);
-                        //   }
-                        // }
-
-                        console.log('data_cpu now', data_cpu)
-
-                        console.log('containerName.length', containerName.length)
-
-                        function getFormatedData(dataArray) {
-		                      var r;
-                          if (containerName.length === 1) {
-                            r = `Time,${containerName[0]}\n`;
-                            for (var i = 0; i < dataArray.length; i++) {
-                              r += dataArray[i][0];		      
-                              r += "," + dataArray[i][1];
-                              r += "\n";
-                            }
-                          }
-                          else if (containerName.length === 2) {
-                            r = `Time,${containerName[0]},${containerName[1]}\n`;
-                            for (var i = 0; i < dataArray.length; i++) {
-                              r += dataArray[i][0];		      
-                              r += "," + dataArray[i][1];
-                              r += "," + (dataArray[i][2] || "");
-                              r += "\n";
-                            }
-                          }
-                          else if (containerName.length === 3) {
-                            r = `Time,${containerName[0]},${containerName[1]},${containerName[2]}\n`;
-                            for (var i = 0; i < dataArray.length; i++) {
-                              r += dataArray[i][0];		      
-                              r += "," + dataArray[i][1];
-                              r += "," + (dataArray[i][2] || "");
-                              r += "," + (dataArray[i][3] || "");
-                              r += "\n";
-                            }
-                          }
-                          		                      
-		                      console.log(r);
-		                      return r;
-		                    }
-
-                        data_cpu = getFormatedData(data_cpu);
-                        data_energy = getFormatedData(data_energy);
-                        // data_mem = getFormatedData(data_mem);
-                        // data_net_in = getFormatedData(data_net_in);
-
-                        console.log('data_cpu after formatting', data_cpu)
-                        console.log('data_energy after formatting', data_energy)
-                        // console.log('data_mem after formatting', data_mem)
-                        // console.log('data_net_in after formatting', data_net_in)
-
-                        chart_cpu = new Dygraph(document.querySelector("#chart-cpu"),
-                                                data_cpu,
-                                                {
-                                                  fillGraph: true,
-                                                  rollPeriod: 10,
-                                                  showRoller: true,
-                                                  title: 'CPU Load in %',
-			                                            legend: 'always' ,
-			                                            labelsSeparateLines: true,
-                                                  axes: {
-                                                    x: {
-                                                      // valueFormatter: Dygraph.dateString_,
-                                                      // valueParser: function(x) { return 1000*parseInt(x); },
-                                                      axisLabelFormatter: Dygraph.dateAxisLabelFormatter,
-                                                      // valueFormatter: Dygraph.dateValueFormatter,
-                                                      ticker: Dygraph.dateTicker,
-                                                    }
-                                                  }
-                                                });
-
-                        chart_energy = new Dygraph(document.querySelector("#chart-energy"),
-                                              data_energy,
-                                              {
-                                                fillGraph: true,
-                                                rollPeriod: 10,
-                                                showRoller: true,
-                                                title: 'Energy in mJ',
-                                                legend: 'always' ,
-                                                labelsSeparateLines: true,
-                                                axes: {
-                                                  x: {
-                                                      // valueFormatter: Dygraph.dateString_,
-                                                      // valueParser: function(x) { return 1000*parseInt(x); },
-                                                      axisLabelFormatter: Dygraph.dateAxisLabelFormatter,
-                                                      // valueFormatter: Dygraph.dateValueFormatter,
-                                                      ticker: Dygraph.dateTicker,
-                                                    }
-                                                }
-                                              });
-
-                        // chart_mem = new Dygraph(document.querySelector("#chart-mem"),
-                        // data_mem,
-                        // {
-                        //   fillGraph: true,
-                        //   rollPeriod: 10,
-                        //   showRoller: true,
-                        //   axes: {
-                        //     x: {
-                        //       valueFormatter: Dygraph.dateString_,
-                        //       // valueParser: function(x) { return 1000*parseInt(x); },
-                        //       ticker: Dygraph.dateTicker,
-                        //     }
-                        //   }
-                        // });
-                        
-                        // chart_net_in = new Dygraph(document.querySelector("#chart-net-in"),
-                        // data_net_in,
-                        // {
-                        //   fillGraph: true,
-                        //   rollPeriod: 10,
-                        //   showRoller: true,
-                        //   axes: {
-                        //     x: {
-                        //       valueFormatter: Dygraph.dateString_,
-                        //       // valueParser: function(x) { return 1000*parseInt(x); },
-                        //       ticker: Dygraph.dateTicker,
-                        //     }
-                        //   }
-                        // });                        
+                        chart_cpu.render();
+                        chart_mem.render();
+                        chart_energy.render();
+                        chart_net_in.render();
 
                         document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
                         document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
@@ -929,6 +740,5 @@
       else note.style.display = "";
     }
   </script>
-  <script src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
 </body>
 </html> 

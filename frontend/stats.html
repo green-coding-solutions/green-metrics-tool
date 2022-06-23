@@ -12,6 +12,7 @@
   <!-- Plugin css for this page -->
   <link rel="stylesheet" href="/assets/vendors/flag-icon-css/css/flag-icon.min.css">
   <link rel="stylesheet" href="/assets/vendors/jvectormap/jquery-jvectormap.css">
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.css" />
   <!-- End plugin css for this page -->
   <!-- Layout styles -->
   <link rel="stylesheet" href="/assets/css/demo/style.css">
@@ -264,10 +265,10 @@
                     <h5 class="card-title">Project Data</h5>
                       <table class="table-hover">
                         <tbody>
-                            <tr><td>Name</td><td id="project-name"></td></tr>
-                            <tr><td>URI</td><td id="project-url"></td></tr>
-                            <tr><td>CPU</td><td id="project-cpu"></td></tr>
-                            <tr><td>Total Memory</td><td id="project-memtotal"></td></tr>
+                          <tr><td>Name</td><td id="project-name"></td></tr>
+                          <tr><td>URI</td><td id="project-url"></td></tr>
+                          <tr><td>CPU</td><td id="project-cpu"></td></tr>
+                          <tr><td>Total Memory</td><td id="project-memtotal"></td></tr>
                             <tr><td>Last Crawl</td><td id="project-last-crawl"></td></tr>
                         </tbody>
                     </table>
@@ -333,7 +334,7 @@
 
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
-                 <div id="chart-cpu"></div>
+                 <div id="chart-cpu" style="width:720px; height:447px;"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
                     <input type="checkbox" checked="" onchange="toggleNote(0)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
@@ -345,7 +346,7 @@
           
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
-                 <div id="chart-mem"></div>
+                 <div id="chart-mem" style="width:720px; height:447px;"></div>
                  <div class="form-check form-check-primary">
                    <label class="form-check-label">
                      <input type="checkbox" checked="" onchange="toggleNote(1)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
@@ -357,7 +358,7 @@
 
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
-                 <div id="chart-energy"></div>
+                 <div id="chart-energy" style="width:720px; height:447px;"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
                     <input type="checkbox" checked="" onchange="toggleNote(2)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
@@ -369,7 +370,7 @@
 
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
-                 <div id="chart-net-in"></div>
+                 <div id="chart-net-in" style="width:720px; height:447px;"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
                     <input type="checkbox" checked="" onchange="toggleNote(3)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
@@ -378,8 +379,8 @@
                 </div>
                 </div>
               </div>
-
-        <script src="/dist/apexcharts.min.js"></script>
+              
+       <script src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
 
     <script>
         var cpu_load = [];
@@ -412,9 +413,6 @@
             },
             annotations: {
                 xaxis: []
-            },
-            animations: {
-              enabled: false
             }
         };
         var options_cpu = { ...options}
@@ -445,6 +443,7 @@
             var chart_net_in = null;
             var total_energy = null;
             var accumulate = 0;
+            var containersArray = [];
             try {
               if(document.location.host.indexOf('metrics.green-coding.org') === 0)
                 api_url = "https://api.green-coding.org";
@@ -459,6 +458,7 @@
                           return;
                       }
 
+                      console.log("my_json", my_json)
                       document.querySelector("#project-last-crawl").innerText = my_json.project.last_crawl;
                       document.querySelector("#project-name").innerText = my_json.project.name;
                       document.querySelector("#project-url").innerText = my_json.project.url;
@@ -479,8 +479,8 @@
                                     return;
                                   }
 
-
-                                  el[0] = 'Container '+el[0]
+                                  // el[0] = 'Container '+el[0]
+                                  // if (containersArray.indexOf(el[0]) === -1) containersArray.push(el[0]);
                                   el[1] = el[1]/1000;
 
                                   if(el[2] == 'cpu' && accumulate === 1) {
@@ -534,22 +534,59 @@
                                   '*/
                         })
 
+                        console.log('my_series.cpu:', my_series.cpu)
+                        console.log('my_series', my_series)
+
                         options_cpu.series = Object.values(my_series["cpu"])
                         options_energy.series = Object.values(my_series["system-energy"])
                         options_mem.series = Object.values(my_series["mem"])
                         options_net_in.series = Object.values(my_series["net_in"])
 
-                        console.log("options_cpu.series", options_cpu.series)
+                        let data_cpu = [];
+                        let labels_cpu = ["Time"];
+                        let containerX;
+                        let containerY;
 
-                        chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
-                        chart_energy = new ApexCharts(document.querySelector("#chart-energy"), options_energy);
-                        chart_mem = new ApexCharts(document.querySelector("#chart-mem"), options_mem);
-                        chart_net_in = new ApexCharts(document.querySelector("#chart-net-in"), options_net_in);
+                        const formatData = (totalContainers, currentContainer, X, Y) => {
+                          let arr = [X];
+                          // let empties = Array.from({length: totalContainers}, () => NaN);
+                          for (let i = 0; i < totalContainers; i++) {
+                            if (i === currentContainer) arr.push(Y);
+                            else arr.push(NaN);  
+                          }
+                          return arr;
+                        }
 
-                        chart_cpu.render();
-                        chart_mem.render();
-                        chart_energy.render();
-                        chart_net_in.render();
+                        for (let i = 0; i < options_cpu.series.length; i++) {
+                          labels_cpu.push(options_cpu.series[i].name);
+                          for (let j = 0; j < options_cpu.series[i].data.length; j++) {
+                            // containerX = new Date(Object.values(my_series.cpu)[i].data[j].x); // GMT +0200
+                            containerX = options_cpu.series[i].data[j].x;
+                            containerY = options_cpu.series[i].data[j].y;
+                            data_cpu.push(formatData(options_cpu.series.length, i, containerX, containerY));
+                          }
+                        }
+
+                        chart_cpu = new Dygraph(document.querySelector("#chart-cpu"),
+                                                data_cpu,
+                                                {
+                                                  labels: labels_cpu,
+                                                  fillGraph: true,
+                                                  rollPeriod: 10,
+                                                  showRoller: true,
+                                                  title: 'CPU Load in %',
+			                                            legend: 'always' ,
+			                                            labelsSeparateLines: true,
+                                                  axes: {
+                                                    x: {
+                                                      // valueFormatter: Dygraph.dateString_,
+                                                      // valueParser: function(x) { return 1000*parseInt(x); },
+                                                      axisLabelFormatter: Dygraph.dateAxisLabelFormatter,
+                                                      // valueFormatter: Dygraph.dateValueFormatter,
+                                                      ticker: Dygraph.dateTicker,
+                                                    }
+                                                  }
+                                                });
 
                         document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
                         document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
@@ -740,5 +777,6 @@
       else note.style.display = "";
     }
   </script>
+
 </body>
 </html> 
