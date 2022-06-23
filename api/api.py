@@ -110,27 +110,30 @@ async def get_stats_single(project_id: str):
     if(project_id is None or project_id.strip() == ''):
         return {'success': False, 'err': 'Project_id is empty'}
 
-    cur.execute("""
-        SELECT
-            stats.container_name, stats.time, stats.cpu, stats.mem, stats.mem_max, stats.net_in, stats.net_out, stats.energy, notes.note
-        FROM
-            stats
-        LEFT JOIN
-            notes
-        ON
-            notes.project_id = stats.project_id
-            AND
-            notes.time = stats.time
-            AND
-            notes.container_name = stats.container_name
-        WHERE
-            stats.project_id = %s
-        ORDER BY
-            stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
-        """,
-        (project_id,)
-    )
-    data = cur.fetchall()
+    try:
+        cur.execute("""
+            SELECT
+                stats.container_name, stats.time, stats.cpu, stats.mem, stats.mem_max, stats.net_in, stats.net_out, stats.energy, notes.note
+            FROM
+                stats
+            LEFT JOIN
+                notes
+            ON
+                notes.project_id = stats.project_id
+                AND
+                notes.time = stats.time
+                AND
+                notes.container_name = stats.container_name
+            WHERE
+                stats.project_id = %s
+            ORDER BY
+                stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
+            """,
+            (project_id,)
+        )
+        data = cur.fetchall()
+    except:
+        conn.rollback()
     cur.close()
 
     if(data is None or data == []):
