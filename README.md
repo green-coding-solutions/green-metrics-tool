@@ -44,7 +44,7 @@ The next part README will guide you through the installation on your server / cl
 
 Very fast installation method mainly for development purposes and getting to know the tool.
 
-Please see the documentation under [Dockerfiles method](https://github.com/green-coding-berlin/green-metrics-tool/tree/main/Docker)
+Please see the documentation under [Dockerfiles method](https://github.com/green-coding-berlin/green-metrics-tool/tree/main/docker)
 
 ## Method 2: Install directly on linux machine
 
