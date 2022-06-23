@@ -20,6 +20,8 @@ from setup_functions import get_db_connection, get_config
 from errors import log_error, end_error, email_error
 from insert_hw_info import insert_hw_info
 
+from debugger import Debug
+
 # TODO:
 # - Exception Logic is not really readable. Better encapsulate docker calls and fetch exception there
 # - Make function for arg reading and checking it's presence. More readable than el.get and exception and bottom
@@ -38,6 +40,9 @@ parser.add_argument("--no-file-cleanup", type=str, help="Do not delete files in 
 parser.add_argument("--debug", type=str, help="Activate steppable debug mode")
 
 args = parser.parse_args() # script will exit if url is not present
+
+debug = Debug(args.debug)
+debug.stop()
 
 user_email,project_id=None,None
 
@@ -149,7 +154,7 @@ try:
             else:
                 docker_run_string.append(f"{folder}:/tmp/repo:ro")
 
-            if (args.debug is not None) and ('portmapping' in el):
+            if (debug.active) and ('portmapping' in el):
                 docker_run_string.append('-p')
                 docker_run_string.append(el['portmapping'])
 
@@ -251,9 +256,7 @@ try:
 
     time.sleep(5) # 5 seconds buffer at the start to idle container
 
-    if args.debug is not None:
-        print("Debug mode is active. Pausing. Please press any key to continue ...")
-        sys.stdin.readline()
+    debug.stop()
 
     notes.append({"note" : "[START MEASUREMENT]", 'container_name' : '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
 
@@ -262,10 +265,7 @@ try:
         print("Running flow: ", el['name'])
         for inner_el in el['commands']:
 
-            if args.debug is not None:
-                print("Debug mode is active. Pausing. Please press any key to continue ...")
-                sys.stdin.readline()
-
+            debug.stop()
 
             if "note" in inner_el:
                 notes.append({"note" : inner_el['note'], 'container_name' : el['container'], "timestamp": int(time.time_ns() / 1_000)})
