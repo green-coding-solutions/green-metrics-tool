@@ -477,22 +477,34 @@
                                     return;
                                   }
 
-
                                   el[0] = 'Container '+el[0]
                                   el[1] = el[1]/1000;
 
-                                  if(el[2] == 'cpu' && accumulate === 1) {
-                                    cpu_load.push(el[3])
+                                  if(el[2] == 'cpu') {
+                                    if(my_series[el[2]][el[0]] == undefined) {
+                                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/100}]}
+                                    } else {
+                                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/100})
+                                    }
+                                    if(accumulate === 1) cpu_load.push(el[3])
+
                                   }
                                   else if(el[2] == 'system-energy' && accumulate === 1) {
                                     total_energy += el[3];
+                                  } else if (el[2] == 'mem') {
+                                    if(my_series[el[2]][el[0]] == undefined) {
+                                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/1000000}]}
+                                    } else {
+                                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/1000000})
+                                    }
+                                  } else {
+                                    if(my_series[el[2]][el[0]] == undefined) {
+                                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/1000000}]}
+                                    } else {
+                                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/1000000})
+                                    }
                                   }
 
-                                  if(my_series[el[2]][el[0]] == undefined) {
-                                      my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/100}]}
-                                  } else {
-                                      my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/100})
-                                  }
 
                                   if(el[4] != null) {
                                       options_cpu.annotations.xaxis.push({
