@@ -54,7 +54,7 @@ async def get_projects():
         )
         data = cur.fetchall()
         cur.close()
-   except BaseException as e:
+    except BaseException as e:
         conn.rollback()
         cur.close()
         return {"success": False, "err": f"Exception: {str(e)}"}
@@ -219,7 +219,7 @@ https://www.green-coding.org
 def get_project(project_id):
     cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
 
-    try:    
+    try:
         cur.execute("""
             SELECT
                 *
@@ -232,11 +232,12 @@ def get_project(project_id):
         )
         project = cur.fetchone()
         cur.close()
-        return project
     except BaseException as e:
         conn.rollback()
         cur.close()
         return None
+
+    return project
 
 if __name__ == "__main__":
     app.run()
