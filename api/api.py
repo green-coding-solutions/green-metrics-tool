@@ -42,18 +42,22 @@ async def home():
 @app.get('/v1/projects')
 async def get_projects():
     cur = conn.cursor()
-    cur.execute("""
-        SELECT
-            id, name, url, last_crawl
-        FROM
-            projects
-        ORDER BY
-            created_at DESC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
-        """
-    )
-    data = cur.fetchall()
-
-    cur.close()
+    try:
+        cur.execute("""
+            SELECT
+                id, name, url, last_crawl
+            FROM
+                projects
+            ORDER BY
+                created_at DESC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
+            """
+        )
+        data = cur.fetchall()
+        cur.close()
+   except BaseException as e:
+        conn.rollback()
+        cur.close()
+        return {"success": False, "err": f"Exception: {str(e)}"}
 
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
@@ -69,33 +73,37 @@ async def get_stats_by_url(url: str):
     if(url is None or url.strip() == ''):
         return {'success': False, 'err': 'URL is empty'}
 
-    cur.execute("""
-        SELECT
-            projects.id as project_id, stats.container_name, stats.time, stats.cpu, stats.mem, stats.mem_max, stats.net_in, stats.net_out, stats.energy, notes.note
-        FROM
-            stats
-        LEFT JOIN
-            projects
-        ON
-            projects.id = stats.project_id
-        LEFT JOIN
-            notes
-        ON
-            notes.project_id = stats.project_id
-            AND
-            notes.time = stats.time
-            AND
-            notes.container_name = stats.container_name
-        WHERE
-            projects.url = %s
-        ORDER BY
-            stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
-        """,
-        (url,)
-    )
-    data = cur.fetchall()
-
-    cur.close()
+    try:
+        cur.execute("""
+            SELECT
+                projects.id as project_id, stats.container_name, stats.time, stats.cpu, stats.mem, stats.mem_max, stats.net_in, stats.net_out, stats.energy, notes.note
+            FROM
+                stats
+            LEFT JOIN
+                projects
+            ON
+                projects.id = stats.project_id
+            LEFT JOIN
+                notes
+            ON
+                notes.project_id = stats.project_id
+                AND
+                notes.time = stats.time
+                AND
+                notes.container_name = stats.container_name
+            WHERE
+                projects.url = %s
+            ORDER BY
+                stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
+            """,
+            (url,)
+        )
+        data = cur.fetchall()
+        cur.close()
+    except BaseException as e:
+        conn.rollback()
+        cur.close()
+        return {"success": False, "err": f"Exception: {str(e)}"}
 
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
@@ -110,28 +118,33 @@ async def get_stats_single(project_id: str):
     if(project_id is None or project_id.strip() == ''):
         return {'success': False, 'err': 'Project_id is empty'}
 
-    cur.execute("""
-        SELECT
-            stats.container_name, stats.time, stats.metric, stats.value, notes.note
-        FROM
-            stats
-        LEFT JOIN
-            notes
-        ON
-            notes.project_id = stats.project_id
-            AND
-            notes.time = stats.time
-            AND
-            notes.container_name = stats.container_name
-        WHERE
-            stats.project_id = %s
-        ORDER BY
-            stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
-        """,
-        (project_id,)
-    )
-    data = cur.fetchall()
-    cur.close()
+    try:
+        cur.execute("""
+            SELECT
+                stats.container_name, stats.time, stats.metric, stats.value, notes.note
+            FROM
+                stats
+            LEFT JOIN
+                notes
+            ON
+                notes.project_id = stats.project_id
+                AND
+                notes.time = stats.time
+                AND
+                notes.container_name = stats.container_name
+            WHERE
+                stats.project_id = %s
+            ORDER BY
+                stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
+            """,
+            (project_id,)
+        )
+        data = cur.fetchall()
+        cur.close()
+    except BaseException as e:
+        conn.rollback()
+        cur.close()
+        return {"success": False, "err": f"Exception: {str(e)}"}
 
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
@@ -206,20 +219,24 @@ https://www.green-coding.org
 def get_project(project_id):
     cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
 
-    cur.execute("""
-        SELECT
-            *
-        FROM
-            projects
-        WHERE
-            id = %s
-        """,
-        (project_id,)
-    )
-    project = cur.fetchone()
-    cur.close()
-
-    return project
+    try:    
+        cur.execute("""
+            SELECT
+                *
+            FROM
+                projects
+            WHERE
+                id = %s
+            """,
+            (project_id,)
+        )
+        project = cur.fetchone()
+        cur.close()
+        return project
+    except BaseException as e:
+        conn.rollback()
+        cur.close()
+        return None
 
 if __name__ == "__main__":
     app.run()
