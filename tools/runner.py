@@ -42,7 +42,6 @@ parser.add_argument("--debug", type=str, help="Activate steppable debug mode")
 args = parser.parse_args() # script will exit if url is not present
 
 debug = Debug(args.debug)
-debug.stop()
 
 user_email,project_id=None,None
 
