@@ -78,7 +78,7 @@ async def get_stats_by_url(url: str):
     try:
         cur.execute("""
             SELECT
-                projects.id as project_id, stats.container_name, stats.time, stats.cpu, stats.mem, stats.mem_max, stats.net_in, stats.net_out, stats.energy, notes.note
+                projects.id as project_id, stats.container_name, stats.time, stats.metric, stats.value, notes.note
             FROM
                 stats
             LEFT JOIN
