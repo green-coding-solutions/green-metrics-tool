@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+## TODO: Find Correct python postgres error code , refactor to catch that
+
 import yaml
 import os
 import sys
