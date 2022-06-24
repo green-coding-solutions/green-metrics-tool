@@ -499,9 +499,9 @@
                                     }
                                   } else {
                                     if(my_series[el[2]][el[0]] == undefined) {
-                                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/1000000}]}
+                                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]}]}
                                     } else {
-                                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/1000000})
+                                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]})
                                     }
                                   }
 
