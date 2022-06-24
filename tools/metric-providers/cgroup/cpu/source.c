@@ -10,11 +10,24 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
+
+
+// All variables are made static, because we believe that this will
+// keep them local in scope to the file and not make them persist in state
+// between Threads.
+// TODO: If this code ever gets multi-threaded please review this assumption to
+// not pollute another threads state
+
+
 static char *user_id = "1000"; //TODO: Figure out user_id dynamically, or request
-
 static long int user_hz;
+static unsigned int interval=1000;
+static struct container {
+    char path[BUFSIZ];
+    char *id;
+};
 
-long int read_cpu_proc(FILE *fd) {
+static long int read_cpu_proc(FILE *fd) {
     long int user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time, guest_time;
 
     fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld", &user_time, &nice_time, &system_time, &idle_time, &iowait_time, &irq_time, &softirq_time, &steal_time, &guest_time);
@@ -26,13 +39,13 @@ long int read_cpu_proc(FILE *fd) {
 }
 
 
-long int read_cpu_cgroup(FILE *fd) {
+static long int read_cpu_cgroup(FILE *fd) {
     long int cpu_usage = -1;
     fscanf(fd, "usage_usec %ld", &cpu_usage);
     return cpu_usage;
 }
 
-long int get_cpu_stat(char* filename, int mode) {
+static long int get_cpu_stat(char* filename, int mode) {
     FILE* fd = NULL;
     long int result=-1;
 
@@ -52,13 +65,8 @@ long int get_cpu_stat(char* filename, int mode) {
     return result;
 }
 
-unsigned int interval=1000;
-struct container {
-    char path[BUFSIZ];
-    char *id;
-};
 
-int output_stats(struct container *containers, int length) {
+static int output_stats(struct container *containers, int length) {
 
     long int main_cpu_reading_before, main_cpu_reading_after, main_cpu_reading;
     long int cpu_readings_before[length];
