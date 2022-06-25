@@ -283,7 +283,7 @@ def main():
 
         notes.append({"note" : "[END MEASUREMENT]", 'container_name' : '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
 
-        print(f"Idling containers after run for {config['measurement']['idle-time-stop']}s")
+        print(f"Idling containers after run for {config['measurement']['idle-time-end']}s")
         time.sleep(config['measurement']['idle-time-end'])
 
         # now we have free capacity to parse the stdout / stderr of the processes
