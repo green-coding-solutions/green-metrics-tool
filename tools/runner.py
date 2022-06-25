@@ -155,8 +155,9 @@ try:
                 docker_run_string.append(f"{folder}:/tmp/repo:ro")
 
             if (args.debug is not None) and ('portmapping' in el):
-                docker_run_string.append('-p')
-                docker_run_string.append(el['portmapping'])
+                for portmapping in el['portmapping']:
+                    docker_run_string.append('-p')
+                    docker_run_string.append(portmapping)
 
             if 'env' in el:
                 import re
