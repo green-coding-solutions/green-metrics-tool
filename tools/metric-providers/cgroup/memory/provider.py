@@ -30,16 +30,20 @@ def import_stats(conn, project_id, containers):
     cur.close()    
 
 def read(resolution, containers):
-	import subprocess
-	import os
-	current_dir = os.path.dirname(os.path.abspath(__file__))
+    import subprocess
+    import os
+    current_dir = os.path.dirname(os.path.abspath(__file__))
 
-	ps = subprocess.Popen(
-	    [f"{current_dir}/static-binary {resolution} " + " ".join(containers.keys()) + " > /tmp/green-metrics-tool/cgroup_memory.log"],
-	    shell=True,
-	    preexec_fn=os.setsid
-	)
-	return ps.pid
+    ps = subprocess.Popen(
+        [f"{current_dir}/static-binary {resolution} " + " ".join(containers.keys()) + " > /tmp/green-metrics-tool/cgroup_memory.log"],
+        shell=True,
+        preexec_fn=os.setsid
+        # since we are launching the command with shell=True we cannot use ps.terminate() / ps.kill().
+        # This would just kill the executing shell, but not it's child and make the process an orphan.
+        # therefore we use os.setsid here and later call os.getpgid(pid) to get process group that the shell
+        # and the process are running in. These we then can send the signal to and kill them
+    )
+    return ps.pid
 
 if __name__ == "__main__":
     import argparse

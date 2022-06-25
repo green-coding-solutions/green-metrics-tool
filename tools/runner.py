@@ -17,8 +17,9 @@ sys.path.append(f"{current_dir}/metric-providers")
 
 from save_notes import save_notes # local file import
 from setup_functions import get_db_connection, get_config
-from errors import log_error, end_error, email_error
-from insert_hw_info import insert_hw_info
+import error_helpers
+import hardware_info
+import process_helpers
 
 # TODO:
 # - Exception Logic is not really readable. Better encapsulate docker calls and fetch exception there
@@ -94,12 +95,13 @@ def main():
         cur.close()
 
     else:
-        raise Exception('Unknown mode: ', args.mode)
+        raise RuntimeError('Unknown mode: ', args.mode)
 
 
     containers = {}
     networks = []
-    pids_to_kill = []
+    ps_to_kill = []
+    ps_to_read = []
     metric_providers = []
 
     try:
@@ -120,7 +122,7 @@ def main():
         print("From: ", obj['author'])
         print("Version ", obj['version'], "\n")
 
-        insert_hw_info(conn, project_id)
+        hardware_info.insert_hw_info(conn, project_id)
 
         for metric_provider in config['metric-providers']:
             print(f"Importing metric provider: {metric_provider}")
@@ -131,15 +133,14 @@ def main():
         output = ps.stdout.strip().lower()
 
         if obj.get('architecture') is not None and output != obj['architecture']:
-            raise Exception("Specified architecture does not match system architecture: system (%s) != specified (%s)", output, obj['architecture'])
+            raise RuntimeError("Specified architecture does not match system architecture: system (%s) != specified (%s)", output, obj['architecture'])
 
         for el in obj['setup']:
             if el['type'] == 'container':
                 container_name = el['name']
 
                 print("Resetting container")
-                subprocess.run(['docker', 'stop', container_name]) # often not running. so no check=true
-                subprocess.run(['docker', 'rm', container_name]) # often not running. so no check=true
+                subprocess.run(["docker", "rm", "-f", container_name])  # often not running. so no check=true
 
                 print("Creating container")
                 # We are attaching the -it option here to keep STDIN open and a terminal attached.
@@ -164,9 +165,9 @@ def main():
                     import re
                     for docker_env_var in el['env']:
                         if re.search("^[A-Z_]+$", docker_env_var) is None:
-                            raise Exception(f"Docker container setup env var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var}")
+                            raise RuntimeError(f"Docker container setup env var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var}")
                         if re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", el['env'][docker_env_var]) is None:
-                            raise Exception(f"Docker container setup env var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {el['env'][docker_env_var]}")
+                            raise RuntimeError(f"Docker container setup env var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {el['env'][docker_env_var]}")
 
                         docker_run_string.append('-e')
                         docker_run_string.append(f"{docker_env_var}={el['env'][docker_env_var]}")
@@ -213,7 +214,7 @@ def main():
             elif el['type'] == 'Docker-Compose':
                 raise NotImplementedError("Green Metrics Tool will not support that, because we wont support all features from docker compose, like for instance volumes and binding arbitrary directories")
             else:
-                raise Exception("Unknown type detected in setup: ", el.get('type', None))
+                raise RuntimeError("Unknown type detected in setup: ", el.get('type', None))
 
         # --- setup finished
 
@@ -221,7 +222,7 @@ def main():
 
         for metric_provider in metric_providers:
             print(f"Starting measurement provider {metric_provider}")
-            pids_to_kill.append(metric_provider.read(100, containers))
+            ps_to_kill.append({"pid": metric_provider.read(100, containers), "cmd": metric_provider, "ps_group": True})
 
 
 
@@ -256,47 +257,41 @@ def main():
 
                     docker_exec_command = ['docker', 'exec']
 
-                    if inner_el.get('detach', None) == True :
-                        print("Detaching")
-                        docker_exec_command.append('-d')
-
                     docker_exec_command.append(el['container'])
                     docker_exec_command.extend( inner_el['command'].split(' ') )
 
+                    # Note: In case of a detach wish in the usage_scenario.json:
+                    # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
+                    # Since Popen always make the process asynchronous we can leverage this to emulate a detached behaviour
                     ps = subprocess.Popen(
-                        " ".join(docker_exec_command),
-                        shell=True,
+                        docker_exec_command,
                         stderr=subprocess.PIPE,
                         stdout=subprocess.PIPE,
-                        encoding="UTF-8",
-                        preexec_fn=os.setsid
+                        encoding="UTF-8"
                     )
 
-                    print(ps.stderr.readable())
-
-                    docker_exec_stderr = ps.stderr.read()
-                    if docker_exec_stderr != '':
-                        raise Exception('Docker exec returned an error: ', docker_exec_stderr)
+                    ps_to_read.append({'cmd': docker_exec_command, 'ps': ps})
 
                     if inner_el.get('detach', None) == True :
-                        pids_to_kill.append(ps.pid)
-
-                    print("Output of command ", inner_el['command'], "\n", ps.stdout.read())
+                        print("Process should be detached. Running asynchronously and detaching ...")
+                        ps_to_kill.append({"pid": ps.pid, "cmd": inner_el['command'], "ps_group": False})
+                    else:
+                        print("Process should be synchronouse. Alloting 60s runtime ...")
+                        process_helpers.timeout(ps, inner_el['command'], 60)
                 else:
-                    raise Exception('Unknown command type in flows: ', inner_el['type'])
+                    raise RuntimeError("Unknown command type in flow: ", inner_el['type'])
 
         notes.append({"note" : "[END MEASUREMENT]", 'container_name' : '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
-
 
         print("Re-idling containers")
         time.sleep(5) # 5 seconds buffer at the end to idle container
 
-        for pid in pids_to_kill:
-            print("Killing: ", pid)
-            try:
-                os.killpg(os.getpgid(pid), signal.SIGTERM)
-            except ProcessLookupError:
-                pass # process may have already ended
+        # now we have free capacity to parse the stdout / stderr of the processes
+        print("Getting output from processes: ")
+        for ps in ps_to_read:
+            process_helpers.parse_stream(ps['ps'], ps['cmd'])
+
+        process_helpers.kill_pids(ps_to_kill)
 
         print("Parsing stats")
 
@@ -314,36 +309,34 @@ def main():
             send_report_email(config, email, project_id)
 
     except FileNotFoundError as e:
-        log_error("Docker command failed.", e)
-        email_error("Docker command failed.", e, user_email=user_email, project_id=project_id)
+        error_helpers.log_error("Docker command failed.", e)
+        error_helpers.email_error("Docker command failed.", e, user_email=user_email, project_id=project_id)
     except subprocess.CalledProcessError as e:
-        log_error("Docker command failed")
-        log_error("Stdout:", e.stdout)
-        log_error("Stderr:", e.stderr)
-        email_error("Docker command failed", "Stdout:", e.stdout, "Stderr:", e.stderr, user_email=user_email, project_id=project_id)
+        error_helpers.log_error("Docker command failed")
+        error_helpers.log_error("Stdout:", e.stdout)
+        error_helpers.log_error("Stderr:", e.stderr)
+        error_helpers.email_error("Docker command failed", "Stdout:", e.stdout, "Stderr:", e.stderr, user_email=user_email, project_id=project_id)
     except KeyError as e:
-        log_error("Was expecting a value inside the JSON file, but value was missing: ", e)
-        email_error("Was expecting a value inside the JSON file, but value was missing: ", e, user_email=user_email, project_id=project_id)
+        error_helpers.log_error("Was expecting a value inside the JSON file, but value was missing: ", e)
+        error_helpers.email_error("Was expecting a value inside the JSON file, but value was missing: ", e, user_email=user_email, project_id=project_id)
     except BaseException as e:
-        log_error("Base exception occured: ", e)
-        email_error("Base exception occured: ", e, user_email=user_email, project_id=project_id)
+        error_helpers.log_error(f"{e.__class__} exception occured: ", e)
+        error_helpers.email_error("Base exception occured: ", e, user_email=user_email, project_id=project_id)
     finally:
+        print("Finally block. Stopping containers")
         for container_name in containers.values():
-            subprocess.run(['docker', 'stop', container_name])
-            subprocess.run(['docker', 'rm', container_name])
+            subprocess.run(["docker", "rm", "-f", container_name])
 
+        print("Removing network")
         for network_name in networks:
             subprocess.run(['docker', 'network', 'rm', network_name])
 
         if args.no_file_cleanup is None:
+            print("Removing files")
             subprocess.run(["rm", "-Rf", "/tmp/green-metrics-tool"])
 
-        for pid in pids_to_kill:
-            print("Killing: ", pid)
-            try:
-                os.killpg(os.getpgid(pid), signal.SIGTERM)
-            except ProcessLookupError:
-                pass # process may have already ended
+        process_helpers.kill_pids(ps_to_kill)
+        print("\n\n>>> Shutdown gracefully completed <<<\n\n")
 
 if __name__ == "__main__":
     main()

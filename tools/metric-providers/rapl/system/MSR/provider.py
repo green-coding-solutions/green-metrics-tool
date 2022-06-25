@@ -37,6 +37,10 @@ def read(resolution, containers):
         shell=True,
         preexec_fn=os.setsid,
         encoding="UTF-8"
+        # since we are launching the command with shell=True we cannot use ps.terminate() / ps.kill().
+        # This would just kill the executing shell, but not it's child and make the process an orphan.
+        # therefore we use os.setsid here and later call os.getpgid(pid) to get process group that the shell
+        # and the process are running in. These we then can send the signal to and kill them
     )
 
     return ps.pid
