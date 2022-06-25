@@ -489,8 +489,14 @@
                                     if(accumulate === 1) cpu_load.push(el[3])
 
                                   }
-                                  else if(el[2] == 'system-energy' && accumulate === 1) {
-                                    total_energy += el[3];
+                                  else if(el[2] == 'system-energy') {
+                                    if(accumulate === 1) total_energy += el[3];
+                                    if(my_series[el[2]][el[0]] == undefined) {
+                                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]}]}
+                                    } else {
+                                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]})
+                                    }
+
                                   } else if (el[2] == 'mem') {
                                     if(my_series[el[2]][el[0]] == undefined) {
                                         my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/1000000}]}

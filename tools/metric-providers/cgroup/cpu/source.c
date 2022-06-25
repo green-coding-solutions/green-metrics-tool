@@ -131,6 +131,8 @@ int main(int argc, char **argv) {
 
     int result=-1; // for status value of output_stats. therefore int not long
 
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     user_hz = sysconf(_SC_CLK_TCK);
     if(argc>=3) {
         interval = atoi(argv[1]);

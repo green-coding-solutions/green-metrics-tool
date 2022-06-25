@@ -7,24 +7,25 @@ def import_stats(conn, project_id, containers = None): # Containers argument is 
 
     csv_data = csv_data[:csv_data.rfind('\n')] # remove the last line from the string
 
-    df = pd.read_csv(StringIO(csv_data), sep=" ", names=["timestamp", "energy"])
+    df = pd.read_csv(StringIO(csv_data), 
+        sep=" ", 
+        names=["timestamp", "energy"], 
+        dtype={"timestamp":int, "energy":float}
+    )
+    
+    df['energy'] = (df.energy)*1000
+    df['energy'] = df.energy.astype(int)
+    df['container_name'] = 'RAPL CPU-Package'
+    df['metric'] = 'system-energy'
+    df['project_id'] = project_id
 
+    f = StringIO(df.to_csv(index=False, header=False))
+    
     cur = conn.cursor()
-    import numpy as np
-
-    for i, row in df.iterrows():
-        print(row)
-        cur.execute("""
-                INSERT INTO stats
-                ("project_id", "container_name", "metric", "value", "time")
-                VALUES
-                (%s, %s, 'system-energy', %s, %s)
-                """,
-                (project_id, "RAPL CPU-Package", float(row.energy)*1000, row.timestamp)
-        )
-        conn.commit()
-    cur.close()
-
+    cur.copy_from(f, 'stats', columns=("time", "value", "container_name", "metric", "project_id"), sep=",")
+    conn.commit()
+    cur.close() 
+    
 def read(resolution, containers):
     import subprocess
     import os
@@ -32,7 +33,7 @@ def read(resolution, containers):
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     ps = subprocess.Popen(
-        [f"sudo /usr/bin/stdbuf -oL {current_dir}/static-binary -i {resolution} > /tmp/green-metrics-tool/rapl-system.log"],
+        [f"sudo {current_dir}/static-binary -i {resolution} > /tmp/green-metrics-tool/rapl-system.log"],
         shell=True,
         preexec_fn=os.setsid,
         encoding="UTF-8"

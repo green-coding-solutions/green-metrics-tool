@@ -64,6 +64,8 @@ int main(int argc, char **argv) {
 
 	struct container containers[argc-2];
 
+	setvbuf(stdout, NULL, _IONBF, 0);
+
 	if(argc>=3) {
 		interval = atoi(argv[1]);
 		for (i = 2; i < argc && i < BUFSIZ; i++) {

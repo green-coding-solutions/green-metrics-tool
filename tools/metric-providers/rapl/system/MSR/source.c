@@ -382,6 +382,8 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	setvbuf(stdout, NULL, _IONBF, 0);
+
 	cpu_model=detect_cpu();
 	detect_packages();
 
