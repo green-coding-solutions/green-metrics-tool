@@ -37,10 +37,10 @@ def timeout(ps, cmd, duration):
             raise RuntimeError(f"Process could not terminate in 5s time and was killed: {cmd}")
 
 
-def parse_stream(ps, cmd):
+def parse_stream_generator(ps, cmd):
     stderr_stream = ps.stderr.read()
     if stderr_stream != '' :
         raise RuntimeError(f"Stderr of docker exec command '{cmd}' was not empty: {stderr_stream}")
 
-    stdout_stream = ps.stdout.read()
-    print(f"stdout of docker exec command '{cmd}' was : {stdout_stream}")
+    while (pair := ps.stdout.readline()):
+        yield pair

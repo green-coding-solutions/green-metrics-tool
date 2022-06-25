@@ -273,7 +273,7 @@ def main():
                         encoding="UTF-8"
                     )
 
-                    ps_to_read.append({'cmd': docker_exec_command, 'ps': ps})
+                    ps_to_read.append({'cmd': docker_exec_command, 'ps': ps, 'read-notes-stdout': inner_el.get('read-notes-stdout', False), 'container_name': el['container']})
 
                     if inner_el.get('detach', None) == True :
                         print("Process should be detached. Running asynchronously and detaching ...")
@@ -292,17 +292,22 @@ def main():
         # now we have free capacity to parse the stdout / stderr of the processes
         print("Getting output from processes: ")
         for ps in ps_to_read:
-            process_helpers.parse_stream(ps['ps'], ps['cmd'])
+            for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd']):
+                print("Output from process: ", line)
+                if(ps['read-notes-stdout']):
+                    timestamp, note = line.split(' ', 1) # Fixed format according to defintion. If unpacking fails this is wanted error
+                    notes.append({"note" : note, 'container_name' : ps['container_name'], "timestamp": timestamp})
+
+
 
         process_helpers.kill_pids(ps_to_kill)
 
         print("Parsing stats")
-
-
         for metric_reporter in metric_providers:
             metric_reporter.import_stats(conn, project_id, containers)
 
 
+        print("Saving notes: ", notes)
         save_notes(conn, project_id, notes)
 
         if args.mode == 'manual':
