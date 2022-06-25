@@ -229,9 +229,9 @@ def main():
 
         notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
 
-        print("Pre-idling containers")
+        print(f"Pre-idling containers for {config['measurement']['idle-time-start']}s")
 
-        time.sleep(5) # 5 seconds buffer at the start to idle container
+        time.sleep(config['measurement']['idle-time-start'])
 
         if args.debug is not None:
             print("Debug mode is active. Pausing. Please press any key to continue ...")
@@ -276,15 +276,15 @@ def main():
                         print("Process should be detached. Running asynchronously and detaching ...")
                         ps_to_kill.append({"pid": ps.pid, "cmd": inner_el['command'], "ps_group": False})
                     else:
-                        print("Process should be synchronouse. Alloting 60s runtime ...")
-                        process_helpers.timeout(ps, inner_el['command'], 60)
+                        print(f"Process should be synchronouse. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
+                        process_helpers.timeout(ps, inner_el['command'], config['measurement']['flow-process-runtime'])
                 else:
                     raise RuntimeError("Unknown command type in flow: ", inner_el['type'])
 
         notes.append({"note" : "[END MEASUREMENT]", 'container_name' : '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
 
-        print("Re-idling containers")
-        time.sleep(5) # 5 seconds buffer at the end to idle container
+        print(f"Idling containers after run for {config['measurement']['idle-time-stop']}s")
+        time.sleep(config['measurement']['idle-time-end'])
 
         # now we have free capacity to parse the stdout / stderr of the processes
         print("Getting output from processes: ")

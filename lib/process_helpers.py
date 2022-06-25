@@ -20,6 +20,10 @@ def kill_pids(ps_to_kill):
 def timeout(ps, cmd, duration):
     import subprocess
     try:
+        # subprocess.wait tries to use the syscall waitpid() on POSIX.
+        # If that fails however it will go into a partial spin-lock on the process (500us sleep loop).
+        # This could maybe be optimized with manual code
+        # Also if this code is slow on windows it should be reimplemented
         ps.wait(duration)
     except subprocess.TimeoutExpired as e:
         print("Process exceeded runtime of 60s. Terminating ...")
