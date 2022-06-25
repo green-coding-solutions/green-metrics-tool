@@ -176,7 +176,7 @@ async def post_project_add(project: Project):
         cur.close()
         return {"success": True}
 
-    except BaseException as e:
+    except Exception as e:
         conn.rollback()
         cur.close()
         return {"success": False, "err": f"Problem with sending email / saving to database: {str(e)}"}
