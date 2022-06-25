@@ -10,6 +10,10 @@ services:
       - ./structure.sql:/docker-entrypoint-initdb.d/structure.sql:ro
     ports:
       - 5432:5432
+    command: >
+      -c ssl=on
+      -c ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+      -c ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
   green-coding-nginx:
     image: nginx
     container_name: green-coding-nginx-container
