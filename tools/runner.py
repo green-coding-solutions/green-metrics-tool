@@ -157,7 +157,10 @@ def main():
                     docker_run_string.append(f"{folder}:/tmp/repo:ro")
 
                 if (args.debug is not None) and ('portmapping' in el):
+                    if(type(el['portmapping']) != list):
+                        raise RuntimeError(f"Portmapping must be a list but is: {type(el['portmapping'])}")
                     for portmapping in el['portmapping']:
+                        print("Setting portmapping: ", el['portmapping'])
                         docker_run_string.append('-p')
                         docker_run_string.append(portmapping)
 
