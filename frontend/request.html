@@ -35,6 +35,7 @@
     <link rel="stylesheet" href="/assets/css/demo/style.css">
     <link rel="stylesheet" type="text/css" href="/new/docs.css">
     <link rel="stylesheet" type="text/css" href="/new/rtl.css">
+    <link rel="stylesheet" href="/assets/vendors/css/jquery.toast.min.css">
 
     <!-- <script type="text/javascript">
         window.liveSettings = {
@@ -54,12 +55,7 @@
 </head>
 
 <body id="example" class="started" ontouchstart="">
-    <div class="ui black big launch right attached fixed button">
-        <i class="content icon"></i>
-        <span class="text">Menu</span>
-    </div>
-
-    <div class="full height">
+    <div class="full height" style="width: 100vw">
         <div class="toc">
             <div class="ui vertical inverted menu" style="height: 100vh">
                 <div class="item">
@@ -80,7 +76,7 @@
             </div>
         </div>
 
-        <div class="article">
+        <div class="article" style="width: 83%">
             <div class="ui masthead vertical segment">
                 <div class="ui container">
                     <div class="introduction">
@@ -91,24 +87,118 @@
                 </div>
                 <div class="main ui intro container">
                     <h2 class="ui dividing header">
-                        Home
+                        Certify new software
                     </h2>
-                    <table class="ui sortable celled table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>URI</th>
-                                <th>Last Crawl</th>
-                            </tr>
-                        </thead>
-                        <tbody id="projects-table">
-                    </table>
+                    <div class="ui horizontal card" style="width: 100%">
+                        <div class="content">
+                            <div class="header">IMPORTANT</div>
+                            <div class="description">
+                                <p>The Green Metrics Tool is currently experimental. Please use it for development
+                                    purposes only.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ui horizontal card" style="width: 100%">
+                        <div class="content">
+                            <div class="header">INTRODUCTION</div>
+                            <div class="description">
+                                <p>Green Metric can certify your software according to different schemas.</p>
+                                <p>In this demo, only the Green-Coding-Berlin schema is implemented. In the future it is
+                                    planned to support<a
+                                        href="https://www.blauer-engel.de/en/productworld/resources-and-energy-efficient-software-products">Blue
+                                        Angel</a> (in Germany known als Blauer Engel) and also the <a
+                                        href="https://greensoftware.foundation/projects/software-carbon-intensity-sci-specification">SCI
+                                        from Green Software Foundation</a>
+                                </p>
+                                <p>In the box below please put your Github-Repo URL and an E-mail where we send the link
+                                    to the statistics.</p>
+                                <p>Your certification request will be put in a queue and processing takes about 5-15
+                                    Minutes (+ the runtime of your usage scenario)</p>
+                                <p class="d-inline"><strong>Note</strong>: Only open-source software can and will be
+                                    certified. It does not have to free software though. This means we only process
+                                    public github repositories. The certifier expects a schema-correct
+                                    usage-scenario.json file in your repository. Please check the <a
+                                        href="https://github.com/green-coding-berlin/simple-example-application">Demo
+                                        Software Repository</a> for example and documentation. If you have any questions
+                                    or issues please email us at <a class="text-primary"
+                                        href="mailto:info@green-coding.org">info@green-coding.org</a></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ui horizontal card" style="width: 100%">
+                        <div class="content">
+                            <div class="header">ADD NEW PROJECT</div>
+                            <form action="/" method="POST">
+                                <div class="description">
+                                    <div class="template-demo">
+                                        <div
+                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
+                                            <div class="mdc-text-field mdc-text-field--outlined">
+                                                <input class="mdc-text-field__input" id="text-field-hero-input1"
+                                                    name="name" style="text-indent: 120px">
+                                                <div class="mdc-notched-outline">
+                                                    <div class="mdc-notched-outline__leading"></div>
+                                                    <div class="mdc-notched-outline__notch">
+                                                        <label for="text-field-hero-input1"
+                                                            class="mdc-floating-label">Name
+                                                            (optional)</label>
+                                                    </div>
+                                                    <div class="mdc-notched-outline__trailing"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
+                                            <div class="mdc-text-field mdc-text-field--outlined">
+                                                <input class="mdc-text-field__input" id="text-field-hero-input2"
+                                                    name="email" style="text-indent: 120px">
+                                                <div class="mdc-notched-outline">
+                                                    <div class="mdc-notched-outline__leading"></div>
+                                                    <div class="mdc-notched-outline__notch">
+                                                        <label for="text-field-hero-input2"
+                                                            class="mdc-floating-label">E-Mail</label>
+                                                    </div>
+                                                    <div class="mdc-notched-outline__trailing"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
+                                            <div
+                                                class="mdc-text-field mdc-text-field--outlined mdc-text-field--with-leading-icon">
+                                                <i class="material-icons mdc-text-field__icon">favorite</i>
+                                                <input class="mdc-text-field__input" id="text-field-hero-input3"
+                                                    name="url" style="text-indent: 120px">
+                                                <div class="mdc-notched-outline">
+                                                    <div class="mdc-notched-outline__leading"></div>
+                                                    <div class="mdc-notched-outline__notch">
+                                                        <label for="text-field-hero-input3"
+                                                            class="mdc-floating-label">Github-URL</label>
+                                                    </div>
+                                                    <div class="mdc-notched-outline__trailing"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
+                                            <div
+                                                class="mdc-text-field mdc-text-field--outlined mdc-text-field--with-leading-icon">
+                                                <button
+                                                    class="mdc-button mdc-button--raised filled-button--success mdc-ripple-upgraded">
+                                                    Submit software for certification
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-    </div>
-    <!-- <script>
+            <!-- <script>
         window.less = {
             async: true,
             environment: 'production',
@@ -118,48 +208,42 @@
         };
     </script> -->
 
-    <!-- <script src="/new/less.min.js"></script> -->
-    <script>
-        var chart_cpu = null;
-        var chart_energy = null;
-        var chart_mem = null;
-        var chart_net_in = null;
-        try {
-            if (document.location.host.indexOf('metrics.green-coding.org') === 0)
-                api_url = "https://api.green-coding.org";
-            else
-                api_url = "http://api.green-coding.local:8000";
+            <!-- <script src="/new/less.min.js"></script> -->
+            <!-- Custom js for this page-->
+            <script src="/assets/js/dashboard.js"></script>
+            <script src="/assets/vendors/js/jquery.toast.min.js"></script>
+            <script src="/assets/js/toastDemo.js"></script>
+            <!-- End custom js for this page-->
+            <script>
+                document.forms[0].onsubmit = async (e) => {
+                    e.preventDefault();
 
-            fetch(api_url + '/v1/projects')
-                .then(response => response.json())
-                .then(my_json => {
-                    if (my_json.success != true) {
-                        alert(my_json.err);
-                        return;
-                    }
+                    const data = new FormData(document.getElementsByTagName('form')[0]);
+                    const values = Object.fromEntries(data.entries());
 
-                    my_json.data.forEach(el => {
-                        const li_node = document.createElement("tr");
-                        const link_node = document.createElement('a');
+                    if (document.location.host.indexOf('metrics.green-coding.org') === 0)
+                        api_url = "https://api.green-coding.org";
+                    else
+                        api_url = "http://api.green-coding.local:8000";
 
-                        link_node.innerText = el[1];
-                        link_node.title = el[1];
-                        link_node.href = "/stats.html?id=" + el[0];
-                        li_node.appendChild(link_node);
-                        li_node.innerHTML = '<td>' + li_node.innerHTML + '</td><td>' + el[2] + '</td><td>' + el[3] + '</td>';
-
-                        document.getElementById("projects-table").appendChild(li_node);
+                    fetch(api_url + "/v1/project/add", {
+                        method: "POST",
+                        body: JSON.stringify(values),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
                     })
-
-                })
-        } catch (e) {
-            alert("Fetch failed: " + e)
-        }
-
-        $(document).ready(function () {
-            $('table').tablesort();
-        });
-    </script>
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success == true) {
+                                document.forms[0].reset()
+                                showSuccessToast()
+                            } else {
+                                alert(data.err)
+                            }
+                        })
+                }
+            </script>
 </body>
 
 </html>
