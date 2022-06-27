@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <!-- Standard Meta -->
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <link rel="shortcut icon" href="/assets/images/favicon.png" />
+
+    <!-- Site Properities -->
+    <meta name="generator" content="DocPad v6.79.4" />
+    <title>Green Metrics Tool - Experimental 0.1</title>
+
+    <meta name="description" content="Using Fomantic UI with Other Libraries" />
+    <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
+
+    <script src="/new/jquery.min.js"></script>
+    <script src="/new/clipboard.min.js"></script>
+    <script src="/new/easing.min.js"></script>
+    <script src="/new/highlight.min.js"></script>
+    <script src="/new/history.min.js"></script>
+    <script src="/new/state.js"></script>
+    <script src="/new/tablesort.min.js"></script>
+    <script src="/new/underscore.min.js"></script>
+    <script src="/new/semantic.min.js"></script>
+    <script src="/new/docs.js"></script>
+
+    <link rel="stylesheet" type="text/css" class="ui" href="/new/semantic.min.css">
+    <link rel="stylesheet" href="/assets/vendors/mdi/css/materialdesignicons.min.css">
+    <link rel="stylesheet" href="/assets/vendors/css/vendor.bundle.base.css">
+    <link rel="stylesheet" href="/assets/vendors/flag-icon-css/css/flag-icon.min.css">
+    <link rel="stylesheet" href="/assets/vendors/jvectormap/jquery-jvectormap.css">
+    <link rel="stylesheet" href="/assets/vendors/css/jquery.toast.min.css">
+    <link rel="stylesheet" href="/assets/css/demo/style.css">
+    <link rel="stylesheet" type="text/css" href="/new/docs.css">
+    <link rel="stylesheet" type="text/css" href="/new/rtl.css">
+    <link rel="stylesheet" href="/assets/vendors/css/jquery.toast.min.css">
+
+    <!-- <script type="text/javascript">
+        window.liveSettings = {
+            api_key: '9ede3015b9f84c1aabc81ab839c55d74',
+            parse_attr: [
+                'data-title',
+                'data-content'
+            ],
+            detectlang: false,
+            autocollect: true,
+            ignore_tags: ['i', 'code', 'pre'],
+            parse_attr: ['data-title', 'data-content', 'data-text'],
+            ignore_class: ['code', 'anchor']
+        };
+    </script> -->
+    <!-- <script type="text/javascript" src="/new/live.js"></script> -->
+</head>
+
+<body id="example" class="started" ontouchstart="">
+    <div class="full height" style="width: 100vw">
+        <div class="toc">
+            <div class="ui vertical inverted menu" style="height: 100vh">
+                <div class="item">
+                    <p>Demo user</p>
+                </div>
+                <a class="item" href="/index.html">
+                    <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon"
+                        aria-hidden="true">home</i><b>Home</b>
+                </a>
+                <a class="item" href="/request.html">
+                    <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon"
+                        aria-hidden="true">track_changes</i><b>Certify new software</b>
+                </a>
+                <a class="item" href="/data_analysis.html">
+                    <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon"
+                        aria-hidden="true">pie_chart</i><b>Data Analysis</b>
+                </a>
+            </div>
+        </div>
+
+        <div class="article" style="width: 83%">
+            <div class="ui masthead vertical segment">
+                <div class="ui container">
+                    <div class="introduction">
+                        <h1 class="ui header">
+                            Green Coding Berlin
+                        </h1>
+                    </div>
+                </div>
+                <div class="main ui intro container">
+                    <h2 class="ui dividing header">
+                        Certify new software
+                    </h2>
+                    <div class="ui horizontal card" style="width: 100%">
+                        <div class="content">
+                            <div class="header">IMPORTANT</div>
+                            <div class="description">
+                                <p>The Green Metrics Tool is currently experimental. Please use it for development
+                                    purposes only.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ui horizontal card" style="width: 100%">
+                        <div class="content">
+                            <div class="header">INTRODUCTION</div>
+                            <div class="description">
+                                <p>Green Metric can certify your software according to different schemas.</p>
+                                <p>In this demo, only the Green-Coding-Berlin schema is implemented. In the future it is
+                                    planned to support<a
+                                        href="https://www.blauer-engel.de/en/productworld/resources-and-energy-efficient-software-products">Blue
+                                        Angel</a> (in Germany known als Blauer Engel) and also the <a
+                                        href="https://greensoftware.foundation/projects/software-carbon-intensity-sci-specification">SCI
+                                        from Green Software Foundation</a>
+                                </p>
+                                <p>In the box below please put your Github-Repo URL and an E-mail where we send the link
+                                    to the statistics.</p>
+                                <p>Your certification request will be put in a queue and processing takes about 5-15
+                                    Minutes (+ the runtime of your usage scenario)</p>
+                                <p class="d-inline"><strong>Note</strong>: Only open-source software can and will be
+                                    certified. It does not have to free software though. This means we only process
+                                    public github repositories. The certifier expects a schema-correct
+                                    usage-scenario.json file in your repository. Please check the <a
+                                        href="https://github.com/green-coding-berlin/simple-example-application">Demo
+                                        Software Repository</a> for example and documentation. If you have any questions
+                                    or issues please email us at <a class="text-primary"
+                                        href="mailto:info@green-coding.org">info@green-coding.org</a></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ui horizontal card" style="width: 100%">
+                        <div class="content">
+                            <div class="header">ADD NEW PROJECT</div>
+                            <form action="/" method="POST">
+                                <div class="description">
+                                    <div class="template-demo">
+                                        <div
+                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
+                                            <div class="mdc-text-field mdc-text-field--outlined">
+                                                <input class="mdc-text-field__input" id="text-field-hero-input1"
+                                                    name="name" style="text-indent: 120px">
+                                                <div class="mdc-notched-outline">
+                                                    <div class="mdc-notched-outline__leading"></div>
+                                                    <div class="mdc-notched-outline__notch">
+                                                        <label for="text-field-hero-input1"
+                                                            class="mdc-floating-label">Name
+                                                            (optional)</label>
+                                                    </div>
+                                                    <div class="mdc-notched-outline__trailing"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
+                                            <div class="mdc-text-field mdc-text-field--outlined">
+                                                <input class="mdc-text-field__input" id="text-field-hero-input2"
+                                                    name="email" style="text-indent: 120px">
+                                                <div class="mdc-notched-outline">
+                                                    <div class="mdc-notched-outline__leading"></div>
+                                                    <div class="mdc-notched-outline__notch">
+                                                        <label for="text-field-hero-input2"
+                                                            class="mdc-floating-label">E-Mail</label>
+                                                    </div>
+                                                    <div class="mdc-notched-outline__trailing"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
+                                            <div
+                                                class="mdc-text-field mdc-text-field--outlined mdc-text-field--with-leading-icon">
+                                                <i class="material-icons mdc-text-field__icon">favorite</i>
+                                                <input class="mdc-text-field__input" id="text-field-hero-input3"
+                                                    name="url" style="text-indent: 120px">
+                                                <div class="mdc-notched-outline">
+                                                    <div class="mdc-notched-outline__leading"></div>
+                                                    <div class="mdc-notched-outline__notch">
+                                                        <label for="text-field-hero-input3"
+                                                            class="mdc-floating-label">Github-URL</label>
+                                                    </div>
+                                                    <div class="mdc-notched-outline__trailing"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
+                                            <div
+                                                class="mdc-text-field mdc-text-field--outlined mdc-text-field--with-leading-icon">
+                                                <button
+                                                    class="mdc-button mdc-button--raised filled-button--success mdc-ripple-upgraded">
+                                                    Submit software for certification
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- <script>
+        window.less = {
+            async: true,
+            environment: 'production',
+            fileAsync: false,
+            onReady: false,
+            useFileCache: true
+        };
+    </script> -->
+
+            <!-- <script src="/new/less.min.js"></script> -->
+            <!-- Custom js for this page-->
+            <script src="/assets/js/dashboard.js"></script>
+            <script src="/assets/vendors/js/jquery.toast.min.js"></script>
+            <script src="/assets/js/toastDemo.js"></script>
+            <!-- End custom js for this page-->
+            <script>
+                document.forms[0].onsubmit = async (e) => {
+                    e.preventDefault();
+
+                    const data = new FormData(document.getElementsByTagName('form')[0]);
+                    const values = Object.fromEntries(data.entries());
+
+                    if (document.location.host.indexOf('metrics.green-coding.org') === 0)
+                        api_url = "https://api.green-coding.org";
+                    else
+                        api_url = "http://api.green-coding.local:8000";
+
+                    fetch(api_url + "/v1/project/add", {
+                        method: "POST",
+                        body: JSON.stringify(values),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success == true) {
+                                document.forms[0].reset()
+                                showSuccessToast()
+                            } else {
+                                alert(data.err)
+                            }
+                        })
+                }
+            </script>
+</body>
+
+</html>
