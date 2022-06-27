@@ -469,6 +469,8 @@
                       my_series['system-energy'] = {}
                       my_series['mem'] = {}
                       my_series['net_in'] = {}
+                      
+                      starttime = performance.now()
 
                       my_json.data.forEach(el => {
                                   if(el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
@@ -551,6 +553,9 @@
                         chart_energy.render();
                         chart_net_in.render();
 
+                        endtime = performance.now()
+                        console.log("time in ms is: "+ (endtime-starttime))
+                        
                         document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
                         document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
                         document.querySelector("#total-co2").innerText = (total_energy / 1000 / 3600000 * 0.519 * 1000000).toFixed(2) + " ugCO2eq"
