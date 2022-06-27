@@ -214,36 +214,6 @@
             <script src="/assets/vendors/js/jquery.toast.min.js"></script>
             <script src="/assets/js/toastDemo.js"></script>
             <!-- End custom js for this page-->
-            <script>
-                document.forms[0].onsubmit = async (e) => {
-                    e.preventDefault();
-
-                    const data = new FormData(document.getElementsByTagName('form')[0]);
-                    const values = Object.fromEntries(data.entries());
-
-                    if (document.location.host.indexOf('metrics.green-coding.org') === 0)
-                        api_url = "https://api.green-coding.org";
-                    else
-                        api_url = "http://api.green-coding.local:8000";
-
-                    fetch(api_url + "/v1/project/add", {
-                        method: "POST",
-                        body: JSON.stringify(values),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success == true) {
-                                document.forms[0].reset()
-                                showSuccessToast()
-                            } else {
-                                alert(data.err)
-                            }
-                        })
-                }
-            </script>
 </body>
 
 </html>

@@ -87,7 +87,7 @@
                 </div>
                 <div class="main ui intro container">
                     <h2 class="ui dividing header">
-                        Certify new software
+                        Data Analysis
                     </h2>
                     <div class="ui horizontal card" style="width: 100%">
                         <div class="content">
@@ -101,99 +101,54 @@
 
                     <div class="ui horizontal card" style="width: 100%">
                         <div class="content">
-                            <div class="header">INTRODUCTION</div>
+                            <div class="header">Data Analysis of our Open Data API</div>
                             <div class="description">
-                                <p>Green Metric can certify your software according to different schemas.</p>
-                                <p>In this demo, only the Green-Coding-Berlin schema is implemented. In the future it is
-                                    planned to support<a
-                                        href="https://www.blauer-engel.de/en/productworld/resources-and-energy-efficient-software-products">Blue
-                                        Angel</a> (in Germany known als Blauer Engel) and also the <a
-                                        href="https://greensoftware.foundation/projects/software-carbon-intensity-sci-specification">SCI
-                                        from Green Software Foundation</a>
+                                <p>The charts on this website provide only a downsampled version of the raw data.</p>
+                                <p>If you have specific research questions and / or want to do calculations based on the
+                                    RAW data we encourage you to to use the Open Data REST-API.</p>
+                                <p>Then endpoint of the self-documenting API is available here: <a
+                                        href="https://api.green-coding.org">https://api.green-coding.org</a></p>
+                                <p></p>
+                                <p>Also we provide sample analysis in Deepnote Notebooks where you get an idea on how to
+                                    interact with the API through Python / Pandas. <strong>See examples below!</strong>
                                 </p>
-                                <p>In the box below please put your Github-Repo URL and an E-mail where we send the link
-                                    to the statistics.</p>
-                                <p>Your certification request will be put in a queue and processing takes about 5-15
-                                    Minutes (+ the runtime of your usage scenario)</p>
-                                <p class="d-inline"><strong>Note</strong>: Only open-source software can and will be
-                                    certified. It does not have to free software though. This means we only process
-                                    public github repositories. The certifier expects a schema-correct
-                                    usage-scenario.json file in your repository. Please check the <a
-                                        href="https://github.com/green-coding-berlin/simple-example-application">Demo
-                                        Software Repository</a> for example and documentation. If you have any questions
-                                    or issues please email us at <a class="text-primary"
-                                        href="mailto:info@green-coding.org">info@green-coding.org</a></p>
                             </div>
                         </div>
                     </div>
 
-                    <div class="ui horizontal card" style="width: 100%">
+                    <div class="ui horizontal card" style="width: 50%">
                         <div class="content">
-                            <div class="header">ADD NEW PROJECT</div>
-                            <form action="/" method="POST">
-                                <div class="description">
-                                    <div class="template-demo">
-                                        <div
-                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
-                                            <div class="mdc-text-field mdc-text-field--outlined">
-                                                <input class="mdc-text-field__input" id="text-field-hero-input1"
-                                                    name="name" style="text-indent: 120px">
-                                                <div class="mdc-notched-outline">
-                                                    <div class="mdc-notched-outline__leading"></div>
-                                                    <div class="mdc-notched-outline__notch">
-                                                        <label for="text-field-hero-input1"
-                                                            class="mdc-floating-label">Name
-                                                            (optional)</label>
-                                                    </div>
-                                                    <div class="mdc-notched-outline__trailing"></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div
-                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
-                                            <div class="mdc-text-field mdc-text-field--outlined">
-                                                <input class="mdc-text-field__input" id="text-field-hero-input2"
-                                                    name="email" style="text-indent: 120px">
-                                                <div class="mdc-notched-outline">
-                                                    <div class="mdc-notched-outline__leading"></div>
-                                                    <div class="mdc-notched-outline__notch">
-                                                        <label for="text-field-hero-input2"
-                                                            class="mdc-floating-label">E-Mail</label>
-                                                    </div>
-                                                    <div class="mdc-notched-outline__trailing"></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div
-                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
-                                            <div
-                                                class="mdc-text-field mdc-text-field--outlined mdc-text-field--with-leading-icon">
-                                                <i class="material-icons mdc-text-field__icon">favorite</i>
-                                                <input class="mdc-text-field__input" id="text-field-hero-input3"
-                                                    name="url" style="text-indent: 120px">
-                                                <div class="mdc-notched-outline">
-                                                    <div class="mdc-notched-outline__leading"></div>
-                                                    <div class="mdc-notched-outline__notch">
-                                                        <label for="text-field-hero-input3"
-                                                            class="mdc-floating-label">Github-URL</label>
-                                                    </div>
-                                                    <div class="mdc-notched-outline__trailing"></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div
-                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
-                                            <div
-                                                class="mdc-text-field mdc-text-field--outlined mdc-text-field--with-leading-icon">
-                                                <button
-                                                    class="mdc-button mdc-button--raised filled-button--success mdc-ripple-upgraded">
-                                                    Submit software for certification
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
+                            <div class="header">Example #1: Wordpress vs. Static</div>
+                            <div class="description">
+                                <p>Here we compared the measurements of a Wordpress website vs. a static website.</p>
+                                <p>Both containers are accessed through Puppeteer (Headless Chrome) which is measured
+                                    itself. It shows the capbility of measuring client-side as well as serverside.</p>
+                                <p>We focus here on the energy and CPU metrics.</p>
+                                <p class="tx-12 text-muted"><a
+                                        href="https://deepnote.com/workspace/gmt-8c072e35-bfaf-49e7-a465-43515ce582b3/project/Green-Metrics-API-example-Comparing-Static-vs-Wordpress-ee5162cd-03ab-49e2-aaaa-02c3f5741429/%2Fnotebook.ipynb">&raquo;
+                                        Deepnote Notebook</a></p>
+                                <div class="card-icon-wrapper">
+                                    <i class="material-icons">dvr</i>
                                 </div>
-                            </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ui horizontal card" style="width: 50%">
+                        <div class="content">
+                            <div class="header">Example #2: Comparing multiple runs</div>
+                            <div class="description">
+                                <p>The web interface will only show you global averages and chart previews.</p>
+                                <p>In this Deepnote Notebook we focus on looking at the mean and standard deviance
+                                    between multiple runs.</p>
+                                <p>We focus here on the energy and CPU metrics.</p>
+                                <p class="tx-12 text-muted"><a
+                                        href="https://deepnote.com/workspace/gmt-8c072e35-bfaf-49e7-a465-43515ce582b3/project/Green-Metrics-API-example-Single-Measurement-d8b7eee6-6d81-4774-96fe-1405babd2a0a/%2Fnotebook.ipynb">&raquo;
+                                        Deepnote Notebook</a></p>
+                                <div class="card-icon-wrapper">
+                                    <i class="material-icons">dvr</i>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -214,36 +169,6 @@
             <script src="/assets/vendors/js/jquery.toast.min.js"></script>
             <script src="/assets/js/toastDemo.js"></script>
             <!-- End custom js for this page-->
-            <script>
-                document.forms[0].onsubmit = async (e) => {
-                    e.preventDefault();
-
-                    const data = new FormData(document.getElementsByTagName('form')[0]);
-                    const values = Object.fromEntries(data.entries());
-
-                    if (document.location.host.indexOf('metrics.green-coding.org') === 0)
-                        api_url = "https://api.green-coding.org";
-                    else
-                        api_url = "http://api.green-coding.local:8000";
-
-                    fetch(api_url + "/v1/project/add", {
-                        method: "POST",
-                        body: JSON.stringify(values),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success == true) {
-                                document.forms[0].reset()
-                                showSuccessToast()
-                            } else {
-                                alert(data.err)
-                            }
-                        })
-                }
-            </script>
 </body>
 
 </html>
