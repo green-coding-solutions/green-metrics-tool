@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <!-- Standard Meta -->
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <link rel="shortcut icon" href="/assets/images/favicon.png" />
+
+    <!-- Site Properities -->
+    <meta name="generator" content="DocPad v6.79.4" />
+    <title>Green Metrics Tool - Experimental 0.1</title>
+
+    <meta name="description" content="Using Fomantic UI with Other Libraries" />
+    <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
+
+    <script src="/new/jquery.min.js"></script>
+    <script src="/new/clipboard.min.js"></script>
+    <script src="/new/easing.min.js"></script>
+    <script src="/new/highlight.min.js"></script>
+    <script src="/new/history.min.js"></script>
+    <script src="/new/state.js"></script>
+    <script src="/new/tablesort.min.js"></script>
+    <script src="/new/underscore.min.js"></script>
+    <script src="/new/semantic.min.js"></script>
+    <script src="/new/docs.js"></script>
+
+    <link rel="stylesheet" type="text/css" class="ui" href="/new/semantic.min.css">
+    <link rel="stylesheet" href="/assets/vendors/mdi/css/materialdesignicons.min.css">
+    <link rel="stylesheet" href="/assets/vendors/css/vendor.bundle.base.css">
+    <link rel="stylesheet" href="/assets/vendors/flag-icon-css/css/flag-icon.min.css">
+    <link rel="stylesheet" href="/assets/vendors/jvectormap/jquery-jvectormap.css">
+    <link rel="stylesheet" href="/assets/vendors/css/jquery.toast.min.css">
+    <link rel="stylesheet" href="/assets/css/demo/style.css">
+    <link rel="stylesheet" type="text/css" href="/new/docs.css">
+    <link rel="stylesheet" type="text/css" href="/new/rtl.css">
+
+    <!-- <script type="text/javascript">
+        window.liveSettings = {
+            api_key: '9ede3015b9f84c1aabc81ab839c55d74',
+            parse_attr: [
+                'data-title',
+                'data-content'
+            ],
+            detectlang: false,
+            autocollect: true,
+            ignore_tags: ['i', 'code', 'pre'],
+            parse_attr: ['data-title', 'data-content', 'data-text'],
+            ignore_class: ['code', 'anchor']
+        };
+    </script> -->
+    <!-- <script type="text/javascript" src="/new/live.js"></script> -->
+</head>
+
+<body id="example" class="started" ontouchstart="">
+    <div class="ui black big launch right attached fixed button">
+        <i class="content icon"></i>
+        <span class="text">Menu</span>
+    </div>
+
+    <div class="full height">
+        <div class="toc">
+            <div class="ui vertical inverted menu" style="height: 100vh">
+                <div class="item">
+                    <p>Demo user</p>
+                </div>
+                <a class="item" href="/index.html">
+                    <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon"
+                        aria-hidden="true">home</i><b>Home</b>
+                </a>
+                <a class="item" href="/request.html">
+                    <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon"
+                        aria-hidden="true">track_changes</i><b>Certify new software</b>
+                </a>
+                <a class="item" href="/data_analysis.html">
+                    <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon"
+                        aria-hidden="true">pie_chart</i><b>Data Analysis</b>
+                </a>
+            </div>
+        </div>
+
+        <div class="article">
+            <div class="ui masthead vertical segment">
+                <div class="ui container">
+                    <div class="introduction">
+                        <h1 class="ui header">
+                            Green Coding Berlin
+                        </h1>
+                    </div>
+                </div>
+                <div class="main ui intro container">
+                    <h2 class="ui dividing header">
+                        Home
+                    </h2>
+                    <table class="ui sortable celled table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>URI</th>
+                                <th>Last Crawl</th>
+                            </tr>
+                        </thead>
+                        <tbody id="projects-table">
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    <!-- <script>
+        window.less = {
+            async: true,
+            environment: 'production',
+            fileAsync: false,
+            onReady: false,
+            useFileCache: true
+        };
+    </script> -->
+
+    <!-- <script src="/new/less.min.js"></script> -->
+    <script>
+        var chart_cpu = null;
+        var chart_energy = null;
+        var chart_mem = null;
+        var chart_net_in = null;
+        try {
+            if (document.location.host.indexOf('metrics.green-coding.org') === 0)
+                api_url = "https://api.green-coding.org";
+            else
+                api_url = "http://api.green-coding.local:8000";
+
+            fetch(api_url + '/v1/projects')
+                .then(response => response.json())
+                .then(my_json => {
+                    if (my_json.success != true) {
+                        alert(my_json.err);
+                        return;
+                    }
+
+                    my_json.data.forEach(el => {
+                        const li_node = document.createElement("tr");
+                        const link_node = document.createElement('a');
+
+                        link_node.innerText = el[1];
+                        link_node.title = el[1];
+                        link_node.href = "/stats.html?id=" + el[0];
+                        li_node.appendChild(link_node);
+                        li_node.innerHTML = '<td>' + li_node.innerHTML + '</td><td>' + el[2] + '</td><td>' + el[3] + '</td>';
+
+                        document.getElementById("projects-table").appendChild(li_node);
+                    })
+
+                })
+        } catch (e) {
+            alert("Fetch failed: " + e)
+        }
+
+        $(document).ready(function () {
+            $('table').tablesort();
+        });
+    </script>
+</body>
+
+</html>
