@@ -11,6 +11,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../tools')
 
 from setup_functions import get_db_connection, get_config
 from send_email import send_email
+from db import get_db_connection, db_call, db_fetch_one, db_fetch_all
 
 conn = get_db_connection()
 
@@ -43,9 +44,7 @@ async def home():
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/projects')
 async def get_projects():
-    cur = conn.cursor()
-    try:
-        cur.execute("""
+    query = """
             SELECT
                 id, name, url, last_crawl
             FROM
@@ -53,14 +52,7 @@ async def get_projects():
             ORDER BY
                 created_at DESC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
             """
-        )
-        data = cur.fetchall()
-        cur.close()
-    except BaseException as e:
-        conn.rollback()
-        cur.close()
-        return {"success": False, "err": f"Exception: {str(e)}"}
-
+    data = db_fetch_all(query, conn=conn)
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
 
@@ -70,13 +62,10 @@ async def get_projects():
 @app.get('/v1/stats/url/{url}')
 @app.get('/v1/stats/url', deprecated=True) # Here you can see, that URL is nevertheless accessible as variable later if supplied. Also deprecation shall be used once we move to v2 for all v1 routesthrough
 async def get_stats_by_url(url: str):
-    cur = conn.cursor()
-
     if(url is None or url.strip() == ''):
         return {'success': False, 'err': 'URL is empty'}
 
-    try:
-        cur.execute("""
+    query = """
             SELECT
                 projects.id as project_id, stats.container_name, stats.time, stats.metric, stats.value, notes.note
             FROM
@@ -97,15 +86,9 @@ async def get_stats_by_url(url: str):
                 projects.url = %s
             ORDER BY
                 stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
-            """,
-            (url,)
-        )
-        data = cur.fetchall()
-        cur.close()
-    except BaseException as e:
-        conn.rollback()
-        cur.close()
-        return {"success": False, "err": f"Exception: {str(e)}"}
+            """
+    params = (url,)
+    data = db_fetch_all(query, params, conn)
 
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
@@ -115,13 +98,10 @@ async def get_stats_by_url(url: str):
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/stats/single/{project_id}')
 async def get_stats_single(project_id: str):
-    cur = conn.cursor()
-
     if(project_id is None or project_id.strip() == ''):
         return {'success': False, 'err': 'Project_id is empty'}
 
-    try:
-        cur.execute("""
+    query = """
             SELECT
                 stats.container_name, stats.time, stats.metric, stats.value, notes.note
             FROM
@@ -138,19 +118,12 @@ async def get_stats_single(project_id: str):
                 stats.project_id = %s
             ORDER BY
                 stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
-            """,
-            (project_id,)
-        )
-        data = cur.fetchall()
-        cur.close()
-    except BaseException as e:
-        conn.rollback()
-        cur.close()
-        return {"success": False, "err": f"Exception: {str(e)}"}
-
+            """
+    params = (project_id,)
+    data = db_fetch_all(query, params, conn)
+    
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
-
 
     return {"success": True, "data": data, "project": get_project(project_id)}
 
@@ -171,30 +144,22 @@ async def post_project_add(project: Project):
     if(project.email is None or project.email.strip() == ''):
         return {'success': False, 'err': 'E-mail is empty'}
 
-    try:
-        cur = conn.cursor()
-
-        cur.execute("""
+    query = """
             INSERT INTO
                 projects (url,name,email)
             VALUES (%s, %s, %s)
             RETURNING id
-            """,
-            (project.url,project.name,project.email)
-        )
-        project_id = cur.fetchone()[0]
-            
-        print("Having: ", project_id)
-        
-        notify_admin(project.name, project_id)
-        conn.commit()
-        cur.close()
-        return {"success": True}
+            """
+    params = (project.url,project.name,project.email)
 
-    except BaseException as e:
-        conn.rollback()
-        cur.close()
-        return {"success": False, "err": f"Problem with sending email / saving to database: {str(e)}"}
+    try:
+        project_id = db_fetch_one(query,params,conn)
+        print("Having: ", project_id)
+        notify_admin(project.name, project_id)
+     except BaseException as e:
+        return {"success": False, "err": f"Problem with sending email / saving to database: {str(e)}"}  
+
+    return {"success": True}
     
 
 def notify_admin(name, project_id):
