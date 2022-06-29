@@ -36,22 +36,6 @@
     <link rel="stylesheet" type="text/css" href="/new/docs.css">
     <link rel="stylesheet" type="text/css" href="/new/rtl.css">
     <link rel="stylesheet" href="/assets/vendors/css/jquery.toast.min.css">
-
-    <!-- <script type="text/javascript">
-        window.liveSettings = {
-            api_key: '9ede3015b9f84c1aabc81ab839c55d74',
-            parse_attr: [
-                'data-title',
-                'data-content'
-            ],
-            detectlang: false,
-            autocollect: true,
-            ignore_tags: ['i', 'code', 'pre'],
-            parse_attr: ['data-title', 'data-content', 'data-text'],
-            ignore_class: ['code', 'anchor']
-        };
-    </script> -->
-    <!-- <script type="text/javascript" src="/new/live.js"></script> -->
 </head>
 
 <body id="example" class="started" ontouchstart="">
@@ -62,34 +46,20 @@
                     <p>Demo user</p>
                 </div>
                 <a class="item" href="/index.html">
-                    <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon"
-                        aria-hidden="true">home</i><b>Home</b>
+                    <i class="home icon"></i><b>Home</b>
                 </a>
                 <a class="item" href="/request.html">
-                    <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon"
-                        aria-hidden="true">track_changes</i><b>Certify new software</b>
+                    <i class="bullseye icon"></i><b>Certify new software</b>
                 </a>
                 <a class="item" href="/data_analysis.html">
-                    <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon"
-                        aria-hidden="true">pie_chart</i><b>Data Analysis</b>
+                    <i class="chart pie icon"></i><b>Data Analysis</b>
                 </a>
             </div>
         </div>
 
         <div class="article" style="width: 83%">
             <div class="ui masthead vertical segment">
-                <div class="ui container">
-                    <div class="introduction">
-                        <h1 class="ui header">
-                            Green Coding Berlin
-                        </h1>
-                    </div>
-                </div>
                 <div class="main ui intro container">
-                    <h2 class="ui dividing header">
-                        Certify new software
-                    </h2>
-                    
                     <div class="ui horizontal card" style="width: 100%">
                         <div class="content">
                             <div class="header">IMPORTANT</div>
@@ -116,13 +86,13 @@
                                     to the statistics.</p>
                                 <p>Your certification request will be put in a queue and processing takes about 5-15
                                     Minutes (+ the runtime of your usage scenario)</p>
-                                <p class="d-inline"><strong>Note</strong>: Only open-source software can and will be
+                                <p><strong>Note</strong>: Only open-source software can and will be
                                     certified. It does not have to free software though. This means we only process
                                     public github repositories. The certifier expects a schema-correct
                                     usage-scenario.json file in your repository. Please check the <a
                                         href="https://github.com/green-coding-berlin/simple-example-application">Demo
                                         Software Repository</a> for example and documentation. If you have any questions
-                                    or issues please email us at <a class="text-primary"
+                                    or issues please email us at <a
                                         href="mailto:info@green-coding.org">info@green-coding.org</a></p>
                             </div>
                         </div>
@@ -133,83 +103,28 @@
                             <div class="header">ADD NEW PROJECT</div>
                             <form action="/" method="POST">
                                 <div class="description">
-                                    <div class="template-demo">
-                                        <div
-                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
-                                            <div class="mdc-text-field mdc-text-field--outlined">
-                                                <input class="mdc-text-field__input" id="text-field-hero-input1"
-                                                    name="name" style="text-indent: 120px">
-                                                <div class="mdc-notched-outline">
-                                                    <div class="mdc-notched-outline__leading"></div>
-                                                    <div class="mdc-notched-outline__notch">
-                                                        <label for="text-field-hero-input1"
-                                                            class="mdc-floating-label">Name
-                                                            (optional)</label>
-                                                    </div>
-                                                    <div class="mdc-notched-outline__trailing"></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div
-                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
-                                            <div class="mdc-text-field mdc-text-field--outlined">
-                                                <input class="mdc-text-field__input" id="text-field-hero-input2"
-                                                    name="email" style="text-indent: 120px">
-                                                <div class="mdc-notched-outline">
-                                                    <div class="mdc-notched-outline__leading"></div>
-                                                    <div class="mdc-notched-outline__notch">
-                                                        <label for="text-field-hero-input2"
-                                                            class="mdc-floating-label">E-Mail</label>
-                                                    </div>
-                                                    <div class="mdc-notched-outline__trailing"></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div
-                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
-                                            <div
-                                                class="mdc-text-field mdc-text-field--outlined mdc-text-field--with-leading-icon">
-                                                <i class="material-icons mdc-text-field__icon">favorite</i>
-                                                <input class="mdc-text-field__input" id="text-field-hero-input3"
-                                                    name="url" style="text-indent: 120px">
-                                                <div class="mdc-notched-outline">
-                                                    <div class="mdc-notched-outline__leading"></div>
-                                                    <div class="mdc-notched-outline__notch">
-                                                        <label for="text-field-hero-input3"
-                                                            class="mdc-floating-label">Github-URL</label>
-                                                    </div>
-                                                    <div class="mdc-notched-outline__trailing"></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div
-                                            class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
-                                            <div
-                                                class="mdc-text-field mdc-text-field--outlined mdc-text-field--with-leading-icon">
-                                                <button
-                                                    class="mdc-button mdc-button--raised filled-button--success mdc-ripple-upgraded">
-                                                    Submit software for certification
-                                                </button>
-                                            </div>
-                                        </div>
+                                    <div class="ui fluid icon input" style="margin-top: 10px; margin-bottom: 10px;">
+                                        <input type="text" placeholder="Name (optional)" id="text-field-hero-input1"
+                                            name="name">
                                     </div>
+
+                                    <div class="ui fluid icon input" style="margin-bottom: 10px;">
+                                        <input type="text" placeholder="E-Mail" id="text-field-hero-input2"
+                                            name="email">
+                                    </div>
+
+                                    <div class="ui fluid icon input" style="margin-bottom: 10px;">
+                                        <input type="text" placeholder="Github-URL" id="text-field-hero-input3"
+                                            name="url">
+                                    </div>
+
+                                    <button class="positive ui button">Submit software for certification</button>
                                 </div>
                             </form>
                         </div>
                     </div>
                 </div>
             </div>
-            <!-- <script>
-        window.less = {
-            async: true,
-            environment: 'production',
-            fileAsync: false,
-            onReady: false,
-            useFileCache: true
-        };
-    </script> -->
-
-            <!-- <script src="/new/less.min.js"></script> -->
             <!-- Custom js for this page-->
             <script src="/assets/js/dashboard.js"></script>
             <script src="/assets/vendors/js/jquery.toast.min.js"></script>
@@ -239,6 +154,7 @@
                             if (data.success == true) {
                                 document.forms[0].reset()
                                 showSuccessToast()
+
                             } else {
                                 alert(data.err)
                             }

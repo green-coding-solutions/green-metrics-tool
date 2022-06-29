@@ -36,22 +36,6 @@
     <link rel="stylesheet" type="text/css" href="/new/docs.css">
     <link rel="stylesheet" type="text/css" href="/new/rtl.css">
     <link rel="stylesheet" href="/assets/vendors/css/jquery.toast.min.css">
-
-    <!-- <script type="text/javascript">
-        window.liveSettings = {
-            api_key: '9ede3015b9f84c1aabc81ab839c55d74',
-            parse_attr: [
-                'data-title',
-                'data-content'
-            ],
-            detectlang: false,
-            autocollect: true,
-            ignore_tags: ['i', 'code', 'pre'],
-            parse_attr: ['data-title', 'data-content', 'data-text'],
-            ignore_class: ['code', 'anchor']
-        };
-    </script> -->
-    <!-- <script type="text/javascript" src="/new/live.js"></script> -->
 </head>
 
 <body id="example" class="started" ontouchstart="">
@@ -62,35 +46,20 @@
                     <p>Demo user</p>
                 </div>
                 <a class="item" href="/index.html">
-                    <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon"
-                        aria-hidden="true">home</i><b>Home</b>
+                    <i class="home icon"></i><b>Home</b>
                 </a>
                 <a class="item" href="/request.html">
-                    <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon"
-                        aria-hidden="true">track_changes</i><b>Certify new software</b>
+                    <i class="bullseye icon"></i><b>Certify new software</b>
                 </a>
                 <a class="item" href="/data_analysis.html">
-                    <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon"
-                        aria-hidden="true">pie_chart</i><b>Data Analysis</b>
+                    <i class="chart pie icon"></i><b>Data Analysis</b>
                 </a>
             </div>
         </div>
 
         <div class="article" style="width: 83%">
             <div class="ui masthead vertical segment">
-                <div class="ui container">
-                    <div class="introduction">
-                        <h1 class="ui header">
-                            Green Coding Berlin
-                        </h1>
-                    </div>
-                </div>
                 <div class="main ui intro container">
-                    <h2 class="ui dividing header">
-                        Stats
-                    </h2>
-
-
                     <div class="ui horizontal card" style="width: 100%">
                         <div class="content">
                             <div class="header">PROJECT DATA</div>
@@ -128,8 +97,8 @@
                             <div class="content">
                                 <div class="header">AVG CPU Load (Estimate)</div>
                                 <div class="description">
-                                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="avg-cpu-load">%</h5>
-                                    <p class="tx-12 text-muted">Over all containers. (See disclaimer)</p>
+                                    <h5 id="avg-cpu-load">%</h5>
+                                    <p>Over all containers. (See disclaimer)</p>
                                 </div>
                             </div>
                         </div>
@@ -138,8 +107,8 @@
                             <div class="content">
                                 <div class="header">MAX CPU Load</div>
                                 <div class="description">
-                                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="max-cpu-load">&nbsp;</h5>
-                                    <p class="tx-12 text-muted">Over all containers</p>
+                                    <h5 id="max-cpu-load">&nbsp;</h5>
+                                    <p>Over all containers</p>
                                 </div>
                             </div>
                         </div>
@@ -148,8 +117,8 @@
                             <div class="content">
                                 <div class="header">Total Energy</div>
                                 <div class="description">
-                                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="total-energy">&nbsp;</h5>
-                                    <p class="tx-12 text-muted">For whole CPU Package. NOT per container.</p>
+                                    <h5 id="total-energy">&nbsp;</h5>
+                                    <p>For whole CPU Package. NOT per container.</p>
                                 </div>
                             </div>
                         </div>
@@ -158,8 +127,8 @@
                             <div class="content">
                                 <div class="header">Total CO2</div>
                                 <div class="description">
-                                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="total-co2">&nbsp;</h5>
-                                    <p class="tx-12 text-muted">For whole CPU Package. NOT per container.</p>
+                                    <h5 id="total-co2">&nbsp;</h5>
+                                    <p>For whole CPU Package. NOT per container.</p>
                                 </div>
                             </div>
                         </div>
@@ -170,11 +139,10 @@
                             <div class="content">
                                 <div class="description">
                                     <div id="chart-cpu"></div>
-                                    <div class="form-check form-check-primary">
-                                        <label class="form-check-label">
+                                    <div>
+                                        <label>
                                             <input type="checkbox" checked="" onchange="toggleNote(0)"><span
                                                 style="font-size: 0.8em; margin-left: 2px">Show notes</span>
-                                            <i class="input-helper"></i>
                                         </label>
                                     </div>
                                 </div>
@@ -185,11 +153,10 @@
                             <div class="content">
                                 <div class="description">
                                     <div id="chart-mem"></div>
-                                    <div class="form-check form-check-primary">
-                                        <label class="form-check-label">
+                                    <div>
+                                        <label>
                                             <input type="checkbox" checked="" onchange="toggleNote(1)"><span
                                                 style="font-size: 0.8em; margin-left: 2px">Show notes</span>
-                                            <i class="input-helper"></i>
                                         </label>
                                     </div>
                                 </div>
@@ -202,11 +169,10 @@
                             <div class="content">
                                 <div class="description">
                                     <div id="chart-energy"></div>
-                                    <div class="form-check form-check-primary">
-                                        <label class="form-check-label">
+                                    <div>
+                                        <label>
                                             <input type="checkbox" checked="" onchange="toggleNote(2)"><span
                                                 style="font-size: 0.8em; margin-left: 2px">Show notes</span>
-                                            <i class="input-helper"></i>
                                         </label>
                                     </div>
                                 </div>
@@ -217,11 +183,10 @@
                             <div class="content">
                                 <div class="description">
                                     <div id="chart-net-in"></div>
-                                    <div class="form-check form-check-primary">
-                                        <label class="form-check-label">
+                                    <div>
+                                        <label>
                                             <input type="checkbox" checked="" onchange="toggleNote(3)"><span
                                                 style="font-size: 0.8em; margin-left: 2px">Show notes</span>
-                                            <i class="input-helper"></i>
                                         </label>
                                     </div>
                                 </div>
@@ -428,21 +393,17 @@
                     </script>
                 </div>
             </div>
-            <!-- <script>
-        window.less = {
-            async: true,
-            environment: 'production',
-            fileAsync: false,
-            onReady: false,
-            useFileCache: true
-        };
-    </script> -->
-
-            <!-- <script src="/new/less.min.js"></script> -->
             <!-- Custom js for this page-->
             <script src="/assets/js/dashboard.js"></script>
             <script src="/assets/vendors/js/jquery.toast.min.js"></script>
             <script src="/assets/js/toastDemo.js"></script>
+            <script>
+                const toggleNote = (id) => {
+                    const note = document.getElementsByClassName('apexcharts-xaxis-annotations')[id];
+                    if (!note.style.display) note.style.display = "none";
+                    else note.style.display = "";
+                }
+            </script>
             <!-- End custom js for this page-->
 </body>
 
