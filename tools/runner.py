@@ -317,19 +317,13 @@ def main():
             send_report_email(config, email, project_id)
 
     except FileNotFoundError as e:
-        error_helpers.log_error("Docker command failed.", e)
-        error_helpers.email_error("Docker command failed.", e, user_email=user_email, project_id=project_id)
+        error_helpers.email_and_log_error("Docker command failed.", e, user_email=user_email, project_id=project_id)
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error("Docker command failed")
-        error_helpers.log_error("Stdout:", e.stdout)
-        error_helpers.log_error("Stderr:", e.stderr)
-        error_helpers.email_error("Docker command failed", "Stdout:", e.stdout, "Stderr:", e.stderr, user_email=user_email, project_id=project_id)
+        error_helpers.email_and_log_error("Docker command failed", "Stdout:", e.stdout, "Stderr:", e.stderr, user_email=user_email, project_id=project_id)
     except KeyError as e:
-        error_helpers.log_error("Was expecting a value inside the JSON file, but value was missing: ", e)
-        error_helpers.email_error("Was expecting a value inside the JSON file, but value was missing: ", e, user_email=user_email, project_id=project_id)
+        error_helpers.email_and_log_error("Was expecting a value inside the JSON file, but value was missing: ", e, user_email=user_email, project_id=project_id)
     except BaseException as e:
-        error_helpers.log_error(f"{e.__class__} exception occured: ", e)
-        error_helpers.email_error("Base exception occured: ", e, user_email=user_email, project_id=project_id)
+        error_helpers.email_and_log_error("Base exception occured: ", e, user_email=user_email, project_id=project_id)
     finally:
         print("Finally block. Stopping containers")
         for container_name in containers.values():
