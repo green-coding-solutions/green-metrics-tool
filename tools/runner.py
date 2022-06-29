@@ -36,9 +36,9 @@ def main():
     parser.add_argument("--url", type=str, help="The url to download the repository with the usage_scenario.json from. Will only be read in manual mode.")
     parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others. Will only be read in manual mode.")
     parser.add_argument("--folder", type=str, help="The folder that contains your usage scenario as local path. Will only be read in manual mode.")
-    parser.add_argument("--no-file-cleanup", type=str, help="Do not delete files in /tmp/green-metrics-tool")
-    parser.add_argument("--debug", type=str, help="Activate steppable debug mode")
-    parser.add_argument("--unsafe", type=str, help="Activate unsafe volume bindings, portmappings and complex env vars")
+    parser.add_argument("--no-file-cleanup", action='store_true', help="Do not delete files in /tmp/green-metrics-tool")
+    parser.add_argument("--debug", action='store_true', help="Activate steppable debug mode")
+    parser.add_argument("--unsafe", action='store_true', help="Activate unsafe volume bindings, portmappings and complex env vars")
 
     args = parser.parse_args() # script will exit if url is not present
 
