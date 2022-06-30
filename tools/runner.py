@@ -36,8 +36,9 @@ def main():
     parser.add_argument("--url", type=str, help="The url to download the repository with the usage_scenario.json from. Will only be read in manual mode.")
     parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others. Will only be read in manual mode.")
     parser.add_argument("--folder", type=str, help="The folder that contains your usage scenario as local path. Will only be read in manual mode.")
-    parser.add_argument("--no-file-cleanup", type=str, help="Do not delete files in /tmp/green-metrics-tool")
-    parser.add_argument("--debug", type=str, help="Activate steppable debug mode")
+    parser.add_argument("--no-file-cleanup", action='store_true', help="Do not delete files in /tmp/green-metrics-tool")
+    parser.add_argument("--debug", action='store_true', help="Activate steppable debug mode")
+    parser.add_argument("--unsafe", action='store_true', help="Activate unsafe volume bindings, portmappings and complex env vars")
 
     args = parser.parse_args() # script will exit if url is not present
 
@@ -156,7 +157,14 @@ def main():
                 else:
                     docker_run_string.append(f"{folder}:/tmp/repo:ro")
 
-                if (args.debug is not None) and ('portmapping' in el):
+                if args.unsafe is not None and 'volumes' in el:
+                    if(type(el['volumes']) != list):
+                        raise RuntimeError(f"Volumes must be a list but is: {type(el['volumes'])}")
+                    for volume in el['volumes']:                    
+                        docker_run_string.append('-v')
+                        docker_run_string.append(f"{volume}:ro")
+                
+                if args.unsafe is not None and 'portmapping' in el:
                     if(type(el['portmapping']) != list):
                         raise RuntimeError(f"Portmapping must be a list but is: {type(el['portmapping'])}")
                     for portmapping in el['portmapping']:
@@ -167,9 +175,9 @@ def main():
                 if 'env' in el:
                     import re
                     for docker_env_var in el['env']:
-                        if re.search("^[A-Z_]+$", docker_env_var) is None:
+                        if args.unsafe is None and re.search("^[A-Z_]+$", docker_env_var) is None:
                             raise RuntimeError(f"Docker container setup env var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var}")
-                        if re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", el['env'][docker_env_var]) is None:
+                        if args.unsafe is None and re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", el['env'][docker_env_var]) is None:
                             raise RuntimeError(f"Docker container setup env var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {el['env'][docker_env_var]}")
 
                         docker_run_string.append('-e')
@@ -279,7 +287,7 @@ def main():
                         print("Process should be detached. Running asynchronously and detaching ...")
                         ps_to_kill.append({"pid": ps.pid, "cmd": inner_el['command'], "ps_group": False})
                     else:
-                        print(f"Process should be synchronouse. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
+                        print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
                         process_helpers.timeout(ps, inner_el['command'], config['measurement']['flow-process-runtime'])
                 else:
                     raise RuntimeError("Unknown command type in flow: ", inner_el['type'])
@@ -317,19 +325,13 @@ def main():
             send_report_email(config, email, project_id)
 
     except FileNotFoundError as e:
-        error_helpers.log_error("Docker command failed.", e)
-        error_helpers.email_error("Docker command failed.", e, user_email=user_email, project_id=project_id)
+        error_helpers.email_and_log_error("Docker command failed.", e, user_email=user_email, project_id=project_id)
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error("Docker command failed")
-        error_helpers.log_error("Stdout:", e.stdout)
-        error_helpers.log_error("Stderr:", e.stderr)
-        error_helpers.email_error("Docker command failed", "Stdout:", e.stdout, "Stderr:", e.stderr, user_email=user_email, project_id=project_id)
+        error_helpers.email_and_log_error("Docker command failed", "Stdout:", e.stdout, "Stderr:", e.stderr, user_email=user_email, project_id=project_id)
     except KeyError as e:
-        error_helpers.log_error("Was expecting a value inside the JSON file, but value was missing: ", e)
-        error_helpers.email_error("Was expecting a value inside the JSON file, but value was missing: ", e, user_email=user_email, project_id=project_id)
+        error_helpers.email_and_log_error("Was expecting a value inside the JSON file, but value was missing: ", e, user_email=user_email, project_id=project_id)
     except BaseException as e:
-        error_helpers.log_error(f"{e.__class__} exception occured: ", e)
-        error_helpers.email_error("Base exception occured: ", e, user_email=user_email, project_id=project_id)
+        error_helpers.email_and_log_error("Base exception occured: ", e, user_email=user_email, project_id=project_id)
     finally:
         print("Finally block. Stopping containers")
         for container_name in containers.values():
