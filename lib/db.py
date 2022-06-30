@@ -1,6 +1,8 @@
 import psycopg2.extras
-from errors import log_error
+import psycopg2
+from error_helpers import log_error
 from setup_functions import get_config
+import sys
 
 def get_db_connection(config=None):
     if config is None: config = get_config()
@@ -32,7 +34,8 @@ def __call(query, params, return_type=None, conn=None):
             case None:
                 ret = True
 
-    except POSTGRESEXCEPTION as e:
+    # Still need to figure out what the real exception is
+    except psycopg2.Error as e:
         conn.rollback()
         log_error(e)
         ret = False
