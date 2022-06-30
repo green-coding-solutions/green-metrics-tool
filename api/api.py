@@ -9,11 +9,11 @@ import psycopg2.extras
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../tools')
 
-from setup_functions import get_db_connection, get_config
+from setup_functions import get_config
 from send_email import send_email
-from db import get_db_connection, db_call, db_fetch_one, db_fetch_all
+import db
 
-conn = get_db_connection()
+conn = db.get_db_connection()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,7 +52,7 @@ async def get_projects():
             ORDER BY
                 created_at DESC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
             """
-    data = db_fetch_all(query, conn=conn)
+    data = db.fetch_all(query, conn=conn)
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
 
@@ -88,7 +88,7 @@ async def get_stats_by_url(url: str):
                 stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
             """
     params = (url,)
-    data = db_fetch_all(query, params, conn)
+    data = db.fetch_all(query, params, conn)
 
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
@@ -120,7 +120,7 @@ async def get_stats_single(project_id: str):
                 stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
             """
     params = (project_id,)
-    data = db_fetch_all(query, params, conn)
+    data = db.fetch_all(query, params, conn)
     
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
@@ -153,7 +153,7 @@ async def post_project_add(project: Project):
     params = (project.url,project.name,project.email)
 
     try:
-        project_id = db_fetch_one(query,params,conn)
+        project_id = db.fetch_one(query,params,conn)
         print("Having: ", project_id)
         notify_admin(project.name, project_id)
     except BaseException as e:

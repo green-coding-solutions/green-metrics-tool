@@ -16,7 +16,8 @@ sys.path.append(f"{current_dir}/../lib")
 sys.path.append(f"{current_dir}/metric-providers")
 
 from save_notes import save_notes # local file import
-from setup_functions import get_db_connection, get_config
+from setup_functions, get_config
+import db
 import error_helpers
 import hardware_info
 import process_helpers
@@ -31,7 +32,7 @@ from debugger import Debug
 
 def main():
     config = get_config()
-    conn = get_db_connection(config)
+    conn = db.get_db_connection(config)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", help="Select the operation mode. Select `manual` to supply a directory or url on the command line. Or select `cron` to process database queue. For database mode the config.yml file will be read", choices=['manual', 'cron'])

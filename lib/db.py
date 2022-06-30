@@ -25,7 +25,7 @@ def __call(query, params, return_type=None, conn=None):
     cur = conn.cursor()
     try:
         cur.execute(query, params)
-
+        conn.commit()
         match return_type:
             case "one":
                 ret = cur.fetchone()
@@ -42,11 +42,11 @@ def __call(query, params, return_type=None, conn=None):
     cur.close()
     return ret
 
-def db_call(query, params=None, conn=None):
+def call(query, params=None, conn=None):
     return __call(query, params, None, conn)
 
-def db_fetch_one(query, params=None, conn=None):
+def fetch_one(query, params=None, conn=None):
     return __call(query, params, "one", conn)
 
-def db_fetch_all(query, params=None, conn=None):
+def fetch_all(query, params=None, conn=None):
     return __call(query, params, "all", conn)
