@@ -1,5 +1,6 @@
 import psycopg2.extras
 from errors import log_error
+from setup_functions import get_config
 
 def get_db_connection(config=None):
     if config is None: config = get_config()
@@ -21,7 +22,7 @@ def __call(query, params, return_type=None, conn=None):
 
     cur = conn.cursor()
     try:
-        cur.execute(sql_string, params)
+        cur.execute(query, params)
 
         match return_type:
             case "one":
@@ -38,7 +39,7 @@ def __call(query, params, return_type=None, conn=None):
     cur.close()
     return ret
 
-def db_call(query, params=None, conn=None)
+def db_call(query, params=None, conn=None):
     return __call(query, params, None, conn)
 
 def db_fetch_one(query, params=None, conn=None):

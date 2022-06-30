@@ -156,7 +156,7 @@ async def post_project_add(project: Project):
         project_id = db_fetch_one(query,params,conn)
         print("Having: ", project_id)
         notify_admin(project.name, project_id)
-     except BaseException as e:
+    except BaseException as e:
         return {"success": False, "err": f"Problem with sending email / saving to database: {str(e)}"}  
 
     return {"success": True}
