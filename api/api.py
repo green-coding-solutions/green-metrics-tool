@@ -4,6 +4,8 @@ import yaml
 import os
 import sys
 import psycopg2.extras
+from psycopg2 import OperationalError, errorcodes, errors
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../tools')
 
@@ -12,7 +14,7 @@ from send_email import send_email
 
 conn = get_db_connection()
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from pydantic import BaseModel
@@ -110,34 +112,78 @@ async def get_stats_single(project_id: str):
     if(project_id is None or project_id.strip() == ''):
         return {'success': False, 'err': 'Project_id is empty'}
 
-    cur.execute("""
-        SELECT
-            stats.container_name, stats.time, stats.metric, stats.value, notes.note
-        FROM
-            stats
-        LEFT JOIN
-            notes
-        ON
-            notes.project_id = stats.project_id
-            AND
-            notes.time = stats.time
-            AND
-            notes.container_name = stats.container_name
-        WHERE
-            stats.project_id = %s
-        ORDER BY
-            stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
-        """,
-        (project_id,)
-    )
-    data = cur.fetchall()
+    try:
+        cur.execute("""
+            SELECT
+                stats.container_name, stats.time, stats.metric, stats.value, notes.note
+            FROM
+                stats
+            LEFT JOIN
+                notes
+            ON
+                notes.project_id = stats.project_id
+                AND
+                notes.time = stats.time
+                AND
+                notes.container_name = stats.container_name
+            WHERE
+                stats.project_id = %s
+            ORDER BY
+                stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
+            """,
+            (project_id,)
+        )
+        data = cur.fetchall()
+    except Exception as e:
+        conn.rollback()
+        print("\n\n\nEXCEPTION TYPE:", type(e))
+        #return {'success': False, 'err': e, 'error_type': type(e)}
     cur.close()
+
+    if(data is None or data == []):
+        return {'success': False, 'err': 'Data is empty'}
+    return {"success": True, "data": data, "project": get_project(project_id)}
+
+@app.get('/v1/stats/compare')
+async def get_stats_compare(p: list[str] | None = Query(default=None)):
+    for p_id in p:
+        if(p_id is None or p_id.strip() == ''):
+            return {'success': False, 'err': 'Project_id is empty'}
+
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT 
+                projects.name, stats.metric, AVG(stats.value)
+            FROM 
+                stats 
+            LEFT JOIN 
+                projects
+            ON 
+                stats.project_id = projects.id
+            WHERE 
+                stats.metric = ANY(ARRAY['cpu','mem','system-energy'])
+            AND 
+                STATS.project_id = ANY(%s::uuid[])
+            GROUP BY projects.name,  stats.metric
+            """,
+            (p,)
+        )
+        data = cur.fetchall()
+        cur.close()
+    except Exception as e:
+        conn.rollback()
+        cur.close()
+        print("EXCEPTION TYPE:", type(e))
+        return {"success": False, "err": f"Exception: {str(e)}"}
 
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
 
 
-    return {"success": True, "data": data, "project": get_project(project_id)}
+    return {"success": True, "data": data}
+
+
 
 class Project(BaseModel):
     name: str
