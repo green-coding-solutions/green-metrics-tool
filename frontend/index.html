@@ -269,6 +269,11 @@
                             <th> Name </th>
                             <th> URI</th>
                             <th> Last Crawl </th>
+                            <th> 
+                              <button class="mdc-button mdc-button--raised filled-button--success mdc-ripple-upgraded">
+                                Compare
+                              </button>
+                             </th>
                           </tr>
                         </thead>
                         <tbody id="projects-table">
@@ -310,7 +315,7 @@
                         link_node.title = el[1];
                         link_node.href = "/stats.html?id="+el[0];
                         li_node.appendChild(link_node);
-                        li_node.innerHTML = '<td>'+li_node.innerHTML + '</td><td>'+el[2]+'</td><td>'+el[3]+'</td>';
+                        li_node.innerHTML = '<td>'+li_node.innerHTML + '</td><td>'+el[2]+'</td><td>'+el[3]+'</td><td><input type="checkbox" value="'+el[0] + '" name="chbx-' + el[1] + '" />&nbsp;</td>';
 
                         document.getElementById("projects-table").appendChild(li_node);
             
