@@ -1,5 +1,10 @@
+import os, sys
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(f"{current_dir}/../lib")
+
 from setup_functions import get_db_connection, get_config
-from errors import log_error
+from error_helpers import log_error
 
 def insert_job(conn, job_type, project_id=None):
 	cur = conn.cursor()
@@ -16,6 +21,7 @@ def insert_job(conn, job_type, project_id=None):
 	return job_id
 
 # do the first job you get.
+# main function to be called by cron job
 def get_job(conn):
 	cur = conn.cursor()
 
