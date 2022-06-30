@@ -10,10 +10,11 @@ while IFS= read -r subdir; do
         make -C $subdir
         chmod +x $subdir/static-binary
         if [[ "$subdir" == *"rapl/system/MSR"* ]] ; then
-            echo $USER
-            whoami
-            sudo_line="$USER    ALL=(ALL) NOPASSWD: /usr/bin/stdbuf -oL $PWD/$metrics_subdir/static-binary -i 1000"
-            if grep -Fxq "$sudo_line" /etc/sudoers ; then
+
+            sudo_line="$USER\tALL=(ALL) NOPASSWD: $PWD/$metrics_subdir/static-binary -i 1000"
+            echo $sudo_line
+            if ! sudo grep -Fxq "$sudo_line" /etc/sudoers; then
+                echo $sudo_line | sudo tee -a /etc/sudoers
                 echo $USER
                 # echo $USER
                 # whoami
@@ -21,3 +22,11 @@ while IFS= read -r subdir; do
         fi
     fi
 done
+
+
+## check /etc/hosts/ for the below lines, add if not existing
+## double check in non-sudo shell (should ask for pw prompt) 
+## move the /sudoers code outside the loop, hardcode the $metrics_subdir for that specifically
+
+#127.0.0.1    green-coding-postgres-container
+#127.0.0.1    api.green-coding.local metrics.green-coding.local    
