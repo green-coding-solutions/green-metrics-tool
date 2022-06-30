@@ -270,7 +270,7 @@
                             <th> URI</th>
                             <th> Last Crawl </th>
                             <th> 
-                              <button class="mdc-button mdc-button--raised filled-button--success mdc-ripple-upgraded">
+                              <button onclick="compareButton()" class="mdc-button mdc-button--raised filled-button--success mdc-ripple-upgraded">
                                 Compare
                               </button>
                              </th>
@@ -308,9 +308,6 @@
                         const li_node = document.createElement("tr");
                         const link_node = document.createElement('a');
 
-
-
-
                         link_node.innerText = el[1];
                         link_node.title = el[1];
                         link_node.href = "/stats.html?id="+el[0];
@@ -325,6 +322,14 @@
               } catch(e) {
                   alert("Fetch failed: "+e)
               }
+            function buttonClick() {
+              var checkedBoxes = document.querySelectorAll('input[name=mycheckboxes]:checked');
+              var link="/stats.html"
+              checkedBoxes.forEach(checkbox => {
+                link+="?compare="+checkbox.value
+              });
+            }
+
     </script>
               </div>
             </div>
