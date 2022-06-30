@@ -3,8 +3,8 @@ import os, sys
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{current_dir}/../lib")
 
-from setup_functions import get_db_connection, get_config
-from error_helpers import log_error
+import error_helpers
+import setup_functions
 
 def insert_job(conn, job_type, project_id=None):
 	cur = conn.cursor()
@@ -37,7 +37,7 @@ def get_job(conn):
 		case "mail":
 			do_mail_job(conn, data[0], data[2])
 		case _:
-			log_error("Job w/ id %s has unkown type: %s." % (data[0], data[1]))
+			error_helpers.log_error("Job w/ id %s has unkown type: %s." % (data[0], data[1]))
 	cur.close()
 
 def delete_job(conn, job_id):
@@ -68,7 +68,7 @@ def do_mail_job(conn, job_id, project_id):
 	check_job_running(conn, 'mail', job_id)
 	cur = conn.cursor()
 	try:
-		config = get_config()
+		config = setup_functions.get_config()
 		cur.execute("SELECT email FROM projects WHERE id = %s", (project_id,))
 		data = cur.fetchone()
 		if(data is None or data == []):
@@ -79,7 +79,7 @@ def do_mail_job(conn, job_id, project_id):
 		send_report_email(config, data[0], project_id)
 		delete_job(conn, job_id)
 	except Exception as e:
-		log_error("Exception occured: ", e)
+		error_helpers.log_error("Exception occured: ", e)
 		cur.execute("UPDATE jobs SET failed=true WHERE job_id=%s", (job_id,))
 		conn.commit()
 	finally:
