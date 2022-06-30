@@ -7,7 +7,7 @@
       text: 'Save successful. Check your mail in 10-15 minutes',
       showHideTransition: 'slide',
       icon: 'success',
-      loaderBg: '#f96868',
+      loaderBg: '#16ab39',
       position: 'top-right'
     })
   };
