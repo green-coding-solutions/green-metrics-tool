@@ -151,11 +151,11 @@ async def get_stats_compare(p: list[str] | None = Query(default=None)):
     cur = conn.cursor()
     try:
         cur.execute("""
-            SELECT
-                projects.name, stats.metric, AVG(stats.value)
-            FROM
-                stats
-            LEFT JOIN
+            SELECT 
+                projects.name, stats.container_name, stats.metric, AVG(stats.value)
+            FROM 
+                stats 
+            LEFT JOIN 
                 projects
             ON
                 stats.project_id = projects.id
@@ -163,7 +163,7 @@ async def get_stats_compare(p: list[str] | None = Query(default=None)):
                 stats.metric = ANY(ARRAY['cpu','mem','system-energy'])
             AND
                 STATS.project_id = ANY(%s::uuid[])
-            GROUP BY projects.name,  stats.metric
+            GROUP BY projects.name, stats.container_name, stats.metric
             """,
             (p,)
         )
