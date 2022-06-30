@@ -303,7 +303,7 @@
                   <div class="card-inner">
                     <h5 class="card-title">Total Energy</h5>
                     <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="total-energy">&nbsp;</h5>
-                    <p class="tx-12 text-muted">For whole machine. NOT per container.</p>
+                    <p class="tx-12 text-muted">For whole CPU Package. NOT per container.</p>
                     <div class="card-icon-wrapper">
                       <i class="material-icons">trending_up</i>
                     </div>
@@ -315,7 +315,7 @@
                   <div class="card-inner">
                     <h5 class="card-title">Total CO2</h5>
                     <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="total-co2">&nbsp;</h5>
-                    <p class="tx-12 text-muted">For whole machine. NOT per container.</p>
+                    <p class="tx-12 text-muted">For whole CPU Package. NOT per container.</p>
                     <div class="card-icon-wrapper">
                       <i class="material-icons">trending_up</i>
                     </div>
@@ -489,8 +489,14 @@
                                     if(accumulate === 1) cpu_load.push(el[3])
 
                                   }
-                                  else if(el[2] == 'system-energy' && accumulate === 1) {
-                                    total_energy += el[3];
+                                  else if(el[2] == 'system-energy') {
+                                    if(accumulate === 1) total_energy += el[3];
+                                    if(my_series[el[2]][el[0]] == undefined) {
+                                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]}]}
+                                    } else {
+                                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]})
+                                    }
+
                                   } else if (el[2] == 'mem') {
                                     if(my_series[el[2]][el[0]] == undefined) {
                                         my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/1000000}]}
@@ -499,9 +505,9 @@
                                     }
                                   } else {
                                     if(my_series[el[2]][el[0]] == undefined) {
-                                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/1000000}]}
+                                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]}]}
                                     } else {
-                                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/1000000})
+                                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]})
                                     }
                                   }
 

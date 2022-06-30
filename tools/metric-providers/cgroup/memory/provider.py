@@ -7,36 +7,43 @@ def import_stats(conn, project_id, containers):
 
     csv_data = csv_data[:csv_data.rfind('\n')] # remove the last line from the string
 
-    df = pd.read_csv(StringIO(csv_data), sep=" ", names=["timestamp", "mem", "container_id"])
+    df = pd.read_csv(StringIO(csv_data), 
+        sep=" ", 
+        names=["timestamp", "mem", "container_id"], 
+        dtype={"timestamp":int, "mem":int, "container_id":str}
+    )
+    
+    df['container_name'] = df.container_id
 
+    for container_id in containers:
+        df.loc[df.container_name == container_id, 'container_name'] = containers[container_id]
+
+    df = df.drop('container_id', axis=1)
+    df['metric'] = 'mem'
+    df['project_id'] = project_id
+
+    f = StringIO(df.to_csv(index=False, header=False))
+    
     cur = conn.cursor()
-    import numpy as np
-
-    for i, row in df.iterrows():
-        print(row)
-        cur.execute("""
-                INSERT INTO stats
-                ("project_id", "container_name", "metric", "value", "time")
-                VALUES
-                (%s, %s, 'mem', %s, %s)
-                """,
-                (project_id, containers[row.container_id], float(row.mem), row.timestamp)
-        )
-        conn.commit()
-    cur.close()
-
+    cur.copy_from(f, 'stats', columns=("time", "value", "container_name", "metric", "project_id"), sep=",")
+    conn.commit()
+    cur.close()    
 
 def read(resolution, containers):
-	import subprocess
-	import os
-	current_dir = os.path.dirname(os.path.abspath(__file__))
+    import subprocess
+    import os
+    current_dir = os.path.dirname(os.path.abspath(__file__))
 
-	ps = subprocess.Popen(
-	    [f"stdbuf -oL {current_dir}/static-binary {resolution} " + " ".join(containers.keys()) + " > /tmp/green-metrics-tool/cgroup_memory.log"],
-	    shell=True,
-	    preexec_fn=os.setsid
-	)
-	return ps.pid
+    ps = subprocess.Popen(
+        [f"{current_dir}/static-binary {resolution} " + " ".join(containers.keys()) + " > /tmp/green-metrics-tool/cgroup_memory.log"],
+        shell=True,
+        preexec_fn=os.setsid
+        # since we are launching the command with shell=True we cannot use ps.terminate() / ps.kill().
+        # This would just kill the executing shell, but not it's child and make the process an orphan.
+        # therefore we use os.setsid here and later call os.getpgid(pid) to get process group that the shell
+        # and the process are running in. These we then can send the signal to and kill them
+    )
+    return ps.pid
 
 if __name__ == "__main__":
     import argparse

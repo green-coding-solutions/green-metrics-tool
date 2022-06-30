@@ -161,7 +161,14 @@ static long long read_msr(int fd, unsigned int which) {
 
 #define CPU_AMD_FAM17H		0xc000
 
+
+// All variables are made static, because we believe that this will
+// keep them local in scope to the file and not make them persist in state
+// between Threads.
+// TODO: If this code ever gets multi-threaded please review this assumption to
+// not pollute another threads state
 static unsigned int msr_rapl_units,msr_pkg_energy_status,msr_pp0_energy_status;
+static unsigned int msleep_time=1000;
 
 static int detect_cpu(void) {
 
@@ -260,8 +267,6 @@ static int detect_packages(void) {
 	total_cores=i;
 	return 0;
 }
-
-unsigned int msleep_time=1000;
 
 /*******************************/
 /* MSR code                    */
@@ -377,6 +382,8 @@ int main(int argc, char **argv) {
 			exit(-1);
 		}
 	}
+
+	setvbuf(stdout, NULL, _IONBF, 0);
 
 	cpu_model=detect_cpu();
 	detect_packages();

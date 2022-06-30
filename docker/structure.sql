@@ -1,4 +1,3 @@
-ALTER USER postgres WITH PASSWORD 'cccvvv';
 CREATE DATABASE "green-coding";
 \c green-coding;
 

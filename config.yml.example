@@ -14,6 +14,11 @@ project:
   name: My test project
   url: https://metrics.green-coding.org/
 
+measurement:
+  idle-time-start: 5
+  idle-time-end: 5
+  flow-process-runtime: 60
+
 # Please select the needed providers according to the working ones on your system
 # More info https://docs.green-coding.org/docs/measuring/metric-providers
 metric-providers:

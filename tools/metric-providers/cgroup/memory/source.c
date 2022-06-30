@@ -10,7 +10,18 @@
 #include <unistd.h>
 #include <sys/time.h>
 
-static char *user_id = "1000"; //TODO: Figure out user_id dynamically, or request
+// All variables are made static, because we believe that this will
+// keep them local in scope to the file and not make them persist in state
+// between Threads.
+// TODO: If this code ever gets multi-threaded please review this assumption to
+// not pollute another threads state
+
+static const char *user_id = "1000"; //TODO: Figure out user_id dynamically, or request
+static unsigned int interval=1000;
+static struct container {
+    char path[BUFSIZ];
+    char *id;
+};
 
 
 static long int get_memory_cgroup(char* filename) {
@@ -35,14 +46,7 @@ static long int get_memory_cgroup(char* filename) {
 
 }
 
-
-unsigned int interval=1000;
-struct container {
-	char path[BUFSIZ];
-	char *id;
-};
-
-int output_stats(struct container *containers, int length) {
+static int output_stats(struct container *containers, int length) {
 	
 	struct timeval now;
 	int i;
@@ -59,6 +63,8 @@ int main(int argc, char **argv) {
 	int i;
 
 	struct container containers[argc-2];
+
+	setvbuf(stdout, NULL, _IONBF, 0);
 
 	if(argc>=3) {
 		interval = atoi(argv[1]);

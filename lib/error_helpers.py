@@ -6,6 +6,10 @@ def end_error(*errors):
     log_error(*errors)
     exit(2)
 
+def email_and_log_error(*errors, email_admin=True, user_email=None, project_id=None):
+    log_error(errors)
+    email_error(errors, email_admin=True, user_email=None, project_id=None)
+
 def email_error(*errors, email_admin=True, user_email=None, project_id=None):
     config = get_config()
     err = "Error: "
@@ -18,10 +22,14 @@ def email_error(*errors, email_admin=True, user_email=None, project_id=None):
     if user_email is not None:
         send_error_email(config, user_email, err, project_id)
 
-def log_error(*errors):
-    err = "Error: "
-    print("Error: ", *errors)
+def log_error(*errors, email=True):
+    print("\n\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
+    
+    print("Error: ", *errors, "\n")
+    print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
+    
     traceback.print_exc()
+    print("\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
     # TODO: log to file
 
 if __name__ == "__main__":
