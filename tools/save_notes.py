@@ -1,7 +1,8 @@
+import sys, os
+from db import DB
+import numpy as np
 
-def save_notes(project_id, notes=notes):
-
-    import numpy as np
+def save_notes(project_id, notes):
 
     for note in notes:
         if note['container_name'] == "[SYSTEM]":
@@ -35,10 +36,6 @@ def save_notes(project_id, notes=notes):
 
 if __name__ == "__main__":
     import argparse
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
-    from setup_functions import get_db_connection
     import time
 
     parser = argparse.ArgumentParser()

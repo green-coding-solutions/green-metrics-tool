@@ -2,7 +2,6 @@ import psycopg2.extras
 import psycopg2
 import error_helpers
 import setup_functions
-import sys
 
 
 class DB:
@@ -10,12 +9,8 @@ class DB:
     def __new__(cls):
         if not hasattr(cls, 'instance'):
              cls.instance = super(DB, cls).__new__(cls)
-             print("Creating new instance")
-        else:
-            print("Returning cached instance")
         return cls.instance
     def __init__(self):
-        print("Instance is called")
 
         if self.__conn is None:
             config = setup_functions.get_config()

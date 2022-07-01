@@ -1,6 +1,6 @@
-sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 import re
 from db import DB
+
 def insert_hw_info(project_id):
     with open("/proc/cpuinfo", "r")  as f:
         info = f.readlines()

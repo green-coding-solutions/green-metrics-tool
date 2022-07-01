@@ -1,9 +1,9 @@
+import sys, os
 from setup_functions import get_config
 import error_helpers
-import sys, os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
-import db
+from db import DB
 
 def insert_job(job_type, project_id=None):
     query = """
@@ -77,12 +77,7 @@ def do_mail_job(job_id, project_id):
 if __name__ == "__main__":
     import argparse
     import yaml
-    import os
-    import sys
-    sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
     from setup_functions import get_config
-    from error_helpers import log_error
-
 
     config = get_config()
 

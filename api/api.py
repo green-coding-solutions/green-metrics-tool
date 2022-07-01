@@ -1,7 +1,3 @@
-# -*- coding: utf-8 -*-
-
-## TODO: Find Correct python postgres error code , refactor to catch that
-
 import yaml
 import os
 import sys
@@ -151,7 +147,8 @@ async def post_project_add(project: Project):
             """
         params = (project.url,project.name,project.email)
         project_id = DB().fetch_one(query,params=params)
-        print("Having: ", project_id)
+        if project_id is False:
+            raise Exception("Save to DB failed")
         notify_admin(project.name, project_id)
     except Exception as e:
         return {"success": False, "err": f"Problem with sending email / saving to database: {str(e)}"}  

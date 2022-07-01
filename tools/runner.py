@@ -151,14 +151,14 @@ def main():
                 else:
                     docker_run_string.append(f"{folder}:/tmp/repo:ro")
 
-                if args.unsafe is not None and 'volumes' in el:
+                if args.unsafe is True and 'volumes' in el:
                     if(type(el['volumes']) != list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(el['volumes'])}")
                     for volume in el['volumes']:                    
                         docker_run_string.append('-v')
                         docker_run_string.append(f"{volume}:ro")
                 
-                if args.unsafe is not None and 'portmapping' in el:
+                if args.unsafe is True and 'portmapping' in el:
                     if(type(el['portmapping']) != list):
                         raise RuntimeError(f"Portmapping must be a list but is: {type(el['portmapping'])}")
                     for portmapping in el['portmapping']:
@@ -169,9 +169,9 @@ def main():
                 if 'env' in el:
                     import re
                     for docker_env_var in el['env']:
-                        if args.unsafe is None and re.search("^[A-Z_]+$", docker_env_var) is None:
+                        if args.unsafe is True and re.search("^[A-Z_]+$", docker_env_var) is None:
                             raise RuntimeError(f"Docker container setup env var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var}")
-                        if args.unsafe is None and re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", el['env'][docker_env_var]) is None:
+                        if args.unsafe is True and re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", el['env'][docker_env_var]) is None:
                             raise RuntimeError(f"Docker container setup env var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {el['env'][docker_env_var]}")
 
                         docker_run_string.append('-e')

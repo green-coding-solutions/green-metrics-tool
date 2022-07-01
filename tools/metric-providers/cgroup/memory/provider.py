@@ -1,6 +1,10 @@
+import subprocess
+import os
+import pandas as pd
+from io import StringIO
+from db import DB
+
 def import_stats(project_id, containers):
-    import pandas as pd
-    from io import StringIO
 
     with open("/tmp/green-metrics-tool/cgroup_memory.log", 'r') as f:
         csv_data = f.read()
@@ -27,8 +31,6 @@ def import_stats(project_id, containers):
     DB().copy_from(file=f, table='stats', columns=("time", "value", "container_name", "metric", "project_id"), sep=",")
 
 def read(resolution, containers):
-    import subprocess
-    import os
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     ps = subprocess.Popen(
@@ -44,10 +46,6 @@ def read(resolution, containers):
 
 if __name__ == "__main__":
     import argparse
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../../../lib')
-    from setup_functions import get_db_connection
 
     parser = argparse.ArgumentParser()
     parser.add_argument("stats_file", help="Please specify filename where to find the docker stats file. Usually /tmp/green-metrics-tool/docker_stats.log")
@@ -57,9 +55,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args() # script will exit if url is not present
 
-    conn = get_db_connection()
-
     # Call NOT working atm. TODO
-    DockerCgroup.import_stats(conn, args.project_id, containers)
+    DockerCgroup.import_stats(args.project_id, containers)
 
 
