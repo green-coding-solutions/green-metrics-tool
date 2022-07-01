@@ -21,8 +21,9 @@
     <script src="/new/easing.min.js"></script>
     <script src="/new/semantic.min.js"></script>
     <script src="/new/docs.js"></script>
-    <!-- <script src="/new/clipboard.min.js"></script> -->
     <script src="/new/highlight.min.js"></script>
+    <script src="/new/less.min.js"></script>
+    <!-- <script src="/new/clipboard.min.js"></script> -->
     <!-- <script src="/new/history.min.js"></script> -->
     <!-- <script src="/new/state.js"></script> -->
     <!-- <script src="/new/underscore.min.js"></script> -->
@@ -36,10 +37,9 @@
     <!-- <link rel="stylesheet" href="/assets/vendors/jvectormap/jquery-jvectormap.css"> -->
     <!-- <link rel="stylesheet" href="/assets/vendors/css/jquery.toast.min.css"> -->
     <!-- <link rel="stylesheet" href="/assets/css/demo/style.css"> -->
-
 </head>
 
-<body id="example" class="started" ontouchstart="" style="background: #e9eaef">
+<body id="example" class="started" ontouchstart="">
     <div class="ui vertical inverted sidebar menu" id="toc" style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
         <div class="item">
             <p>Demo user</p>
@@ -78,7 +78,7 @@
         </div>
     </div>
 
-    <div class="pusher">
+    <div class="pusher" style="background: #e9eaef">
         <div class="full height">
             <div class="toc" style="width: 13vw;">
                 <div class="ui vertical inverted menu"
@@ -104,7 +104,7 @@
                         style="margin-right: 0px !important; padding-top: 0px !important; max-width: 77vw !important;">
                         <div class="ui search">
                             <div class="ui icon input">
-                                <input class="prompt" type="text" placeholder="Search countries...">
+                                <input class="prompt" type="text" placeholder="Search tests...">
                                 <i class="search icon"></i>
                             </div>
                             <div class="results"></div>
@@ -169,10 +169,11 @@
 
         $(document).ready(function () {
             $('table').tablesort();
+            document.getElementsByClassName("ui dividing right rail")[0].setAttribute('style', 'border: 0px;');
         });
 
     </script>
-    <script src="/new/less.min.js"></script>
+    
 </body>
 
 </html>
