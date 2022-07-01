@@ -15,64 +15,115 @@
     <meta name="description" content="Using Fomantic UI with Other Libraries" />
     <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
 
-    <!-- <script src="/new/jquery.min.js"></script>
-    <script src="/new/clipboard.min.js"></script>
-    <script src="/new/easing.min.js"></script>
-    <script src="/new/highlight.min.js"></script>
-    <script src="/new/history.min.js"></script>
-    <script src="/new/state.js"></script>
+    <script src="/new/jquery.min.js"></script>
     <script src="/new/tablesort.min.js"></script>
-    <script src="/new/underscore.min.js"></script>
-    <script src="/new/semantic.min.js"></script> -->
+    <script src="/new/search.min.js"></script>
+    <script src="/new/easing.min.js"></script>
+    <script src="/new/semantic.min.js"></script>
     <script src="/new/docs.js"></script>
+    <!-- <script src="/new/clipboard.min.js"></script> -->
+    <script src="/new/highlight.min.js"></script>
+    <!-- <script src="/new/history.min.js"></script> -->
+    <!-- <script src="/new/state.js"></script> -->
+    <!-- <script src="/new/underscore.min.js"></script> -->
 
     <link rel="stylesheet" type="text/css" class="ui" href="/new/semantic.min.css">
+    <link rel="stylesheet" type="text/css" href="/new/docs.css">
+    <!-- <link rel="stylesheet" type="text/css" href="/new/rtl.css"> -->
     <!-- <link rel="stylesheet" href="/assets/vendors/mdi/css/materialdesignicons.min.css"> -->
     <!-- <link rel="stylesheet" href="/assets/vendors/css/vendor.bundle.base.css"> -->
     <!-- <link rel="stylesheet" href="/assets/vendors/flag-icon-css/css/flag-icon.min.css"> -->
     <!-- <link rel="stylesheet" href="/assets/vendors/jvectormap/jquery-jvectormap.css"> -->
     <!-- <link rel="stylesheet" href="/assets/vendors/css/jquery.toast.min.css"> -->
-    <link rel="stylesheet" href="/assets/css/demo/style.css">
-    <link rel="stylesheet" type="text/css" href="/new/docs.css">
-    <!-- <link rel="stylesheet" type="text/css" href="/new/rtl.css"> -->
+    <!-- <link rel="stylesheet" href="/assets/css/demo/style.css"> -->
+
 </head>
 
-<body id="example" class="started" ontouchstart="">
-    <div class="full height">
-        <div class="toc" style="width: 13vw;">
-            <div class="ui vertical inverted menu" style="height: 100vh">
-                <div class="item">
-                    <p>Demo user</p>
-                </div>
-                <a class="item" href="/index.html">
-                    <i class="home icon"></i><b>Home</b>
-                </a>
-                <a class="item" href="/request.html">
-                    <i class="bullseye icon"></i><b>Certify new software</b>
-                </a>
-                <a class="item" href="/data_analysis.html">
-                    <i class="chart pie icon"></i><b>Data Analysis</b>
-                </a>
-            </div>
+<body id="example" class="started" ontouchstart="" style="background: #e9eaef">
+    <div class="ui vertical inverted sidebar menu" id="toc" style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
+        <div class="item">
+            <p>Demo user</p>
         </div>
+        <a class="item" href="/index.html">
+            <b><i class="home icon"></i>Home</b>
+        </a>
+        <a class="item" href="/request.html">
+            <b><i class="bullseye icon"></i>Certify new software</b>
+        </a>
+        <a class="item" href="/data_analysis.html">
+            <b><i class="chart pie icon"></i>Data Analysis</b>
+        </a>
+    </div>
 
-        <div class="article" style="margin-left: 13vw;">
-            <div class="ui masthead vertical segment">
-                <div class="main ui intro container" style="margin-right: 0px !important; padding-top: 0px !important; max-width: 77vw !important;">
-                    <table class="ui sortable celled table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>URI</th>
-                                <th>Last Crawl</th>
-                            </tr>
-                        </thead>
-                        <tbody id="projects-table">
-                    </table>
+    <div class="ui black big launch right attached fixed button">
+        <i class="content icon"></i>
+        <span class="text">Menu</span>
+    </div>
+
+    <div class="ui fixed inverted main menu" style="background: linear-gradient(#2a1c5a,#4b3a6e);">
+        <div class="ui container">
+            <a class="launch icon item">
+                <i class="content icon"></i>
+            </a>
+
+            <div class="item">
+                Home
+            </div>
+
+            <div class="right menu">
+                <div class="vertically fitted borderless item">
+                    <p>Test</p>
                 </div>
             </div>
         </div>
     </div>
+
+    <div class="pusher">
+        <div class="full height">
+            <div class="toc" style="width: 13vw;">
+                <div class="ui vertical inverted menu"
+                    style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
+                    <div class="item">
+                        <p>Demo user</p>
+                    </div>
+                    <a class="item" href="/index.html">
+                        <b><i class="home icon"></i>Home</b>
+                    </a>
+                    <a class="item" href="/request.html">
+                        <b><i class="bullseye icon"></i>Certify new software</b>
+                    </a>
+                    <a class="item" href="/data_analysis.html">
+                        <b><i class="chart pie icon"></i>Data Analysis</b>
+                    </a>
+                </div>
+            </div>
+
+            <div class="article" style="margin-left: 13vw;">
+                <div class="ui masthead vertical segment" style="background: #e9eaef; border: 0px;">
+                    <div class="main ui intro container"
+                        style="margin-right: 0px !important; padding-top: 0px !important; max-width: 77vw !important;">
+                        <div class="ui search">
+                            <div class="ui icon input">
+                                <input class="prompt" type="text" placeholder="Search countries...">
+                                <i class="search icon"></i>
+                            </div>
+                            <div class="results"></div>
+                        </div>
+
+                        <table class="ui sortable celled striped table" style="padding: 20px" id="table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>URI</th>
+                                    <th>Last Crawl</th>
+                                </tr>
+                            </thead>
+                            <tbody id="projects-table">
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -80,6 +131,7 @@
         var chart_energy = null;
         var chart_mem = null;
         var chart_net_in = null;
+        let content = [];
         try {
             if (document.location.host.indexOf('metrics.green-coding.org') === 0)
                 api_url = "https://api.green-coding.org";
@@ -98,15 +150,18 @@
                         const li_node = document.createElement("tr");
                         const link_node = document.createElement('a');
 
+                        content.push({ title: el[1] });
+
                         link_node.innerText = el[1];
                         link_node.title = el[1];
                         link_node.href = "/stats.html?id=" + el[0];
                         li_node.appendChild(link_node);
-                        li_node.innerHTML = '<td>' + li_node.innerHTML + '</td><td>' + el[2] + '</td><td>' + el[3] + '</td>';
+                        li_node.innerHTML = '<td style="word-break:break-all;">' + li_node.innerHTML + '</td><td style="word-break:break-all;">' + el[2] + '</td><td style="word-break:break-all;">' + el[3] + '</td>';
 
                         document.getElementById("projects-table").appendChild(li_node);
                     })
-
+                    console.log("content", content);
+                    $('.ui.search').search({ source: content });
                 })
         } catch (e) {
             alert("Fetch failed: " + e)
@@ -115,7 +170,9 @@
         $(document).ready(function () {
             $('table').tablesort();
         });
+
     </script>
+    <script src="/new/less.min.js"></script>
 </body>
 
 </html>
