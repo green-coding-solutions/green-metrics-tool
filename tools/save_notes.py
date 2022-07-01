@@ -1,51 +1,41 @@
+import sys, os
+from db import DB
+import numpy as np
 
-def save_notes(conn, project_id, notes):
-
-    import numpy as np
-    cur = conn.cursor()
-    
+def save_notes(project_id, notes):
 
     for note in notes:
         if note['container_name'] == "[SYSTEM]":
-            cur.execute("""
+            DB().query("""
                 INSERT INTO stats
                 ("project_id", "container_name", "time")
                 VALUES
                 (%s, %s, %s)
                 """,
-                (project_id, "[SYSTEM]", note['timestamp'])
+                params=(project_id, "[SYSTEM]", note['timestamp'])
             )
-            conn.commit()
             stat_line_time = note['timestamp']
         else:
-            cur.execute("""
+            stat_line_time = DB().fetch_one("""
             SELECT time FROM stats 
             WHERE time < %s 
             AND project_id = %s
             AND container_name = %s
             ORDER BY time DESC LIMIT 1;
             """,
-            (note['timestamp'], project_id, note['container_name']))
-            conn.commit()
-            stat_line_time = cur.fetchone()[0]
-            
-        cur.execute("""
+            params=(note['timestamp'], project_id, note['container_name']))[0]
+
+        DB().query("""
                 INSERT INTO notes
                 ("project_id", "container_name", "note", "time", "created_at")
                 VALUES
                 (%s, %s, %s, %s, NOW())
                 """,
-                (project_id, note['container_name'], note['note'], stat_line_time)
+                params=(project_id, note['container_name'], note['note'], stat_line_time)
         )
-        conn.commit()
-    cur.close()
 
 if __name__ == "__main__":
     import argparse
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
-    from setup_functions import get_db_connection
     import time
 
     parser = argparse.ArgumentParser()
@@ -53,8 +43,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args() # script will exit if arguments not present
 
-    conn = get_db_connection()
-
-    save_notes(conn, args.project_id, [{"note": "This is my note", "timestamp": time.time_ns(), "container_name": "Arnes_ Container"}])
+    save_notes(args.project_id, [{"note": "This is my note", "timestamp": time.time_ns(), "container_name": "Arnes_ Container"}])
 
 

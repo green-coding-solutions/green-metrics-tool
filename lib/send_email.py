@@ -1,7 +1,8 @@
-def send_email(config, message, receiver_email):
-    import smtplib, ssl    
+import smtplib, ssl
 
-    if(config['admin']['no_emails'] == True): return
+def send_email(config, message, receiver_email):
+
+    if(config['admin']['no_emails'] is True): return
 
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL(config['smtp']['server'], config['smtp']['port'], context=context) as server:

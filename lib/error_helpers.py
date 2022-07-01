@@ -1,7 +1,7 @@
-from setup_functions import get_config
-import traceback
-from send_email import send_error_email
 import sys
+import traceback
+from setup_functions import get_config
+from send_email import send_error_email
 
 def end_error(*errors):
     log_error(*errors)
@@ -9,7 +9,7 @@ def end_error(*errors):
 
 def email_and_log_error(*errors, email_admin=True, user_email=None, project_id=None):
     log_error(errors)
-    email_error(errors, email_admin=True, user_email=None, project_id=None)
+    email_error(errors, email_admin=True, user_email=user_email, project_id=project_id)
 
 def email_error(*errors, email_admin=True, user_email=None, project_id=None):
     config = get_config()
@@ -35,12 +35,9 @@ def log_error(*errors, email=True):
 
 if __name__ == "__main__":
     import argparse
-    import yaml
     import os
-    import sys
 
     sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../tools')
-    from setup_functions import get_config, get_db_connection
     from send_email import send_error_email
 
     
