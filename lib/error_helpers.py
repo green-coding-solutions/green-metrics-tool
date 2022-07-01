@@ -1,6 +1,7 @@
 from setup_functions import get_config
 import traceback
 from send_email import send_error_email
+import sys
 
 def end_error(*errors):
     log_error(*errors)
@@ -23,13 +24,13 @@ def email_error(*errors, email_admin=True, user_email=None, project_id=None):
         send_error_email(config, user_email, err, project_id)
 
 def log_error(*errors, email=True):
-    print("\n\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
+    print("\n\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n", file=sys.stderr)
     
-    print("Error: ", *errors, "\n")
-    print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
+    print("Error: ", *errors, "\n", file=sys.stderr)
+    print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n", file=sys.stderr)
     
     traceback.print_exc()
-    print("\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
+    print("\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n", file=sys.stderr)
     # TODO: log to file
 
 if __name__ == "__main__":
