@@ -1,52 +1,78 @@
 import psycopg2.extras
 import psycopg2
-from error_helpers import log_error
-from setup_functions import get_config
+import error_helpers
+import setup_functions
 import sys
 
-def get_db_connection(config=None):
-    if config is None: config = get_config()
 
-    import psycopg2
+class DB:
+    __conn = None
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+             cls.instance = super(DB, cls).__new__(cls)
+             print("Creating new instance")
+        else:
+            print("Returning cached instance")
+        return cls.instance
+    def __init__(self):
+        print("Instance is called")
 
-    # Important note: We are not using cursor_factory = psycopg2.extras.RealDictCursor
-    # as an argument, because this would increase the size of a single API request
-    # from 50 kB to 100kB.
-    # Users are required to use the mask of the API requests to read the data.
-    if config['postgresql']['host'] is None: # force domain socket connection by not supplying host
-            conn = psycopg2.connect("user=%s dbname=%s password=%s" % (config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
-    else:
-            conn = psycopg2.connect("host=%s user=%s dbname=%s password=%s" % (config['postgresql']['host'], config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
-    return conn
+        if self.__conn is None:
+            config = setup_functions.get_config()
 
-def __call(query, params, return_type=None, conn=None):
-    if conn is None: conn = get_db_connection()
+            # Important note: We are not using cursor_factory = psycopg2.extras.RealDictCursor
+            # as an argument, because this would increase the size of a single API request
+            # from 50 kB to 100kB.
+            # Users are required to use the mask of the API requests to read the data.
+            if config['postgresql']['host'] is None: # force domain socket connection by not supplying host
+                    self.__conn = psycopg2.connect("user=%s dbname=%s password=%s" % (config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
+            else:
+                    self.__conn = psycopg2.connect("host=%s user=%s dbname=%s password=%s" % (config['postgresql']['host'], config['postgresql']['user'], config['postgresql']['dbname'], config['postgresql']['password']))
 
-    cur = conn.cursor()
-    try:
-        cur.execute(query, params)
-        conn.commit()
-        match return_type:
-            case "one":
-                ret = cur.fetchone()
-            case "all":
-                ret = cur.fetchall()
-            case None:
-                ret = True
+    def __query(self, query, params=None, return_type=None, cursor_factory=None):
 
-    # Still need to figure out what the real exception is
-    except psycopg2.Error as e:
-        conn.rollback()
-        log_error(e)
-        ret = False
-    cur.close()
-    return ret
+        cur = self.__conn.cursor(cursor_factory=cursor_factory) # None is actually the default cursor factory
+        try:
+            cur.execute(query, params)
+            self.__conn.commit()
+            match return_type:
+                case "one":
+                    ret = cur.fetchone()
+                case "all":
+                    ret = cur.fetchall()
+                case _:
+                    ret = True
 
-def call(query, params=None, conn=None):
-    return __call(query, params, None, conn)
+        except psycopg2.Error as e:
+            self.__conn.rollback()
+            error_helpers.email_and_log_error(e)
+            ret = False
+        cur.close()
+        return ret
 
-def fetch_one(query, params=None, conn=None):
-    return __call(query, params, "one", conn)
+    def query(self, query, params=None, cursor_factory=None):
+        return self.__query(query, params=params, return_type=None, cursor_factory=cursor_factory)
 
-def fetch_all(query, params=None, conn=None):
-    return __call(query, params, "all", conn)
+    def fetch_one(self, query, params=None, cursor_factory = None):
+        return self.__query(query, params=params, return_type="one", cursor_factory=cursor_factory)
+
+    def fetch_all(self, query, params=None, cursor_factory=None):
+        return self.__query(query, params=params, return_type="all", cursor_factory=cursor_factory)
+
+    def copy_from(self, file, table, columns, sep=','):
+        try:
+            cur = self.__conn.cursor()
+            cur.copy_from(file, table, columns=columns, sep=sep)
+            self.__conn.commit()
+        except psycopg2.Error as e:
+            self.__conn.rollback()
+            error_helpers.email_and_log_error(e)
+        cur.close()
+
+if __name__ == "__main__":
+    DB()
+    DB()
+    print(DB().fetch_all("SELECT * FROM projects"))
+    #DB().query("SELECT * FROM projects")
+    #DB().query("SELECT * FROM projects")
+    #DB().query("SELECT * FROM projects")

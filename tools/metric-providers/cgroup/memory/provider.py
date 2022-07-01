@@ -1,4 +1,4 @@
-def import_stats(conn, project_id, containers):
+def import_stats(project_id, containers):
     import pandas as pd
     from io import StringIO
 
@@ -24,10 +24,7 @@ def import_stats(conn, project_id, containers):
 
     f = StringIO(df.to_csv(index=False, header=False))
     
-    cur = conn.cursor()
-    cur.copy_from(f, 'stats', columns=("time", "value", "container_name", "metric", "project_id"), sep=",")
-    conn.commit()
-    cur.close()    
+    DB().copy_from(file=f, table='stats', columns=("time", "value", "container_name", "metric", "project_id"), sep=",")
 
 def read(resolution, containers):
     import subprocess

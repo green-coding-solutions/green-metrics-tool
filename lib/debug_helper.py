@@ -1,6 +1,6 @@
 import sys
 
-class Debug:
+class DebugHelper:
     active = False
 
     def __init__(self, a):
@@ -9,7 +9,7 @@ class Debug:
         else:
             self.active = False
 
-    def stop(self):
+    def pause(self):
         if self.active is not None or False:
             print("Debug mode is active. Pausing. Please press Enter to continue ...")
             sys.stdin.readline()

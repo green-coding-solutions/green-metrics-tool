@@ -11,9 +11,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../tools')
 
 from setup_functions import get_config
 from send_email import send_email
-import db
-
-conn = db.get_db_connection()
+from db import DB
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,7 +50,7 @@ async def get_projects():
             ORDER BY
                 created_at DESC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
             """
-    data = db.fetch_all(query, conn=conn)
+    data = DB().fetch_all(query)
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
 
@@ -88,7 +86,7 @@ async def get_stats_by_url(url: str):
                 stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
             """
     params = (url,)
-    data = db.fetch_all(query, params, conn)
+    data = DB().fetch_all(query, params)
 
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
@@ -119,8 +117,8 @@ async def get_stats_single(project_id: str):
             ORDER BY
                 stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
             """
-    params = (project_id,)
-    data = db.fetch_all(query, params, conn)
+    params = params=(project_id,)
+    data = DB().fetch_all(query, params=params)
     
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
@@ -144,19 +142,18 @@ async def post_project_add(project: Project):
     if(project.email is None or project.email.strip() == ''):
         return {'success': False, 'err': 'E-mail is empty'}
 
-    query = """
+    try:
+        query = """
             INSERT INTO
                 projects (url,name,email)
             VALUES (%s, %s, %s)
             RETURNING id
             """
-    params = (project.url,project.name,project.email)
-
-    try:
-        project_id = db.fetch_one(query,params,conn)
+        params = (project.url,project.name,project.email)
+        project_id = DB().fetch_one(query,params=params)
         print("Having: ", project_id)
         notify_admin(project.name, project_id)
-    except BaseException as e:
+    except Exception as e:
         return {"success": False, "err": f"Problem with sending email / saving to database: {str(e)}"}  
 
     return {"success": True}
@@ -184,27 +181,16 @@ https://www.green-coding.org
     send_email(config, message, config['admin']['email'])
 
 def get_project(project_id):
-    cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
-
-    try:
-        cur.execute("""
+    query = """
             SELECT
                 *
             FROM
                 projects
             WHERE
                 id = %s
-            """,
-            (project_id,)
-        )
-        project = cur.fetchone()
-        cur.close()
-    except BaseException as e:
-        conn.rollback()
-        cur.close()
-        return None
-
-    return project
+            """
+    params = (project_id,)
+    return DB().fetch_one(query, params=params, cursor_factory = psycopg2.extras.RealDictCursor)
 
 if __name__ == "__main__":
     app.run()

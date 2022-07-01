@@ -16,13 +16,13 @@ sys.path.append(f"{current_dir}/../lib")
 sys.path.append(f"{current_dir}/metric-providers")
 
 from save_notes import save_notes # local file import
-from setup_functions, get_config
-import db
+from setup_functions import get_config
+from db import DB
 import error_helpers
 import hardware_info
 import process_helpers
 
-from debugger import Debug
+from debug_helper import DebugHelper
 
 # TODO:
 # - Exception Logic is not really readable. Better encapsulate docker calls and fetch exception there
@@ -32,7 +32,6 @@ from debugger import Debug
 
 def main():
     config = get_config()
-    conn = db.get_db_connection(config)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", help="Select the operation mode. Select `manual` to supply a directory or url on the command line. Or select `cron` to process database queue. For database mode the config.yml file will be read", choices=['manual', 'cron'])
@@ -46,7 +45,7 @@ def main():
     args = parser.parse_args() # script will exit if url is not present
 
 
-    debug = Debug(args.debug)
+    debug = DebugHelper(args.debug)
 
     user_email,project_id=None,None
 
@@ -70,20 +69,13 @@ def main():
         url = args.url
         name = args.name
 
-        cur = conn.cursor()
-        cur.execute('INSERT INTO "projects" ("name","url","email","crawled","last_crawl","created_at") \
+        project_id = DB().fetch_one('INSERT INTO "projects" ("name","url","email","crawled","last_crawl","created_at") \
                     VALUES \
-                    (%s,%s,\'manual\',TRUE,NOW(),NOW()) RETURNING id;', (name,url or folder))
-        conn.commit()
-        project_id = cur.fetchone()[0]
-
-        cur.close()
+                    (%s,%s,\'manual\',TRUE,NOW(),NOW()) RETURNING id;', params=(name,url or folder))[0]
 
     elif args.mode == 'cron':
 
-        cur = conn.cursor()
-        cur.execute("SELECT id,url,email FROM projects WHERE crawled = False ORDER BY created_at ASC LIMIT 1")
-        data = cur.fetchone()
+        data = DB().fetch_one("SELECT id,url,email FROM projects WHERE crawled = False ORDER BY created_at ASC LIMIT 1")
 
         if(data is None or data == []):
             print("No job to process. Exiting")
@@ -93,13 +85,9 @@ def main():
         url = data[1]
         email = data[2]
         user_email = email
-        cur.close()
 
         # set to crawled = 1, so we don't error loop
-        cur = conn.cursor()
-        cur.execute("UPDATE projects SET crawled = True WHERE id = %s", (project_id,))
-        conn.commit()
-        cur.close()
+        DB().query("UPDATE projects SET crawled = True WHERE id = %s", params=(project_id,))
 
     else:
         raise RuntimeError('Unknown mode: ', args.mode)
@@ -129,7 +117,7 @@ def main():
         print("From: ", obj['author'])
         print("Version ", obj['version'], "\n")
 
-        hardware_info.insert_hw_info(conn, project_id)
+        hardware_info.insert_hw_info(project_id)
 
         for metric_provider in config['metric-providers']:
             print(f"Importing metric provider: {metric_provider}")
@@ -250,7 +238,7 @@ def main():
 
         time.sleep(config['measurement']['idle-time-start'])
 
-        debug.stop()
+        debug.pause()
 
         notes.append({"note" : "[START MEASUREMENT]", 'container_name' : '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
 
@@ -259,7 +247,7 @@ def main():
             print("Running flow: ", el['name'])
             for inner_el in el['commands']:
 
-                debug.stop()
+                debug.pause()
 
 
                 if "note" in inner_el:
@@ -314,11 +302,11 @@ def main():
 
         print("Parsing stats")
         for metric_reporter in metric_providers:
-            metric_reporter.import_stats(conn, project_id, containers)
+            metric_reporter.import_stats(project_id, containers)
 
 
         print("Saving notes: ", notes)
-        save_notes(conn, project_id, notes)
+        save_notes(project_id, notes)
 
         if args.mode == 'manual':
             print(f"Please access your report with the ID: {project_id}")

@@ -1,5 +1,7 @@
+sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 import re
-def insert_hw_info(conn, project_id):
+from db import DB
+def insert_hw_info(project_id):
     with open("/proc/cpuinfo", "r")  as f:
         info = f.readlines()
 
@@ -18,11 +20,7 @@ def insert_hw_info(conn, project_id):
     #gpuinfo = re.search(r"product: (.*)$", lshw_output.decode("UTF-8"))
     #print(gpuinfo.group())
 
-    cur = conn.cursor()
-    cur.execute("""UPDATE projects
+    DB().query("""UPDATE projects
         SET cpu=%s, memtotal=%s
         WHERE id = %s
-        """, (cpuinfo, memtotal.group(), project_id))
-    conn.commit()
-    cur.close()
-
+        """, params=(cpuinfo, memtotal.group(), project_id))
