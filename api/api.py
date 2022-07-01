@@ -23,7 +23,7 @@ origins = [
     "http://metrics.green-coding.local:8000",
     "http://api.green-coding.local:8000",
     "https://metrics.green-coding.org",
-    "https://api.green-coding.org:8000",
+    "https://api.green-coding.org",
 ]
 
 app.add_middleware(
