@@ -1,7 +1,6 @@
 import sys
 
 class DebugHelper:
-    active = False
 
     def __init__(self, a):
         if a is True:
