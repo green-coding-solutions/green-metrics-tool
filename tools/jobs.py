@@ -107,13 +107,13 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("type", help="Select the operation mode.", choices=['email', 'project'])
-    args = parser.parse_args() # script will exit if type is not present
+     args = parser.parse_args() # script will exit if type is not present
 
     # Debug
     #p = "8a4384d7-19a7-4d48-ac24-132d7db52671"
     #print("Inserted Job ID: ", insert_job("project", p))
 
-    try:
+   try:
         get_job(args.type)
     except Exception as e:
         error_helpers.log_error("Base exception occured in jobs.py: ", e)
