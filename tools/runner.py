@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import argparse
 import subprocess
 import json
 import os
@@ -30,85 +29,35 @@ from debug_helper import DebugHelper
 # - No cleanup is currently done if exception fails. System is in unclean state
 # - No checks for possible command injections are done at the moment
 
-def main():
-    config = get_config()
+class Runner:
+    def __init__(self, debug_mode=False, unsafe_mode=False, no_file_cleanup=False):
+        self.debug_mode = debug_mode
+        self.unsafe_mode = unsafe_mode
+        self.no_file_cleanup = no_file_cleanup
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("mode", help="Select the operation mode. Select `manual` to supply a directory or url on the command line. Or select `cron` to process database queue. For database mode the config.yml file will be read", choices=['manual', 'cron'])
-    parser.add_argument("--url", type=str, help="The url to download the repository with the usage_scenario.json from. Will only be read in manual mode.")
-    parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others. Will only be read in manual mode.")
-    parser.add_argument("--folder", type=str, help="The folder that contains your usage scenario as local path. Will only be read in manual mode.")
-    parser.add_argument("--no-file-cleanup", action='store_true', help="Do not delete files in /tmp/green-metrics-tool")
-    parser.add_argument("--debug", action='store_true', help="Activate steppable debug mode")
-    parser.add_argument("--unsafe", action='store_true', help="Activate unsafe volume bindings, portmappings and complex env vars")
+        self.containers = {}
+        self.networks = []
+        self.ps_to_kill = []
+        self.ps_to_read = []
+        self.metric_providers = []
 
-    args = parser.parse_args() # script will exit if url is not present
+    def run(self, uri, uri_type, project_id):
 
-
-    debug = DebugHelper(args.debug)
-
-    user_email,project_id=None,None
-
-    if(args.folder is not None and args.url is not None):
-            print('Please supply only either --folder or --url\n')
-            parser.print_help()
-            exit(2)
-
-    if args.mode == 'manual' :
-        if(args.folder is None and args.url is None):
-            print('In manual mode please supply --folder as folder path or --url as URI\n')
-            parser.print_help()
-            exit(2)
-
-        if(args.name is None):
-            print('In manual mode please supply --name\n')
-            parser.print_help()
-            exit(2)
-
-        folder = args.folder
-        url = args.url
-        name = args.name
-
-        project_id = DB().fetch_one('INSERT INTO "projects" ("name","url","email","crawled","last_crawl","created_at") \
-                    VALUES \
-                    (%s,%s,\'manual\',TRUE,NOW(),NOW()) RETURNING id;', params=(name,url or folder))[0]
-
-    elif args.mode == 'cron':
-
-        data = DB().fetch_one("SELECT id,url,email FROM projects WHERE crawled = False ORDER BY created_at ASC LIMIT 1")
-
-        if(data is None or data == []):
-            print("No job to process. Exiting")
-            exit(1)
-
-        project_id = data[0]
-        url = data[1]
-        email = data[2]
-        user_email = email
-
-        # set to crawled = 1, so we don't error loop
-        DB().query("UPDATE projects SET crawled = True WHERE id = %s", params=(project_id,))
-
-    else:
-        raise RuntimeError('Unknown mode: ', args.mode)
+        config = get_config()
+        debug = DebugHelper(self.debug_mode) # Instantiate debug helper with correct mode
 
 
-    containers = {}
-    networks = []
-    ps_to_kill = []
-    ps_to_read = []
-    metric_providers = []
-
-    try:
 
         subprocess.run(["rm", "-Rf", "/tmp/green-metrics-tool"])
         subprocess.run(["mkdir", "/tmp/green-metrics-tool"])
 
-        if url is not None :
+        if uri_type == 'URL' :
             # always remove the folder if URL provided, cause -v directory binding always creates it
             # no check cause might fail when directory might be missing due to manual delete
-            subprocess.run(["git", "clone", url, "/tmp/green-metrics-tool/repo"], check=True, capture_output=True, encoding='UTF-8') # always name target-dir repo according to spec
+            subprocess.run(["git", "clone", uri, "/tmp/green-metrics-tool/repo"], check=True, capture_output=True, encoding='UTF-8') # always name target-dir repo according to spec
             folder = '/tmp/green-metrics-tool/repo'
+        else:
+            folder = uri
 
         with open(f"{folder}/usage_scenario.json") as fp:
             obj = json.load(fp)
@@ -128,14 +77,14 @@ def main():
 
         # Insert auxilary info for the run. Not critical.
         DB().query("""UPDATE projects
-            SET cpu=%s, memtotal=%s, usage_scenario = %s
+            SET cpu=%s, memtotal=%s, usage_scenario = %s, last_run = NOW()
             WHERE id = %s
             """, params=(hardware_info.get_cpu(), hardware_info.get_mem(), json.dumps(obj), project_id))
 
         # Import metric providers dynamically
         for metric_provider in config['metric-providers']:
             print(f"Importing metric provider: {metric_provider}")
-            metric_providers.append(importlib.import_module(metric_provider))
+            self.metric_providers.append(importlib.import_module(metric_provider))
 
 
 
@@ -160,14 +109,14 @@ def main():
                 else:
                     docker_run_string.append(f"{folder}:/tmp/repo:ro")
 
-                if args.unsafe is True and 'volumes' in el:
+                if self.unsafe_mode is True and 'volumes' in el:
                     if(type(el['volumes']) != list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(el['volumes'])}")
                     for volume in el['volumes']:
                         docker_run_string.append('-v')
                         docker_run_string.append(f"{volume}:ro")
 
-                if args.unsafe is True and 'portmapping' in el:
+                if self.unsafe_mode is True and 'portmapping' in el:
                     if(type(el['portmapping']) != list):
                         raise RuntimeError(f"Portmapping must be a list but is: {type(el['portmapping'])}")
                     for portmapping in el['portmapping']:
@@ -178,9 +127,9 @@ def main():
                 if 'env' in el:
                     import re
                     for docker_env_var in el['env']:
-                        if args.unsafe is True and re.search("^[A-Z_]+$", docker_env_var) is None:
+                        if self.unsafe_mode is True and re.search("^[A-Z_]+$", docker_env_var) is None:
                             raise RuntimeError(f"Docker container setup env var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var}")
-                        if args.unsafe is True and re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", el['env'][docker_env_var]) is None:
+                        if self.unsafe_mode is True and re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", el['env'][docker_env_var]) is None:
                             raise RuntimeError(f"Docker container setup env var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {el['env'][docker_env_var]}")
 
                         docker_run_string.append('-e')
@@ -203,7 +152,7 @@ def main():
                 )
 
                 container_id = ps.stdout.strip()
-                containers[container_id] = container_name
+                self.containers[container_id] = container_name
                 print("Stdout:", container_id)
 
                 if "setup-commands" not in el.keys(): continue # setup commands are optional
@@ -222,7 +171,7 @@ def main():
                 print("Creating network: ", el['name'])
                 subprocess.run(['docker', 'network', 'rm', el['name']]) # remove first if present to not get error
                 subprocess.run(['docker', 'network', 'create', el['name']])
-                networks.append(el['name'])
+                self.networks.append(el['name'])
             elif el['type'] == 'Dockerfile':
                 raise NotImplementedError("Green Metrics Tool can currently not consume Dockerfiles. This will be a premium feature, as it creates a lot of server usage and thus slows down Tests per Minute for our server.")
             elif el['type'] == 'Docker-Compose':
@@ -232,11 +181,11 @@ def main():
 
         # --- setup finished
 
-        print("Current known containers: ", containers)
+        print("Current known containers: ", self.containers)
 
-        for metric_provider in metric_providers:
+        for metric_provider in self.metric_providers:
             print(f"Starting measurement provider {metric_provider}")
-            ps_to_kill.append({"pid": metric_provider.read(100, containers), "cmd": metric_provider, "ps_group": True})
+            self.ps_to_kill.append({"pid": metric_provider.read(100, self.containers), "cmd": metric_provider, "ps_group": True})
 
 
 
@@ -279,11 +228,11 @@ def main():
                         encoding="UTF-8"
                     )
 
-                    ps_to_read.append({'cmd': docker_exec_command, 'ps': ps, 'read-notes-stdout': inner_el.get('read-notes-stdout', False), 'container_name': el['container']})
+                    self.ps_to_read.append({'cmd': docker_exec_command, 'ps': ps, 'read-notes-stdout': inner_el.get('read-notes-stdout', False), 'container_name': el['container']})
 
                     if inner_el.get('detach', None) == True :
                         print("Process should be detached. Running asynchronously and detaching ...")
-                        ps_to_kill.append({"pid": ps.pid, "cmd": inner_el['command'], "ps_group": False})
+                        self.ps_to_kill.append({"pid": ps.pid, "cmd": inner_el['command'], "ps_group": False})
                     else:
                         print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
                         process_helpers.timeout(ps, inner_el['command'], config['measurement']['flow-process-runtime'])
@@ -297,7 +246,7 @@ def main():
 
         # now we have free capacity to parse the stdout / stderr of the processes
         print("Getting output from processes: ")
-        for ps in ps_to_read:
+        for ps in self.ps_to_read:
             for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd']):
                 print("Output from process: ", line)
                 if(ps['read-notes-stdout']):
@@ -306,45 +255,98 @@ def main():
 
 
 
-        process_helpers.kill_pids(ps_to_kill)
+        process_helpers.kill_pids(self.ps_to_kill)
 
         print("Parsing stats")
-        for metric_reporter in metric_providers:
-            metric_reporter.import_stats(project_id, containers)
+        for metric_reporter in self.metric_providers:
+            metric_reporter.import_stats(project_id, self.containers)
 
 
         print("Saving notes: ", notes)
         save_notes(project_id, notes)
 
-        if args.mode == 'manual':
-            print(f"Please access your report with the ID: {project_id}")
-        else:
-            from send_email import send_report_email # local file import
-            send_report_email(config, email, project_id)
+        self.cleanup() # always run cleanup automatically after each run
 
-    except FileNotFoundError as e:
-        error_helpers.email_and_log_error("Docker command failed.", e, user_email=user_email, project_id=project_id)
-    except subprocess.CalledProcessError as e:
-        error_helpers.email_and_log_error("Docker command failed", "Stdout:", e.stdout, "Stderr:", e.stderr, user_email=user_email, project_id=project_id)
-    except KeyError as e:
-        error_helpers.email_and_log_error("Was expecting a value inside the JSON file, but value was missing: ", e, user_email=user_email, project_id=project_id)
-    except BaseException as e:
-        error_helpers.email_and_log_error("Base exception occured: ", e, user_email=user_email, project_id=project_id)
-    finally:
+
+    def cleanup(self): # TODO: Could be done when destroying object. but do we have all infos then?
         print("Finally block. Stopping containers")
-        for container_name in containers.values():
+        for container_name in self.containers.values():
             subprocess.run(["docker", "rm", "-f", container_name])
 
         print("Removing network")
-        for network_name in networks:
+        for network_name in self.networks:
             subprocess.run(['docker', 'network', 'rm', network_name])
 
-        if args.no_file_cleanup is None:
+        if self.no_file_cleanup is None:
             print("Removing files")
             subprocess.run(["rm", "-Rf", "/tmp/green-metrics-tool"])
 
-        process_helpers.kill_pids(ps_to_kill)
-        print("\n\n>>> Shutdown gracefully completed <<<\n\n")
+        process_helpers.kill_pids(self.ps_to_kill)
+        print("\n\n>>> Cleanup gracefully completed <<<\n\n")
+
+        self.containers = {}
+        self.networks = []
+        self.ps_to_kill = []
+        self.ps_to_read = []
+        self.metric_providers = []
+
+
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--uri", type=str, help="The URI to get the usage_scenario.json from. Can be eitehr file://... for local directories or http(s):// to download the repository with the usage_scenario.json from.")
+    parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others. Will only be read in manual mode.")
+    parser.add_argument("--no-file-cleanup", action='store_true', help="Do not delete files in /tmp/green-metrics-tool")
+    parser.add_argument("--debug", action='store_true', help="Activate steppable debug mode")
+    parser.add_argument("--unsafe", action='store_true', help="Activate unsafe volume bindings, portmappings and complex env vars")
+
+    args = parser.parse_args() # script will exit if url is not present
+
+    if args.uri is None:
+        print('In manual mode please supply --uri\n')
+        parser.print_help()
+        exit(2)
+
+    if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://':
+        print("Detected supplied URL: ", args.uri)
+        uri_type = 'URL'
+    elif args.uri[0:1] == '/':
+        print("Detected supplied folder: ", args.uri)
+        uri_type = 'folder'
+        if not Path(args.uri).is_dir():
+            print("Could not find folder on local system. Please double check: ", args.uri, "\n")
+            parser.print_help()
+            exit(2)
+    else:
+        print("Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ", args.uri,  "\n")
+        parser.print_help()
+        exit(2)
+
+    if args.name is None:
+        print("In manual mode please supply --name\n")
+        parser.print_help()
+        exit(2)
+
+
+    # We issue a fetch_one() instead of a query() here, cause we want to get the project_id
+    project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
+                VALUES \
+                (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(args.name, args.uri))[0]
+
+    runner = Runner(debug_mode=args.debug, unsafe_mode=args.unsafe, no_file_cleanup=args.no_file_cleanup)
+    try:
+        runner.run(uri=args.uri, uri_type=uri_type, project_id=project_id) # Start main code
+        print(f"Please access your report with the ID: {project_id}")
+    except FileNotFoundError as e:
+        error_helpers.log_error("Docker command failed.", e, project_id)
+    except subprocess.CalledProcessError as e:
+        error_helpers.log_error("Docker command failed", "Stdout:", e.stdout, "Stderr:", e.stderr, project_id)
+    except KeyError as e:
+        error_helpers.log_error("Was expecting a value inside the JSON file, but value was missing: ", e, project_id)
+    except BaseException as e:
+        error_helpers.log_error("Base exception occured in runner.py: ", e, project_id)
+    finally:
+        runner.cleanup() # run just in case. Will be noop on successful run
