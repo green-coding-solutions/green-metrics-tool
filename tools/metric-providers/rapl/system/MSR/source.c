@@ -21,7 +21,7 @@
 /* the sysfs powercap interface got into the kernel in 			*/
 /*	2d281d8196e38dd (3.13)						*/
 /*									*/
-/* Compile with:   gcc -O2 -Wall -o rapl-read rapl-read.c -lm		*/
+/* Compile with:   gcc -O2 -Wall -o rapl-read rapl-read.c -lm -static -static-libgcc		*/
 /*									*/
 /* Vince Weaver -- vincent.weaver @ maine.edu -- 11 September 2015	*/
 /*									*/
@@ -45,8 +45,6 @@
 
 #define MSR_AMD_PKG_ENERGY_STATUS		0xc001029B
 #define MSR_AMD_PP0_ENERGY_STATUS		0xc001029A
-
-
 
 /* Intel support */
 
@@ -163,7 +161,14 @@ static long long read_msr(int fd, unsigned int which) {
 
 #define CPU_AMD_FAM17H		0xc000
 
+
+// All variables are made static, because we believe that this will
+// keep them local in scope to the file and not make them persist in state
+// between Threads.
+// TODO: If this code ever gets multi-threaded please review this assumption to
+// not pollute another threads state
 static unsigned int msr_rapl_units,msr_pkg_energy_status,msr_pp0_energy_status;
+static unsigned int msleep_time=1000;
 
 static int detect_cpu(void) {
 
@@ -263,8 +268,6 @@ static int detect_packages(void) {
 	return 0;
 }
 
-unsigned int msleep_time=1000;
-
 /*******************************/
 /* MSR code                    */
 /*******************************/
@@ -291,9 +294,14 @@ static int rapl_msr(int core, int cpu_model) {
 		/* Calculate the units used */
 		result=read_msr(fd,msr_rapl_units);
 
-		power_units=pow(0.5,(double)(result&0xf));
+		// as per specifications, power unit MSR has the following information in the following bits:
+		// 0-3 -> power units
+		// 8-12 -> energy status units
+		// 16-19 -> time units
+		// 4-7, 13-15, and 20-63 are all reserved bits
+		power_units=pow(0.5,(double)(result&0xf)); //multiplying by 0xf will give you the first 4 bits
 
-		cpu_energy_units[j]=pow(0.5,(double)((result>>8)&0x1f));
+		cpu_energy_units[j]=pow(0.5,(double)((result>>8)&0x1f)); //multiplying by 0x1f will give you the first 5 bits
 
 		time_units=pow(0.5,(double)((result>>16)&0xf));
 
@@ -320,11 +328,9 @@ static int rapl_msr(int core, int cpu_model) {
 		result=read_msr(fd,msr_pkg_energy_status);
 		package_after[j]=(double)result*cpu_energy_units[j];
 
-		float energy_output = package_after[j]-package_before[j];
-		if (energy_output != 0.0) {
-			gettimeofday(&now, NULL);
-			printf("%ld%06ld %.9f\n", now.tv_sec, now.tv_usec, energy_output);
-		}
+		double energy_output = package_after[j]-package_before[j];
+		gettimeofday(&now, NULL);
+		printf("%ld%06ld %.9f\n", now.tv_sec, now.tv_usec, energy_output);
 
 		close(fd);
 	}
@@ -376,6 +382,8 @@ int main(int argc, char **argv) {
 			exit(-1);
 		}
 	}
+
+	setvbuf(stdout, NULL, _IONBF, 0);
 
 	cpu_model=detect_cpu();
 	detect_packages();

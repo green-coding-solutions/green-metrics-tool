@@ -264,8 +264,10 @@
                     <h5 class="card-title">Project Data</h5>
                       <table class="table-hover">
                         <tbody>
-                            <tr><td>Project Name</td><td id="project-name"></td></tr>
-                            <tr><td>Project URL / Folder</td><td id="project-url"></td></tr>
+                            <tr><td>Name</td><td id="project-name"></td></tr>
+                            <tr><td>URI</td><td id="project-url"></td></tr>
+                            <tr><td>CPU</td><td id="project-cpu"></td></tr>
+                            <tr><td>Total Memory</td><td id="project-memtotal"></td></tr>
                             <tr><td>Last Crawl</td><td id="project-last-crawl"></td></tr>
                         </tbody>
                     </table>
@@ -301,7 +303,19 @@
                   <div class="card-inner">
                     <h5 class="card-title">Total Energy</h5>
                     <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="total-energy">&nbsp;</h5>
-                    <p class="tx-12 text-muted">For whole machine. NOT per container.</p>
+                    <p class="tx-12 text-muted">For whole CPU Package. NOT per container.</p>
+                    <div class="card-icon-wrapper">
+                      <i class="material-icons">trending_up</i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">Total CO2</h5>
+                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="total-co2">&nbsp;</h5>
+                    <p class="tx-12 text-muted">For whole CPU Package. NOT per container.</p>
                     <div class="card-icon-wrapper">
                       <i class="material-icons">trending_up</i>
                     </div>
@@ -372,7 +386,10 @@
         var options = {
             series: [],
             chart: {
-                type: 'area'
+                type: 'area',
+                animations: {
+                  enabled: false
+                }
             },
             dataLabels: {
                 enabled: false
@@ -402,7 +419,7 @@
         options_cpu.title = {text: 'CPU Load in %'}
 
         var options_energy = { ...options}
-        options_energy.title = {text: 'Energy in uJ'}
+        options_energy.title = {text: 'Energy in mJ'}
 
         var options_mem = { ...options}
         options_mem.title = {text: 'Memory Load in MB'}
@@ -443,60 +460,59 @@
                       document.querySelector("#project-last-crawl").innerText = my_json.project.last_crawl;
                       document.querySelector("#project-name").innerText = my_json.project.name;
                       document.querySelector("#project-url").innerText = my_json.project.url;
+                      document.querySelector("#project-cpu").innerText = my_json.project.cpu;
+                      document.querySelector("#project-memtotal").innerText = my_json.project.memtotal;
+
+                      my_series['cpu'] = {}
+                      my_series['system-energy'] = {}
+                      my_series['mem'] = {}
+                      my_series['net_in'] = {}
 
                       my_json.data.forEach(el => {
-                                  if(el[0] == '[SYSTEM]' && el[8] == '[START MEASUREMENT]') {
+                                  if(el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
                                     accumulate = 1;
                                     return
-                                  } else if(el[0] == '[SYSTEM]' && el[8] == '[END MEASUREMENT]') {
+                                  } else if(el[0] == '[SYSTEM]' && el[4] == '[END MEASUREMENT]') {
                                     accumulate = 0;
                                     return;
                                   }
 
-                                  if(accumulate === 1) {
-                                    total_energy += el[7];
-                                    cpu_load.push(el[2])
-                                  }
-
                                   el[0] = 'Container '+el[0]
                                   el[1] = el[1]/1000;
-                                  if(my_series['cpu'] == undefined) {
-                                      my_series['cpu'] = {}
+
+                                  if(el[2] == 'cpu') {
+                                    if(my_series[el[2]][el[0]] == undefined) {
+                                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/100}]}
+                                    } else {
+                                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/100})
+                                    }
+                                    if(accumulate === 1) cpu_load.push(el[3])
+
                                   }
-                                  if(my_series['energy'] == undefined) {
-                                      my_series['energy'] = {}
+                                  else if(el[2] == 'system-energy') {
+                                    if(accumulate === 1) total_energy += el[3];
+                                    if(my_series[el[2]][el[0]] == undefined) {
+                                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]}]}
+                                    } else {
+                                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]})
+                                    }
+
+                                  } else if (el[2] == 'mem') {
+                                    if(my_series[el[2]][el[0]] == undefined) {
+                                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/1000000}]}
+                                    } else {
+                                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/1000000})
+                                    }
+                                  } else {
+                                    if(my_series[el[2]][el[0]] == undefined) {
+                                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]}]}
+                                    } else {
+                                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]})
+                                    }
                                   }
 
-                                  if(my_series['mem'] == undefined) {
-                                      my_series['mem'] = {}
-                                  }
-                                  if(my_series['net_in'] == undefined) {
-                                      my_series['net_in'] = {}
-                                  }
 
-                                  if(my_series['cpu'][el[0]] == undefined) {
-                                      my_series['cpu'][el[0]] = {name: el[0], data: [{x: el[1], y:el[2]/100}]}
-                                  } else {
-                                      my_series['cpu'][el[0]]['data'].push({x: el[1], y:el[2]/100})
-                                  }
-                                  if(my_series['energy'][el[0]] == undefined) {
-                                      my_series['energy'][el[0]] = {name: el[0], data: [{x: el[1], y:el[7]}]}
-                                  } else {
-                                      my_series['energy'][el[0]]['data'].push({x: el[1], y:el[7]})
-                                  }
-
-                                  if(my_series['mem'][el[0]] == undefined) {
-                                      my_series['mem'][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/1000000}]}
-                                  } else {
-                                      my_series['mem'][el[0]]['data'].push({x: el[1], y:el[3]/1000000})
-                                  }
-                                  if(my_series['net_in'][el[0]] == undefined) {
-                                      my_series['net_in'][el[0]] = {name: el[0], data: [{x: el[1], y:el[2]/1000000}]}
-                                  } else {
-                                      my_series['net_in'][el[0]]['data'].push({x: el[1], y:el[5]/1000000})
-                                  }
-
-                                  if(el[8] != null) {
+                                  if(el[4] != null) {
                                       options_cpu.annotations.xaxis.push({
                                         x: el[1],
                                         strokeDashArray: 0,
@@ -519,7 +535,7 @@
                                             color: "#fff",
                                             background: "#775DD0"
                                           },
-                                          text: el[8],
+                                          text: el[4],
                                           //orientation: "horizontal"
                                         }
                                       })
@@ -528,20 +544,16 @@
                                   /*
                                   el[0] // container_id
                                   el[1] // time
-                                  el[2] // cpu in 10 ms
-                                  el[3] // mem_cur
-                                  el[4] // mem_max
-                                  el[5] // net_in
-                                  el[6] // net_out
-                                  el[7] // energy
-
+                                  el[2] // metric name
+                                  el[3] // value
+                                  el[4] // note
                                   '*/
                         })
 
-                        options_cpu.series = Object.values(my_series.cpu)
-                        options_energy.series = Object.values(my_series.energy)
-                        options_mem.series = Object.values(my_series.mem)
-                        options_net_in.series = Object.values(my_series.net_in)
+                        options_cpu.series = Object.values(my_series["cpu"])
+                        options_energy.series = Object.values(my_series["system-energy"])
+                        options_mem.series = Object.values(my_series["mem"])
+                        options_net_in.series = Object.values(my_series["net_in"])
 
                         chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
                         chart_energy = new ApexCharts(document.querySelector("#chart-energy"), options_energy);
@@ -554,7 +566,8 @@
                         chart_net_in.render();
 
                         document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
-                        document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " mJ"
+                        document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
+                        document.querySelector("#total-co2").innerText = (total_energy / 1000 / 3600000 * 0.519 * 1000000).toFixed(2) + " ugCO2eq"
                         document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a,b) => a + b, 0) / cpu_load.length) / 100).toFixed(2) + " %"
 
                   })
