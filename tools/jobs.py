@@ -54,7 +54,7 @@ def check_job_running(job_type, job_id):
         error_helpers.log_error('Job was still running: ', job_type, job_id) # No email here, only debug
         exit(1) #is this the right way to exit here?
     else:
-        query_update = "UPDATE jobs SET running=true WHERE id=%s"
+        query_update = "UPDATE jobs SET running=true, last_run=NOW() WHERE id=%s"
         params_update =  (job_id,)
         DB().query(query_update, params=params_update)
 
@@ -82,7 +82,7 @@ def do_email_job(job_id, project_id):
 def do_project_job(job_id, project_id):
     check_job_running('project', job_id)
 
-    data = DB().fetch_one("SELECT id,uri,email FROM projects ORDER BY created_at ASC LIMIT 1")
+    data = DB().fetch_one("SELECT id,uri,email FROM projects WHERE id = %s LIMIT 1", (project_id, ))
 
     if(data is None or data == []):
         print("No job to process. Exiting")
@@ -98,8 +98,8 @@ def do_project_job(job_id, project_id):
         runner.cleanup()
         insert_job("email", project_id=project_id)
         delete_job(job_id)
-    except BaseException as e:
-        error_helpers.log_error("Base exception occured in runner.py: ", e)
+    except Exception as e:
+        error_helpers.log_error("Exception occured in runner.py: ", e)
         DB().query("UPDATE jobs SET failed=true WHERE id=%s", params=(job_id,))
         runner.cleanup() # catch so we can cleanup
         raise e
