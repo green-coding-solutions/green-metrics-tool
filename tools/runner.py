@@ -118,19 +118,26 @@ def main():
         print("From: ", obj['author'])
         print("Version ", obj['version'], "\n")
 
-        hardware_info.insert_hw_info(project_id)
-        DB().query('UPDATE "projects"  SET usage_scenario = %s WHERE id = %s ', (json.dumps(obj),project_id))
-
-        for metric_provider in config['metric-providers']:
-            print(f"Importing metric provider: {metric_provider}")
-            metric_providers.append(importlib.import_module(metric_provider))
-
-
+        # Sanity checks first, before we insert anything in DB and rely on the linux subsystem to be present. ATM only linux is working
+        # TODO: Refactor hardware calls later to be able to switch architectures
         ps = subprocess.run(["uname", "-s"], check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8')
         output = ps.stdout.strip().lower()
 
         if obj.get('architecture') is not None and output != obj['architecture']:
             raise RuntimeError("Specified architecture does not match system architecture: system (%s) != specified (%s)", output, obj['architecture'])
+
+        # Insert auxilary info for the run. Not critical.
+        DB().query("""UPDATE projects
+            SET cpu=%s, memtotal=%s, usage_scenario = %s
+            WHERE id = %s
+            """, params=(hardware_info.get_cpu(), hardware_info.get_mem(), json.dumps(obj), project_id))
+
+        # Import metric providers dynamically
+        for metric_provider in config['metric-providers']:
+            print(f"Importing metric provider: {metric_provider}")
+            metric_providers.append(importlib.import_module(metric_provider))
+
+
 
         for el in obj['setup']:
             if el['type'] == 'container':
