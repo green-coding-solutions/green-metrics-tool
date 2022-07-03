@@ -3,7 +3,8 @@ import smtplib, ssl
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 import setup_functions
 
-def send_email(config, message, receiver_email):
+def send_email(message, receiver_email):
+    config = setup_functions.get_config()
 
     if(config['admin']['no_emails'] is True): return
 
@@ -33,7 +34,7 @@ https://www.green-coding.org
         body=body,
         receiver_email=config['admin']['email'],
         smtp_sender=config['smtp']['sender'])
-    send_email(config, message, config['admin']['email'])
+    send_email(message, config['admin']['email'])
 
 def send_error_email(receiver_email, error, project_id=None):
     config = setup_functions.get_config()
@@ -57,7 +58,7 @@ https://www.green-coding.org
         errors=error,
         project_id=project_id,
         smtp_sender=config['smtp']['sender'])
-    send_email(config, message, receiver_email)
+    send_email(message, receiver_email)
 
 def send_report_email(receiver_email, report_id):
     config = setup_functions.get_config()

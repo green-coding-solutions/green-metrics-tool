@@ -31,6 +31,7 @@ CREATE TABLE jobs (
     type text,
     failed boolean DEFAULT false,
     running boolean DEFAULT false,
+    last_run timestamp with time zone,
     created_at timestamp with time zone DEFAULT now()
 );
 
