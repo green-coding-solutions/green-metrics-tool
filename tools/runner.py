@@ -65,8 +65,6 @@ def main():
             parser.print_help()
             exit(2)
 
-        DB().query('UPDATE "projects"  SET usage_scenario = %s WHERE id = %s ', (json.dumps(obj),project_id))
-
         folder = args.folder
         url = args.url
         name = args.name
@@ -115,11 +113,13 @@ def main():
         with open(f"{folder}/usage_scenario.json") as fp:
             obj = json.load(fp)
 
+
         print("Having Usage Scenario ", obj['name'])
         print("From: ", obj['author'])
         print("Version ", obj['version'], "\n")
 
         hardware_info.insert_hw_info(project_id)
+        DB().query('UPDATE "projects"  SET usage_scenario = %s WHERE id = %s ', (json.dumps(obj),project_id))
 
         for metric_provider in config['metric-providers']:
             print(f"Importing metric provider: {metric_provider}")
