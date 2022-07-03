@@ -1,4 +1,7 @@
+import sys, os
 import smtplib, ssl
+sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
+import setup_functions
 
 def send_email(config, message, receiver_email):
 
@@ -11,7 +14,29 @@ def send_email(config, message, receiver_email):
         server.login(config['smtp']['user'], config['smtp']['password'])
         server.sendmail(config['smtp']['sender'], receiver_email, message)
 
-def send_error_email(config, receiver_email, error, project_id=None):
+def send_admin_email(subject, body):
+    config = setup_functions.get_config()
+    message = """\
+From: {smtp_sender}
+To: {receiver_email}
+Subject: {subject}
+
+{body}
+
+--
+Green Coding Berlin
+https://www.green-coding.org
+
+    """
+    message = message.format(
+        subject=subject,
+        body=body,
+        receiver_email=config['admin']['email'],
+        smtp_sender=config['smtp']['sender'])
+    send_email(config, message, config['admin']['email'])
+
+def send_error_email(receiver_email, error, project_id=None):
+    config = setup_functions.get_config()
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
@@ -34,7 +59,8 @@ https://www.green-coding.org
         smtp_sender=config['smtp']['sender'])
     send_email(config, message, receiver_email)
 
-def send_report_email(config, receiver_email, report_id):
+def send_report_email(receiver_email, report_id):
+    config = setup_functions.get_config()
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
@@ -52,16 +78,10 @@ https://www.green-coding.org
         report_id=report_id,
         url=config['project']['url'],
         smtp_sender=config['smtp']['sender'])
-    send_email(config, message, receiver_email)
+    send_email(message, receiver_email)
 
 if __name__ == "__main__":
     import argparse
-    import yaml
-    import os
-    import sys
-    sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
-    from setup_functions import get_config
-
 
     parser = argparse.ArgumentParser()
     parser.add_argument("receiver_email", help="Please supply a receiver_email to send the email to")
@@ -69,7 +89,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args() # script will exit if arguments is not present
 
-    config = get_config()
-
-    send_report_email(config, args.receiver_email, args.report_id)
+    send_report_email(args.receiver_email, args.report_id)
 

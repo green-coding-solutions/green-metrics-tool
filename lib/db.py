@@ -1,8 +1,6 @@
 import psycopg2.extras
 import psycopg2
-import error_helpers
 import setup_functions
-
 
 class DB:
 
@@ -40,8 +38,9 @@ class DB:
 
         except psycopg2.Error as e:
             self.conn.rollback()
-            error_helpers.email_and_log_error(e)
-            ret = False
+            cur.close()
+            raise e
+
         cur.close()
         return ret
 
@@ -61,7 +60,8 @@ class DB:
             self.conn.commit()
         except psycopg2.Error as e:
             self.conn.rollback()
-            error_helpers.email_and_log_error(e)
+            cur.close()
+            raise e
         cur.close()
 
 if __name__ == "__main__":

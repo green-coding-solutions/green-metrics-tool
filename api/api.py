@@ -5,16 +5,32 @@ import psycopg2.extras
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../tools')
 
-from setup_functions import get_config
-from send_email import send_email
+import error_helpers
+import email_helpers
+import jobs
+import setup_functions
 from db import DB
 
-from fastapi import FastAPI
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from pydantic import BaseModel
 
 app = FastAPI()
+
+
+async def catch_exceptions_middleware(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as e:
+        error_helpers.log_error("Error in API call:", str(Request), " with next call: ", call_next, e)
+        email_helpers.send_error_email(setup_functions.get_config()['admin']['email'], error_helpers.format_error("Error in API call:", str(Request), " with next call: ", call_next, e), project_id=None)
+        return JSONResponse(content={'success': False, 'err': 'Request to API failed'}, status_code=500)
+
+# Binding the Exception middleware must confusingly come BEFORE the CORS middleware. Otherwise CORS will not be sent in response
+app.middleware('http')(catch_exceptions_middleware)
 
 origins = [
     "http://metrics.green-coding.local:8000",
@@ -31,6 +47,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get('/')
 async def home():
     return RedirectResponse(url='/docs')
@@ -40,7 +57,7 @@ async def home():
 async def get_projects():
     query = """
             SELECT
-                id, name, url, last_crawl
+                id, name, uri, last_run
             FROM
                 projects
             ORDER BY
@@ -52,12 +69,15 @@ async def get_projects():
 
     return {"success": True, "data": data}
 
+# Just copy and paste if we want to deprecate URLs
+#@app.get('/v1/stats/uri', deprecated=True) # Here you can see, that URL is nevertheless accessible as variable later if supplied. Also deprecation shall be used once we move to v2 for all v1 routesthrough
+
+
 # A route to return all of the available entries in our catalog.
-@app.get('/v1/stats/url/{url}')
-@app.get('/v1/stats/url', deprecated=True) # Here you can see, that URL is nevertheless accessible as variable later if supplied. Also deprecation shall be used once we move to v2 for all v1 routesthrough
-async def get_stats_by_url(url: str):
-    if(url is None or url.strip() == ''):
-        return {'success': False, 'err': 'URL is empty'}
+@app.get('/v1/stats/uri')
+async def get_stats_by_uri(uri: str):
+    if(uri is None or uri.strip() == ''):
+        return {'success': False, 'err': 'URI is empty'}
 
     query = """
             SELECT
@@ -77,11 +97,11 @@ async def get_stats_by_url(url: str):
                 AND
                 notes.container_name = stats.container_name
             WHERE
-                projects.url = %s
+                projects.uri = %s
             ORDER BY
                 stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
             """
-    params = (url,)
+    params = (uri,)
     data = DB().fetch_all(query, params)
 
     if(data is None or data == []):
@@ -138,44 +158,19 @@ async def post_project_add(project: Project):
     if(project.email is None or project.email.strip() == ''):
         return {'success': False, 'err': 'E-mail is empty'}
 
-    try:
-        query = """
-            INSERT INTO
-                projects (url,name,email)
-            VALUES (%s, %s, %s)
-            RETURNING id
-            """
-        params = (project.url,project.name,project.email)
-        project_id = DB().fetch_one(query,params=params)
-        if project_id is False:
-            raise Exception("Save to DB failed")
-        notify_admin(project.name, project_id)
-    except Exception as e:
-        return {"success": False, "err": f"Problem with sending email / saving to database: {str(e)}"}  
+    # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
+    query = """
+        INSERT INTO
+            projects (uri,name,email)
+        VALUES (%s, %s, %s)
+        RETURNING id
+        """
+    params = (project.url,project.name,project.email)
+    project_id = DB().fetch_one(query,params=params)
+    email_helpers.send_admin_email(f"New project added from Web Interface: {project.name}", project) # notify admin of new project
+    jobs.insert_job("project", project_id)
 
     return {"success": True}
-    
-
-def notify_admin(name, project_id):
-    config = get_config()
-    message = """\
-From: {smtp_sender}
-To: {receiver_email}
-Subject: Someone has added a new project
-
-{name} has added a new project. ID: {project_id}
-
---
-Green Coding Berlin
-https://www.green-coding.org
-
-    """
-    message = message.format(
-        receiver_email=config['admin']['email'],
-        name=name,
-        project_id=project_id,
-        smtp_sender=config['smtp']['sender'])
-    send_email(config, message, config['admin']['email'])
 
 def get_project(project_id):
     query = """
