@@ -302,8 +302,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-file-cleanup", action='store_true', help="Do not delete files in /tmp/green-metrics-tool")
     parser.add_argument("--debug", action='store_true', help="Activate steppable debug mode")
     parser.add_argument("--unsafe", action='store_true', help="Activate unsafe volume bindings, portmappings and complex env vars")
-
-    args = parser.parse_args() # script will exit if url is not present
+    args = parser.parse_args()
 
     if args.uri is None:
         print('In manual mode please supply --uri\n')

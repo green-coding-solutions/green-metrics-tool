@@ -80,7 +80,7 @@ def do_email_job(job_id, project_id):
         DB().query("UPDATE jobs SET failed=true WHERE id=%s", params=(job_id,))
 
 def do_project_job(job_id, project_id):
-    #check_job_running('project', job_id)
+    check_job_running('project', job_id)
 
     data = DB().fetch_one("SELECT id,uri,email FROM projects ORDER BY created_at ASC LIMIT 1")
 
@@ -107,13 +107,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("type", help="Select the operation mode.", choices=['email', 'project'])
-    #parser.add_argument("--url", type=str, help="The url to download the repository with the usage_scenario.json from. Will only be read in manual mode.")
-    #parser.add_argument("--unsafe", action='store_true', help="Activate unsafe volume bindings, portmappings and complex env vars")
+    args = parser.parse_args() # script will exit if type is not present
 
-    args = parser.parse_args() # script will exit if url is not present
-
-    #p = "05b48a9c-3e83-4ea9-8f25-3201e2349302"
+    # Debug
+    #p = "8a4384d7-19a7-4d48-ac24-132d7db52671"
     #print("Inserted Job ID: ", insert_job("project", p))
+
     try:
         get_job(args.type)
     except Exception as e:
