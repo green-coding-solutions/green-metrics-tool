@@ -41,7 +41,8 @@
 </head>
 
 <body id="example" class="started" ontouchstart="">
-    <div class="ui vertical inverted sidebar menu" id="toc" style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
+    <div class="ui vertical inverted sidebar menu" id="toc"
+        style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
         <div class="item">
             <p>Demo user</p>
         </div>
@@ -73,14 +74,14 @@
 
             <div class="right menu">
                 <div class="vertically fitted borderless item">
-                    <p>Test</p>
+                    <p>Demo user</p>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="pusher" style="background: #e9eaef">
-        <div class="full height">
+        <div class="full height" style="background: #e9eaef">
             <div class="toc" style="width: 13vw;">
                 <div class="ui vertical inverted menu"
                     style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
@@ -103,107 +104,116 @@
                 <div class="ui masthead vertical segment" style="background: #e9eaef; border: 0px;">
                     <div class="main ui intro container"
                         style="margin-right: 0px !important; padding-top: 0px !important; max-width: 77vw !important;">
-                    <div class="ui horizontal card" style="width: 100%">
-                        <div class="content">
-                            <div class="header">IMPORTANT</div>
-                            <div class="description">
-                                <p>The Green Metrics Tool is currently experimental. Please use it for development
-                                    purposes only.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="ui horizontal card" style="width: 100%">
-                        <div class="content">
-                            <div class="header">INTRODUCTION</div>
-                            <div class="description">
-                                <p>Green Metric can certify your software according to different schemas.</p>
-                                <p>In this demo, only the Green-Coding-Berlin schema is implemented. In the future it is
-                                    planned to support<a
-                                        href="https://www.blauer-engel.de/en/productworld/resources-and-energy-efficient-software-products">Blue
-                                        Angel</a> (in Germany known als Blauer Engel) and also the <a
-                                        href="https://greensoftware.foundation/projects/software-carbon-intensity-sci-specification">SCI
-                                        from Green Software Foundation</a>
-                                </p>
-                                <p>In the box below please put your Github-Repo URL and an E-mail where we send the link
-                                    to the statistics.</p>
-                                <p>Your certification request will be put in a queue and processing takes about 5-15
-                                    Minutes (+ the runtime of your usage scenario)</p>
-                                <p><strong>Note</strong>: Only open-source software can and will be
-                                    certified. It does not have to free software though. This means we only process
-                                    public github repositories. The certifier expects a schema-correct
-                                    usage-scenario.json file in your repository. Please check the <a
-                                        href="https://github.com/green-coding-berlin/simple-example-application">Demo
-                                        Software Repository</a> for example and documentation. If you have any questions
-                                    or issues please email us at <a
-                                        href="mailto:info@green-coding.org">info@green-coding.org</a></p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="ui horizontal card" style="width: 100%">
-                        <div class="content">
-                            <div class="header">ADD NEW PROJECT</div>
-                            <form action="/" method="POST">
+                        <div class="ui horizontal card" style="width: 100%">
+                            <div class="content">
+                                <div class="header">IMPORTANT</div>
                                 <div class="description">
-                                    <div class="ui fluid icon input" style="margin-top: 10px; margin-bottom: 10px;">
-                                        <input type="text" placeholder="Name (optional)" id="text-field-hero-input1"
-                                            name="name">
-                                    </div>
-
-                                    <div class="ui fluid icon input" style="margin-bottom: 10px;">
-                                        <input type="text" placeholder="E-Mail" id="text-field-hero-input2"
-                                            name="email">
-                                    </div>
-
-                                    <div class="ui fluid icon input" style="margin-bottom: 10px;">
-                                        <input type="text" placeholder="Github-URL" id="text-field-hero-input3"
-                                            name="url">
-                                    </div>
-
-                                    <button class="positive ui button">Submit software for certification</button>
+                                    <p>The Green Metrics Tool is currently experimental. Please use it for development
+                                        purposes only.</p>
                                 </div>
-                            </form>
+                            </div>
+                        </div>
+
+                        <div class="ui horizontal card" style="width: 100%">
+                            <div class="content">
+                                <div class="header">INTRODUCTION</div>
+                                <div class="description">
+                                    <p>Green Metric can certify your software according to different schemas.</p>
+                                    <p>In this demo, only the Green-Coding-Berlin schema is implemented. In the future
+                                        it is
+                                        planned to support<a
+                                            href="https://www.blauer-engel.de/en/productworld/resources-and-energy-efficient-software-products">Blue
+                                            Angel</a> (in Germany known als Blauer Engel) and also the <a
+                                            href="https://greensoftware.foundation/projects/software-carbon-intensity-sci-specification">SCI
+                                            from Green Software Foundation</a>
+                                    </p>
+                                    <p>In the box below please put your Github-Repo URL and an E-mail where we send the
+                                        link
+                                        to the statistics.</p>
+                                    <p>Your certification request will be put in a queue and processing takes about 5-15
+                                        Minutes (+ the runtime of your usage scenario)</p>
+                                    <p><strong>Note</strong>: Only open-source software can and will be
+                                        certified. It does not have to free software though. This means we only process
+                                        public github repositories. The certifier expects a schema-correct
+                                        usage-scenario.json file in your repository. Please check the <a
+                                            href="https://github.com/green-coding-berlin/simple-example-application">Demo
+                                            Software Repository</a> for example and documentation. If you have any
+                                        questions
+                                        or issues please email us at <a
+                                            href="mailto:info@green-coding.org">info@green-coding.org</a></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="ui horizontal card" style="width: 100%">
+                            <div class="content">
+                                <div class="header">ADD NEW PROJECT</div>
+                                <form action="/" method="POST">
+                                    <div class="description">
+                                        <div class="ui fluid icon input" style="margin-top: 10px; margin-bottom: 10px;">
+                                            <input type="text" placeholder="Name (optional)" id="text-field-hero-input1"
+                                                name="name">
+                                        </div>
+
+                                        <div class="ui fluid icon input" style="margin-bottom: 10px;">
+                                            <input type="text" placeholder="E-Mail" id="text-field-hero-input2"
+                                                name="email">
+                                        </div>
+
+                                        <div class="ui fluid icon input" style="margin-bottom: 10px;">
+                                            <input type="text" placeholder="Github-URL" id="text-field-hero-input3"
+                                                name="url">
+                                        </div>
+
+                                        <button class="positive ui button">Submit software for certification</button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <!-- Custom js for this page-->
-            <!-- <script src="/assets/js/dashboard.js"></script> -->
-            <script src="/assets/vendors/js/jquery.toast.min.js"></script>
-            <script src="/assets/js/toastDemo.js"></script>
-            <!-- End custom js for this page-->
-            <script>
-                document.forms[0].onsubmit = async (e) => {
-                    e.preventDefault();
+                <!-- Custom js for this page-->
+                <!-- <script src="/assets/js/dashboard.js"></script> -->
+                <script src="/assets/vendors/js/jquery.toast.min.js"></script>
+                <script src="/assets/js/toastDemo.js"></script>
+                <!-- End custom js for this page-->
+                <script>
+                    document.forms[0].onsubmit = async (e) => {
+                        e.preventDefault();
 
-                    const data = new FormData(document.getElementsByTagName('form')[0]);
-                    const values = Object.fromEntries(data.entries());
+                        const data = new FormData(document.getElementsByTagName('form')[0]);
+                        const values = Object.fromEntries(data.entries());
 
-                    if (document.location.host.indexOf('metrics.green-coding.org') === 0)
-                        api_url = "https://api.green-coding.org";
-                    else
-                        api_url = "http://api.green-coding.local:8000";
+                        if (document.location.host.indexOf('metrics.green-coding.org') === 0)
+                            api_url = "https://api.green-coding.org";
+                        else
+                            api_url = "http://api.green-coding.local:8000";
 
-                    fetch(api_url + "/v1/project/add", {
-                        method: "POST",
-                        body: JSON.stringify(values),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success == true) {
-                                document.forms[0].reset()
-                                showSuccessToast()
-
-                            } else {
-                                alert(data.err)
+                        fetch(api_url + "/v1/project/add", {
+                            method: "POST",
+                            body: JSON.stringify(values),
+                            headers: {
+                                'Content-Type': 'application/json'
                             }
                         })
-                }
-            </script>
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success == true) {
+                                    document.forms[0].reset()
+                                    showSuccessToast()
+
+                                } else {
+                                    alert(data.err)
+                                }
+                            })
+                    }
+                </script>
+
+                <script>
+                    $(document).ready(function () {
+                        document.getElementsByClassName("ui dividing right rail")[0].setAttribute('style', 'border: 0px;');
+                    });
+                </script>
 </body>
 
 </html>

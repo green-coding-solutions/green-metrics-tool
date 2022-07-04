@@ -40,7 +40,8 @@
 </head>
 
 <body id="example" class="started" ontouchstart="">
-    <div class="ui vertical inverted sidebar menu" id="toc" style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
+    <div class="ui vertical inverted sidebar menu" id="toc"
+        style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
         <div class="item">
             <p>Demo user</p>
         </div>
@@ -72,14 +73,14 @@
 
             <div class="right menu">
                 <div class="vertically fitted borderless item">
-                    <p>Test</p>
+                    <p>Demo user</p>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="pusher" style="background: #e9eaef">
-        <div class="full height">
+        <div class="full height" style="background: #e9eaef">
             <div class="toc" style="width: 13vw;">
                 <div class="ui vertical inverted menu"
                     style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
@@ -102,346 +103,352 @@
                 <div class="ui masthead vertical segment" style="background: #e9eaef; border: 0px;">
                     <div class="main ui intro container"
                         style="margin-right: 0px !important; padding-top: 0px !important; max-width: 77vw !important;">
-                    <div class="ui horizontal card" style="width: 100%">
-                        <div class="content">
-                            <div class="header">PROJECT DATA</div>
-                            <div class="description">
-                                <table class="table-hover">
-                                    <tbody>
-                                        <tr>
-                                            <td>Name</td>
-                                            <td id="project-name"></td>
-                                        </tr>
-                                        <tr>
-                                            <td>URI</td>
-                                            <td id="project-url" style="word-break:break-all;"></td>
-                                        </tr>
-                                        <tr>
-                                            <td>CPU</td>
-                                            <td id="project-cpu"></td>
-                                        </tr>
-                                        <tr>
-                                            <td>Total Memory</td>
-                                            <td id="project-memtotal"></td>
-                                        </tr>
-                                        <tr>
-                                            <td>Last Crawl</td>
-                                            <td id="project-last-crawl"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="ui four cards stackable">
-                        <div class="card">
+                        <div class="ui horizontal card" style="width: 100%; margin-bottom: 26px;">
                             <div class="content">
-                                <div class="header">AVG CPU Load (Estimate)</div>
+                                <div class="header">PROJECT DATA</div>
                                 <div class="description">
-                                    <h5 id="avg-cpu-load">%</h5>
-                                    <p>Over all containers. (See disclaimer)</p>
+                                    <table class="table-hover">
+                                        <tbody>
+                                            <tr>
+                                                <td>Name</td>
+                                                <td id="project-name"></td>
+                                            </tr>
+                                            <tr>
+                                                <td>URI</td>
+                                                <td id="project-url" style="word-break:break-all;"></td>
+                                            </tr>
+                                            <tr>
+                                                <td>CPU</td>
+                                                <td id="project-cpu"></td>
+                                            </tr>
+                                            <tr>
+                                                <td>Total Memory</td>
+                                                <td id="project-memtotal"></td>
+                                            </tr>
+                                            <tr>
+                                                <td>Last Crawl</td>
+                                                <td id="project-last-crawl"></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="card">
-                            <div class="content">
-                                <div class="header">MAX CPU Load</div>
-                                <div class="description">
-                                    <h5 id="max-cpu-load">&nbsp;</h5>
-                                    <p>Over all containers</p>
+                        <div class="ui four cards stackable">
+                            <div class="card">
+                                <div class="content">
+                                    <div class="header">AVG CPU Load (Estimate)</div>
+                                    <div class="description">
+                                        <h5 id="avg-cpu-load">%</h5>
+                                        <p>Over all containers. (See disclaimer)</p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="card">
-                            <div class="content">
-                                <div class="header">Total Energy</div>
-                                <div class="description">
-                                    <h5 id="total-energy">&nbsp;</h5>
-                                    <p>For whole CPU Package. NOT per container.</p>
+                            <div class="card">
+                                <div class="content">
+                                    <div class="header">MAX CPU Load</div>
+                                    <div class="description">
+                                        <h5 id="max-cpu-load">&nbsp;</h5>
+                                        <p>Over all containers</p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="card">
-                            <div class="content">
-                                <div class="header">Total CO2</div>
-                                <div class="description">
-                                    <h5 id="total-co2">&nbsp;</h5>
-                                    <p>For whole CPU Package. NOT per container.</p>
+                            <div class="card">
+                                <div class="content">
+                                    <div class="header">Total Energy</div>
+                                    <div class="description">
+                                        <h5 id="total-energy">&nbsp;</h5>
+                                        <p>For whole CPU Package. NOT per container.</p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <div class="ui two cards stackable">
-                        <div class="card">
-                            <div class="content">
-                                <div class="description">
-                                    <div id="chart-cpu"></div>
-                                    <div>
-                                        <label>
-                                            <input type="checkbox" checked="" onchange="toggleNote(0)"><span
-                                                style="font-size: 0.8em; margin-left: 2px">Show notes</span>
-                                        </label>
+                            <div class="card">
+                                <div class="content">
+                                    <div class="header">Total CO2</div>
+                                    <div class="description">
+                                        <h5 id="total-co2">&nbsp;</h5>
+                                        <p>For whole CPU Package. NOT per container.</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="card">
-                            <div class="content">
-                                <div class="description">
-                                    <div id="chart-mem"></div>
-                                    <div>
-                                        <label>
-                                            <input type="checkbox" checked="" onchange="toggleNote(1)"><span
-                                                style="font-size: 0.8em; margin-left: 2px">Show notes</span>
-                                        </label>
+                        <div class="ui two cards stackable">
+                            <div class="card">
+                                <div class="content">
+                                    <div class="description">
+                                        <div id="chart-cpu"></div>
+                                        <div>
+                                            <label>
+                                                <input type="checkbox" checked="" onchange="toggleNote(0)"><span
+                                                    style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="content">
+                                    <div class="description">
+                                        <div id="chart-mem"></div>
+                                        <div>
+                                            <label>
+                                                <input type="checkbox" checked="" onchange="toggleNote(1)"><span
+                                                    style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="ui two cards stackable">
-                        <div class="card">
-                            <div class="content">
-                                <div class="description">
-                                    <div id="chart-energy"></div>
-                                    <div>
-                                        <label>
-                                            <input type="checkbox" checked="" onchange="toggleNote(2)"><span
-                                                style="font-size: 0.8em; margin-left: 2px">Show notes</span>
-                                        </label>
+                        <div class="ui two cards stackable">
+                            <div class="card">
+                                <div class="content">
+                                    <div class="description">
+                                        <div id="chart-energy"></div>
+                                        <div>
+                                            <label>
+                                                <input type="checkbox" checked="" onchange="toggleNote(2)"><span
+                                                    style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="content">
+                                    <div class="description">
+                                        <div id="chart-net-in"></div>
+                                        <div>
+                                            <label>
+                                                <input type="checkbox" checked="" onchange="toggleNote(3)"><span
+                                                    style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="card">
-                            <div class="content">
-                                <div class="description">
-                                    <div id="chart-net-in"></div>
-                                    <div>
-                                        <label>
-                                            <input type="checkbox" checked="" onchange="toggleNote(3)"><span
-                                                style="font-size: 0.8em; margin-left: 2px">Show notes</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                        <script src="/dist/apexcharts.min.js"></script>
 
-                    <script src="/dist/apexcharts.min.js"></script>
-
-                    <script>
-                        var cpu_load = [];
-                        var options = {
-                            series: [],
-                            chart: {
-                                type: 'area',
-                                animations: {
-                                    enabled: false
-                                }
-                            },
-                            dataLabels: {
-                                enabled: false
-                            },
-                            stroke: {
-                                curve: 'smooth'
-                            },
-                            tooltip: {
-                                x: {
-                                    format: 'dd/MM/yy HH:mm'
+                        <script>
+                            var cpu_load = [];
+                            var options = {
+                                series: [],
+                                chart: {
+                                    type: 'area',
+                                    animations: {
+                                        enabled: false
+                                    }
                                 },
-                            },
-                            title: {
-                                text: 'REPLACE',
-                            },
-                            xaxis: {
-                                tickAmount: 6,
-                                type: "datetime"
-                            },
-                            annotations: {
-                                xaxis: []
-                            }
+                                dataLabels: {
+                                    enabled: false
+                                },
+                                stroke: {
+                                    curve: 'smooth'
+                                },
+                                tooltip: {
+                                    x: {
+                                        format: 'dd/MM/yy HH:mm'
+                                    },
+                                },
+                                title: {
+                                    text: 'REPLACE',
+                                },
+                                xaxis: {
+                                    tickAmount: 6,
+                                    type: "datetime"
+                                },
+                                annotations: {
+                                    xaxis: []
+                                }
 
 
-                        };
-                        var options_cpu = { ...options }
-                        options_cpu.title = { text: 'CPU Load in %' }
+                            };
+                            var options_cpu = { ...options }
+                            options_cpu.title = { text: 'CPU Load in %' }
 
-                        var options_energy = { ...options }
-                        options_energy.title = { text: 'Energy in mJ' }
+                            var options_energy = { ...options }
+                            options_energy.title = { text: 'Energy in mJ' }
 
-                        var options_mem = { ...options }
-                        options_mem.title = { text: 'Memory Load in MB' }
+                            var options_mem = { ...options }
+                            options_mem.title = { text: 'Memory Load in MB' }
 
-                        var options_net_in = { ...options }
-                        options_net_in.title = { text: 'Network inbound in MB' }
+                            var options_net_in = { ...options }
+                            options_net_in.title = { text: 'Network inbound in MB' }
 
-                        var my_series = {}
+                            var my_series = {}
 
-                        var project_data = {}
+                            var project_data = {}
 
-                        const query_string = window.location.search;
-                        const url_params = (new URLSearchParams(query_string))
-                        if (!url_params.has('id')) {
-                            alert("Please supply id in URL")
+                            const query_string = window.location.search;
+                            const url_params = (new URLSearchParams(query_string))
+                            if (!url_params.has('id')) {
+                                alert("Please supply id in URL")
 
-                        } else {
-                            var chart_cpu = null;
-                            var chart_energy = null;
-                            var chart_mem = null;
-                            var chart_net_in = null;
-                            var total_energy = null;
-                            var accumulate = 0;
-                            try {
-                                if (document.location.host.indexOf('metrics.green-coding.org') === 0)
-                                    api_url = "https://api.green-coding.org";
-                                else
-                                    api_url = "http://api.green-coding.local:8000";
+                            } else {
+                                var chart_cpu = null;
+                                var chart_energy = null;
+                                var chart_mem = null;
+                                var chart_net_in = null;
+                                var total_energy = null;
+                                var accumulate = 0;
+                                try {
+                                    if (document.location.host.indexOf('metrics.green-coding.org') === 0)
+                                        api_url = "https://api.green-coding.org";
+                                    else
+                                        api_url = "http://api.green-coding.local:8000";
 
-                                fetch(api_url + '/v1/stats/single/' + url_params.get('id'))
-                                    .then(response => response.json())
-                                    .then(my_json => {
-                                        if (my_json.success != true) {
-                                            alert(my_json.err);
-                                            return;
-                                        }
-
-                                        document.querySelector("#project-last-crawl").innerText = my_json.project.last_crawl;
-                                        document.querySelector("#project-name").innerText = my_json.project.name;
-                                        document.querySelector("#project-url").innerText = my_json.project.url;
-                                        document.querySelector("#project-cpu").innerText = my_json.project.cpu;
-                                        document.querySelector("#project-memtotal").innerText = my_json.project.memtotal;
-
-                                        my_series['cpu'] = {}
-                                        my_series['system-energy'] = {}
-                                        my_series['mem'] = {}
-                                        my_series['net_in'] = {}
-
-                                        my_json.data.forEach(el => {
-                                            if (el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
-                                                accumulate = 1;
-                                                return
-                                            } else if (el[0] == '[SYSTEM]' && el[4] == '[END MEASUREMENT]') {
-                                                accumulate = 0;
+                                    fetch(api_url + '/v1/stats/single/' + url_params.get('id'))
+                                        .then(response => response.json())
+                                        .then(my_json => {
+                                            if (my_json.success != true) {
+                                                alert(my_json.err);
                                                 return;
                                             }
 
-                                            el[0] = 'Container ' + el[0]
-                                            el[1] = el[1] / 1000;
+                                            document.querySelector("#project-last-crawl").innerText = my_json.project.last_crawl;
+                                            document.querySelector("#project-name").innerText = my_json.project.name;
+                                            document.querySelector("#project-url").innerText = my_json.project.url;
+                                            document.querySelector("#project-cpu").innerText = my_json.project.cpu;
+                                            document.querySelector("#project-memtotal").innerText = my_json.project.memtotal;
 
-                                            if (el[2] == 'cpu') {
-                                                if (my_series[el[2]][el[0]] == undefined) {
-                                                    my_series[el[2]][el[0]] = { name: el[0], data: [{ x: el[1], y: el[3] / 100 }] }
-                                                } else {
-                                                    my_series[el[2]][el[0]]['data'].push({ x: el[1], y: el[3] / 100 })
+                                            my_series['cpu'] = {}
+                                            my_series['system-energy'] = {}
+                                            my_series['mem'] = {}
+                                            my_series['net_in'] = {}
+
+                                            my_json.data.forEach(el => {
+                                                if (el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
+                                                    accumulate = 1;
+                                                    return
+                                                } else if (el[0] == '[SYSTEM]' && el[4] == '[END MEASUREMENT]') {
+                                                    accumulate = 0;
+                                                    return;
                                                 }
-                                                if (accumulate === 1) cpu_load.push(el[3])
 
-                                            }
-                                            else if (el[2] == 'system-energy') {
-                                                if (accumulate === 1) total_energy += el[3];
-                                                if (my_series[el[2]][el[0]] == undefined) {
-                                                    my_series[el[2]][el[0]] = { name: el[0], data: [{ x: el[1], y: el[3] }] }
-                                                } else {
-                                                    my_series[el[2]][el[0]]['data'].push({ x: el[1], y: el[3] })
-                                                }
+                                                el[0] = 'Container ' + el[0]
+                                                el[1] = el[1] / 1000;
 
-                                            } else if (el[2] == 'mem') {
-                                                if (my_series[el[2]][el[0]] == undefined) {
-                                                    my_series[el[2]][el[0]] = { name: el[0], data: [{ x: el[1], y: el[3] / 1000000 }] }
-                                                } else {
-                                                    my_series[el[2]][el[0]]['data'].push({ x: el[1], y: el[3] / 1000000 })
-                                                }
-                                            } else {
-                                                if (my_series[el[2]][el[0]] == undefined) {
-                                                    my_series[el[2]][el[0]] = { name: el[0], data: [{ x: el[1], y: el[3] }] }
-                                                } else {
-                                                    my_series[el[2]][el[0]]['data'].push({ x: el[1], y: el[3] })
-                                                }
-                                            }
-
-
-                                            if (el[4] != null) {
-                                                options_cpu.annotations.xaxis.push({
-                                                    x: el[1],
-                                                    strokeDashArray: 0,
-                                                    borderColor: "#775DD0",
-                                                    label: {
-                                                        borderColor: "#775DD0",
-                                                        position: "bottom",
-                                                        /*
-                                                    mouseEnter: (e) => {
-                                                        if(e.label.position == "top")
-                                                            e.label.position = "bottom";
-                                                        else
-                                                            e.label.position = "top";
-                                                        chart_cpu.destroy();
-                                                        chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
-                                                        chart_cpu.render();
-                                                  },
-                                                  */
-                                                        style: {
-                                                            color: "#fff",
-                                                            background: "#775DD0"
-                                                        },
-                                                        text: el[4],
-                                                        //orientation: "horizontal"
+                                                if (el[2] == 'cpu') {
+                                                    if (my_series[el[2]][el[0]] == undefined) {
+                                                        my_series[el[2]][el[0]] = { name: el[0], data: [{ x: el[1], y: el[3] / 100 }] }
+                                                    } else {
+                                                        my_series[el[2]][el[0]]['data'].push({ x: el[1], y: el[3] / 100 })
                                                     }
-                                                })
-                                            }
+                                                    if (accumulate === 1) cpu_load.push(el[3])
 
-                                            /*
-                                            el[0] // container_id
-                                            el[1] // time
-                                            el[2] // metric name
-                                            el[3] // value
-                                            el[4] // note
-                                            '*/
+                                                }
+                                                else if (el[2] == 'system-energy') {
+                                                    if (accumulate === 1) total_energy += el[3];
+                                                    if (my_series[el[2]][el[0]] == undefined) {
+                                                        my_series[el[2]][el[0]] = { name: el[0], data: [{ x: el[1], y: el[3] }] }
+                                                    } else {
+                                                        my_series[el[2]][el[0]]['data'].push({ x: el[1], y: el[3] })
+                                                    }
+
+                                                } else if (el[2] == 'mem') {
+                                                    if (my_series[el[2]][el[0]] == undefined) {
+                                                        my_series[el[2]][el[0]] = { name: el[0], data: [{ x: el[1], y: el[3] / 1000000 }] }
+                                                    } else {
+                                                        my_series[el[2]][el[0]]['data'].push({ x: el[1], y: el[3] / 1000000 })
+                                                    }
+                                                } else {
+                                                    if (my_series[el[2]][el[0]] == undefined) {
+                                                        my_series[el[2]][el[0]] = { name: el[0], data: [{ x: el[1], y: el[3] }] }
+                                                    } else {
+                                                        my_series[el[2]][el[0]]['data'].push({ x: el[1], y: el[3] })
+                                                    }
+                                                }
+
+
+                                                if (el[4] != null) {
+                                                    options_cpu.annotations.xaxis.push({
+                                                        x: el[1],
+                                                        strokeDashArray: 0,
+                                                        borderColor: "#775DD0",
+                                                        label: {
+                                                            borderColor: "#775DD0",
+                                                            position: "bottom",
+                                                            /*
+                                                        mouseEnter: (e) => {
+                                                            if(e.label.position == "top")
+                                                                e.label.position = "bottom";
+                                                            else
+                                                                e.label.position = "top";
+                                                            chart_cpu.destroy();
+                                                            chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
+                                                            chart_cpu.render();
+                                                      },
+                                                      */
+                                                            style: {
+                                                                color: "#fff",
+                                                                background: "#775DD0"
+                                                            },
+                                                            text: el[4],
+                                                            //orientation: "horizontal"
+                                                        }
+                                                    })
+                                                }
+
+                                                /*
+                                                el[0] // container_id
+                                                el[1] // time
+                                                el[2] // metric name
+                                                el[3] // value
+                                                el[4] // note
+                                                '*/
+                                            })
+
+                                            options_cpu.series = Object.values(my_series["cpu"])
+                                            options_energy.series = Object.values(my_series["system-energy"])
+                                            options_mem.series = Object.values(my_series["mem"])
+                                            options_net_in.series = Object.values(my_series["net_in"])
+
+                                            chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
+                                            chart_energy = new ApexCharts(document.querySelector("#chart-energy"), options_energy);
+                                            chart_mem = new ApexCharts(document.querySelector("#chart-mem"), options_mem);
+                                            chart_net_in = new ApexCharts(document.querySelector("#chart-net-in"), options_net_in);
+
+                                            chart_cpu.render();
+                                            chart_mem.render();
+                                            chart_energy.render();
+                                            chart_net_in.render();
+
+                                            document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
+                                            document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
+                                            document.querySelector("#total-co2").innerText = (total_energy / 1000 / 3600000 * 0.519 * 1000000).toFixed(2) + " ugCO2eq"
+                                            document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a, b) => a + b, 0) / cpu_load.length) / 100).toFixed(2) + " %"
+
                                         })
-
-                                        options_cpu.series = Object.values(my_series["cpu"])
-                                        options_energy.series = Object.values(my_series["system-energy"])
-                                        options_mem.series = Object.values(my_series["mem"])
-                                        options_net_in.series = Object.values(my_series["net_in"])
-
-                                        chart_cpu = new ApexCharts(document.querySelector("#chart-cpu"), options_cpu);
-                                        chart_energy = new ApexCharts(document.querySelector("#chart-energy"), options_energy);
-                                        chart_mem = new ApexCharts(document.querySelector("#chart-mem"), options_mem);
-                                        chart_net_in = new ApexCharts(document.querySelector("#chart-net-in"), options_net_in);
-
-                                        chart_cpu.render();
-                                        chart_mem.render();
-                                        chart_energy.render();
-                                        chart_net_in.render();
-
-                                        document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
-                                        document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
-                                        document.querySelector("#total-co2").innerText = (total_energy / 1000 / 3600000 * 0.519 * 1000000).toFixed(2) + " ugCO2eq"
-                                        document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a, b) => a + b, 0) / cpu_load.length) / 100).toFixed(2) + " %"
-
-                                    })
-                            } catch (e) {
-                                alert("Fetch failed: " + e)
+                                } catch (e) {
+                                    alert("Fetch failed: " + e)
+                                }
                             }
-                        }
-                    </script>
+                        </script>
+                    </div>
                 </div>
-            </div>
-            <script>
-                const toggleNote = (id) => {
-                    const note = document.getElementsByClassName('apexcharts-xaxis-annotations')[id];
-                    if (!note.style.display) note.style.display = "none";
-                    else note.style.display = "";
-                }
-            </script>
+                <script>
+                    const toggleNote = (id) => {
+                        const note = document.getElementsByClassName('apexcharts-xaxis-annotations')[id];
+                        if (!note.style.display) note.style.display = "none";
+                        else note.style.display = "";
+                    }
+                </script>
+
+                <script>
+                    $(document).ready(function () {
+                        document.getElementsByClassName("ui dividing right rail")[0].setAttribute('style', 'border: 0px;');
+                    });
+                </script>
 </body>
 
 </html>

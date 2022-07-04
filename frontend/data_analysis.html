@@ -40,7 +40,8 @@
 </head>
 
 <body id="example" class="started" ontouchstart="">
-    <div class="ui vertical inverted sidebar menu" id="toc" style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
+    <div class="ui vertical inverted sidebar menu" id="toc"
+        style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
         <div class="item">
             <p>Demo user</p>
         </div>
@@ -72,14 +73,14 @@
 
             <div class="right menu">
                 <div class="vertically fitted borderless item">
-                    <p>Test</p>
+                    <p>Demo user</p>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="pusher" style="background: #e9eaef">
-        <div class="full height">
+        <div class="full height" style="background: #e9eaef">
             <div class="toc" style="width: 13vw;">
                 <div class="ui vertical inverted menu"
                     style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
@@ -102,70 +103,84 @@
                 <div class="ui masthead vertical segment" style="background: #e9eaef; border: 0px;">
                     <div class="main ui intro container"
                         style="margin-right: 0px !important; padding-top: 0px !important; max-width: 77vw !important;">
-                    <div class="ui horizontal card" style="width: 100%">
-                        <div class="content">
-                            <div class="header">IMPORTANT</div>
-                            <div class="description">
-                                <p>The Green Metrics Tool is currently experimental. Please use it for development
-                                    purposes only.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="ui horizontal card" style="width: 100%">
-                        <div class="content">
-                            <div class="header">Data Analysis of our Open Data API</div>
-                            <div class="description">
-                                <p>The charts on this website provide only a downsampled version of the raw data.</p>
-                                <p>If you have specific research questions and / or want to do calculations based on the
-                                    RAW data we encourage you to to use the Open Data REST-API.</p>
-                                <p>Then endpoint of the self-documenting API is available here: <a
-                                        href="https://api.green-coding.org">https://api.green-coding.org</a></p>
-                                <p></p>
-                                <p>Also we provide sample analysis in Deepnote Notebooks where you get an idea on how to
-                                    interact with the API through Python / Pandas. <strong>See examples below!</strong>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="ui two cards stackable">
-                        <div class="card">
+                        <div class="ui horizontal card" style="width: 100%">
                             <div class="content">
-                                <div class="header">Example #1: Wordpress vs. Static</div>
+                                <div class="header">IMPORTANT</div>
                                 <div class="description">
-                                    <p>Here we compared the measurements of a Wordpress website vs. a static website.
-                                    </p>
-                                    <p>Both containers are accessed through Puppeteer (Headless Chrome) which is
-                                        measured
-                                        itself. It shows the capbility of measuring client-side as well as serverside.
-                                    </p>
-                                    <p>We focus here on the energy and CPU metrics.</p>
-                                    <p><a
-                                            href="https://deepnote.com/workspace/gmt-8c072e35-bfaf-49e7-a465-43515ce582b3/project/Green-Metrics-API-example-Comparing-Static-vs-Wordpress-ee5162cd-03ab-49e2-aaaa-02c3f5741429/%2Fnotebook.ipynb">&raquo;
-                                            Deepnote Notebook</a></p>
+                                    <p>The Green Metrics Tool is currently experimental. Please use it for development
+                                        purposes only.</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="card">
+                        <div class="ui horizontal card" style="width: 100%">
                             <div class="content">
-                                <div class="header">Example #2: Comparing multiple runs</div>
+                                <div class="header">Data Analysis of our Open Data API</div>
                                 <div class="description">
-                                    <p>The web interface will only show you global averages and chart previews.</p>
-                                    <p>In this Deepnote Notebook we focus on looking at the mean and standard deviance
-                                        between multiple runs.</p>
-                                    <p>We focus here on the energy and CPU metrics.</p>
-                                    <p><a
-                                            href="https://deepnote.com/workspace/gmt-8c072e35-bfaf-49e7-a465-43515ce582b3/project/Green-Metrics-API-example-Single-Measurement-d8b7eee6-6d81-4774-96fe-1405babd2a0a/%2Fnotebook.ipynb">&raquo;
-                                            Deepnote Notebook</a></p>
+                                    <p>The charts on this website provide only a downsampled version of the raw data.
+                                    </p>
+                                    <p>If you have specific research questions and / or want to do calculations based on
+                                        the
+                                        RAW data we encourage you to to use the Open Data REST-API.</p>
+                                    <p>Then endpoint of the self-documenting API is available here: <a
+                                            href="https://api.green-coding.org">https://api.green-coding.org</a></p>
+                                    <p></p>
+                                    <p>Also we provide sample analysis in Deepnote Notebooks where you get an idea on
+                                        how to
+                                        interact with the API through Python / Pandas. <strong>See examples
+                                            below!</strong>
+                                    </p>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
+                        <div class="ui two cards stackable">
+                            <div class="card">
+                                <div class="content">
+                                    <div class="header">Example #1: Wordpress vs. Static</div>
+                                    <div class="description">
+                                        <p>Here we compared the measurements of a Wordpress website vs. a static
+                                            website.
+                                        </p>
+                                        <p>Both containers are accessed through Puppeteer (Headless Chrome) which is
+                                            measured
+                                            itself. It shows the capbility of measuring client-side as well as
+                                            serverside.
+                                        </p>
+                                        <p>We focus here on the energy and CPU metrics.</p>
+                                        <p><a
+                                                href="https://deepnote.com/workspace/gmt-8c072e35-bfaf-49e7-a465-43515ce582b3/project/Green-Metrics-API-example-Comparing-Static-vs-Wordpress-ee5162cd-03ab-49e2-aaaa-02c3f5741429/%2Fnotebook.ipynb">&raquo;
+                                                Deepnote Notebook</a></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="content">
+                                    <div class="header">Example #2: Comparing multiple runs</div>
+                                    <div class="description">
+                                        <p>The web interface will only show you global averages and chart previews.</p>
+                                        <p>In this Deepnote Notebook we focus on looking at the mean and standard
+                                            deviance
+                                            between multiple runs.</p>
+                                        <p>We focus here on the energy and CPU metrics.</p>
+                                        <p><a
+                                                href="https://deepnote.com/workspace/gmt-8c072e35-bfaf-49e7-a465-43515ce582b3/project/Green-Metrics-API-example-Single-Measurement-d8b7eee6-6d81-4774-96fe-1405babd2a0a/%2Fnotebook.ipynb">&raquo;
+                                                Deepnote Notebook</a></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
-            </div>
+
+                <script>
+                    $(document).ready(function () {
+                        document.getElementsByClassName("ui dividing right rail")[0].setAttribute('style', 'border: 0px;');
+                    });
+                </script>
+
 </body>
 
 </html>
