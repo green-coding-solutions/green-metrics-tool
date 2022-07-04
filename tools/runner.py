@@ -16,10 +16,13 @@ sys.path.append(f"{current_dir}/../lib")
 sys.path.append(f"{current_dir}/metric-providers")
 
 from save_notes import save_notes # local file import
-from setup_functions import get_db_connection, get_config
+from setup_functions import get_config
+from db import DB
 import error_helpers
 import hardware_info
 import process_helpers
+
+from debug_helper import DebugHelper
 
 # TODO:
 # - Exception Logic is not really readable. Better encapsulate docker calls and fetch exception there
@@ -29,7 +32,6 @@ import process_helpers
 
 def main():
     config = get_config()
-    conn = get_db_connection(config)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", help="Select the operation mode. Select `manual` to supply a directory or url on the command line. Or select `cron` to process database queue. For database mode the config.yml file will be read", choices=['manual', 'cron'])
@@ -41,6 +43,9 @@ def main():
     parser.add_argument("--unsafe", action='store_true', help="Activate unsafe volume bindings, portmappings and complex env vars")
 
     args = parser.parse_args() # script will exit if url is not present
+
+
+    debug = DebugHelper(args.debug)
 
     user_email,project_id=None,None
 
@@ -64,20 +69,13 @@ def main():
         url = args.url
         name = args.name
 
-        cur = conn.cursor()
-        cur.execute('INSERT INTO "projects" ("name","url","email","crawled","last_crawl","created_at") \
+        project_id = DB().fetch_one('INSERT INTO "projects" ("name","url","email","crawled","last_crawl","created_at") \
                     VALUES \
-                    (%s,%s,\'manual\',TRUE,NOW(),NOW()) RETURNING id;', (name,url or folder))
-        conn.commit()
-        project_id = cur.fetchone()[0]
-
-        cur.close()
+                    (%s,%s,\'manual\',TRUE,NOW(),NOW()) RETURNING id;', params=(name,url or folder))[0]
 
     elif args.mode == 'cron':
 
-        cur = conn.cursor()
-        cur.execute("SELECT id,url,email FROM projects WHERE crawled = False ORDER BY created_at ASC LIMIT 1")
-        data = cur.fetchone()
+        data = DB().fetch_one("SELECT id,url,email FROM projects WHERE crawled = False ORDER BY created_at ASC LIMIT 1")
 
         if(data is None or data == []):
             print("No job to process. Exiting")
@@ -87,13 +85,9 @@ def main():
         url = data[1]
         email = data[2]
         user_email = email
-        cur.close()
 
         # set to crawled = 1, so we don't error loop
-        cur = conn.cursor()
-        cur.execute("UPDATE projects SET crawled = True WHERE id = %s", (project_id,))
-        conn.commit()
-        cur.close()
+        DB().query("UPDATE projects SET crawled = True WHERE id = %s", params=(project_id,))
 
     else:
         raise RuntimeError('Unknown mode: ', args.mode)
@@ -119,22 +113,31 @@ def main():
         with open(f"{folder}/usage_scenario.json") as fp:
             obj = json.load(fp)
 
+
         print("Having Usage Scenario ", obj['name'])
         print("From: ", obj['author'])
         print("Version ", obj['version'], "\n")
 
-        hardware_info.insert_hw_info(conn, project_id)
-
-        for metric_provider in config['metric-providers']:
-            print(f"Importing metric provider: {metric_provider}")
-            metric_providers.append(importlib.import_module(metric_provider))
-
-
+        # Sanity checks first, before we insert anything in DB and rely on the linux subsystem to be present. ATM only linux is working
+        # TODO: Refactor hardware calls later to be able to switch architectures
         ps = subprocess.run(["uname", "-s"], check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8')
         output = ps.stdout.strip().lower()
 
         if obj.get('architecture') is not None and output != obj['architecture']:
             raise RuntimeError("Specified architecture does not match system architecture: system (%s) != specified (%s)", output, obj['architecture'])
+
+        # Insert auxilary info for the run. Not critical.
+        DB().query("""UPDATE projects
+            SET cpu=%s, memtotal=%s, usage_scenario = %s
+            WHERE id = %s
+            """, params=(hardware_info.get_cpu(), hardware_info.get_mem(), json.dumps(obj), project_id))
+
+        # Import metric providers dynamically
+        for metric_provider in config['metric-providers']:
+            print(f"Importing metric provider: {metric_provider}")
+            metric_providers.append(importlib.import_module(metric_provider))
+
+
 
         for el in obj['setup']:
             if el['type'] == 'container':
@@ -157,14 +160,14 @@ def main():
                 else:
                     docker_run_string.append(f"{folder}:/tmp/repo:ro")
 
-                if args.unsafe is not None and 'volumes' in el:
+                if args.unsafe is True and 'volumes' in el:
                     if(type(el['volumes']) != list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(el['volumes'])}")
-                    for volume in el['volumes']:                    
+                    for volume in el['volumes']:
                         docker_run_string.append('-v')
                         docker_run_string.append(f"{volume}:ro")
-                
-                if args.unsafe is not None and 'portmapping' in el:
+
+                if args.unsafe is True and 'portmapping' in el:
                     if(type(el['portmapping']) != list):
                         raise RuntimeError(f"Portmapping must be a list but is: {type(el['portmapping'])}")
                     for portmapping in el['portmapping']:
@@ -175,9 +178,9 @@ def main():
                 if 'env' in el:
                     import re
                     for docker_env_var in el['env']:
-                        if args.unsafe is None and re.search("^[A-Z_]+$", docker_env_var) is None:
+                        if args.unsafe is True and re.search("^[A-Z_]+$", docker_env_var) is None:
                             raise RuntimeError(f"Docker container setup env var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var}")
-                        if args.unsafe is None and re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", el['env'][docker_env_var]) is None:
+                        if args.unsafe is True and re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", el['env'][docker_env_var]) is None:
                             raise RuntimeError(f"Docker container setup env var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {el['env'][docker_env_var]}")
 
                         docker_run_string.append('-e')
@@ -244,9 +247,7 @@ def main():
 
         time.sleep(config['measurement']['idle-time-start'])
 
-        if args.debug is not None:
-            print("Debug mode is active. Pausing. Please press any key to continue ...")
-            sys.stdin.readline()
+        debug.pause()
 
         notes.append({"note" : "[START MEASUREMENT]", 'container_name' : '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
 
@@ -255,10 +256,7 @@ def main():
             print("Running flow: ", el['name'])
             for inner_el in el['commands']:
 
-                if args.debug is not None:
-                    print("Debug mode is active. Pausing. Please press any key to continue ...")
-                    sys.stdin.readline()
-
+                debug.pause()
 
                 if "note" in inner_el:
                     notes.append({"note" : inner_el['note'], 'container_name' : el['container'], "timestamp": int(time.time_ns() / 1_000)})
@@ -312,11 +310,11 @@ def main():
 
         print("Parsing stats")
         for metric_reporter in metric_providers:
-            metric_reporter.import_stats(conn, project_id, containers)
+            metric_reporter.import_stats(project_id, containers)
 
 
         print("Saving notes: ", notes)
-        save_notes(conn, project_id, notes)
+        save_notes(project_id, notes)
 
         if args.mode == 'manual':
             print(f"Please access your report with the ID: {project_id}")

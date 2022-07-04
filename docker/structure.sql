@@ -8,6 +8,7 @@ CREATE TABLE projects (
     name text,
     url text,
     email text,
+    usage_scenario jsonb,
     cpu text,
     memtotal text,
     crawled boolean DEFAULT false,

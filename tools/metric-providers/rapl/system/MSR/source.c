@@ -46,8 +46,6 @@
 #define MSR_AMD_PKG_ENERGY_STATUS		0xc001029B
 #define MSR_AMD_PP0_ENERGY_STATUS		0xc001029A
 
-
-
 /* Intel support */
 
 #define MSR_INTEL_RAPL_POWER_UNIT		0x606
@@ -296,9 +294,14 @@ static int rapl_msr(int core, int cpu_model) {
 		/* Calculate the units used */
 		result=read_msr(fd,msr_rapl_units);
 
-		power_units=pow(0.5,(double)(result&0xf));
+		// as per specifications, power unit MSR has the following information in the following bits:
+		// 0-3 -> power units
+		// 8-12 -> energy status units
+		// 16-19 -> time units
+		// 4-7, 13-15, and 20-63 are all reserved bits
+		power_units=pow(0.5,(double)(result&0xf)); //multiplying by 0xf will give you the first 4 bits
 
-		cpu_energy_units[j]=pow(0.5,(double)((result>>8)&0x1f));
+		cpu_energy_units[j]=pow(0.5,(double)((result>>8)&0x1f)); //multiplying by 0x1f will give you the first 5 bits
 
 		time_units=pow(0.5,(double)((result>>16)&0xf));
 
@@ -325,11 +328,9 @@ static int rapl_msr(int core, int cpu_model) {
 		result=read_msr(fd,msr_pkg_energy_status);
 		package_after[j]=(double)result*cpu_energy_units[j];
 
-		float energy_output = package_after[j]-package_before[j];
-		if (energy_output != 0.0) {
-			gettimeofday(&now, NULL);
-			printf("%ld%06ld %.9f\n", now.tv_sec, now.tv_usec, energy_output);
-		}
+		double energy_output = package_after[j]-package_before[j];
+		gettimeofday(&now, NULL);
+		printf("%ld%06ld %.9f\n", now.tv_sec, now.tv_usec, energy_output);
 
 		close(fd);
 	}
