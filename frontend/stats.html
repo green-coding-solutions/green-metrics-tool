@@ -327,7 +327,7 @@
                 <div class="mdc-card info-card info-card--danger">
                   <div class="card-inner">
                     <h5 class="card-title">IMPORTANT</h5>
-                    <p class="tx-12" id="annotation-message">The Green Metrics Tool is currently experimental. Please use it for development purposes only.</p>
+                    <p class="tx-12">The Green Metrics Tool is currently experimental. Please use it for development purposes only.</p>
                   </div>
                 </div>
               </div>
@@ -367,6 +367,10 @@
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
                     <input type="checkbox" checked="" onchange="toggleNotes()"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                    <i class="input-helper"></i>
+                  </label>
+                  <label class="form-check-label">
+                    <input type="checkbox" checked="" onchange="hideTopNotes()"><span style="font-size: 0.8em; margin-left: 2px">Show top notes</span>
                     <i class="input-helper"></i>
                   </label>
                 </div>
@@ -578,6 +582,8 @@
                                                   title,
 			                                            legend: 'always' ,
 			                                            labelsSeparateLines: true,
+                                                  highlightSeriesOpts: { strokeWidth: 2 },
+                                                  // showLabelsOnHighlight: false,
                                                   axes: {
                                                     x: {
                                                       axisLabelFormatter: Dygraph.dateAxisLabelFormatter,
@@ -800,12 +806,19 @@
   <!-- End custom js for this page-->
   
   <script>
+    const hideTopNotes = () => {
+      const notes = document.getElementsByClassName('dygraph-annotation');
+      for (let i = 0; i < notes.length; i++) {
+        if (notes[i].style.top === "") notes[i].style.display = "none";
+      }
+    }
+
     const toggleNotes = () => {
       const notes = document.getElementsByClassName('dygraph-annotation');
       console.log("notes", notes)
       for (let i = 0; i < notes.length; i++) {
-        if (!notes[i].style.display) notes[i].style.display = "none";
-        else notes[i].style.display = "";
+        if (!notes[i].style.display || notes[i].style.display === "block") notes[i].style.display = "none";
+        else notes[i].style.display = "block";
       }
     }
   </script>
