@@ -15,28 +15,22 @@
     <meta name="description" content="Using Fomantic UI with Other Libraries" />
     <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
 
-    <script src="/new/jquery.min.js"></script>
-    <script src="/new/tablesort.min.js"></script>
-    <script src="/new/search.min.js"></script>
-    <script src="/new/easing.min.js"></script>
-    <script src="/new/semantic.min.js"></script>
-    <script src="/new/docs.js"></script>
-    <script src="/new/highlight.min.js"></script>
-    <script src="/new/less.min.js"></script>
-    <!-- <script src="/new/clipboard.min.js"></script> -->
-    <!-- <script src="/new/history.min.js"></script> -->
-    <!-- <script src="/new/state.js"></script> -->
-    <!-- <script src="/new/underscore.min.js"></script> -->
+    <script src="./assets/js/jquery.min.js"></script>
+    <script src="./assets/js/tablesort.min.js"></script>
+    <script src="./assets/js/search.min.js"></script>
+    <script src="./assets/js/easing.min.js"></script>
+    <script src="./assets/js/semantic.min.js"></script>
+    <script src="./assets/js/docs.js"></script>
+    <script src="./assets/js/highlight.min.js"></script>
+    <script src="./assets/js/less.min.js"></script>
+    <!-- <script src="./assets/js/clipboard.min.js"></script> -->
+    <!-- <script src="./assets/js/history.min.js"></script> -->
+    <!-- <script src="./assets/js/state.js"></script> -->
+    <!-- <script src="./assets/js/underscore.min.js"></script> -->
 
-    <link rel="stylesheet" type="text/css" class="ui" href="/new/semantic.min.css">
-    <link rel="stylesheet" type="text/css" href="/new/docs.css">
-    <!-- <link rel="stylesheet" type="text/css" href="/new/rtl.css"> -->
-    <!-- <link rel="stylesheet" href="/assets/vendors/mdi/css/materialdesignicons.min.css"> -->
-    <!-- <link rel="stylesheet" href="/assets/vendors/css/vendor.bundle.base.css"> -->
-    <!-- <link rel="stylesheet" href="/assets/vendors/flag-icon-css/css/flag-icon.min.css"> -->
-    <!-- <link rel="stylesheet" href="/assets/vendors/jvectormap/jquery-jvectormap.css"> -->
-    <!-- <link rel="stylesheet" href="/assets/vendors/css/jquery.toast.min.css"> -->
-    <!-- <link rel="stylesheet" href="/assets/css/demo/style.css"> -->
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/semantic.min.css">
+    <link rel="stylesheet" type="text/css" href="./assets/css/docs.css">
+    <!-- <link rel="stylesheet" type="text/css" href="./assets/css/rtl.css"> -->
 </head>
 
 <body id="example" class="started" ontouchstart="">
@@ -160,7 +154,6 @@
 
                         document.getElementById("projects-table").appendChild(li_node);
                     })
-                    console.log("content", content);
                     $('.ui.search').search({ source: content });
                 })
         } catch (e) {
