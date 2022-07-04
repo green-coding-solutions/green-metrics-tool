@@ -337,7 +337,7 @@
                  <div id="chart-cpu" style="width:37vw; height:43vh;"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
-                    <input type="checkbox" checked="" onchange="toggleNote(0)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                    <input type="checkbox" checked="" onchange="toggleNotes()"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
                     <i class="input-helper"></i>
                   </label>
                 </div>
@@ -349,7 +349,7 @@
                  <div id="chart-mem" style="width:37vw; height:43vh;"></div>
                  <div class="form-check form-check-primary">
                    <label class="form-check-label">
-                     <input type="checkbox" checked="" onchange="toggleNote(1)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                     <!-- <input type="checkbox" checked="" onchange="toggleNotes()"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span> -->
                      <i class="input-helper"></i>
                    </label>
                  </div>
@@ -361,7 +361,7 @@
                  <div id="chart-energy" style="width:37vw; height:43vh;"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
-                    <input type="checkbox" checked="" onchange="toggleNote(2)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                    <!-- <input type="checkbox" checked="" onchange="toggleNotes()"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span> -->
                     <i class="input-helper"></i>
                   </label>
                 </div>
@@ -373,7 +373,7 @@
                  <div id="chart-net-in" style="width:37vw; height:43vh;"></div>
                  <div class="form-check form-check-primary">
                   <label class="form-check-label">
-                    <input type="checkbox" checked="" onchange="toggleNote(3)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                    <!-- <input type="checkbox" checked="" onchange="toggleNotes()"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span> -->
                     <i class="input-helper"></i>
                   </label>
                 </div>
@@ -395,7 +395,7 @@
         } else {
             var total_energy = null;
             var accumulate = 0;
-            let annotations = { "cpu": [], "energy": [], "mem": [], "net_in": [] };
+            let annotations = [];
             try {
               if(document.location.host.indexOf('metrics.green-coding.org') === 0)
                 api_url = "https://api.green-coding.org";
@@ -425,46 +425,66 @@
                       starttime = performance.now()
 
                       my_json.data.forEach(el => {
-                                  if(el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
-                                    accumulate = 1;
-                                    return
-                                  } else if(el[0] == '[SYSTEM]' && el[4] == '[END MEASUREMENT]') {
-                                    accumulate = 0;
-                                    return;
-                                  }
+                        const replicateAnnotations = (target) => {
+                          if (el[2] !== target) { // avoids duplication of annotations on the same chart
+                            if (my_series[target][el[0]] == undefined) {
+                              my_series[target][el[0]] = {name: el[0], data: [{x: el[1], y: 0}]}
+                            } else {
+                              my_series[target][el[0]]['data'].push({x: el[1], y: 0})
+                            }
+                          }
+                        }
 
-                                  el[1] = el[1]/1000;
+                        if(el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
+                          accumulate = 1;
+                          return
+                        } else if(el[0] == '[SYSTEM]' && el[4] == '[END MEASUREMENT]') {
+                          accumulate = 0;
+                          return;
+                        }
 
-                                  if(el[2] == 'cpu' && accumulate === 1) {
-                                    cpu_load.push(el[3])
-                                  }
-                                  else if(el[2] == 'system-energy' && accumulate === 1) {
-                                    total_energy += el[3];
-                                  }
+                        el[1] = el[1]/1000;
 
-                                  if(my_series[el[2]][el[0]] == undefined) {
-                                      my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/100}]}
-                                  } else {
-                                      my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/100})
-                                  }
+                        if(el[2] == 'cpu' && accumulate === 1) {
+                          cpu_load.push(el[3])
+                        }
+                        else if(el[2] == 'system-energy' && accumulate === 1) {
+                          total_energy += el[3];
+                        }
 
-                                  if(el[4] != null) {
-                                      annotations[el[2]].push({
-                                        series: el[0],
-                                        x: el[1],
-                                        shortText: el[4][0], // first letter of the message
-                                        text: el[4],
-                                      })
-                                  }
+                        if(my_series[el[2]][el[0]] == undefined) {
+                            my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/100}]}
+                        } else {
+                            my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/100})
+                        }
 
-                                  /*
-                                  el[0] // container_id
-                                  el[1] // time
-                                  el[2] // metric name
-                                  el[3] // value
-                                  el[4] // note
-                                  '*/
-                        })
+                        if(el[4] != null) {
+                            annotations.push({
+                              series: el[0],
+                              x: el[1],
+                              shortText: el[4][0] === " " ? el[4][1] : el[4][0], // first letter of the message; in case it's a space, then seccond letter
+                              text: el[4],
+                              // cssClass: 'annotation',
+                              // clickHandler: function() {
+                              //   document.getElementById("events").innerHTML += "special handler<br/>";
+                              // }
+                            })
+
+                            replicateAnnotations("cpu");
+                            replicateAnnotations("system-energy");
+                            replicateAnnotations("mem");
+                            replicateAnnotations("net_in");
+                        }
+
+                        /*
+                        el[0] // container_id
+                        el[1] // time
+                        el[2] // metric name
+                        el[3] // value
+                        el[4] // note
+                        '*/
+              })
+                        console.log("annotations", annotations)
 
                         const formatData = (totalContainers, currentContainer, X, Y) => {
                           let arr = [X];
@@ -522,10 +542,10 @@
                         const chart_mem = createGraph("#chart-mem", data_mem, labels_mem, "Memory Load in MB")
                         const chart_net_in = createGraph("#chart-net-in", data_net_in, labels_net_in, "Network inbound in MB")
 
-                        chart_cpu.setAnnotations(annotations["cpu"]);
-                        chart_energy.setAnnotations(annotations["energy"]);
-                        chart_mem.setAnnotations(annotations["mem"]);
-                        chart_net_in.setAnnotations(annotations["net_in"]);
+                        chart_cpu.setAnnotations(annotations);
+                        chart_energy.setAnnotations(annotations);
+                        chart_mem.setAnnotations(annotations);
+                        chart_net_in.setAnnotations(annotations);
 
                         endtime = performance.now()
                         console.log("time in ms is: "+ (endtime-starttime))
@@ -713,10 +733,13 @@
   <!-- End custom js for this page-->
   
   <script>
-    const toggleNote = (id) => {
-      const note = document.getElementsByClassName('apexcharts-xaxis-annotations')[id];
-      if (!note.style.display) note.style.display = "none";
-      else note.style.display = "";
+    const toggleNotes = () => {
+      const notes = document.getElementsByClassName('dygraph-annotation');
+      console.log("notes", notes)
+      for (let i = 0; i < notes.length; i++) {
+        if (!notes[i].style.display) notes[i].style.display = "none";
+        else notes[i].style.display = "";
+      }
     }
   </script>
 
