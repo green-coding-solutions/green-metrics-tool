@@ -327,10 +327,58 @@
                 <div class="mdc-card info-card info-card--danger">
                   <div class="card-inner">
                     <h5 class="card-title">IMPORTANT</h5>
-                    <p class="tx-12">The Green Metrics Tool is currently experimental. Please use it for development purposes only.</p>
+                    <p class="tx-12" id="annotation-message">The Green Metrics Tool is currently experimental. Please use it for development purposes only.</p>
                   </div>
                 </div>
               </div>
+
+              <div id="myModal" class="modal">
+                <!-- Modal content -->
+                <div class="modal-content">
+                  <span class="close">&times;</span>
+                  <p>Some text in the Modal..</p>
+                </div>
+              </div>
+
+              <style>
+                /* The Modal (background) */
+                .modal {
+                  display: none; /* Hidden by default */
+                  position: fixed; /* Stay in place */
+                  z-index: 1; /* Sit on top */
+                  left: 400;
+                  top: 400;
+                  width: 20%; /* Full width */
+                  height: 20%; /* Full height */
+                  overflow: auto; /* Enable scroll if needed */
+                  background-color: rgb(0,0,0); /* Fallback color */
+                  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+                }
+
+                /* Modal Content/Box */
+                .modal-content {
+                  background-color: #fefefe;
+                  margin: 15% auto; /* 15% from the top and centered */
+                  padding: 20px;
+                  border: 1px solid #888;
+                  width: 80%; /* Could be more or less, depending on screen size */
+                }
+
+                /* The Close Button */
+                .close {
+                  color: #aaa;
+                  float: right;
+                  font-size: 28px;
+                  font-weight: bold;
+                }
+
+                .close:hover,
+                .close:focus {
+                  color: black;
+                  text-decoration: none;
+                  cursor: pointer;
+                }
+              </style>
 
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
@@ -425,6 +473,7 @@
                       starttime = performance.now()
 
                       my_json.data.forEach(el => {
+
                         const replicateAnnotations = (target) => {
                           if (el[2] !== target) { // avoids duplication of annotations on the same chart
                             if (my_series[target][el[0]] == undefined) {
@@ -465,9 +514,34 @@
                               shortText: el[4][0] === " " ? el[4][1] : el[4][0], // first letter of the message; in case it's a space, then seccond letter
                               text: el[4],
                               // cssClass: 'annotation',
-                              // clickHandler: function() {
-                              //   document.getElementById("events").innerHTML += "special handler<br/>";
-                              // }
+                              clickHandler: function() {
+                                // Get the modal
+                                var modal = document.getElementById("myModal");
+
+                                // Get the <span> element that closes the modal
+                                var span = document.getElementsByClassName("close")[0];
+
+                                // When the user clicks on the button, open the modal
+                                modal.style.display = "block";
+                                modal.innerHTML = ` <!-- Modal content -->
+                                                    <div class="modal-content">
+                                                      <span class="close">&times;</span>
+                                                      <p>${el[4]}</p>
+                                                    </div>`
+
+                                // When the user clicks on <span> (x), close the modal
+                                span.onclick = function() {
+                                  modal.style.display = "none";
+                                }
+
+                                // When the user clicks anywhere outside of the modal, close it
+                                window.onclick = function(event) {
+                                  if (event.target == modal) {
+                                    modal.style.display = "none";
+                                  }
+                                }
+                                document.getElementById("annotation-message").innerHTML += "special handler<br/>";
+                              }
                             })
 
                             replicateAnnotations("cpu");
