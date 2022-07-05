@@ -48,7 +48,7 @@
               </a>
             </div>
             <div class="mdc-list-item mdc-drawer-item">
-              <a class="mdc-drawer-link" href="/data-analysis.html">
+              <a class="mdc-drawer-link" href="/data_analysis.html">
                 <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">pie_chart</i>
                 Data Analysis
               </a>
@@ -258,99 +258,169 @@
         <main class="content-wrapper">
           <div class="mdc-layout-grid">
             <div class="mdc-layout-grid__inner">
-
-              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12-desktop mdc-layout-grid__cell--span-12-tablet">
-                <div class="mdc-card">
-                  <h6 class="card-sub-title mb-0">Here are all the known projects</h6>
-                  <div class="table-responsive">
-                      <table class="table table-striped">
-                        <thead>
-                          <tr>
-                            <th> Name </th>
-                            <th> URI</th>
-                            <th> Last Crawl </th>
-                            <th> 
-                              <button onclick="compareButton()" class="mdc-button mdc-button--raised filled-button--success mdc-ripple-upgraded">
-                                Compare
-                              </button>
-                             </th>
-                          </tr>
-                        </thead>
-                        <tbody id="projects-table">
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12-desktop mdc-layout-grid__cell--span-10-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">Projects Compared</h5>
+                      <table class="table-hover">
+                        <tbody>
+                            <tr><td>Name</td><td id="project-name"></td></tr>
+                            <tr><td>URI</td><td id="project-url"></td></tr>
+                            <tr><td>CPU</td><td id="project-cpu"></td></tr>
+                            <tr><td>Total Memory</td><td id="project-memtotal"></td></tr>
+                            <tr><td>Last Crawl</td><td id="project-last-crawl"></td></tr>
                         </tbody>
                     </table>
-                  </div><!-- .table-responsive -->
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card info-card info-card--success">
+                  <div class="card-inner">
+                    <h5 class="card-title">AVG CPU Load (Estimate)</h5>
+                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="avg-cpu-load">%</h5>
+                    <p class="tx-12 text-muted">Over all containers. (See disclaimer)</p>
+                    <div class="card-icon-wrapper">
+                      <i class="material-icons">dvr</i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">MAX CPU Load</h5>
+                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="max-cpu-load">&nbsp;</h5>
+                    <p class="tx-12 text-muted">Over all containers</p>
+                    <div class="card-icon-wrapper">
+                      <i class="material-icons">trending_up</i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">Total Energy</h5>
+                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="total-energy">&nbsp;</h5>
+                    <p class="tx-12 text-muted">For whole CPU Package. NOT per container.</p>
+                    <div class="card-icon-wrapper">
+                      <i class="material-icons">trending_up</i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-3-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">Total CO2</h5>
+                    <h5 class="font-weight-light pb-2 mb-1 border-bottom" id="total-co2">&nbsp;</h5>
+                    <p class="tx-12 text-muted">For whole CPU Package. NOT per container.</p>
+                    <div class="card-icon-wrapper">
+                      <i class="material-icons">trending_up</i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12-desktop mdc-layout-grid__cell--span-12-tablet">
+                <div class="mdc-card info-card info-card--danger">
+                  <div class="card-inner">
+                    <h5 class="card-title">IMPORTANT</h5>
+                    <p class="tx-12">The Green Metrics Tool is currently experimental. Please use it for development purposes only.</p>
+                  </div>
                 </div>
               </div>
 
-
-    <script>
-            var chart_cpu = null;
-            var chart_energy = null;
-            var chart_mem = null;
-            var chart_net_in = null;
-            try {
-                if(document.location.host.indexOf('metrics.green-coding.org') === 0)
-                  api_url = "https://api.green-coding.org";
-                else
-                  api_url = "http://api.green-coding.local:8000";
-
-                fetch(api_url + '/v1/projects')
-                  .then(response => response.json())
-                  .then(my_json => {
-                      if(my_json.success != true) {
-                          alert(my_json.err);
-                          return;
-                      }
-
-
-                      my_json.data.forEach(el => {
-                        const li_node = document.createElement("tr");
-                        const link_node = document.createElement('a');
-
-                        link_node.innerText = el[1];
-                        link_node.title = el[1];
-                        link_node.href = "/stats.html?id="+el[0];
-                        li_node.appendChild(link_node);
-                        li_node.innerHTML = '<td>'+li_node.innerHTML + '</td><td>'+el[2]+'</td><td>'+el[3]+'</td><td><input type="checkbox" value="'+el[0] + '" name="chbx-proj" />&nbsp;</td>';
-
-                        document.getElementById("projects-table").appendChild(li_node);
-            
-                     })
-
-                  })
-              } catch(e) {
-                  alert("Fetch failed: "+e)
-              }
-
-            function compareButton(){
-              var checkedBoxes = document.querySelectorAll('input[name=chbx-proj]:checked');
-              console.log(checkedBoxes.length);
-              var link = "";
-              if (checkedBoxes.length == 2) {
-                link = "/multi.html?dummy=dummy";
-              }
-              else if (checkedBoxes.length > 2) {
-                link = "/compare.html?dummy=dummy";
-              }
-              else {
-                alert("Please select at least two projects to compare :-)");
-                return;
-              }
-
-              checkedBoxes.forEach(checkbox => {
-                link+="&pid[]="+checkbox.value;
-              });
-              //console.log(link);
-              window.location = link;
-            }
-
-    </script>
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card">
+                 <div id="chart-cpu"></div>
+                 <div class="form-check form-check-primary">
+                  <label class="form-check-label">
+                    <input type="checkbox" checked="" onchange="toggleNote(0)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                    <i class="input-helper"></i>
+                  </label>
+                </div>
+                </div>
               </div>
-            </div>
-          </main>
-        </div>
-        
+          
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card">
+                 <div id="chart-mem"></div>
+                 <div class="form-check form-check-primary">
+                   <label class="form-check-label">
+                     <input type="checkbox" checked="" onchange="toggleNote(1)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                     <i class="input-helper"></i>
+                   </label>
+                 </div>
+                </div>
+              </div>
+
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card">
+                 <div id="chart-energy"></div>
+                 <div class="form-check form-check-primary">
+                  <label class="form-check-label">
+                    <input type="checkbox" checked="" onchange="toggleNote(2)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                    <i class="input-helper"></i>
+                  </label>
+                </div>
+                </div>
+              </div>
+
+              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
+                <div class="mdc-card">
+                 <div id="chart-net-in"></div>
+                 <div class="form-check form-check-primary">
+                  <label class="form-check-label">
+                    <input type="checkbox" checked="" onchange="toggleNote(3)"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                    <i class="input-helper"></i>
+                  </label>
+                </div>
+                </div>
+              </div>
+
+        <script src="/dist/apexcharts.min.js"></script>
+
+      <script>
+        const query_string = window.location.search;
+        const url_params = (new URLSearchParams(query_string))
+        if(!url_params.has('pid[]')) {
+          alert("Please supply project ids in URL")
+        } 
+        else 
+        {
+          try {
+            if(document.location.host.indexOf('metrics.green-coding.org') === 0)
+              api_url = "https://api.green-coding.org";
+            else
+              api_url = "http://api.green-coding.local:8000";
+
+              params = url_params.getAll('pid[]');
+              api_url += '/v1/stats/compare?dummy=dummy'
+              params.forEach( pid => {
+                api_url+='&p='+pid
+              });
+              console.log(api_url);
+              fetch(api_url)
+                .then(response => response.json())
+                .then(my_json => {
+                    if(my_json.success != true) {
+                        alert(my_json.err);
+                        return;
+                    }
+                    else {
+                      // Do what you will with the data here
+                      console.log(my_json)
+                    }
+                })
+            } 
+            catch(e) {
+                alert("Fetch failed: "+e)
+            }
+          }
+    </script>
+    
+        </main>
         <!-- partial:partials/_footer.html -->
         <footer>
           <div class="mdc-layout-grid">
@@ -366,16 +436,30 @@
         </footer>
         <!-- partial -->
       </div>
+    </div>
   </div>
   <!-- plugins:js -->
+  <script src="../assets/vendors/js/vendor.bundle.base.js"></script>
   <!-- endinject -->
+  <!-- Plugin js for this page-->
+  <script src="../assets/vendors/chartjs/Chart.min.js"></script>
+  <script src="../assets/vendors/jvectormap/jquery-jvectormap.min.js"></script>
+  <script src="../assets/vendors/jvectormap/jquery-jvectormap-world-mill-en.js"></script>
+  <!-- End plugin js for this page-->
   <!-- inject:js -->
-  <script src="./assets/vendors/js/vendor.bundle.base.js"></script>
   <!-- <script src="../assets/js/material.js"></script> -->
   <script src="../assets/js/misc.js"></script>
   <!-- endinject -->
   <!-- Custom js for this page-->
   <script src="../assets/js/dashboard.js"></script>
   <!-- End custom js for this page-->
+  
+  <script>
+    const toggleNote = (id) => {
+      const note = document.getElementsByClassName('apexcharts-xaxis-annotations')[id];
+      if (!note.style.display) note.style.display = "none";
+      else note.style.display = "";
+    }
+  </script>
 </body>
 </html> 
