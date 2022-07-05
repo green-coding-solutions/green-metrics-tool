@@ -142,20 +142,26 @@ async def get_stats_single(project_id: str):
         return {'success': False, 'err': 'Data is empty'}
     return {"success": True, "data": data, "project": get_project(project_id)}
 
-@app.get('/v1/stats/compare')
-async def get_stats_compare(p: list[str] | None = Query(default=None)):
+@app.get('/v1/stats/multi')
+async def get_stats_multi(p: list[str] | None = Query(default=None)):
     for p_id in p:
         if(p_id is None or p_id.strip() == ''):
             return {'success': False, 'err': 'Project_id is empty'}
 
-    cur = conn.cursor()
-    try:
-        cur.execute("""
-            SELECT 
-                projects.name, stats.container_name, stats.metric, AVG(stats.value)
-            FROM 
-                stats 
-            LEFT JOIN 
+    query = """
+            SELECT
+                projects.id, projects.name, stats.container_name, stats.time, stats.metric, stats.value, notes.note
+            FROM
+                stats
+            LEFT JOIN
+                notes
+            ON
+                notes.project_id = stats.project_id
+            AND
+                notes.time = stats.time
+            AND
+                notes.container_name = stats.container_name
+            LEFT JOIN
                 projects
             ON
                 stats.project_id = projects.id
@@ -164,22 +170,41 @@ async def get_stats_compare(p: list[str] | None = Query(default=None)):
             AND
                 STATS.project_id = ANY(%s::uuid[])
             GROUP BY projects.name, stats.container_name, stats.metric
-            """,
-            (p,)
-        )
-        data = cur.fetchall()
-        cur.close()
-    except Exception as e:
-        conn.rollback()
-        cur.close()
-        print("EXCEPTION TYPE:", type(e))
-        return {"success": False, "err": f"Exception: {str(e)}"}
+            """
+    data = DB().fetch_all(query, params=p)
+    if(data is None or data == []):
+        return {'success': False, 'err': 'Data is empty'}
+    return {"success": True, "data": data}
+
+
+@app.get('/v1/stats/compare')
+async def get_stats_compare(p: list[str] | None = Query(default=None)):
+    for p_id in p:
+        if(p_id is None or p_id.strip() == ''):
+            return {'success': False, 'err': 'Project_id is empty'}
+
+    query = """
+            SELECT 
+                projects.name, stats.container_name, stats.metric, AVG(stats.value)
+            FROM 
+                stats 
+            LEFT JOIN 
+                projects
+            ON 
+                stats.project_id = projects.id
+            WHERE 
+                stats.metric = ANY(ARRAY['cpu','mem','system-energy'])
+            AND 
+                STATS.project_id = ANY(%s::uuid[])
+            GROUP BY projects.name, stats.container_name, stats.metric
+            """
+    params = (p,)
+    data = DB().fetch_all(query, params=params)
 
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
-
-
     return {"success": True, "data": data}
+
 
 class Project(BaseModel):
     name: str
