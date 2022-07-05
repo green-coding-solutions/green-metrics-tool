@@ -369,14 +369,10 @@
                     <input type="checkbox" checked="" onchange="toggleNotes()"><span style="font-size: 0.8em; margin-left: 2px">Show notes</span>
                     <i class="input-helper"></i>
                   </label>
-                  <label class="form-check-label">
-                    <input type="checkbox" checked="" onchange="hideTopNotes()"><span style="font-size: 0.8em; margin-left: 2px">Show top notes</span>
-                    <i class="input-helper"></i>
-                  </label>
                 </div>
                 </div>
               </div>
-          
+              
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card">
                  <div id="chart-mem" style="width:37vw; height:43vh;"></div>
@@ -498,35 +494,6 @@
                               x: el[1],
                               shortText: el[4][0] === " " ? el[4][1] : el[4][0], // first letter of the message; in case it's a space, then seccond letter
                               text: el[4],
-                              // cssClass: 'annotation',
-                              clickHandler: function() {
-                                // // Get the modal
-                                // var modal = document.getElementById("myModal");
-
-                                // // Get the <span> element that closes the modal
-                                // var span = document.getElementsByClassName("close")[0];
-
-                                // // When the user clicks on the button, open the modal
-                                // modal.style.display = "block";
-                                // modal.innerHTML = ` <!-- Modal content -->
-                                //                     <div class="modal-content">
-                                //                       <span class="close">&times;</span>
-                                //                       <p>${el[4]}</p>
-                                //                     </div>`
-
-                                // // When the user clicks on <span> (x), close the modal
-                                // span.onclick = function() {
-                                //   modal.style.display = "none";
-                                // }
-
-                                // // When the user clicks anywhere outside of the modal, close it
-                                // window.onclick = function(event) {
-                                //   if (event.target == modal) {
-                                //     modal.style.display = "none";
-                                //   }
-                                // }
-                                // document.getElementById("annotation-message").innerHTML += "special handler<br/>";
-                              }
                             })
 
                             replicateAnnotations("cpu");
@@ -590,6 +557,12 @@
                                                       ticker: Dygraph.dateTicker,
                                                     }
                                                   },
+                                                  drawCallback: function(g) {
+                                                    const notes = document.getElementsByClassName('dygraph-annotation');
+                                                    for (let i = 0; i < notes.length; i++) {
+                                                      if (notes[i].style.top === "") notes[i].style.display = "none";
+                                                    }
+                                                  },
                                                   annotationMouseOverHandler: function(ann, point, dg, event) {
                                                     let modal = document.getElementById("myModal");
                                                     modal.style.display = "block";
@@ -634,7 +607,7 @@
               }
             }
     </script>
-                      
+
               <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop mdc-layout-grid__cell--span-4-tablet">
                 <div class="mdc-card bg-success text-white">
                   <div class="d-flex justify-content-between">
@@ -806,13 +779,6 @@
   <!-- End custom js for this page-->
   
   <script>
-    const hideTopNotes = () => {
-      const notes = document.getElementsByClassName('dygraph-annotation');
-      for (let i = 0; i < notes.length; i++) {
-        if (notes[i].style.top === "") notes[i].style.display = "none";
-      }
-    }
-
     const toggleNotes = () => {
       const notes = document.getElementsByClassName('dygraph-annotation');
       console.log("notes", notes)
