@@ -1,6 +1,8 @@
+import signal
+import os
+import subprocess
+
 def kill_pids(ps_to_kill):
-    import signal
-    import os
     print("Killing processes")
     for ps in ps_to_kill:
         print(f"Trying to kill {ps['cmd']} with PID: {ps['pid']}")
@@ -18,7 +20,6 @@ def kill_pids(ps_to_kill):
 
 
 def timeout(ps, cmd: str, duration: int):
-    import subprocess
     try:
         # subprocess.wait tries to use the syscall waitpid() on POSIX.
         # If that fails however it will go into a partial spin-lock on the process (500us sleep loop).
