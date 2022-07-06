@@ -247,7 +247,7 @@ def main():
 
         time.sleep(config['measurement']['idle-time-start'])
 
-        debug.pause()
+        debug.pause() # Will only pause if object state is currently "active"
 
         notes.append({"note" : "[START MEASUREMENT]", 'container_name' : '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
 
@@ -256,7 +256,7 @@ def main():
             print("Running flow: ", el['name'])
             for inner_el in el['commands']:
 
-                debug.pause()
+                debug.pause() # Will only pause if object state is currently "active"
 
                 if "note" in inner_el:
                     notes.append({"note" : inner_el['note'], 'container_name' : el['container'], "timestamp": int(time.time_ns() / 1_000)})
