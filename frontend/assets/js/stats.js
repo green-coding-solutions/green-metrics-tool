@@ -1,4 +1,4 @@
-function createChartContainer(scaffold, container, chart) {
+function createChartContainer(scaffold, container, chart, options) {
     const chart_node = document.querySelector(scaffold).cloneNode(true)
     chart_node.style.display = "block";
     document.querySelector(container).appendChild(chart_node);
@@ -27,4 +27,12 @@ function buildOptions(series, annotation, chart_title) {
         annotations: { xaxis: annotation },
         title: {text: chart_title}
     };
+
+    return options;
+}
+
+const toggleNote = (id) => {
+    const note = document.getElementsByClassName('apexcharts-xaxis-annotations')[id];
+    if (!note.style.display) note.style.display = "none";
+    else note.style.display = "";
 }

@@ -55,6 +55,25 @@ async def home():
     return RedirectResponse(url='/docs')
 
 # A route to return all of the available entries in our catalog.
+@app.get('/v1/notes/{project_id}')
+async def get_notes(project_id):
+    query = """
+            SELECT
+                *
+            FROM
+                notes
+            WHERE project_id = %s
+            ORDER BY
+                created_at DESC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
+            """
+    data = DB().fetch_all(query, (project_id, ))
+    if(data is None or data == []):
+        return {'success': False, 'err': 'Data is empty'}
+
+    return {"success": True, "data": data}
+
+
+# A route to return all of the available entries in our catalog.
 @app.get('/v1/projects')
 async def get_projects():
     query = """
@@ -83,21 +102,13 @@ async def get_stats_by_uri(uri: str):
 
     query = """
             SELECT
-                projects.id as project_id, stats.container_name, stats.time, stats.metric, stats.value, notes.note
+                projects.id as project_id, stats.container_name, stats.time, stats.metric, stats.value
             FROM
                 stats
             LEFT JOIN
                 projects
             ON
                 projects.id = stats.project_id
-            LEFT JOIN
-                notes
-            ON
-                notes.project_id = stats.project_id
-                AND
-                notes.time = stats.time
-                AND
-                notes.container_name = stats.container_name
             WHERE
                 projects.uri = %s
             ORDER BY
@@ -119,17 +130,9 @@ async def get_stats_single(project_id: str):
 
     query = """
             SELECT
-                stats.container_name, stats.time, stats.metric, stats.value, notes.note
+                stats.container_name, stats.time, stats.metric, stats.value
             FROM
                 stats
-            LEFT JOIN
-                notes
-            ON
-                notes.project_id = stats.project_id
-                AND
-                notes.time = stats.time
-                AND
-                notes.container_name = stats.container_name
             WHERE
                 stats.project_id = %s
             ORDER BY
@@ -150,17 +153,9 @@ async def get_stats_multi(p: list[str] | None = Query(default=None)):
 
     query = """
             SELECT
-                projects.id, projects.name, stats.container_name, stats.time, stats.metric, stats.value, notes.note
+                projects.id, projects.name, stats.container_name, stats.time, stats.metric, stats.value
             FROM
                 stats
-            LEFT JOIN
-                notes
-            ON
-                notes.project_id = stats.project_id
-            AND
-                notes.time = stats.time
-            AND
-                notes.container_name = stats.container_name
             LEFT JOIN
                 projects
             ON
