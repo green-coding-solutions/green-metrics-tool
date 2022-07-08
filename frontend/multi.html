@@ -48,7 +48,7 @@
               </a>
             </div>
             <div class="mdc-list-item mdc-drawer-item">
-              <a class="mdc-drawer-link" href="/data-analysis.html">
+              <a class="mdc-drawer-link" href="/data_analysis.html">
                 <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">pie_chart</i>
                 Data Analysis
               </a>
@@ -254,103 +254,50 @@
         </div>
       </header>
       <!-- partial -->
-      <div class="page-wrapper mdc-toolbar-fixed-adjust">
-        <main class="content-wrapper">
-          <div class="mdc-layout-grid">
-            <div class="mdc-layout-grid__inner">
-
-              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12-desktop mdc-layout-grid__cell--span-12-tablet">
-                <div class="mdc-card">
-                  <h6 class="card-sub-title mb-0">Here are all the known projects</h6>
-                  <div class="table-responsive">
-                      <table class="table table-striped">
-                        <thead>
-                          <tr>
-                            <th> Name </th>
-                            <th> URI</th>
-                            <th> Last Crawl </th>
-                            <th> 
-                              <button onclick="compareButton()" class="mdc-button mdc-button--raised filled-button--success mdc-ripple-upgraded">
-                                Compare
-                              </button>
-                             </th>
-                          </tr>
-                        </thead>
-                        <tbody id="projects-table">
-                        </tbody>
-                    </table>
-                  </div><!-- .table-responsive -->
-                </div>
-              </div>
-
 
     <script>
-            var chart_cpu = null;
-            var chart_energy = null;
-            var chart_mem = null;
-            var chart_net_in = null;
-            try {
-                if(document.location.host.indexOf('metrics.green-coding.org') === 0)
-                  api_url = "https://api.green-coding.org";
-                else
-                  api_url = "http://api.green-coding.local:8000";
+        const query_string = window.location.search;
+        const url_params = (new URLSearchParams(query_string))
+        if(!url_params.has('pid[]')) {
+          alert("Please supply project ids in URL")
+        } 
+        else 
+        {
+          try {
+            if(document.location.host.indexOf('metrics.green-coding.org') === 0)
+              api_url = "https://api.green-coding.org";
+            else
+              api_url = "http://api.green-coding.local:8000";
 
-                fetch(api_url + '/v1/projects')
-                  .then(response => response.json())
-                  .then(my_json => {
-                      if(my_json.success != true) {
-                          alert(my_json.err);
-                          return;
-                      }
-
-
-                      my_json.data.forEach(el => {
-                        const li_node = document.createElement("tr");
-                        const link_node = document.createElement('a');
-
-                        link_node.innerText = el[1];
-                        link_node.title = el[1];
-                        link_node.href = "/stats.html?id="+el[0];
-                        li_node.appendChild(link_node);
-                        li_node.innerHTML = '<td>'+li_node.innerHTML + '</td><td>'+el[2]+'</td><td>'+el[3]+'</td><td><input type="checkbox" value="'+el[0] + '" name="chbx-proj" />&nbsp;</td>';
-
-                        document.getElementById("projects-table").appendChild(li_node);
-            
-                     })
-
-                  })
-              } catch(e) {
-                  alert("Fetch failed: "+e)
+              params = url_params.getAll('pid[]');
+              if(params.length != 2) {
+                throw new Error("Please supply exactly two project ids")
               }
-
-            function compareButton(){
-              var checkedBoxes = document.querySelectorAll('input[name=chbx-proj]:checked');
-              console.log(checkedBoxes.length);
-              var link = "";
-              if (checkedBoxes.length == 2) {
-                link = "/multi.html?dummy=dummy";
-              }
-              else if (checkedBoxes.length > 2) {
-                link = "/compare.html?dummy=dummy";
-              }
-              else {
-                alert("Please select at least two projects to compare :-)");
-                return;
-              }
-
-              checkedBoxes.forEach(checkbox => {
-                link+="&pid[]="+checkbox.value;
+              api_url += '/v1/stats/multi?dummy=dummy'
+              params.forEach( pid => {
+                api_url+='&p='+pid
               });
-              //console.log(link);
-              window.location = link;
+              console.log(api_url);
+              fetch(api_url)
+                .then(response => response.json())
+                .then(my_json => {
+                    if(my_json.success != true) {
+                        alert(my_json.err);
+                        return;
+                    }
+                    else {
+                      // Do what you will with the data here
+                      console.log(my_json)
+                    }
+                })
+            } 
+            catch(e) {
+                alert("Fetch failed: "+e)
             }
-
+          }
     </script>
-              </div>
-            </div>
-          </main>
-        </div>
-        
+    
+        </main>
         <!-- partial:partials/_footer.html -->
         <footer>
           <div class="mdc-layout-grid">
@@ -366,16 +313,30 @@
         </footer>
         <!-- partial -->
       </div>
+    </div>
   </div>
   <!-- plugins:js -->
+  <script src="../assets/vendors/js/vendor.bundle.base.js"></script>
   <!-- endinject -->
+  <!-- Plugin js for this page-->
+  <script src="../assets/vendors/chartjs/Chart.min.js"></script>
+  <script src="../assets/vendors/jvectormap/jquery-jvectormap.min.js"></script>
+  <script src="../assets/vendors/jvectormap/jquery-jvectormap-world-mill-en.js"></script>
+  <!-- End plugin js for this page-->
   <!-- inject:js -->
-  <script src="./assets/vendors/js/vendor.bundle.base.js"></script>
   <!-- <script src="../assets/js/material.js"></script> -->
   <script src="../assets/js/misc.js"></script>
   <!-- endinject -->
   <!-- Custom js for this page-->
   <script src="../assets/js/dashboard.js"></script>
   <!-- End custom js for this page-->
+  
+  <script>
+    const toggleNote = (id) => {
+      const note = document.getElementsByClassName('apexcharts-xaxis-annotations')[id];
+      if (!note.style.display) note.style.display = "none";
+      else note.style.display = "";
+    }
+  </script>
 </body>
 </html> 
