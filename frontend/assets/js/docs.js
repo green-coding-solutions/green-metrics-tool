@@ -82,7 +82,6 @@ semantic.ready = function() {
 
     languageDropdownUsed = false,
 
-    metadata,
 
     requestAnimationFrame = window.requestAnimationFrame
       || window.mozRequestAnimationFrame
@@ -98,17 +97,6 @@ semantic.ready = function() {
   // event handlers
   handler = {
 
-    getMetadata: function() {
-      $.api({
-        debug : false,
-        on    : 'now',
-        url   : '/metadata.json',
-        cache : 'local',
-        onSuccess: function(response) {
-          metadata = response;
-        }
-      });
-    },
 
     showBeg: function() {
       if(window.localStorage !== undefined) {
@@ -506,88 +494,6 @@ semantic.ready = function() {
       event.stopImmediatePropagation();
       event.preventDefault();
       return false;
-    },
-
-    less: {
-
-      parseFile: function(content) {
-        var
-          variables = {},
-          lines = content.match(/^\s*(@[\s|\S]+?;)/gm),
-          name,
-          value
-        ;
-        if(lines) {
-          $.each(lines, function(index, line) {
-            // clear whitespace
-            line = $.trim(line);
-            // match variables only
-            if(line[0] == '@') {
-              name = line.match(/^@(.+?):/);
-              value = line.match(/:\s*([\s|\S]+?;)/);
-              if( ($.isArray(name) && name.length >= 2) && ($.isArray(value) && value.length >= 2) ) {
-                name = name[1];
-                value = value[1];
-                variables[name] = value;
-              }
-            }
-          });
-        }
-        console.log(variables);
-        return variables;
-      },
-
-      changeTheme: function(theme) {
-        var
-          $themeDropdown = $(this),
-          element        = $themeDropdown.data('element'),
-          urlData     = {
-            theme   : typeof(theme === 'string')
-              ? theme.toLowerCase()
-              : theme,
-            type    : $themeDropdown.data('type'),
-            element : $themeDropdown.data('element')
-          },
-          variables = {
-            theme: urlData.theme
-          }
-        ;
-        variables[element] = urlData.theme;
-        window.less.modifyVars(variables);
-
-        $themeDropdown
-          .api({
-            on       : 'now',
-            debug    : true,
-            action   : 'getVariables',
-            dataType : 'text',
-            urlData  : urlData,
-            onSuccess: function(content) {
-              window.less.modifyVars( handler.less.parseFile(content) );
-              $themeDropdown
-                .api({
-                  on       : 'now',
-                  action   : 'getOverrides',
-                  dataType : 'text',
-                  urlData  : urlData,
-                  onSuccess: function(content) {
-                    if( $('style.override').length > 0 ) {
-                      $('style.override').remove();
-                    }
-                    console.log(content);
-                    $('<style>' + content + '</style>')
-                      .addClass('override')
-                      .appendTo('body')
-                    ;
-                    $sticky.sticky('refresh');
-                  }
-                })
-              ;
-            }
-          })
-        ;
-      }
-
     },
 
     create: {
@@ -1019,10 +925,6 @@ semantic.ready = function() {
             if(className == 'item') {
               return;
             }
-            if(metadata && metadata[className] && metadata[className].url) {
-              // we found a match
-              newHTML = html.replace(classString, '<a href="' + metadata[className].url + '">' + classString + '</a>');
-            }
           });
         }
 
@@ -1054,7 +956,6 @@ semantic.ready = function() {
         evaluatedCode = $code.hasClass('evaluated'),
         contentType   = $code.data('type')     || 'html',
         title         = $code.data('title')    || false,
-        less          = $code.data('less')     || false,
         demo          = $code.data('demo')     || false,
         eval          = $code.data('eval')     || false,
         preview       = $code.data('preview')  || false,
@@ -1145,17 +1046,6 @@ semantic.ready = function() {
         $('<div>')
           .addClass('ui pointing below ignored language label')
           .html(displayType[contentType] || contentType)
-          .insertBefore ( $code.closest('.segment') )
-        ;
-      }
-      // add apply less button
-      if(less) {
-        $('<a>')
-          .addClass('ui black pointing below ignored label')
-          .html('Apply Theme')
-          .on('click', function() {
-            window.less.modifyVars( handler.less.parseFile( code ) );
-          })
           .insertBefore ( $code.closest('.segment') )
         ;
       }
@@ -1260,8 +1150,6 @@ semantic.ready = function() {
   // add anchors to docs headers
   handler.createAnchors();
 
-  // register less files
-  window.less.registerStylesheets();
 
 
   // load page tabs
@@ -1377,12 +1265,6 @@ semantic.ready = function() {
     .on('click', handler.chooseStandalone)
   ;
 
-  $themeDropdown
-    .dropdown({
-      allowTab: false,
-      onChange: handler.less.changeTheme
-    })
-  ;
 
   if($.fn.tablesort !== undefined && $sortTable.length > 0) {
     $sortTable
@@ -1461,8 +1343,6 @@ semantic.ready = function() {
       }, 500)
     ;
   }
-
-  handler.getMetadata();
 
 };
 
