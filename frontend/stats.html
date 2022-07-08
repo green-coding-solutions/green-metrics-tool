@@ -191,121 +191,162 @@
                             </div>
                         </div>
 
-                        <script src="/dist/apexcharts.min.js"></script>
+             <script src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
 
- <script>
-    // assign these variables here, so we can use them in the console
-    // for debugging in global scope
-    let total_energy = null;
-    let accumulate = 0;
-    const cpu_load = [];
-    const annotations = {}
-    const my_series = {}
-    const my_charts = {}
-    const my_annotations = {}
+    <script>
+        var cpu_load = [];
+        var my_series = {}
+        var project_data = {}
 
-    const project_data = {}
+        const query_string = window.location.search;
+        const url_params = (new URLSearchParams(query_string))
+        if(!url_params.has('id')) {
+            alert("Please supply id in URL")
 
-    const query_string = window.location.search;
-    const url_params = (new URLSearchParams(query_string))
-
-    if(!url_params.has('id')) {
-        alert("Please supply id in URL")
-
-    } else {
-        try {
-            if(document.location.host.indexOf('metrics.green-coding.org') === 0)
+        } else {
+            var total_energy = null;
+            var accumulate = 0;
+            let annotations = [];
+            try {
+              if(document.location.host.indexOf('metrics.green-coding.org') === 0)
                 api_url = "https://api.green-coding.org";
-            else
+              else
                 api_url = "http://api.green-coding.local:8000";
 
-            fetch(api_url +'/v1/stats/single/'+url_params.get('id'))
-            .then(response => response.json())
-            .then(my_json => {
-                if(my_json.success != true) {
-                    alert(my_json.err);
-                    return;
-                }
+                fetch(api_url +'/v1/stats/single/'+url_params.get('id'))
+                  .then(response => response.json())
+                  .then(my_json => {
+                      if(my_json.success != true) {
+                          alert(my_json.err);
+                          return;
+                      }
 
-                document.querySelector("#project-last-crawl").innerText = my_json.project.last_crawl;
-                document.querySelector("#project-name").innerText = my_json.project.name;
-                document.querySelector("#project-url").innerText = my_json.project.url;
-                document.querySelector("#project-cpu").innerText = my_json.project.cpu;
-                document.querySelector("#project-memtotal").innerText = my_json.project.memtotal;
+                      console.log("my_json", my_json)
+                      document.querySelector("#project-last-crawl").innerText = my_json.project.last_crawl;
+                      document.querySelector("#project-name").innerText = my_json.project.name;
+                      document.querySelector("#project-url").innerText = my_json.project.url;
+                      document.querySelector("#project-cpu").innerText = my_json.project.cpu;
+                      document.querySelector("#project-memtotal").innerText = my_json.project.memtotal;
 
+                      my_json.data.forEach(el => {
+                          if(my_series[el[2]] == undefined) {
+                            my_series[el[2]] = {}
+                          }
 
-                my_json.data.forEach(el => {
-                    if(el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
-                        accumulate = 1;
-                        return
-                    } else if(el[0] == '[SYSTEM]' && el[4] == '[END MEASUREMENT]') {
-                        accumulate = 0;
-                        return;
-                    }
-
-                    el[0] = 'Container '+el[0]
-                    el[1] = el[1]/1000;
-
-                    if(my_series[el[2]] == undefined) {
-                        my_series[el[2]] = {}
-                        my_annotations[el[2]] = []
-                    }
-
-                    if(el[2] == 'cpu_cgroup') {
-                        if(my_series[el[2]][el[0]] == undefined) {
-                            my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/100}]}
-                        } else {
-                            my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/100})
+                        const replicateAnnotations = (target) => {
+                          if (el[2] !== target) { // avoids duplication of annotations on the same chart
+                            if (my_series[target][el[0]] == undefined) {
+                              my_series[target][el[0]] = {name: el[0], data: [{x: el[1], y: 0}]}
+                            } else {
+                              my_series[target][el[0]]['data'].push({x: el[1], y: 0})
+                            }
+                          }
                         }
-                        if(accumulate === 1) cpu_load.push(el[3])
 
-                    }
-                else if(el[2] == 'energy_system_RAPL_MSR') {
-                    if(accumulate === 1) total_energy += el[3];
-                    if(my_series[el[2]][el[0]] == undefined) {
-                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]}]}
-                    } else {
-                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]})
-                    }
+                        if(el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
+                          accumulate = 1;
+                          return
+                        } else if(el[0] == '[SYSTEM]' && el[4] == '[END MEASUREMENT]') {
+                          accumulate = 0;
+                          return;
+                        }
 
-                } else if (el[2] == 'memory_cgroup') {
-                    if(my_series[el[2]][el[0]] == undefined) {
-                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]/1000000}]}
-                    } else {
-                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]/1000000})
-                    }
-                } else {
-                    if(my_series[el[2]][el[0]] == undefined) {
-                        my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y:el[3]}]}
-                    } else {
-                        my_series[el[2]][el[0]]['data'].push({x: el[1], y:el[3]})
-                    }
-                }
-                  /*
-                  el[0] // container_id
-                  el[1] // time
-                  el[2] // metric name
-                  el[3] // value
-                  el[4] // note
-                  '*/
+                        el[1] = el[1]/1000;
+
+                        var value = null;
+                        if(el[2] == 'cpu_cgroup' && accumulate === 1) {
+                          cpu_load.push(el[3]);
+                          value = el[3] / 100;
+                        } else if(el[2] == 'energy_system_RAPL_MSR') {
+                          if(accumulate === 1) total_energy += el[3]
+                          value = el[3];
+                        } else if(el[2] == 'memory_cgroup') {
+                          cpu_load.push(el[3])
+                          value = el[3] / 1000000;
+                        } else {
+                            value = el[3];
+                        }
+
+                        if(my_series[el[2]][el[0]] == undefined) {
+                            my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y: value}]}
+                        } else {
+                            my_series[el[2]][el[0]]['data'].push({x: el[1], y: value})
+                        }
+
+                        /*  Notes are coming from the API now, please rework
+                        if(el[4] != null) {
+                            annotations.push({
+                              series: el[0],
+                              x: el[1],
+                              shortText: el[4][0] === " " ? el[4][1] : el[4][0], // first letter of the message; in case it's a space, then seccond letter
+                              text: el[4],
+                            })
+
+                            replicateAnnotations("cpu");
+                            replicateAnnotations("system-energy");
+                            replicateAnnotations("mem");
+                            replicateAnnotations("net_in");
+                        }
+                        */
+
+                        /*
+                        el[0] // container_id
+                        el[1] // time
+                        el[2] // metric name
+                        el[3] // value
+                        el[4] // note => Not anymore present
+                        '*/
               })
+                        console.log("annotations", annotations)
 
-                for ( el in my_series) {
-                    let options = buildOptions(my_series[el], my_annotations[el], el)
-                    createChartContainer("#chart-scaffold", "#chart-container", '.chart', options)
-                }
 
-                document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
-                document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
-                document.querySelector("#total-co2").innerText = (total_energy / 1000 / 3600000 * 0.519 * 1000000).toFixed(2) + " ugCO2eq"
-                document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a,b) => a + b, 0) / cpu_load.length) / 100).toFixed(2) + " %"
+                        for ( el in my_series) {
+                            const { data: data, labels: labels } = getDataAndLabels(Object.values(my_series[el]));
+                            const element = createChartContainer("#chart-scaffold", "#chart-container", '.chart')
+                            const chart = createGraph(element, data, labels, el)
+                            // chart_cpu.setAnnotations(annotations); // please rework
+                        }
 
-            })
-        } catch(e) {
-            alert("Fetch failed: "+e)
-        }
-    }
-</script>
+                        document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
+                        document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
+                        document.querySelector("#total-co2").innerText = (total_energy / 1000 / 3600000 * 0.519 * 1000000).toFixed(2) + " ugCO2eq"
+                        document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a,b) => a + b, 0) / cpu_load.length) / 100).toFixed(2) + " %"
+
+                  })
+              } catch(e) {
+                  alert("Fetch failed: "+e)
+              }
+            }
+    </script>
+
+<div id="myModal" class="modal">
+    <!-- Modal content -->
+</div>
+
+ <style>
+/* The Modal (background) */
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 1; /* Sit on top */
+  left: 400;
+  top: 400;
+  width: 20%; /* Full width */
+  height: 20%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgb(0,0,0); /* Fallback color */
+  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+/* Modal Content/Box */
+.modal-content {
+  background-color: #fefefe;
+  margin: 15% auto; /* 15% from the top and centered */
+  padding: 20px;
+  border: 1px solid #888;
+  width: 80%; /* Could be more or less, depending on screen size */
+}
+</style>
 
 </body>
 </html>
