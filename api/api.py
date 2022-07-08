@@ -172,10 +172,10 @@ async def get_stats_multi(p: list[str] | None = Query(default=None)):
             GROUP BY projects.name, stats.container_name, stats.metric
             """
     data = DB().fetch_all(query, params=p)
+
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
     return {"success": True, "data": data}
-
 
 @app.get('/v1/stats/compare')
 async def get_stats_compare(p: list[str] | None = Query(default=None)):
@@ -184,17 +184,17 @@ async def get_stats_compare(p: list[str] | None = Query(default=None)):
             return {'success': False, 'err': 'Project_id is empty'}
 
     query = """
-            SELECT 
+            SELECT
                 projects.name, stats.container_name, stats.metric, AVG(stats.value)
-            FROM 
-                stats 
-            LEFT JOIN 
+            FROM
+                stats
+            LEFT JOIN
                 projects
-            ON 
+            ON
                 stats.project_id = projects.id
-            WHERE 
+            WHERE
                 stats.metric = ANY(ARRAY['cpu','mem','system-energy'])
-            AND 
+            AND
                 STATS.project_id = ANY(%s::uuid[])
             GROUP BY projects.name, stats.container_name, stats.metric
             """
