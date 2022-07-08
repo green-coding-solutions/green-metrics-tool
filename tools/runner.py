@@ -67,6 +67,9 @@ class Runner:
         print("From: ", obj['author'])
         print("Version ", obj['version'], "\n")
 
+        if(self.unsafe_mode):
+            print("\n\n>>>> Warning: Runner is running in unsafe mode <<<<<<\n\n")
+
         # Sanity checks first, before we insert anything in DB and rely on the linux subsystem to be present. ATM only linux is working
         # TODO: Refactor hardware calls later to be able to switch architectures
         ps = subprocess.run(["uname", "-s"], check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8')
@@ -114,28 +117,36 @@ class Runner:
                 else:
                     docker_run_string.append(f"{folder}:/tmp/repo:ro")
 
-                if self.unsafe_mode is True and 'volumes' in el:
-                    if(type(el['volumes']) != list):
-                        raise RuntimeError(f"Volumes must be a list but is: {type(el['volumes'])}")
-                    for volume in el['volumes']:
-                        docker_run_string.append('-v')
-                        docker_run_string.append(f"{volume}:ro")
+                if 'volumes' in el:
+                    if self.unsafe_mode:
+                        if(type(el['volumes']) != list):
+                            raise RuntimeError(f"Volumes must be a list but is: {type(el['volumes'])}")
+                        for volume in el['volumes']:
+                            docker_run_string.append('-v')
+                            docker_run_string.append(f"{volume}:ro")
+                    else:
+                        print('\n\n>>>>>>> Found volumes entry but not running in unsafe mode. Skipping <<<<<<<<\n\n', file=sys.stderr)
 
-                if self.unsafe_mode is True and 'portmapping' in el:
-                    if(type(el['portmapping']) != list):
-                        raise RuntimeError(f"Portmapping must be a list but is: {type(el['portmapping'])}")
-                    for portmapping in el['portmapping']:
-                        print("Setting portmapping: ", el['portmapping'])
-                        docker_run_string.append('-p')
-                        docker_run_string.append(portmapping)
+                if 'portmapping' in el:
+                    if self.unsafe_mode:
+                        if(type(el['portmapping']) != list):
+                            raise RuntimeError(f"Portmapping must be a list but is: {type(el['portmapping'])}")
+                        for portmapping in el['portmapping']:
+                            print("Setting portmapping: ", el['portmapping'])
+                            docker_run_string.append('-p')
+                            docker_run_string.append(portmapping)
+                    else:
+                        print('\n\n>>>>>>> Found portmapping entry but not running in unsafe mode. Skipping <<<<<<<<\n\n', file=sys.stderr)
 
                 if 'env' in el:
                     import re
                     for docker_env_var in el['env']:
-                        if self.unsafe_mode is True and re.search("^[A-Z_]+$", docker_env_var) is None:
-                            raise RuntimeError(f"Docker container setup env var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var}")
-                        if self.unsafe_mode is True and re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", el['env'][docker_env_var]) is None:
-                            raise RuntimeError(f"Docker container setup env var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {el['env'][docker_env_var]}")
+                        if re.search("^[A-Z_]+$", docker_env_var) is None:
+                            if not self.unsafe_mode:
+                                 raise RuntimeError(f"Docker container setup env var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var} - Maybe consider using --unsafe")
+                        if re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", el['env'][docker_env_var]) is None:
+                            if not self.unsafe_mode:
+                                 raise RuntimeError(f"Docker container setup env var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {el['env'][docker_env_var]} - Maybe consider using --unsafe")
 
                         docker_run_string.append('-e')
                         docker_run_string.append(f"{docker_env_var}={el['env'][docker_env_var]}")
