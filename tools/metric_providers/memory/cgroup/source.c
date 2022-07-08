@@ -76,8 +76,8 @@ int main(int argc, char **argv) {
             msleep_time = atoi(optarg);
             break;
         case 's':
-            char *id = strtok(optarg,",");
             containers = malloc(sizeof(struct container));
+            char *id = strtok(optarg,",");
             for (; id != NULL; id = strtok(NULL, ",")) {
                 //printf("Token: %s\n", id);
                 length++;
