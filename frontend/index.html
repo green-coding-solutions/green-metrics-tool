@@ -1,381 +1,191 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Green Metrics Tool - Experimental 0.1</title>
-  <!-- plugins:css -->
-  <link rel="stylesheet" href="/assets/vendors/mdi/css/materialdesignicons.min.css">
-  <link rel="stylesheet" href="/assets/vendors/css/vendor.bundle.base.css">
-  <!-- endinject -->
-  <!-- Plugin css for this page -->
-  <link rel="stylesheet" href="/assets/vendors/flag-icon-css/css/flag-icon.min.css">
-  <link rel="stylesheet" href="/assets/vendors/jvectormap/jquery-jvectormap.css">
-  <!-- End plugin css for this page -->
-  <!-- Layout styles -->
-  <link rel="stylesheet" href="/assets/css/demo/style.css">
-  <!-- End layout styles -->
-  <link rel="shortcut icon" href="/assets/images/favicon.png" />
+    <!-- Standard Meta -->
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <link rel="shortcut icon" href="/assets/images/favicon.png" />
+
+    <!-- Site Properities -->
+    <meta name="generator" content="DocPad v6.79.4" />
+    <title>Green Metrics Tool - Experimental 0.1</title>
+
+    <meta name="description" content="Using Fomantic UI with Other Libraries" />
+    <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
+
+    <script src="./assets/js/jquery.min.js"></script>
+    <script src="./assets/js/tablesort.min.js"></script>
+    <script src="./assets/js/search.min.js"></script>
+    <script src="./assets/js/easing.min.js"></script>
+    <script src="./assets/js/semantic.min.js"></script>
+    <script src="./assets/js/docs.js"></script>
+    <script src="./assets/js/highlight.min.js"></script>
+    <script src="./assets/js/less.min.js"></script>
+    <!-- <script src="./assets/js/clipboard.min.js"></script> -->
+    <!-- <script src="./assets/js/history.min.js"></script> -->
+    <!-- <script src="./assets/js/state.js"></script> -->
+    <!-- <script src="./assets/js/underscore.min.js"></script> -->
+
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/semantic.min.css">
+    <link rel="stylesheet" type="text/css" href="./assets/css/docs.css">
+    <!-- <link rel="stylesheet" type="text/css" href="./assets/css/rtl.css"> -->
 </head>
-<body>
-<script src="../assets/js/preloader.js"></script>
-  <div class="body-wrapper">
-    <!-- partial:partials/_sidebar.html -->
-    <aside class="mdc-drawer mdc-drawer--dismissible mdc-drawer--open">
-      <div class="mdc-drawer__header">
-        <a href="index.html" class="brand-logo">
-          <img src="../assets/images/logo.svg" alt="logo">
+
+<body id="example" class="started" ontouchstart="">
+    <div class="ui vertical inverted sidebar menu" id="toc"
+    style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
+    <div class="item">
+        <p>Demo user</p>
+    </div>
+    <a class="item" href="/index.html">
+        <b><i class="home icon"></i>Home</b>
+    </a>
+    <a class="item" href="/request.html">
+        <b><i class="bullseye icon"></i>Certify new software</b>
+    </a>
+    <a class="item" href="/data_analysis.html">
+        <b><i class="chart pie icon"></i>Data Analysis</b>
+    </a>
+</div>
+
+<div class="ui black big launch right attached fixed button">
+    <i class="content icon"></i>
+    <span class="text">Menu</span>
+</div>
+
+<div class="ui fixed inverted main menu" style="background: linear-gradient(#2a1c5a,#4b3a6e);">
+    <div class="ui container">
+        <a class="launch icon item">
+            <i class="content icon"></i>
         </a>
-      </div>
-      <div class="mdc-drawer__content">
-        <div class="user-info">
-          <p class="name">Demo User</p>
-          <p class="email">info@green-coding.org</p>
+
+        <div class="item">
+            Home
         </div>
-        <div class="mdc-list-group">
-          <nav class="mdc-list mdc-drawer-menu">
-            <div class="mdc-list-item mdc-drawer-item">
-              <a class="mdc-drawer-link" href="index.html">
-                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">home</i>
-                Home
-              </a>
+        <div class="right menu">
+            <div class="vertically fitted borderless item">
+                <p>Demo user</p>
             </div>
-            <div class="mdc-list-item mdc-drawer-item">
-              <a class="mdc-drawer-link" href="/request.html">
-                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">track_changes</i>
-                Certify new Software
-              </a>
-            </div>
-            <div class="mdc-list-item mdc-drawer-item">
-              <a class="mdc-drawer-link" href="/data-analysis.html">
-                <i class="material-icons mdc-list-item__start-detail mdc-drawer-item-icon" aria-hidden="true">pie_chart</i>
-                Data Analysis
-              </a>
-            </div>
-          </nav>
         </div>
-        <div class="profile-actions">
-          <a href="javascript:;">Settings</a>
-          <span class="divider"></span>
-          <a href="javascript:;">Logout</a>
+    </div>
+</div>
+
+<div class="pusher" style="background: #e9eaef">
+    <div class="full height" style="background: #e9eaef">
+        <div class="toc" style="width: 13vw;">
+            <div class="ui vertical inverted menu"
+            style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
+            <div class="item">
+                <p>Demo user</p>
+            </div>
+            <a class="item" href="/index.html">
+                <b><i class="home icon"></i>Home</b>
+            </a>
+            <a class="item" href="/request.html">
+                <b><i class="bullseye icon"></i>Certify new software</b>
+            </a>
+            <a class="item" href="/data_analysis.html">
+                <b><i class="chart pie icon"></i>Data Analysis</b>
+            </a>
         </div>
-      </div>
-    </aside>
-    <!-- partial -->
-    <div class="main-wrapper mdc-drawer-app-content">
-      <!-- partial:partials/_navbar.html -->
-      <header class="mdc-top-app-bar">
-        <div class="mdc-top-app-bar__row">
-          <div class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
-            <button class="material-icons mdc-top-app-bar__navigation-icon mdc-icon-button sidebar-toggler">menu</button>
-            <span class="mdc-top-app-bar__title">Greetings Demo User!</span>
-            <div class="mdc-text-field mdc-text-field--outlined mdc-text-field--with-leading-icon search-text-field d-none d-md-flex">
-              <i class="material-icons mdc-text-field__icon">search</i>
-              <input class="mdc-text-field__input" id="text-field-hero-input">
-              <div class="mdc-notched-outline">
-                <div class="mdc-notched-outline__leading"></div>
-                <div class="mdc-notched-outline__notch">
-                  <label for="text-field-hero-input" class="mdc-floating-label">Search..</label>
+    </div>
+
+    <div class="article" style="margin-left: 13vw;">
+        <div class="ui masthead vertical segment" style="background: #e9eaef; border: 0px;">
+            <div class="main ui intro container"
+            style="margin-right: 0px !important; padding-top: 0px !important; max-width: 77vw !important;">
+            <div class="ui search">
+                <div class="ui icon input">
+                    <input class="prompt" type="text" placeholder="Search tests...">
+                    <i class="search icon"></i>
                 </div>
-                <div class="mdc-notched-outline__trailing"></div>
-              </div>
+                <div class="results"></div>
             </div>
-          </div>
-          <div class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end mdc-top-app-bar__section-right">
-            <div class="menu-button-container menu-profile d-none d-md-block">
-              <button class="mdc-button mdc-menu-button">
-                <span class="d-flex align-items-center">
-                  <span class="figure">
-                    <img src="../assets/images/faces/face1.jpg" alt="user" class="user">
-                  </span>
-                  <span class="user-name">Demo User</span>
-                </span>
-              </button>
-              <div class="mdc-menu mdc-menu-surface" tabindex="-1">
-                <ul class="mdc-list" role="menu" aria-hidden="true" aria-orientation="vertical">
-                  <li class="mdc-list-item" role="menuitem">
-                    <div class="item-thumbnail item-thumbnail-icon-only">
-                      <i class="mdi mdi-account-edit-outline text-primary"></i>
-                    </div>
-                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
-                      <h6 class="item-subject font-weight-normal">Edit profile</h6>
-                    </div>
-                  </li>
-                  <li class="mdc-list-item" role="menuitem">
-                    <div class="item-thumbnail item-thumbnail-icon-only">
-                      <i class="mdi mdi-settings-outline text-primary"></i>
-                    </div>
-                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
-                      <h6 class="item-subject font-weight-normal">Logout</h6>
-                    </div>
-                  </li>
-                </ul>
-              </div>
+
+            <table class="ui sortable celled striped table" style="padding: 20px" id="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>URI</th>
+                        <th>Last Crawl</th>
+                    </tr>
+                </thead>
+                <tbody id="projects-table">
+                </table>
             </div>
-            <div class="divider d-none d-md-block"></div>
-            <div class="menu-button-container d-none d-md-block">
-              <button class="mdc-button mdc-menu-button">
-                <i class="mdi mdi-settings"></i>
-              </button>
-              <div class="mdc-menu mdc-menu-surface" tabindex="-1">
-                <ul class="mdc-list" role="menu" aria-hidden="true" aria-orientation="vertical">
-                  <li class="mdc-list-item" role="menuitem">
-                    <div class="item-thumbnail item-thumbnail-icon-only">
-                      <i class="mdi mdi-alert-circle-outline text-primary"></i>
-                    </div>
-                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
-                      <h6 class="item-subject font-weight-normal">Settings</h6>
-                    </div>
-                  </li>
-                  <li class="mdc-list-item" role="menuitem">
-                    <div class="item-thumbnail item-thumbnail-icon-only">
-                      <i class="mdi mdi-progress-download text-primary"></i>
-                    </div>
-                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
-                      <h6 class="item-subject font-weight-normal">Update</h6>
-                    </div>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <div class="menu-button-container">
-              <button class="mdc-button mdc-menu-button">
-                <i class="mdi mdi-bell"></i>
-              </button>
-              <div class="mdc-menu mdc-menu-surface" tabindex="-1">
-                <h6 class="title"> <i class="mdi mdi-bell-outline mr-2 tx-16"></i> Notifications</h6>
-                <ul class="mdc-list" role="menu" aria-hidden="true" aria-orientation="vertical">
-                  <li class="mdc-list-item" role="menuitem">
-                    <div class="item-thumbnail item-thumbnail-icon">
-                      <i class="mdi mdi-email-outline"></i>
-                    </div>
-                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
-                      <h6 class="item-subject font-weight-normal">You received a new message</h6>
-                      <small class="text-muted"> 6 min ago </small>
-                    </div>
-                  </li>
-                  <li class="mdc-list-item" role="menuitem">
-                    <div class="item-thumbnail item-thumbnail-icon">
-                      <i class="mdi mdi-account-outline"></i>
-                    </div>
-                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
-                      <h6 class="item-subject font-weight-normal">New user registered</h6>
-                      <small class="text-muted"> 15 min ago </small>
-                    </div>
-                  </li>
-                  <li class="mdc-list-item" role="menuitem">
-                    <div class="item-thumbnail item-thumbnail-icon">
-                      <i class="mdi mdi-alert-circle-outline"></i>
-                    </div>
-                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
-                      <h6 class="item-subject font-weight-normal">System Alert</h6>
-                      <small class="text-muted"> 2 days ago </small>
-                    </div>
-                  </li>
-                  <li class="mdc-list-item" role="menuitem">
-                    <div class="item-thumbnail item-thumbnail-icon">
-                      <i class="mdi mdi-update"></i>
-                    </div>
-                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
-                      <h6 class="item-subject font-weight-normal">You have a new update</h6>
-                      <small class="text-muted"> 3 days ago </small>
-                    </div>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <div class="menu-button-container">
-              <button class="mdc-button mdc-menu-button">
-                <i class="mdi mdi-email"></i>
-                <span class="count-indicator">
-                  <span class="count">3</span>
-                </span>
-              </button>
-              <div class="mdc-menu mdc-menu-surface" tabindex="-1">
-                <h6 class="title"><i class="mdi mdi-email-outline mr-2 tx-16"></i> Messages</h6>
-                <ul class="mdc-list" role="menu" aria-hidden="true" aria-orientation="vertical">
-                  <li class="mdc-list-item" role="menuitem">
-                    <div class="item-thumbnail">
-                      <img src="../assets/images/faces/face4.jpg" alt="user">
-                    </div>
-                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
-                      <h6 class="item-subject font-weight-normal">Mark send you a message</h6>
-                      <small class="text-muted"> 1 Minutes ago </small>
-                    </div>
-                  </li>
-                  <li class="mdc-list-item" role="menuitem">
-                    <div class="item-thumbnail">
-                      <img src="../assets/images/faces/face2.jpg" alt="user">
-                    </div>
-                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
-                      <h6 class="item-subject font-weight-normal">Cregh send you a message</h6>
-                      <small class="text-muted"> 15 Minutes ago </small>
-                    </div>
-                  </li>
-                  <li class="mdc-list-item" role="menuitem">
-                    <div class="item-thumbnail">
-                      <img src="../assets/images/faces/face3.jpg" alt="user">
-                    </div>
-                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
-                      <h6 class="item-subject font-weight-normal">Profile picture updated</h6>
-                      <small class="text-muted"> 18 Minutes ago </small>
-                    </div>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <div class="menu-button-container d-none d-md-block">
-              <button class="mdc-button mdc-menu-button">
-                <i class="mdi mdi-arrow-down-bold-box"></i>
-              </button>
-              <div class="mdc-menu mdc-menu-surface" tabindex="-1">
-                <ul class="mdc-list" role="menu" aria-hidden="true" aria-orientation="vertical">
-                  <li class="mdc-list-item" role="menuitem">
-                    <div class="item-thumbnail item-thumbnail-icon-only">
-                      <i class="mdi mdi-lock-outline text-primary"></i>
-                    </div>
-                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
-                      <h6 class="item-subject font-weight-normal">Lock screen</h6>
-                    </div>
-                  </li>
-                  <li class="mdc-list-item" role="menuitem">
-                    <div class="item-thumbnail item-thumbnail-icon-only">
-                      <i class="mdi mdi-logout-variant text-primary"></i>
-                    </div>
-                    <div class="item-content d-flex align-items-start flex-column justify-content-center">
-                      <h6 class="item-subject font-weight-normal">Logout</h6>
-                    </div>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
         </div>
-      </header>
-      <!-- partial -->
-      <div class="page-wrapper mdc-toolbar-fixed-adjust">
-        <main class="content-wrapper">
-          <div class="mdc-layout-grid">
-            <div class="mdc-layout-grid__inner">
+    </div>
+</div>
+</div>
 
-              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-12-desktop mdc-layout-grid__cell--span-12-tablet">
-                <div class="mdc-card">
-                  <h6 class="card-sub-title mb-0">Here are all the known projects</h6>
-                  <div class="table-responsive">
-                      <table class="table table-striped">
-                        <thead>
-                          <tr>
-                            <th> Name </th>
-                            <th> URI</th>
-                            <th> Last Crawl </th>
-                            <th> 
-                              <button onclick="compareButton()" class="mdc-button mdc-button--raised filled-button--success mdc-ripple-upgraded">
-                                Compare
-                              </button>
-                             </th>
-                          </tr>
-                        </thead>
-                        <tbody id="projects-table">
-                        </tbody>
-                    </table>
-                  </div><!-- .table-responsive -->
-                </div>
-              </div>
+<script>
+    var chart_cpu = null;
+    var chart_energy = null;
+    var chart_mem = null;
+    var chart_net_in = null;
+    let content = [];
+    try {
+        if (document.location.host.indexOf('metrics.green-coding.org') === 0)
+            api_url = "https://api.green-coding.org";
+        else
+            api_url = "http://api.green-coding.local:8000";
 
-
-    <script>
-            var chart_cpu = null;
-            var chart_energy = null;
-            var chart_mem = null;
-            var chart_net_in = null;
-            try {
-                if(document.location.host.indexOf('metrics.green-coding.org') === 0)
-                  api_url = "https://api.green-coding.org";
-                else
-                  api_url = "http://api.green-coding.local:8000";
-
-                fetch(api_url + '/v1/projects')
-                  .then(response => response.json())
-                  .then(my_json => {
-                      if(my_json.success != true) {
-                          alert(my_json.err);
-                          return;
-                      }
-
-
-                      my_json.data.forEach(el => {
-                        const li_node = document.createElement("tr");
-                        const link_node = document.createElement('a');
-
-                        link_node.innerText = el[1];
-                        link_node.title = el[1];
-                        link_node.href = "/stats.html?id="+el[0];
-                        li_node.appendChild(link_node);
-                        li_node.innerHTML = '<td>'+li_node.innerHTML + '</td><td>'+el[2]+'</td><td>'+el[3]+'</td><td><input type="checkbox" value="'+el[0] + '" name="chbx-proj" />&nbsp;</td>';
-
-                        document.getElementById("projects-table").appendChild(li_node);
-            
-                     })
-
-                  })
-              } catch(e) {
-                  alert("Fetch failed: "+e)
-              }
-
-            function compareButton(){
-              var checkedBoxes = document.querySelectorAll('input[name=chbx-proj]:checked');
-              console.log(checkedBoxes.length);
-              var link = "";
-              if (checkedBoxes.length == 2) {
-                link = "/multi.html?dummy=dummy";
-              }
-              else if (checkedBoxes.length > 2) {
-                link = "/compare.html?dummy=dummy";
-              }
-              else {
-                alert("Please select at least two projects to compare :-)");
+        fetch(api_url + '/v1/projects')
+        .then(response => response.json())
+        .then(my_json => {
+            if (my_json.success != true) {
+                alert(my_json.err);
                 return;
-              }
-
-              checkedBoxes.forEach(checkbox => {
-                link+="&pid[]="+checkbox.value;
-              });
-              //console.log(link);
-              window.location = link;
             }
 
-    </script>
-              </div>
-            </div>
-          </main>
-        </div>
-        
-        <!-- partial:partials/_footer.html -->
-        <footer>
-          <div class="mdc-layout-grid">
-            <div class="mdc-layout-grid__inner">
-              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop">
-                <span class="text-center text-sm-left d-block d-sm-inline-block tx-14">Copyright © <a href="https://www.bootstrapdash.com/" target="_blank">bootstrapdash.com </a>2020</span>
-              </div>
-              <div class="mdc-layout-grid__cell stretch-card mdc-layout-grid__cell--span-6-desktop d-flex justify-content-end">
-                <span class="float-none float-sm-right d-block mt-1 mt-sm-0 text-center tx-14">Free <a href="https://www.bootstrapdash.com/material-design-dashboard/" target="_blank"> material admin </a> dashboards from Bootstrapdash.com</span>
-              </div>
-            </div>
-          </div>
-        </footer>
-        <!-- partial -->
-      </div>
-  </div>
-  <!-- plugins:js -->
-  <!-- endinject -->
-  <!-- inject:js -->
-  <script src="./assets/vendors/js/vendor.bundle.base.js"></script>
-  <!-- <script src="../assets/js/material.js"></script> -->
-  <script src="../assets/js/misc.js"></script>
-  <!-- endinject -->
-  <!-- Custom js for this page-->
-  <script src="../assets/js/dashboard.js"></script>
-  <!-- End custom js for this page-->
-</body>
-</html> 
+            my_json.data.forEach(el => {
+                const li_node = document.createElement("tr");
+                const link_node = document.createElement('a');
+                content.push({ title: el[1] });
+                link_node.innerText = el[1];
+                link_node.title = el[1];
+                link_node.href = "/stats.html?id=" + el[0];
+                li_node.appendChild(link_node);
+                li_node.innerHTML = '<td style="word-break:break-all;">' + li_node.innerHTML + '</td><td style="word-break:break-all;">' + el[2] + '</td><td style="word-break:break-all;">' + el[3] + '</td>';
+
+                document.getElementById("projects-table").appendChild(li_node);
+            })
+            $('.ui.search').search({ source: content });
+        })
+    } catch (e) {
+        alert("Fetch failed: " + e)
+    }
+
+    function compareButton(){
+        var checkedBoxes = document.querySelectorAll('input[name=chbx-proj]:checked');
+        console.log(checkedBoxes.length);
+        var link = "";
+        if (checkedBoxes.length == 2) {
+            link = "/multi.html?dummy=dummy";
+        }
+        else if (checkedBoxes.length > 2) {
+            link = "/compare.html?dummy=dummy";
+        }
+        else {
+            alert("Please select at least two projects to compare :-)");
+            return;
+        }
+
+        checkedBoxes.forEach(checkbox => {
+            link+="&pid[]="+checkbox.value;
+        });
+              //console.log(link);
+              window.location = link;
+    }
+    $(document).ready(function () {
+        $('table').tablesort();
+        document.getElementsByClassName("ui dividing right rail")[0].setAttribute('style', 'border: 0px;');
+    });
+
+  </script>
+
+  </body>
+
+  </html>
