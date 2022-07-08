@@ -172,6 +172,57 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="ui five cards stackable">
+                          <div class="card">
+                              <div class="content">
+                                  <div class="header">Trees</div>
+                                  <div class="description">
+                                      <h5 id="trees">&nbsp;</h5>
+                                      <p>Description</p>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div class="card">
+                              <div class="content">
+                                  <div class="header">Miles driven</div>
+                                  <div class="description">
+                                      <h5 id="miles-driven">&nbsp;</h5>
+                                      <p>Description</p>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div class="card">
+                              <div class="content">
+                                  <div class="header">Gasoline</div>
+                                  <div class="description">
+                                      <h5 id="gasoline">&nbsp;</h5>
+                                      <p>Description</p>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div class="card">
+                              <div class="content">
+                                  <div class="header">Smartphones charged</div>
+                                  <div class="description">
+                                      <h5 id="smartphones-charged">&nbsp;</h5>
+                                      <p>Description</p>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div class="card">
+                            <div class="content">
+                                <div class="header">Flights</div>
+                                <div class="description">
+                                    <h5 id="flights">&nbsp;</h5>
+                                    <p>Description</p>
+                                </div>
+                            </div>
+                        </div>
+                      </div>
 
                         <!--  TODO <div class="ui two cards stackable" > -->
 
@@ -311,6 +362,16 @@
                         document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
                         document.querySelector("#total-co2").innerText = (total_energy / 1000 / 3600000 * 0.519 * 1000000).toFixed(2) + " ugCO2eq"
                         document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a,b) => a + b, 0) / cpu_load.length) / 100).toFixed(2) + " %"
+
+                        const total_CO2 = (total_energy / 1000 / 3600000 * 0.519 * 1000000);
+                        // const total_CO2_in_kg = total_CO2 / 1000000000; // the real value, bring it back later on
+                        const total_CO2_in_kg = total_CO2 * 10; // fake value only so that we see numbers greater than 0.00
+                      
+                        document.querySelector("#trees").innerText = (total_CO2_in_kg / 0.06 / 1000).toFixed(2) + " trees";
+                        document.querySelector("#miles-driven").innerText = (total_CO2_in_kg / 0.000403 / 1000).toFixed(2) + " miles driven";
+                        document.querySelector("#gasoline").innerText = (total_CO2_in_kg / 0.008887 / 1000).toFixed(2) + " gallons";
+                        document.querySelector("#smartphones-charged").innerText = (total_CO2_in_kg / 0.00000822 / 1000).toFixed(2) + " smartphones charged";
+                        document.querySelector("#flights").innerText = (total_CO2_in_kg / 1000).toFixed(2) + " flights from Berlin to New York City";
 
                   })
               } catch(e) {
