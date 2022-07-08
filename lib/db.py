@@ -28,13 +28,12 @@ class DB:
         try:
             cur.execute(query, params)
             self._conn.commit()
-            match return_type:
-                case "one":
-                    ret = cur.fetchone()
-                case "all":
-                    ret = cur.fetchall()
-                case _:
-                    ret = True
+            if return_type == "one":
+                ret = cur.fetchone()
+            elif return_type == "all":
+                ret = cur.fetchall()
+            else :
+                ret = True
 
         except psycopg2.Error as e:
             self._conn.rollback()
