@@ -465,11 +465,7 @@ semantic.ready = function() {
         console.log("activeTab: ", activeTab);
         $sticky.find('h3.ui.header').after('<h4 class="ui header">' + activeTab + '</h4>');
       }
-      $rail = $('<div />')
-        .addClass('ui dividing right rail')
-        .html($sticky)
-        .prependTo($container)
-      ;
+
       requestAnimationFrame(function() {
         $sticky.sticky({
           silent: true,

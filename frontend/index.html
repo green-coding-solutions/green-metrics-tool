@@ -22,7 +22,6 @@
     <script src="./assets/js/semantic.min.js"></script>
     <script src="./assets/js/docs.js"></script>
     <script src="./assets/js/highlight.min.js"></script>
-    <script src="./assets/js/less.min.js"></script>
     <!-- <script src="./assets/js/clipboard.min.js"></script> -->
     <!-- <script src="./assets/js/history.min.js"></script> -->
     <!-- <script src="./assets/js/state.js"></script> -->
@@ -30,6 +29,7 @@
 
     <link rel="stylesheet" type="text/css" class="ui" href="./dist/semantic.min.css">
     <link rel="stylesheet" type="text/css" href="./assets/css/docs.css">
+    <link rel="stylesheet" type="text/css" href="./assets/css/green-coding.css">
     <!-- <link rel="stylesheet" type="text/css" href="./assets/css/rtl.css"> -->
 </head>
 
@@ -45,7 +45,7 @@
     <a class="item" href="/request.html">
         <b><i class="bullseye icon"></i>Certify new software</b>
     </a>
-    <a class="item" href="/data_analysis.html">
+    <a class="item" href="/data-analysis.html">
         <b><i class="chart pie icon"></i>Data Analysis</b>
     </a>
 </div>
@@ -86,7 +86,7 @@
             <a class="item" href="/request.html">
                 <b><i class="bullseye icon"></i>Certify new software</b>
             </a>
-            <a class="item" href="/data_analysis.html">
+            <a class="item" href="/data-analysis.html">
                 <b><i class="chart pie icon"></i>Data Analysis</b>
             </a>
         </div>
@@ -110,6 +110,11 @@
                         <th>Name</th>
                         <th>URI</th>
                         <th>Last Crawl</th>
+                        <th>
+                            <button onclick="compareButton()">
+                                Compare
+                            </button>
+                        </th>
                     </tr>
                 </thead>
                 <tbody id="projects-table">
@@ -148,7 +153,7 @@
                 link_node.title = el[1];
                 link_node.href = "/stats.html?id=" + el[0];
                 li_node.appendChild(link_node);
-                li_node.innerHTML = '<td style="word-break:break-all;">' + li_node.innerHTML + '</td><td style="word-break:break-all;">' + el[2] + '</td><td style="word-break:break-all;">' + el[3] + '</td>';
+                li_node.innerHTML = '<td style="word-break:break-all;">' + li_node.innerHTML + '</td><td style="word-break:break-all;">' + el[2] + '</td><td style="word-break:break-all;">' + el[3] + '</td><td><input type="checkbox" value="'+el[0] + '" name="chbx-proj" />&nbsp;</td>';
 
                 document.getElementById("projects-table").appendChild(li_node);
             })
@@ -181,7 +186,6 @@
     }
     $(document).ready(function () {
         $('table').tablesort();
-        document.getElementsByClassName("ui dividing right rail")[0].setAttribute('style', 'border: 0px;');
     });
 
   </script>
