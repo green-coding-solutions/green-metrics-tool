@@ -2,7 +2,7 @@ import signal
 import os
 import subprocess
 
-def kill_pids(ps_to_kill):
+def kill_ps(ps_to_kill):
     print("Killing processes")
     for ps in ps_to_kill:
         print(f"Trying to kill {ps['cmd']} with PID: {ps['pid']}")

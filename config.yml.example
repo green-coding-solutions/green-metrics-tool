@@ -22,8 +22,11 @@ measurement:
 # Please select the needed providers according to the working ones on your system
 # More info https://docs.green-coding.org/docs/measuring/metric-providers
 metric-providers:
-  - cgroup.cpu.provider
-  - cgroup.memory.provider
+  - cpu.cgroup.provider.CpuCgroupProvider
+  - energy.system.RAPL.MSR.provider.EnergySystemRaplMsrProvider
+  - memory.cgroup.provider.MemoryCgroupProvider
+  - time.cgroup.provider.TimeCgroupProvider
+  - time.proc.stat.provider.TimeProcStatProvider
 
 admin:
   # This address will get an email, when a new project was added through the frontend

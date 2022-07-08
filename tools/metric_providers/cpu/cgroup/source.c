@@ -1,28 +1,22 @@
-/*
-    TODO: Document what this does
-    Compile: gcc -o3 -o docker-read docker-cgroup-read.c -static -static-libgcc
-    Run: ./docker-read [interval] [container1] [container2]... [containerN]
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
-
+#include <string.h>
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
 // between Threads.
 // TODO: If this code ever gets multi-threaded please review this assumption to
 // not pollute another threads state
-
-
 static char *user_id = "1000"; //TODO: Figure out user_id dynamically, or request
 static long int user_hz;
-static unsigned int interval=1000;
-static struct container {
+static unsigned int msleep_time=1000;
+static struct container *containers = NULL;
+
+struct container { // struct is a specification and this static makes no sense here
     char path[BUFSIZ];
     char *id;
 };
@@ -35,6 +29,8 @@ static long int read_cpu_proc(FILE *fd) {
     // printf("Read: cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time, guest_time);
     if(idle_time <= 0) fprintf(stderr, "Idle time strange value %ld \n", idle_time);
 
+    // after this multiplication we are on microseconds
+    // integer division is deliberately, cause we don't loose precision as *1000000 is done before
     return ((user_time+nice_time+system_time+idle_time+iowait_time+irq_time+softirq_time+steal_time+guest_time)*1000000)/user_hz;
 }
 
@@ -84,7 +80,7 @@ static int output_stats(struct container *containers, int length) {
     }
     main_cpu_reading_before = get_cpu_stat("/proc/stat", 0);
 
-    usleep(interval*1000);
+    usleep(msleep_time*1000);
 
     for(i=0; i<length; i++) {
         cpu_readings_after[i]=get_cpu_stat(containers[i].path, 1);
@@ -99,13 +95,13 @@ static int output_stats(struct container *containers, int length) {
 
         // printf("Main CPU Reading: %ld - Container CPU Reading: %ld\n", main_cpu_reading, container_reading);
 
-        double reading;
+        long int reading;
         if(main_cpu_reading >= 0) {
             if(container_reading == 0 || main_cpu_reading == 0) {
                 reading = 0;
             }
             else if(container_reading > 0) {
-                reading = (double) container_reading / (double) main_cpu_reading;
+                reading = (container_reading*10000) / main_cpu_reading; // Deliberate integer conversion. Precision with 0.01% is good enough
             }
             else {
                 fprintf(stderr, "Error - container CPU usage negative: %ld", container_reading);
@@ -117,60 +113,80 @@ static int output_stats(struct container *containers, int length) {
             fprintf(stderr, "Error - main CPU reading returning strange data: %ld\nBefore: %ld, After %ld", main_cpu_reading, main_cpu_reading_before, main_cpu_reading_after);
         }
 
-        printf("%ld%06ld %f %s\n", now.tv_sec, now.tv_usec, reading, containers[i].id);
+        printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, reading, containers[i].id);
     }
     return 1;
 }
 
-// TODO: better arguement parsing, atm it assumes first argument is interval,
+// TODO: better arguement parsing, atm it assumes first argument is msleep_time,
 //       and rest are container ids with no real error checking
 int main(int argc, char **argv) {
-    int i;
 
-    struct container containers[argc-2];
-
-    int result=-1; // for status value of output_stats. therefore int not long
+    int c;
+    int length = 0;
 
     setvbuf(stdout, NULL, _IONBF, 0);
-
     user_hz = sysconf(_SC_CLK_TCK);
-    if(argc>=3) {
-        interval = atoi(argv[1]);
-        for (i = 2; i < argc && i < BUFSIZ; i++) {
-            containers[i-2].id = argv[i];
-            sprintf(containers[i-2].path,
-                "/sys/fs/cgroup/user.slice/user-%s.slice/user@%s.service/user.slice/docker-%s.scope/cpu.stat",
-                user_id, user_id, argv[i]);
+
+    while ((c = getopt (argc, argv, "i:s:h")) != -1) {
+        switch (c) {
+        case 'h':
+            printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
+            printf("\t-h      : displays this help\n");
+            printf("\t-s      : string of container IDs separated by comma\n");
+            printf("\t-i      : specifies the msleep_time (in microseconds) that will be slept between measurements\n\n");
+
+            struct timespec res;
+            double resolution;
+
+            printf("\tEnvironment variables:\n");
+            printf("\tUserHZ\t\t%ld\n", user_hz);
+            clock_getres(CLOCK_REALTIME, &res);
+            resolution = res.tv_sec + (((double)res.tv_nsec)/1.0e9);
+            printf("\tSystemHZ\t%ld\n", (unsigned long)(1/resolution + 0.5));
+            printf("\tCLOCKS_PER_SEC\t%ld\n", CLOCKS_PER_SEC);
+            exit(0);
+        case 'i':
+            msleep_time = atoi(optarg);
+            break;
+        case 's':
+            char *id = strtok(optarg,",");
+            containers = malloc(sizeof(struct container));
+            for (; id != NULL; id = strtok(NULL, ",")) {
+                //printf("Token: %s\n", id);
+                length++;
+                containers = realloc(containers, length * sizeof(struct container));
+                containers[length-1].id = id;
+                sprintf(containers[length-1].path,
+                    "/sys/fs/cgroup/user.slice/user-%s.slice/user@%s.service/user.slice/docker-%s.scope/cpu.stat",
+                    user_id, user_id, id);
+
+                FILE* fd = NULL;
+                fd = fopen(containers[length-1].path, "r"); // check for general readability only once
+                if ( fd == NULL) {
+                        fprintf(stderr, "Error - file %s failed to open: errno: %d\n", containers[length-1].path, errno);
+                        exit(1);
+                }
+                fclose(fd);
+            }
+
+            break;
+        default:
+            fprintf(stderr,"Unknown option %c\n",c);
+            exit(-1);
         }
     }
-    else {
-        struct timespec res;
-        double resolution;
 
-        printf("UserHZ   %ld\n", user_hz);
-
-        clock_getres(CLOCK_REALTIME, &res);
-        resolution = res.tv_sec + (((double)res.tv_nsec)/1.0e9);
-
-        printf("SystemHZ %ld\n", (unsigned long)(1/resolution + 0.5));
-
-        printf("CLOCKS_PER_SEC %ld\n", CLOCKS_PER_SEC);
-
-        fprintf(stderr, "Please provide at least two arguements - one interval (in milliseconds), and at least one container id.\n");
-        return -1;
+    if(containers == NULL) {
+        printf("Please supply at least one container id with -s XXXX\n");
+        exit(1);
     }
 
-    if(interval>0) {
-        result = 0;
-        while(1 && result != -1) {
-            result = output_stats(containers, argc-2);
-        }
+    while(1) {
+        output_stats(containers, length);
     }
 
-    if (result<0) {
-        fprintf(stderr, "Something has gone wrong.\n");
-        return -1;
-    }
+    free(containers); // since tools is only aborted by CTRL+C this is never called, but memory is freed on program end
 
     return 0;
 }

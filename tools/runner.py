@@ -9,10 +9,10 @@ import time
 import sys
 import re
 import importlib
+from io import StringIO
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{current_dir}/../lib")
-sys.path.append(f"{current_dir}/metric-providers")
 
 from save_notes import save_notes # local file import
 from setup_functions import get_config
@@ -83,10 +83,15 @@ class Runner:
 
         # Import metric providers dynamically
         for metric_provider in config['metric-providers']:
-            print(f"Importing metric provider: {metric_provider}")
-            self.metric_providers.append(importlib.import_module(metric_provider))
+            module_path, class_name = metric_provider.rsplit('.', 1)
+            module_path = f"metric_providers.{module_path}"
 
+            print(f"Importing {class_name} from {module_path}")
 
+            module = importlib.import_module(module_path)
+            metric_provider_obj = getattr(module, class_name)() # the additional () creates the instance
+
+            self.metric_providers.append(metric_provider_obj)
 
         for el in obj['setup']:
             if el['type'] == 'container':
@@ -185,10 +190,7 @@ class Runner:
 
         for metric_provider in self.metric_providers:
             print(f"Starting measurement provider {metric_provider}")
-            self.ps_to_kill.append({"pid": metric_provider.read(100, self.containers), "cmd": metric_provider, "ps_group": True})
-
-
-
+            metric_provider.start_profiling(100, self.containers)
 
         notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
 
@@ -244,6 +246,15 @@ class Runner:
         print(f"Idling containers after run for {config['measurement']['idle-time-end']}s")
         time.sleep(config['measurement']['idle-time-end'])
 
+        print("Stopping metric providers and parsing stats")
+        for metric_provider in self.metric_providers:
+            metric_provider.stop_profiling()
+
+            df = metric_provider.read_metrics(project_id, self.containers)
+            f = StringIO(df.to_csv(index=False, header=False))
+            DB().copy_from(file=f, table='stats', columns=df.columns, sep=",")
+
+
         # now we have free capacity to parse the stdout / stderr of the processes
         print("Getting output from processes: ")
         for ps in self.ps_to_read:
@@ -253,14 +264,7 @@ class Runner:
                     timestamp, note = line.split(' ', 1) # Fixed format according to defintion. If unpacking fails this is wanted error
                     notes.append({"note" : note, 'container_name' : ps['container_name'], "timestamp": timestamp})
 
-
-
-        process_helpers.kill_pids(self.ps_to_kill)
-
-        print("Parsing stats")
-        for metric_reporter in self.metric_providers:
-            metric_reporter.import_stats(project_id, self.containers)
-
+        process_helpers.kill_ps(self.ps_to_kill) # kill process only after reading. Otherwise the stream buffer might be gone
 
         print("Saving notes: ", notes)
         save_notes(project_id, notes)
@@ -281,7 +285,7 @@ class Runner:
             print("Removing files")
             subprocess.run(["rm", "-Rf", "/tmp/green-metrics-tool"])
 
-        process_helpers.kill_pids(self.ps_to_kill)
+        process_helpers.kill_ps(self.ps_to_kill)
         print("\n\n>>> Cleanup gracefully completed <<<\n\n")
 
         self.containers = {}
@@ -289,8 +293,6 @@ class Runner:
         self.ps_to_kill = []
         self.ps_to_read = []
         self.metric_providers = []
-
-
 
 if __name__ == "__main__":
     import argparse
