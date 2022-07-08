@@ -258,11 +258,25 @@
             var total_energy = null;
             var accumulate = 0;
             let annotations = [];
+            let temp_notes = [];
             try {
               if(document.location.host.indexOf('metrics.green-coding.org') === 0)
                 api_url = "https://api.green-coding.org";
               else
                 api_url = "http://api.green-coding.local:8000";
+
+                fetch(api_url +'/v1/notes/'+url_params.get('id'))
+                .then(response => response.json())
+                  .then(my_json => {
+                    temp_notes = my_json.data;
+                    // here we need to search for the START MEASUREMENT and the END MEASUREMENT in order to
+                    // set the variables start_timestamp and end_timestamp
+                    //0: Array(4)
+                      // 0: "c078e3f5-9ef8-4b64-9474-4c377479b614"
+                      // 1: "[SYSTEM]"
+                      // 2: "[END MEASUREMENT]"
+                      // 3: 1657294290566944
+                  })
 
                 fetch(api_url +'/v1/stats/single/'+url_params.get('id'))
                   .then(response => response.json())
@@ -279,6 +293,9 @@
                       document.querySelector("#project-cpu").innerText = my_json.project.cpu;
                       document.querySelector("#project-memtotal").innerText = my_json.project.memtotal;
 
+                      // notes = fetchNotes
+                      // search for note with START MEASUREMENT and get the timestamp => start_timestamp
+
                       my_json.data.forEach(el => {
                           if(my_series[el[2]] == undefined) {
                             my_series[el[2]] = {}
@@ -294,12 +311,10 @@
                           }
                         }
 
-                        if(el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
+                        if(el[1] > start_timestamp && el[1] < end_timestamp) {
                           accumulate = 1;
-                          return
-                        } else if(el[0] == '[SYSTEM]' && el[4] == '[END MEASUREMENT]') {
+                        } else {
                           accumulate = 0;
-                          return;
                         }
 
                         el[1] = el[1]/1000;

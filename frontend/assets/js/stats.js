@@ -5,30 +5,6 @@ function createChartContainer(scaffold, container, chart, options) {
     return chart_node;
 }
 
-function buildOptions(series, annotation, chart_title) {
-    const options = {
-        series: Object.values(series),
-        chart: {
-            type: 'area',
-            animations: {
-              enabled: false
-            }
-        },
-        dataLabels: {
-            enabled: false
-        },
-        stroke: {curve: 'smooth'},
-        tooltip: {
-            x: { format: 'dd/MM/yy HH:mm'},
-        },
-        xaxis: { tickAmount: 6, type: "datetime"},
-        annotations: { xaxis: annotation },
-        title: {text: chart_title}
-    };
-
-    return options;
-}
-
 
 const toggleNotes = () => {
   const notes = document.getElementsByClassName('dygraph-annotation');
