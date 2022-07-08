@@ -1,6 +1,8 @@
-def kill_pids(ps_to_kill):
-    import signal
-    import os
+import signal
+import os
+import subprocess
+
+def kill_ps(ps_to_kill):
     print("Killing processes")
     for ps in ps_to_kill:
         print(f"Trying to kill {ps['cmd']} with PID: {ps['pid']}")
@@ -17,8 +19,7 @@ def kill_pids(ps_to_kill):
             print(f"Could not find process {ps['pid']}") # process may already have ended or been killed in the process group
 
 
-def timeout(ps, cmd, duration):
-    import subprocess
+def timeout(ps, cmd: str, duration: int):
     try:
         # subprocess.wait tries to use the syscall waitpid() on POSIX.
         # If that fails however it will go into a partial spin-lock on the process (500us sleep loop).
@@ -26,9 +27,9 @@ def timeout(ps, cmd, duration):
         # Also if this code is slow on windows it should be reimplemented
         ps.wait(duration)
     except subprocess.TimeoutExpired as e:
-        print("Process exceeded runtime of 60s. Terminating ...")
+        print(f"Process exceeded runtime of {duration}s. Terminating ...")
         ps.terminate()
-        raise RuntimeError(f"Process exceeded runtime of 60s: {cmd}")
+        raise RuntimeError(f"Process exceeded runtime of {duration}s: {cmd}")
         try:
             ps.wait(5)
         except subprocess.TimeoutExpired as e:

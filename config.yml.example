@@ -1,8 +1,8 @@
 postgresql:
 # leave the host line empty if you do want to use Unix Domain socket connection
-  host: HOST_NAME
-  user: USER_NAME
-  dbname: DB_NAME
+  host: green-coding-postgres-container
+  user: postgres
+  dbname: green-coding
   password: YOUR_PW
 smtp:
   server: SMTP_SERVER
@@ -22,8 +22,11 @@ measurement:
 # Please select the needed providers according to the working ones on your system
 # More info https://docs.green-coding.org/docs/measuring/metric-providers
 metric-providers:
-  - cgroup.cpu.provider
-  - rapl.system.MSR.provider
+  - cpu.cgroup.provider.CpuCgroupProvider
+  - energy.system.RAPL.MSR.provider.EnergySystemRaplMsrProvider
+  - memory.cgroup.provider.MemoryCgroupProvider
+  - time.cgroup.provider.TimeCgroupProvider
+  - time.proc.stat.provider.TimeProcStatProvider
 
 admin:
   # This address will get an email, when a new project was added through the frontend

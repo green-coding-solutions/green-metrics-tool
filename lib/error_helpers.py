@@ -1,37 +1,40 @@
-from setup_functions import get_config
+import sys
 import traceback
-from send_email import send_error_email
+from setup_functions import get_config
 
 def end_error(*errors):
     log_error(*errors)
     exit(2)
 
-def email_error(*errors, email_admin=True, user_email=None, project_id=None):
-    config = get_config()
+def format_error(*errors):
     err = "Error: "
 
     for e in errors:
         err+= str(e)
 
-    if email_admin:
-        send_error_email(config, config['admin']['email'], f"{err}\n{traceback.format_exc()}" , project_id)
-    if user_email is not None:
-        send_error_email(config, user_email, err, project_id)
+    error_string = f"""
+        \n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n
+        {err}
+        <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        {traceback.format_exc()}
+        <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    """
+
+    return error_string
 
 def log_error(*errors):
-    err = "Error: "
-    print("Error: ", *errors)
-    traceback.print_exc()
+    print("\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n", file=sys.stderr)
+    print("Error: ", *errors, file=sys.stderr)
+    print("\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n", file=sys.stderr)
+    print(traceback.format_exc(), file=sys.stderr)
+    print("\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n", file=sys.stderr)
     # TODO: log to file
 
 if __name__ == "__main__":
     import argparse
-    import yaml
     import os
-    import sys
 
     sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../tools')
-    from setup_functions import get_config, get_db_connection
     from send_email import send_error_email
 
     

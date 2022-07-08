@@ -1,51 +1,51 @@
+import sys, os
+from db import DB
+import numpy as np
 
-def save_notes(conn, project_id, notes):
+""" In order for the notes to be displayed in a chart they
+need to map together with a timestamp of a datapoint.
 
-    import numpy as np
-    cur = conn.cursor()
-    
+Therefore we search the metrics table for the nearest timestamp to the one
+from the notes we have. Then we map the time of the metrics datapoint to the
+one of the note. This diverts a bit from the original datapoint, but still
+is reasonable accurate.
+
+Currently no minimun difference in time is enforced.
+"""
+def save_notes(project_id, notes):
 
     for note in notes:
         if note['container_name'] == "[SYSTEM]":
-            cur.execute("""
+            DB().query("""
                 INSERT INTO stats
                 ("project_id", "container_name", "time")
                 VALUES
                 (%s, %s, %s)
                 """,
-                (project_id, "[SYSTEM]", note['timestamp'])
+                params=(project_id, "[SYSTEM]", note['timestamp'])
             )
-            conn.commit()
             stat_line_time = note['timestamp']
         else:
-            cur.execute("""
-            SELECT time FROM stats 
-            WHERE time < %s 
-            AND project_id = %s
-            AND container_name = %s
-            ORDER BY time DESC LIMIT 1;
-            """,
-            (note['timestamp'], project_id, note['container_name']))
-            conn.commit()
-            stat_line_time = cur.fetchone()[0]
-            
-        cur.execute("""
+            stat_line_time = DB().fetch_one("""
+                SELECT time FROM stats
+                WHERE time < %s
+                AND project_id = %s
+                AND container_name = %s
+                ORDER BY time DESC LIMIT 1;
+                """,
+            params=(note['timestamp'], project_id, note['container_name']))[0]
+
+        DB().query("""
                 INSERT INTO notes
                 ("project_id", "container_name", "note", "time", "created_at")
                 VALUES
                 (%s, %s, %s, %s, NOW())
                 """,
-                (project_id, note['container_name'], note['note'], stat_line_time)
+                params=(project_id, note['container_name'], note['note'], stat_line_time)
         )
-        conn.commit()
-    cur.close()
 
 if __name__ == "__main__":
     import argparse
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
-    from setup_functions import get_db_connection
     import time
 
     parser = argparse.ArgumentParser()
@@ -53,8 +53,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args() # script will exit if arguments not present
 
-    conn = get_db_connection()
-
-    save_notes(conn, args.project_id, [{"note": "This is my note", "timestamp": time.time_ns(), "container_name": "Arnes_ Container"}])
+    save_notes(args.project_id, [{"note": "This is my note", "timestamp": time.time_ns(), "container_name": "Arnes_ Container"}])
 
 

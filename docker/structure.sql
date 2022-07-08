@@ -6,12 +6,12 @@ CREATE EXTENSION "uuid-ossp";
 CREATE TABLE projects (
     id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
     name text,
-    url text,
+    uri text,
     email text,
+    usage_scenario jsonb,
     cpu text,
     memtotal text,
-    crawled boolean DEFAULT false,
-    last_crawl timestamp with time zone,
+    last_run timestamp with time zone,
     created_at timestamp with time zone DEFAULT now()
 );
 
@@ -31,6 +31,7 @@ CREATE TABLE jobs (
     type text,
     failed boolean DEFAULT false,
     running boolean DEFAULT false,
+    last_run timestamp with time zone,
     created_at timestamp with time zone DEFAULT now()
 );
 
