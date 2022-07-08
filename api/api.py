@@ -59,7 +59,7 @@ async def home():
 async def get_notes(project_id):
     query = """
             SELECT
-                *
+                project_id, container_name, note, time
             FROM
                 notes
             WHERE project_id = %s
