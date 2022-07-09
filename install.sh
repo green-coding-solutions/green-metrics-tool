@@ -1,5 +1,10 @@
 #!/bin/bash
 
+echo "Updating compose.yml with current path ..."
+cp docker/compose.yml.example docker/compose.yml
+sed -i -e "s|PATH_TO_GREEN_METRICS_TOOL_REPO|$PWD|" docker/compose.yml
+
+echo "Building binaries ..."
 metrics_subdir="tools/metric-providers"
 parent_dir="./$metrics_subdir"
 make_file="Makefile"
