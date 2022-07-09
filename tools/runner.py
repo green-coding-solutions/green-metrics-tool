@@ -85,7 +85,7 @@ class Runner:
             """, params=(hardware_info.get_cpu(), hardware_info.get_mem(), json.dumps(obj), project_id))
 
         # Import metric providers dynamically
-        for metric_provider in config['metric-providers']:
+        for metric_provider in config['measurement']['metric-providers']:
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
 

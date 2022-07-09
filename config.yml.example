@@ -21,12 +21,17 @@ measurement:
 
 # Please select the needed providers according to the working ones on your system
 # More info https://docs.green-coding.org/docs/measuring/metric-providers
-metric-providers:
-  - cpu.cgroup.provider.CpuCgroupProvider
-  - energy.system.RAPL.MSR.provider.EnergySystemRaplMsrProvider
-  - memory.cgroup.provider.MemoryCgroupProvider
-  - time.cgroup.provider.TimeCgroupProvider
-  - time.proc.stat.provider.TimeProcStatProvider
+measurement:
+  idle-time-start: 2
+  idle-time-end: 2
+  flow-process-runtime: 6000
+  metric-providers:
+    - cpu.cgroup.container.provider.CpuCgroupContainerProvider
+    - energy.RAPL.MSR.system.provider.EnergyRaplMsrSystemProvider
+    - memory.cgroup.container.provider.MemoryCgroupContainerProvider
+    - time.cgroup.container.provider.TimeCgroupContainerProvider
+    - time.proc.system.provider.TimeProcSystemProvider
+
 
 admin:
   # This address will get an email, when a new project was added through the frontend
