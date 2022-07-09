@@ -366,7 +366,7 @@
                         const total_CO2 = (total_energy / 1000 / 3600000 * 0.519 * 1000000);
                         // const total_CO2_in_kg = total_CO2 / 1000000000; // the real value, bring it back later on
                         const total_CO2_in_kg = total_CO2 * 10; // fake value only so that we see numbers greater than 0.00
-                      
+
                         document.querySelector("#trees").innerText = (total_CO2_in_kg / 0.06 / 1000).toFixed(2) + " trees";
                         document.querySelector("#miles-driven").innerText = (total_CO2_in_kg / 0.000403 / 1000).toFixed(2) + " miles driven";
                         document.querySelector("#gasoline").innerText = (total_CO2_in_kg / 0.008887 / 1000).toFixed(2) + " gallons";
