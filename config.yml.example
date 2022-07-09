@@ -3,7 +3,7 @@ postgresql:
   host: green-coding-postgres-container
   user: postgres
   dbname: green-coding
-  password: YOUR_PW
+  password: PLEASE_CHANGE_THIS
 smtp:
   server: SMTP_SERVER
   sender: SMTP_SENDER

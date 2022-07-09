@@ -4,7 +4,7 @@ services:
     container_name: green-coding-postgres-container
     restart: always
     environment:
-      - POSTGRES_PASSWORD=cccvvv
+      - POSTGRES_PASSWORD=PLEASE_CHANGE_THIS
     volumes:
       - green-coding-postgres-data:/var/lib/postgresql/data
       - ./structure.sql:/docker-entrypoint-initdb.d/structure.sql:ro

@@ -1,8 +1,16 @@
 #!/bin/bash
 
+read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
+
 echo "Updating compose.yml with current path ..."
 cp docker/compose.yml.example docker/compose.yml
 sed -i -e "s|PATH_TO_GREEN_METRICS_TOOL_REPO|$PWD|" docker/compose.yml
+sed -i -e "s|PLEASE_CHANGE_THIS|$db_pw|" docker/compose.yml
+
+echo "Updating config.yml with new password ..."
+cp config.yml.example config.yml
+sed -i -e "s|PLEASE_CHANGE_THIS|$db_pw|" config.yml
+
 
 echo "Building binaries ..."
 metrics_subdir="tools/metric-providers"
