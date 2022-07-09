@@ -15,33 +15,13 @@ Currently no minimun difference in time is enforced.
 def save_notes(project_id, notes):
 
     for note in notes:
-        if note['container_name'] == "[SYSTEM]":
-            DB().query("""
-                INSERT INTO stats
-                ("project_id", "container_name", "time")
-                VALUES
-                (%s, %s, %s)
-                """,
-                params=(project_id, "[SYSTEM]", note['timestamp'])
-            )
-            stat_line_time = note['timestamp']
-        else:
-            stat_line_time = DB().fetch_one("""
-                SELECT time FROM stats
-                WHERE time < %s
-                AND project_id = %s
-                AND container_name = %s
-                ORDER BY time DESC LIMIT 1;
-                """,
-            params=(note['timestamp'], project_id, note['container_name']))[0]
-
         DB().query("""
                 INSERT INTO notes
                 ("project_id", "container_name", "note", "time", "created_at")
                 VALUES
                 (%s, %s, %s, %s, NOW())
                 """,
-                params=(project_id, note['container_name'], note['note'], stat_line_time)
+                params=(project_id, note['container_name'], note['note'], note['timestamp'])
         )
 
 if __name__ == "__main__":
