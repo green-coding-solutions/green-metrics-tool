@@ -85,14 +85,14 @@ class Runner:
             """, params=(hardware_info.get_cpu(), hardware_info.get_mem(), json.dumps(obj), project_id))
 
         # Import metric providers dynamically
-        for metric_provider in config['measurement']['metric-providers']:
+        for metric_provider in config['measurement']['metric-providers']: # will iterate over keys
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
 
             print(f"Importing {class_name} from {module_path}")
-
+            print(f"Resolution is {config['measurement']['metric-providers'][metric_provider]}")
             module = importlib.import_module(module_path)
-            metric_provider_obj = getattr(module, class_name)() # the additional () creates the instance
+            metric_provider_obj = getattr(module, class_name)(resolution=config['measurement']['metric-providers'][metric_provider]) # the additional () creates the instance
 
             self.metric_providers.append(metric_provider_obj)
 
@@ -201,7 +201,7 @@ class Runner:
 
         for metric_provider in self.metric_providers:
             print(f"Starting measurement provider {metric_provider}")
-            metric_provider.start_profiling(100, self.containers)
+            metric_provider.start_profiling(self.containers)
 
         notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
 

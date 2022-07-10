@@ -36,11 +36,11 @@ class BaseMetricProvider:
 
         return df
 
-    def start_profiling(self, resolution, containers=None):
+    def start_profiling(self, containers=None):
         if self._sudo:
-            call_string = f"sudo {self._current_dir}/static-binary -i {resolution} "
+            call_string = f"sudo {self._current_dir}/static-binary -i {self._resolution} "
         else:
-            call_string = f"{self._current_dir}/static-binary -i {resolution} "
+            call_string = f"{self._current_dir}/static-binary -i {self._resolution} "
         if self._use_containers:
              call_string += " -s "
              call_string += ",".join(containers.keys())

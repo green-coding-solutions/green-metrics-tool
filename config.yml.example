@@ -26,11 +26,11 @@ measurement:
   idle-time-end: 2
   flow-process-runtime: 6000
   metric-providers:
-    - cpu.cgroup.container.provider.CpuCgroupContainerProvider
-    - energy.RAPL.MSR.system.provider.EnergyRaplMsrSystemProvider
-    - memory.cgroup.container.provider.MemoryCgroupContainerProvider
-    - time.cgroup.container.provider.TimeCgroupContainerProvider
-    - time.proc.system.provider.TimeProcSystemProvider
+    cpu.cgroup.container.provider.CpuCgroupContainerProvider: 100
+    energy.RAPL.MSR.system.provider.EnergyRaplMsrSystemProvider: 100
+    memory.cgroup.container.provider.MemoryCgroupContainerProvider: 100
+    time.cgroup.container.provider.TimeCgroupContainerProvider: 100
+    time.proc.system.provider.TimeProcSystemProvider: 100
 
 
 admin:
