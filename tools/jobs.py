@@ -72,8 +72,7 @@ def do_email_job(job_id, project_id):
         raise RuntimeError(f"couldn't find project w/ id: {project_id}")
 
     try:
-        from email_helpers import send_report_email
-        send_report_email(data[0], project_id)
+        email_helpers.send_report_email(data[0], project_id)
         delete_job(job_id)
     except Exception as e:
         DB().query("UPDATE jobs SET failed=true WHERE id=%s", params=(job_id,))
