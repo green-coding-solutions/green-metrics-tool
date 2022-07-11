@@ -71,6 +71,7 @@ const getDataAndLabels = (series) => {
 };
 
 const createGraph = (element, data, labels, title) => {
+  console.log('labels', labels)
   return new Dygraph(element, data, {
     labels,
     fillGraph: true,
@@ -88,10 +89,10 @@ const createGraph = (element, data, labels, title) => {
       },
     },
     drawCallback: function (g) {
-      // const notes = document.getElementsByClassName('dygraph-annotation');
-      // for (let i = 0; i < notes.length; i++) {
-      //   if (notes[i].style.top === "") notes[i].style.display = "none";
-      // }
+      const notes = document.getElementsByClassName('dygraph-annotation');
+      for (let i = 0; i < notes.length; i++) {
+        if (notes[i].style.top === "") notes[i].style.display = "none";
+      }
     },
     annotationMouseOverHandler: function (ann, point, dg, event) {
       let modal = document.getElementById("myModal");

@@ -31,7 +31,7 @@
     <link rel="stylesheet" type="text/css" class="ui" href="./dist/semantic.min.css">
     <link rel="stylesheet" type="text/css" href="./assets/css/docs.css">
     <link rel="stylesheet" type="text/css" href="./assets/css/green-coding.css">
-    <link rel="stylesheet" type="text/css" src="./assets/css/dygraph.css" />
+    <link rel="stylesheet" type="text/css" href="./assets/css/dygraph.css" /> -->
     <!-- <link rel="stylesheet" type="text/css" href="./assets/css/rtl.css"> -->
 </head>
 
@@ -225,26 +225,7 @@
                             </div>
                         </div>
 
-                        <!--  TODO <div class="ui two cards stackable" > -->
-
-                            <div id="chart-container"></div>
-
-
-                        <!--
-              <div class="card" id="chart-scaffold" style="display:none;">
-                <div class="content">
-                  <div class="description">
-                    <div class="chart"></div>
-                    <div>
-                      <label>
-                        <input type="checkbox" checked="" onchange="toggleNotes()"><span
-                          style="font-size: 0.8em; margin-left: 2px">Show notes</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-             -->
+                        <div id="chart-container"></div>
 
                         <script src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
 
@@ -290,15 +271,18 @@
                                             //   }
 
                                             for (let i = 0; i < my_json.data.length; i++) {
-                                                annotations.push({
-                                                    // series: "Annotations",
-                                                    series: "cpu_cgroup",
-                                                    // series: my_json.data[i][0],
-                                                    x: my_json.data[i][3],
-                                                    shortText: my_json.data[i][2][0] === " " ? my_json.data[i][2][1] : my_json.data[i][2][0], // first letter of the message; in case it's a space, then seccond letter
-                                                    text: my_json.data[i][2],
-                                                })
+                                                if (my_json.data[i][1] !== "[SYSTEM]") {
+                                                    annotations.push({
+                                                        series: my_json.data[i][1],
+                                                        x: my_json.data[i][3] / 1000,
+                                                        shortText: my_json.data[i][2][0] === " " ? my_json.data[i][2][1] : my_json.data[i][2][0], // first letter of the message; in case it's a space, then seccond letter
+                                                        text: my_json.data[i][2],
+                                                    })
+                                                }
                                             }
+                                            // hardcoding annotations' timestamps so that they appear on the graph
+                                            annotations[0].x = 1657294498387.516;
+                                            annotations[1].x = 1657294500298.983;
                                         })
 
                                     fetch(api_url + '/v1/stats/single/' + url_params.get('id'))
