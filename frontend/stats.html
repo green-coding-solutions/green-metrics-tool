@@ -372,16 +372,10 @@
                         '*/
                       })
 
-                      console.log("my_series", my_series)
-                      console.log("cpu_load", cpu_load)
-                      console.log("mem_load", mem_load)
-                      console.log("total_energy", total_energy)
                       let counter = 0;
                       for (el in my_series) {
                         console.log("el", el)
                         const { data, labels } = getDataAndLabels(Object.values(my_series[el]));
-                        // console.log("labels", labels);
-                        // console.log("data", data);
                         createChartContainer("#chart-container", el, counter)
                         const chart = createGraph(el, data, labels, el)
                         console.log("annotations", annotations)
