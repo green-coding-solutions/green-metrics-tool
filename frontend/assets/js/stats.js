@@ -1,11 +1,9 @@
 function createChartContainer(container, el, counter) {
-  console.log("counter", counter)
   const chart_node = document.createElement("div")
-  chart_node.id = el;
   chart_node.classList.add("card");
   chart_node.innerHTML = `<div class="content">
                             <div class="description">
-                              <div class="chart"></div>
+                              <div class="chart" id=${el}></div>
                               <div>
                                 <label>
                                   <input type="checkbox" checked="" onchange="toggleNotes()"><span
@@ -24,41 +22,17 @@ function createChartContainer(container, el, counter) {
     twoCards.classList.add("stackable");
     const id = "twoCards" + counter;
     twoCards.id = id;
-    document.querySelector(container).appendChild(twoCards);
+    document.getElementById(container).appendChild(twoCards);
     document.getElementById(id).appendChild(chart_node);
-    console.log("created twoCards div")
+    console.log(`counter ${counter} -> created twoCards div`)
   } else {
     const id = "twoCards" + (counter - 1);
-    console.log("belongs to already created div with id", id)
+    console.log(`counter ${counter} -> belongs to already created div with id ${id}`)
     document.getElementById(id).appendChild(chart_node);
   }
 
   return chart_node;
 }
-
-// function buildOptions(series, annotation, chart_title) {
-//   const options = {
-//     series: Object.values(series),
-//     chart: {
-//       type: "area",
-//       animations: {
-//         enabled: false,
-//       },
-//     },
-//     dataLabels: {
-//       enabled: false,
-//     },
-//     stroke: { curve: "smooth" },
-//     tooltip: {
-//       x: { format: "dd/MM/yy HH:mm" },
-//     },
-//     xaxis: { tickAmount: 6, type: "datetime" },
-//     annotations: { xaxis: annotation },
-//     title: { text: chart_title },
-//   };
-
-//   return options;
-// }
 
 const toggleNotes = () => {
   const notes = document.getElementsByClassName("dygraph-annotation");
