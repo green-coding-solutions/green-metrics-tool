@@ -110,7 +110,7 @@
                       </tr>
                       <tr>
                         <td>URI</td>
-                        <td id="project-url" style="word-break:break-all;"></td>
+                        <td id="project-uri" style="word-break:break-all;"></td>
                       </tr>
                       <tr>
                         <td>CPU</td>
@@ -226,7 +226,8 @@
 
             <!--  TODO <div class="ui two cards stackable" > -->
 
-            <div id="chart-container">
+            <div id="chart-container"></div>
+            <!--
               <div class="card" id="chart-scaffold" style="display:none;">
                 <div class="content">
                   <div class="description">
@@ -240,7 +241,7 @@
                   </div>
                 </div>
               </div>
-            </div>
+             -->
 
             <script src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
 
@@ -276,7 +277,7 @@
 
                       document.querySelector("#project-last-crawl").innerText = my_json.project.last_crawl;
                       document.querySelector("#project-name").innerText = my_json.project.name;
-                      document.querySelector("#project-url").innerText = my_json.project.url;
+                      document.querySelector("#project-uri").innerText = my_json.project.uri;
                       document.querySelector("#project-cpu").innerText = my_json.project.cpu;
                       document.querySelector("#project-memtotal").innerText = my_json.project.memtotal;
 
@@ -335,7 +336,7 @@
                       for (el in my_series) {
                         console.log("el", el)
                         const { data, labels } = getDataAndLabels(Object.values(my_series[el]));
-                        const element = createChartContainer("#chart-scaffold", "#chart-container", '.chart', el, counter)
+                        const element = createChartContainer("#chart-container", el, counter)
                         console.log("element", element)
                         const chart = createGraph(element, data, labels, el)
                         // chart_cpu.setAnnotations(annotations); // please rework

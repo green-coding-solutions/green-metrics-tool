@@ -1,8 +1,20 @@
-function createChartContainer(scaffold, container, chart, el, counter) {
+function createChartContainer(container, el, counter) {
   console.log("counter", counter)
-  const chart_node = document.querySelector(scaffold).cloneNode(true);
-  chart_node.style.display = "block";
+  const chart_node = document.createElement("div")
   chart_node.id = el;
+  chart_node.classList.add("card");
+  chart_node.innerHTML = `<div class="content">
+                            <div class="description">
+                              <div class="chart"></div>
+                              <div>
+                                <label>
+                                  <input type="checkbox" checked="" onchange="toggleNotes()"><span
+                                    style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        `
   
   if (counter % 2 === 0) {
     const twoCards = document.createElement("div");
