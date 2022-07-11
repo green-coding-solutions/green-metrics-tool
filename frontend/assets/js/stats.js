@@ -36,29 +36,29 @@ function createChartContainer(container, el, counter) {
   return chart_node;
 }
 
-function buildOptions(series, annotation, chart_title) {
-  const options = {
-    series: Object.values(series),
-    chart: {
-      type: "area",
-      animations: {
-        enabled: false,
-      },
-    },
-    dataLabels: {
-      enabled: false,
-    },
-    stroke: { curve: "smooth" },
-    tooltip: {
-      x: { format: "dd/MM/yy HH:mm" },
-    },
-    xaxis: { tickAmount: 6, type: "datetime" },
-    annotations: { xaxis: annotation },
-    title: { text: chart_title },
-  };
+// function buildOptions(series, annotation, chart_title) {
+//   const options = {
+//     series: Object.values(series),
+//     chart: {
+//       type: "area",
+//       animations: {
+//         enabled: false,
+//       },
+//     },
+//     dataLabels: {
+//       enabled: false,
+//     },
+//     stroke: { curve: "smooth" },
+//     tooltip: {
+//       x: { format: "dd/MM/yy HH:mm" },
+//     },
+//     xaxis: { tickAmount: 6, type: "datetime" },
+//     annotations: { xaxis: annotation },
+//     title: { text: chart_title },
+//   };
 
-  return options;
-}
+//   return options;
+// }
 
 const toggleNotes = () => {
   const notes = document.getElementsByClassName("dygraph-annotation");
@@ -86,7 +86,7 @@ const getDataAndLabels = (series) => {
   let labels = ["Time"];
 
   for (let i = 0; i < series.length; i++) {
-    labels.push(series[i].name);
+    labels.push(series[i].name || "");
     for (let j = 0; j < series[i].data.length; j++) {
       containerX = series[i].data[j].x;
       containerY = series[i].data[j].y;

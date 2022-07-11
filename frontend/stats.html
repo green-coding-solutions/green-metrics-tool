@@ -247,6 +247,7 @@
 
             <script>
               var cpu_load = [];
+              var mem_load = [];
               var my_series = {};
               var project_data = {};
 
@@ -265,107 +266,7 @@
                   else
                     api_url = "http://api.green-coding.local:8000";
 
-                  fetch(api_url + '/v1/stats/single/' + url_params.get('id'))
-                    .then(response => response.json())
-                    .then(my_json => {
-                      if (my_json.success != true) {
-                        alert(my_json.err);
-                        return;
-                      }
-
-                      console.log("my_json", my_json)
-
-                      document.querySelector("#project-last-crawl").innerText = my_json.project.last_crawl;
-                      document.querySelector("#project-name").innerText = my_json.project.name;
-                      document.querySelector("#project-uri").innerText = my_json.project.uri;
-                      document.querySelector("#project-cpu").innerText = my_json.project.cpu;
-                      document.querySelector("#project-memtotal").innerText = my_json.project.memtotal;
-
-                      my_json.data.forEach(el => {
-                        if (my_series[el[2]] == undefined) {
-                          my_series[el[2]] = {}
-                        }
-
-
-
-                        if (el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
-                          accumulate = 1;
-                          return
-                        } else if (el[0] == '[SYSTEM]' && el[4] == '[END MEASUREMENT]') {
-                          accumulate = 0;
-                          return;
-                        }
-
-                        el[1] = el[1] / 1000;
-
-                        var value = null;
-                        if (el[2] == 'cpu_cgroup' && accumulate === 1) {
-                          cpu_load.push(el[3]);
-                          value = el[3] / 100;
-                        } else if (el[2] == 'energy_system_RAPL_MSR') {
-                          if (accumulate === 1) total_energy += el[3]
-                          value = el[3];
-                        } else if (el[2] == 'memory_cgroup') {
-                          cpu_load.push(el[3])
-                          value = el[3] / 1000000;
-                        } else {
-                          value = el[3];
-                        }
-
-                        if (my_series[el[2]][el[0]] == undefined) {
-                          my_series[el[2]][el[0]] = { name: el[0], data: [{ x: el[1], y: value }] }
-                        } else {
-                          my_series[el[2]][el[0]]['data'].push({ x: el[1], y: value })
-                        }
-
-
-
-
-
-                        /*
-                        el[0] // container_id
-                        el[1] // time
-                        el[2] // metric name
-                        el[3] // value
-                        el[4] // note => Not anymore present
-                        '*/
-                      })
-                      console.log("annotations", annotations)
-
-                      let counter = 0;
-                      for (el in my_series) {
-                        console.log("el", el)
-                        const { data, labels } = getDataAndLabels(Object.values(my_series[el]));
-                        const element = createChartContainer("#chart-container", el, counter)
-                        console.log("element", element)
-                        const chart = createGraph(element, data, labels, el)
-                        // chart_cpu.setAnnotations(annotations); // please rework
-                        counter = counter + 1;
-                      }
-
-                      document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
-                      document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
-                      document.querySelector("#total-co2").innerText = (total_energy / 1000 / 3600000 * 0.519 * 1000000).toFixed(2) + " ugCO2eq"
-                      document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a, b) => a + b, 0) / cpu_load.length) / 100).toFixed(2) + " %"
-
-                      const total_CO2 = (total_energy / 1000 / 3600000 * 0.519 * 1000000);
-                      // const total_CO2_in_kg = total_CO2 / 1000000000; // the real value, bring it back later on
-                      const total_CO2_in_kg = total_CO2 * 10; // fake value only so that we see numbers greater than 0.00
-
-                      // chart_cpu.setAnnotations(annotations);
-                      // chart_energy.setAnnotations(annotations);
-                      // chart_mem.setAnnotations(annotations);
-                      // chart_net_in.setAnnotations(annotations);
-
-                      document.querySelector("#trees").innerText = (total_CO2_in_kg / 0.06 / 1000).toFixed(2) + " trees";
-                      document.querySelector("#miles-driven").innerText = (total_CO2_in_kg / 0.000403 / 1000).toFixed(2) + " miles driven";
-                      document.querySelector("#gasoline").innerText = (total_CO2_in_kg / 0.008887 / 1000).toFixed(2) + " gallons";
-                      document.querySelector("#smartphones-charged").innerText = (total_CO2_in_kg / 0.00000822 / 1000).toFixed(2) + " smartphones charged";
-                      document.querySelector("#flights").innerText = (total_CO2_in_kg / 1000).toFixed(2) + " flights from Berlin to New York City";
-
-                    })
-
-                  fetch(api_url + '/v1/notes/' + url_params.get('id'))
+                    fetch(api_url + '/v1/notes/' + url_params.get('id'))
                     .then(response => response.json())
                     .then(my_json => {
                       if (my_json.success != true) {
@@ -393,6 +294,11 @@
                           text: my_json.data[i][2],
                         })
 
+                      // cpu_cgroup.setAnnotations(annotations);
+                      // chart_energy.setAnnotations(annotations);
+                      // chart_mem.setAnnotations(annotations);
+                      // chart_net_in.setAnnotations(annotations);
+
                         // replicateAnnotations("cpu");
                         // replicateAnnotations("system-energy");
                         // replicateAnnotations("mem");
@@ -402,6 +308,111 @@
 
 
                     })
+
+
+                  fetch(api_url + '/v1/stats/single/' + url_params.get('id'))
+                    .then(response => response.json())
+                    .then(my_json => {
+                      if (my_json.success != true) {
+                        alert(my_json.err);
+                        return;
+                      }
+
+                      console.log("my_json", my_json)
+
+                      document.querySelector("#project-last-crawl").innerText = my_json.project.last_crawl;
+                      document.querySelector("#project-name").innerText = my_json.project.name;
+                      document.querySelector("#project-uri").innerText = my_json.project.uri;
+                      document.querySelector("#project-cpu").innerText = my_json.project.cpu;
+                      document.querySelector("#project-memtotal").innerText = my_json.project.memtotal;
+
+                      my_json.data.forEach(el => {
+                        if (my_series[el[2]] == undefined) {
+                          my_series[el[2]] = {}
+                        }
+
+                        // if (el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
+                        //   accumulate = 1;
+                        //   return
+                        // } else if (el[0] == '[SYSTEM]' && el[4] == '[END MEASUREMENT]') {
+                        //   accumulate = 0;
+                        //   return;
+                        // }
+
+                        el[1] = el[1] / 1000;
+
+                        var value = null;
+                        // if (el[2] == 'cpu_cgroup' && accumulate === 1) {
+                          if (el[2] == 'cpu_cgroup') {
+                          cpu_load.push(el[3]);
+                          value = el[3] / 100;
+                        } else if (el[2] == 'energy_system_RAPL_MSR') {
+                          // if (accumulate === 1)
+                          total_energy += el[3]
+                          value = el[3];
+                        } else if (el[2] == 'memory_cgroup') {
+                          mem_load.push(el[3])
+                          value = el[3] / 1000000;
+                        } else {
+                          value = el[3];
+                        }
+
+                        if (my_series[el[2]][el[0]] == undefined) {
+                          my_series[el[2]][el[0]] = { name: el[0], data: [{ x: el[1], y: value }] }
+                        } else {
+                          my_series[el[2]][el[0]]['data'].push({ x: el[1], y: value })
+                        }
+
+                        /*
+                        el[0] // container_id
+                        el[1] // time
+                        el[2] // metric name
+                        el[3] // value
+                        el[4] // note => Not anymore present
+                        '*/
+                      })
+
+                      console.log("my_series", my_series)
+                      console.log("cpu_load", cpu_load)
+                      console.log("mem_load", mem_load)
+                      console.log("total_energy", total_energy)
+                      let counter = 0;
+                      for (el in my_series) {
+                        console.log("el", el)
+                        const { data, labels } = getDataAndLabels(Object.values(my_series[el]));
+                        // console.log("labels", labels);
+                        // console.log("data", data);
+                        createChartContainer("#chart-container", el, counter)
+                        const chart = createGraph(el, data, labels, el)
+                        console.log("annotations", annotations)
+                        console.log("chart", chart)
+                        chart.setAnnotations(annotations); // please rework
+                        counter++;
+                      }
+
+                      document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
+                      document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
+                      document.querySelector("#total-co2").innerText = (total_energy / 1000 / 3600000 * 0.519 * 1000000).toFixed(2) + " ugCO2eq"
+                      document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a, b) => a + b, 0) / cpu_load.length) / 100).toFixed(2) + " %"
+
+                      const total_CO2 = (total_energy / 1000 / 3600000 * 0.519 * 1000000);
+                      // const total_CO2_in_kg = total_CO2 / 1000000000; // the real value, bring it back later on
+                      const total_CO2_in_kg = total_CO2 * 10; // fake value only so that we see numbers greater than 0.00
+
+                      // chart_cpu.setAnnotations(annotations);
+                      // chart_energy.setAnnotations(annotations);
+                      // chart_mem.setAnnotations(annotations);
+                      // chart_net_in.setAnnotations(annotations);
+
+                      document.querySelector("#trees").innerText = (total_CO2_in_kg / 0.06 / 1000).toFixed(2) + " trees";
+                      document.querySelector("#miles-driven").innerText = (total_CO2_in_kg / 0.000403 / 1000).toFixed(2) + " miles driven";
+                      document.querySelector("#gasoline").innerText = (total_CO2_in_kg / 0.008887 / 1000).toFixed(2) + " gallons";
+                      document.querySelector("#smartphones-charged").innerText = (total_CO2_in_kg / 0.00000822 / 1000).toFixed(2) + " smartphones charged";
+                      document.querySelector("#flights").innerText = (total_CO2_in_kg / 1000).toFixed(2) + " flights from Berlin to New York City";
+
+                    })
+
+                  
 
                 } catch (e) {
                   alert("Fetch failed: " + e)
