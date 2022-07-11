@@ -2,277 +2,278 @@
 <html>
 
 <head>
-    <!-- Standard Meta -->
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
-    <link rel="shortcut icon" href="/assets/images/favicon.png" />
+  <!-- Standard Meta -->
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+  <link rel="shortcut icon" href="/assets/images/favicon.png" />
 
-    <!-- Site Properities -->
-    <meta name="generator" content="DocPad v6.79.4" />
-    <title>Green Metrics Tool - Experimental 0.1</title>
+  <!-- Site Properities -->
+  <meta name="generator" content="DocPad v6.79.4" />
+  <title>Green Metrics Tool - Experimental 0.1</title>
 
-    <meta name="description" content="Using Fomantic UI with Other Libraries" />
-    <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
+  <meta name="description" content="Using Fomantic UI with Other Libraries" />
+  <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
 
-    <script src="./assets/js/jquery.min.js"></script>
-    <script src="./assets/js/tablesort.min.js"></script>
-    <script src="./assets/js/search.min.js"></script>
-    <script src="./assets/js/easing.min.js"></script>
-    <script src="./assets/js/semantic.min.js"></script>
-    <script src="./assets/js/docs.js"></script>
-    <script src="./assets/js/highlight.min.js"></script>
-    <script src="./assets/js/stats.js"></script>
-    <!-- <script src="./assets/js/clipboard.min.js"></script> -->
-    <!-- <script src="./assets/js/history.min.js"></script> -->
-    <!-- <script src="./assets/js/state.js"></script> -->
-    <!-- <script src="./assets/js/underscore.min.js"></script> -->
+  <script src="./assets/js/jquery.min.js"></script>
+  <script src="./assets/js/tablesort.min.js"></script>
+  <script src="./assets/js/search.min.js"></script>
+  <script src="./assets/js/easing.min.js"></script>
+  <script src="./assets/js/semantic.min.js"></script>
+  <script src="./assets/js/docs.js"></script>
+  <script src="./assets/js/highlight.min.js"></script>
+  <script src="./assets/js/stats.js"></script>
+  <!-- <script src="./assets/js/clipboard.min.js"></script> -->
+  <!-- <script src="./assets/js/history.min.js"></script> -->
+  <!-- <script src="./assets/js/state.js"></script> -->
+  <!-- <script src="./assets/js/underscore.min.js"></script> -->
 
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/semantic.min.css">
-    <link rel="stylesheet" type="text/css" href="./assets/css/docs.css">
-    <link rel="stylesheet" type="text/css" href="./assets/css/green-coding.css">
+  <link rel="stylesheet" type="text/css" class="ui" href="./dist/semantic.min.css">
+  <link rel="stylesheet" type="text/css" href="./assets/css/docs.css">
+  <link rel="stylesheet" type="text/css" href="./assets/css/green-coding.css">
 
-    <!-- <link rel="stylesheet" type="text/css" href="./assets/css/rtl.css"> -->
+  <!-- <link rel="stylesheet" type="text/css" href="./assets/css/rtl.css"> -->
 </head>
 
 <body id="example" class="started" ontouchstart="">
-    <div class="ui vertical inverted sidebar menu" id="toc"
-        style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
-        <div class="item">
-            <p>Demo user</p>
-        </div>
-        <a class="item" href="/index.html">
-            <b><i class="home icon"></i>Home</b>
-        </a>
-        <a class="item" href="/request.html">
-            <b><i class="bullseye icon"></i>Certify new software</b>
-        </a>
-        <a class="item" href="/data-analysis.html">
-            <b><i class="chart pie icon"></i>Data Analysis</b>
-        </a>
+  <div class="ui vertical inverted sidebar menu" id="toc"
+    style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
+    <div class="item">
+      <p>Demo user</p>
     </div>
+    <a class="item" href="/index.html">
+      <b><i class="home icon"></i>Home</b>
+    </a>
+    <a class="item" href="/request.html">
+      <b><i class="bullseye icon"></i>Certify new software</b>
+    </a>
+    <a class="item" href="/data-analysis.html">
+      <b><i class="chart pie icon"></i>Data Analysis</b>
+    </a>
+  </div>
 
-    <div class="ui black big launch right attached fixed button">
+  <div class="ui black big launch right attached fixed button">
+    <i class="content icon"></i>
+    <span class="text">Menu</span>
+  </div>
+
+  <div class="ui fixed inverted main menu" style="background: linear-gradient(#2a1c5a,#4b3a6e);">
+    <div class="ui container">
+      <a class="launch icon item">
         <i class="content icon"></i>
-        <span class="text">Menu</span>
-    </div>
+      </a>
 
-    <div class="ui fixed inverted main menu" style="background: linear-gradient(#2a1c5a,#4b3a6e);">
-        <div class="ui container">
-            <a class="launch icon item">
-                <i class="content icon"></i>
-            </a>
+      <div class="item">
+        Stats
+      </div>
 
-            <div class="item">
-                Stats
-            </div>
-
-            <div class="right menu">
-                <div class="vertically fitted borderless item">
-                    <p>Demo user</p>
-                </div>
-            </div>
+      <div class="right menu">
+        <div class="vertically fitted borderless item">
+          <p>Demo user</p>
         </div>
+      </div>
     </div>
+  </div>
 
-    <div class="pusher" style="background: #e9eaef">
-        <div class="full height" style="background: #e9eaef">
-            <div class="toc" style="width: 13vw;">
-                <div class="ui vertical inverted menu"
-                    style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
-                    <div class="item">
-                        <p>Demo user</p>
-                    </div>
-                    <a class="item" href="/index.html">
-                        <b><i class="home icon"></i>Home</b>
-                    </a>
-                    <a class="item" href="/request.html">
-                        <b><i class="bullseye icon"></i>Certify new software</b>
-                    </a>
-                    <a class="item" href="/data_analysis.html">
-                        <b><i class="chart pie icon"></i>Data Analysis</b>
-                    </a>
+  <div class="pusher" style="background: #e9eaef">
+    <div class="full height" style="background: #e9eaef">
+      <div class="toc" style="width: 13vw;">
+        <div class="ui vertical inverted menu" style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
+          <div class="item">
+            <p>Demo user</p>
+          </div>
+          <a class="item" href="/index.html">
+            <b><i class="home icon"></i>Home</b>
+          </a>
+          <a class="item" href="/request.html">
+            <b><i class="bullseye icon"></i>Certify new software</b>
+          </a>
+          <a class="item" href="/data_analysis.html">
+            <b><i class="chart pie icon"></i>Data Analysis</b>
+          </a>
+        </div>
+      </div>
+
+      <div class="article" style="margin-left: 13vw;">
+        <div class="ui masthead vertical segment" style="background: #e9eaef; border: 0px;">
+          <div class="main ui intro container"
+            style="margin-right: 0px !important; padding-top: 0px !important; max-width: 77vw !important;">
+            <div class="ui horizontal card" style="width: 100%; margin-bottom: 26px;">
+              <div class="content">
+                <div class="header">PROJECT DATA</div>
+                <div class="description">
+                  <table class="table-hover">
+                    <tbody>
+                      <tr>
+                        <td>Name</td>
+                        <td id="project-name"></td>
+                      </tr>
+                      <tr>
+                        <td>URI</td>
+                        <td id="project-url" style="word-break:break-all;"></td>
+                      </tr>
+                      <tr>
+                        <td>CPU</td>
+                        <td id="project-cpu"></td>
+                      </tr>
+                      <tr>
+                        <td>Total Memory</td>
+                        <td id="project-memtotal"></td>
+                      </tr>
+                      <tr>
+                        <td>Last Crawl</td>
+                        <td id="project-last-crawl"></td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
+              </div>
             </div>
 
-            <div class="article" style="margin-left: 13vw;">
-                <div class="ui masthead vertical segment" style="background: #e9eaef; border: 0px;">
-                    <div class="main ui intro container"
-                        style="margin-right: 0px !important; padding-top: 0px !important; max-width: 77vw !important;">
-                        <div class="ui horizontal card" style="width: 100%; margin-bottom: 26px;">
-                            <div class="content">
-                                <div class="header">PROJECT DATA</div>
-                                <div class="description">
-                                    <table class="table-hover">
-                                        <tbody>
-                                            <tr>
-                                                <td>Name</td>
-                                                <td id="project-name"></td>
-                                            </tr>
-                                            <tr>
-                                                <td>URI</td>
-                                                <td id="project-url" style="word-break:break-all;"></td>
-                                            </tr>
-                                            <tr>
-                                                <td>CPU</td>
-                                                <td id="project-cpu"></td>
-                                            </tr>
-                                            <tr>
-                                                <td>Total Memory</td>
-                                                <td id="project-memtotal"></td>
-                                            </tr>
-                                            <tr>
-                                                <td>Last Crawl</td>
-                                                <td id="project-last-crawl"></td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
+            <div class="ui four cards stackable">
+              <div class="card">
+                <div class="content">
+                  <div class="header">AVG CPU Load (Estimate)</div>
+                  <div class="description">
+                    <h5 id="avg-cpu-load">%</h5>
+                    <p>Over all containers. (See disclaimer)</p>
+                  </div>
+                </div>
+              </div>
 
-                        <div class="ui four cards stackable">
-                            <div class="card">
-                                <div class="content">
-                                    <div class="header">AVG CPU Load (Estimate)</div>
-                                    <div class="description">
-                                        <h5 id="avg-cpu-load">%</h5>
-                                        <p>Over all containers. (See disclaimer)</p>
-                                    </div>
-                                </div>
-                            </div>
+              <div class="card">
+                <div class="content">
+                  <div class="header">MAX CPU Load</div>
+                  <div class="description">
+                    <h5 id="max-cpu-load">&nbsp;</h5>
+                    <p>Over all containers</p>
+                  </div>
+                </div>
+              </div>
 
-                            <div class="card">
-                                <div class="content">
-                                    <div class="header">MAX CPU Load</div>
-                                    <div class="description">
-                                        <h5 id="max-cpu-load">&nbsp;</h5>
-                                        <p>Over all containers</p>
-                                    </div>
-                                </div>
-                            </div>
+              <div class="card">
+                <div class="content">
+                  <div class="header">Total Energy</div>
+                  <div class="description">
+                    <h5 id="total-energy">&nbsp;</h5>
+                    <p>For whole CPU Package. NOT per container.</p>
+                  </div>
+                </div>
+              </div>
 
-                            <div class="card">
-                                <div class="content">
-                                    <div class="header">Total Energy</div>
-                                    <div class="description">
-                                        <h5 id="total-energy">&nbsp;</h5>
-                                        <p>For whole CPU Package. NOT per container.</p>
-                                    </div>
-                                </div>
-                            </div>
+              <div class="card">
+                <div class="content">
+                  <div class="header">Total CO2</div>
+                  <div class="description">
+                    <h5 id="total-co2">&nbsp;</h5>
+                    <p>For whole CPU Package. NOT per container.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-                            <div class="card">
-                                <div class="content">
-                                    <div class="header">Total CO2</div>
-                                    <div class="description">
-                                        <h5 id="total-co2">&nbsp;</h5>
-                                        <p>For whole CPU Package. NOT per container.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="ui five cards stackable">
-                          <div class="card">
-                              <div class="content">
-                                  <div class="header">Trees</div>
-                                  <div class="description">
-                                      <h5 id="trees">&nbsp;</h5>
-                                      <p>Description</p>
-                                  </div>
-                              </div>
-                          </div>
+            <div class="ui five cards stackable">
+              <div class="card">
+                <div class="content">
+                  <div class="header">Trees</div>
+                  <div class="description">
+                    <h5 id="trees">&nbsp;</h5>
+                    <p>Description</p>
+                  </div>
+                </div>
+              </div>
 
-                          <div class="card">
-                              <div class="content">
-                                  <div class="header">Miles driven</div>
-                                  <div class="description">
-                                      <h5 id="miles-driven">&nbsp;</h5>
-                                      <p>Description</p>
-                                  </div>
-                              </div>
-                          </div>
+              <div class="card">
+                <div class="content">
+                  <div class="header">Miles driven</div>
+                  <div class="description">
+                    <h5 id="miles-driven">&nbsp;</h5>
+                    <p>Description</p>
+                  </div>
+                </div>
+              </div>
 
-                          <div class="card">
-                              <div class="content">
-                                  <div class="header">Gasoline</div>
-                                  <div class="description">
-                                      <h5 id="gasoline">&nbsp;</h5>
-                                      <p>Description</p>
-                                  </div>
-                              </div>
-                          </div>
+              <div class="card">
+                <div class="content">
+                  <div class="header">Gasoline</div>
+                  <div class="description">
+                    <h5 id="gasoline">&nbsp;</h5>
+                    <p>Description</p>
+                  </div>
+                </div>
+              </div>
 
-                          <div class="card">
-                              <div class="content">
-                                  <div class="header">Smartphones charged</div>
-                                  <div class="description">
-                                      <h5 id="smartphones-charged">&nbsp;</h5>
-                                      <p>Description</p>
-                                  </div>
-                              </div>
-                          </div>
+              <div class="card">
+                <div class="content">
+                  <div class="header">Smartphones charged</div>
+                  <div class="description">
+                    <h5 id="smartphones-charged">&nbsp;</h5>
+                    <p>Description</p>
+                  </div>
+                </div>
+              </div>
 
-                          <div class="card">
-                            <div class="content">
-                                <div class="header">Flights</div>
-                                <div class="description">
-                                    <h5 id="flights">&nbsp;</h5>
-                                    <p>Description</p>
-                                </div>
-                            </div>
-                        </div>
-                      </div>
+              <div class="card">
+                <div class="content">
+                  <div class="header">Flights</div>
+                  <div class="description">
+                    <h5 id="flights">&nbsp;</h5>
+                    <p>Description</p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-                        <!--  TODO <div class="ui two cards stackable" > -->
+            <!--  TODO <div class="ui two cards stackable" > -->
 
-                        <div id="chart-container">
-                            <div class="card" id="chart-scaffold" style="display:none;">
-                                <div class="content">
-                                    <div class="description">
-                                        <div class="chart"></div>
-                                        <div>
-                                            <label>
-                                                <input type="checkbox" checked="" onchange="toggleNote(0)"><span
-                                                    style="font-size: 0.8em; margin-left: 2px">Show notes</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            <div id="chart-container">
+              <div class="card" id="chart-scaffold" style="display:none;">
+                <div class="content">
+                  <div class="description">
+                    <div class="chart"></div>
+                    <div>
+                      <label>
+                        <input type="checkbox" checked="" onchange="toggleNotes()"><span
+                          style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-             <script src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
+            <script src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
 
-    <script>
-        var cpu_load = [];
-        var my_series = {}
-        var project_data = {}
+            <script>
+              var cpu_load = [];
+              var my_series = {};
+              var project_data = {};
 
-        const query_string = window.location.search;
-        const url_params = (new URLSearchParams(query_string))
-        if(!url_params.has('id')) {
-            alert("Please supply id in URL")
+              const query_string = window.location.search;
+              const url_params = (new URLSearchParams(query_string))
+              if (!url_params.has('id')) {
+                alert("Please supply id in URL")
 
-        } else {
-            var total_energy = null;
-            var accumulate = 0;
-            let annotations = [];
-            try {
-              if(document.location.host.indexOf('metrics.green-coding.org') === 0)
-                api_url = "https://api.green-coding.org";
-              else
-                api_url = "http://api.green-coding.local:8000";
+              } else {
+                var total_energy = null;
+                var accumulate = 0;
+                let annotations = [];
+                try {
+                  if (document.location.host.indexOf('metrics.green-coding.org') === 0)
+                    api_url = "https://api.green-coding.org";
+                  else
+                    api_url = "http://api.green-coding.local:8000";
 
-                fetch(api_url +'/v1/stats/single/'+url_params.get('id'))
-                  .then(response => response.json())
-                  .then(my_json => {
-                      if(my_json.success != true) {
-                          alert(my_json.err);
-                          return;
+                  fetch(api_url + '/v1/stats/single/' + url_params.get('id'))
+                    .then(response => response.json())
+                    .then(my_json => {
+                      if (my_json.success != true) {
+                        alert(my_json.err);
+                        return;
                       }
 
                       console.log("my_json", my_json)
+
                       document.querySelector("#project-last-crawl").innerText = my_json.project.last_crawl;
                       document.querySelector("#project-name").innerText = my_json.project.name;
                       document.querySelector("#project-url").innerText = my_json.project.url;
@@ -280,65 +281,45 @@
                       document.querySelector("#project-memtotal").innerText = my_json.project.memtotal;
 
                       my_json.data.forEach(el => {
-                          if(my_series[el[2]] == undefined) {
-                            my_series[el[2]] = {}
-                          }
-
-                        const replicateAnnotations = (target) => {
-                          if (el[2] !== target) { // avoids duplication of annotations on the same chart
-                            if (my_series[target][el[0]] == undefined) {
-                              my_series[target][el[0]] = {name: el[0], data: [{x: el[1], y: 0}]}
-                            } else {
-                              my_series[target][el[0]]['data'].push({x: el[1], y: 0})
-                            }
-                          }
+                        if (my_series[el[2]] == undefined) {
+                          my_series[el[2]] = {}
                         }
 
-                        if(el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
+
+
+                        if (el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
                           accumulate = 1;
                           return
-                        } else if(el[0] == '[SYSTEM]' && el[4] == '[END MEASUREMENT]') {
+                        } else if (el[0] == '[SYSTEM]' && el[4] == '[END MEASUREMENT]') {
                           accumulate = 0;
                           return;
                         }
 
-                        el[1] = el[1]/1000;
+                        el[1] = el[1] / 1000;
 
                         var value = null;
-                        if(el[2] == 'cpu_cgroup' && accumulate === 1) {
+                        if (el[2] == 'cpu_cgroup' && accumulate === 1) {
                           cpu_load.push(el[3]);
                           value = el[3] / 100;
-                        } else if(el[2] == 'energy_system_RAPL_MSR') {
-                          if(accumulate === 1) total_energy += el[3]
+                        } else if (el[2] == 'energy_system_RAPL_MSR') {
+                          if (accumulate === 1) total_energy += el[3]
                           value = el[3];
-                        } else if(el[2] == 'memory_cgroup') {
+                        } else if (el[2] == 'memory_cgroup') {
                           cpu_load.push(el[3])
                           value = el[3] / 1000000;
                         } else {
-                            value = el[3];
+                          value = el[3];
                         }
 
-                        if(my_series[el[2]][el[0]] == undefined) {
-                            my_series[el[2]][el[0]] = {name: el[0], data: [{x: el[1], y: value}]}
+                        if (my_series[el[2]][el[0]] == undefined) {
+                          my_series[el[2]][el[0]] = { name: el[0], data: [{ x: el[1], y: value }] }
                         } else {
-                            my_series[el[2]][el[0]]['data'].push({x: el[1], y: value})
+                          my_series[el[2]][el[0]]['data'].push({ x: el[1], y: value })
                         }
 
-                        /*  Notes are coming from the API now, please rework
-                        if(el[4] != null) {
-                            annotations.push({
-                              series: el[0],
-                              x: el[1],
-                              shortText: el[4][0] === " " ? el[4][1] : el[4][0], // first letter of the message; in case it's a space, then seccond letter
-                              text: el[4],
-                            })
 
-                            replicateAnnotations("cpu");
-                            replicateAnnotations("system-energy");
-                            replicateAnnotations("mem");
-                            replicateAnnotations("net_in");
-                        }
-                        */
+
+
 
                         /*
                         el[0] // container_id
@@ -347,67 +328,125 @@
                         el[3] // value
                         el[4] // note => Not anymore present
                         '*/
-              })
-                        console.log("annotations", annotations)
+                      })
+                      console.log("annotations", annotations)
+
+                      let counter = 0;
+                      for (el in my_series) {
+                        console.log("el", el)
+                        const { data, labels } = getDataAndLabels(Object.values(my_series[el]));
+                        const element = createChartContainer("#chart-scaffold", "#chart-container", '.chart', el, counter)
+                        console.log("element", element)
+                        const chart = createGraph(element, data, labels, el)
+                        // chart_cpu.setAnnotations(annotations); // please rework
+                        counter = counter + 1;
+                      }
+
+                      document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
+                      document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
+                      document.querySelector("#total-co2").innerText = (total_energy / 1000 / 3600000 * 0.519 * 1000000).toFixed(2) + " ugCO2eq"
+                      document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a, b) => a + b, 0) / cpu_load.length) / 100).toFixed(2) + " %"
+
+                      const total_CO2 = (total_energy / 1000 / 3600000 * 0.519 * 1000000);
+                      // const total_CO2_in_kg = total_CO2 / 1000000000; // the real value, bring it back later on
+                      const total_CO2_in_kg = total_CO2 * 10; // fake value only so that we see numbers greater than 0.00
+
+                      // chart_cpu.setAnnotations(annotations);
+                      // chart_energy.setAnnotations(annotations);
+                      // chart_mem.setAnnotations(annotations);
+                      // chart_net_in.setAnnotations(annotations);
+
+                      document.querySelector("#trees").innerText = (total_CO2_in_kg / 0.06 / 1000).toFixed(2) + " trees";
+                      document.querySelector("#miles-driven").innerText = (total_CO2_in_kg / 0.000403 / 1000).toFixed(2) + " miles driven";
+                      document.querySelector("#gasoline").innerText = (total_CO2_in_kg / 0.008887 / 1000).toFixed(2) + " gallons";
+                      document.querySelector("#smartphones-charged").innerText = (total_CO2_in_kg / 0.00000822 / 1000).toFixed(2) + " smartphones charged";
+                      document.querySelector("#flights").innerText = (total_CO2_in_kg / 1000).toFixed(2) + " flights from Berlin to New York City";
+
+                    })
+
+                  fetch(api_url + '/v1/notes/' + url_params.get('id'))
+                    .then(response => response.json())
+                    .then(my_json => {
+                      if (my_json.success != true) {
+                        alert(my_json.err);
+                        return;
+                      }
+
+                      console.log("my_json from the notes", my_json)
+
+                      // const replicateAnnotations = (target) => {
+                      //     if (el[2] !== target) { // avoids duplication of annotations on the same chart
+                      //       if (my_series[target][el[0]] == undefined) {
+                      //         my_series[target][el[0]] = { name: el[0], data: [{ x: el[1], y: 0 }] }
+                      //       } else {
+                      //         my_series[target][el[0]]['data'].push({ x: el[1], y: 0 })
+                      //       }
+                      //     }
+                      //   }
+
+                      for (let i = 0; i < my_json.data.length; i++) {
+                        annotations.push({
+                          series: "Annotations",
+                          x: my_json.data[i][3],
+                          shortText: my_json.data[i][2][0] === " " ? my_json.data[i][2][1] : my_json.data[i][2][0], // first letter of the message; in case it's a space, then seccond letter
+                          text: my_json.data[i][2],
+                        })
+
+                        // replicateAnnotations("cpu");
+                        // replicateAnnotations("system-energy");
+                        // replicateAnnotations("mem");
+                        // replicateAnnotations("net_in");
+                      }
 
 
-                        for ( el in my_series) {
-                            const { data: data, labels: labels } = getDataAndLabels(Object.values(my_series[el]));
-                            const element = createChartContainer("#chart-scaffold", "#chart-container", '.chart')
-                            const chart = createGraph(element, data, labels, el)
-                            // chart_cpu.setAnnotations(annotations); // please rework
-                        }
 
-                        document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, cpu_load) / 100) + " %"
-                        document.querySelector("#total-energy").innerText = (total_energy / 1000).toFixed(2) + " J"
-                        document.querySelector("#total-co2").innerText = (total_energy / 1000 / 3600000 * 0.519 * 1000000).toFixed(2) + " ugCO2eq"
-                        document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a,b) => a + b, 0) / cpu_load.length) / 100).toFixed(2) + " %"
+                    })
 
-                        const total_CO2 = (total_energy / 1000 / 3600000 * 0.519 * 1000000);
-                        // const total_CO2_in_kg = total_CO2 / 1000000000; // the real value, bring it back later on
-                        const total_CO2_in_kg = total_CO2 * 10; // fake value only so that we see numbers greater than 0.00
-
-                        document.querySelector("#trees").innerText = (total_CO2_in_kg / 0.06 / 1000).toFixed(2) + " trees";
-                        document.querySelector("#miles-driven").innerText = (total_CO2_in_kg / 0.000403 / 1000).toFixed(2) + " miles driven";
-                        document.querySelector("#gasoline").innerText = (total_CO2_in_kg / 0.008887 / 1000).toFixed(2) + " gallons";
-                        document.querySelector("#smartphones-charged").innerText = (total_CO2_in_kg / 0.00000822 / 1000).toFixed(2) + " smartphones charged";
-                        document.querySelector("#flights").innerText = (total_CO2_in_kg / 1000).toFixed(2) + " flights from Berlin to New York City";
-
-                  })
-              } catch(e) {
-                  alert("Fetch failed: "+e)
+                } catch (e) {
+                  alert("Fetch failed: " + e)
+                }
               }
-            }
-    </script>
+            </script>
 
-<div id="myModal" class="modal">
-    <!-- Modal content -->
-</div>
+            <div id="myModal" class="modal">
+              <!-- Modal content -->
+            </div>
 
- <style>
-/* The Modal (background) */
-.modal {
-  display: none; /* Hidden by default */
-  position: fixed; /* Stay in place */
-  z-index: 1; /* Sit on top */
-  left: 400;
-  top: 400;
-  width: 20%; /* Full width */
-  height: 20%; /* Full height */
-  overflow: auto; /* Enable scroll if needed */
-  background-color: rgb(0,0,0); /* Fallback color */
-  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
-}
+            <style>
+              /* The Modal (background) */
+              .modal {
+                display: none;
+                /* Hidden by default */
+                position: fixed;
+                /* Stay in place */
+                z-index: 1;
+                /* Sit on top */
+                left: 400;
+                top: 400;
+                width: 20%;
+                /* Full width */
+                height: 20%;
+                /* Full height */
+                overflow: auto;
+                /* Enable scroll if needed */
+                background-color: rgb(0, 0, 0);
+                /* Fallback color */
+                background-color: rgba(0, 0, 0, 0.4);
+                /* Black w/ opacity */
+              }
 
-/* Modal Content/Box */
-.modal-content {
-  background-color: #fefefe;
-  margin: 15% auto; /* 15% from the top and centered */
-  padding: 20px;
-  border: 1px solid #888;
-  width: 80%; /* Could be more or less, depending on screen size */
-}
-</style>
+              /* Modal Content/Box */
+              .modal-content {
+                background-color: #fefefe;
+                margin: 15% auto;
+                /* 15% from the top and centered */
+                padding: 20px;
+                border: 1px solid #888;
+                width: 80%;
+                /* Could be more or less, depending on screen size */
+              }
+            </style>
 
 </body>
+
 </html>
