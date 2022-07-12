@@ -4,11 +4,13 @@ body {
 
 #toc {
     height: 100vh;
-    background: linear-gradient(#2a1c5a, #4b3a6e);
+    /* background: linear-gradient(#2a1c5a, #4b3a6e); */
+    background: linear-gradient(#365469, #00cc99);
 }
 
 #inverted-main-menu {
-    background: linear-gradient(#2a1c5a, #4b3a6e);
+    /* background: linear-gradient(#2a1c5a, #4b3a6e); */
+    background: linear-gradient(#365469, #00cc99);
 }
 
 #pusher {
@@ -21,7 +23,8 @@ body {
 
 #vertical-inverted-menu {
     height: 100vh;
-    background: linear-gradient(#2a1c5a, #4b3a6e);
+    /* background: linear-gradient(#2a1c5a, #4b3a6e); */
+    background: linear-gradient(#365469, #00cc99);
 }
 
 #masthead {
