@@ -12,11 +12,11 @@ body {
 }
 
 #pusher {
-    background: #e9eaef
+    background: #e9eaef;
 }
 
 #full-height {
-    background: #e9eaef
+    background: #e9eaef;
 }
 
 #vertical-inverted-menu {
@@ -25,7 +25,7 @@ body {
 }
 
 #masthead {
-    background: #e9eaef;
+    background: #e9eaef !important;
     border: 0px !important;
     padding-bottom: 0px;
     height: 5%;
@@ -57,4 +57,8 @@ body {
 
 .chart {
     width: auto !important;
+}
+
+.article {
+    background: #e9eaef;
 }

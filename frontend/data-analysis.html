@@ -29,8 +29,7 @@
 </head>
 
 <body id="example" class="started" ontouchstart="">
-    <div class="ui vertical inverted sidebar menu" id="toc"
-        style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
+    <div class="ui vertical inverted sidebar menu" id="toc">
         <div>
             <img class="ui fluid image" src="./assets/images/logo.png">
         </div>
@@ -53,7 +52,7 @@
         <span class="text">Menu</span>
     </div>
 
-    <div class="ui fixed inverted main menu" style="background: linear-gradient(#2a1c5a,#4b3a6e);">
+    <div class="ui fixed inverted main menu" id="inverted-main-menu">
         <div class="ui container">
             <a class="launch icon item">
                 <i class="content icon"></i>
@@ -71,11 +70,11 @@
         </div>
     </div>
 
-    <div class="pusher" style="background: #e9eaef">
-        <div class="full height" style="background: #e9eaef">
+    <div class="pusher" id="pusher">
+        <div class="full height" id="full-height">
             <div class="toc">
                 <div class="ui vertical inverted menu"
-                    style="height: 100vh; background: linear-gradient(#2a1c5a,#4b3a6e);">
+                    id="vertical-inverted-menu">
                     <div>
                         <img class="ui fluid image" src="./assets/images/logo.png">
                     </div>
@@ -95,15 +94,15 @@
             </div>
 
             <div class="article">
-                <div class="ui masthead vertical segment" style="background: #e9eaef; border: 0px;">
+                <div class="ui masthead vertical segment" id="masthead">
 
                     <h2 class="ui header">
                         Green Metrics Tool
                     </h2>
 
-                    <div class="main ui intro container"
-                        style="margin-right: 0px !important; padding-top: 0px !important; max-width: 95% !important;">
-                        <div class="ui horizontal card" style="width: 100%">
+                    <div class="main ui intro container" id="intro-container"
+                    style="margin-right: 0px !important; padding-top: 0px !important; max-width: 95% !important;">
+                        <div class="ui horizontal card" id="horizontal-card">
                             <div class="content">
                                 <div class="header">IMPORTANT</div>
                                 <div class="description">
@@ -113,7 +112,7 @@
                             </div>
                         </div>
 
-                        <div class="ui horizontal card" style="width: 100%; margin-bottom: 26px;">
+                        <div class="ui horizontal card" id="horizontal-card">
                             <div class="content">
                                 <div class="header">Data Analysis of our Open Data API</div>
                                 <div class="description">
