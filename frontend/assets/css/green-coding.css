@@ -62,3 +62,22 @@ body {
 .article {
     background: #e9eaef;
 }
+
+/* index.html: */
+
+#table {
+    padding: 20px;
+}
+
+.td-index {
+    word-break: break-all;
+}
+
+/* request.html: */
+#new-project-description>div {
+    margin-bottom: 10px;
+}
+
+#new-project-name-div {
+    margin-top: 10px;
+}

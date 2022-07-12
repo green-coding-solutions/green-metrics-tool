@@ -110,7 +110,7 @@
                             <div class="results"></div>
                         </div>
 
-                        <table class="ui sortable celled striped table" style="padding: 20px" id="table">
+                        <table class="ui sortable celled striped table" id="table">
                             <thead>
                                 <tr>
                                     <th>Name</th>
@@ -159,7 +159,7 @@
                         link_node.title = el[1];
                         link_node.href = "/stats.html?id=" + el[0];
                         li_node.appendChild(link_node);
-                        li_node.innerHTML = '<td style="word-break:break-all;">' + li_node.innerHTML + '</td><td style="word-break:break-all;">' + el[2] + '</td><td style="word-break:break-all;">' + el[3] + '</td><td><input type="checkbox" value="' + el[0] + '" name="chbx-proj" />&nbsp;</td>';
+                        li_node.innerHTML = '<td class="td-index">' + li_node.innerHTML + '</td><td class="td-index">' + el[2] + '</td><td class="td-index">' + el[3] + '</td><td><input type="checkbox" value="' + el[0] + '" name="chbx-proj" />&nbsp;</td>';
 
                         document.getElementById("projects-table").appendChild(li_node);
                     })
