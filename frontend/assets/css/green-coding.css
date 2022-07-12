@@ -1,3 +1,60 @@
 body {
     background: #e9eaef;
 }
+
+#toc {
+    height: 100vh;
+    background: linear-gradient(#2a1c5a, #4b3a6e);
+}
+
+#inverted-main-menu {
+    background: linear-gradient(#2a1c5a, #4b3a6e);
+}
+
+#pusher {
+    background: #e9eaef
+}
+
+#full-height {
+    background: #e9eaef
+}
+
+#vertical-inverted-menu {
+    height: 100vh;
+    background: linear-gradient(#2a1c5a, #4b3a6e);
+}
+
+#masthead {
+    background: #e9eaef;
+    border: 0px !important;
+    padding-bottom: 0px;
+    height: 5%;
+}
+
+/* #intro-container {
+    margin-right: 0px !important;
+    padding-top: 0px !important;
+    max-width: 95% !important;
+} */
+
+#horizontal-card {
+    width: 100% !important;
+    margin-bottom: 26px !important;
+}
+
+#project-uri {
+    word-break: break-all;
+}
+
+#chart-container {
+    margin-top: 14px;
+}
+
+#toggle-notes-spam {
+    font-size: 0.8em;
+    margin-left: 2px
+}
+
+.chart {
+    width: auto !important;
+}

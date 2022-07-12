@@ -139,7 +139,7 @@ const createChartContainer = (container, el, counter) => {
                               ${counter === 0 ? `<div>
                                 <label>
                                   <input type="checkbox" checked="" onchange="toggleNotes()"><span
-                                    style="font-size: 0.8em; margin-left: 2px">Show notes</span>
+                                  id="toggle-notes-spam">Show notes</span>
                                 </label>
                               </div>` : ``}
                             </div>
