@@ -12,6 +12,9 @@ CREATE TABLE projects (
     cpu text,
     memtotal text,
     last_run timestamp with time zone,
+    idle_time_start integer,
+    idle_time_end integer,
+    flow_process_runtime integer,
     created_at timestamp with time zone DEFAULT now()
 );
 

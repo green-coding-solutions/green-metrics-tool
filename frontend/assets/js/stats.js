@@ -42,6 +42,9 @@ const getData = (my_json) => {
   document.querySelector("#project-uri").innerText = my_json.project.uri;
   document.querySelector("#project-cpu").innerText = my_json.project.cpu;
   document.querySelector("#project-memtotal").innerText = my_json.project.memtotal;
+  document.querySelector("#project-idle-time-start").innerText = my_json.project.idle_time_start;
+  document.querySelector("#project-idle-time-end").innerText = my_json.project.idle_time_end;
+  document.querySelector("#project-flow-process-runtime").innerText = my_json.project.flow_process_runtime;
 
   my_json.data.forEach(el => {
     if (my_series[el[2]] == undefined) {
