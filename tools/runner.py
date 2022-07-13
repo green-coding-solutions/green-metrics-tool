@@ -201,7 +201,7 @@ class Runner:
         print("Current known containers: ", self.containers)
 
         for metric_provider in self.metric_providers:
-            print(f"Starting measurement provider {metric_provider}")
+            print(f"Starting measurement provider {metric_provider.__class__.__name__}")
             metric_provider.start_profiling(self.containers)
 
         notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
@@ -263,6 +263,10 @@ class Runner:
             metric_provider.stop_profiling()
 
             df = metric_provider.read_metrics(project_id, self.containers)
+            print(f"Imported {df.shape[0]} metrics from {metric_provider.__class__.__name__}")
+            if df is None or df.shape[0] == 0:
+                raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
+
             f = StringIO(df.to_csv(index=False, header=False))
             DB().copy_from(file=f, table='stats', columns=df.columns, sep=",")
 
