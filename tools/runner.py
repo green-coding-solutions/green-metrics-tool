@@ -81,9 +81,13 @@ class Runner:
 
         # Insert auxilary info for the run. Not critical.
         DB().query("""UPDATE projects
-            SET cpu=%s, memtotal=%s, usage_scenario = %s, last_run = NOW()
+            SET cpu=%s, memtotal=%s, usage_scenario = %s, last_run = NOW(), idle_time_end=%s, idle_time_start=%s, flow_process_runtime=%s
             WHERE id = %s
-            """, params=(hardware_info.get_cpu(), hardware_info.get_mem(), json.dumps(obj), project_id))
+            """, params=(hardware_info.get_cpu(), hardware_info.get_mem(), json.dumps(obj), 
+                        config['measurement']['idle-time-end'],
+                        config['measurement']['idle-time-start'],
+                        config['measurement']['flow-process-runtime'],
+                        project_id))
 
         # Import metric providers dynamically
         for metric_provider in config['measurement']['metric-providers']: # will iterate over keys
