@@ -10,6 +10,7 @@ import sys
 import re
 import importlib
 from io import StringIO
+import yaml
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{current_dir}/../lib")
@@ -59,8 +60,8 @@ class Runner:
         else:
             folder = uri
 
-        with open(f"{folder}/usage_scenario.json") as fp:
-            obj = json.load(fp)
+        with open(f"{folder}/usage_scenario.yml") as fp:
+            obj = yaml.safe_load(fp)
 
 
         print("Having Usage Scenario ", obj['name'])
