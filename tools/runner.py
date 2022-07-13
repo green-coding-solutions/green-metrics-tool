@@ -9,14 +9,14 @@ import time
 import sys
 import re
 import importlib
-from io import StringIO
 import yaml
+from io import StringIO
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{current_dir}/../lib")
 
 from save_notes import save_notes # local file import
-from setup_functions import get_config
+from global_config import GlobalConfig
 from db import DB
 import error_helpers
 import hardware_info
@@ -44,9 +44,9 @@ class Runner:
 
     def run(self, uri, uri_type, project_id):
 
-        config = get_config()
-        debug = DebugHelper(self.debug_mode) # Instantiate debug helper with correct mode
+        config = GlobalConfig().config
 
+        debug = DebugHelper(self.debug_mode) # Instantiate debug helper with correct mode
 
 
         subprocess.run(["rm", "-Rf", "/tmp/green-metrics-tool"])

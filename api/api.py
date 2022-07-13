@@ -10,9 +10,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../tools')
 import error_helpers
 import email_helpers
 import jobs
-import setup_functions
 from db import DB
-
+from global_config import GlobalConfig
 
 from fastapi import FastAPI, Request, Query
 from fastapi.responses import JSONResponse
@@ -28,7 +27,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
         return await call_next(request)
     except Exception as e:
         error_helpers.log_error("Error in API call:", str(Request), " with next call: ", call_next, e)
-        email_helpers.send_error_email(setup_functions.get_config()['admin']['email'], error_helpers.format_error("Error in API call:", str(Request), " with next call: ", call_next, e), project_id=None)
+        email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error("Error in API call:", str(Request), " with next call: ", call_next, e), project_id=None)
         return JSONResponse(content={'success': False, 'err': 'Request to API failed'}, status_code=500)
 
 # Binding the Exception middleware must confusingly come BEFORE the CORS middleware. Otherwise CORS will not be sent in response

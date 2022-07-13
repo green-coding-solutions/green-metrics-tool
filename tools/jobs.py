@@ -5,7 +5,7 @@ import subprocess
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 import error_helpers
 import email_helpers
-import setup_functions
+from global_config import GlobalConfig
 
 from db import DB
 from runner import Runner
@@ -119,6 +119,6 @@ if __name__ == "__main__":
         print("Successfully processed jobs queue item.")
     except Exception as e:
         error_helpers.log_error("Base exception occured in jobs.py: ", e)
-        email_helpers.send_error_email(setup_functions.get_config()['admin']['email'], error_helpers.format_error("Base exception occured in jobs.py: ", e), project_id=None)
+        email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error("Base exception occured in jobs.py: ", e), project_id=None)
 
 
