@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euxo pipefail
+#set -euxo pipefail
 
 read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
 
