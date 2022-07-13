@@ -232,7 +232,7 @@ class Runner:
                     docker_exec_command.append(el['container'])
                     docker_exec_command.extend( inner_el['command'].split(' ') )
 
-                    # Note: In case of a detach wish in the usage_scenario.json:
+                    # Note: In case of a detach wish in the usage_scenario.yml:
                     # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
                     # Since Popen always make the process asynchronous we can leverage this to emulate a detached behaviour
                     ps = subprocess.Popen(
@@ -311,7 +311,7 @@ if __name__ == "__main__":
     from pathlib import Path
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--uri", type=str, help="The URI to get the usage_scenario.json from. Can be eitehr file://... for local directories or http(s):// to download the repository with the usage_scenario.json from.")
+    parser.add_argument("--uri", type=str, help="The URI to get the usage_scenario.yml from. Can be eitehr file://... for local directories or http(s):// to download the repository with the usage_scenario.yml from.")
     parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others. Will only be read in manual mode.")
     parser.add_argument("--no-file-cleanup", action='store_true', help="Do not delete files in /tmp/green-metrics-tool")
     parser.add_argument("--debug", action='store_true', help="Activate steppable debug mode")
