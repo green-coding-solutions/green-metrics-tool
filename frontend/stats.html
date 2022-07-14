@@ -22,6 +22,8 @@
     <link rel="stylesheet" type="text/css" class="ui" href="./dist/semantic.min.css">
     <link rel="stylesheet" type="text/css" href="./assets/css/green-coding.css">
     <link rel="stylesheet" type="text/css" href="./assets/css/dygraph.css" />
+    <link rel="stylesheet" href="./assets/vendors/css/jquery.toast.min.css">
+
 </head>
 
 <body style="display: flex;">
@@ -100,8 +102,8 @@
                                                 <td id="project-flow-process-runtime"></td>
                                             </tr>
                                             <tr>
-                                                <td>Last Crawl</td>
-                                                <td id="project-last-crawl"></td>
+                                                <td>Last Run</td>
+                                                <td id="project-last-run"></td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -206,14 +208,9 @@
                         <div id="chart-container"></div>
 
                         <script src="/dist/dygraph.min.js"></script>
+                        <script src="/dist/apexcharts.min.js"></script>
 
                         <script>
-                            var cpu_load = [];
-                            var mem_load = [];
-                            var my_series = {};
-                            var total_energy = null;
-                            var annotations = [];
-
                             const query_string = window.location.search;
                             const url_params = (new URLSearchParams(query_string))
                             if (!url_params.has('id')) {
@@ -221,27 +218,34 @@
 
                             } else {
                                 try {
-                                    setAPIurl();
+                                    const api_url = getAPIUrl();
 
                                     fetch(api_url + '/v1/notes/' + url_params.get('id'))
                                         .then(response => response.json())
                                         .then(my_json => {
-                                            if (my_json.success != true) {
-                                                alert(my_json.err);
-                                                return;
-                                            }
-                                            getAnnotations(my_json);
+                                            if (my_json.success === true)
+                                                return getAnnotations(my_json)
+
+                                            $.toast({
+                                              heading: 'Info',
+                                              text: 'This measurement contains apparently no notes for the charts',
+                                              showHideTransition: 'slide',
+                                              icon: 'info',
+                                              loaderBg: '#46c35f',
+                                              position: 'top-right'
+                                            })
                                         })
 
                                     fetch(api_url + '/v1/stats/single/' + url_params.get('id'))
                                         .then(response => response.json())
                                         .then(my_json => {
-                                            if (my_json.success != true) {
+                                            if (my_json.success !== true) {
                                                 alert(my_json.err);
                                                 return;
                                             }
-                                            getData(my_json);
-                                            displayGraphs();
+                                            const my_series = getData(my_json);
+                                            fillAvgContainers(my_json.project)
+                                            displayGraphs(my_series);
                                             displayStatistics();
                                         })
 
@@ -250,6 +254,10 @@
                                 }
                             }
                         </script>
+         <!-- Custom js for this page-->
+                <script src="./assets/vendors/js/jquery.toast.min.js"></script>
+                <!-- End custom js for this page-->
+
 </body>
 
 </html>
