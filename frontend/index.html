@@ -15,16 +15,28 @@
     <meta name="description" content="Using Fomantic UI with Other Libraries" />
     <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
 
-    <script src="./assets/js/jquery.min.js"></script>
-    <script src="./assets/js/tablesort.min.js"></script>
-    <script src="./assets/js/search.min.js"></script>
-    <script src="./assets/js/easing.min.js"></script>
-    <script src="./assets/js/semantic.min.js"></script>
-    <script src="./assets/js/stats.js"></script>
+    <script src="/dist/js/jquery.min.js" defer></script>
+    <script src="/js/main.js" defer></script>
+    <script src="/js/index.js" defer></script>
+    <script src="/dist/js/tablesort.min.js" defer></script>
+    <script src="/dist/js/search.min.js" defer></script>
+    <script src="/dist/js/transition.min.js" defer></script>
 
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/semantic.min.css">
-    <link rel="stylesheet" type="text/css" href="./assets/css/green-coding.css">
-    <link rel="stylesheet" href="./assets/vendors/css/jquery.toast.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/reset.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/site.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/card.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/container.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/header.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/icon.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/menu.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/segment.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/search.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/table.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/input.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/transition.min.css">
+
+    <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
+
 </head>
 
 <body style="display: flex;">
@@ -32,7 +44,7 @@
 
     <div id="menu" class="ui inverted vertical menu">
         <div>
-            <img class="ui fluid image" src="./assets/images/logo.png">
+            <img class="ui fluid image" src="/images/logo.png">
         </div>
         <div class="item">
             <p>Demo user</p>
@@ -96,70 +108,6 @@
             </div>
         </div>
 
-    <script>
-        var chart_cpu = null;
-        var chart_energy = null;
-        var chart_mem = null;
-        var chart_net_in = null;
-        let content = [];
-        try {
-            if (document.location.host.indexOf('metrics.green-coding.org') === 0)
-                api_url = "https://api.green-coding.org";
-            else
-                api_url = "http://api.green-coding.local:8000";
-
-            fetch(api_url + '/v1/projects')
-                .then(response => response.json())
-                .then(my_json => {
-                    if (my_json.success != true) {
-                        alert(my_json.err);
-                        return;
-                    }
-
-                    my_json.data.forEach(el => {
-                        const li_node = document.createElement("tr");
-                        const link_node = document.createElement('a');
-                        content.push({ title: el[1] });
-                        link_node.innerText = el[1];
-                        link_node.title = el[1];
-                        link_node.href = "/stats.html?id=" + el[0];
-                        li_node.appendChild(link_node);
-                        li_node.innerHTML = '<td class="td-index">' + li_node.innerHTML + '</td><td class="td-index">' + el[2] + '</td><td class="td-index">' + el[3] + '</td><td><input type="checkbox" value="' + el[0] + '" name="chbx-proj" />&nbsp;</td>';
-
-                        document.getElementById("projects-table").appendChild(li_node);
-                    })
-                    $('.ui.search').search({ source: content });
-                })
-        } catch (e) {
-            alert("Fetch failed: " + e)
-        }
-
-        function compareButton() {
-            var checkedBoxes = document.querySelectorAll('input[name=chbx-proj]:checked');
-            console.log(checkedBoxes.length);
-            var link = "";
-            if (checkedBoxes.length == 2) {
-                link = "/multi.html?dummy=dummy";
-            }
-            else if (checkedBoxes.length > 2) {
-                link = "/compare.html?dummy=dummy";
-            }
-            else {
-                alert("Please select at least two projects to compare :-)");
-                return;
-            }
-
-            checkedBoxes.forEach(checkbox => {
-                link += "&pid[]=" + checkbox.value;
-            });
-            //console.log(link);
-            window.location = link;
-        }
-        $(document).ready(function () {
-            $('table').tablesort();
-        });
-
-    </script>
 
 </body>
 

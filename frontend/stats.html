@@ -15,14 +15,36 @@
     <meta name="description" content="Using Fomantic UI with Other Libraries" />
     <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
 
-    <script src="./assets/js/jquery.min.js"></script>
-   <script src="./assets/js/semantic.min.js"></script>
-    <script src="./assets/js/stats.js"></script>
+    <script src="./assets/js/jquery.min.js" defer></script>
+    <script src="./assets/js/stats.js" defer></script>
+    <!--<script src="/dist/dygraph.min.js" defer></script>-->
+    <!--<script src="/dist/apexcharts.min.js" defer></script>-->
 
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/semantic.min.css">
+    <script src="/dist/echarts.min.js" defer></script>
+    <script src="/dist/components/toast.min.js" defer></script>
+    <script src="/dist/components/transition.min.js" defer></script>
+
+
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/reset.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/site.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/button.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/card.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/checkbox.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/container.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/header.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/icon.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/item.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/menu.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/popup.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/segment.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/step.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/image.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/toast.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/transition.min.css">
+
     <link rel="stylesheet" type="text/css" href="./assets/css/green-coding.css">
-    <link rel="stylesheet" type="text/css" href="./assets/css/dygraph.css" />
-    <link rel="stylesheet" href="./assets/vendors/css/jquery.toast.min.css">
+    <!-- <link rel="stylesheet" type="text/css" href="./assets/css/dygraph.css" /> -->
+
 
 </head>
 
@@ -207,57 +229,7 @@
 
                         <div id="chart-container"></div>
 
-                        <script src="/dist/dygraph.min.js"></script>
-                        <script src="/dist/apexcharts.min.js"></script>
-                        <script src="/dist/echarts.min.js"></script>
 
-                        <script>
-                            const query_string = window.location.search;
-                            const url_params = (new URLSearchParams(query_string))
-                            if (!url_params.has('id')) {
-                                alert("Please supply id in URL")
-
-                            } else {
-                                try {
-                                    const api_url = getAPIUrl();
-
-                                    fetch(api_url + '/v1/notes/' + url_params.get('id'))
-                                        .then(response => response.json())
-                                        .then(my_json => {
-                                            if (my_json.success === true)
-                                                return getAnnotations(my_json)
-
-                                            $.toast({
-                                              heading: 'Info',
-                                              text: 'This measurement contains apparently no notes for the charts',
-                                              showHideTransition: 'slide',
-                                              icon: 'info',
-                                              loaderBg: '#46c35f',
-                                              position: 'top-right'
-                                            })
-                                        })
-
-                                    fetch(api_url + '/v1/stats/single/' + url_params.get('id'))
-                                        .then(response => response.json())
-                                        .then(my_json => {
-                                            if (my_json.success !== true) {
-                                                alert(my_json.err);
-                                                return;
-                                            }
-                                            const my_series = getData(my_json);
-                                            fillAvgContainers(my_json.project)
-                                            displayGraphs(my_series, 'echarts');
-                                            displayStatistics();
-                                        })
-
-                                } catch (e) {
-                                    alert("Fetch failed: " + e)
-                                }
-                            }
-                        </script>
-         <!-- Custom js for this page-->
-                <script src="./assets/vendors/js/jquery.toast.min.js"></script>
-                <!-- End custom js for this page-->
 
 </body>
 
