@@ -209,6 +209,7 @@
 
                         <script src="/dist/dygraph.min.js"></script>
                         <script src="/dist/apexcharts.min.js"></script>
+                        <script src="/dist/echarts.min.js"></script>
 
                         <script>
                             const query_string = window.location.search;
@@ -245,7 +246,7 @@
                                             }
                                             const my_series = getData(my_json);
                                             fillAvgContainers(my_json.project)
-                                            displayGraphs(my_series);
+                                            displayGraphs(my_series, 'echarts');
                                             displayStatistics();
                                         })
 

@@ -89,13 +89,12 @@ const getData = (my_json) => {
         }
 
 
-        /** Code only for APEX charts **/
         if (my_series[el[2]] == undefined)  my_series[el[2]] = {};
 
         if (my_series[el[2]][el[0]] == undefined) {
-            my_series[el[2]][el[0]] = { name: el[0], data: [{ x: el[1], y: value }] }
+            my_series[el[2]][el[0]] = { name: el[0], data: [{ x: time_in_ms, y: value }] }
         } else {
-            my_series[el[2]][el[0]]['data'].push({ x: el[1], y: value })
+            my_series[el[2]][el[0]]['data'].push({ x: time_in_ms, y: value })
         }
 
     })
@@ -106,35 +105,103 @@ const displayGraphs = (my_series, style='apex') => {
 
   let counter = 0; // for automatically creating pair of <div>s
 
-  if(style=='apex') {
-    charts = []
 
     for ( el in my_series) {
         const element = createChartContainer("#chart-container", el, counter)
-        const options = {
-          chart: {
-            type: 'line',
-          },
-          series: null
-        }
-        options.series = Object.values(my_series[el])
-        charts.push(new ApexCharts(element, options))
-    }
-    charts.forEach((chart) => chart.render())
 
-  } else {
-      for (el in my_series) {
-          console.log("el", el)
-          console.log(my_series[el])
-        if (el !== "null") { // prevents displaying a graph for the container_name "[SYSTEM]" which has all metrics set to "null"
+        if(style=='apex') {
+            charts = []
+
+            var options = {
+                series: Object.values(my_series[el]),
+                chart: {
+                    type: 'area',
+                    animations: {
+                      enabled: false
+                    }
+                },
+                dataLabels: {
+                    enabled: false
+                },
+                stroke: {
+                    curve: 'smooth'
+                },
+                title: {
+                  text: el,
+                },
+                xaxis: {
+                  tickAmount: 6,
+                  type: "datetime"
+                },
+                annotations: {
+                    xaxis: []
+                },
+                tooltip: {
+                    enabled: true,
+                    shared: true,
+                    followCursor: true,
+                    x: {
+                      show: true,
+                      format: 'HH:mm:ss',
+                  },
+
+                },
+            };
+
+            (new ApexCharts(element, options)).render()
+        } else if(style == 'dygraphs') {
             const { data, labels } = getFormattedDataAndLabels(Object.values(my_series[el]));
-        const element = createChartContainer("#chart-container", el, counter)
-        const chart = createGraph(el, data, labels, el)
-        //chart.setAnnotations(annotations);
-        counter++;
+            const chart = createGraph(element, data, labels, el)
+            //chart.setAnnotations(annotations);
+        } else if(style == 'echarts') {
+            var myChart = echarts.init(element);
+            var option;
+            console.log(my_series)
+
+            option = {
+                tooltip: {
+                    trigger: 'axis'
+                  },
+
+              xAxis: [
+                {
+                    type: 'time',
+                    data: [1656410602411772, 1656410602421772, 1656410602711772, 1656410603411772, 1656410692411772, 1656410702411772, 1656410802411772]
+                },
+                {
+                    type: 'time',
+                    data: [1656410602412772, 1656410602499772, 1656410602711772, 1656410603411772, 1656410692411772, 1656410702411772, 1656410802413772]
+                },
+                {
+                    type: 'time',
+                    data: [1656410602422772, 1656410602433772, 1656410602755772, 1656410603411772, 1656410692411772, 1656410702411772, 1656410802413772]
+                },
+
+              ],
+              yAxis: {
+                type: 'value'
+              },
+              series: [
+                {
+                  data: [150, 230, 224, 218, 135, 147, 260],
+                  type: 'line'
+                },
+                {
+                  data: [13, 22, 700, 11, 135, 147, 260],
+                  type: 'line'
+                }
+
+              ]
+            };
+
+            myChart.setOption(option);
+
+        } else {
+            throw "Unknown chart style"
         }
-      }
-  }
+        counter++;
+
+    }
 }
 
 const getFormattedDataAndLabels = (series) => {
@@ -186,13 +253,13 @@ const createChartContainer = (container, el, counter) => {
         twoCards.classList.add("two");
         twoCards.classList.add("cards");
         twoCards.classList.add("stackable");
-        const id = "#twoCards" + counter;
+        const id = "twoCards" + counter;
         twoCards.id = id;
         document.querySelector(container).appendChild(twoCards);
         twoCards.appendChild(chart_node);
     // console.log(`counter ${counter} -> created twoCards div`)
     } else {
-        const id = "twoCards" + (counter - 1);
+        const id = "#twoCards" + (counter - 1);
         // console.log(`counter ${counter} -> belongs to already created div with id ${id}`)
         document.querySelector(id).appendChild(chart_node);
     }
