@@ -164,9 +164,9 @@ async def get_stats_multi(p: list[str] | None = Query(default=None)):
                 stats.metric = ANY(ARRAY['cpu','mem','system-energy'])
             AND
                 STATS.project_id = ANY(%s::uuid[])
-            GROUP BY projects.name, stats.container_name, stats.metric
             """
-    data = DB().fetch_all(query, params=p)
+    params = (p,)
+    data = DB().fetch_all(query, params=params)
 
     if(data is None or data == []):
         return {'success': False, 'err': 'Data is empty'}
