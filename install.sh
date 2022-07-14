@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euxo pipefail
+set -euo pipefail
 
 read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
 
@@ -22,7 +22,7 @@ while IFS= read -r subdir; do
     make_path="$subdir/$make_file"
     if [[ -f "$make_path" ]]; then
         echo "Installing $subdir/static-binary ..."
-        rm $subdir/static-binary 2> /dev/null
+        rm -f $subdir/static-binary 2> /dev/null
         make -C $subdir
         chmod +x $subdir/static-binary
     fi
