@@ -20,18 +20,18 @@
     <script src="./assets/js/search.min.js"></script>
     <script src="./assets/js/easing.min.js"></script>
     <script src="./assets/js/semantic.min.js"></script>
-    <script src="./assets/js/docs.js"></script>
     <script src="./assets/js/highlight.min.js"></script>
     <script src="./assets/js/stats.js"></script>
 
     <link rel="stylesheet" type="text/css" class="ui" href="./dist/semantic.min.css">
-    <link rel="stylesheet" type="text/css" href="./assets/css/docs.css">
     <link rel="stylesheet" type="text/css" href="./assets/css/green-coding.css">
     <link rel="stylesheet" type="text/css" href="./assets/css/dygraph.css" />
 </head>
 
-<body id="example" class="started" ontouchstart="">
-    <div class="ui vertical inverted sidebar menu" id="toc">
+<body style="display: flex;">
+
+
+    <div id="menu" class="ui inverted vertical menu">
         <div>
             <img class="ui fluid image" src="./assets/images/logo.png">
         </div>
@@ -45,64 +45,30 @@
             <b><i class="bullseye icon"></i>Certify new software</b>
         </a>
         <a class="item" href="/data-analysis.html">
-            <b><i class="chart pie icon"></i>Data Analysis</b>
+            <b><i class="chart line icon"></i>Data Analysis</b>
         </a>
-    </div>
+        <a class="item" href="/showcases.html">
+            <b><i class="glasses icon"></i>Showcases</b>
+        </a>
 
-    <div class="ui black big launch right attached fixed button">
-        <i class="content icon"></i>
-        <span class="text">Menu</span>
-    </div>
+    </div> <!-- end menu -->
 
-    <div class="ui fixed inverted main menu" id="inverted-main-menu">
-        <div class="ui container">
-            <a class="launch icon item">
-                <i class="content icon"></i>
-            </a>
 
-            <div class="item">
-                Stats
-            </div>
 
-            <div class="right menu">
-                <div class="vertically fitted borderless item">
-                    <p>Demo user</p>
-                </div>
-            </div>
-        </div>
-    </div>
+                    <div class="main ui container" id="main">
 
-    <div class="pusher" id="pusher">
-        <div class="full height" id="full-height">
-            <div class="toc">
-                <div class="ui vertical inverted menu" id="vertical-inverted-menu">
-                    <div>
-                        <img class="ui fluid image" src="./assets/images/logo.png">
+                    <div class="ui steps horizontal" id="header">
+                    <a href="#" id="menu-toggle" class="opened"><i class="arrow circle left icon openend"></i></a>
+
+                      <div class="step">
+
+                        <div class="content">
+                          <div class="title"><h2>Green Metrics Tool Dashboard</h2></div>
+                          <div class="description">View the energy and CO2 consumption of your measured software</div>
+                        </div>
+                      </div>
                     </div>
-                    <div class="item">
-                        <p>Demo user</p>
-                    </div>
-                    <a class="item" href="/index.html">
-                        <b><i class="home icon"></i>Home</b>
-                    </a>
-                    <a class="item" href="/request.html">
-                        <b><i class="bullseye icon"></i>Certify new software</b>
-                    </a>
-                    <a class="item" href="/data-analysis.html">
-                        <b><i class="chart pie icon"></i>Data Analysis</b>
-                    </a>
-                </div>
-            </div>
 
-            <div class="article">
-                <div class="ui masthead vertical segment" id="masthead">
-
-                    <h2 class="ui header">
-                        Green Metrics Tool
-                    </h2>
-
-                    <div class="main ui intro container" id="intro-container"
-                    style="margin-right: 0px !important; padding-top: 0px !important; max-width: 95% !important;">
                         <div class="ui horizontal card" id="horizontal-card">
                             <div class="content">
                                 <div class="header">PROJECT DATA</div>
@@ -145,7 +111,7 @@
                                     </table>
                                 </div>
                             </div>
-                        </div>
+                        </div><!-- end ui horizontal card -->
 
                         <div class="ui four cards stackable">
                             <div class="card">
@@ -187,7 +153,7 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </div><!-- end ui four cards stackable -->
 
                         <div class="ui five cards stackable">
                             <div class="card">
@@ -239,11 +205,11 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </div><!-- end ui five cards stackable -->
 
                         <div id="chart-container"></div>
 
-                        <script src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
+                        <script src="/dist/dygraph.min.js"></script>
 
                         <script>
                             var cpu_load = [];
@@ -288,46 +254,6 @@
                                 }
                             }
                         </script>
-
-                        <div id="myModal" class="modal">
-                            <!-- Modal content -->
-                        </div>
-
-                        <style>
-                            /* The Modal (background) */
-                            .modal {
-                                display: none;
-                                /* Hidden by default */
-                                position: fixed;
-                                /* Stay in place */
-                                z-index: 1;
-                                /* Sit on top */
-                                left: 400;
-                                top: 400;
-                                width: 20%;
-                                /* Full width */
-                                height: 20%;
-                                /* Full height */
-                                overflow: auto;
-                                /* Enable scroll if needed */
-                                background-color: rgb(0, 0, 0);
-                                /* Fallback color */
-                                background-color: rgba(0, 0, 0, 0.4);
-                                /* Black w/ opacity */
-                            }
-
-                            /* Modal Content/Box */
-                            .modal-content {
-                                background-color: #fefefe;
-                                margin: 15% auto;
-                                /* 15% from the top and centered */
-                                padding: 20px;
-                                border: 1px solid #888;
-                                width: 80%;
-                                /* Could be more or less, depending on screen size */
-                            }
-                        </style>
-
 </body>
 
 </html>

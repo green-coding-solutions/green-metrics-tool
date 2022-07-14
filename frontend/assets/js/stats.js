@@ -138,7 +138,7 @@ const createChartContainer = (container, el, counter) => {
   chart_node.classList.add("card");
   chart_node.innerHTML = `<div class="content">
                             <div class="description">
-                              <div class="chart" id=${el}></div>
+                              <div class="statistics-chart" id=${el}></div>
                               ${counter === 0 ? `<div>
                                 <label>
                                   <input type="checkbox" checked="" onchange="toggleNotes()"><span
@@ -235,3 +235,24 @@ const toggleNotes = () => {
     }
   }
 };
+
+
+/* Menu toggling */
+let openMenu = function(e){
+    $(this).removeClass('closed').addClass('opened');
+    $(this).find('i').removeClass('right').addClass('left');
+    $('#menu').removeClass('collapsed');
+    $('#main').removeClass('collapsed');
+
+}
+$(document).on('click','#menu-toggle.closed', openMenu);
+
+let closeMenu = function(e){
+    $(this).removeClass('opened').addClass('closed');
+    $(this).find('i').removeClass('left').addClass('right');
+    $('#menu').addClass('collapsed');
+    $('#main').addClass('collapsed');
+}
+
+$(document).on('click','#menu-toggle.opened', closeMenu);
+
