@@ -16,21 +16,18 @@
     <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
 
     <script src="./assets/js/jquery.min.js"></script>
-    <script src="./assets/js/tablesort.min.js"></script>
-    <script src="./assets/js/search.min.js"></script>
-    <script src="./assets/js/easing.min.js"></script>
     <script src="./assets/js/semantic.min.js"></script>
-    <script src="./assets/js/docs.js"></script>
-    <script src="./assets/js/highlight.min.js"></script>
+    <script src="./assets/js/stats.js"></script>
 
     <link rel="stylesheet" type="text/css" class="ui" href="./dist/semantic.min.css">
-    <link rel="stylesheet" type="text/css" href="./assets/css/docs.css">
     <link rel="stylesheet" type="text/css" href="./assets/css/green-coding.css">
     <link rel="stylesheet" href="./assets/vendors/css/jquery.toast.min.css">
 </head>
 
-<body id="example" class="started" ontouchstart="">
-    <div class="ui vertical inverted sidebar menu" id="toc">
+<body style="display: flex;">
+
+
+    <div id="menu" class="ui inverted vertical menu">
         <div>
             <img class="ui fluid image" src="./assets/images/logo.png">
         </div>
@@ -44,76 +41,31 @@
             <b><i class="bullseye icon"></i>Certify new software</b>
         </a>
         <a class="item" href="/data-analysis.html">
-            <b><i class="chart pie icon"></i>Data Analysis</b>
+            <b><i class="chart line icon"></i>Data Analysis</b>
         </a>
-    </div>
+        <a class="item" href="/showcases.html">
+            <b><i class="glasses icon"></i>Showcases</b>
+        </a>
 
-    <div class="ui black big launch right attached fixed button">
-        <i class="content icon"></i>
-        <span class="text">Menu</span>
-    </div>
+    </div> <!-- end menu -->
 
-    <div class="ui fixed inverted main menu" id="inverted-main-menu">
-        <div class="ui container">
-            <a class="launch icon item">
-                <i class="content icon"></i>
-            </a>
 
-            <div class="item">
-                Stats
-            </div>
 
-            <div class="right menu">
-                <div class="vertically fitted borderless item">
-                    <p>Demo user</p>
-                </div>
-            </div>
-        </div>
-    </div>
+                    <div class="main ui container" id="main">
 
-    <div class="pusher" id="pusher">
-        <div class="full height" id="full-height">
-            <div class="toc">
-                <div class="ui vertical inverted menu"
-                    id="vertical-inverted-menu">
-                    <div>
-                        <img class="ui fluid image" src="./assets/images/logo.png">
-                    </div>
-                    <div class="item">
-                        <p>Demo user</p>
-                    </div>
-                    <a class="item" href="/index.html">
-                        <b><i class="home icon"></i>Home</b>
-                    </a>
-                    <a class="item" href="/request.html">
-                        <b><i class="bullseye icon"></i>Certify new software</b>
-                    </a>
-                    <a class="item" href="/data-analysis.html">
-                        <b><i class="chart pie icon"></i>Data Analysis</b>
-                    </a>
-                </div>
-            </div>
+                        <div class="ui steps horizontal" id="header">
+                        <a href="#" id="menu-toggle" class="opened"><i class="arrow circle left icon openend"></i></a>
 
-            <div class="article">
-                <div class="ui masthead vertical segment" id="masthead">
+                          <div class="step">
 
-                    <h2 class="ui header">
-                        Green Metrics Tool
-                    </h2>
-
-                    <div class="main ui intro container" id="intro-container"
-                    style="margin-right: 0px !important; padding-top: 0px !important; max-width: 95% !important;">
-                        <div class="ui horizontal card" id="horizontal-card">
                             <div class="content">
-                                <div class="header">IMPORTANT</div>
-                                <div class="description">
-                                    <p>The Green Metrics Tool is currently experimental. Please use it for development
-                                        purposes only.</p>
-                                </div>
+                              <div class="title"><h2>Green Metrics Tool Dashboard</h2></div>
+                              <div class="description">View the energy and CO2 consumption of your measured software</div>
                             </div>
+                          </div>
                         </div>
 
-                        <div class="ui horizontal card" id="horizontal-card">
+                        <div class="ui horizontal segment raised card" id="horizontal-card">
                             <div class="content">
                                 <div class="header">INTRODUCTION</div>
                                 <div class="description">
@@ -144,7 +96,7 @@
                             </div>
                         </div>
 
-                        <div class="ui horizontal card" id="horizontal-card">
+                        <div class="ui segment raised horizontal card" id="horizontal-card">
                             <div class="content">
                                 <div class="header">ADD NEW PROJECT</div>
                                 <form action="/" method="POST">
@@ -170,11 +122,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
-                <!-- Custom js for this page-->
-                <script src="./assets/vendors/js/jquery.toast.min.js"></script>
-                <script src="./assets/js/toastDemo.js"></script>
-                <!-- End custom js for this page-->
+
                 <script>
                     document.forms[0].onsubmit = async (e) => {
                         e.preventDefault();
@@ -206,6 +154,10 @@
                             })
                     }
                 </script>
+                <!-- Custom js for this page-->
+                <script src="./assets/vendors/js/jquery.toast.min.js"></script>
+                <script src="./assets/js/toastDemo.js"></script>
+                <!-- End custom js for this page-->
 
 </body>
 
