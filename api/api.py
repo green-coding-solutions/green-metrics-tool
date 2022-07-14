@@ -78,7 +78,7 @@ async def get_notes(project_id):
 async def get_projects():
     query = """
             SELECT
-                id, name, uri, last_run, idle_time_start, idle_time_end, flow_process_runtime
+                id, name, uri, last_run
             FROM
                 projects
             ORDER BY
