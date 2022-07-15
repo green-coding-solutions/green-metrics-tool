@@ -9,13 +9,14 @@ import time
 import sys
 import re
 import importlib
+import yaml
 from io import StringIO
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{current_dir}/../lib")
 
 from save_notes import save_notes # local file import
-from setup_functions import get_config
+from global_config import GlobalConfig
 from db import DB
 import error_helpers
 import hardware_info
@@ -43,9 +44,9 @@ class Runner:
 
     def run(self, uri, uri_type, project_id):
 
-        config = get_config()
-        debug = DebugHelper(self.debug_mode) # Instantiate debug helper with correct mode
+        config = GlobalConfig().config
 
+        debug = DebugHelper(self.debug_mode) # Instantiate debug helper with correct mode
 
 
         subprocess.run(["rm", "-Rf", "/tmp/green-metrics-tool"])
@@ -59,8 +60,8 @@ class Runner:
         else:
             folder = uri
 
-        with open(f"{folder}/usage_scenario.json") as fp:
-            obj = json.load(fp)
+        with open(f"{folder}/usage_scenario.yml") as fp:
+            obj = yaml.safe_load(fp)
 
 
         print("Having Usage Scenario ", obj['name'])
@@ -205,7 +206,7 @@ class Runner:
         print("Current known containers: ", self.containers)
 
         for metric_provider in self.metric_providers:
-            print(f"Starting measurement provider {metric_provider}")
+            print(f"Starting measurement provider {metric_provider.__class__.__name__}")
             metric_provider.start_profiling(self.containers)
 
         notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
@@ -236,7 +237,7 @@ class Runner:
                     docker_exec_command.append(el['container'])
                     docker_exec_command.extend( inner_el['command'].split(' ') )
 
-                    # Note: In case of a detach wish in the usage_scenario.json:
+                    # Note: In case of a detach wish in the usage_scenario.yml:
                     # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
                     # Since Popen always make the process asynchronous we can leverage this to emulate a detached behaviour
                     ps = subprocess.Popen(
@@ -267,6 +268,10 @@ class Runner:
             metric_provider.stop_profiling()
 
             df = metric_provider.read_metrics(project_id, self.containers)
+            print(f"Imported {df.shape[0]} metrics from {metric_provider.__class__.__name__}")
+            if df is None or df.shape[0] == 0:
+                raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
+
             f = StringIO(df.to_csv(index=False, header=False))
             DB().copy_from(file=f, table='stats', columns=df.columns, sep=",")
 
@@ -321,7 +326,7 @@ if __name__ == "__main__":
     from pathlib import Path
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--uri", type=str, help="The URI to get the usage_scenario.json from. Can be eitehr file://... for local directories or http(s):// to download the repository with the usage_scenario.json from.")
+    parser.add_argument("--uri", type=str, help="The URI to get the usage_scenario.yml from. Can be eitehr file://... for local directories or http(s):// to download the repository with the usage_scenario.yml from.")
     parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others. Will only be read in manual mode.")
     parser.add_argument("--no-file-cleanup", action='store_true', help="Do not delete files in /tmp/green-metrics-tool")
     parser.add_argument("--debug", action='store_true', help="Activate steppable debug mode")

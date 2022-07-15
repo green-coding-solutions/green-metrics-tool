@@ -1,6 +1,5 @@
 import sys
 import traceback
-from setup_functions import get_config
 
 def end_error(*errors):
     log_error(*errors)

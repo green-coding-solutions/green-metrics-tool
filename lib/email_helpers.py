@@ -1,10 +1,10 @@
 import sys, os
 import smtplib, ssl
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
-import setup_functions
+from global_config import GlobalConfig
 
 def send_email(message, receiver_email):
-    config = setup_functions.get_config()
+    config = GlobalConfig().config
 
     if(config['admin']['no_emails'] is True): return
 
@@ -16,7 +16,7 @@ def send_email(message, receiver_email):
         server.sendmail(config['smtp']['sender'], receiver_email, message)
 
 def send_admin_email(subject, body):
-    config = setup_functions.get_config()
+    config = GlobalConfig().config
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
@@ -37,7 +37,7 @@ https://www.green-coding.org
     send_email(message, config['admin']['email'])
 
 def send_error_email(receiver_email, error, project_id=None):
-    config = setup_functions.get_config()
+    config = GlobalConfig().config
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
@@ -61,7 +61,7 @@ https://www.green-coding.org
     send_email(message, receiver_email)
 
 def send_report_email(receiver_email, report_id):
-    config = setup_functions.get_config()
+    config = GlobalConfig().config
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
