@@ -335,47 +335,15 @@ const toggleNotes = () => {
 $(document).ready((e) => {
     const query_string = window.location.search;
     const url_params = (new URLSearchParams(query_string))
-    if (!url_params.has('id')) {
-        alert("Please supply id in URL")
 
-    } else {
-        try {
-            const api_url = getAPIUrl();
+    //makeAPICall('/v1/notes/' + url_params.get('id'), (my_json) => getAnnotations(my_json))
 
-            fetch(api_url + '/v1/notes/' + url_params.get('id'))
-                .then(response => response.json())
-                .then(my_json => {
-                    if (my_json.success === true)
-                        return getAnnotations(my_json)
+    makeAPICall('/v1/stats/single/' + url_params.get('id'), (my_json) => {
+        const my_series = getData(my_json);
+        fillAvgContainers(my_json.project)
+        displayGraphs(my_series, 'echarts');
+        displayStatistics();
+    })
 
-                        $('body')
-                          .toast({
-                            class: 'blue',
-                            showProgress: 'bottom',
-                            classProgress: 'green',
 
-                            showIcon: false,
-                            title: 'Info',
-                            message: 'This measurement contains apparently no notes for the charts'
-                          });
-
-                })
-
-            fetch(api_url + '/v1/stats/single/' + url_params.get('id'))
-                .then(response => response.json())
-                .then(my_json => {
-                    if (my_json.success !== true) {
-                        alert(my_json.err);
-                        return;
-                    }
-                    const my_series = getData(my_json);
-                    fillAvgContainers(my_json.project)
-                    displayGraphs(my_series, 'echarts');
-                    displayStatistics();
-                })
-
-        } catch (e) {
-            alert("Fetch failed: " + e)
-        }
-    }
 });

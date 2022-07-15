@@ -7,28 +7,31 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
     <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
     <link rel="shortcut icon" href="/assets/images/favicon.png" />
-
     <!-- Site Properities -->
-    <meta name="generator" content="DocPad v6.79.4" />
     <title>Green Metrics Tool - Experimental 0.1</title>
-
     <meta name="description" content="Using Fomantic UI with Other Libraries" />
     <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
-
-    <script src="./assets/js/jquery.min.js"></script>
-    <script src="./assets/js/semantic.min.js"></script>
-    <script src="./assets/js/stats.js"></script>
-
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/semantic.min.css">
-    <link rel="stylesheet" type="text/css" href="./assets/css/green-coding.css">
+    <script src="/dist/js/jquery.min.js" defer></script>
+    <script src="/js/main.js" defer></script>
+    <script src="/js/request.js" defer></script>
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/reset.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/site.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/card.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/container.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/header.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/step.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/icon.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/menu.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/segment.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/button.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/label.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
 
 <body style="display: flex;">
-
-
     <div id="menu" class="ui inverted vertical menu">
         <div>
-            <img class="ui fluid image" src="./assets/images/logo.png">
+            <img class="ui fluid image" src="/images/logo.png">
         </div>
         <div class="item">
             <p>Demo user</p>
@@ -45,82 +48,92 @@
         <a class="item" href="/showcases.html">
             <b><i class="glasses icon"></i>Showcases</b>
         </a>
-
     </div> <!-- end menu -->
+    <div class="main ui container" id="main">
+        <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Data Analysis</h1>
 
-
-
-                    <div class="main ui container" id="main">
-
-                    <div class="ui steps horizontal" id="header">
-                    <a href="#" id="menu-toggle" class="opened"><i class="arrow circle left icon openend"></i></a>
-
-                      <div class="step">
-
-                        <div class="content">
-                          <div class="title"><h2>Green Metrics Tool Dashboard</h2></div>
-                          <div class="description">View the energy and CO2 consumption of your measured software</div>
-                        </div>
-                      </div>
-                    </div>
-
-
-                        <div class="ui horizontal segment raised card" id="horizontal-card">
-                            <div class="content">
-                                <div class="header">Data Analysis of our Open Data API</div>
-                                <div class="description">
-                                    <p>The charts on this website provide only a downsampled version of the raw data.
-                                    </p>
-                                    <p>If you have specific research questions and / or want to do calculations based on
-                                        the RAW data we encourage you to to use the Open Data REST-API.</p>
-                                    <p>Then endpoint of the self-documenting API is available here: <a
-                                            href="https://api.green-coding.org">https://api.green-coding.org</a></p>
-                                    <p></p>
-                                    <p>Also we provide sample analysis in Deepnote Notebooks where you get an idea on
-                                        how to interact with the API through Python / Pandas. <strong>See examples
-                                            below!</strong>
-                                    </p>
+        <div class="ui horizontal segment raised card" id="horizontal-card">
+            <div class="content">
+                <div class="header">Data Analysis of our Open Data API</div>
+                <div class="description">
+                    <p>The charts on this website provide only a downsampled version of the raw data.
+                    </p>
+                    <p>If you have specific research questions and / or want to do calculations based on
+                        the RAW data we encourage you to to use the Open Data REST-API.</p>
+                    <p>Then endpoint of the self-documenting API is available here: <a href="https://api.green-coding.org">https://api.green-coding.org</a></p>
+                    <p></p>
+                    <p>Also we provide sample analysis in Deepnote Notebooks where you get an idea on
+                        how to interact with the API through Python / Pandas. <strong>See examples
+                            below!</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="ui two cards stackable">
+            <div class="ui raised card">
+                <div class="content">
+                    <div class="header"><a class="ui orange ribbon label" href="#"><h3>Wordpress vs. Static</h3></a></div>
+                    <div class="description">
+                        <p>Here we compared the measurements of a Wordpress website vs. a static
+                            website.
+                        </p>
+                        <p>Both containers are accessed through Puppeteer (Headless Chrome) which is
+                            measured itself. It shows the capbility of measuring client-side as well as
+                            serverside.
+                        </p>
+                        <p>We focus here on the energy and CPU metrics.</p>
+                        <div class="right floated">
+                            <a href="https://deepnote.com/workspace/gmt-8c072e35-bfaf-49e7-a465-43515ce582b3/project/Green-Metrics-API-example-Comparing-Static-vs-Wordpress-ee5162cd-03ab-49e2-aaaa-02c3f5741429/%2Fnotebook.ipynb">
+                                <div class="ui right labeled icon button" tabindex="0">
+                                    <i class="right arrow icon"></i>
+                                    <div class="visible content">Deepnote Notebook</div>
                                 </div>
-                            </div>
-                        </div>
-
-                        <div class="ui two cards stackable">
-                            <div class="ui segment raised card">
-                                <div class="content">
-                                    <div class="header">Example #1: Wordpress vs. Static</div>
-                                    <div class="description">
-                                        <p>Here we compared the measurements of a Wordpress website vs. a static
-                                            website.
-                                        </p>
-                                        <p>Both containers are accessed through Puppeteer (Headless Chrome) which is
-                                            measured itself. It shows the capbility of measuring client-side as well as
-                                            serverside.
-                                        </p>
-                                        <p>We focus here on the energy and CPU metrics.</p>
-                                        <p><a
-                                                href="https://deepnote.com/workspace/gmt-8c072e35-bfaf-49e7-a465-43515ce582b3/project/Green-Metrics-API-example-Comparing-Static-vs-Wordpress-ee5162cd-03ab-49e2-aaaa-02c3f5741429/%2Fnotebook.ipynb">&raquo;
-                                                Deepnote Notebook</a></p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="ui segment raised card">
-                                <div class="content">
-                                    <div class="header">Example #2: Comparing multiple runs</div>
-                                    <div class="description">
-                                        <p>The web interface will only show you global averages and chart previews.</p>
-                                        <p>In this Deepnote Notebook we focus on looking at the mean and standard
-                                            deviance between multiple runs.</p>
-                                        <p>We focus here on the energy and CPU metrics.</p>
-                                        <p><a
-                                                href="https://deepnote.com/workspace/gmt-8c072e35-bfaf-49e7-a465-43515ce582b3/project/Green-Metrics-API-example-Single-Measurement-d8b7eee6-6d81-4774-96fe-1405babd2a0a/%2Fnotebook.ipynb">&raquo;
-                                                Deepnote Notebook</a></p>
-                                    </div>
-                                </div>
-                            </div>
+                            </a>
                         </div>
                     </div>
-
+                </div>
+            </div>
+            <div class="ui raised card">
+                <div class="content">
+                    <div class="header"><a class="ui blue ribbon label" href="#"><h3>Comparing runs</h3></a></div>
+                    <div class="description">
+                        <p>The web interface will only show you global averages and chart previews.</p>
+                        <p>In this Deepnote Notebook we focus on looking at the mean and standard
+                            deviance between multiple runs.</p>
+                        <p>We focus here on the energy and CPU metrics.</p>
+                        <div class="right floated">
+                            <a href="https://deepnote.com/workspace/gmt-8c072e35-bfaf-49e7-a465-43515ce582b3/project/Green-Metrics-API-example-Single-Measurement-d8b7eee6-6d81-4774-96fe-1405babd2a0a/%2Fnotebook.ipynb">
+                                <div class="ui right labeled icon button" tabindex="1">
+                                    <i class="right arrow icon"></i>
+                                    <div class="visible content">Deepnote Notebook</div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="ui two cards stackable">
+            <div class="ui raised card">
+                <div class="content">
+                    <div class="header"><a class="ui teal ribbon label" href="#"><h3>Statistical Significance</h3></a></div>
+                    <div class="description">
+                        <p>Here we look again at the example of the Wordpress and the Static versions of the website.</p>
+                        <p>Our research question is: Is there really a statistically signifcant difference between the energy of the runs? Or is the difference we see just random noise?</p>
+                        <p>We focus here on the energy metric.</p>
+                        <div class="right floated">
+                            <a href="https://deepnote.com/workspace/gmt-8c072e35-bfaf-49e7-a465-43515ce582b3/project/Green-Metrics-API-example-Simple-Statistical-Analysis-5a0815de-fa2c-40f6-8908-96fe5aa2f069/%2Fnotebook.ipynb">
+                                <div class="ui right labeled icon button" tabindex="2">
+                                    <i class="right arrow icon"></i>
+                                    <div class="visible content">Deepnote Notebook</div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

@@ -1,12 +1,24 @@
 
-const makeAPICall = (path, callback) => {
+const makeAPICall = (path, callback, values=null) => {
     try {
         if (document.location.host.indexOf('metrics.green-coding.org') === 0)
             api_url = "https://api.green-coding.org";
         else
             api_url = "http://api.green-coding.local:8000";
 
-        fetch(api_url + path)
+        if(values != null ) {
+            var options = {
+                method: "POST",
+                body: JSON.stringify(values),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
+        }  else {
+            var options = { method: 'GET' }
+        }
+
+        fetch(api_url + path, options)
             .then(response => response.json())
             .then(my_json => {
                 if (my_json.success != true) {

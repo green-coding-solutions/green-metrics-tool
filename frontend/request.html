@@ -7,21 +7,15 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
     <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
     <link rel="shortcut icon" href="/assets/images/favicon.png" />
-
     <!-- Site Properities -->
-    <meta name="generator" content="DocPad v6.79.4" />
     <title>Green Metrics Tool - Experimental 0.1</title>
-
     <meta name="description" content="Using Fomantic UI with Other Libraries" />
     <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
-
     <script src="/dist/js/jquery.min.js" defer></script>
     <script src="/js/main.js" defer></script>
-    <script src="/js/index.js" defer></script>
-    <script src="/dist/js/tablesort.min.js" defer></script>
-    <script src="/dist/js/search.min.js" defer></script>
+    <script src="/js/request.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
-
+    <script src="/dist/js/toast.min.js" defer></script>
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/reset.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/site.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/card.min.css">
@@ -33,14 +27,12 @@
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/segment.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/input.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/button.min.css">
-
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/toast.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/transition.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
-
 </head>
 
 <body style="display: flex;">
-
-
     <div id="menu" class="ui inverted vertical menu">
         <div>
             <img class="ui fluid image" src="/images/logo.png">
@@ -60,117 +52,58 @@
         <a class="item" href="/showcases.html">
             <b><i class="glasses icon"></i>Showcases</b>
         </a>
-
     </div> <!-- end menu -->
-
-
-
-                    <div class="main ui container" id="main">
-
-                        <div class="ui steps horizontal" id="header">
-                        <a href="#" id="menu-toggle" class="opened"><i class="arrow circle left icon openend"></i></a>
-
-                          <div class="step">
-
-                            <div class="content">
-                              <div class="title"><h2>Green Metrics Tool Dashboard</h2></div>
-                              <div class="description">View the energy and CO2 consumption of your measured software</div>
-                            </div>
-                          </div>
+    <div class="main ui container" id="main">
+        <h1 class="ui header float left">
+            <a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a>
+            Certify new software
+        </h1>
+        <div class="ui horizontal segment raised card" id="horizontal-card">
+            <div class="content">
+                <div class="header">INTRODUCTION</div>
+                <div class="description">
+                    <p>Green Metric can certify your software according to different schemas.</p>
+                    <p>In this demo, only the Green-Coding-Berlin schema is implemented. In the future
+                        it is
+                        planned to support<a href="https://www.blauer-engel.de/en/productworld/resources-and-energy-efficient-software-products">Blue
+                            Angel</a> (in Germany known als Blauer Engel) and also the <a href="https://greensoftware.foundation/projects/software-carbon-intensity-sci-specification">SCI
+                            from Green Software Foundation</a>
+                    </p>
+                    <p>In the box below please put your Github-Repo URL and an E-mail where we send the
+                        link
+                        to the statistics.</p>
+                    <p>Your certification request will be put in a queue and processing takes about 5-15
+                        Minutes (+ the runtime of your usage scenario)</p>
+                    <p><strong>Note</strong>: Only open-source software can and will be
+                        certified. It does not have to free software though. This means we only process
+                        public github repositories. The certifier expects a schema-correct
+                        usage-scenario.json file in your repository. Please check the <a href="https://github.com/green-coding-berlin/simple-example-application">Demo
+                            Software Repository</a> for example and documentation. If you have any
+                        questions
+                        or issues please email us at <a href="mailto:info@green-coding.org">info@green-coding.org</a></p>
+                </div>
+            </div>
+        </div>
+        <div class="ui segment raised horizontal card" id="horizontal-card">
+            <div class="content">
+                <div class="header">ADD NEW PROJECT</div>
+                <form action="/" method="POST">
+                    <div class="description" id="new-project-description">
+                        <div class="ui fluid icon input" id="new-project-name-div">
+                            <input type="text" placeholder="Name (optional)" id="text-field-hero-input1" name="name">
                         </div>
-
-                        <div class="ui horizontal segment raised card" id="horizontal-card">
-                            <div class="content">
-                                <div class="header">INTRODUCTION</div>
-                                <div class="description">
-                                    <p>Green Metric can certify your software according to different schemas.</p>
-                                    <p>In this demo, only the Green-Coding-Berlin schema is implemented. In the future
-                                        it is
-                                        planned to support<a
-                                            href="https://www.blauer-engel.de/en/productworld/resources-and-energy-efficient-software-products">Blue
-                                            Angel</a> (in Germany known als Blauer Engel) and also the <a
-                                            href="https://greensoftware.foundation/projects/software-carbon-intensity-sci-specification">SCI
-                                            from Green Software Foundation</a>
-                                    </p>
-                                    <p>In the box below please put your Github-Repo URL and an E-mail where we send the
-                                        link
-                                        to the statistics.</p>
-                                    <p>Your certification request will be put in a queue and processing takes about 5-15
-                                        Minutes (+ the runtime of your usage scenario)</p>
-                                    <p><strong>Note</strong>: Only open-source software can and will be
-                                        certified. It does not have to free software though. This means we only process
-                                        public github repositories. The certifier expects a schema-correct
-                                        usage-scenario.json file in your repository. Please check the <a
-                                            href="https://github.com/green-coding-berlin/simple-example-application">Demo
-                                            Software Repository</a> for example and documentation. If you have any
-                                        questions
-                                        or issues please email us at <a
-                                            href="mailto:info@green-coding.org">info@green-coding.org</a></p>
-                                </div>
-                            </div>
+                        <div class="ui fluid icon input">
+                            <input type="text" placeholder="E-Mail" id="text-field-hero-input2" name="email">
                         </div>
-
-                        <div class="ui segment raised horizontal card" id="horizontal-card">
-                            <div class="content">
-                                <div class="header">ADD NEW PROJECT</div>
-                                <form action="/" method="POST">
-                                    <div class="description" id="new-project-description">
-                                        <div class="ui fluid icon input" id="new-project-name-div">
-                                            <input type="text" placeholder="Name (optional)" id="text-field-hero-input1"
-                                                name="name">
-                                        </div>
-
-                                        <div class="ui fluid icon input">
-                                            <input type="text" placeholder="E-Mail" id="text-field-hero-input2"
-                                                name="email">
-                                        </div>
-
-                                        <div class="ui fluid icon input">
-                                            <input type="text" placeholder="Github-URL" id="text-field-hero-input3"
-                                                name="url">
-                                        </div>
-
-                                        <button class="positive ui button">Submit software for certification</button>
-                                    </div>
-                                </form>
-                            </div>
+                        <div class="ui fluid icon input">
+                            <input type="text" placeholder="Github-URL" id="text-field-hero-input3" name="url">
                         </div>
+                        <button class="positive ui button">Submit software for certification</button>
                     </div>
-
-                <script>
-                    document.forms[0].onsubmit = async (e) => {
-                        e.preventDefault();
-
-                        const data = new FormData(document.getElementsByTagName('form')[0]);
-                        const values = Object.fromEntries(data.entries());
-
-                        const api_url = getAPIUrl();
-                        fetch(api_url + "/v1/project/add", {
-                            method: "POST",
-                            body: JSON.stringify(values),
-                            headers: {
-                                'Content-Type': 'application/json'
-                            }
-                        })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success == true) {
-                                    document.forms[0].reset()
-                                    $('body')
-                                      .toast({
-                                        class: 'success',
-                                        showProgress: 'bottom',
-                                        classProgress: 'green',
-                                        title: 'Success',
-                                        message: 'Save successful. Check your mail in 10-15 minutes'
-                                      });
-                                } else {
-                                    alert(data.err)
-                                }
-                            })
-                    }
-                </script>
-
+                </form>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

@@ -7,53 +7,32 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
     <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
     <link rel="shortcut icon" href="/assets/images/favicon.png" />
-
     <!-- Site Properities -->
-    <meta name="generator" content="DocPad v6.79.4" />
     <title>Green Metrics Tool - Experimental 0.1</title>
-
     <meta name="description" content="Using Fomantic UI with Other Libraries" />
     <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
+    <script src="/dist/js/jquery.min.js" defer></script>
+    <script src="/js/main.js" defer></script>
+    <script src="/js/stats.js" defer></script>
+    <script src="/dist/js/echarts.min.js" defer></script>
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/reset.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/site.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/card.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/container.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/header.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/icon.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/menu.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/segment.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/label.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/statistic.min.css">
 
-    <script src="./assets/js/jquery.min.js" defer></script>
-    <script src="./assets/js/stats.js" defer></script>
-    <!--<script src="/dist/dygraph.min.js" defer></script>-->
-    <!--<script src="/dist/apexcharts.min.js" defer></script>-->
-
-    <script src="/dist/echarts.min.js" defer></script>
-    <script src="/dist/components/toast.min.js" defer></script>
-    <script src="/dist/components/transition.min.js" defer></script>
-
-
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/reset.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/site.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/button.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/card.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/checkbox.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/container.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/header.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/icon.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/item.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/menu.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/popup.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/segment.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/step.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/image.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/toast.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="./dist/components/transition.min.css">
-
-    <link rel="stylesheet" type="text/css" href="./assets/css/green-coding.css">
-    <!-- <link rel="stylesheet" type="text/css" href="./assets/css/dygraph.css" /> -->
-
-
+    <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
 
 <body style="display: flex;">
-
-
     <div id="menu" class="ui inverted vertical menu">
         <div>
-            <img class="ui fluid image" src="./assets/images/logo.png">
+            <img class="ui fluid image" src="/images/logo.png">
         </div>
         <div class="item">
             <p>Demo user</p>
@@ -70,167 +49,156 @@
         <a class="item" href="/showcases.html">
             <b><i class="glasses icon"></i>Showcases</b>
         </a>
-
     </div> <!-- end menu -->
+    <div class="main ui container" id="main">
+        <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Showcases</h1>
+        <div class="ui horizontal card" id="horizontal-card">
+            <div class="content">
 
 
-
-                    <div class="main ui container" id="main">
-
-                    <div class="ui steps horizontal" id="header">
-                    <a href="#" id="menu-toggle" class="opened"><i class="arrow circle left icon openend"></i></a>
-
-                      <div class="step">
-
-                        <div class="content">
-                          <div class="title"><h2>Green Metrics Tool Dashboard</h2></div>
-                          <div class="description">View the energy and CO2 consumption of your measured software</div>
+                <div class="header"><a class="ui red ribbon label" href="#"><h3>Project Data</h3></a></div>
+                <div class="description">
+                    <table class="table-hover">
+                        <tbody>
+                            <tr>
+                                <td>Name</td>
+                                <td id="project-name"></td>
+                            </tr>
+                            <tr>
+                                <td>URI</td>
+                                <td id="project-uri"></td>
+                            </tr>
+                            <tr>
+                                <td>CPU</td>
+                                <td id="project-cpu"></td>
+                            </tr>
+                            <tr>
+                                <td>Total Memory</td>
+                                <td id="project-memtotal"></td>
+                            </tr>
+                            <tr>
+                                <td>Idle Time Start</td>
+                                <td id="project-idle-time-start"></td>
+                            </tr>
+                            <tr>
+                                <td>Idle Time End</td>
+                                <td id="project-idle-time-end"></td>
+                            </tr>
+                            <tr>
+                                <td>Flow Process Runtime</td>
+                                <td id="project-flow-process-runtime"></td>
+                            </tr>
+                            <tr>
+                                <td>Last Run</td>
+                                <td id="project-last-run"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div><!-- end ui horizontal card -->
+        <div class="ui four cards stackable">
+            <div class="card">
+                <div class="ui content">
+                    <div class="ui bottom right attached label">AVG CPU Load (Estimate)</div>
+                    <div class="description">
+                        <div class="ui tiny statistic">
+                            <div class="value">
+                                <i class="microchip icon"></i> <span id="avg-cpu-load">99.3%</span>
+                            </div>
                         </div>
-                      </div>
                     </div>
-
-                        <div class="ui horizontal card" id="horizontal-card">
-                            <div class="content">
-                                <div class="header">PROJECT DATA</div>
-                                <div class="description">
-                                    <table class="table-hover">
-                                        <tbody>
-                                            <tr>
-                                                <td>Name</td>
-                                                <td id="project-name"></td>
-                                            </tr>
-                                            <tr>
-                                                <td>URI</td>
-                                                <td id="project-uri"></td>
-                                            </tr>
-                                            <tr>
-                                                <td>CPU</td>
-                                                <td id="project-cpu"></td>
-                                            </tr>
-                                            <tr>
-                                                <td>Total Memory</td>
-                                                <td id="project-memtotal"></td>
-                                            </tr>
-                                            <tr>
-                                                <td>Idle Time Start</td>
-                                                <td id="project-idle-time-start"></td>
-                                            </tr>
-                                            <tr>
-                                                <td>Idle Time End</td>
-                                                <td id="project-idle-time-end"></td>
-                                            </tr>
-                                            <tr>
-                                                <td>Flow Process Runtime</td>
-                                                <td id="project-flow-process-runtime"></td>
-                                            </tr>
-                                            <tr>
-                                                <td>Last Run</td>
-                                                <td id="project-last-run"></td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="ui content">
+                    <div class="ui bottom right attached label">Max. CPU Load (Estimate)</div>
+                    <div class="description">
+                        <div class="ui tiny statistic">
+                            <div class="value">
+                                <i class="microchip icon"></i> <span id="max-cpu-load">98.3%</span>
                             </div>
-                        </div><!-- end ui horizontal card -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="ui content">
+                    <div class="ui top attached orange  label">Total Energy</div>
+                    <div class="ui bottom right attached label">CPU Package</div>
 
-                        <div class="ui four cards stackable">
-                            <div class="card">
-                                <div class="content">
-                                    <div class="header">AVG CPU Load (Estimate)</div>
-                                    <div class="description">
-                                        <h5 id="avg-cpu-load">%</h5>
-                                        <p>Over all containers. (See disclaimer)</p>
-                                    </div>
-                                </div>
+                    <div class="description">
+                        <div class="ui tiny statistic">
+                            <div class="value">
+                                <i class="power off icon"></i> <span id="total-energy">10.2 J</span>
                             </div>
-
-                            <div class="card">
-                                <div class="content">
-                                    <div class="header">MAX CPU Load</div>
-                                    <div class="description">
-                                        <h5 id="max-cpu-load">&nbsp;</h5>
-                                        <p>Over all containers</p>
-                                    </div>
-                                </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="ui content">
+                    <div class="ui top black attached label">Total co2 </div>
+                    <div class="description">
+                        <div class="ui tiny statistic">
+                            <div class="value">
+                                <i class="burn icon"></i><span id="total-co2">18 kgCO2e</span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                            <div class="card">
-                                <div class="content">
-                                    <div class="header">Total Energy</div>
-                                    <div class="description">
-                                        <h5 id="total-energy">&nbsp;</h5>
-                                        <p>For whole CPU Package. NOT per container.</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card">
-                                <div class="content">
-                                    <div class="header">Total CO2</div>
-                                    <div class="description">
-                                        <h5 id="total-co2">&nbsp;</h5>
-                                        <p>For whole CPU Package. NOT per container.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div><!-- end ui four cards stackable -->
-
-                        <div class="ui five cards stackable">
-                            <div class="card">
-                                <div class="content">
-                                    <div class="header">Trees</div>
-                                    <div class="description">
-                                        <h5 id="trees">&nbsp;</h5>
-                                        <p>Description</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card">
-                                <div class="content">
-                                    <div class="header">Miles driven</div>
-                                    <div class="description">
-                                        <h5 id="miles-driven">&nbsp;</h5>
-                                        <p>Description</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card">
-                                <div class="content">
-                                    <div class="header">Gasoline</div>
-                                    <div class="description">
-                                        <h5 id="gasoline">&nbsp;</h5>
-                                        <p>Description</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card">
-                                <div class="content">
-                                    <div class="header">Smartphones charged</div>
-                                    <div class="description">
-                                        <h5 id="smartphones-charged">&nbsp;</h5>
-                                        <p>Description</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card">
-                                <div class="content">
-                                    <div class="header">Flights</div>
-                                    <div class="description">
-                                        <h5 id="flights">&nbsp;</h5>
-                                        <p>Description</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div><!-- end ui five cards stackable -->
-
-                        <div id="chart-container"></div>
-
-
-
+        </div><!-- end ui four cards stackable -->
+        <div class="ui five cards stackable">
+            <div class="card">
+                <div class="content">
+                    <div class="header">Trees</div>
+                    <div class="statistic">
+                        <div class="value">
+                            <i class="tree icon"></i> <span id="trees">2</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="content">
+                    <div class="header">Miles driven</div>
+                    <div class="description">
+                        <h5 id="miles-driven">&nbsp;</h5>
+                        <p>Description</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="content">
+                    <div class="header">Gasoline</div>
+                    <div class="description">
+                        <h5 id="gasoline">&nbsp;</h5>
+                        <p>Description</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="content">
+                    <div class="header">Smartphones charged</div>
+                    <div class="description">
+                        <h5 id="smartphones-charged">&nbsp;</h5>
+                        <p>Description</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="content">
+                    <div class="header">Flights</div>
+                    <div class="description">
+                        <h5 id="flights">&nbsp;</h5>
+                        <p>Description</p>
+                    </div>
+                </div>
+            </div>
+        </div><!-- end ui five cards stackable -->
+        <div id="chart-container"></div>
 </body>
 
 </html>

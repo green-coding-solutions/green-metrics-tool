@@ -64,11 +64,8 @@ body {
 /* Layouting for menu and main content ========== */
 
 #menu-toggle i {
-     font-size: 2em;
-     color: #333;
-     margin:  10px;
-     display: block;
- }
+     margin-right:  30px;
+}
 
  #menu {
     min-width: 300px;
@@ -80,13 +77,12 @@ body {
     left: 0px;
     margin-left:  0px;
     background: rgb(47, 61, 79);
-    background: linear-gradient(180deg, rgb(47, 61, 79) 0%, rgb(47, 61, 79) 35%, rgb(80, 144, 113) 100%);
+    background: linear-gradient(180deg, rgb(47, 61, 79) 0%, rgb(47, 61, 79) 50%, rgb(80, 144, 113) 100%);
 
  }
  #main {
      flex-grow:  1;
-     margin: 20px;
-     margin-left: 320px;
+     margin: 20px 40px 0px 340px ;
 }
 
 /* Handle collapsing on click or on small window */
@@ -100,7 +96,7 @@ a,
     left: -300px;
  }
  #main.collapsed {
-     margin: 20px;
+     margin-left: 40px;
  }
 
 

@@ -7,21 +7,18 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
     <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
     <link rel="shortcut icon" href="/assets/images/favicon.png" />
-
     <!-- Site Properities -->
     <meta name="generator" content="DocPad v6.79.4" />
     <title>Green Metrics Tool - Experimental 0.1</title>
-
     <meta name="description" content="Using Fomantic UI with Other Libraries" />
     <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
-
     <script src="/dist/js/jquery.min.js" defer></script>
     <script src="/js/main.js" defer></script>
     <script src="/js/index.js" defer></script>
     <script src="/dist/js/tablesort.min.js" defer></script>
     <script src="/dist/js/search.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
-
+    <script src="/dist/js/toast.min.js" defer></script>
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/reset.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/site.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/card.min.css">
@@ -34,14 +31,11 @@
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/table.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/input.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/transition.min.css">
-
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/toast.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
-
 </head>
 
 <body style="display: flex;">
-
-
     <div id="menu" class="ui inverted vertical menu">
         <div>
             <img class="ui fluid image" src="/images/logo.png">
@@ -61,54 +55,38 @@
         <a class="item" href="/showcases.html">
             <b><i class="glasses icon"></i>Showcases</b>
         </a>
-
     </div> <!-- end menu -->
-
-
-
-                    <div class="main ui container" id="main">
-
-                        <div class="ui steps horizontal" id="header">
-                        <a href="#" id="menu-toggle" class="opened"><i class="arrow circle left icon openend"></i></a>
-
-                          <div class="step">
-
-                            <div class="content">
-                              <div class="title"><h2>Green Metrics Tool Dashboard</h2></div>
-                              <div class="description">View the energy and CO2 consumption of your measured software</div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div class="ui search right">
-                            <div class="ui icon input">
-                                <input class="prompt" type="text" placeholder="Search tests...">
-                                <i class="search icon"></i>
-                            </div>
-                            <div class="results"></div>
-                        </div>
-
-                        <table class="ui sortable celled striped table" id="table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>URI</th>
-                                    <th>Last Crawl</th>
-                                    <th>
-                                        <button onclick="compareButton()">
-                                            Compare
-                                        </button>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody id="projects-table">
-                        </table>
-                    </div>
-                </div>
+    <div class="main ui container" id="main">
+        <h1 class="ui header float left">
+            <a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a>
+            Green Metrics Tool Dashboard
+        </h1>
+        <div class="ui search">
+            <div class="ui icon input float right">
+                <input class="prompt" type="text" placeholder="Search tests...">
+                <i class="search icon"></i>
             </div>
+            <div class="results"></div>
         </div>
-
-
+        <table class="ui sortable celled striped table" id="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>URI</th>
+                    <th>Last Crawl</th>
+                    <th>
+                        <button id="compare-button">
+                            Compare
+                        </button>
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="projects-table">
+        </table>
+    </div>
+    </div>
+    </div>
+    </div>
 </body>
 
 </html>

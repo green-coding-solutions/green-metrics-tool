@@ -27,7 +27,14 @@
             link = "/compare.html?dummy=dummy";
         }
         else {
-            alert("Please select at least two projects to compare :-)");
+            $('body')
+              .toast({
+                class: 'warning',
+                showProgress: 'bottom',
+                classProgress: 'warning',
+                title: 'Note',
+                message: 'Please select at least two projects to compare'
+            });
             return;
         }
 
@@ -40,6 +47,7 @@
 
     $(document).ready(function () {
         $('table').tablesort();
+        $('#compare-button').on('click', compareButton);
     });
 
 })();
