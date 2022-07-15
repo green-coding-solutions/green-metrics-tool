@@ -15,6 +15,8 @@
     <script src="/js/main.js" defer></script>
     <script src="/js/stats.js" defer></script>
     <script src="/dist/js/echarts.min.js" defer></script>
+    <script src="/dist/js/apexcharts.min.js" defer></script>
+
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/reset.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/site.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/card.min.css">
@@ -25,6 +27,7 @@
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/segment.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/label.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/statistic.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/message.min.css">
 
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
@@ -100,7 +103,7 @@
         <div class="ui four cards stackable">
             <div class="card">
                 <div class="ui content">
-                    <div class="ui bottom right attached label">AVG CPU Load (Estimate)</div>
+                    <div class="ui top attached yellow  label">AVG CPU Load</div>
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
@@ -112,11 +115,11 @@
             </div>
             <div class="card">
                 <div class="ui content">
-                    <div class="ui bottom right attached label">Max. CPU Load (Estimate)</div>
+                    <div class="ui top attached teal  label">Max. CPU Load</div>
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
-                                <i class="microchip icon"></i> <span id="max-cpu-load">98.3%</span>
+                                <i class="angle double up icon"></i> <span id="max-cpu-load">98.3%</span>
                             </div>
                         </div>
                     </div>
@@ -126,7 +129,6 @@
                 <div class="ui content">
                     <div class="ui top attached orange  label">Total Energy</div>
                     <div class="ui bottom right attached label">CPU Package</div>
-
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
@@ -139,6 +141,7 @@
             <div class="card">
                 <div class="ui content">
                     <div class="ui top black attached label">Total co2 </div>
+                    <div class="ui bottom right attached label">CPU + MEM + Network</div>
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
@@ -148,52 +151,65 @@
                     </div>
                 </div>
             </div>
-
         </div><!-- end ui four cards stackable -->
+        <div class="ui icon message">
+            <i class="question circle icon"></i>
+            <div class="content">
+                <div class="header">
+                    How much is this value of CO2 to something tangible?
+                </div>
+                <p>Look at the equivalents below</p>
+            </div>
+        </div>
+
         <div class="ui five cards stackable">
             <div class="card">
                 <div class="content">
-                    <div class="header">Trees</div>
-                    <div class="statistic">
+                    <div class="ui header">Trees</div>
+                    <div class="ui small statistic">
                         <div class="value">
-                            <i class="tree icon"></i> <span id="trees">2</span>
+                           <i class="tree icon"></i> <span id="trees">120</span>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="card">
                 <div class="content">
-                    <div class="header">Miles driven</div>
-                    <div class="description">
-                        <h5 id="miles-driven">&nbsp;</h5>
-                        <p>Description</p>
+                    <div class="ui header">Miles driven</div>
+                    <div class="ui small statistic">
+                        <div class="value">
+                           <i class="truck pickup icon"></i> <span id="miles-driven">120</span>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="card">
                 <div class="content">
-                    <div class="header">Gasoline</div>
-                    <div class="description">
-                        <h5 id="gasoline">&nbsp;</h5>
-                        <p>Description</p>
+                    <div class="ui header">Gasoline</div>
+                    <div class="ui small statistic">
+                        <div class="value">
+                           <i class="gas pump icon"></i> <span id="gasoline">120</span>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="card">
                 <div class="content">
-                    <div class="header">Smartphones charged</div>
-                    <div class="description">
-                        <h5 id="smartphones-charged">&nbsp;</h5>
-                        <p>Description</p>
+                    <div class="ui header">Smartphones charged</div>
+                    <div class="ui small statistic">
+                        <div class="value">
+                           <i class="mobile alternate icon"></i> <span id="smartphones-charged">120</span>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="card">
                 <div class="content">
-                    <div class="header">Flights</div>
-                    <div class="description">
-                        <h5 id="flights">&nbsp;</h5>
-                        <p>Description</p>
+                    <div class="ui header">Flights</div>
+                    <div class="ui small statistic">
+                        <div class="value">
+                           <i class="plane departure icon"></i> <span id="flights">120</span>
+                        </div>
                     </div>
                 </div>
             </div>

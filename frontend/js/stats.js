@@ -57,12 +57,10 @@ const getData = (my_json) => {
         el[3] // value -> This value might need to be rescaled
         '*/
 
-        if (el[0] == '[SYSTEM]' && el[4] == '[START MEASUREMENT]') {
+        if (el[1] > my_json.project.start_measurement && el[1] < my_json.project.end_measurement) {
             accumulate = 1;
-            return
-        } else if (el[0] == '[SYSTEM]' && el[4] == '[END MEASUREMENT]') {
+        } else {
             accumulate = 0;
-            return;
         }
 
         let time_in_ms = el[1] / 1000; // divide nanoseconds timestamp to ms to be handled by charting lib
@@ -159,15 +157,12 @@ const displayGraphs = (my_series, style='apex') => {
 
               xAxis: [
                 {
-                    type: 'datetime',
                     data: [1656410602411772, 1656410602421772, 1656410602711772, 1656410603411772, 1656410692411772, 1656410702411772, 1656410802411772]
                 },
                 {
-                    type: 'datetime',
                     data: [1656410602412772, 1656410602499772, 1656410602711772, 1656410603411772, 1656410692411772, 1656410702411772, 1656410802413772]
                 },
                 {
-                    type: 'datetime',
                     data: [1656410602422772, 1656410602433772, 1656410602755772, 1656410603411772, 1656410692411772, 1656410702411772, 1656410802413772]
                 },
 
@@ -307,14 +302,14 @@ const displayStatistics = (cpu_load, total_energy, ) => {
     document.querySelector("#avg-cpu-load").innerText = ((cpu_load.reduce((a, b) => a + b, 0) / cpu_load.length) / 100).toFixed(2) + " %"
 
     const total_CO2 = (total_energy / 1000 / 3600000 * 0.519 * 1000000);
-  // const total_CO2_in_kg = total_CO2 / 1000000000; // the real value, bring it back later on
-  const total_CO2_in_kg = total_CO2; // fake value only so that we see numbers greater than 0.00
+    // const total_CO2_in_kg = total_CO2 / 1000000000; // the real value, bring it back later on
+    const total_CO2_in_kg = total_CO2; // fake value only so that we see numbers greater than 0.00
 
-  document.querySelector("#trees").innerText = (total_CO2_in_kg / 0.06 / 1000).toFixed(2) + " trees";
-  document.querySelector("#miles-driven").innerText = (total_CO2_in_kg / 0.000403 / 1000).toFixed(2) + " miles driven";
-  document.querySelector("#gasoline").innerText = (total_CO2_in_kg / 0.008887 / 1000).toFixed(2) + " gallons";
-  document.querySelector("#smartphones-charged").innerText = (total_CO2_in_kg / 0.00000822 / 1000).toFixed(2) + " smartphones charged";
-  document.querySelector("#flights").innerText = (total_CO2_in_kg / 1000).toFixed(2) + " flights from Berlin to New York City";
+    document.querySelector("#trees").innerText = (total_CO2_in_kg / 0.06 / 1000).toFixed(2) + " trees";
+    document.querySelector("#miles-driven").innerText = (total_CO2_in_kg / 0.000403 / 1000).toFixed(2) + " miles driven";
+    document.querySelector("#gasoline").innerText = (total_CO2_in_kg / 0.008887 / 1000).toFixed(2) + " gallons";
+    document.querySelector("#smartphones-charged").innerText = (total_CO2_in_kg / 0.00000822 / 1000).toFixed(2) + " smartphones charged";
+    document.querySelector("#flights").innerText = (total_CO2_in_kg / 1000).toFixed(2) + " flights from Berlin to New York City";
 }
 
 const toggleNotes = () => {
@@ -341,7 +336,7 @@ $(document).ready((e) => {
     makeAPICall('/v1/stats/single/' + url_params.get('id'), (my_json) => {
         const my_series = getData(my_json);
         fillAvgContainers(my_json.project)
-        displayGraphs(my_series, 'echarts');
+        displayGraphs(my_series, 'apex');
         displayStatistics();
     })
 

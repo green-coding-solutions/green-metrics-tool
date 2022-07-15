@@ -80,9 +80,14 @@ class Runner:
 
         # Insert auxilary info for the run. Not critical.
         DB().query("""UPDATE projects
-            SET cpu=%s, memtotal=%s, usage_scenario = %s, last_run = NOW()
+            SET machine_specs=%s, measurement_config=%s, usage_scenario = %s, last_run = NOW()
             WHERE id = %s
-            """, params=(hardware_info.get_cpu(), hardware_info.get_mem(), json.dumps(obj), project_id))
+            """, params=(
+                json.dumps({'cpu': hardware_info.get_cpu(), 'mem_total': hardware_info.get_mem()}),
+                json.dumps(config['measurement']),
+                json.dumps(obj),
+                project_id)
+            )
 
         # Import metric providers dynamically
         for metric_provider in config['measurement']['metric-providers']: # will iterate over keys
@@ -211,7 +216,7 @@ class Runner:
 
         debug.pause() # Will only pause if object state is currently "active"
 
-        notes.append({"note" : "[START MEASUREMENT]", 'container_name' : '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
+        start_measurement = int(time.time_ns() / 1_000)
 
         # run the flows
         for el in obj['flow']:
@@ -252,7 +257,7 @@ class Runner:
                 else:
                     raise RuntimeError("Unknown command type in flow: ", inner_el['type'])
 
-        notes.append({"note" : "[END MEASUREMENT]", 'container_name' : '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
+        end_measurement = int(time.time_ns() / 1_000)
 
         print(f"Idling containers after run for {config['measurement']['idle-time-end']}s")
         time.sleep(config['measurement']['idle-time-end'])
@@ -279,6 +284,12 @@ class Runner:
 
         print("Saving notes: ", notes)
         save_notes(project_id, notes)
+
+        print("Updating start and end measurement times")
+        DB().query("""UPDATE projects
+            SET start_measurement=%s, end_measurement=%s
+            WHERE id = %s
+            """, params=(start_measurement, end_measurement, project_id))
 
         self.cleanup() # always run cleanup automatically after each run
 

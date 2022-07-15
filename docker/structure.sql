@@ -9,8 +9,10 @@ CREATE TABLE projects (
     uri text,
     email text,
     usage_scenario jsonb,
-    cpu text,
-    memtotal text,
+    machine_specs jsonb,
+    measurement_config jsonb,
+    start_measurement bigint,
+    end_measurement bigint,
     last_run timestamp with time zone
     created_at timestamp with time zone DEFAULT now()
 );
