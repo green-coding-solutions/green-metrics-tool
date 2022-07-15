@@ -10,6 +10,7 @@ import time
 import sys
 import re
 import importlib
+import yaml
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{current_dir}/../lib")
@@ -35,7 +36,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", help="Select the operation mode. Select `manual` to supply a directory or url on the command line. Or select `cron` to process database queue. For database mode the config.yml file will be read", choices=['manual', 'cron'])
-    parser.add_argument("--url", type=str, help="The url to download the repository with the usage_scenario.json from. Will only be read in manual mode.")
+    parser.add_argument("--url", type=str, help="The url to download the repository with the usage_scenario.yml from. Will only be read in manual mode.")
     parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others. Will only be read in manual mode.")
     parser.add_argument("--folder", type=str, help="The folder that contains your usage scenario as local path. Will only be read in manual mode.")
     parser.add_argument("--no-file-cleanup", action='store_true', help="Do not delete files in /tmp/green-metrics-tool")
@@ -110,8 +111,8 @@ def main():
             subprocess.run(["git", "clone", url, "/tmp/green-metrics-tool/repo"], check=True, capture_output=True, encoding='UTF-8') # always name target-dir repo according to spec
             folder = '/tmp/green-metrics-tool/repo'
 
-        with open(f"{folder}/usage_scenario.json") as fp:
-            obj = json.load(fp)
+        with open(f"{folder}/usage_scenario.yml") as fp:
+            obj = yaml.safe_load(fp)
 
 
         print("Having Usage Scenario ", obj['name'])
@@ -269,7 +270,7 @@ def main():
                     docker_exec_command.append(el['container'])
                     docker_exec_command.extend( inner_el['command'].split(' ') )
 
-                    # Note: In case of a detach wish in the usage_scenario.json:
+                    # Note: In case of a detach wish in the usage_scenario.yml:
                     # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
                     # Since Popen always make the process asynchronous we can leverage this to emulate a detached behaviour
                     ps = subprocess.Popen(
