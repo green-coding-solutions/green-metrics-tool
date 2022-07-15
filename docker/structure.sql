@@ -13,7 +13,7 @@ CREATE TABLE projects (
     measurement_config jsonb,
     start_measurement bigint,
     end_measurement bigint,
-    last_run timestamp with time zone
+    last_run timestamp with time zone,
     created_at timestamp with time zone DEFAULT now()
 );
 

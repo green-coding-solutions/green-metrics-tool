@@ -29,7 +29,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
     except Exception as e:
         error_helpers.log_error("Error in API call:", str(Request), " with next call: ", call_next, e)
         email_helpers.send_error_email(setup_functions.get_config()['admin']['email'], error_helpers.format_error("Error in API call:", str(Request), " with next call: ", call_next, e), project_id=None)
-        return JSONResponse(content={'success': False, 'err': 'Request to API failed'}, status_code=500)
+        return JSONResponse(content={'success': False, 'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.org'}, status_code=500)
 
 # Binding the Exception middleware must confusingly come BEFORE the CORS middleware. Otherwise CORS will not be sent in response
 app.middleware('http')(catch_exceptions_middleware)

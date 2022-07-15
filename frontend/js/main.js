@@ -22,13 +22,31 @@ const makeAPICall = (path, callback, values=null) => {
             .then(response => response.json())
             .then(my_json => {
                 if (my_json.success != true) {
-                    alert(my_json.err);
+                    $('body')
+                      .toast({
+                        class: 'error',
+                        showProgress: 'top',
+                        position: 'top right',
+                        displayTime: 5000,
+                        classProgress: 'warning',
+                        title: 'Response from API',
+                        message: my_json.err
+                    });
                     return;
                 }
                 callback(my_json);
             })
     } catch (e) {
-        alert("Fetch failed: " + e)
+        $('body')
+          .toast({
+            class: 'error',
+            showProgress: 'top',
+            position: 'top right',
+            displayTime: 5000,
+            classProgress: 'warning',
+            title: 'Client side error on API fetch request',
+            message: e
+        });
     }
 };
 
