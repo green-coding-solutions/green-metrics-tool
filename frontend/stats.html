@@ -17,6 +17,7 @@
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/echarts.min.js" defer></script>
+    <script src="/dist/js/apexcharts.min.js" defer></script>
 
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/reset.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/site.min.css">
@@ -110,7 +111,7 @@
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
-                                <i class="microchip icon"></i> <span id="avg-cpu-load">99.3%</span>
+                                <i class="microchip icon"></i> <span id="avg-cpu-load">-%</span>
                             </div>
                         </div>
                     </div>
@@ -122,7 +123,7 @@
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
-                                <i class="angle double up icon"></i> <span id="max-cpu-load">98.3%</span>
+                                <i class="angle double up icon"></i> <span id="max-cpu-load">-%</span>
                             </div>
                         </div>
                     </div>
@@ -135,7 +136,7 @@
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
-                                <i class="power off icon"></i> <span id="total-energy">10.2 J</span>
+                                <i class="power off icon"></i> <span id="total-energy">- J</span>
                             </div>
                         </div>
                     </div>
@@ -148,7 +149,7 @@
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
-                                <i class="burn icon"></i><span id="total-co2">18 kgCO2e</span>
+                                <i class="burn icon"></i> <span id="total-co2"> - kgCO2e</span>
                             </div>
                         </div>
                     </div>
@@ -161,7 +162,7 @@
                 <div class="header">
                     How much is this value of CO2 to something tangible?
                 </div>
-                <p>Look at the equivalents below</p>
+                <p>CO2 of software per run is relatively slow. The values get big though cause software is repeatedly run. Therefore the following numbers reflect the CO2 value of the software as if it was run for 1000 times a day for one year</p>
             </div>
         </div>
 
@@ -171,7 +172,7 @@
                     <div class="ui header">Trees</div>
                     <div class="ui small statistic">
                         <div class="value">
-                           <i class="tree icon"></i> <span id="trees">120</span>
+                           <i class="tree icon"></i> <span id="trees">-</span>
                         </div>
                     </div>
                 </div>
@@ -181,9 +182,10 @@
                     <div class="ui header">Miles driven</div>
                     <div class="ui small statistic">
                         <div class="value">
-                           <i class="truck pickup icon"></i> <span id="miles-driven">120</span>
+                           <i class="truck pickup icon"></i> <span id="miles-driven">-</span>
                         </div>
                     </div>
+                    <div class="ui top right attached label">by car</div>
                 </div>
             </div>
             <div class="card">
@@ -191,9 +193,10 @@
                     <div class="ui header">Gasoline</div>
                     <div class="ui small statistic">
                         <div class="value">
-                           <i class="gas pump icon"></i> <span id="gasoline">120</span>
+                           <i class="gas pump icon"></i> <span id="gasoline">-</span>
                         </div>
                     </div>
+                    <div class="ui top right attached label">in gallons</div>
                 </div>
             </div>
             <div class="card">
@@ -201,7 +204,7 @@
                     <div class="ui header">Smartphones charged</div>
                     <div class="ui small statistic">
                         <div class="value">
-                           <i class="mobile alternate icon"></i> <span id="smartphones-charged">120</span>
+                           <i class="mobile alternate icon"></i> <span id="smartphones-charged">-</span>
                         </div>
                     </div>
                 </div>
@@ -211,9 +214,10 @@
                     <div class="ui header">Flights</div>
                     <div class="ui small statistic">
                         <div class="value">
-                           <i class="plane departure icon"></i> <span id="flights">120</span>
+                           <i class="plane departure icon"></i> <span id="flights">-</span>
                         </div>
                     </div>
+                    <div class="ui top right attached label">Berlin &raquo; NYC</div>
                 </div>
             </div>
         </div><!-- end ui five cards stackable -->
