@@ -8,7 +8,6 @@ class CpuCgroupContainerProvider(BaseMetricProvider):
             self._current_dir = os.path.dirname(os.path.abspath(__file__))
             self._metric_name = "cpu_cgroup_container"
             self._metrics = {"time":int, "value":int, "container_id":str}
-            self._use_containers = True
             self._resolution = resolution
             super().__init__()
 

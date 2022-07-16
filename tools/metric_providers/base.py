@@ -25,7 +25,9 @@ class BaseMetricProvider:
             dtype=self._metrics
         )
 
-        if self._metrics.get('container_id') is not None:
+        if self._metrics.get('container_id') is None:
+            df['container_name'] = '[SYSTEM]' # standard container name when only system was measured
+        else:
             df['container_name'] = df.container_id
             for container_id in containers:
                 df.loc[df.container_name == container_id, 'container_name'] = containers[container_id]
@@ -41,7 +43,7 @@ class BaseMetricProvider:
             call_string = f"sudo {self._current_dir}/static-binary -i {self._resolution} "
         else:
             call_string = f"{self._current_dir}/static-binary -i {self._resolution} "
-        if self._use_containers:
+        if self._metrics.get('container_id') is not None:
              call_string += " -s "
              call_string += ",".join(containers.keys())
         call_string += f" > {self._filename}"
