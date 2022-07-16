@@ -25,6 +25,14 @@ CREATE TABLE stats (
     created_at timestamp with time zone DEFAULT now()
 );
 
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name text,
+    parent_id int REFERENCES categories(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,
     project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE DEFAULT null,
