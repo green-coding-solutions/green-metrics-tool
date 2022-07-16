@@ -8,7 +8,6 @@ class EnergyRaplMsrSystemProvider(BaseMetricProvider):
             self._current_dir = os.path.dirname(os.path.abspath(__file__))
             self._metric_name = "energy_RAPL_MSR_system"
             self._metrics = {"time":int, "value":int}
-            self._use_containers = False
             self._resolution = resolution
             super().__init__(sudo=True)
 

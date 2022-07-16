@@ -107,7 +107,7 @@ class Runner:
                 container_name = el['name']
 
                 print("Resetting container")
-                subprocess.run(["docker", "rm", "-f", container_name])  # often not running. so no check=true
+                subprocess.run(["docker", "rm", "-f", container_name], stderr=subprocess.DEVNULL)  # often not running. so no check=true
 
                 print("Creating container")
                 # We are attaching the -it option here to keep STDIN open and a terminal attached.
@@ -302,11 +302,11 @@ class Runner:
     def cleanup(self): # TODO: Could be done when destroying object. but do we have all infos then?
         print("Finally block. Stopping containers")
         for container_name in self.containers.values():
-            subprocess.run(["docker", "rm", "-f", container_name])
+            subprocess.run(["docker", "rm", "-f", container_name], stderr=subprocess.DEVNULL)
 
         print("Removing network")
         for network_name in self.networks:
-            subprocess.run(['docker', 'network', 'rm', network_name])
+            subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL)
 
         if self.no_file_cleanup is None:
             print("Removing files")
