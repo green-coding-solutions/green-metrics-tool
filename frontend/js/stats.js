@@ -237,7 +237,6 @@ const createChartContainer = (container, el, counter) => {
     chart_node.classList.add("card");
     chart_node.classList.add('statistics-chart-card')
     chart_node.classList.add('ui')
-    chart_node.classList.add('raised')
 
     chart_node.innerHTML = `
     <div class="content">
@@ -322,11 +321,12 @@ $(document).ready( (e) => {
             showNotification('Could not get data from API', err);
             return;
         }
+        $('.ui.secondary.menu .item').tab();
+
         const metrics = getMetrics(stats_data, 'echarts');
         fillProjectData(stats_data.project)
         displayGraphs(metrics.series, notes_json.data, 'echarts');
         fillAvgContainers(metrics);
         document.querySelector('#api-loader').remove()
     })();
-    $('.ui.secondary.menu .item').tab();
 });
