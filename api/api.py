@@ -234,7 +234,7 @@ async def post_project_add(project: Project):
 def get_project(project_id):
     query = """
             SELECT
-                *
+                id, name, uri, (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements LEFT JOIN categories as t on t.id = elements) as categories, start_measurement, end_measurement, measurement_config, machine_specs, usage_scenario, last_run, created_at
             FROM
                 projects
             WHERE

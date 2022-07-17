@@ -17,7 +17,8 @@
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/echarts.min.js" defer></script>
-    <script src="/dist/js/apexcharts.min.js" defer></script>
+    <!-- <script src="/dist/js/apexcharts.min.js" defer></script> -->
+    <script src="/dist/js/tab.min.js" defer></script>
 
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/reset.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/site.min.css">
@@ -32,6 +33,10 @@
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/message.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/toast.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/transition.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/loader.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/dimmer.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/tab.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/message.min.css">
 
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
@@ -59,53 +64,36 @@
     </div> <!-- end menu -->
     <div class="main ui container" id="main">
         <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Showcases</h1>
-        <div class="ui horizontal card" id="horizontal-card">
+        <div class="ui horizontal card raised" id="horizontal-card">
             <div class="content">
-
-
                 <div class="header"><a class="ui red ribbon label" href="#"><h3>Project Data</h3></a></div>
                 <div class="description">
-                    <table class="table-hover">
-                        <tbody>
-                            <tr>
-                                <td>Name</td>
-                                <td id="project-name"></td>
-                            </tr>
-                            <tr>
-                                <td>URI</td>
-                                <td id="project-uri"></td>
-                            </tr>
-                            <tr>
-                                <td>CPU</td>
-                                <td id="project-cpu"></td>
-                            </tr>
-                            <tr>
-                                <td>Total Memory</td>
-                                <td id="project-memtotal"></td>
-                            </tr>
-                            <tr>
-                                <td>Idle Time Start</td>
-                                <td id="project-idle-time-start"></td>
-                            </tr>
-                            <tr>
-                                <td>Idle Time End</td>
-                                <td id="project-idle-time-end"></td>
-                            </tr>
-                            <tr>
-                                <td>Flow Process Runtime</td>
-                                <td id="project-flow-process-runtime"></td>
-                            </tr>
-                            <tr>
-                                <td>Last Run</td>
-                                <td id="project-last-run"></td>
-                            </tr>
-                        </tbody>
-                    </table>
+                  <div class="ui secondary menu">
+                    <a class="item active" data-tab="one">General</a>
+                    <a class="item" data-tab="two">Measurement</a>
+                    <a class="item" data-tab="three">Machine</a>
+                    <a class="item" data-tab="four">usage_scenario</a>
+                  </div>
+                  <div class="ui tab segment" data-tab="one">
+                    <table class="table-hover" id="project-data"></table>
+                  </div>
+                  <div class="ui active tab segment" data-tab="two">
+                    <table class="table-hover" id="measurement-config"></table>
+                  </div>
+                  <div class="ui tab segment" data-tab="three">
+                    <table class="table-hover" id="machine-specs"></table>
+                  </div>
+                  <div class="ui active tab segment" data-tab="four">
+                    <table class="table-hover" id="usage-scenario"></table>
+                  </div>
+
+
+
                 </div>
             </div>
         </div><!-- end ui horizontal card -->
         <div class="ui four cards stackable">
-            <div class="card">
+            <div class="ui card raised">
                 <div class="ui content">
                     <div class="ui top attached yellow  label">AVG CPU Load</div>
                     <div class="description">
@@ -117,7 +105,7 @@
                     </div>
                 </div>
             </div>
-            <div class="card">
+            <div class="ui card raised">
                 <div class="ui content">
                     <div class="ui top attached teal  label">Max. CPU Load</div>
                     <div class="description">
@@ -129,7 +117,7 @@
                     </div>
                 </div>
             </div>
-            <div class="card">
+            <div class="ui card raised">
                 <div class="ui content">
                     <div class="ui top attached orange  label">Total Energy</div>
                     <div class="ui bottom right attached label">CPU Package</div>
@@ -142,7 +130,7 @@
                     </div>
                 </div>
             </div>
-            <div class="card">
+            <div class="ui card raised">
                 <div class="ui content">
                     <div class="ui top black attached label">Total co2 </div>
                     <div class="ui bottom right attached label">CPU + MEM + Network</div>
@@ -221,6 +209,22 @@
                 </div>
             </div>
         </div><!-- end ui five cards stackable -->
+        <div class="ui two cards" id="api-loader">
+            <div class="card" style="min-height: 300px">
+                <div class="ui active dimmer">
+                    <div class="ui indeterminate text loader">Waiting for API data</div>
+                </div>
+                <p></p>
+            </div>
+            <div class="card" style="min-height: 300px">
+                <div class="ui active dimmer">
+                    <div class="ui indeterminate text loader">Waiting for API data</div>
+                </div>
+                <p></p>
+            </div>
+
+        </div>
+
         <div id="chart-container"></div>
 </body>
 

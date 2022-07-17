@@ -1,20 +1,18 @@
 (() => {
-    document.forms[0].onsubmit = async (e) => {
-        e.preventDefault();
+    document.forms[0].onsubmit = async (event) => {
+        event.preventDefault();
 
-        const data = new FormData(document.querySelector('form'));
+        const form = document.querySelector('form');
+        const data = new FormData(form);
         const values = Object.fromEntries(data.entries());
 
-        makeAPICall('/v1/project/add', (my_json) => {
-            document.forms[0].reset()
-            $('body')
-              .toast({
-                class: 'success',
-                showProgress: 'bottom',
-                classProgress: 'green',
-                title: 'Success',
-                message: 'Save successful. Check your mail in 10-15 minutes'
-            });
-        }, values);
+        try {
+            await makeAPICall('/v1/project/add', values);
+            form.reset()
+            showNotification('Success', 'Save successful. Check your mail in 10-15 minutes', 'success');
+        } catch (err) {
+            showNotification('Could not get data from API', err);
+        }
+
     }
 })();
