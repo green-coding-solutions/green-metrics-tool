@@ -78,7 +78,8 @@ const fillProjectData = (project, key = null) => {
         if (item == 'machine_specs') {
             fillProjectTab('#machine-specs', project[item])
         } else if(item == 'usage_scenario') {
-            fillProjectTab('#usage-scenario', project[item])
+            document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><pre>${JSON.stringify(project?.[item], null, 2)}</pre></td>`)
+
         } else if(item == 'measurement_config') {
             fillProjectTab('#measurement-config', project[item])
         }  else {
@@ -290,19 +291,21 @@ const createGraph = (element, data, labels, title) => {
 };
 
 const fillAvgContainers = (metrics) => {
+
+    const total_energy_in_kW = (metrics.total_energy / 1000) / 3600;
+    let total_CO2_in_kg = (total_energy_in_kW * 0.519) / 1000;
+
     document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, metrics.cpu_load) / 100) + " %"
     document.querySelector("#total-energy").innerText = (metrics.total_energy / 1000).toFixed(2) + " J"
-    document.querySelector("#total-co2").innerText = (metrics.total_energy / 1000 / 3600000 * 0.519 * 1000000).toFixed(2) + " ug"
+    document.querySelector("#total-co2").innerHTML = (total_CO2_in_kg * (10**6) ).toFixed(2) + " <span style='text-transform: lowercase;'>mg</span>"
     document.querySelector("#avg-cpu-load").innerText = ((metrics.cpu_load.reduce((a, b) => a + b, 0) / metrics.cpu_load.length) / 100).toFixed(2) + " %"
 
-    const total_CO2_in_tons = (metrics.total_energy / 1000 / 3600000 * 0.519 * 1000000);
-    const total_CO2_in_kg = total_CO2_in_tons / 1000000000;
-
-    document.querySelector("#trees").innerText = (total_CO2_in_kg / 0.06 / 1000).toFixed(2);
-    document.querySelector("#miles-driven").innerText = (total_CO2_in_kg / 0.000403 / 1000).toFixed(2);
-    document.querySelector("#gasoline").innerText = (total_CO2_in_kg / 0.008887 / 1000).toFixed(2);
-    document.querySelector("#smartphones-charged").innerText = (total_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
-    document.querySelector("#flights").innerText = (total_CO2_in_kg / 1000).toFixed(2);
+    upscaled_CO2_in_kg = total_CO2_in_kg * 10000 * 30; // upscaled by 30 days for 10.000 requests (or runs) per day
+    document.querySelector("#trees").innerText = (upscaled_CO2_in_kg / 0.06 / 1000).toFixed(2);
+    document.querySelector("#miles-driven").innerText = (upscaled_CO2_in_kg / 0.000403 / 1000).toFixed(2);
+    document.querySelector("#gasoline").innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
+    document.querySelector("#smartphones-charged").innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
+    document.querySelector("#flights").innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
 }
 
 
