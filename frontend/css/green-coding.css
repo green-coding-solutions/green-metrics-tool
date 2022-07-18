@@ -104,10 +104,17 @@ body {
 
 /* Handle collapsing on click or on small window */
 a,
-#menu, #main {
-    -webkit-transition: all 300ms ease-in-out;
-    transition: all 300ms ease-in-out;
+#menu {
+    -webkit-transition: left 300ms ease-in-out;
+    transition: left 300ms ease-in-out;
+
 }
+#main {
+    -webkit-transition: margin-left 300ms ease-in-out;
+    transition: margin-left 300ms ease-in-out;
+
+}
+
 
 #menu.closed {
     left: -300px;
