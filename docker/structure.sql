@@ -8,6 +8,7 @@ CREATE TABLE projects (
     name text,
     uri text,
     email text,
+    categories int[],
     usage_scenario jsonb,
     machine_specs jsonb,
     measurement_config jsonb,
