@@ -27,7 +27,6 @@ measurement:
     time.cgroup.container.provider.TimeCgroupContainerProvider: 100
     time.proc.system.provider.TimeProcSystemProvider: 100
 
-
 admin:
   # This address will get an email, when a new project was added through the frontend
   email: myemail@dev.local
