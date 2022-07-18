@@ -14,17 +14,12 @@ project:
   name: My test project
   url: https://metrics.green-coding.org/
 
+# Please select the needed providers according to the working ones on your system
+# More info https://docs.green-coding.org/docs/measuring/metric-providers
 measurement:
   idle-time-start: 5
   idle-time-end: 5
   flow-process-runtime: 60
-
-# Please select the needed providers according to the working ones on your system
-# More info https://docs.green-coding.org/docs/measuring/metric-providers
-measurement:
-  idle-time-start: 2
-  idle-time-end: 2
-  flow-process-runtime: 6000
   metric-providers:
     cpu.cgroup.container.provider.CpuCgroupContainerProvider: 100
     energy.RAPL.MSR.system.provider.EnergyRaplMsrSystemProvider: 100
