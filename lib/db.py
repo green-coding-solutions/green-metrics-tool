@@ -1,6 +1,6 @@
 import psycopg2.extras
 import psycopg2
-import setup_functions
+from global_config import GlobalConfig
 
 class DB:
 
@@ -11,7 +11,7 @@ class DB:
     def __init__(self):
 
         if not hasattr(self, "_conn"):
-            config = setup_functions.get_config()
+            config = GlobalConfig().config
 
             # Important note: We are not using cursor_factory = psycopg2.extras.RealDictCursor
             # as an argument, because this would increase the size of a single API request
@@ -28,13 +28,12 @@ class DB:
         try:
             cur.execute(query, params)
             self._conn.commit()
-            match return_type:
-                case "one":
-                    ret = cur.fetchone()
-                case "all":
-                    ret = cur.fetchall()
-                case _:
-                    ret = True
+            if return_type == "one":
+                ret = cur.fetchone()
+            elif return_type == "all":
+                ret = cur.fetchall()
+            else :
+                ret = True
 
         except psycopg2.Error as e:
             self._conn.rollback()
@@ -52,6 +51,7 @@ class DB:
 
     def fetch_all(self, query, params=None, cursor_factory=None):
         return self.__query(query, params=params, return_type="all", cursor_factory=cursor_factory)
+
 
     def copy_from(self, file, table, columns, sep=','):
         try:

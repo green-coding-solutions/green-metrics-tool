@@ -1,0 +1,136 @@
+body {
+    background: #e9eaef;
+}
+
+#masthead {
+    background: #e9eaef !important;
+    border: 0px !important;
+    padding-bottom: 0px;
+    height: 5%;
+}
+
+
+#header {
+    width: 100%;
+    text-align: center;
+}
+
+#horizontal-card {
+    width: 100% !important;
+    margin-bottom: 26px !important;
+}
+
+#project-uri {
+    word-break: break-all;
+}
+
+#chart-container {
+    margin-top: 14px;
+}
+
+#toggle-notes-spam {
+    font-size: 0.8em;
+    margin-left: 2px
+}
+
+.statistics-chart-card {
+    min-width: 600px;
+    flex-grow: 1;
+}
+.statistics-chart {
+    width: 100%;
+    height: 100%;
+    min-height: 600px;
+}
+
+.article {
+    background: #e9eaef;
+}
+
+/* index.html: */
+
+#table {
+    padding: 20px;
+}
+
+.td-index {
+    word-break: break-all;
+}
+
+/* request.html: */
+#new-project-description>div {
+    margin-bottom: 10px;
+}
+
+#new-project-name-div {
+    margin-top: 10px;
+}
+
+/* Chart container special flex flow */
+/* By using cards stackable from the framework the layout was not collapsing correctly with the echarts containers */
+#chart-container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 40px;
+}
+#chart-container .card {
+    margin-top: 0 !important;
+}
+/* Layouting for menu and main content ========== */
+
+#menu-toggle i {
+     margin-right:  30px;
+}
+
+ #menu {
+    min-width: 300px;
+    background: #333;
+    height: 100%;
+    min-height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0px;
+    margin-left:  0px;
+    background: rgb(47, 61, 79);
+    background: linear-gradient(180deg, rgb(47, 61, 79) 0%, rgb(47, 61, 79) 50%, rgb(80, 144, 113) 100%);
+
+ }
+ #main {
+     flex-grow:  1;
+     margin: 20px 40px 0px 340px ;
+}
+
+/* Handle collapsing on click or on small window */
+a,
+#menu, #main {
+    -webkit-transition: all 300ms ease-in-out;
+    transition: all 300ms ease-in-out;
+}
+
+#menu.closed {
+    left: -300px;
+ }
+ #main.closed {
+    margin-left: 40px;
+ }
+
+#menu.opened {
+   left: 0px !important;
+}
+#main.opened {
+   margin-left: 340px !important;
+}
+
+
+@media only screen and (max-width: 960px) {
+     #menu {
+        left: -300px;
+     }
+     #main {
+         margin-left: 20px;
+         margin-right: 20px;
+     }
+}
+
