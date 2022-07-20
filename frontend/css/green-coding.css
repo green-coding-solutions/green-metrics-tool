@@ -22,6 +22,7 @@ body {
 
 #project-uri {
     word-break: break-all;
+    overflow-wrap: break-all;
 }
 
 #chart-container {
@@ -55,6 +56,7 @@ body {
 
 .td-index {
     word-break: break-all;
+    overflow-wrap: break-all;
 }
 
 /* request.html: */
