@@ -68,6 +68,19 @@ body {
     margin-top: 10px;
 }
 
+.gc-top-aligned {
+    align-items: flex-start;
+}
+
+.gc-stats-multiply {
+    text-transform: lowercase !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+.gc-stats-multiply div.value {
+    text-transform: lowercase !important;
+}
+
 /* Chart container special flex flow */
 /* By using cards stackable from the framework the layout was not collapsing correctly with the echarts containers */
 #chart-container {
