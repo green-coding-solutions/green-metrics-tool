@@ -22,6 +22,7 @@ body {
 
 #project-uri {
     word-break: break-all;
+    overflow-wrap: break-all;
 }
 
 #chart-container {
@@ -55,6 +56,7 @@ body {
 
 .td-index {
     word-break: break-all;
+    overflow-wrap: break-all;
 }
 
 /* request.html: */
@@ -64,6 +66,19 @@ body {
 
 #new-project-name-div {
     margin-top: 10px;
+}
+
+.gc-top-aligned {
+    align-items: flex-start;
+}
+
+.gc-stats-multiply {
+    text-transform: lowercase !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+.gc-stats-multiply div.value {
+    text-transform: lowercase !important;
 }
 
 /* Chart container special flex flow */
