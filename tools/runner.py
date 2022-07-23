@@ -326,15 +326,15 @@ if __name__ == "__main__":
     from pathlib import Path
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--uri", type=str, help="The URI to get the usage_scenario.yml from. Can be eitehr file://... for local directories or http(s):// to download the repository with the usage_scenario.yml from.")
-    parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others. Will only be read in manual mode.")
+    parser.add_argument("--uri", type=str, help="The URI to get the usage_scenario.yml from. Can be either a local directory starting with / or a remote git repository starting with http(s)://")
+    parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others")
     parser.add_argument("--no-file-cleanup", action='store_true', help="Do not delete files in /tmp/green-metrics-tool")
     parser.add_argument("--debug", action='store_true', help="Activate steppable debug mode")
     parser.add_argument("--unsafe", action='store_true', help="Activate unsafe volume bindings, portmappings and complex env vars")
     args = parser.parse_args()
 
     if args.uri is None:
-        print('In manual mode please supply --uri\n')
+        print('Please supply --uri to get usage_scenario.yml from\n')
         parser.print_help()
         exit(2)
 
@@ -354,7 +354,7 @@ if __name__ == "__main__":
         exit(2)
 
     if args.name is None:
-        print("In manual mode please supply --name\n")
+        print("Please supply --name\n")
         parser.print_help()
         exit(2)
 

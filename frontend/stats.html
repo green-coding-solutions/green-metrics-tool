@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <!-- Standard Meta -->
     <meta charset="utf-8" />
@@ -22,7 +21,6 @@
     <script src="/dist/js/echarts.min.js" defer></script>
     <!-- <script src="/dist/js/apexcharts.min.js" defer></script> -->
     <script src="/dist/js/tab.min.js" defer></script>
-
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/reset.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/site.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/card.min.css">
@@ -39,10 +37,8 @@
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/loader.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/dimmer.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/tab.min.css">
-
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
-
 <body style="display: flex;">
     <div id="menu" class="ui inverted vertical menu">
         <div>
@@ -65,30 +61,29 @@
         <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Showcases</h1>
         <div class="ui horizontal card" id="horizontal-card">
             <div class="content">
-                <div class="header"><a class="ui red ribbon label" href="#"><h3>Project Data</h3></a></div>
+                <div class="header"><a class="ui red ribbon label" href="#">
+                        <h3>Project Data</h3>
+                    </a></div>
                 <div class="description">
-                  <div class="ui secondary menu">
-                    <a class="item active" data-tab="one">General</a>
-                    <a class="item" data-tab="two">Measurement</a>
-                    <a class="item" data-tab="three">Machine</a>
-                    <a class="item" data-tab="four">usage_scenario</a>
-                  </div>
-                  <div class="ui tab segment" data-tab="one">
-                    <table class="table-hover" id="project-data"></table>
-                  </div>
-                  <div class="ui active tab segment" data-tab="two">
-                    <table class="table-hover" id="measurement-config"></table>
-                  </div>
-                  <div class="ui tab segment" data-tab="three">
-                    <table class="table-hover" id="machine-specs"></table>
-                  </div>
-                  <div class="ui active tab segment" data-tab="four">
-                    <a href="https://onlineyamltools.com/convert-yaml-to-json" target='_blank' rel="noopener">Convert to YAML</a>
-                    <table class="table-hover" id="usage-scenario"></table>
-                  </div>
-
-
-
+                    <div class="ui secondary menu">
+                        <a class="item active" data-tab="one">General</a>
+                        <a class="item" data-tab="two">Measurement</a>
+                        <a class="item" data-tab="three">Machine</a>
+                        <a class="item" data-tab="four">usage_scenario</a>
+                    </div>
+                    <div class="ui tab segment" data-tab="one">
+                        <table class="table-hover" id="project-data"></table>
+                    </div>
+                    <div class="ui active tab segment" data-tab="two">
+                        <table class="table-hover" id="measurement-config"></table>
+                    </div>
+                    <div class="ui tab segment" data-tab="three">
+                        <table class="table-hover" id="machine-specs"></table>
+                    </div>
+                    <div class="ui active tab segment" data-tab="four">
+                        <a href="https://onlineyamltools.com/convert-yaml-to-json" target='_blank' rel="noopener">Convert to YAML</a>
+                        <table class="table-hover" id="usage-scenario"></table>
+                    </div>
                 </div>
             </div>
         </div><!-- end ui horizontal card -->
@@ -166,14 +161,13 @@
                 <p>Source of CO2 to Tree etc. conversion: <a href="https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator">EPA</a></p>
             </div>
         </div>
-
         <div class="ui five cards stackable">
             <div class="card">
                 <div class="content">
                     <div class="ui header">Trees</div>
                     <div class="ui small statistic">
                         <div class="value">
-                           <i class="tree icon"></i> <span id="trees">-</span>
+                            <i class="tree icon"></i> <span id="trees">-</span>
                         </div>
                     </div>
                 </div>
@@ -183,7 +177,7 @@
                     <div class="ui header">Miles driven</div>
                     <div class="ui small statistic">
                         <div class="value">
-                           <i class="truck pickup icon"></i> <span id="miles-driven">-</span>
+                            <i class="truck pickup icon"></i> <span id="miles-driven">-</span>
                         </div>
                     </div>
                     <div class="ui top right attached label">by car</div>
@@ -194,7 +188,7 @@
                     <div class="ui header">Gasoline</div>
                     <div class="ui small statistic">
                         <div class="value">
-                           <i class="gas pump icon"></i> <span id="gasoline">-</span>
+                            <i class="gas pump icon"></i> <span id="gasoline">-</span>
                         </div>
                     </div>
                     <div class="ui top right attached label">in gallons</div>
@@ -205,7 +199,7 @@
                     <div class="ui header">Smartphones charged</div>
                     <div class="ui small statistic">
                         <div class="value">
-                           <i class="mobile alternate icon"></i> <span id="smartphones-charged">-</span>
+                            <i class="mobile alternate icon"></i> <span id="smartphones-charged">-</span>
                         </div>
                     </div>
                 </div>
@@ -215,7 +209,7 @@
                     <div class="ui header">Flights</div>
                     <div class="ui small statistic">
                         <div class="value">
-                           <i class="plane departure icon"></i> <span id="flights">-</span>
+                            <i class="plane departure icon"></i> <span id="flights">-</span>
                         </div>
                     </div>
                     <div class="ui top right attached label">Berlin &raquo; NYC</div>
@@ -235,10 +229,9 @@
                 </div>
                 <p></p>
             </div>
-
         </div>
-
         <div id="chart-container"></div>
+        <div class="clearing" style="display:block; height: 10px;"></div>
+    </div>
 </body>
-
 </html>
