@@ -224,11 +224,6 @@ const displayGraphs = (metrics, notes, style='apex') => {
             chart_instance.resize();
         })
     }
-    // after all instances have been placed the flexboxes might have rearranged. We need to trigger resize
-    setTimeout(function(){window.dispatchEvent(new Event('resize'))}, 300); // needed for the graphs to resize
-
-
-
 }
 
 
@@ -337,6 +332,10 @@ $(document).ready( (e) => {
         fillProjectData(stats_data.project)
         displayGraphs(metrics.series, notes_json.data, 'echarts');
         fillAvgContainers(metrics);
-        document.querySelector('#api-loader').remove()
+        document.querySelector('#api-loader').remove();
+
+        // after all instances have been placed the flexboxes might have rearranged. We need to trigger resize
+        setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500); // needed for the graphs to resize
+
     })();
 });
