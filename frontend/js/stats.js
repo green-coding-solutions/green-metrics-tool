@@ -42,13 +42,14 @@ const getEChartsOptions = () => {
         tooltip: {
             trigger: 'axis'
         },
-
         xAxis: {
-           type: 'time'
+           type: 'time',
+           splitLine: {show: true}
         },
 
         yAxis: {
-            type: 'value'
+            type: 'value',
+           splitLine: {show: true}
         },
         series: [],
         title: {text: null},
