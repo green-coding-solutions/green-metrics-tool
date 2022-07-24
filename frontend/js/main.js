@@ -69,6 +69,10 @@ async function makeAPICall(path, values=null) {
         if ($(window).width() < 960) {
             $('#menu-toggle').removeClass('opened').addClass('closed');
         }
-    })
+    });
+
+    $(window).on('load', function() {
+      $("body").removeClass("preload"); // activate tranisition CSS properties again
+    });
 
 })();
