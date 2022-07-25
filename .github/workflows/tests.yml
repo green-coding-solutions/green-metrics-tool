@@ -28,7 +28,7 @@ jobs:
       - name: Install python testing dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install fastapi pytest
+          pip install fastapi pytest psycopg2
       
       - name: Setup Test environment
         working-directory: ./test
