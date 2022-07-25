@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
-            printf("\t-i      : specifies the interval (in microseconds) that will be slept between measurements\n\n");
+            printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n\n");
 
             struct timespec res;
             double resolution;

@@ -363,7 +363,7 @@ int main(int argc, char **argv) {
             printf("Usage: %s [-c core] [-h] [-m]\n\n",argv[0]);
             printf("\t-c core : specifies which core to measure\n");
             printf("\t-h      : displays this help\n");
-            printf("\t-i      : specifies the interval (in microseconds) that will be slept between measurements");
+            printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n\n");
             exit(0);
         case 'i':
             msleep_time = atoi(optarg);
