@@ -1,6 +1,8 @@
 #!/bin/bash
-echo "creating config.yml backup..."
-cp ../config.yml ../config.yml.bak
+if [[ -f "../config.yml" ]]; then
+    echo "creating config.yml backup..."
+    cp ../config.yml ../config.yml.bak
+fi
 
 if [[ -f "../test-config.yml" ]]; then
     echo "using test-config.yml..."
@@ -15,8 +17,10 @@ pytest
 echo "Stopping test containers..."
 ./stop-test-containers.sh </dev/null &>/dev/null &
 
-echo "restore config.yml..."
-cp ../config.yml.bak ../config.yml
-rm ../config.yml.bak
+if [[ -f "../config.yml.bak" ]]; then
+    echo "restore config.yml..."
+    cp ../config.yml.bak ../config.yml
+    rm ../config.yml.bak
+fi
 
 echo "fin"
