@@ -110,7 +110,7 @@ const getMetrics = (stats_data, style='apex') => {
     stats_data.data.forEach(el => {
         /* Spec for data
         el[0] // container_id
-        el[1] // time -> in nanoseconds
+        el[1] // time -> in microseconds
         el[2] // metric name
         el[3] // value -> This value might need to be rescaled
         '*/
@@ -120,7 +120,7 @@ const getMetrics = (stats_data, style='apex') => {
             accumulate = 1;
         }
 
-        let time_in_ms = el[1] / 1000; // divide nanoseconds timestamp to ms to be handled by charting lib
+        let time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
         let value = el[3]; // default
 
         if (el[2] == 'cpu_cgroup_container') { // value is
