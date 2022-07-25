@@ -12,9 +12,8 @@ sed -i -e "s|green-coding-postgres-data|green-coding-postgres-test-data|" ../doc
 
 echo "Updating config.yml with new password ..."
 cp ../config.yml.example ../test-config.yml
+sed -i -e "s|host: |host: test-|" ../test-config.yml
 sed -i -e "s|PLEASE_CHANGE_THIS|testpw|" ../test-config.yml
-
-
 
 etc_hosts_line_1="127.0.0.1 test-green-coding-postgres-container"
 

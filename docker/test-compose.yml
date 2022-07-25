@@ -1,0 +1,50 @@
+services:
+  green-coding-postgres:
+    image: postgres
+    container_name: test-green-coding-postgres-container
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=testpw
+    volumes:
+      - green-coding-postgres-test-data:/var/lib/postgresql/data
+      - ./structure.sql:/docker-entrypoint-initdb.d/structure.sql:ro
+    ports:
+      - 5432:5432
+    command: >
+      -c ssl=on
+      -c ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+      -c ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+#     -c work_mem=16MB # This option can potentially speed up big queries: https://www.twilio.com/blog/sqlite-postgresql-complicated
+  green-coding-nginx:
+    image: nginx
+    container_name: test-green-coding-nginx-container
+    depends_on:
+      - green-coding-postgres
+    ports:
+      - 8000:80
+    restart: always
+    volumes:
+      - green-coding-shared-tmp:/tmp
+      - /home/dan/code/green-metrics-tool/test/../:/var/www/green-metrics-tool:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/api.conf:/etc/nginx/conf.d/api_nginx.conf:ro
+      - ./nginx/frontend.conf:/etc/nginx/conf.d/default.conf:ro
+  green-coding-gunicorn:
+    build:
+      context: .
+      dockerfile: Dockerfile-gunicorn
+    container_name: test-green-coding-gunicorn-container
+    depends_on:
+      - green-coding-postgres
+    restart: always
+    volumes:
+      - green-coding-shared-tmp:/tmp
+      - /home/dan/code/green-metrics-tool/test/../:/var/www/green-metrics-tool:ro
+
+# Although it would help us very much performance-wise the
+# Shared volume with only temporary data, green-coding-shared-tmp, must be
+# of type overlayfs and cannot be tmpfs (https://docs.docker.com/storage/tmpfs/)
+# tmpfs being a RAM stored and faster volume is sadly not shareable between containers
+volumes:
+  green-coding-postgres-test-data:
+  green-coding-shared-tmp:
