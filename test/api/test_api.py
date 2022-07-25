@@ -9,6 +9,7 @@ sys.path.append(f"{current_dir}/../../lib")
 import utils
 
 from pydantic import BaseModel
+from global_config import GlobalConfig
 from db import DB
 
 class Project(BaseModel):
@@ -16,6 +17,7 @@ class Project(BaseModel):
     url: str
     email: str
 
+config = GlobalConfig(config_name="test-config.yml").config
 API_URL="http://api.green-coding.local:8000"
 project_name = "test_" + utils.randomword(12)
 p = Project(name=project_name, url="testURL", email="testEmail")
@@ -48,14 +50,3 @@ def get_pid(project_name):
         return None
     else:
         return data[0]
-
-
-#def test_get_stats_by_uri():
-
-#def test_get_stats_single():
-
-#def test_get_stats_multi():
-
-#def test_get_stats_compare():
-
-#def test_get_project():
