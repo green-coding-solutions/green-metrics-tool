@@ -168,6 +168,9 @@ class Runner:
 
                 docker_run_string.append(el['identifier'])
 
+                if 'cmd' in el: # must come last
+                    docker_run_string.append(el['cmd'])
+
                 print(f"Running docker run with: {docker_run_string}")
 
                 ps = subprocess.run(
