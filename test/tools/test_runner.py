@@ -21,7 +21,10 @@ def test_runner_reports(capsys):
     subprocess.run(["rm", "-Rf", "/tmp/example-applications/"])
     subprocess.run(["mkdir", "/tmp/example-applications/"])
     subprocess.run(["git", "clone", example_repo, "/tmp/example-applications/"], check=True, capture_output=True, encoding='UTF-8')
+
     uri = '/tmp/example-applications/stress/'
+    subprocess.run(["docker", "compose", "-f", uri+"compose.yml", "build"])
+    
     project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
                 VALUES \
                 (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(project_name, uri))[0]
