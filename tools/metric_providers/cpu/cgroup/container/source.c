@@ -4,7 +4,12 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
-#include <string.h>
+#include <string.h> // for strtok
+
+typedef struct container_t { // struct is a specification and this static makes no sense here
+    char path[BUFSIZ];
+    char *id;
+} container_t;
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
@@ -14,12 +19,7 @@
 static char *user_id = "1000"; //TODO: Figure out user_id dynamically, or request
 static long int user_hz;
 static unsigned int msleep_time=1000;
-static struct container *containers = NULL;
-
-struct container { // struct is a specification and this static makes no sense here
-    char path[BUFSIZ];
-    char *id;
-};
+static container_t *containers = NULL;
 
 static long int read_cpu_proc(FILE *fd) {
     long int user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time, guest_time;
@@ -62,7 +62,7 @@ static long int get_cpu_stat(char* filename, int mode) {
 }
 
 
-static int output_stats(struct container *containers, int length) {
+static int output_stats(container_t *containers, int length) {
 
     long int main_cpu_reading_before, main_cpu_reading_after, main_cpu_reading;
     long int cpu_readings_before[length];
@@ -150,12 +150,12 @@ int main(int argc, char **argv) {
             msleep_time = atoi(optarg);
             break;
         case 's':
-            containers = malloc(sizeof(struct container));
+            containers = malloc(sizeof(container_t));
             char *id = strtok(optarg,",");
             for (; id != NULL; id = strtok(NULL, ",")) {
                 //printf("Token: %s\n", id);
                 length++;
-                containers = realloc(containers, length * sizeof(struct container));
+                containers = realloc(containers, length * sizeof(container_t));
                 containers[length-1].id = id;
                 sprintf(containers[length-1].path,
                     "/sys/fs/cgroup/user.slice/user-%s.slice/user@%s.service/user.slice/docker-%s.scope/cpu.stat",
