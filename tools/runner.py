@@ -10,7 +10,10 @@ import sys
 import re
 import importlib
 import yaml
+import faulthandler
 from io import StringIO
+
+faulthandler.enable() # will catch segfaults and write to STDERR
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{current_dir}/../lib")
