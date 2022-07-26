@@ -4,7 +4,6 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
-#include <string.h>
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
@@ -15,12 +14,6 @@
 
 static long int user_hz;
 static unsigned int msleep_time=1000;
-static struct container *containers = NULL;
-
-struct container { // struct is a specification and this static makes no sense here
-    char path[BUFSIZ];
-    char *id;
-};
 
 static long int read_cpu_cgroup() {
 
@@ -83,7 +76,6 @@ int main(int argc, char **argv) {
         output_stats();
     }
 
-    free(containers); // since tools is only aborted by CTRL+C this is never called, but memory is freed on program end
 
     return 0;
 }
