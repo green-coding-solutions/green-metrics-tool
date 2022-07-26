@@ -1,19 +1,19 @@
 #!/bin/bash
 set -euo pipefail
 
-
-echo "Updating compose.yml with current path ..."
-cp ../docker/compose.yml.example ../docker/test-compose.yml
-sed -i -e "s|PATH_TO_GREEN_METRICS_TOOL_REPO|$PWD/../|" ../docker/test-compose.yml
-sed -i -e "s|PLEASE_CHANGE_THIS|testpw|" ../docker/test-compose.yml
-
-sed -i -e "s|container_name: |container_name: test-|" ../docker/test-compose.yml
-sed -i -e "s|green-coding-postgres-data|green-coding-postgres-test-data|" ../docker/test-compose.yml
-
 echo "Updating config.yml with new password ..."
 cp ../config.yml.example ../test-config.yml
 sed -i -e "s|host: |host: test-|" ../test-config.yml
 sed -i -e "s|PLEASE_CHANGE_THIS|testpw|" ../test-config.yml
+
+echo "Creating test-compose.yml ..."
+cp ../docker/compose.yml.example ../docker/test-compose.yml
+sed -i -e "s|PATH_TO_GREEN_METRICS_TOOL_REPO|$PWD/../|" ../docker/test-compose.yml
+sed -i -e "s|PLEASE_CHANGE_THIS|testpw|" ../docker/test-compose.yml
+sed -i -e "s|# - TEST_CONFIG_SETUP|- $PWD/../test-config.yml|" ../docker/test-compose.yml
+
+sed -i -e "s|container_name: |container_name: test-|" ../docker/test-compose.yml
+sed -i -e "s|green-coding-postgres-data|green-coding-postgres-test-data|" ../docker/test-compose.yml
 
 etc_hosts_line_1="127.0.0.1 test-green-coding-postgres-container"
 
