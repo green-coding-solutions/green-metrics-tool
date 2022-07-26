@@ -10,12 +10,12 @@ if [[ -f "../test-config.yml" ]]; then
 fi
 
 echo "Starting test containers..."
-./start-test-containers.sh </dev/null &>/dev/null &
+./start-test-containers.sh &>/dev/null &
 sleep 5
 echo "Running pytest..."
 pytest
 echo "Stopping test containers..."
-./stop-test-containers.sh </dev/null &>/dev/null &
+./stop-test-containers.sh  &>/dev/null &
 
 if [[ -f "../config.yml.bak" ]]; then
     echo "restore config.yml..."
