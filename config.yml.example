@@ -25,6 +25,7 @@ measurement:
     energy.RAPL.MSR.system.provider.EnergyRaplMsrSystemProvider: 100
     memory.cgroup.container.provider.MemoryCgroupContainerProvider: 100
     time.cgroup.container.provider.TimeCgroupContainerProvider: 100
+    time.cgroup.system.provider.TimeCgroupSystemProvider: 100
     time.proc.system.provider.TimeProcSystemProvider: 100
 
 admin:
