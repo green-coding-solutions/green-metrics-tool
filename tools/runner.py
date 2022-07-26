@@ -105,7 +105,7 @@ class Runner:
 
             self.metric_providers.append(metric_provider_obj)
 
-        debug.pause() # Will only pause if object state is currently "active"
+        if debug.active: debug.pause("Initial load complete. Waiting to start container setup.")
 
         for el in obj['setup']:
             if el['type'] == 'container':
@@ -210,7 +210,7 @@ class Runner:
 
         print("Current known containers: ", self.containers)
 
-        debug.pause() # Will only pause if object state is currently "active"
+        if debug.active: debug.pause("Container setup complete. Waiting to start metric-providers")
 
         for metric_provider in self.metric_providers:
             print(f"Starting measurement provider {metric_provider.__class__.__name__}")
@@ -222,7 +222,7 @@ class Runner:
 
         time.sleep(config['measurement']['idle-time-start'])
 
-        debug.pause() # Will only pause if object state is currently "active"
+        if debug.active: debug.pause("metric-providers start complete. Waiting to start flow")
 
         start_measurement = int(time.time_ns() / 1_000)
 
@@ -230,8 +230,6 @@ class Runner:
         for el in obj['flow']:
             print("Running flow: ", el['name'])
             for inner_el in el['commands']:
-
-                debug.pause() # Will only pause if object state is currently "active"
 
                 if "note" in inner_el:
                     notes.append({"note" : inner_el['note'], 'container_name' : el['container'], "timestamp": int(time.time_ns() / 1_000)})
@@ -264,6 +262,8 @@ class Runner:
                         process_helpers.timeout(ps, inner_el['command'], config['measurement']['flow-process-runtime'])
                 else:
                     raise RuntimeError("Unknown command type in flow: ", inner_el['type'])
+
+                if debug.active: debug.pause("Waiting to start next command in flow")
 
         end_measurement = int(time.time_ns() / 1_000)
 
