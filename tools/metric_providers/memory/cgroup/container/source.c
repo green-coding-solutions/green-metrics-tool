@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-s      : string of container IDs separated by comma\n");
-            printf("\t-i      : specifies the msleep_time (in microseconds) that will be slept between measurements\n\n");
+            printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n\n");
             exit(0);
         case 'i':
             msleep_time = atoi(optarg);

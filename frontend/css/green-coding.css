@@ -1,18 +1,16 @@
 body {
     background: #e9eaef;
+    display: flex;
 }
 
-#masthead {
-    background: #e9eaef !important;
-    border: 0px !important;
-    padding-bottom: 0px;
-    height: 5%;
-}
-
-
-#header {
-    width: 100%;
-    text-align: center;
+/* preload class is only present on body to prevent transition on margin-left flickering
+on load. class is removed after initial page load in main.js
+Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
+.preload * {
+  -webkit-transition: none !important;
+  -moz-transition: none !important;
+  -ms-transition: none !important;
+  -o-transition: none !important;
 }
 
 #horizontal-card {
@@ -29,10 +27,6 @@ body {
     margin-top: 14px;
 }
 
-#toggle-notes-spam {
-    font-size: 0.8em;
-    margin-left: 2px
-}
 
 .statistics-chart-card {
     min-width: 600px;
@@ -100,7 +94,7 @@ body {
 }
 
  #menu {
-    min-width: 300px;
+    width: 200px;
     background: #333;
     height: 100%;
     min-height: 100vh;
@@ -114,7 +108,7 @@ body {
  }
  #main {
      flex-grow:  1;
-     margin: 20px 40px 0px 340px ;
+     margin: 20px 40px 0px 240px ;
 }
 
 /* Handle collapsing on click or on small window */
@@ -132,23 +126,23 @@ a,
 
 
 #menu.closed {
-    left: -300px;
+    left: -200px;
  }
- #main.closed {
+#main.closed {
     margin-left: 40px;
- }
+}
 
 #menu.opened {
    left: 0px !important;
 }
 #main.opened {
-   margin-left: 340px !important;
+   margin-left: 240px !important;
 }
 
 
 @media only screen and (max-width: 960px) {
      #menu {
-        left: -300px;
+        left: -200px;
      }
      #main {
          margin-left: 20px;

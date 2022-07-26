@@ -32,13 +32,12 @@ def get_job(job_type):
         print("No job to process. Exiting")
         exit(0)
 
-    match data[1]:
-        case "email":
-            do_email_job(data[0], data[2])
-        case "project":
-            do_project_job(data[0], data[2])
-        case _:
-            raise RuntimeError(f"Job w/ id {data[0]} has unkown type: {data[1]}.")
+    if data[1] == "email":
+        do_email_job(data[0], data[2])
+    elif data[1] ==  "project":
+        do_project_job(data[0], data[2])
+    else:
+        raise RuntimeError(f"Job w/ id {data[0]} has unkown type: {data[1]}.")
 
 def delete_job(job_id):
     query = "DELETE FROM jobs WHERE id=%s"

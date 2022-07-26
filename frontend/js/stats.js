@@ -42,13 +42,14 @@ const getEChartsOptions = () => {
         tooltip: {
             trigger: 'axis'
         },
-
         xAxis: {
-           type: 'time'
+           type: 'time',
+           splitLine: {show: true}
         },
 
         yAxis: {
-            type: 'value'
+            type: 'value',
+           splitLine: {show: true}
         },
         series: [],
         title: {text: null},
@@ -109,7 +110,7 @@ const getMetrics = (stats_data, style='apex') => {
     stats_data.data.forEach(el => {
         /* Spec for data
         el[0] // container_id
-        el[1] // time -> in nanoseconds
+        el[1] // time -> in microseconds
         el[2] // metric name
         el[3] // value -> This value might need to be rescaled
         '*/
@@ -119,7 +120,7 @@ const getMetrics = (stats_data, style='apex') => {
             accumulate = 1;
         }
 
-        let time_in_ms = el[1] / 1000; // divide nanoseconds timestamp to ms to be handled by charting lib
+        let time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
         let value = el[3]; // default
 
         if (el[2] == 'cpu_cgroup_container') { // value is
@@ -224,11 +225,6 @@ const displayGraphs = (metrics, notes, style='apex') => {
             chart_instance.resize();
         })
     }
-    // after all instances have been placed the flexboxes might have rearranged. We need to trigger resize
-    setTimeout(function(){window.dispatchEvent(new Event('resize'))}, 300); // needed for the graphs to resize
-
-
-
 }
 
 
@@ -337,6 +333,10 @@ $(document).ready( (e) => {
         fillProjectData(stats_data.project)
         displayGraphs(metrics.series, notes_json.data, 'echarts');
         fillAvgContainers(metrics);
-        document.querySelector('#api-loader').remove()
+        document.querySelector('#api-loader').remove();
+
+        // after all instances have been placed the flexboxes might have rearranged. We need to trigger resize
+        setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500); // needed for the graphs to resize
+
     })();
 });
