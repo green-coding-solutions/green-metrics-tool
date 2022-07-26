@@ -105,6 +105,8 @@ class Runner:
 
             self.metric_providers.append(metric_provider_obj)
 
+        debug.pause() # Will only pause if object state is currently "active"
+
         for el in obj['setup']:
             if el['type'] == 'container':
                 container_name = el['name']
@@ -207,6 +209,8 @@ class Runner:
         # --- setup finished
 
         print("Current known containers: ", self.containers)
+
+        debug.pause() # Will only pause if object state is currently "active"
 
         for metric_provider in self.metric_providers:
             print(f"Starting measurement provider {metric_provider.__class__.__name__}")
