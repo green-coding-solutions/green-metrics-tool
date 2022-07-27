@@ -120,6 +120,8 @@ class Runner:
                 # This MAY break in the future, as some docker CLI implementation do not allow this and require
                 # the command args to be passed on run only
 
+                # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
+                # injection of unwawnted params
                 docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
 
                 docker_run_string.append('-v')
@@ -173,6 +175,9 @@ class Runner:
 
                 print(f"Running docker run with: {docker_run_string}")
 
+                # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
+                # injection of unwawnted params
+
                 ps = subprocess.run(
                     docker_run_string,
                     check=True,
@@ -189,6 +194,9 @@ class Runner:
                 print("Running commands")
                 for cmd in el['setup-commands']:
                     print("Running command: docker exec ", cmd)
+
+                    # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
+                    # injection of unwawnted params
                     ps = subprocess.run(
                         ["docker", "exec", container_name, *cmd.split()],
                         check=True,
