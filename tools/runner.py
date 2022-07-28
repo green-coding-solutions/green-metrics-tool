@@ -34,10 +34,11 @@ from debug_helper import DebugHelper
 # - No checks for possible command injections are done at the moment
 
 class Runner:
-    def __init__(self, debug_mode=False, unsafe_mode=False, no_file_cleanup=False):
+    def __init__(self, debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False):
         self.debug_mode = debug_mode
-        self.unsafe_mode = unsafe_mode
+        self.allow_unsafe = allow_unsafe
         self.no_file_cleanup = no_file_cleanup
+        self.skip_unsafe = skip_unsafe
 
         self.containers = {}
         self.networks = []
@@ -71,7 +72,7 @@ class Runner:
         print("From: ", obj['author'])
         print("Version ", obj['version'], "\n")
 
-        if(self.unsafe_mode):
+        if(self.allow_unsafe):
             print("\n\n>>>> Warning: Runner is running in unsafe mode <<<<<<\n\n")
 
         # Sanity checks first, before we insert anything in DB and rely on the linux subsystem to be present. ATM only linux is working
@@ -140,35 +141,44 @@ class Runner:
                 docker_run_string.append(f"{folder}:/tmp/repo:ro")
 
             if 'volumes' in service:
-                if self.unsafe_mode:
+                if self.allow_unsafe:
                     if(type(service['volumes']) != list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
                         docker_run_string.append(f"{volume}")
+                elif self.skip_unsafe:
+                    print('\n\n>>>>>>> Found volumes entry but not running in unsafe mode. Skipping <<<<<<<<\n\n')
                 else:
-                    print('\n\n>>>>>>> Found volumes entry but not running in unsafe mode. Skipping <<<<<<<<\n\n', file=sys.stderr)
+                    raise RuntimeError(f"Found 'volumes' but neither --skip-unsafe nor --allow-unsafe is set")
 
             if 'ports' in service:
-                if self.unsafe_mode:
+                if self.allow_unsafe:
                     if(type(service['ports']) != list):
                         raise RuntimeError(f"ports must be a list but is: {type(service['ports'])}")
                     for ports in service['ports']:
                         print("Setting ports: ", service['ports'])
                         docker_run_string.append('-p')
                         docker_run_string.append(ports)
+                elif self.skip_unsafe:
+                    print('\n\n>>>>>>> Found ports entry but not running in unsafe mode. Skipping <<<<<<<<\n\n')
                 else:
-                    print('\n\n>>>>>>> Found ports entry but not running in unsafe mode. Skipping <<<<<<<<\n\n', file=sys.stderr)
+                    raise RuntimeError(f"Found 'ports' but neither --skip-unsafe nor --allow-unsafe is set")
 
             if 'environment' in service:
                 import re
                 for docker_env_var in service['environment']:
-                    if re.search("^[A-Z_]+$", docker_env_var) is None:
-                        if not self.unsafe_mode:
-                             raise RuntimeError(f"Docker container setup environment var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var} - Maybe consider using --unsafe")
-                    if re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", service['environment'][docker_env_var]) is None:
-                        if not self.unsafe_mode:
-                             raise RuntimeError(f"Docker container setup environment var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - Maybe consider using --unsafe")
+                    if not self.allow_unsafe and re.search("^[A-Z_]+$", docker_env_var) is None:
+                        if self.skip_unsafe:
+                            print(f"\n\n>>>>>>> Found environment var key with wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var} - Skipping <<<<<<<<\n\n")
+                            continue
+                        raise RuntimeError(f"Docker container setup environment var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var} - Maybe consider using --allow-unsafe or --skip-unsafe")
+
+                    if not self.allow_unsafe and re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", service['environment'][docker_env_var]) is None:
+                        if self.skip_unsafe:
+                            print(f"\n\n>>>>>>> Found environment var value with wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - Skipping <<<<<<<<\n\n")
+                            continue
+                        raise RuntimeError(f"Docker container setup environment var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - Maybe consider using --allow-unsafe --skip-unsafe")
 
                     docker_run_string.append('-e')
                     docker_run_string.append(f"{docker_env_var}={service['environment'][docker_env_var]}")
@@ -357,12 +367,24 @@ if __name__ == "__main__":
     parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others")
     parser.add_argument("--no-file-cleanup", action='store_true', help="Do not delete files in /tmp/green-metrics-tool")
     parser.add_argument("--debug", action='store_true', help="Activate steppable debug mode")
-    parser.add_argument("--unsafe", action='store_true', help="Activate unsafe volume bindings, portmappings and complex env vars")
+    parser.add_argument("--allow-unsafe", action='store_true', help="Activate unsafe volume bindings, ports and complex environment vars")
+    parser.add_argument("--skip-unsafe", action='store_true', help="Skip unsafe volume bindings, ports and complex environment vars")
+
     args = parser.parse_args()
 
     if args.uri is None:
-        print('Please supply --uri to get usage_scenario.yml from\n')
         parser.print_help()
+        print('\nError: Please supply --uri to get usage_scenario.yml from\n')
+        exit(2)
+
+    if args.allow_unsafe and args.skip_unsafe:
+        parser.print_help()
+        print("\nError: --allow-unsafe and skip--unsafe in conjuction is not possible\n")
+        exit(2)
+
+    if args.name is None:
+        parser.print_help()
+        print("\nError: Please supply --name\n")
         exit(2)
 
     if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://':
@@ -372,18 +394,15 @@ if __name__ == "__main__":
         print("Detected supplied folder: ", args.uri)
         uri_type = 'folder'
         if not Path(args.uri).is_dir():
-            print("Could not find folder on local system. Please double check: ", args.uri, "\n")
             parser.print_help()
+            print("\nError: Could not find folder on local system. Please double check: ", args.uri, "\n")
             exit(2)
     else:
-        print("Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ", args.uri,  "\n")
         parser.print_help()
+        print("\nError: Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ", args.uri,  "\n")
         exit(2)
 
-    if args.name is None:
-        print("Please supply --name\n")
-        parser.print_help()
-        exit(2)
+
 
 
     # We issue a fetch_one() instead of a query() here, cause we want to get the project_id
@@ -391,7 +410,7 @@ if __name__ == "__main__":
                 VALUES \
                 (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(args.name, args.uri))[0]
 
-    runner = Runner(debug_mode=args.debug, unsafe_mode=args.unsafe, no_file_cleanup=args.no_file_cleanup)
+    runner = Runner(debug_mode=args.debug, allow_unsafe=args.allow_unsafe, no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe)
     try:
         runner.run(uri=args.uri, uri_type=uri_type, project_id=project_id) # Start main code
         print(f"Please access your report with the ID: {project_id}")
