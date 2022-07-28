@@ -144,7 +144,7 @@ class Runner:
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
-                        docker_run_string.append(f"{volume}:ro")
+                        docker_run_string.append(f"{volume}")
                 else:
                     print('\n\n>>>>>>> Found volumes entry but not running in unsafe mode. Skipping <<<<<<<<\n\n', file=sys.stderr)
 
