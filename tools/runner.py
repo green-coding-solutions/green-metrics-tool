@@ -105,117 +105,123 @@ class Runner:
 
             self.metric_providers.append(metric_provider_obj)
 
-        if debug.active: debug.pause("Initial load complete. Waiting to start container setup.")
+        if debug.active: debug.pause("Initial load complete. Waiting to start network setup")
 
-        for el in obj['setup']:
-            if el['type'] == 'container':
-                container_name = el['name']
+        for network in obj['networks']:
+            print("Creating network: ", network)
+            subprocess.run(['docker', 'network', 'rm', network]) # remove first if present to not get error
+            subprocess.run(['docker', 'network', 'create', network])
+            self.networks.append(network)
 
-                print("Resetting container")
-                subprocess.run(["docker", "rm", "-f", container_name], stderr=subprocess.DEVNULL)  # often not running. so no check=true
 
-                print("Creating container")
-                # We are attaching the -it option here to keep STDIN open and a terminal attached.
-                # This helps to keep an excecutable-only container open, which would otherwise exit
-                # This MAY break in the future, as some docker CLI implementation do not allow this and require
-                # the command args to be passed on run only
+        if debug.active: debug.pause("Initial load complete. Waiting to start container setup")
 
-                # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
-                # injection of unwawnted params
-                docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
+        for container_name in obj['services']:
+            service = obj['services'][container_name]
 
-                docker_run_string.append('-v')
-                if 'folder-destination' in el:
-                    docker_run_string.append(f"{folder}:{el['folder-destination']}:ro")
+            print("Resetting container")
+            subprocess.run(["docker", "rm", "-f", container_name], stderr=subprocess.DEVNULL)  # often not running. so no check=true
+
+            print("Creating container")
+            # We are attaching the -it option here to keep STDIN open and a terminal attached.
+            # This helps to keep an excecutable-only container open, which would otherwise exit
+            # This MAY break in the future, as some docker CLI implementation do not allow this and require
+            # the command args to be passed on run only
+
+            # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
+            # injection of unwawnted params
+            docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
+
+            docker_run_string.append('-v')
+            if 'folder-destination' in service:
+                docker_run_string.append(f"{folder}:{service['folder-destination']}:ro")
+            else:
+                docker_run_string.append(f"{folder}:/tmp/repo:ro")
+
+            if 'volumes' in service:
+                if self.unsafe_mode:
+                    if(type(service['volumes']) != list):
+                        raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
+                    for volume in service['volumes']:
+                        docker_run_string.append('-v')
+                        docker_run_string.append(f"{volume}:ro")
                 else:
-                    docker_run_string.append(f"{folder}:/tmp/repo:ro")
+                    print('\n\n>>>>>>> Found volumes entry but not running in unsafe mode. Skipping <<<<<<<<\n\n', file=sys.stderr)
 
-                if 'volumes' in el:
-                    if self.unsafe_mode:
-                        if(type(el['volumes']) != list):
-                            raise RuntimeError(f"Volumes must be a list but is: {type(el['volumes'])}")
-                        for volume in el['volumes']:
-                            docker_run_string.append('-v')
-                            docker_run_string.append(f"{volume}:ro")
-                    else:
-                        print('\n\n>>>>>>> Found volumes entry but not running in unsafe mode. Skipping <<<<<<<<\n\n', file=sys.stderr)
+            if 'ports' in service:
+                if self.unsafe_mode:
+                    if(type(service['ports']) != list):
+                        raise RuntimeError(f"ports must be a list but is: {type(service['ports'])}")
+                    for ports in service['ports']:
+                        print("Setting ports: ", service['ports'])
+                        docker_run_string.append('-p')
+                        docker_run_string.append(ports)
+                else:
+                    print('\n\n>>>>>>> Found ports entry but not running in unsafe mode. Skipping <<<<<<<<\n\n', file=sys.stderr)
 
-                if 'portmapping' in el:
-                    if self.unsafe_mode:
-                        if(type(el['portmapping']) != list):
-                            raise RuntimeError(f"Portmapping must be a list but is: {type(el['portmapping'])}")
-                        for portmapping in el['portmapping']:
-                            print("Setting portmapping: ", el['portmapping'])
-                            docker_run_string.append('-p')
-                            docker_run_string.append(portmapping)
-                    else:
-                        print('\n\n>>>>>>> Found portmapping entry but not running in unsafe mode. Skipping <<<<<<<<\n\n', file=sys.stderr)
+            if 'environment' in service:
+                import re
+                for docker_env_var in service['environment']:
+                    if re.search("^[A-Z_]+$", docker_env_var) is None:
+                        if not self.unsafe_mode:
+                             raise RuntimeError(f"Docker container setup environment var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var} - Maybe consider using --unsafe")
+                    if re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", service['environment'][docker_env_var]) is None:
+                        if not self.unsafe_mode:
+                             raise RuntimeError(f"Docker container setup environment var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - Maybe consider using --unsafe")
 
-                if 'env' in el:
-                    import re
-                    for docker_env_var in el['env']:
-                        if re.search("^[A-Z_]+$", docker_env_var) is None:
-                            if not self.unsafe_mode:
-                                 raise RuntimeError(f"Docker container setup env var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var} - Maybe consider using --unsafe")
-                        if re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", el['env'][docker_env_var]) is None:
-                            if not self.unsafe_mode:
-                                 raise RuntimeError(f"Docker container setup env var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {el['env'][docker_env_var]} - Maybe consider using --unsafe")
+                    docker_run_string.append('-e')
+                    docker_run_string.append(f"{docker_env_var}={service['environment'][docker_env_var]}")
 
-                        docker_run_string.append('-e')
-                        docker_run_string.append(f"{docker_env_var}={el['env'][docker_env_var]}")
-
-                if 'network' in el:
+            if 'networks' in service:
+                for network in service['networks']:
                     docker_run_string.append('--net')
-                    docker_run_string.append(el['network'])
+                    docker_run_string.append(network)
 
-                docker_run_string.append(el['identifier'])
+            docker_run_string.append(service['image'])
 
-                if 'cmd' in el: # must come last
-                    docker_run_string.append(el['cmd'])
+            if 'cmd' in service: # must come last
+                docker_run_string.append(service['cmd'])
 
-                print(f"Running docker run with: {docker_run_string}")
+            print(f"Running docker run with: {docker_run_string}")
 
-                # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
+            # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
+            # injection of unwawnted params
+
+            ps = subprocess.run(
+                docker_run_string,
+                check=True,
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                encoding="UTF-8"
+            )
+
+            container_id = ps.stdout.strip()
+            self.containers[container_id] = container_name
+            print("Stdout:", container_id)
+
+            if "setup-commands" not in service: continue # setup commands are optional
+            print("Running commands")
+            for cmd in service['setup-commands']:
+                print("Running command: docker exec ", cmd)
+
+                # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
                 # injection of unwawnted params
-
                 ps = subprocess.run(
-                    docker_run_string,
+                    ["docker", "exec", container_name, *cmd.split()],
                     check=True,
                     stderr=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     encoding="UTF-8"
                 )
+                print("Stdout:", ps.stdout)
 
-                container_id = ps.stdout.strip()
-                self.containers[container_id] = container_name
-                print("Stdout:", container_id)
-
-                if "setup-commands" not in el.keys(): continue # setup commands are optional
-                print("Running commands")
-                for cmd in el['setup-commands']:
-                    print("Running command: docker exec ", cmd)
-
-                    # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
-                    # injection of unwawnted params
-                    ps = subprocess.run(
-                        ["docker", "exec", container_name, *cmd.split()],
-                        check=True,
-                        stderr=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        encoding="UTF-8"
-                    )
-                    print("Stdout:", ps.stdout)
-            elif el['type'] == 'network':
-                print("Creating network: ", el['name'])
-                subprocess.run(['docker', 'network', 'rm', el['name']]) # remove first if present to not get error
-                subprocess.run(['docker', 'network', 'create', el['name']])
-                self.networks.append(el['name'])
-            elif el['type'] == 'Dockerfile':
-                raise NotImplementedError("Green Metrics Tool can currently not consume Dockerfiles. This will be a premium feature, as it creates a lot of server usage and thus slows down Tests per Minute for our server.")
-            elif el['type'] == 'Docker-Compose':
-                raise NotImplementedError("Green Metrics Tool will not support that, because we wont support all features from docker compose, like for instance volumes and binding arbitrary directories")
-            else:
-                raise RuntimeError("Unknown type detected in setup: ", el.get('type', None))
+            # Obsolete warnings. But left in, cause reasoning for NotImplementedError still holds
+            #elif el['type'] == 'Dockerfile':
+            #    raise NotImplementedError("Green Metrics Tool can currently not consume Dockerfiles. This will be a premium feature, as it creates a lot of server usage and thus slows down Tests per Minute for our server.")
+            #elif el['type'] == 'Docker-Compose':
+            #    raise NotImplementedError("Green Metrics Tool will not support that, because we wont support all features from docker compose, like for instance volumes and binding arbitrary directories")
+            #else:
+            #    raise RuntimeError("Unknown type detected in setup: ", el.get('type', None))
 
         # --- setup finished
 
@@ -300,7 +306,7 @@ class Runner:
             for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd']):
                 print("Output from process: ", line)
                 if(ps['read-notes-stdout']):
-                    timestamp, note = line.split(' ', 1) # Fixed format according to defintion. If unpacking fails this is wanted error
+                    timestamp, note = line.split(' ', 1) # Fixed format according to our specification. If unpacking fails this is wanted error
                     notes.append({"note" : note, 'container_name' : ps['container_name'], "timestamp": timestamp})
 
         process_helpers.kill_ps(self.ps_to_kill) # kill process only after reading. Otherwise the stream buffer might be gone
