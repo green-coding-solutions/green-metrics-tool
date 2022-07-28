@@ -243,6 +243,7 @@ class Runner:
         if debug.active: debug.pause("metric-providers start complete. Waiting to start flow")
 
         start_measurement = int(time.time_ns() / 1_000)
+        notes.append({"note" : "Start of measurement", 'container_name' : '[SYSTEM]', "timestamp": start_measurement})
 
         # run the flows
         for el in obj['flow']:
@@ -284,6 +285,7 @@ class Runner:
                 if debug.active: debug.pause("Waiting to start next command in flow")
 
         end_measurement = int(time.time_ns() / 1_000)
+        notes.append({"note" : "End of measurement", 'container_name' : '[SYSTEM]', "timestamp": end_measurement})
 
         print(f"Idling containers after run for {config['measurement']['idle-time-end']}s")
         time.sleep(config['measurement']['idle-time-end'])
