@@ -107,11 +107,12 @@ class Runner:
 
         if debug.active: debug.pause("Initial load complete. Waiting to start network setup")
 
-        for network in obj['networks']:
-            print("Creating network: ", network)
-            subprocess.run(['docker', 'network', 'rm', network]) # remove first if present to not get error
-            subprocess.run(['docker', 'network', 'create', network])
-            self.networks.append(network)
+        if 'networks' in obj: # for some rare containers there is no network, like machine learning for example
+            for network in obj['networks']:
+                print("Creating network: ", network)
+                subprocess.run(['docker', 'network', 'rm', network]) # remove first if present to not get error
+                subprocess.run(['docker', 'network', 'create', network])
+                self.networks.append(network)
 
 
         if debug.active: debug.pause("Initial load complete. Waiting to start container setup")
