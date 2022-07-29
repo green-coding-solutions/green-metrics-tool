@@ -14,7 +14,7 @@ from db import DB
 example_repo="https://github.com/green-coding-berlin/example-applications"
 project_name = "test_" + utils.randomword(12)
 
-def test_runner_reports(capsys):
+def wip_test_runner_reports(capsys):
     config = GlobalConfig(config_name="test-config.yml").config
 
     ## Download example application, insert fake project to be run
