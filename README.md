@@ -8,6 +8,9 @@ Currently no special setup is done to isolate the containers from the host OS an
 
 Ensure that you run this only in an isolated VM / dedicated server.
 
+![Tests Status](https://github.com/github/docs/actions/workflows/tests.yml/badge.svg?event=push)
+
+
 # Introduction
 
 The Green Metrics Tool can orchestrate Docker containers according to a given specificaion in a usage-flow.json file.
