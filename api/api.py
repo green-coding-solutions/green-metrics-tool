@@ -3,6 +3,11 @@ import os
 import sys
 import psycopg2.extras
 from psycopg2 import OperationalError, errorcodes, errors
+import faulthandler
+
+# It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
+# Is the redundant call problematic
+faulthandler.enable() # will catch segfaults and write to STDERR
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../tools')

@@ -10,7 +10,10 @@ import sys
 import re
 import importlib
 import yaml
+import faulthandler
 from io import StringIO
+
+faulthandler.enable() # will catch segfaults and write to STDERR
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{current_dir}/../lib")
@@ -31,10 +34,11 @@ from debug_helper import DebugHelper
 # - No checks for possible command injections are done at the moment
 
 class Runner:
-    def __init__(self, debug_mode=False, unsafe_mode=False, no_file_cleanup=False):
+    def __init__(self, debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False):
         self.debug_mode = debug_mode
-        self.unsafe_mode = unsafe_mode
+        self.allow_unsafe = allow_unsafe
         self.no_file_cleanup = no_file_cleanup
+        self.skip_unsafe = skip_unsafe
 
         self.containers = {}
         self.networks = []
@@ -68,7 +72,7 @@ class Runner:
         print("From: ", obj['author'])
         print("Version ", obj['version'], "\n")
 
-        if(self.unsafe_mode):
+        if(self.allow_unsafe):
             print("\n\n>>>> Warning: Runner is running in unsafe mode <<<<<<\n\n")
 
         # Sanity checks first, before we insert anything in DB and rely on the linux subsystem to be present. ATM only linux is working
@@ -102,108 +106,139 @@ class Runner:
 
             self.metric_providers.append(metric_provider_obj)
 
-        for el in obj['setup']:
-            if el['type'] == 'container':
-                container_name = el['name']
+        if debug.active: debug.pause("Initial load complete. Waiting to start network setup")
 
-                print("Resetting container")
-                subprocess.run(["docker", "rm", "-f", container_name], stderr=subprocess.DEVNULL)  # often not running. so no check=true
+        if 'networks' in obj: # for some rare containers there is no network, like machine learning for example
+            for network in obj['networks']:
+                print("Creating network: ", network)
+                subprocess.run(['docker', 'network', 'rm', network]) # remove first if present to not get error
+                subprocess.run(['docker', 'network', 'create', network])
+                self.networks.append(network)
 
-                print("Creating container")
-                # We are attaching the -it option here to keep STDIN open and a terminal attached.
-                # This helps to keep an excecutable-only container open, which would otherwise exit
-                # This MAY break in the future, as some docker CLI implementation do not allow this and require
-                # the command args to be passed on run only
 
-                docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
+        if debug.active: debug.pause("Initial load complete. Waiting to start container setup")
 
-                docker_run_string.append('-v')
-                if 'folder-destination' in el:
-                    docker_run_string.append(f"{folder}:{el['folder-destination']}:ro")
+        for container_name in obj['services']:
+            service = obj['services'][container_name]
+
+            print("Resetting container")
+            subprocess.run(["docker", "rm", "-f", container_name], stderr=subprocess.DEVNULL)  # often not running. so no check=true
+
+            print("Creating container")
+            # We are attaching the -it option here to keep STDIN open and a terminal attached.
+            # This helps to keep an excecutable-only container open, which would otherwise exit
+            # This MAY break in the future, as some docker CLI implementation do not allow this and require
+            # the command args to be passed on run only
+
+            # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
+            # injection of unwawnted params
+            docker_run_string = ['docker', 'run', '-it', '-d', '--name', container_name]
+
+            docker_run_string.append('-v')
+            if 'folder-destination' in service:
+                docker_run_string.append(f"{folder}:{service['folder-destination']}:ro")
+            else:
+                docker_run_string.append(f"{folder}:/tmp/repo:ro")
+
+            if 'volumes' in service:
+                if self.allow_unsafe:
+                    if(type(service['volumes']) != list):
+                        raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
+                    for volume in service['volumes']:
+                        docker_run_string.append('-v')
+                        docker_run_string.append(f"{volume}")
+                elif self.skip_unsafe:
+                    print('\n\n>>>>>>> Found volumes entry but not running in unsafe mode. Skipping <<<<<<<<\n\n')
                 else:
-                    docker_run_string.append(f"{folder}:/tmp/repo:ro")
+                    raise RuntimeError(f"Found 'volumes' but neither --skip-unsafe nor --allow-unsafe is set")
 
-                if 'volumes' in el:
-                    if self.unsafe_mode:
-                        if(type(el['volumes']) != list):
-                            raise RuntimeError(f"Volumes must be a list but is: {type(el['volumes'])}")
-                        for volume in el['volumes']:
-                            docker_run_string.append('-v')
-                            docker_run_string.append(f"{volume}:ro")
-                    else:
-                        print('\n\n>>>>>>> Found volumes entry but not running in unsafe mode. Skipping <<<<<<<<\n\n', file=sys.stderr)
+            if 'ports' in service:
+                if self.allow_unsafe:
+                    if(type(service['ports']) != list):
+                        raise RuntimeError(f"ports must be a list but is: {type(service['ports'])}")
+                    for ports in service['ports']:
+                        print("Setting ports: ", service['ports'])
+                        docker_run_string.append('-p')
+                        docker_run_string.append(ports)
+                elif self.skip_unsafe:
+                    print('\n\n>>>>>>> Found ports entry but not running in unsafe mode. Skipping <<<<<<<<\n\n')
+                else:
+                    raise RuntimeError(f"Found 'ports' but neither --skip-unsafe nor --allow-unsafe is set")
 
-                if 'portmapping' in el:
-                    if self.unsafe_mode:
-                        if(type(el['portmapping']) != list):
-                            raise RuntimeError(f"Portmapping must be a list but is: {type(el['portmapping'])}")
-                        for portmapping in el['portmapping']:
-                            print("Setting portmapping: ", el['portmapping'])
-                            docker_run_string.append('-p')
-                            docker_run_string.append(portmapping)
-                    else:
-                        print('\n\n>>>>>>> Found portmapping entry but not running in unsafe mode. Skipping <<<<<<<<\n\n', file=sys.stderr)
+            if 'environment' in service:
+                import re
+                for docker_env_var in service['environment']:
+                    if not self.allow_unsafe and re.search("^[A-Z_]+$", docker_env_var) is None:
+                        if self.skip_unsafe:
+                            print(f"\n\n>>>>>>> Found environment var key with wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var} - Skipping <<<<<<<<\n\n")
+                            continue
+                        raise RuntimeError(f"Docker container setup environment var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var} - Maybe consider using --allow-unsafe or --skip-unsafe")
 
-                if 'env' in el:
-                    import re
-                    for docker_env_var in el['env']:
-                        if re.search("^[A-Z_]+$", docker_env_var) is None:
-                            if not self.unsafe_mode:
-                                 raise RuntimeError(f"Docker container setup env var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var} - Maybe consider using --unsafe")
-                        if re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", el['env'][docker_env_var]) is None:
-                            if not self.unsafe_mode:
-                                 raise RuntimeError(f"Docker container setup env var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {el['env'][docker_env_var]} - Maybe consider using --unsafe")
+                    if not self.allow_unsafe and re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", service['environment'][docker_env_var]) is None:
+                        if self.skip_unsafe:
+                            print(f"\n\n>>>>>>> Found environment var value with wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - Skipping <<<<<<<<\n\n")
+                            continue
+                        raise RuntimeError(f"Docker container setup environment var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - Maybe consider using --allow-unsafe --skip-unsafe")
 
-                        docker_run_string.append('-e')
-                        docker_run_string.append(f"{docker_env_var}={el['env'][docker_env_var]}")
+                    docker_run_string.append('-e')
+                    docker_run_string.append(f"{docker_env_var}={service['environment'][docker_env_var]}")
 
-                if 'network' in el:
+            if 'networks' in service:
+                for network in service['networks']:
                     docker_run_string.append('--net')
-                    docker_run_string.append(el['network'])
+                    docker_run_string.append(network)
 
-                docker_run_string.append(el['identifier'])
+            docker_run_string.append(service['image'])
 
-                print(f"Running docker run with: {docker_run_string}")
+            if 'cmd' in service: # must come last
+                docker_run_string.append(service['cmd'])
 
+            print(f"Running docker run with: {docker_run_string}")
+
+            # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
+            # injection of unwawnted params
+
+            ps = subprocess.run(
+                docker_run_string,
+                check=True,
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                encoding="UTF-8"
+            )
+
+            container_id = ps.stdout.strip()
+            self.containers[container_id] = container_name
+            print("Stdout:", container_id)
+
+            if "setup-commands" not in service: continue # setup commands are optional
+            print("Running commands")
+            for cmd in service['setup-commands']:
+                print("Running command: docker exec ", cmd)
+
+                # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
+                # injection of unwawnted params
                 ps = subprocess.run(
-                    docker_run_string,
+                    ["docker", "exec", container_name, *cmd.split()],
                     check=True,
                     stderr=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     encoding="UTF-8"
                 )
+                print("Stdout:", ps.stdout)
 
-                container_id = ps.stdout.strip()
-                self.containers[container_id] = container_name
-                print("Stdout:", container_id)
-
-                if "setup-commands" not in el.keys(): continue # setup commands are optional
-                print("Running commands")
-                for cmd in el['setup-commands']:
-                    print("Running command: docker exec ", cmd)
-                    ps = subprocess.run(
-                        ["docker", "exec", container_name, *cmd.split()],
-                        check=True,
-                        stderr=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        encoding="UTF-8"
-                    )
-                    print("Stdout:", ps.stdout)
-            elif el['type'] == 'network':
-                print("Creating network: ", el['name'])
-                subprocess.run(['docker', 'network', 'rm', el['name']]) # remove first if present to not get error
-                subprocess.run(['docker', 'network', 'create', el['name']])
-                self.networks.append(el['name'])
-            elif el['type'] == 'Dockerfile':
-                raise NotImplementedError("Green Metrics Tool can currently not consume Dockerfiles. This will be a premium feature, as it creates a lot of server usage and thus slows down Tests per Minute for our server.")
-            elif el['type'] == 'Docker-Compose':
-                raise NotImplementedError("Green Metrics Tool will not support that, because we wont support all features from docker compose, like for instance volumes and binding arbitrary directories")
-            else:
-                raise RuntimeError("Unknown type detected in setup: ", el.get('type', None))
+            # Obsolete warnings. But left in, cause reasoning for NotImplementedError still holds
+            #elif el['type'] == 'Dockerfile':
+            #    raise NotImplementedError("Green Metrics Tool can currently not consume Dockerfiles. This will be a premium feature, as it creates a lot of server usage and thus slows down Tests per Minute for our server.")
+            #elif el['type'] == 'Docker-Compose':
+            #    raise NotImplementedError("Green Metrics Tool will not support that, because we wont support all features from docker compose, like for instance volumes and binding arbitrary directories")
+            #else:
+            #    raise RuntimeError("Unknown type detected in setup: ", el.get('type', None))
 
         # --- setup finished
 
         print("Current known containers: ", self.containers)
+
+        if debug.active: debug.pause("Container setup complete. Waiting to start metric-providers")
 
         for metric_provider in self.metric_providers:
             print(f"Starting measurement provider {metric_provider.__class__.__name__}")
@@ -215,16 +250,15 @@ class Runner:
 
         time.sleep(config['measurement']['idle-time-start'])
 
-        debug.pause() # Will only pause if object state is currently "active"
+        if debug.active: debug.pause("metric-providers start complete. Waiting to start flow")
 
         start_measurement = int(time.time_ns() / 1_000)
+        notes.append({"note" : "Start of measurement", 'container_name' : '[SYSTEM]', "timestamp": start_measurement})
 
         # run the flows
         for el in obj['flow']:
             print("Running flow: ", el['name'])
             for inner_el in el['commands']:
-
-                debug.pause() # Will only pause if object state is currently "active"
 
                 if "note" in inner_el:
                     notes.append({"note" : inner_el['note'], 'container_name' : el['container'], "timestamp": int(time.time_ns() / 1_000)})
@@ -258,7 +292,10 @@ class Runner:
                 else:
                     raise RuntimeError("Unknown command type in flow: ", inner_el['type'])
 
+                if debug.active: debug.pause("Waiting to start next command in flow")
+
         end_measurement = int(time.time_ns() / 1_000)
+        notes.append({"note" : "End of measurement", 'container_name' : '[SYSTEM]', "timestamp": end_measurement})
 
         print(f"Idling containers after run for {config['measurement']['idle-time-end']}s")
         time.sleep(config['measurement']['idle-time-end'])
@@ -282,7 +319,7 @@ class Runner:
             for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd']):
                 print("Output from process: ", line)
                 if(ps['read-notes-stdout']):
-                    timestamp, note = line.split(' ', 1) # Fixed format according to defintion. If unpacking fails this is wanted error
+                    timestamp, note = line.split(' ', 1) # Fixed format according to our specification. If unpacking fails this is wanted error
                     notes.append({"note" : note, 'container_name' : ps['container_name'], "timestamp": timestamp})
 
         process_helpers.kill_ps(self.ps_to_kill) # kill process only after reading. Otherwise the stream buffer might be gone
@@ -330,12 +367,24 @@ if __name__ == "__main__":
     parser.add_argument("--name", type=str, help="A name which will be stored to the database to discern this run from others")
     parser.add_argument("--no-file-cleanup", action='store_true', help="Do not delete files in /tmp/green-metrics-tool")
     parser.add_argument("--debug", action='store_true', help="Activate steppable debug mode")
-    parser.add_argument("--unsafe", action='store_true', help="Activate unsafe volume bindings, portmappings and complex env vars")
+    parser.add_argument("--allow-unsafe", action='store_true', help="Activate unsafe volume bindings, ports and complex environment vars")
+    parser.add_argument("--skip-unsafe", action='store_true', help="Skip unsafe volume bindings, ports and complex environment vars")
+
     args = parser.parse_args()
 
     if args.uri is None:
-        print('Please supply --uri to get usage_scenario.yml from\n')
         parser.print_help()
+        print('\nError: Please supply --uri to get usage_scenario.yml from\n')
+        exit(2)
+
+    if args.allow_unsafe and args.skip_unsafe:
+        parser.print_help()
+        print("\nError: --allow-unsafe and skip--unsafe in conjuction is not possible\n")
+        exit(2)
+
+    if args.name is None:
+        parser.print_help()
+        print("\nError: Please supply --name\n")
         exit(2)
 
     if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://':
@@ -345,18 +394,15 @@ if __name__ == "__main__":
         print("Detected supplied folder: ", args.uri)
         uri_type = 'folder'
         if not Path(args.uri).is_dir():
-            print("Could not find folder on local system. Please double check: ", args.uri, "\n")
             parser.print_help()
+            print("\nError: Could not find folder on local system. Please double check: ", args.uri, "\n")
             exit(2)
     else:
-        print("Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ", args.uri,  "\n")
         parser.print_help()
+        print("\nError: Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ", args.uri,  "\n")
         exit(2)
 
-    if args.name is None:
-        print("Please supply --name\n")
-        parser.print_help()
-        exit(2)
+
 
 
     # We issue a fetch_one() instead of a query() here, cause we want to get the project_id
@@ -364,7 +410,7 @@ if __name__ == "__main__":
                 VALUES \
                 (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(args.name, args.uri))[0]
 
-    runner = Runner(debug_mode=args.debug, unsafe_mode=args.unsafe, no_file_cleanup=args.no_file_cleanup)
+    runner = Runner(debug_mode=args.debug, allow_unsafe=args.allow_unsafe, no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe)
     try:
         runner.run(uri=args.uri, uri_type=uri_type, project_id=project_id) # Start main code
         print(f"Please access your report with the ID: {project_id}")
