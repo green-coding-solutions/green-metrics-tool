@@ -27,6 +27,7 @@ measurement:
     time.cgroup.container.provider.TimeCgroupContainerProvider: 100
     time.cgroup.system.provider.TimeCgroupSystemProvider: 100
     time.proc.system.provider.TimeProcSystemProvider: 100
+    network.cgroup.container.provider.NetworkCgroupContainerProvider: 100
 
 admin:
   # This address will get an email, when a new project was added through the frontend

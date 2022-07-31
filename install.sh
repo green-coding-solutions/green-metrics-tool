@@ -28,8 +28,8 @@ while IFS= read -r subdir; do
     fi
 done
 
-sudo_line="$USER ALL=(ALL) NOPASSWD: $PWD/tools/metric_providers/energy/RAPL/MSR/system/static-binary -i 1000"
-sudo_line_2="$USER ALL=(ALL) NOPASSWD: $PWD/tools/metric_providers/energy/RAPL/MSR/system/static-binary -i 100"
+sudo_line="$USER ALL=(ALL) NOPASSWD: $PWD/tools/metric_providers/energy/RAPL/MSR/system/static-binary -i *"
+sudo_line_2="$USER ALL=(ALL) NOPASSWD: $PWD/tools/metric_providers/network/docker/stats/container/static-binary -i * -s *"
 
 etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
 etc_hosts_line_2="127.0.0.1 api.green-coding.local metrics.green-coding.local"
