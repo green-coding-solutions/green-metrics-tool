@@ -29,20 +29,20 @@ while IFS= read -r subdir; do
 done
 
 sudo_line="$USER ALL=(ALL) NOPASSWD: $PWD/tools/metric_providers/energy/RAPL/MSR/system/static-binary -i *"
-sudo_line_2="$USER ALL=(ALL) NOPASSWD: $PWD/tools/metric_providers/network/docker/stats/container/static-binary -i * -s *"
+sudo_line_2="$USER ALL=(ALL) NOPASSWD: $PWD/tools/metric_providers/network/cgroup/container/static-binary -i * -s *"
 
 etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
 etc_hosts_line_2="127.0.0.1 api.green-coding.local metrics.green-coding.local"
 
 echo "Writing to /etc/sudoers file..."
 if ! sudo grep -Fxq "$sudo_line" /etc/sudoers; then
-    echo $sudo_line | sudo tee -a /etc/sudoers
+    echo "$sudo_line" | sudo tee -a /etc/sudoers
 else
     echo "Entry was already present..."
 fi
 
 if ! sudo grep -Fxq "$sudo_line_2" /etc/sudoers; then
-    echo $sudo_line_2 | sudo tee -a /etc/sudoers
+    echo "$sudo_line_2" | sudo tee -a /etc/sudoers
 else    
     echo "Entry was already present..."
 fi
@@ -51,13 +51,13 @@ fi
 
 echo "Writing to /etc/hosts file..."
 if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
-    echo $etc_hosts_line_1 | sudo tee -a /etc/hosts
+    echo "$etc_hosts_line_1" | sudo tee -a /etc/hosts
 else
     echo "Entry was already present..."
 fi
 
 if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
-    echo $etc_hosts_line_2 | sudo tee -a /etc/hosts
+    echo "$etc_hosts_line_2" | sudo tee -a /etc/hosts
 else    
     echo "Entry was already present..."
 fi
