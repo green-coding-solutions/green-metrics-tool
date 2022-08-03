@@ -36,6 +36,7 @@
 #include <string.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
+#include <stdbool.h>
 
 
 /* AMD Support */
@@ -156,7 +157,6 @@ static long long read_msr(int fd, unsigned int which) {
 #define CPU_ATOM_DENVERTON    95
 #define CPU_TIGER_LAKE        140
 
-
 #define CPU_AMD_FAM17H        0xc000
 
 
@@ -270,19 +270,84 @@ static int detect_packages(void) {
 /* MSR code                    */
 /*******************************/
 
-static int rapl_msr(int core, int cpu_model) {
+static int rapl_msr(int cpu_model, bool measure_energy_pkg, bool measure_dram) {
 
     int fd;
     long long result;
     double power_units,time_units;
-    double cpu_energy_units[MAX_PACKAGES];
+    double cpu_energy_units[MAX_PACKAGES],dram_energy_units[MAX_PACKAGES];
     double package_before[MAX_PACKAGES],package_after[MAX_PACKAGES];
+    double dram_before[MAX_PACKAGES],dram_after[MAX_PACKAGES];
     int j;
     struct timeval now;
 
+    int dram_avail=0;
+    int different_units=0;
+
+    if(measure_dram) {
+        switch(cpu_model) {
+            case CPU_SANDYBRIDGE_EP:
+            case CPU_IVYBRIDGE_EP:
+                dram_avail=1;
+                different_units=0;
+                break;
+
+            case CPU_HASWELL_EP:
+            case CPU_BROADWELL_EP:
+            case CPU_SKYLAKE_X:
+                dram_avail=1;
+                different_units=1;
+                break;
+
+            case CPU_KNIGHTS_LANDING:
+            case CPU_KNIGHTS_MILL:
+                dram_avail=1;
+                different_units=1;
+                break;
+
+            case CPU_SANDYBRIDGE:
+            case CPU_IVYBRIDGE:
+                dram_avail=0;
+                different_units=0;
+                break;
+
+            case CPU_HASWELL:
+            case CPU_HASWELL_ULT:
+            case CPU_HASWELL_GT3E:
+            case CPU_BROADWELL:
+            case CPU_BROADWELL_GT3E:
+            case CPU_ATOM_GOLDMONT:
+            case CPU_ATOM_GEMINI_LAKE:
+            case CPU_ATOM_DENVERTON:
+                dram_avail=1;
+                different_units=0;
+                break;
+
+            case CPU_SKYLAKE:
+            case CPU_SKYLAKE_HS:
+            case CPU_KABYLAKE:
+            case CPU_KABYLAKE_MOBILE:
+                dram_avail=1;
+                different_units=0;
+                break;
+
+            case CPU_AMD_FAM17H:
+                dram_avail=0;
+                different_units=0;
+                break;
+            case CPU_TIGER_LAKE:
+                dram_avail=0;        // guess, find documentation
+                different_units=0;   // guess, find documentation
+                break;
+        }
+    }
+
+    if(measure_dram && !dram_avail) {
+        fprintf(stderr,"DRAM not available for your processer.\n");
+    }
 
     if (cpu_model<0) {
-        printf("\tUnsupported CPU model %d\n",cpu_model);
+        fprintf(stderr, "\tUnsupported CPU model %d\n",cpu_model);
         return -1;
     }
 
@@ -303,6 +368,12 @@ static int rapl_msr(int core, int cpu_model) {
 
         time_units=pow(0.5,(double)((result>>16)&0xf));
 
+        if(measure_dram && different_units) {
+            dram_energy_units[j]=pow(0.5,(double)16);
+        }
+        else if (measure_dram && !different_units) {
+            dram_energy_units[j]=cpu_energy_units[j]; 
+        }
         close(fd);
 
     }
@@ -312,8 +383,17 @@ static int rapl_msr(int core, int cpu_model) {
         fd=open_msr(package_map[j]);
 
         /* Package Energy */
-        result=read_msr(fd,msr_pkg_energy_status);
-        package_before[j]=(double)result*cpu_energy_units[j];
+        if(measure_energy_pkg)
+        {
+            result=read_msr(fd,msr_pkg_energy_status);
+            package_before[j]=(double)result*cpu_energy_units[j];
+        }
+
+        /* Dram Energy */
+        else if (dram_avail && measure_dram) {
+            result=read_msr(fd,MSR_DRAM_ENERGY_STATUS);
+            dram_before[j]=(double)result*dram_energy_units[j];
+        }
 
         close(fd);
     }
@@ -323,10 +403,18 @@ static int rapl_msr(int core, int cpu_model) {
     for(j=0;j<total_packages;j++) {
         fd=open_msr(package_map[j]);
 
-        result=read_msr(fd,msr_pkg_energy_status);
-        package_after[j]=(double)result*cpu_energy_units[j];
+        double energy_output = 0.0;
+        if(measure_energy_pkg) {
+            result=read_msr(fd,msr_pkg_energy_status);
+            package_after[j]=(double)result*cpu_energy_units[j];
+            energy_output = package_after[j]-package_before[j];
+        }
+        else if (dram_avail  && measure_dram) {
+            result=read_msr(fd,MSR_DRAM_ENERGY_STATUS);
+            dram_after[j]=(double)result*dram_energy_units[j];
+            energy_output = dram_after[j]-dram_before[j];
+        }
 
-        double energy_output = package_after[j]-package_before[j];
         gettimeofday(&now, NULL);
         printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000));
 
@@ -336,37 +424,25 @@ static int rapl_msr(int core, int cpu_model) {
     return 0;
 }
 
-
-#define NUM_RAPL_DOMAINS    5
-
-char rapl_domain_names[NUM_RAPL_DOMAINS][30]= {
-    "energy-cores",
-    "energy-gpu",
-    "energy-pkg",
-    "energy-ram",
-    "energy-psys",
-};
-
-//TODO: Analyze output - some timestamps are smaller. investigate why.
 int main(int argc, char **argv) {
 
     int c;
-    int core=0;
     int cpu_model;
+    bool measure_dram=false;
 
-    while ((c = getopt (argc, argv, "c:hi:")) != -1) {
+    while ((c = getopt (argc, argv, "hi:d")) != -1) {
         switch (c) {
-        case 'c':
-            core = atoi(optarg);
-            break;
         case 'h':
-            printf("Usage: %s [-c core] [-h] [-m]\n\n",argv[0]);
-            printf("\t-c core : specifies which core to measure\n");
+            printf("Usage: %s [-h] [-m]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n\n");
+            printf("\t-d      : measure the dram energy instead of the entire package");
             exit(0);
         case 'i':
             msleep_time = atoi(optarg);
+            break;
+        case 'd':
+            measure_dram=true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -380,7 +456,9 @@ int main(int argc, char **argv) {
     detect_packages();
 
     while(1) {
-        rapl_msr(core,cpu_model);
+        // For now, either measure energy-pkg, or dram, but not both
+        // this is based on whether the -d flag was passed in
+        rapl_msr(cpu_model, !measure_dram, measure_dram);
     }
 
     return 0;
