@@ -127,12 +127,38 @@
             </div>
             <div class="ui card">
                 <div class="ui content">
-                    <div class="ui top attached orange  label">Total Energy</div>
-                    <div class="ui bottom right attached label">CPU Package</div>
+                    <div class="ui top attached orange  label">CPU Energy</div>
+                    <div class="ui bottom right attached label">Intel RAPL CPU Package</div>
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
-                                <i class="power off icon"></i> <span id="total-energy">- J</span>
+                                <i class="power off icon"></i> <span id="cpu-energy">- J</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ui card">
+                <div class="ui content">
+                    <div class="ui top attached orange  label">RAM Energy</div>
+                    <div class="ui bottom right attached label">Intel RAPL DRAM</div>
+                    <div class="description">
+                        <div class="ui tiny statistic">
+                            <div class="value">
+                                <i class="power off icon"></i> <span id="ram-energy">- J</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ui card">
+                <div class="ui content">
+                    <div class="ui top attached orange  label">Network Energy</div>
+                    <div class="ui bottom right attached label">via formula</div>
+                    <div class="description">
+                        <div class="ui tiny statistic">
+                            <div class="value">
+                                <i class="power off icon"></i> <span id="ram-energy">- kWh</span>
                             </div>
                         </div>
                     </div>
@@ -141,7 +167,7 @@
             <div class="ui card">
                 <div class="ui content">
                     <div class="ui top black attached label">Total co2 </div>
-                    <div class="ui bottom right attached label">CPU Package</div>
+                    <div class="ui bottom right attached label">CPU + RAM</div>
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
