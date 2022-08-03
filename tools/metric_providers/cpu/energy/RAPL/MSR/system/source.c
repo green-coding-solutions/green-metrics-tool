@@ -344,11 +344,12 @@ static int rapl_msr(int cpu_model, bool measure_energy_pkg, bool measure_dram) {
 
     if(measure_dram && !dram_avail) {
         fprintf(stderr,"DRAM not available for your processer.\n");
+        exit(-1);
     }
 
     if (cpu_model<0) {
         fprintf(stderr, "\tUnsupported CPU model %d\n",cpu_model);
-        return -1;
+        exit(-1);
     }
 
     for(j=0;j<total_packages;j++) {
@@ -372,7 +373,7 @@ static int rapl_msr(int cpu_model, bool measure_energy_pkg, bool measure_dram) {
             dram_energy_units[j]=pow(0.5,(double)16);
         }
         else if (measure_dram && !different_units) {
-            dram_energy_units[j]=cpu_energy_units[j]; 
+            dram_energy_units[j]=cpu_energy_units[j];
         }
         close(fd);
 
