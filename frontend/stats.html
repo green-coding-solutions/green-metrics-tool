@@ -119,7 +119,7 @@
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
-                                <i class="microchip icon"></i> <span id="avg-mem-load">-</span>
+                                <i class="memory icon"></i> <span id="avg-mem-load">-</span>
                             </div>
                         </div>
                     </div>
@@ -131,7 +131,7 @@
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
-                                <i class="power off icon"></i> <span id="network-io">- GB</span>
+                                <i class="exchange alternate icon"></i> <span id="network-io">- GB</span>
                             </div>
                         </div>
                     </div>
@@ -189,19 +189,6 @@
                     </div>
                 </div>
             </div>
-            <div class="ui card">
-                <div class="ui content">
-                    <div class="ui top black attached label">daily co2 budget </div>
-                    <div class="ui bottom right attached label">for 100x per day</div>
-                    <div class="description">
-                        <div class="ui tiny statistic">
-                            <div class="value">
-                                <i class="burn icon"></i> <span id="co2-budget-utilization"> - %</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div><!-- end ui four cards stackable -->
         <div class="ui icon message">
             <i class="question circle icon"></i>
@@ -209,7 +196,7 @@
                 <div class="header">
                     How much is this value of CO2 to something tangible?
                 </div>
-                <p>CO2 of software per run is relatively small. The values get big though cause software is repeatedly run.<br>Therefore the following numbers reflect the CO2 value of the software as if it was run for 10.000 times a day over 30 days (typical medium-website monthly request volume).</p>
+                <p>CO2 of software per run is relatively small. The values get big though cause software is repeatedly run.<br>Therefore the following numbers reflect the CO2 value of the software as if it was run for 100 times a day over 30 days.</p>
                 <p>Source of CO2 to Tree etc. conversion: <a href="https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator">EPA</a></p>
             </div>
         </div>
@@ -248,16 +235,6 @@
             </div>
             <div class="card">
                 <div class="content">
-                    <div class="ui header">Smartphones charged</div>
-                    <div class="ui small statistic">
-                        <div class="value">
-                            <i class="mobile alternate icon"></i> <span id="smartphones-charged">-</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="card">
-                <div class="content">
                     <div class="ui header">Flights</div>
                     <div class="ui small statistic">
                         <div class="value">
@@ -265,6 +242,17 @@
                         </div>
                     </div>
                     <div class="ui top right attached label">Berlin &raquo; NYC</div>
+                </div>
+            </div>
+            <div class="ui card">
+                <div class="ui content">
+                    <div class="ui header">co2 budget / day</div>
+                    <div class="ui small statistic">
+                        <div class="value">
+                            <i class="user icon"></i> <span id="co2-budget-utilization"> - %</span>
+                        </div>
+                    </div>
+                    <div class="ui bottom right attached label">for 100 runs per day</div>
                 </div>
             </div>
         </div><!-- end ui five cards stackable -->
