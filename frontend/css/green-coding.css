@@ -27,6 +27,9 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
     margin-top: 14px;
 }
 
+.no-transform-statistics .tiny.statistic .value {
+    text-transform: none;
+}
 
 .statistics-chart-card {
     min-width: 600px;
