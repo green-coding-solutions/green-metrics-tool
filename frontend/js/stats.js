@@ -100,7 +100,7 @@ const fillProjectTab = (selector, data) => {
 }
 
 const getMetrics = (stats_data, style='apex') => {
-    const metrics = {cpu_load: [], mem_load: [], series: {}, total_energy: 0}
+    const metrics = {cpu_load: [], mem_total: [], network_io: {}, series: {}, cpu_energy: 0, ram_energy: 0}
 
     let accumulate = 0;
 
@@ -123,15 +123,21 @@ const getMetrics = (stats_data, style='apex') => {
         let time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
         let value = el[3]; // default
 
-        if (el[2] == 'cpu_cgroup_container') { // value is
+        if (el[2] == 'cpu_utilization_cgroup_container') { // value is
             value = el[3] / 100; // CPU comes as ratio, but since stored as integer is was multiplicated with 100
             if (accumulate === 1) metrics.cpu_load.push(value);
-        } else if (el[2] == 'energy_RAPL_MSR_system') {
+        } else if (el[2] == 'cpu_energy_rapl_msr_system') {
             value = el[3] / 1000; // value is in mJ
-            if (accumulate === 1) metrics.total_energy += value;
-        } else if (el[2] == 'memory_cgroup_container') {
+            if (accumulate === 1) metrics.cpu_energy += value;
+        } else if (el[2] == 'ram_energy_rapl_msr_system') {
+            value = el[3] / 1000; // value is in mJ
+            if (accumulate === 1) metrics.ram_energy += value;
+        } else if (el[2] == 'memory_total_cgroup_container') {
             value = el[3] / 1000000; // make memory in MB since it comes in Bytes
-            if (accumulate === 1) metrics.mem_load.push(value);
+            if (accumulate === 1) metrics.mem_total.push(value);
+        } else if (el[2] == 'network_io_cgroup_container') {
+            value = el[3] / 1000000000; // make memory in GB since it comes in Bytes
+            metrics.network_io[el[0]] = value; // save only the last value per container (overwrite)
         }
 
         // Depending on the charting library the object has to be reformatted
@@ -287,29 +293,45 @@ const createGraph = (element, data, labels, title) => {
 
 const fillAvgContainers = (metrics) => {
 
-    const total_energy_in_kW = (metrics.total_energy / 1000) / 3600;
-    let total_CO2_in_kg = (total_energy_in_kW * 0.519) / 1000;
+    const cpu_energy_in_mWh = ((metrics.cpu_energy) / 3600) * 1000;
+    const ram_energy_in_mWh = ((metrics.ram_energy) / 3600) * 1000;
+    let network_io = 0;
+    for (item in metrics.network_io) {
+        network_io =  metrics.network_io[item];
+    }
+    const network_io_in_mWh = (network_io * 0.06) * 1000000;
+    const total_energy_in_mWh = cpu_energy_in_mWh + ram_energy_in_mWh + network_io_in_mWh;
+    let total_CO2_in_kg = ( (total_energy_in_mWh / 1000000) * 519) / 1000;
+    const daily_co2_budget_in_kg_per_day = 1.739; // (12.7 * 1000 * 0.05) / 365 from https://www.pawprint.eco/eco-blog/average-carbon-footprint-uk and https://www.pawprint.eco/eco-blog/average-carbon-footprint-globally
+    let co2_budget_utilization = total_CO2_in_kg*100 / daily_co2_budget_in_kg_per_day;
 
 
     let co2_display = { value: total_CO2_in_kg, unit: 'kg'};
-    console.log(total_CO2_in_kg);
     if     (total_CO2_in_kg < 0.0000000001) co2_display = { value: total_CO2_in_kg*(10**12), unit: 'ng'};
     else if(total_CO2_in_kg < 0.0000001) co2_display = { value: total_CO2_in_kg*(10**9), unit: 'ug'};
     else if(total_CO2_in_kg < 0.0001) co2_display = { value: total_CO2_in_kg*(10**6), unit: 'mg'};
     else if(total_CO2_in_kg < 0.1) co2_display = { value: total_CO2_in_kg*(10**3), unit: 'g'};
 
-    document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, metrics.cpu_load)) + " %"
-    document.querySelector("#total-energy").innerText = (metrics.total_energy).toFixed(2) + " J"
-    document.querySelector("#total-co2").innerHTML = `${(co2_display.value).toFixed(2)} <span style='text-transform: lowercase;'>${co2_display.unit}</span>`
-    document.querySelector("#avg-cpu-load").innerText = ((metrics.cpu_load.reduce((a, b) => a + b, 0) / metrics.cpu_load.length)).toFixed(2) + " %"
-    document.querySelector("#avg-mem-load").innerText = ((metrics.mem_load.reduce((a, b) => a + b, 0) / metrics.mem_load.length)).toFixed(2) + " MB"
+    document.querySelector("#cpu-energy").innerText = cpu_energy_in_mWh.toFixed(2) + " mWh"
+    document.querySelector("#ram-energy").innerText = ram_energy_in_mWh.toFixed(2) + " mWh"
 
-    upscaled_CO2_in_kg = total_CO2_in_kg * 10000 * 30; // upscaled by 30 days for 10.000 requests (or runs) per day
+    document.querySelector("#network-io").innerText = network_io.toFixed(2) + " GB"
+    document.querySelector("#network-energy").innerHTML = network_io_in_mWh.toFixed(2) + " mWh"
+
+    document.querySelector("#total-co2").innerHTML = `${(co2_display.value).toFixed(2)} ${co2_display.unit}`
+    document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + " %"
+
+    document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, metrics.cpu_load)) + " %"
+    document.querySelector("#avg-cpu-load").innerText = ((metrics.cpu_load.reduce((a, b) => a + b, 0) / metrics.cpu_load.length)).toFixed(2) + " %"
+
+    document.querySelector("#avg-mem-load").innerText = ((metrics.mem_total.reduce((a, b) => a + b, 0) / metrics.mem_total.length)).toFixed(2) + " MB"
+
+    upscaled_CO2_in_kg = total_CO2_in_kg * 100 * 30 ; // upscaled by 30 days for 10.000 requests (or runs) per day
 
     document.querySelector("#trees").innerText = (upscaled_CO2_in_kg / 0.06 / 1000).toFixed(2);
     document.querySelector("#miles-driven").innerText = (upscaled_CO2_in_kg / 0.000403 / 1000).toFixed(2);
     document.querySelector("#gasoline").innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
-    document.querySelector("#smartphones-charged").innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
+    // document.querySelector("#smartphones-charged").innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
     document.querySelector("#flights").innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
 }
 

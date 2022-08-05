@@ -1,6 +1,9 @@
 import sys, os
 import runner
 import subprocess
+import faulthandler
+
+faulthandler.enable() # will catch segfaults and write to STDERR
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 import error_helpers
