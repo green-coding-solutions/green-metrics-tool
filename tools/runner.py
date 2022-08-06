@@ -243,6 +243,17 @@ class Runner:
         for metric_provider in self.metric_providers:
             print(f"Starting measurement provider {metric_provider.__class__.__name__}")
             metric_provider.start_profiling(self.containers)
+            os.set_blocking(metric_provider._ps.stderr.fileno(), False)
+
+        print("Waiting for Metric Providers to boot ...")
+        time.sleep(2)
+
+        for metric_provider in self.metric_providers:
+            stderr_read = metric_provider._ps.stderr.read()
+            print(f"Stderr check on {metric_provider.__class__.__name__}")
+            if stderr_read is not None:
+                raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
+
 
         notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
 
@@ -302,6 +313,10 @@ class Runner:
 
         print("Stopping metric providers and parsing stats")
         for metric_provider in self.metric_providers:
+            stderr_read = metric_provider._ps.stderr.read()
+            if stderr_read is not None:
+                raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
+
             metric_provider.stop_profiling()
 
             df = metric_provider.read_metrics(project_id, self.containers)
@@ -337,6 +352,11 @@ class Runner:
 
 
     def cleanup(self): # TODO: Could be done when destroying object. but do we have all infos then?
+
+        print("Stopping metric providers")
+        for metric_provider in self.metric_providers:
+            metric_provider.stop_profiling()
+
         print("Finally block. Stopping containers")
         for container_name in self.containers.values():
             subprocess.run(["docker", "rm", "-f", container_name], stderr=subprocess.DEVNULL)

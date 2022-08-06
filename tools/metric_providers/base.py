@@ -57,7 +57,8 @@ class BaseMetricProvider:
         self._ps = subprocess.Popen(
             [call_string],
             shell=True,
-            preexec_fn=os.setsid
+            preexec_fn=os.setsid,
+            stderr=subprocess.PIPE
             # since we are launching the command with shell=True we cannot use ps.terminate() / ps.kill().
             # This would just kill the executing shell, but not it's child and make the process an orphan.
             # therefore we use os.setsid here and later call os.getpgid(pid) to get process group that the shell
@@ -65,6 +66,7 @@ class BaseMetricProvider:
         )
 
     def stop_profiling(self):
+        if self._ps is None: return
         try:
             print(f"Killing process with id: {self._ps.pid}")
             ps_group_id = os.getpgid(self._ps.pid)
