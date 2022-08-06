@@ -17,7 +17,7 @@ class BaseMetricProvider:
         with open(self._filename, 'r') as f:
             csv_data = f.read()
 
-        csv_data = csv_data[:csv_data.rfind('\n')] # remove the last line from the string
+        csv_data = csv_data[:csv_data.rfind('\n')] # remove the last line from the string, as it may be broken due to the output buffering of the metrics reporter
 
         df = pandas.read_csv(StringIO(csv_data),
             sep=" ",
