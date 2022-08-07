@@ -35,12 +35,12 @@ df = df[['time', 'Differential 5 - 6 Last (V)',
     'Differential 15 - 16 Last (V)',]]
 
 df = df.rename({
-    'Differential 5 - 6 Last (V)': 'ch_5',
-    'Differential 7 - 8 Last (V)': 'ch_7',
-    'Differential 9 - 10 Last (V)': 'ch_9',
-    'Differential 11 - 12 Last (V)': 'ch_11',
-    'Differential 13 - 14 Last (V)': 'ch_13',
-    'Differential 15 - 16 Last (V)': 'ch_15'
+    'Differential 5 - 6 Last (V)': 'ch_5_12V',
+    'Differential 7 - 8 Last (V)': 'ch_7_12V',
+    'Differential 9 - 10 Last (V)': 'ch_9_12V',
+    'Differential 11 - 12 Last (V)': 'ch_11_12V',
+    'Differential 13 - 14 Last (V)': 'ch_13_12V',
+    'Differential 15 - 16 Last (V)': 'ch_15_12V'
     }, axis=1)
 
 # bring timestamp to our used microsecond format
@@ -55,19 +55,19 @@ print(f"Detected measurement_interval: {measurement_interval} s")
 # Then multiply with constant voltage 12 V to get Power.
 # Then multiply with measurement_interval to get Joules
 # Then multiply by 10**3 to get millijoules
-df.ch_5 = (df.ch_5 / 0.5) * 12 * measurement_interval * 10**3
-df.ch_7 = (df.ch_7 / 0.5) * 12 * measurement_interval * 10**3
-df.ch_9 = (df.ch_9 / 0.5) * 12 * measurement_interval * 10**3
-df.ch_11 = (df.ch_11 / 0.5) * 12 * measurement_interval * 10**3
-df.ch_13 = (df.ch_13 / 0.5) * 12 * measurement_interval * 10**3
-df.ch_15 = (df.ch_15 / 0.5) * 12 * measurement_interval * 10**3
+df.ch_5_12V = (df.ch_5_12V / 0.5) * 12 * measurement_interval * 10**3
+df.ch_7_12V = (df.ch_7_12V / 0.5) * 12 * measurement_interval * 10**3
+df.ch_9_12V = (df.ch_9_12V / 0.5) * 12 * measurement_interval * 10**3
+df.ch_11_12V = (df.ch_11_12V / 0.5) * 12 * measurement_interval * 10**3
+df.ch_13_12V = (df.ch_13_12V / 0.5) * 12 * measurement_interval * 10**3
+df.ch_15_12V = (df.ch_15_12V / 0.5) * 12 * measurement_interval * 10**3
 
 df = df.astype(int)
 
-df_channel = df.melt(id_vars=['time'], var_name='container_name', value_name='value')
+df = df.melt(id_vars=['time'], var_name='container_name', value_name='value')
 
-df_channel['project_id'] = args.project_id
-df_channel['metric'] = 'atx_energy_channel_system'
+df['project_id'] = args.project_id
+df['metric'] = 'atx_energy_channel'
 
 
 f = StringIO(df.to_csv(index=False, header=False))

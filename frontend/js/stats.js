@@ -129,7 +129,7 @@ const getMetrics = (stats_data, style='apex') => {
         } else if (el[2] == 'cpu_energy_rapl_msr_system') {
             value = el[3] / 1000; // value is in mJ
             if (accumulate === 1) metrics.cpu_energy += value;
-        } else if (el[2] == 'atx_energy_system') {
+        } else if (el[2] == 'atx_energy_channel') {
             value = el[3] / 1000; // value is in mJ
             if (accumulate === 1) metrics.atx_energy += value;
         } else if (el[2] == 'ram_energy_rapl_msr_system') {
