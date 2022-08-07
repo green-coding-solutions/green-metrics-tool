@@ -140,7 +140,7 @@ const getMetrics = (stats_data, style='apex') => {
             if (accumulate === 1) metrics.mem_total.push(value);
         } else if (el[2] == 'network_io_cgroup_container') {
             value = el[3] / 1000000; // make memory in MB since it comes in Bytes
-            metrics.network_io[el[0]] = value; // save only the last value per container (overwrite)
+            metrics.go[el[0]] = value; // save only the last value per container (overwrite)
         }
 
         // Depending on the charting library the object has to be reformatted
@@ -321,7 +321,7 @@ const fillAvgContainers = (metrics) => {
     if(ram_energy_in_mWh) document.querySelector("#ram-energy").innerText = ram_energy_in_mWh.toFixed(2) + " mWh"
     if(cpu_energy_in_mWh) document.querySelector("#total-energy").innerText = (cpu_energy_in_mWh+ram_energy_in_mWh+network_io_in_mWh).toFixed(2) + " mWh"
 
-    if(network_io) document.querySelector("#network-io").innerText = network_io.toFixed(2) + " GB"
+    if(network_io) document.querySelector("#network-io").innerText = network_io.toFixed(2) + " MB"
     if(network_io_in_mWh) document.querySelector("#network-energy").innerHTML = network_io_in_mWh.toFixed(2) + " mWh"
 
     if(co2_display.value) document.querySelector("#total-co2-internal").innerHTML = `${(co2_display.value).toFixed(2)} ${co2_display.unit}`
