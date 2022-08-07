@@ -100,7 +100,7 @@ const fillProjectTab = (selector, data) => {
 }
 
 const getMetrics = (stats_data, style='apex') => {
-    const metrics = {cpu_load: [], mem_total: [], network_io: {}, series: {}, cpu_energy: 0, ram_energy: 0}
+    const metrics = {cpu_load: [], mem_total: [], network_io: {}, series: {}, atx_energy: 0, cpu_energy: 0, ram_energy: 0}
 
     let accumulate = 0;
 
@@ -129,6 +129,9 @@ const getMetrics = (stats_data, style='apex') => {
         } else if (el[2] == 'cpu_energy_rapl_msr_system') {
             value = el[3] / 1000; // value is in mJ
             if (accumulate === 1) metrics.cpu_energy += value;
+        } else if (el[2] == 'atx_energy_system') {
+            value = el[3] / 1000; // value is in mJ
+            if (accumulate === 1) metrics.atx_energy += value;
         } else if (el[2] == 'ram_energy_rapl_msr_system') {
             value = el[3] / 1000; // value is in mJ
             if (accumulate === 1) metrics.ram_energy += value;
@@ -293,6 +296,7 @@ const createGraph = (element, data, labels, title) => {
 
 const fillAvgContainers = (metrics) => {
 
+    const atx_energy_in_mWh = ((metrics.atx_energy) / 3600) * 1000;
     const cpu_energy_in_mWh = ((metrics.cpu_energy) / 3600) * 1000;
     const ram_energy_in_mWh = ((metrics.ram_energy) / 3600) * 1000;
     let network_io = 0;
@@ -312,27 +316,32 @@ const fillAvgContainers = (metrics) => {
     else if(total_CO2_in_kg < 0.0001) co2_display = { value: total_CO2_in_kg*(10**6), unit: 'mg'};
     else if(total_CO2_in_kg < 0.1) co2_display = { value: total_CO2_in_kg*(10**3), unit: 'g'};
 
-    document.querySelector("#cpu-energy").innerText = cpu_energy_in_mWh.toFixed(2) + " mWh"
-    document.querySelector("#ram-energy").innerText = ram_energy_in_mWh.toFixed(2) + " mWh"
+    if(atx_energy_in_mWh) document.querySelector("#atx-energy").innerText = atx_energy_in_mWh.toFixed(2) + " mWh"
+    if(cpu_energy_in_mWh) document.querySelector("#cpu-energy").innerText = cpu_energy_in_mWh.toFixed(2) + " mWh"
+    if(ram_energy_in_mWh) document.querySelector("#ram-energy").innerText = ram_energy_in_mWh.toFixed(2) + " mWh"
+    if(cpu_energy_in_mWh) document.querySelector("#total-energy").innerText = (cpu_energy_in_mWh+ram_energy_in_mWh+network_io_in_mWh).toFixed(2) + " mWh"
 
-    document.querySelector("#network-io").innerText = network_io.toFixed(2) + " GB"
-    document.querySelector("#network-energy").innerHTML = network_io_in_mWh.toFixed(2) + " mWh"
+    if(network_io) document.querySelector("#network-io").innerText = network_io.toFixed(2) + " GB"
+    if(network_io_in_mWh) document.querySelector("#network-energy").innerHTML = network_io_in_mWh.toFixed(2) + " mWh"
 
-    document.querySelector("#total-co2").innerHTML = `${(co2_display.value).toFixed(2)} ${co2_display.unit}`
-    document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + " %"
+    if(co2_display.value) document.querySelector("#total-co2-internal").innerHTML = `${(co2_display.value).toFixed(2)} ${co2_display.unit}`
+    if(co2_budget_utilization) document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + " %"
 
-    document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, metrics.cpu_load)) + " %"
-    document.querySelector("#avg-cpu-load").innerText = ((metrics.cpu_load.reduce((a, b) => a + b, 0) / metrics.cpu_load.length)).toFixed(2) + " %"
-
-    document.querySelector("#avg-mem-load").innerText = ((metrics.mem_total.reduce((a, b) => a + b, 0) / metrics.mem_total.length)).toFixed(2) + " MB"
+    if(metrics.cpu_load.length) {
+        document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, metrics.cpu_load)) + " %"
+        document.querySelector("#avg-cpu-load").innerText = ((metrics.cpu_load.reduce((a, b) => a + b, 0) / metrics.cpu_load.length)).toFixed(2) + " %"
+    }
+    if(metrics.mem_total.length) document.querySelector("#avg-mem-load").innerText = ((metrics.mem_total.reduce((a, b) => a + b, 0) / metrics.mem_total.length)).toFixed(2) + " MB"
 
     upscaled_CO2_in_kg = total_CO2_in_kg * 100 * 30 ; // upscaled by 30 days for 10.000 requests (or runs) per day
 
-    document.querySelector("#trees").innerText = (upscaled_CO2_in_kg / 0.06 / 1000).toFixed(2);
-    document.querySelector("#miles-driven").innerText = (upscaled_CO2_in_kg / 0.000403 / 1000).toFixed(2);
-    document.querySelector("#gasoline").innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
-    // document.querySelector("#smartphones-charged").innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
-    document.querySelector("#flights").innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
+    if(upscaled_CO2_in_kg) {
+        document.querySelector("#trees").innerText = (upscaled_CO2_in_kg / 0.06 / 1000).toFixed(2);
+        document.querySelector("#miles-driven").innerText = (upscaled_CO2_in_kg / 0.000403 / 1000).toFixed(2);
+        document.querySelector("#gasoline").innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
+        // document.querySelector("#smartphones-charged").innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
+        document.querySelector("#flights").innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
+    }
 }
 
 
