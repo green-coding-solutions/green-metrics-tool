@@ -27,12 +27,6 @@ import process_helpers
 
 from debug_helper import DebugHelper
 
-# TODO:
-# - Exception Logic is not really readable. Better encapsulate docker calls and fetch exception there
-# - Make function for arg reading and checking it's presence. More readable than el.get and exception and bottom
-# - No cleanup is currently done if exception fails. System is in unclean state
-# - No checks for possible command injections are done at the moment
-
 class Runner:
     def __init__(self, debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False):
         self.debug_mode = debug_mode
