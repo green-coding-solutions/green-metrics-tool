@@ -243,7 +243,7 @@ class Runner:
         for metric_provider in self.metric_providers:
             print(f"Starting measurement provider {metric_provider.__class__.__name__}")
             metric_provider.start_profiling(self.containers)
-            os.set_blocking(metric_provider._ps.stderr.fileno(), False)
+            os.set_blocking(metric_provider._ps.stderr.fileno(), False) # set_block False enables non-blocking reads on stderr.read(). Otherwise it would wait forever on empty
 
         print("Waiting for Metric Providers to boot ...")
         time.sleep(2)
