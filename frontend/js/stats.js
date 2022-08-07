@@ -140,7 +140,7 @@ const getMetrics = (stats_data, style='apex') => {
             if (accumulate === 1) metrics.mem_total.push(value);
         } else if (el[2] == 'network_io_cgroup_container') {
             value = el[3] / 1000000; // make memory in MB since it comes in Bytes
-            metrics.go[el[0]] = value; // save only the last value per container (overwrite)
+            metrics.network_io[el[0]] = value; // save only the last value per container (overwrite)
         }
 
         // Depending on the charting library the object has to be reformatted
