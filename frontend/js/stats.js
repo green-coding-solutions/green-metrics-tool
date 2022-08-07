@@ -139,7 +139,7 @@ const getMetrics = (stats_data, style='apex') => {
             value = el[3] / 1000000; // make memory in MB since it comes in Bytes
             if (accumulate === 1) metrics.mem_total.push(value);
         } else if (el[2] == 'network_io_cgroup_container') {
-            value = el[3] / 1000000000; // make memory in GB since it comes in Bytes
+            value = el[3] / 1000000; // make memory in MB since it comes in Bytes
             metrics.network_io[el[0]] = value; // save only the last value per container (overwrite)
         }
 
@@ -303,7 +303,7 @@ const fillAvgContainers = (metrics) => {
     for (item in metrics.network_io) {
         network_io =  metrics.network_io[item];
     }
-    const network_io_in_mWh = (network_io * 0.06) * 1000000;
+    const network_io_in_mWh = (network_io * 0.00006) * 1000000;
     const total_energy_in_mWh = cpu_energy_in_mWh + ram_energy_in_mWh + network_io_in_mWh;
     let total_CO2_in_kg = ( (total_energy_in_mWh / 1000000) * 519) / 1000;
     const daily_co2_budget_in_kg_per_day = 1.739; // (12.7 * 1000 * 0.05) / 365 from https://www.pawprint.eco/eco-blog/average-carbon-footprint-uk and https://www.pawprint.eco/eco-blog/average-carbon-footprint-globally
