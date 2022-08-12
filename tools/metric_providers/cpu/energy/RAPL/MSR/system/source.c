@@ -266,25 +266,20 @@ static int detect_packages(void) {
     return 0;
 }
 
-/*******************************/
-/* MSR code                    */
-/*******************************/
+enum MeasurementModes{
+    measure_energy_pkg,
+    measure_dram
+};
 
-static int rapl_msr(int cpu_model, bool measure_energy_pkg, bool measure_dram) {
+int dram_avail=0;
+int different_units=0;
+double cpu_energy_units[MAX_PACKAGES],dram_energy_units[MAX_PACKAGES];
+unsigned int energy_status;
+double energy_units[MAX_PACKAGES];
 
-    int fd;
-    long long result;
-    double power_units,time_units;
-    double cpu_energy_units[MAX_PACKAGES],dram_energy_units[MAX_PACKAGES];
-    double package_before[MAX_PACKAGES],package_after[MAX_PACKAGES];
-    double dram_before[MAX_PACKAGES],dram_after[MAX_PACKAGES];
-    int j;
-    struct timeval now;
+static int check_availability(int cpu_model, enum MeasurementModes mode) {
 
-    int dram_avail=0;
-    int different_units=0;
-
-    if(measure_dram) {
+    if(mode == measure_dram){
         switch(cpu_model) {
             case CPU_SANDYBRIDGE_EP:
             case CPU_IVYBRIDGE_EP:
@@ -342,7 +337,7 @@ static int rapl_msr(int cpu_model, bool measure_energy_pkg, bool measure_dram) {
         }
     }
 
-    if(measure_dram && !dram_avail) {
+    if(mode == measure_dram && !dram_avail) {
         fprintf(stderr,"DRAM not available for your processer.\n");
         exit(-1);
     }
@@ -352,6 +347,14 @@ static int rapl_msr(int cpu_model, bool measure_energy_pkg, bool measure_dram) {
         exit(-1);
     }
 
+    
+    return 0;
+}
+
+static int setup_measurement_units(enum MeasurementModes mode) {
+    int fd;
+    int j;
+    long long result;
     for(j=0;j<total_packages;j++) {
         fd=open_msr(package_map[j]);
 
@@ -363,39 +366,55 @@ static int rapl_msr(int cpu_model, bool measure_energy_pkg, bool measure_dram) {
         // 8-12 -> energy status units
         // 16-19 -> time units
         // 4-7, 13-15, and 20-63 are all reserved bits
-        power_units=pow(0.5,(double)(result&0xf)); //multiplying by 0xf will give you the first 4 bits
+        
+        //power_units and time_units are not actually used... should we be using them?
+        //power_units=pow(0.5,(double)(result&0xf)); //multiplying by 0xf will give you the first 4 bits
+        //time_units=pow(0.5,(double)((result>>16)&0xf));
 
         cpu_energy_units[j]=pow(0.5,(double)((result>>8)&0x1f)); //multiplying by 0x1f will give you the first 5 bits
 
-        time_units=pow(0.5,(double)((result>>16)&0xf));
-
-        if(measure_dram && different_units) {
+        if(mode == measure_dram && different_units) {
             dram_energy_units[j]=pow(0.5,(double)16);
         }
-        else if (measure_dram && !different_units) {
+        else if (mode == measure_dram && !different_units) {
             dram_energy_units[j]=cpu_energy_units[j];
         }
         close(fd);
-
     }
 
     for(j=0;j<total_packages;j++) {
+        if(mode == measure_energy_pkg)
+        {
+            energy_status = msr_pkg_energy_status;
+            energy_units[j] = cpu_energy_units[j];
+        }
+        else if(mode == measure_dram) {
+            energy_status = MSR_DRAM_ENERGY_STATUS;
+            energy_units[j] = dram_energy_units[j];
+        }
+        else {
+            fprintf(stderr,"Unknown measurement mode: %d\n",mode);
+            exit(-1);
+        }
+    }
+    return 0;
+}
+
+static int rapl_msr(enum MeasurementModes mode) {
+    int fd;
+    long long result;
+    //double power_units,time_units;
+    double package_before[MAX_PACKAGES],package_after[MAX_PACKAGES];
+    int j;
+    struct timeval now;
+    
+    for(j=0;j<total_packages;j++) {
 
         fd=open_msr(package_map[j]);
-
         /* Package Energy */
-        if(measure_energy_pkg)
-        {
-            result=read_msr(fd,msr_pkg_energy_status);
-            package_before[j]=(double)result*cpu_energy_units[j];
-        }
-
-        /* Dram Energy */
-        else if (dram_avail && measure_dram) {
-            result=read_msr(fd,MSR_DRAM_ENERGY_STATUS);
-            dram_before[j]=(double)result*dram_energy_units[j];
-        }
-
+        
+        result=read_msr(fd,energy_status);
+        package_before[j]=(double)result*energy_units[j];
         close(fd);
     }
 
@@ -405,16 +424,9 @@ static int rapl_msr(int cpu_model, bool measure_energy_pkg, bool measure_dram) {
         fd=open_msr(package_map[j]);
 
         double energy_output = 0.0;
-        if(measure_energy_pkg) {
-            result=read_msr(fd,msr_pkg_energy_status);
-            package_after[j]=(double)result*cpu_energy_units[j];
-            energy_output = package_after[j]-package_before[j];
-        }
-        else if (dram_avail  && measure_dram) {
-            result=read_msr(fd,MSR_DRAM_ENERGY_STATUS);
-            dram_after[j]=(double)result*dram_energy_units[j];
-            energy_output = dram_after[j]-dram_before[j];
-        }
+        result=read_msr(fd,energy_status);
+        package_after[j]=(double)result*energy_units[j];
+        energy_output = package_after[j]-package_before[j];
 
         gettimeofday(&now, NULL);
         printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000));
@@ -429,7 +441,7 @@ int main(int argc, char **argv) {
 
     int c;
     int cpu_model;
-    bool measure_dram=false;
+    enum MeasurementModes measure_mode=measure_energy_pkg;
 
     while ((c = getopt (argc, argv, "hi:d")) != -1) {
         switch (c) {
@@ -443,7 +455,7 @@ int main(int argc, char **argv) {
             msleep_time = atoi(optarg);
             break;
         case 'd':
-            measure_dram=true;
+            measure_mode=measure_dram;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -455,11 +467,10 @@ int main(int argc, char **argv) {
 
     cpu_model=detect_cpu();
     detect_packages();
-
+    check_availability(cpu_model, measure_mode);
+    setup_measurement_units(measure_mode);
     while(1) {
-        // For now, either measure energy-pkg, or dram, but not both
-        // this is based on whether the -d flag was passed in
-        rapl_msr(cpu_model, !measure_dram, measure_dram);
+        rapl_msr(measure_mode);
     }
 
     return 0;
