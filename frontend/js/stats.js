@@ -129,7 +129,7 @@ const getMetrics = (stats_data, style='apex') => {
         } else if (el[2] == 'cpu_energy_rapl_msr_system') {
             value = el[3] / 1000; // value is in mJ
             if (accumulate === 1) metrics.cpu_energy += value;
-        } else if (el[2] == 'atx_energy_channel') {
+        } else if (el[2] == 'atx_energy_dc_channel') {
             value = el[3] / 1000; // value is in mJ
             if (accumulate === 1) metrics.atx_energy += value;
         } else if (el[2] == 'ram_energy_rapl_msr_system') {
@@ -294,7 +294,10 @@ const createGraph = (element, data, labels, title) => {
 });
 };
 
-const fillAvgContainers = (metrics) => {
+const fillAvgContainers = (stats_data, metrics) => {
+
+    // timestamp is in microseconds, therefore divide by 10**6
+    const measurement_duration_in_s = (stats_data.project.end_measurement - stats_data.project.start_measurement) / 1000000;
 
     const atx_energy_in_mWh = ((metrics.atx_energy) / 3600) * 1000;
     const cpu_energy_in_mWh = ((metrics.cpu_energy) / 3600) * 1000;
@@ -318,8 +321,13 @@ const fillAvgContainers = (metrics) => {
 
     if(atx_energy_in_mWh) document.querySelector("#atx-energy").innerText = atx_energy_in_mWh.toFixed(2) + " mWh"
     if(cpu_energy_in_mWh) document.querySelector("#cpu-energy").innerText = cpu_energy_in_mWh.toFixed(2) + " mWh"
+    if(cpu_energy_in_mWh) document.querySelector("#component-energy").innerText = (cpu_energy_in_mWh+ram_energy_in_mWh).toFixed(2) + " mWh"
     if(ram_energy_in_mWh) document.querySelector("#ram-energy").innerText = ram_energy_in_mWh.toFixed(2) + " mWh"
     if(cpu_energy_in_mWh) document.querySelector("#total-energy").innerText = (cpu_energy_in_mWh+ram_energy_in_mWh+network_io_in_mWh).toFixed(2) + " mWh"
+
+    if(cpu_energy_in_mWh) document.querySelector("#component-power").innerText = ((metrics.cpu_energy+metrics.ram_energy)/measurement_duration_in_s).toFixed(2) + " W"
+    if(atx_energy_in_mWh) document.querySelector("#atx-power").innerText = (metrics.atx_energy / measurement_duration_in_s).toFixed(2) + " W"
+
 
     if(network_io) document.querySelector("#network-io").innerText = network_io.toFixed(2) + " MB"
     if(network_io_in_mWh) document.querySelector("#network-energy").innerHTML = network_io_in_mWh.toFixed(2) + " mWh"
@@ -363,7 +371,7 @@ $(document).ready( (e) => {
         const metrics = getMetrics(stats_data, 'echarts');
         fillProjectData(stats_data.project)
         displayGraphs(metrics.series, notes_json.data, 'echarts');
-        fillAvgContainers(metrics);
+        fillAvgContainers(stats_data, metrics);
         document.querySelector('#api-loader').remove();
 
         // after all instances have been placed the flexboxes might have rearranged. We need to trigger resize
