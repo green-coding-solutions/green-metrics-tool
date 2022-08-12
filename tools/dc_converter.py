@@ -42,16 +42,17 @@ def main(args):
     print(f"Detected measurement_interval: {measurement_interval} s")
 
 
+    # Divide millivolts by 1000 to get V.
     # Divide voltages by resistance to get I.
     # Then multiply with constant voltage 12 V to get Power.
     # Then multiply with measurement_interval to get Joules
     # Then multiply by 10**3 to get millijoules
-    df.ch_5_12V = (df.ch_5_12V / 0.5) * 12 * measurement_interval * 10**3
-    df.ch_7_12V = (df.ch_7_12V / 0.5) * 12 * measurement_interval * 10**3
-    df.ch_9_12V = (df.ch_9_12V / 0.5) * 12 * measurement_interval * 10**3
-    df.ch_11_12V = (df.ch_11_12V / 0.5) * 12 * measurement_interval * 10**3
-    df.ch_13_12V = (df.ch_13_12V / 0.5) * 12 * measurement_interval * 10**3
-    df.ch_15_12V = (df.ch_15_12V / 0.5) * 12 * measurement_interval * 10**3
+    df.ch_5_12V = ((df.ch_5_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
+    df.ch_7_12V = ((df.ch_7_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
+    df.ch_9_12V = ((df.ch_9_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
+    df.ch_11_12V = ((df.ch_11_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
+    df.ch_13_12V = ((df.ch_13_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
+    df.ch_15_12V = ((df.ch_15_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
 
     df = df.astype(int)
 
