@@ -18,7 +18,10 @@ def main(args):
     df = df.rename({"Unnamed: 0": "time"}, axis=1)
 
 
-    df = df[['time', 'Differential 5 - 6 Last (mV)',
+    df = df[['time',
+        'Differential 1 - 2 Last (mV)',
+        'Differential 3 - 4 Last (mV)',
+        'Differential 5 - 6 Last (mV)',
         'Differential 7 - 8 Last (mV)',
         'Differential 9 - 10 Last (mV)',
         'Differential 11 - 12 Last (mV)',
@@ -26,6 +29,9 @@ def main(args):
         'Differential 15 - 16 Last (mV)',]]
 
     df = df.rename({
+        'Differential 1 - 2 Last (mV)': 'ch_1_12V',
+        'Differential 3 - 4 Last (mV)': 'ch_3_12V',
+        'Differential 5 - 6 Last (mV)': 'ch_5_12V',
         'Differential 5 - 6 Last (mV)': 'ch_5_12V',
         'Differential 7 - 8 Last (mV)': 'ch_7_12V',
         'Differential 9 - 10 Last (mV)': 'ch_9_12V',
