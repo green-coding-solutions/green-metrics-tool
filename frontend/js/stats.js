@@ -100,7 +100,7 @@ const fillProjectTab = (selector, data) => {
 }
 
 const getMetrics = (stats_data, style='apex') => {
-    const metrics = {cpu_load: [], mem_total: [], network_io: {}, series: {}, atx_energy: 0, cpu_energy: 0, ram_energy: 0}
+    const metrics = {cpu_load: [], mem_total: [], network_io: {}, series: {}, atx_energy: 0, cpu_energy: 0, memory_energy: 0}
 
     let accumulate = 0;
 
@@ -132,9 +132,9 @@ const getMetrics = (stats_data, style='apex') => {
         } else if (el[2] == 'atx_energy_dc_channel') {
             value = el[3] / 1000; // value is in mJ
             if (accumulate === 1) metrics.atx_energy += value;
-        } else if (el[2] == 'ram_energy_rapl_msr_system') {
+        } else if (el[2] == 'memory_energy_rapl_msr_system') {
             value = el[3] / 1000; // value is in mJ
-            if (accumulate === 1) metrics.ram_energy += value;
+            if (accumulate === 1) metrics.memory_energy += value;
         } else if (el[2] == 'memory_total_cgroup_container') {
             value = el[3] / 1000000; // make memory in MB since it comes in Bytes
             if (accumulate === 1) metrics.mem_total.push(value);
@@ -301,13 +301,13 @@ const fillAvgContainers = (stats_data, metrics) => {
 
     const atx_energy_in_mWh = ((metrics.atx_energy) / 3600) * 1000;
     const cpu_energy_in_mWh = ((metrics.cpu_energy) / 3600) * 1000;
-    const ram_energy_in_mWh = ((metrics.ram_energy) / 3600) * 1000;
+    const memory_energy_in_mWh = ((metrics.memory_energy) / 3600) * 1000;
     let network_io = 0;
     for (item in metrics.network_io) {
         network_io +=  metrics.network_io[item];
     }
     const network_io_in_mWh = (network_io * 0.00006) * 1000000;
-    const total_energy_in_mWh = cpu_energy_in_mWh + ram_energy_in_mWh + network_io_in_mWh;
+    const total_energy_in_mWh = cpu_energy_in_mWh + memory_energy_in_mWh + network_io_in_mWh;
     let total_CO2_in_kg = ( (total_energy_in_mWh / 1000000) * 519) / 1000;
     const daily_co2_budget_in_kg_per_day = 1.739; // (12.7 * 1000 * 0.05) / 365 from https://www.pawprint.eco/eco-blog/average-carbon-footprint-uk and https://www.pawprint.eco/eco-blog/average-carbon-footprint-globally
     let co2_budget_utilization = total_CO2_in_kg*100 / daily_co2_budget_in_kg_per_day;
@@ -321,11 +321,11 @@ const fillAvgContainers = (stats_data, metrics) => {
 
     if(atx_energy_in_mWh) document.querySelector("#atx-energy").innerText = atx_energy_in_mWh.toFixed(2) + " mWh"
     if(cpu_energy_in_mWh) document.querySelector("#cpu-energy").innerText = cpu_energy_in_mWh.toFixed(2) + " mWh"
-    if(cpu_energy_in_mWh) document.querySelector("#component-energy").innerText = (cpu_energy_in_mWh+ram_energy_in_mWh).toFixed(2) + " mWh"
-    if(ram_energy_in_mWh) document.querySelector("#ram-energy").innerText = ram_energy_in_mWh.toFixed(2) + " mWh"
-    if(cpu_energy_in_mWh) document.querySelector("#total-energy").innerText = (cpu_energy_in_mWh+ram_energy_in_mWh+network_io_in_mWh).toFixed(2) + " mWh"
+    if(cpu_energy_in_mWh) document.querySelector("#component-energy").innerText = (cpu_energy_in_mWh+memory_energy_in_mWh).toFixed(2) + " mWh"
+    if(memory_energy_in_mWh) document.querySelector("#memory-energy").innerText = memory_energy_in_mWh.toFixed(2) + " mWh"
+    if(cpu_energy_in_mWh) document.querySelector("#total-energy").innerText = (cpu_energy_in_mWh+memory_energy_in_mWh+network_io_in_mWh).toFixed(2) + " mWh"
 
-    if(cpu_energy_in_mWh) document.querySelector("#component-power").innerText = ((metrics.cpu_energy+metrics.ram_energy)/measurement_duration_in_s).toFixed(2) + " W"
+    if(cpu_energy_in_mWh) document.querySelector("#component-power").innerText = ((metrics.cpu_energy+metrics.memory_energy)/measurement_duration_in_s).toFixed(2) + " W"
     if(atx_energy_in_mWh) document.querySelector("#atx-power").innerText = (metrics.atx_energy / measurement_duration_in_s).toFixed(2) + " W"
 
 
