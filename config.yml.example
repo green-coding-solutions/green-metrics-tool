@@ -24,11 +24,11 @@ measurement:
     cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider: 100
     cpu.energy.RAPL.MSR.system.provider.CpuEnergyRaplMsrSystemProvider: 100
     memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider: 100
-    cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider: 100
-    cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider: 100
-    cpu.time.system.provider.CpuTimeSystemProvider: 100
+#    cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider: 100
+#    cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider: 100
+#    cpu.time.system.provider.CpuTimeSystemProvider: 100
     network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider: 100
-    ram.energy.RAPL.MSR.system.provider.RamEnergyRaplMsrSystemProvider: 100
+    memory.energy.RAPL.MSR.system.provider.MemoryEnergyRaplMsrSystemProvider: 100
 
 admin:
   # This address will get an email, when a new project was added through the frontend

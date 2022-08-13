@@ -255,6 +255,8 @@ async def post_project_add(project: Project):
         """
     params = (project.url,project.name,project.email)
     project_id = DB().fetch_one(query,params=params)
+    # This order as selected on purpose. If the admin mail fails, we currently do
+    # not want the job to be queued, as we want to monitor every project execution manually
     email_helpers.send_admin_email(f"New project added from Web Interface: {project.name}", project) # notify admin of new project
     jobs.insert_job("project", project_id)
 

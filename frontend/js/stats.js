@@ -1,3 +1,31 @@
+const metrics_info = {
+  cpu_utilization_cgroup_container: {
+      unit: 'Ratio',
+      SI_conversion_factor: 100,  // CPU comes as ratio, but since stored as integer is was multiplicated with 100
+      unit_after_conversion: '%'
+  },
+  cpu_energy_rapl_msr_system: {
+      unit: 'mJ',
+      SI_conversion_factor: 1000,
+      unit_after_conversion: 'J'
+  },
+  memory_energy_rapl_msr_system: {
+      unit: 'mJ',
+      SI_conversion_factor: 1000,
+      unit_after_conversion: 'J'
+  },
+  memory_total_cgroup_container: {
+      unit: 'Bytes',
+      SI_conversion_factor: 1000000,
+      unit_after_conversion: 'MB'
+  },
+  network_io_cgroup_container: {
+      unit: 'Bytes',
+      SI_conversion_factor: 1000000,
+      unit_after_conversion: 'MB'
+  }
+}
+
 const getApexOptions = () => {
     return {
         series: null,
@@ -100,7 +128,7 @@ const fillProjectTab = (selector, data) => {
 }
 
 const getMetrics = (stats_data, style='apex') => {
-    const metrics = {cpu_load: [], mem_total: [], network_io: {}, series: {}, cpu_energy: 0, ram_energy: 0}
+    const metrics = {cpu_load: [], mem_total: [], network_io: {}, series: {}, atx_energy: 0, cpu_energy: 0, memory_energy: 0}
 
     let accumulate = 0;
 
@@ -108,50 +136,47 @@ const getMetrics = (stats_data, style='apex') => {
     const t0 = performance.now();
 
     stats_data.data.forEach(el => {
-        /* Spec for data
-        el[0] // container_id
-        el[1] // time -> in microseconds
-        el[2] // metric name
-        el[3] // value -> This value might need to be rescaled
-        '*/
+        const container_name = el[0];
+        const time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
+        const metric_name = el[2];
+        let value = el[3];
+
         accumulate = 0; // default
 
+        // here we use the undivided time on purpose
         if (el[1] > stats_data.project.start_measurement && el[1] < stats_data.project.end_measurement) {
             accumulate = 1;
         }
 
-        let time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
-        let value = el[3]; // default
 
-        if (el[2] == 'cpu_utilization_cgroup_container') { // value is
-            value = el[3] / 100; // CPU comes as ratio, but since stored as integer is was multiplicated with 100
+        value = value / metrics_info[metric_name].SI_conversion_factor;
+
+        if (metric_name == 'cpu_utilization_cgroup_container') {
             if (accumulate === 1) metrics.cpu_load.push(value);
-        } else if (el[2] == 'cpu_energy_rapl_msr_system') {
-            value = el[3] / 1000; // value is in mJ
+        } else if (metric_name == 'cpu_energy_rapl_msr_system') {
             if (accumulate === 1) metrics.cpu_energy += value;
-        } else if (el[2] == 'ram_energy_rapl_msr_system') {
-            value = el[3] / 1000; // value is in mJ
-            if (accumulate === 1) metrics.ram_energy += value;
-        } else if (el[2] == 'memory_total_cgroup_container') {
-            value = el[3] / 1000000; // make memory in MB since it comes in Bytes
+        } else if (metric_name == 'atx_energy_dc_channel') {
+            if (accumulate === 1) metrics.atx_energy += value;
+        } else if (metric_name == 'memory_energy_rapl_msr_system') {
+            if (accumulate === 1) metrics.memory_energy += value;
+        } else if (metric_name == 'memory_total_cgroup_container') {
             if (accumulate === 1) metrics.mem_total.push(value);
-        } else if (el[2] == 'network_io_cgroup_container') {
-            value = el[3] / 1000000000; // make memory in GB since it comes in Bytes
-            metrics.network_io[el[0]] = value; // save only the last value per container (overwrite)
+        } else if (metric_name == 'network_io_cgroup_container') {
+            if (accumulate === 1) metrics.network_io[container_name] = value; // save only the last value per container (overwrite)
         }
 
         // Depending on the charting library the object has to be reformatted
         // First we check if structure is initialized
-        if (metrics.series[el[2]] == undefined)  metrics.series[el[2]] = {};
-        if (metrics.series[el[2]][el[0]] == undefined) {
-            metrics.series[el[2]][el[0]] = { name: el[0], data: [] }
+        if (metrics.series[metric_name] == undefined)  metrics.series[metric_name] = {};
+        if (metrics.series[metric_name][container_name] == undefined) {
+            metrics.series[metric_name][container_name] = { name: container_name, data: [] }
         }
 
         // now we handle the library specific formatting
         if(style=='apex') {
-            metrics.series[el[2]][el[0]]['data'].push({ x: time_in_ms, y: value })
+            metrics.series[metric_name][container_name]['data'].push({ x: time_in_ms, y: value })
         } else if(style=='echarts') {
-            metrics.series[el[2]][el[0]]['data'].push([time_in_ms, value])
+            metrics.series[metric_name][container_name]['data'].push([time_in_ms, value])
         } else throw "Unknown chart style"
     })
 
@@ -177,12 +202,12 @@ const displayGraphs = (metrics, notes, style='apex') => {
         if(style=='apex') {
             charts = [];
             let options = getApexOptions();
-            options.title.text = metric_name;
+            options.title.text = `${metric_name} ${metrics_info[metric_name].unit_after_conversion}`;
             options.series = Object.values(metrics[metric_name]);
             (new ApexCharts(element, options)).render();
         } else if(style == 'echarts') {
             var options = getEChartsOptions();
-            options.title.text = metric_name;
+            options.title.text = `${metric_name} [${metrics_info[metric_name].unit_after_conversion}]`;
             for (container in metrics[metric_name]) {
                 options.legend.data.push(container)
                 options.series.push({
@@ -291,16 +316,20 @@ const createGraph = (element, data, labels, title) => {
 });
 };
 
-const fillAvgContainers = (metrics) => {
+const fillAvgContainers = (stats_data, metrics) => {
 
+    // timestamp is in microseconds, therefore divide by 10**6
+    const measurement_duration_in_s = (stats_data.project.end_measurement - stats_data.project.start_measurement) / 1000000;
+
+    const atx_energy_in_mWh = ((metrics.atx_energy) / 3600) * 1000;
     const cpu_energy_in_mWh = ((metrics.cpu_energy) / 3600) * 1000;
-    const ram_energy_in_mWh = ((metrics.ram_energy) / 3600) * 1000;
+    const memory_energy_in_mWh = ((metrics.memory_energy) / 3600) * 1000;
     let network_io = 0;
     for (item in metrics.network_io) {
-        network_io =  metrics.network_io[item];
+        network_io +=  metrics.network_io[item];
     }
-    const network_io_in_mWh = (network_io * 0.06) * 1000000;
-    const total_energy_in_mWh = cpu_energy_in_mWh + ram_energy_in_mWh + network_io_in_mWh;
+    const network_io_in_mWh = (network_io * 0.00006) * 1000000;
+    const total_energy_in_mWh = cpu_energy_in_mWh + memory_energy_in_mWh + network_io_in_mWh;
     let total_CO2_in_kg = ( (total_energy_in_mWh / 1000000) * 519) / 1000;
     const daily_co2_budget_in_kg_per_day = 1.739; // (12.7 * 1000 * 0.05) / 365 from https://www.pawprint.eco/eco-blog/average-carbon-footprint-uk and https://www.pawprint.eco/eco-blog/average-carbon-footprint-globally
     let co2_budget_utilization = total_CO2_in_kg*100 / daily_co2_budget_in_kg_per_day;
@@ -312,27 +341,37 @@ const fillAvgContainers = (metrics) => {
     else if(total_CO2_in_kg < 0.0001) co2_display = { value: total_CO2_in_kg*(10**6), unit: 'mg'};
     else if(total_CO2_in_kg < 0.1) co2_display = { value: total_CO2_in_kg*(10**3), unit: 'g'};
 
-    document.querySelector("#cpu-energy").innerText = cpu_energy_in_mWh.toFixed(2) + " mWh"
-    document.querySelector("#ram-energy").innerText = ram_energy_in_mWh.toFixed(2) + " mWh"
+    if(atx_energy_in_mWh) document.querySelector("#atx-energy").innerText = atx_energy_in_mWh.toFixed(2) + " mWh"
+    if(cpu_energy_in_mWh) document.querySelector("#cpu-energy").innerText = cpu_energy_in_mWh.toFixed(2) + " mWh"
+    if(cpu_energy_in_mWh) document.querySelector("#component-energy").innerText = (cpu_energy_in_mWh+memory_energy_in_mWh).toFixed(2) + " mWh"
+    if(memory_energy_in_mWh) document.querySelector("#memory-energy").innerText = memory_energy_in_mWh.toFixed(2) + " mWh"
+    if(cpu_energy_in_mWh) document.querySelector("#total-energy").innerText = (cpu_energy_in_mWh+memory_energy_in_mWh+network_io_in_mWh).toFixed(2) + " mWh"
 
-    document.querySelector("#network-io").innerText = network_io.toFixed(2) + " GB"
-    document.querySelector("#network-energy").innerHTML = network_io_in_mWh.toFixed(2) + " mWh"
+    if(cpu_energy_in_mWh) document.querySelector("#component-power").innerText = ((metrics.cpu_energy+metrics.memory_energy)/measurement_duration_in_s).toFixed(2) + " W"
+    if(atx_energy_in_mWh) document.querySelector("#atx-power").innerText = (metrics.atx_energy / measurement_duration_in_s).toFixed(2) + " W"
 
-    document.querySelector("#total-co2").innerHTML = `${(co2_display.value).toFixed(2)} ${co2_display.unit}`
-    document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + " %"
 
-    document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, metrics.cpu_load)) + " %"
-    document.querySelector("#avg-cpu-load").innerText = ((metrics.cpu_load.reduce((a, b) => a + b, 0) / metrics.cpu_load.length)).toFixed(2) + " %"
+    if(network_io) document.querySelector("#network-io").innerText = network_io.toFixed(2) + " MB"
+    if(network_io_in_mWh) document.querySelector("#network-energy").innerHTML = network_io_in_mWh.toFixed(2) + " mWh"
 
-    document.querySelector("#avg-mem-load").innerText = ((metrics.mem_total.reduce((a, b) => a + b, 0) / metrics.mem_total.length)).toFixed(2) + " MB"
+    if(co2_display.value) document.querySelector("#total-co2-internal").innerHTML = `${(co2_display.value).toFixed(2)} ${co2_display.unit}`
+    if(co2_budget_utilization) document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + " %"
+
+    if(metrics.cpu_load.length) {
+        document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, metrics.cpu_load)) + " %"
+        document.querySelector("#avg-cpu-load").innerText = ((metrics.cpu_load.reduce((a, b) => a + b, 0) / metrics.cpu_load.length)).toFixed(2) + " %"
+    }
+    if(metrics.mem_total.length) document.querySelector("#avg-mem-load").innerText = ((metrics.mem_total.reduce((a, b) => a + b, 0) / metrics.mem_total.length)).toFixed(2) + " MB"
 
     upscaled_CO2_in_kg = total_CO2_in_kg * 100 * 30 ; // upscaled by 30 days for 10.000 requests (or runs) per day
 
-    document.querySelector("#trees").innerText = (upscaled_CO2_in_kg / 0.06 / 1000).toFixed(2);
-    document.querySelector("#miles-driven").innerText = (upscaled_CO2_in_kg / 0.000403 / 1000).toFixed(2);
-    document.querySelector("#gasoline").innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
-    // document.querySelector("#smartphones-charged").innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
-    document.querySelector("#flights").innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
+    if(upscaled_CO2_in_kg) {
+        document.querySelector("#trees").innerText = (upscaled_CO2_in_kg / 0.06 / 1000).toFixed(2);
+        document.querySelector("#miles-driven").innerText = (upscaled_CO2_in_kg / 0.000403 / 1000).toFixed(2);
+        document.querySelector("#gasoline").innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
+        // document.querySelector("#smartphones-charged").innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
+        document.querySelector("#flights").innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
+    }
 }
 
 
@@ -354,7 +393,7 @@ $(document).ready( (e) => {
         const metrics = getMetrics(stats_data, 'echarts');
         fillProjectData(stats_data.project)
         displayGraphs(metrics.series, notes_json.data, 'echarts');
-        fillAvgContainers(metrics);
+        fillAvgContainers(stats_data, metrics);
         document.querySelector('#api-loader').remove();
 
         // after all instances have been placed the flexboxes might have rearranged. We need to trigger resize

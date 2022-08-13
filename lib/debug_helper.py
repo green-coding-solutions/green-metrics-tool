@@ -1,4 +1,5 @@
 import sys
+from terminal_colors import TerminalColors
 
 class DebugHelper:
 
@@ -9,7 +10,7 @@ class DebugHelper:
             self.active = False
 
     def pause(self, msg=""):
-        print("\n#############################DEBUG_MODE########################")
+        print(TerminalColors.OKCYAN, "\n#############################DEBUG_MODE########################")
         print(msg)
-        print("Debug mode is active. Pausing. Please press Enter to continue ...")
+        print("Debug mode is active. Pausing. Please press Enter to continue ...", TerminalColors.ENDC)
         sys.stdin.readline()
