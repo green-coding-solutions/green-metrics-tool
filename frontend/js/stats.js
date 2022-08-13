@@ -1,3 +1,31 @@
+const metrics_info = {
+  cpu_utilization_cgroup_container: {
+      unit: 'Ratio',
+      SI_conversion_factor: 100,  // CPU comes as ratio, but since stored as integer is was multiplicated with 100
+      unit_after_conversion: '%'
+  },
+  cpu_energy_rapl_msr_system: {
+      unit: 'mJ',
+      SI_conversion_factor: 1000,
+      unit_after_conversion: 'J'
+  },
+  memory_energy_rapl_msr_system: {
+      unit: 'mJ',
+      SI_conversion_factor: 1000,
+      unit_after_conversion: 'J'
+  },
+  memory_total_cgroup_container: {
+      unit: 'Bytes',
+      SI_conversion_factor: 1000000,
+      unit_after_conversion: 'MB'
+  },
+  network_io_cgroup_container: {
+      unit: 'Bytes',
+      SI_conversion_factor: 1000000,
+      unit_after_conversion: 'MB'
+  }
+}
+
 const getApexOptions = () => {
     return {
         series: null,
@@ -108,53 +136,47 @@ const getMetrics = (stats_data, style='apex') => {
     const t0 = performance.now();
 
     stats_data.data.forEach(el => {
-        /* Spec for data
-        el[0] // container_id
-        el[1] // time -> in microseconds
-        el[2] // metric name
-        el[3] // value -> This value might need to be rescaled
-        '*/
+        const container_name = el[0];
+        const time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
+        const metric_name = el[2];
+        let value = el[3];
+
         accumulate = 0; // default
 
+        // here we use the undivided time on purpose
         if (el[1] > stats_data.project.start_measurement && el[1] < stats_data.project.end_measurement) {
             accumulate = 1;
         }
 
-        let time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
-        let value = el[3]; // default
 
-        if (el[2] == 'cpu_utilization_cgroup_container') { // value is
-            value = el[3] / 100; // CPU comes as ratio, but since stored as integer is was multiplicated with 100
+        value = value / metrics_info[metric_name].SI_conversion_factor;
+
+        if (metric_name == 'cpu_utilization_cgroup_container') {
             if (accumulate === 1) metrics.cpu_load.push(value);
-        } else if (el[2] == 'cpu_energy_rapl_msr_system') {
-            value = el[3] / 1000; // value is in mJ
+        } else if (metric_name == 'cpu_energy_rapl_msr_system') {
             if (accumulate === 1) metrics.cpu_energy += value;
-        } else if (el[2] == 'atx_energy_dc_channel') {
-            value = el[3] / 1000; // value is in mJ
+        } else if (metric_name == 'atx_energy_dc_channel') {
             if (accumulate === 1) metrics.atx_energy += value;
-        } else if (el[2] == 'memory_energy_rapl_msr_system') {
-            value = el[3] / 1000; // value is in mJ
+        } else if (metric_name == 'memory_energy_rapl_msr_system') {
             if (accumulate === 1) metrics.memory_energy += value;
-        } else if (el[2] == 'memory_total_cgroup_container') {
-            value = el[3] / 1000000; // make memory in MB since it comes in Bytes
+        } else if (metric_name == 'memory_total_cgroup_container') {
             if (accumulate === 1) metrics.mem_total.push(value);
-        } else if (el[2] == 'network_io_cgroup_container') {
-            value = el[3] / 1000000; // make memory in MB since it comes in Bytes
-            metrics.network_io[el[0]] = value; // save only the last value per container (overwrite)
+        } else if (metric_name == 'network_io_cgroup_container') {
+            if (accumulate === 1) metrics.network_io[container_name] = value; // save only the last value per container (overwrite)
         }
 
         // Depending on the charting library the object has to be reformatted
         // First we check if structure is initialized
-        if (metrics.series[el[2]] == undefined)  metrics.series[el[2]] = {};
-        if (metrics.series[el[2]][el[0]] == undefined) {
-            metrics.series[el[2]][el[0]] = { name: el[0], data: [] }
+        if (metrics.series[metric_name] == undefined)  metrics.series[metric_name] = {};
+        if (metrics.series[metric_name][container_name] == undefined) {
+            metrics.series[metric_name][container_name] = { name: container_name, data: [] }
         }
 
         // now we handle the library specific formatting
         if(style=='apex') {
-            metrics.series[el[2]][el[0]]['data'].push({ x: time_in_ms, y: value })
+            metrics.series[metric_name][container_name]['data'].push({ x: time_in_ms, y: value })
         } else if(style=='echarts') {
-            metrics.series[el[2]][el[0]]['data'].push([time_in_ms, value])
+            metrics.series[metric_name][container_name]['data'].push([time_in_ms, value])
         } else throw "Unknown chart style"
     })
 
@@ -180,12 +202,12 @@ const displayGraphs = (metrics, notes, style='apex') => {
         if(style=='apex') {
             charts = [];
             let options = getApexOptions();
-            options.title.text = metric_name;
+            options.title.text = `${metric_name} ${metrics_info[metric_name].unit_after_conversion}`;
             options.series = Object.values(metrics[metric_name]);
             (new ApexCharts(element, options)).render();
         } else if(style == 'echarts') {
             var options = getEChartsOptions();
-            options.title.text = metric_name;
+            options.title.text = `${metric_name} [${metrics_info[metric_name].unit_after_conversion}]`;
             for (container in metrics[metric_name]) {
                 options.legend.data.push(container)
                 options.series.push({
