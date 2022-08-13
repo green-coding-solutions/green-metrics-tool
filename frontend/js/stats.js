@@ -304,7 +304,7 @@ const fillAvgContainers = (stats_data, metrics) => {
     const ram_energy_in_mWh = ((metrics.ram_energy) / 3600) * 1000;
     let network_io = 0;
     for (item in metrics.network_io) {
-        network_io =  metrics.network_io[item];
+        network_io +=  metrics.network_io[item];
     }
     const network_io_in_mWh = (network_io * 0.00006) * 1000000;
     const total_energy_in_mWh = cpu_energy_in_mWh + ram_energy_in_mWh + network_io_in_mWh;
