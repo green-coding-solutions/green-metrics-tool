@@ -24,6 +24,7 @@ from db import DB
 import error_helpers
 import hardware_info
 import process_helpers
+from terminal_colors import TerminalColors
 
 from debug_helper import DebugHelper
 
@@ -62,12 +63,12 @@ class Runner:
             obj = yaml.safe_load(fp)
 
 
-        print("Having Usage Scenario ", obj['name'])
+        print(TerminalColors.HEADER, "\nHaving Usage Scenario ", obj['name'], TerminalColors.ENDC)
         print("From: ", obj['author'])
         print("Version ", obj['version'], "\n")
 
         if(self.allow_unsafe):
-            print("\n\n>>>> Warning: Runner is running in unsafe mode <<<<<<\n\n")
+            print(TerminalColors.WARNING, "\n\n>>>> Warning: Runner is running in unsafe mode <<<<<<\n\n", TerminalColors.ENDC)
 
         # Sanity checks first, before we insert anything in DB and rely on the linux subsystem to be present. ATM only linux is working
         # TODO: Refactor hardware calls later to be able to switch architectures
@@ -89,6 +90,7 @@ class Runner:
             )
 
         # Import metric providers dynamically
+        print(TerminalColors.HEADER, "\nImporting metric providers", TerminalColors.ENDC)
         for metric_provider in config['measurement']['metric-providers']: # will iterate over keys
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
@@ -103,6 +105,7 @@ class Runner:
         if debug.active: debug.pause("Initial load complete. Waiting to start network setup")
 
         if 'networks' in obj: # for some rare containers there is no network, like machine learning for example
+            print(TerminalColors.HEADER, "\nSetting up networks", TerminalColors.ENDC)
             for network in obj['networks']:
                 print("Creating network: ", network)
                 subprocess.run(['docker', 'network', 'rm', network]) # remove first if present to not get error
@@ -113,6 +116,8 @@ class Runner:
         if debug.active: debug.pause("Initial load complete. Waiting to start container setup")
 
         for container_name in obj['services']:
+            print(TerminalColors.HEADER, "\nSetting up containers", TerminalColors.ENDC)
+
             service = obj['services'][container_name]
 
             print("Resetting container")
@@ -142,7 +147,7 @@ class Runner:
                         docker_run_string.append('-v')
                         docker_run_string.append(f"{volume}")
                 elif self.skip_unsafe:
-                    print('\n\n>>>>>>> Found volumes entry but not running in unsafe mode. Skipping <<<<<<<<\n\n')
+                    print(TerminalColors.WARNING, '\n\n>>>>>>> Found volumes entry but not running in unsafe mode. Skipping <<<<<<<<\n\n', TerminalColors.ENDC)
                 else:
                     raise RuntimeError(f"Found 'volumes' but neither --skip-unsafe nor --allow-unsafe is set")
 
@@ -155,7 +160,7 @@ class Runner:
                         docker_run_string.append('-p')
                         docker_run_string.append(ports)
                 elif self.skip_unsafe:
-                    print('\n\n>>>>>>> Found ports entry but not running in unsafe mode. Skipping <<<<<<<<\n\n')
+                    print(TerminalColors.WARNING, '\n\n>>>>>>> Found ports entry but not running in unsafe mode. Skipping <<<<<<<<\n\n', TerminalColors.ENDC)
                 else:
                     raise RuntimeError(f"Found 'ports' but neither --skip-unsafe nor --allow-unsafe is set")
 
@@ -164,13 +169,13 @@ class Runner:
                 for docker_env_var in service['environment']:
                     if not self.allow_unsafe and re.search("^[A-Z_]+$", docker_env_var) is None:
                         if self.skip_unsafe:
-                            print(f"\n\n>>>>>>> Found environment var key with wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var} - Skipping <<<<<<<<\n\n")
+                            print(TerminalColors.WARNING, f"\n\n>>>>>>> Found environment var key with wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var} - Skipping <<<<<<<<\n\n", TerminalColors.ENDC)
                             continue
                         raise RuntimeError(f"Docker container setup environment var key had wrong format. Only ^[A-Z_]+$ allowed: {docker_env_var} - Maybe consider using --allow-unsafe or --skip-unsafe")
 
                     if not self.allow_unsafe and re.search("^[a-zA-Z_]+[a-zA-Z0-9_-]*$", service['environment'][docker_env_var]) is None:
                         if self.skip_unsafe:
-                            print(f"\n\n>>>>>>> Found environment var value with wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - Skipping <<<<<<<<\n\n")
+                            print(TerminalColors.WARNING, f"\n\n>>>>>>> Found environment var value with wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - Skipping <<<<<<<<\n\n", TerminalColors.ENDC)
                             continue
                         raise RuntimeError(f"Docker container setup environment var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - Maybe consider using --allow-unsafe --skip-unsafe")
 
@@ -230,16 +235,18 @@ class Runner:
 
         # --- setup finished
 
-        print("Current known containers: ", self.containers)
+        print(TerminalColors.HEADER, "\nCurrent known containers: ", self.containers, TerminalColors.ENDC)
 
         if debug.active: debug.pause("Container setup complete. Waiting to start metric-providers")
+
+        print(TerminalColors.HEADER, "\nStarting measurement providers", TerminalColors.ENDC)
 
         for metric_provider in self.metric_providers:
             print(f"Starting measurement provider {metric_provider.__class__.__name__}")
             metric_provider.start_profiling(self.containers)
             os.set_blocking(metric_provider._ps.stderr.fileno(), False) # set_block False enables non-blocking reads on stderr.read(). Otherwise it would wait forever on empty
 
-        print("Waiting for Metric Providers to boot ...")
+        print(TerminalColors.HEADER, "\nWaiting for Metric Providers to boot ...", TerminalColors.ENDC)
         time.sleep(2)
 
         for metric_provider in self.metric_providers:
@@ -251,7 +258,7 @@ class Runner:
 
         notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
 
-        print(f"Pre-idling containers for {config['measurement']['idle-time-start']}s")
+        print(TerminalColors.HEADER, f"\nPre-idling containers for {config['measurement']['idle-time-start']}s", TerminalColors.ENDC)
 
         time.sleep(config['measurement']['idle-time-start'])
 
@@ -262,14 +269,14 @@ class Runner:
 
         # run the flows
         for el in obj['flow']:
-            print("Running flow: ", el['name'])
+            print(TerminalColors.HEADER, "\nRunning flow: ", el['name'], TerminalColors.ENDC)
             for inner_el in el['commands']:
 
                 if "note" in inner_el:
                     notes.append({"note" : inner_el['note'], 'container_name' : el['container'], "timestamp": int(time.time_ns() / 1_000)})
 
                 if inner_el['type'] == 'console':
-                    print("Console command", inner_el['command'], "on container", el['container'])
+                    print(TerminalColors.HEADER, "\nConsole command", inner_el['command'], "on container", el['container'], TerminalColors.ENDC)
 
                     docker_exec_command = ['docker', 'exec']
 
@@ -302,10 +309,10 @@ class Runner:
         end_measurement = int(time.time_ns() / 1_000)
         notes.append({"note" : "End of measurement", 'container_name' : '[SYSTEM]', "timestamp": end_measurement})
 
-        print(f"Idling containers after run for {config['measurement']['idle-time-end']}s")
+        print(TerminalColors.HEADER, f"\nIdling containers after run for {config['measurement']['idle-time-end']}s", TerminalColors.ENDC)
         time.sleep(config['measurement']['idle-time-end'])
 
-        print("Stopping metric providers and parsing stats")
+        print(TerminalColors.HEADER, "Stopping metric providers and parsing stats", TerminalColors.ENDC)
         for metric_provider in self.metric_providers:
             stderr_read = metric_provider._ps.stderr.read()
             if stderr_read is not None:
@@ -314,7 +321,7 @@ class Runner:
             metric_provider.stop_profiling()
 
             df = metric_provider.read_metrics(project_id, self.containers)
-            print(f"Imported {df.shape[0]} metrics from {metric_provider.__class__.__name__}")
+            print(f"Imported",TerminalColors.HEADER, df.shape[0], TerminalColors.ENDC, "metrics from ", metric_provider.__class__.__name__)
             if df is None or df.shape[0] == 0:
                 raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
 
@@ -323,7 +330,7 @@ class Runner:
 
 
         # now we have free capacity to parse the stdout / stderr of the processes
-        print("Getting output from processes: ")
+        print(TerminalColors.HEADER, "\nGetting output from processes: ", TerminalColors.ENDC)
         for ps in self.ps_to_read:
             for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd']):
                 print("Output from process: ", line)
@@ -333,10 +340,10 @@ class Runner:
 
         process_helpers.kill_ps(self.ps_to_kill) # kill process only after reading. Otherwise the stream buffer might be gone
 
-        print("Saving notes: ", notes)
+        print(TerminalColors.HEADER, "\nSaving notes: ", TerminalColors.ENDC, notes) # we here only want the header to be colored, not the notes itself
         save_notes(project_id, notes)
 
-        print("Updating start and end measurement times")
+        print(TerminalColors.HEADER, "\nUpdating start and end measurement times", TerminalColors.ENDC)
         DB().query("""UPDATE projects
             SET start_measurement=%s, end_measurement=%s
             WHERE id = %s
@@ -346,6 +353,8 @@ class Runner:
 
 
     def cleanup(self): # TODO: Could be done when destroying object. but do we have all infos then?
+
+        print(TerminalColors.OKCYAN, "\nStarting cleanup routine", TerminalColors.ENDC)
 
         print("Stopping metric providers")
         for metric_provider in self.metric_providers:
@@ -364,7 +373,7 @@ class Runner:
             subprocess.run(["rm", "-Rf", "/tmp/green-metrics-tool"])
 
         process_helpers.kill_ps(self.ps_to_kill)
-        print("\n\n>>> Cleanup gracefully completed <<<\n\n")
+        print(TerminalColors.OKBLUE, "-Cleanup gracefully completed", TerminalColors.ENDC)
 
         self.containers = {}
         self.networks = []
@@ -388,17 +397,17 @@ if __name__ == "__main__":
 
     if args.uri is None:
         parser.print_help()
-        print('\nError: Please supply --uri to get usage_scenario.yml from\n')
+        error_helpers.log_error("Please supply --uri to get usage_scenario.yml from")
         exit(2)
 
     if args.allow_unsafe and args.skip_unsafe:
         parser.print_help()
-        print("\nError: --allow-unsafe and skip--unsafe in conjuction is not possible\n")
+        error_helpers.log_error("--allow-unsafe and skip--unsafe in conjuction is not possible")
         exit(2)
 
     if args.name is None:
         parser.print_help()
-        print("\nError: Please supply --name\n")
+        error_helpers.log_error("Please supply --name")
         exit(2)
 
     if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://':
@@ -409,14 +418,12 @@ if __name__ == "__main__":
         uri_type = 'folder'
         if not Path(args.uri).is_dir():
             parser.print_help()
-            print("\nError: Could not find folder on local system. Please double check: ", args.uri, "\n")
+            error_helpers.log_error("Could not find folder on local system. Please double check: ", args.uri)
             exit(2)
     else:
         parser.print_help()
-        print("\nError: Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ", args.uri,  "\n")
+        error_helpers.log_error("Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ", args.uri)
         exit(2)
-
-
 
 
     # We issue a fetch_one() instead of a query() here, cause we want to get the project_id
@@ -427,13 +434,18 @@ if __name__ == "__main__":
     runner = Runner(debug_mode=args.debug, allow_unsafe=args.allow_unsafe, no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe)
     try:
         runner.run(uri=args.uri, uri_type=uri_type, project_id=project_id) # Start main code
+        print(TerminalColors.OKGREEN, "\n\n####################################################################################")
         print(f"Please access your report with the ID: {project_id}")
+        print("####################################################################################\n\n",TerminalColors.ENDC)
+
     except FileNotFoundError as e:
         error_helpers.log_error("Docker command failed.", e, project_id)
     except subprocess.CalledProcessError as e:
         error_helpers.log_error("Docker command failed", "Stdout:", e.stdout, "Stderr:", e.stderr, project_id)
     except KeyError as e:
         error_helpers.log_error("Was expecting a value inside the JSON file, but value was missing: ", e, project_id)
+    except RuntimeError as e:
+        error_helpers.log_error("RuntimeError occured in runner.py: ", e, project_id)
     except BaseException as e:
         error_helpers.log_error("Base exception occured in runner.py: ", e, project_id)
     finally:
