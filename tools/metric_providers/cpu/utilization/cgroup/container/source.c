@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
     }
 
     if(containers == NULL) {
-        printf("Please supply at least one container id with -s XXXX\n");
+        fprintf(stderr, "Please supply at least one container id with -s XXXX\n");
         exit(1);
     }
 

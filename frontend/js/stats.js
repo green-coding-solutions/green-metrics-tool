@@ -4,6 +4,11 @@ const metrics_info = {
       SI_conversion_factor: 100,  // CPU comes as ratio, but since stored as integer is was multiplicated with 100
       unit_after_conversion: '%'
   },
+  cpu_utilization_procfs_system: {
+      unit: 'Ratio',
+      SI_conversion_factor: 100,  // CPU comes as ratio, but since stored as integer is was multiplicated with 100
+      unit_after_conversion: '%'
+  },
   cpu_energy_rapl_msr_system: {
       unit: 'mJ',
       SI_conversion_factor: 1000,
@@ -148,7 +153,7 @@ const fillProjectTab = (selector, data) => {
 }
 
 const getMetrics = (stats_data, style='apex') => {
-    const metrics = {cpu_load: [], mem_total: [], network_io: {}, series: {}, atx_energy: 0, cpu_energy: 0, memory_energy: 0}
+    const metrics = {cpu_utilization_containers: [], cpu_utilization_system: [], mem_total: [], network_io: {}, series: {}, atx_energy: 0, cpu_energy: 0, memory_energy: 0}
 
     let accumulate = 0;
 
@@ -172,7 +177,9 @@ const getMetrics = (stats_data, style='apex') => {
         value = value / metrics_info[metric_name].SI_conversion_factor;
 
         if (metric_name == 'cpu_utilization_cgroup_container') {
-            if (accumulate === 1) metrics.cpu_load.push(value);
+            if (accumulate === 1) metrics.cpu_utilization_containers.push(value);
+        } else if (metric_name == 'cpu_utilization_procfs_system') {
+            if (accumulate === 1) metrics.cpu_utilization_system.push(value);
         } else if (metric_name == 'cpu_energy_rapl_msr_system') {
             if (accumulate === 1) metrics.cpu_energy += value;
         } else if (metric_name == 'atx_energy_dc_channel') {
@@ -374,14 +381,19 @@ const fillAvgContainers = (stats_data, metrics) => {
     if(network_io) document.querySelector("#network-io").innerText = network_io.toFixed(2) + " MB"
     if(network_io_in_mWh) document.querySelector("#network-energy").innerHTML = network_io_in_mWh.toFixed(2) + " mWh"
 
-    if(co2_display.value) document.querySelector("#total-co2-internal").innerHTML = `${(co2_display.value).toFixed(2)} ${co2_display.unit}`
-    if(co2_budget_utilization) document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + " %"
+    if (co2_display.value) document.querySelector("#total-co2-internal").innerHTML = `${(co2_display.value).toFixed(2)} ${co2_display.unit}`
+    if (co2_budget_utilization) document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + " %"
 
-    if(metrics.cpu_load.length) {
-        document.querySelector("#max-cpu-load").innerText = (Math.max.apply(null, metrics.cpu_load)) + " %"
-        document.querySelector("#avg-cpu-load").innerText = ((metrics.cpu_load.reduce((a, b) => a + b, 0) / metrics.cpu_load.length)).toFixed(2) + " %"
+    if (metrics.cpu_utilization_containers.length) {
+        document.querySelector("#max-cpu-load-containers").innerText = (Math.max.apply(null, metrics.cpu_utilization_containers)) + " %"
+        document.querySelector("#avg-cpu-load-containers").innerText = ((metrics.cpu_utilization_containers.reduce((a, b) => a + b, 0) / metrics.cpu_utilization_containers.length)).toFixed(2) + " %"
     }
-    if(metrics.mem_total.length) document.querySelector("#avg-mem-load").innerText = ((metrics.mem_total.reduce((a, b) => a + b, 0) / metrics.mem_total.length)).toFixed(2) + " MB"
+        console.log(metrics.cpu_utilization_system)
+    if (metrics.cpu_utilization_system.length) {
+        document.querySelector("#max-cpu-load-system").innerText = (Math.max.apply(null, metrics.cpu_utilization_system)) + " %"
+        document.querySelector("#avg-cpu-load-system").innerText = ((metrics.cpu_utilization_system.reduce((a, b) => a + b, 0) / metrics.cpu_utilization_system.length)).toFixed(2) + " %"
+    }
+    if (metrics.mem_total.length) document.querySelector("#avg-mem-load").innerText = ((metrics.mem_total.reduce((a, b) => a + b, 0) / metrics.mem_total.length)).toFixed(2) + " MB"
 
     upscaled_CO2_in_kg = total_CO2_in_kg * 100 * 30 ; // upscaled by 30 days for 10.000 requests (or runs) per day
 
