@@ -9,6 +9,11 @@ const metrics_info = {
       SI_conversion_factor: 1000,
       unit_after_conversion: 'J'
   },
+  atx_energy_dc_channel: {
+      unit: 'mJ',
+      SI_conversion_factor: 1000,
+      unit_after_conversion: 'J'
+  },
   memory_energy_rapl_msr_system: {
       unit: 'mJ',
       SI_conversion_factor: 1000,
@@ -23,6 +28,21 @@ const metrics_info = {
       unit: 'Bytes',
       SI_conversion_factor: 1000000,
       unit_after_conversion: 'MB'
+  },
+  cpu_time_cgroup_container: {
+      unit: 'us',
+      SI_conversion_factor: 1,
+      unit_after_conversion: 'us'
+  },
+  cpu_time_cgroup_system: {
+      unit: 'us',
+      SI_conversion_factor: 1,
+      unit_after_conversion: 'us'
+  },
+  cpu_time_system: {
+      unit: 'us',
+      SI_conversion_factor: 1,
+      unit_after_conversion: 'us'
   }
 }
 
