@@ -390,7 +390,7 @@ static int setup_measurement_units(int measurement_mode) {
             energy_units[j] = dram_energy_units[j];
         }
         else {
-            fprintf(stderr,"Unknown measurement mode: %d\n",mode);
+            fprintf(stderr,"Unknown measurement mode: %d\n",measurement_mode);
             exit(-1);
         }
     }
