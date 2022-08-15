@@ -39,7 +39,7 @@ const metrics_info = {
       SI_conversion_factor: 1,
       unit_after_conversion: 'us'
   },
-  cpu_time_system: {
+  cpu_time_procfs_system: {
       unit: 'us',
       SI_conversion_factor: 1,
       unit_after_conversion: 'us'

@@ -26,7 +26,7 @@ measurement:
     memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider: 100
 #    cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider: 100
 #    cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider: 100
-#    cpu.time.system.provider.CpuTimeSystemProvider: 100
+#    cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider: 100
     network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider: 100
     memory.energy.RAPL.MSR.system.provider.MemoryEnergyRaplMsrSystemProvider: 100
 
