@@ -36,7 +36,6 @@
 #include <string.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
-#include <stdbool.h>
 
 
 /* AMD Support */
@@ -266,10 +265,8 @@ static int detect_packages(void) {
     return 0;
 }
 
-enum MeasurementModes{
-    measure_energy_pkg,
-    measure_dram
-};
+#define MEASURE_ENERGY_PKG 1
+#define MEASURE_DRAM 2
 
 int dram_avail=0;
 int different_units=0;
@@ -277,9 +274,9 @@ double cpu_energy_units[MAX_PACKAGES],dram_energy_units[MAX_PACKAGES];
 unsigned int energy_status;
 double energy_units[MAX_PACKAGES];
 
-static int check_availability(int cpu_model, enum MeasurementModes mode) {
+static int check_availability(int cpu_model, int measurement_mode) {
 
-    if(mode == measure_dram){
+    if(measurement_mode == MEASURE_DRAM){
         switch(cpu_model) {
             case CPU_SANDYBRIDGE_EP:
             case CPU_IVYBRIDGE_EP:
@@ -337,7 +334,7 @@ static int check_availability(int cpu_model, enum MeasurementModes mode) {
         }
     }
 
-    if(mode == measure_dram && !dram_avail) {
+    if(measurement_mode == MEASURE_DRAM && !dram_avail) {
         fprintf(stderr,"DRAM not available for your processer.\n");
         exit(-1);
     }
@@ -351,7 +348,7 @@ static int check_availability(int cpu_model, enum MeasurementModes mode) {
     return 0;
 }
 
-static int setup_measurement_units(enum MeasurementModes mode) {
+static int setup_measurement_units(int measurement_mode) {
     int fd;
     int j;
     long long result;
@@ -373,22 +370,22 @@ static int setup_measurement_units(enum MeasurementModes mode) {
 
         cpu_energy_units[j]=pow(0.5,(double)((result>>8)&0x1f)); //multiplying by 0x1f will give you the first 5 bits
 
-        if(mode == measure_dram && different_units) {
+        if(measurement_mode == MEASURE_DRAM && different_units) {
             dram_energy_units[j]=pow(0.5,(double)16);
         }
-        else if (mode == measure_dram && !different_units) {
+        else if (measurement_mode == MEASURE_DRAM && !different_units) {
             dram_energy_units[j]=cpu_energy_units[j];
         }
         close(fd);
     }
 
     for(j=0;j<total_packages;j++) {
-        if(mode == measure_energy_pkg)
+        if(measurement_mode == MEASURE_ENERGY_PKG)
         {
             energy_status = msr_pkg_energy_status;
             energy_units[j] = cpu_energy_units[j];
         }
-        else if(mode == measure_dram) {
+        else if(measurement_mode == MEASURE_DRAM) {
             energy_status = MSR_DRAM_ENERGY_STATUS;
             energy_units[j] = dram_energy_units[j];
         }
@@ -400,10 +397,9 @@ static int setup_measurement_units(enum MeasurementModes mode) {
     return 0;
 }
 
-static int rapl_msr(enum MeasurementModes mode) {
+static int rapl_msr() {
     int fd;
     long long result;
-    //double power_units,time_units;
     double package_before[MAX_PACKAGES],package_after[MAX_PACKAGES];
     int j;
     struct timeval now;
@@ -414,6 +410,11 @@ static int rapl_msr(enum MeasurementModes mode) {
         /* Package Energy */
         
         result=read_msr(fd,energy_status);
+        /*
+        if(result<0){
+            fprintf(stderr,"Negative Energy Reading: %lld\n", result);
+            exit(-1);
+        }*/
         package_before[j]=(double)result*energy_units[j];
         close(fd);
     }
@@ -425,11 +426,28 @@ static int rapl_msr(enum MeasurementModes mode) {
 
         double energy_output = 0.0;
         result=read_msr(fd,energy_status);
+        
+        // As we are reading the MSR as an unsigned int, so the reading should never be negative
+        // However, in case it does somehow, we still don't want it to abort
+        /*
+        if(result<0){
+            fprintf(stderr,"Negative Energy Reading: %lld\n", result);
+            exit(-1);
+        }*/
         package_after[j]=(double)result*energy_units[j];
         energy_output = package_after[j]-package_before[j];
 
-        gettimeofday(&now, NULL);
-        printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000));
+        // The register can overflow at some point, leading to the subtraction giving an incorrect value (negative)
+        // For now, skip reporting this value. in the future, we can use a branchless alternative
+        if(energy_output>=0) {
+            gettimeofday(&now, NULL);
+            printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000));
+        }
+        /*
+        else {
+            fprintf(stderr, "Energy reading had unexpected value: %f", energy_output);
+            exit(-1);
+        }*/
 
         close(fd);
     }
@@ -441,7 +459,7 @@ int main(int argc, char **argv) {
 
     int c;
     int cpu_model;
-    enum MeasurementModes measure_mode=measure_energy_pkg;
+    int measure_mode = MEASURE_ENERGY_PKG;
 
     while ((c = getopt (argc, argv, "hi:d")) != -1) {
         switch (c) {
@@ -455,7 +473,7 @@ int main(int argc, char **argv) {
             msleep_time = atoi(optarg);
             break;
         case 'd':
-            measure_mode=measure_dram;
+            measure_mode=MEASURE_DRAM;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -470,7 +488,7 @@ int main(int argc, char **argv) {
     check_availability(cpu_model, measure_mode);
     setup_measurement_units(measure_mode);
     while(1) {
-        rapl_msr(measure_mode);
+        rapl_msr();
     }
 
     return 0;
