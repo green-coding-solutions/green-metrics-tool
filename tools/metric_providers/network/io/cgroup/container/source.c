@@ -53,14 +53,14 @@ static unsigned long int get_network_cgroup(unsigned int pid) {
 
     int fd_ns = open(ns_path, O_RDONLY);   /* Get descriptor for namespace */
     if (fd_ns == -1) {
-        printf("open failed");
+        fprintf(stderr, "open failed");
         exit(1);
     }
 
     // printf("Entering namespace /proc/%u/ns/net \n", pid);
 
    if (setns(fd_ns, 0) == -1) { // argument 0 means that any type of NS (IPC, Network, UTS) is allowed
-        printf("setns failed");
+        fprintf(stderr, "setns failed");
         exit(1);
     }
 
@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
     int length = 0;
 
     setvbuf(stdout, NULL, _IONBF, 0);
-    user_id = geteuid();
+    user_id = getuid(); // because the file is run without sudo but has the suid bit set we only need getuid and not geteuid
 
     while ((c = getopt (argc, argv, "i:s:h")) != -1) {
         switch (c) {
@@ -160,7 +160,7 @@ int main(int argc, char **argv) {
     }
 
     if(containers == NULL) {
-        printf("Please supply at least one container id with -s XXXX\n");
+        fprintf(stderr, "Please supply at least one container id with -s XXXX\n");
         exit(1);
     }
 

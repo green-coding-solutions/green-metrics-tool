@@ -205,7 +205,7 @@ static int detect_cpu(void) {
 
     if (vendor==CPU_VENDOR_INTEL) {
         if (family!=6) {
-            printf("Wrong CPU family %d\n",family);
+            fprintf(stderr, "Wrong CPU family %d\n",family);
             return -1;
         }
 
@@ -221,7 +221,7 @@ static int detect_cpu(void) {
         msr_pp0_energy_status=MSR_AMD_PP0_ENERGY_STATUS;
 
         if (family!=23) {
-            printf("Wrong CPU family %d\n",family);
+            fprintf(stderr, "Wrong CPU family %d\n",family);
             return -1;
         }
         model=CPU_AMD_FAM17H;
@@ -344,7 +344,7 @@ static int check_availability(int cpu_model, int measurement_mode) {
         exit(-1);
     }
 
-    
+
     return 0;
 }
 
@@ -363,7 +363,7 @@ static int setup_measurement_units(int measurement_mode) {
         // 8-12 -> energy status units
         // 16-19 -> time units
         // 4-7, 13-15, and 20-63 are all reserved bits
-        
+
         //power_units and time_units are not actually used... should we be using them?
         //power_units=pow(0.5,(double)(result&0xf)); //multiplying by 0xf will give you the first 4 bits
         //time_units=pow(0.5,(double)((result>>16)&0xf));
@@ -403,12 +403,12 @@ static int rapl_msr() {
     double package_before[MAX_PACKAGES],package_after[MAX_PACKAGES];
     int j;
     struct timeval now;
-    
+
     for(j=0;j<total_packages;j++) {
 
         fd=open_msr(package_map[j]);
         /* Package Energy */
-        
+
         result=read_msr(fd,energy_status);
         /*
         if(result<0){
@@ -426,7 +426,7 @@ static int rapl_msr() {
 
         double energy_output = 0.0;
         result=read_msr(fd,energy_status);
-        
+
         // As we are reading the MSR as an unsigned int, so the reading should never be negative
         // However, in case it does somehow, we still don't want it to abort
         /*

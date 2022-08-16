@@ -9,7 +9,7 @@ class NetworkIoCgroupContainerProvider(BaseMetricProvider):
             self._metric_name = "network_io_cgroup_container"
             self._metrics = {"time":int, "value":int, "container_id":str}
             self._resolution = resolution
-            super().__init__(sudo=True)
+            super().__init__()
 
 if __name__ == "__main__":
     import time

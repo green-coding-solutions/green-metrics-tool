@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
 
     setvbuf(stdout, NULL, _IONBF, 0);
     user_hz = sysconf(_SC_CLK_TCK);
-    user_id = geteuid();
+    user_id = getuid();
 
     while ((c = getopt (argc, argv, "i:s:h")) != -1) {
         switch (c) {

@@ -2,4 +2,5 @@ CFLAGS = -o3 -Wall -lc
 
 static-binary: source.c
 	gcc $< $(CFLAGS) -o $@
-	chmod +s static-binary
+	sudo chown root $@
+	sudo chmod u+s $@
