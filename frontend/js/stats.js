@@ -127,7 +127,6 @@ const getEChartsOptions = () => {
 }
 
 const fillProjectData = (project, key = null) => {
-
     for (item in project) {
         if (item == 'machine_specs') {
             fillProjectTab('#machine-specs', project[item])
@@ -137,6 +136,7 @@ const fillProjectData = (project, key = null) => {
         } else if(item == 'measurement_config') {
             fillProjectTab('#measurement-config', project[item])
         }  else {
+
             document.querySelector('#project-data').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project?.[item]}</td></tr>`)
         }
     }
@@ -345,9 +345,6 @@ const createGraph = (element, data, labels, title) => {
 
 const fillAvgContainers = (stats_data, metrics) => {
 
-    // timestamp is in microseconds, therefore divide by 10**6
-    const measurement_duration_in_s = (stats_data.project.end_measurement - stats_data.project.start_measurement) / 1000000;
-
     const atx_energy_in_mWh = ((metrics.atx_energy) / 3600) * 1000;
     const cpu_energy_in_mWh = ((metrics.cpu_energy) / 3600) * 1000;
     const memory_energy_in_mWh = ((metrics.memory_energy) / 3600) * 1000;
@@ -374,8 +371,8 @@ const fillAvgContainers = (stats_data, metrics) => {
     if(memory_energy_in_mWh) document.querySelector("#memory-energy").innerText = memory_energy_in_mWh.toFixed(2) + " mWh"
     if(cpu_energy_in_mWh) document.querySelector("#total-energy").innerText = (cpu_energy_in_mWh+memory_energy_in_mWh+network_io_in_mWh).toFixed(2) + " mWh"
 
-    if(cpu_energy_in_mWh) document.querySelector("#component-power").innerText = ((metrics.cpu_energy+metrics.memory_energy)/measurement_duration_in_s).toFixed(2) + " W"
-    if(atx_energy_in_mWh) document.querySelector("#atx-power").innerText = (metrics.atx_energy / measurement_duration_in_s).toFixed(2) + " W"
+    if(cpu_energy_in_mWh) document.querySelector("#component-power").innerText = ((metrics.cpu_energy+metrics.memory_energy)/stats_data.project.measurement_duration_in_s).toFixed(2) + " W"
+    if(atx_energy_in_mWh) document.querySelector("#atx-power").innerText = (metrics.atx_energy / stats_data.project.measurement_duration_in_s).toFixed(2) + " W"
 
 
     if(network_io) document.querySelector("#network-io").innerText = network_io.toFixed(2) + " MB"
@@ -388,7 +385,6 @@ const fillAvgContainers = (stats_data, metrics) => {
         document.querySelector("#max-cpu-load-containers").innerText = (Math.max.apply(null, metrics.cpu_utilization_containers)) + " %"
         document.querySelector("#avg-cpu-load-containers").innerText = ((metrics.cpu_utilization_containers.reduce((a, b) => a + b, 0) / metrics.cpu_utilization_containers.length)).toFixed(2) + " %"
     }
-        console.log(metrics.cpu_utilization_system)
     if (metrics.cpu_utilization_system.length) {
         document.querySelector("#max-cpu-load-system").innerText = (Math.max.apply(null, metrics.cpu_utilization_system)) + " %"
         document.querySelector("#avg-cpu-load-system").innerText = ((metrics.cpu_utilization_system.reduce((a, b) => a + b, 0) / metrics.cpu_utilization_system.length)).toFixed(2) + " %"
@@ -423,6 +419,11 @@ $(document).ready( (e) => {
         $('.ui.secondary.menu .item').tab();
 
         const metrics = getMetrics(stats_data, 'echarts');
+
+        // create new custom field
+        // timestamp is in microseconds, therefore divide by 10**6
+        stats_data.project['measurement_duration_in_s'] = (stats_data.project?.end_measurement - stats_data.project?.start_measurement) / 1000000
+
         fillProjectData(stats_data.project)
         displayGraphs(metrics.series, notes_json.data, 'echarts');
         fillAvgContainers(stats_data, metrics);
