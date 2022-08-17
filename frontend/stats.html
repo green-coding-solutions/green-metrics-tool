@@ -88,6 +88,7 @@
                 </div>
             </div>
         </div><!-- end ui horizontal card -->
+        <h3>container level metrics</h3>
         <div class="ui five cards stackable no-transform-statistics">
             <div class="ui card">
                 <div class="ui content">
@@ -95,9 +96,10 @@
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
-                                <i class="microchip icon"></i> <span id="avg-cpu-load">N/A</span>
+                                <i class="microchip icon"></i> <span id="avg-cpu-load-containers">N/A</span>
                             </div>
                         </div>
+                        <div class="ui bottom right attached label">all containers</div>
                     </div>
                 </div>
             </div>
@@ -107,9 +109,10 @@
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
-                                <i class="angle double up icon"></i> <span id="max-cpu-load">N/A</span>
+                                <i class="angle double up icon"></i> <span id="max-cpu-load-containers">N/A</span>
                             </div>
                         </div>
+                        <div class="ui bottom right attached label">all containers</div>
                     </div>
                 </div>
             </div>
@@ -135,6 +138,35 @@
                             </div>
                         </div>
                         <div class="ui bottom left attached label"><a href="https://docs.green-coding.org/docs/measuring/metric-providers/network-io-cgroup-container/"><i class="question circle icon"></i></a></div>
+                    </div>
+                </div>
+            </div>
+        </div><!-- end ui five cards stackable -->
+        <h3>system level metrics</h3>
+        <div class="ui five cards stackable no-transform-statistics">
+            <div class="ui card">
+                <div class="ui content">
+                    <div class="ui top attached yellow label">AVG CPU Load</div>
+                    <div class="description">
+                        <div class="ui tiny statistic">
+                            <div class="value">
+                                <i class="microchip icon"></i> <span id="avg-cpu-load-system">N/A</span>
+                            </div>
+                        </div>
+                        <div class="ui bottom right attached label">system</div>
+                    </div>
+                </div>
+            </div>
+            <div class="ui card">
+                <div class="ui content">
+                    <div class="ui top attached teal label">Max. CPU Load</div>
+                    <div class="description">
+                        <div class="ui tiny statistic">
+                            <div class="value">
+                                <i class="angle double up icon"></i> <span id="max-cpu-load-system">N/A</span>
+                            </div>
+                        </div>
+                        <div class="ui bottom right attached label">system</div>
                     </div>
                 </div>
             </div>
@@ -166,6 +198,23 @@
             </div>
             <div class="ui card">
                 <div class="ui content">
+                    <div class="ui top attached orange label">Network Energy</div>
+                    <div class="ui bottom right attached label">via formula</div>
+                    <div class="description">
+                        <div class="ui tiny statistic">
+                            <div class="value">
+                                <i class="power off icon"></i> <span id="network-energy">N/A</span>
+                            </div>
+                        </div>
+                        <div class="ui bottom left attached label"><a href="https://www.green-coding.org/co2-formulas"><i class="question circle icon"></i></a></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <h3>compound metrics</h3>
+        <div class="ui five cards stackable no-transform-statistics">
+            <div class="ui card">
+                <div class="ui content">
                     <div class="ui top attached orange label">Component Energy</div>
                     <div class="ui bottom right attached label">RAPL CPU+Memory</div>
                     <div class="description">
@@ -192,39 +241,12 @@
             </div>
             <div class="ui card">
                 <div class="ui content">
-                    <div class="ui top attached orange label">Network Energy</div>
-                    <div class="ui bottom right attached label">via formula</div>
-                    <div class="description">
-                        <div class="ui tiny statistic">
-                            <div class="value">
-                                <i class="power off icon"></i> <span id="network-energy">N/A</span>
-                            </div>
-                        </div>
-                        <div class="ui bottom left attached label"><a href="https://www.green-coding.org/co2-formulas"><i class="question circle icon"></i></a></div>
-                    </div>
-                </div>
-            </div>
-            <div class="ui card">
-                <div class="ui content">
                     <div class="ui top attached orange label">Total Energy</div>
                     <div class="ui bottom right attached label">CPU + Memory + Network</div>
                     <div class="description">
                         <div class="ui tiny statistic">
                             <div class="value">
                                 <i class="power off icon"></i> <span id="total-energy">N/A</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="ui card">
-                <div class="ui content">
-                    <div class="ui top black attached label">Total co2 </div>
-                    <div class="ui bottom right attached label">CPU + Memory + Network</div>
-                    <div class="description">
-                        <div class="ui tiny statistic">
-                            <div class="value">
-                                <i class="burn icon"></i> <span id="total-co2-internal">N/A</span>
                             </div>
                         </div>
                     </div>
@@ -256,8 +278,21 @@
                     </div>
                 </div>
             </div>
+            <div class="ui card">
+                <div class="ui content">
+                    <div class="ui top black attached label">Total co2 </div>
+                    <div class="ui bottom right attached label">CPU + Memory + Network</div>
+                    <div class="description">
+                        <div class="ui tiny statistic">
+                            <div class="value">
+                                <i class="burn icon"></i> <span id="total-co2-internal">N/A</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div><!-- end ui five cards stackable -->
 
-        </div><!-- end ui four cards stackable -->
         <div class="ui icon message">
             <i class="question circle icon"></i>
             <div class="content">

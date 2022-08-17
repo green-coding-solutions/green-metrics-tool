@@ -9,7 +9,7 @@ class CpuEnergyRaplMsrSystemProvider(BaseMetricProvider):
             self._metric_name = "cpu_energy_rapl_msr_system"
             self._metrics = {"time":int, "value":int}
             self._resolution = resolution
-            super().__init__(sudo=True)
+            super().__init__()
 
 if __name__ == "__main__":
     import time

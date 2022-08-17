@@ -17,27 +17,15 @@ def main(args):
 
     df = df.rename({"Unnamed: 0": "time"}, axis=1)
 
-
-    df = df[['time',
-        'Differential 1 - 2 Last (mV)',
-        'Differential 3 - 4 Last (mV)',
-        'Differential 5 - 6 Last (mV)',
-        'Differential 7 - 8 Last (mV)',
-        'Differential 9 - 10 Last (mV)',
-        'Differential 11 - 12 Last (mV)',
-        'Differential 13 - 14 Last (mV)',
-        'Differential 15 - 16 Last (mV)',]]
-
     df = df.rename({
-        'Differential 1 - 2 Last (mV)': 'ch_1_12V',
-        'Differential 3 - 4 Last (mV)': 'ch_3_12V',
-        'Differential 5 - 6 Last (mV)': 'ch_5_12V',
-        'Differential 5 - 6 Last (mV)': 'ch_5_12V',
-        'Differential 7 - 8 Last (mV)': 'ch_7_12V',
-        'Differential 9 - 10 Last (mV)': 'ch_9_12V',
-        'Differential 11 - 12 Last (mV)': 'ch_11_12V',
-        'Differential 13 - 14 Last (mV)': 'ch_13_12V',
-        'Differential 15 - 16 Last (mV)': 'ch_15_12V'
+        'Differential 1 - 2 Ave. (mV)': 'ch_1_12V',
+        'Differential 3 - 4 Ave. (mV)': 'ch_3_12V',
+        'Differential 5 - 6 Ave. (mV)': 'ch_5_12V',
+        'Differential 7 - 8 Ave. (mV)': 'ch_7_12V',
+        'Differential 9 - 10 Ave. (mV)': 'ch_9_12V',
+        'Differential 11 - 12 Ave. (mV)': 'ch_11_12V',
+#        'Differential 13 - 14 Ave. (mV)': 'ch_13_12V',
+#        'Differential 15 - 16 Ave. (mV)': 'ch_15_12V',
         }, axis=1)
 
     # bring timestamp to our used microsecond format
@@ -53,12 +41,14 @@ def main(args):
     # Then multiply with constant voltage 12 V to get Power.
     # Then multiply with measurement_interval to get Joules
     # Then multiply by 10**3 to get millijoules
+    df.ch_1_12V = ((df.ch_1_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
+    df.ch_3_12V = ((df.ch_3_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
     df.ch_5_12V = ((df.ch_5_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
     df.ch_7_12V = ((df.ch_7_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
     df.ch_9_12V = ((df.ch_9_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
     df.ch_11_12V = ((df.ch_11_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
-    df.ch_13_12V = ((df.ch_13_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
-    df.ch_15_12V = ((df.ch_15_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
+#    df.ch_13_12V = ((df.ch_13_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
+#    df.ch_15_12V = ((df.ch_15_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
 
     df = df.astype(int)
 

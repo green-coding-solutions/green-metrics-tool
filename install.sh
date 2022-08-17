@@ -24,36 +24,11 @@ while IFS= read -r subdir; do
         echo "Installing $subdir/static-binary ..."
         rm -f $subdir/static-binary 2> /dev/null
         make -C $subdir
-        chmod +x $subdir/static-binary
     fi
 done
 
-sudo_line="$USER ALL=(ALL) NOPASSWD: $PWD/tools/metric_providers/cpu/energy/RAPL/MSR/system/static-binary -i *"
-sudo_line_2="$USER ALL=(ALL) NOPASSWD: $PWD/tools/metric_providers/memory/energy/RAPL/MSR/system/static-binary -i * -d"
-sudo_line_3="$USER ALL=(ALL) NOPASSWD: $PWD/tools/metric_providers/network/io/cgroup/container/static-binary -i * -s *"
-
 etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
 etc_hosts_line_2="127.0.0.1 api.green-coding.local metrics.green-coding.local"
-
-echo "Writing to /etc/sudoers file..."
-if ! sudo grep -Fxq "$sudo_line" /etc/sudoers; then
-    echo "$sudo_line" | sudo tee -a /etc/sudoers
-else
-    echo "Entry was already present..."
-fi
-
-if ! sudo grep -Fxq "$sudo_line_2" /etc/sudoers; then
-    echo "$sudo_line_2" | sudo tee -a /etc/sudoers
-else    
-    echo "Entry was already present..."
-fi
-
-if ! sudo grep -Fxq "$sudo_line_3" /etc/sudoers; then
-    echo "$sudo_line_3" | sudo tee -a /etc/sudoers
-else
-    echo "Entry was already present..."
-fi
-
 
 echo "Writing to /etc/hosts file..."
 if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then

@@ -16,7 +16,7 @@ typedef struct container_t { // struct is a specification and this static makes 
 // between Threads.
 // TODO: If this code ever gets multi-threaded please review this assumption to
 // not pollute another threads state
-static char *user_id = "1000"; //TODO: Figure out user_id dynamically, or request
+static int user_id = 0;
 static long int user_hz;
 static unsigned int msleep_time=1000;
 static container_t *containers = NULL;
@@ -127,6 +127,7 @@ int main(int argc, char **argv) {
 
     setvbuf(stdout, NULL, _IONBF, 0);
     user_hz = sysconf(_SC_CLK_TCK);
+    user_id = getuid();
 
     while ((c = getopt (argc, argv, "i:s:h")) != -1) {
         switch (c) {
@@ -158,7 +159,7 @@ int main(int argc, char **argv) {
                 containers = realloc(containers, length * sizeof(container_t));
                 containers[length-1].id = id;
                 sprintf(containers[length-1].path,
-                    "/sys/fs/cgroup/user.slice/user-%s.slice/user@%s.service/user.slice/docker-%s.scope/cpu.stat",
+                    "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/cpu.stat",
                     user_id, user_id, id);
 
                 FILE* fd = NULL;
@@ -178,7 +179,7 @@ int main(int argc, char **argv) {
     }
 
     if(containers == NULL) {
-        printf("Please supply at least one container id with -s XXXX\n");
+        fprintf(stderr, "Please supply at least one container id with -s XXXX\n");
         exit(1);
     }
 

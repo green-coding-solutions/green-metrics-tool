@@ -1,12 +1,12 @@
 import sys, os
 if __name__ == "__main__":
-    sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../..')
+    sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../../..')
 from metric_providers.base import BaseMetricProvider
 
-class CpuTimeSystemProvider(BaseMetricProvider):
+class CpuTimeProcfsSystemProvider(BaseMetricProvider):
         def __init__(self,resolution):
             self._current_dir = os.path.dirname(os.path.abspath(__file__))
-            self._metric_name = "cpu_time_system"
+            self._metric_name = "cpu_time_procfs_system"
             self._metrics = {"time":int, "value":int}
             self._resolution = resolution
             super().__init__()
@@ -14,7 +14,7 @@ class CpuTimeSystemProvider(BaseMetricProvider):
 if __name__ == "__main__":
     import time
 
-    o = CpuTimeSystemProvider(resolution=100)
+    o = CpuTimeProcfsSystemProvider(resolution=100)
 
     print("Starting to profile")
     o.start_profiling()

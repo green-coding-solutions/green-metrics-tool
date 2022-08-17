@@ -20,7 +20,7 @@ typedef struct container_t { // struct is a specification and this static makes 
 // between Threads.
 // TODO: If this code ever gets multi-threaded please review this assumption to
 // not pollute another threads state
-static const char *user_id = "1000"; //TODO: Figure out user_id dynamically, or request
+static int user_id = 0;
 static unsigned int msleep_time=1000;
 static container_t *containers = NULL;
 
@@ -53,14 +53,14 @@ static unsigned long int get_network_cgroup(unsigned int pid) {
 
     int fd_ns = open(ns_path, O_RDONLY);   /* Get descriptor for namespace */
     if (fd_ns == -1) {
-        printf("open failed");
+        fprintf(stderr, "open failed");
         exit(1);
     }
 
     // printf("Entering namespace /proc/%u/ns/net \n", pid);
 
    if (setns(fd_ns, 0) == -1) { // argument 0 means that any type of NS (IPC, Network, UTS) is allowed
-        printf("setns failed");
+        fprintf(stderr, "setns failed");
         exit(1);
     }
 
@@ -117,6 +117,7 @@ int main(int argc, char **argv) {
     int length = 0;
 
     setvbuf(stdout, NULL, _IONBF, 0);
+    user_id = getuid(); // because the file is run without sudo but has the suid bit set we only need getuid and not geteuid
 
     while ((c = getopt (argc, argv, "i:s:h")) != -1) {
         switch (c) {
@@ -138,7 +139,7 @@ int main(int argc, char **argv) {
                 containers = realloc(containers, length * sizeof(container_t));
                 containers[length-1].id = id;
                 sprintf(containers[length-1].path,
-                    "/sys/fs/cgroup/user.slice/user-%s.slice/user@%s.service/user.slice/docker-%s.scope/cgroup.procs",
+                    "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/cgroup.procs",
                     user_id, user_id, id);
 
                 FILE* fd = NULL;
@@ -159,7 +160,7 @@ int main(int argc, char **argv) {
     }
 
     if(containers == NULL) {
-        printf("Please supply at least one container id with -s XXXX\n");
+        fprintf(stderr, "Please supply at least one container id with -s XXXX\n");
         exit(1);
     }
 
