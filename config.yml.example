@@ -30,6 +30,7 @@ measurement:
     memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider: 100
     memory.energy.RAPL.MSR.system.provider.MemoryEnergyRaplMsrSystemProvider: 100
     network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider: 100
+    psu.energy.ac.system.provider.PsuEnergyAcSystemProvider
 
 admin:
   # This address will get an email, when a new project was added through the frontend
