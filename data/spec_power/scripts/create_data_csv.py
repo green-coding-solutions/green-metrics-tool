@@ -53,7 +53,7 @@ for f in os.scandir('../raw/html/'):
             '\s*<td>.*</td>$'
             '\s*<td>(.*)</td>$'
             , text, re.M)
-        if m: print(m.group(1))#rows[rowcount].append(m.group(1))
+        if m: rows[rowcount].append(m.group(1))
 
         ## Get Hardware Info
         m = re.search('Hardware Vendor:</a></td>$\s*.*>(.*)</td>\s*</tr>$\s*<tr>$'   # 1 
