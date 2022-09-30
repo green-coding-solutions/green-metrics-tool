@@ -19,6 +19,11 @@ const metrics_info = {
       SI_conversion_factor: 1000,
       unit_after_conversion: 'J'
   },
+  psu_energy_ac_system: {
+      unit: 'mJ',
+      SI_conversion_factor: 1000,
+      unit_after_conversion: 'J'
+  },
   memory_energy_rapl_msr_system: {
       unit: 'mJ',
       SI_conversion_factor: 1000,
@@ -153,7 +158,7 @@ const fillProjectTab = (selector, data) => {
 }
 
 const getMetrics = (stats_data, style='apex') => {
-    const metrics = {cpu_utilization_containers: [], cpu_utilization_system: [], mem_total: [], network_io: {}, series: {}, atx_energy: 0, cpu_energy: 0, memory_energy: 0}
+    const metrics = {cpu_utilization_containers: [], cpu_utilization_system: [], mem_total: [], network_io: {}, series: {}, atx_energy: 0, psu_ac_energy: 0, cpu_energy: 0, memory_energy: 0}
 
     let accumulate = 0;
 
@@ -184,6 +189,8 @@ const getMetrics = (stats_data, style='apex') => {
             if (accumulate === 1) metrics.cpu_energy += value;
         } else if (metric_name == 'atx_energy_dc_channel') {
             if (accumulate === 1) metrics.atx_energy += value;
+        } else if (metric_name == 'psu_energy_ac_system') {
+            if (accumulate === 1) metrics.psu_ac_energy += value;
         } else if (metric_name == 'memory_energy_rapl_msr_system') {
             if (accumulate === 1) metrics.memory_energy += value;
         } else if (metric_name == 'memory_total_cgroup_container') {
@@ -345,6 +352,10 @@ const createGraph = (element, data, labels, title) => {
 
 const fillAvgContainers = (stats_data, metrics) => {
 
+<<<<<<< HEAD
+=======
+    const psu_ac_energy_in_mWh = ((metrics.psu_ac_energy) / 3600) * 1000;
+>>>>>>> dev
     const atx_energy_in_mWh = ((metrics.atx_energy) / 3600) * 1000;
     const cpu_energy_in_mWh = ((metrics.cpu_energy) / 3600) * 1000;
     const memory_energy_in_mWh = ((metrics.memory_energy) / 3600) * 1000;
@@ -365,6 +376,8 @@ const fillAvgContainers = (stats_data, metrics) => {
     else if(total_CO2_in_kg < 0.0001) co2_display = { value: total_CO2_in_kg*(10**6), unit: 'mg'};
     else if(total_CO2_in_kg < 0.1) co2_display = { value: total_CO2_in_kg*(10**3), unit: 'g'};
 
+    if(psu_ac_energy_in_mWh) document.querySelector("#psu-ac-energy").innerText = psu_ac_energy_in_mWh.toFixed(2) + " mWh"
+
     if(atx_energy_in_mWh) document.querySelector("#atx-energy").innerText = atx_energy_in_mWh.toFixed(2) + " mWh"
     if(cpu_energy_in_mWh) document.querySelector("#cpu-energy").innerText = cpu_energy_in_mWh.toFixed(2) + " mWh"
     if(cpu_energy_in_mWh) document.querySelector("#component-energy").innerText = (cpu_energy_in_mWh+memory_energy_in_mWh).toFixed(2) + " mWh"
@@ -373,6 +386,10 @@ const fillAvgContainers = (stats_data, metrics) => {
 
     if(cpu_energy_in_mWh) document.querySelector("#component-power").innerText = ((metrics.cpu_energy+metrics.memory_energy)/stats_data.project.measurement_duration_in_s).toFixed(2) + " W"
     if(atx_energy_in_mWh) document.querySelector("#atx-power").innerText = (metrics.atx_energy / stats_data.project.measurement_duration_in_s).toFixed(2) + " W"
+<<<<<<< HEAD
+=======
+    if(psu_ac_energy_in_mWh) document.querySelector("#psu-ac-power").innerText = (metrics.psu_ac_energy / stats_data.project.measurement_duration_in_s).toFixed(2) + " W"
+>>>>>>> dev
 
 
     if(network_io) document.querySelector("#network-io").innerText = network_io.toFixed(2) + " MB"
