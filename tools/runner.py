@@ -95,10 +95,26 @@ class Runner:
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
 
-            print(f"Importing {class_name} from {module_path}")
-            print(f"Resolution is {config['measurement']['metric-providers'][metric_provider]}")
+            metric_provider_config = config['measurement']['metric-providers'][metric_provider]
+            print(f"Importing {class_name} from {module_path} and config {metric_provider_config}")
+            if type(metric_provider_config) is dict:
+                configured_resolution =  metric_provider_config['resolution'] if 'resolution' in metric_provider_config else []
+                configured_extra_switches = metric_provider_config['extra_switches'] if 'extra_switches' in metric_provider_config else []
+            elif type(metric_provider_config) is int:
+                configured_resolution = metric_provider_config
+                configured_extra_switches = []
+            else:
+                c_type = type(metric_provider_config)
+                print(f"type is not str or int or object or list: {c_type}")
+                configured_resolution = 100
+                configured_extra_switches = []
+            
+            #configured_resolution = (metric_provider_config['resolution'], metric_provider_config)[type(metric_provider_config) is int]
+            #configured_extra_switches = (metric_provider_config['extra_switches'], metric_provider_config)[type(metric_provider_config) is int]
+            
+            print(f"Resolution is {configured_resolution} and ExtraSwitches is \"{configured_extra_switches}\"")
             module = importlib.import_module(module_path)
-            metric_provider_obj = getattr(module, class_name)(resolution=config['measurement']['metric-providers'][metric_provider]) # the additional () creates the instance
+            metric_provider_obj = getattr(module, class_name)(resolution=configured_resolution, extra_switches=configured_extra_switches) # the additional () creates the instance
 
             self.metric_providers.append(metric_provider_obj)
 

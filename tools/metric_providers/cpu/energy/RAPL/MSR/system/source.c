@@ -157,6 +157,7 @@ static long long read_msr(int fd, unsigned int which) {
 #define CPU_TIGER_LAKE        140
 
 #define CPU_AMD_FAM17H        0xc000
+#define CPU_AMD_FAM25H        80
 
 
 // All variables are made static, because we believe that this will
@@ -220,11 +221,18 @@ static int detect_cpu(void) {
         msr_pkg_energy_status=MSR_AMD_PKG_ENERGY_STATUS;
         msr_pp0_energy_status=MSR_AMD_PP0_ENERGY_STATUS;
 
-        if (family!=23) {
+        if (family!=23 && family!=25) {
             fprintf(stderr, "Wrong CPU family %d\n",family);
             return -1;
         }
-        model=CPU_AMD_FAM17H;
+        switch(family) {
+            case 23:
+                model=CPU_AMD_FAM17H;
+                break;
+            case 25:
+                model=CPU_AMD_FAM25H;
+                break;
+        }
     }
 
     fclose(fff);
@@ -330,6 +338,10 @@ static int check_availability(int cpu_model, int measurement_mode) {
             case CPU_TIGER_LAKE:
                 dram_avail=0;        // guess, find documentation
                 different_units=0;   // guess, find documentation
+                break;
+            case CPU_AMD_FAM25H:
+                dram_avail=1;
+                different_units=0;
                 break;
         }
     }

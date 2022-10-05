@@ -6,11 +6,12 @@ if __name__ == "__main__":
 from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyAcSystemProvider(BaseMetricProvider):
-        def __init__(self, resolution):
+        def __init__(self, resolution, extra_switches = ""):
             self._current_dir = os.path.dirname(os.path.abspath(__file__))
             self._metric_name = "psu_energy_ac_system"
             self._metrics = {"time":int, "value":int}
             self._resolution = resolution
+            self._extra_switches = extra_switches
             super().__init__()
 
         def start_profiling(self, containers=None):

@@ -4,17 +4,18 @@ if __name__ == "__main__":
 from metric_providers.base import BaseMetricProvider
 
 class CpuEnergyRaplMsrSystemProvider(BaseMetricProvider):
-        def __init__(self, resolution):
+        def __init__(self, resolution, extra_switches = ""):
             self._current_dir = os.path.dirname(os.path.abspath(__file__))
             self._metric_name = "cpu_energy_rapl_msr_system"
             self._metrics = {"time":int, "value":int}
             self._resolution = resolution
+            self._extra_switches = extra_switches
             super().__init__()
 
 if __name__ == "__main__":
     import time
 
-    o = CpuEnergySystemRaplMsrProvider(resolution=100)
+    o = CpuEnergyRaplMsrSystemProvider(resolution=100)
 
     print("Starting to profile")
     o.start_profiling()

@@ -4,11 +4,12 @@ if __name__ == "__main__":
 from metric_providers.base import BaseMetricProvider
 
 class MemoryTotalCgroupContainerProvider(BaseMetricProvider):
-        def __init__(self, resolution):
+        def __init__(self, resolution, extra_switches = ""):
             self._current_dir = os.path.dirname(os.path.abspath(__file__))
             self._metric_name = "memory_total_cgroup_container"
             self._metrics = {"time":int, "value":int, "container_id":str}
             self._resolution = resolution
+            self._extra_switches = extra_switches
             super().__init__()
 
 if __name__ == "__main__":
@@ -19,7 +20,7 @@ if __name__ == "__main__":
     parser.add_argument("container_id", help="Please provide the container_id")
     args = parser.parse_args()
 
-    o = MemoryTotalCgroupProvider(resolution=100)
+    o = MemoryTotalCgroupContainerProvider(resolution=100)
 
     print("Starting to profile")
     o.start_profiling({args.container_id: "test"})
