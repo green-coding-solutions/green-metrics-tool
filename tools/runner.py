@@ -108,10 +108,7 @@ class Runner:
                 print(f"type is not str or int or object or list: {c_type}")
                 configured_resolution = 100
                 configured_extra_switches = []
-            
-            #configured_resolution = (metric_provider_config['resolution'], metric_provider_config)[type(metric_provider_config) is int]
-            #configured_extra_switches = (metric_provider_config['extra_switches'], metric_provider_config)[type(metric_provider_config) is int]
-            
+
             print(f"Resolution is {configured_resolution} and ExtraSwitches is \"{configured_extra_switches}\"")
             module = importlib.import_module(module_path)
             metric_provider_obj = getattr(module, class_name)(resolution=configured_resolution, extra_switches=configured_extra_switches) # the additional () creates the instance

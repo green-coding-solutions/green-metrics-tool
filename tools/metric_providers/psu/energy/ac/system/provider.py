@@ -6,7 +6,7 @@ if __name__ == "__main__":
 from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyAcSystemProvider(BaseMetricProvider):
-        def __init__(self, resolution, extra_switches = ""):
+        def __init__(self, resolution, extra_switches = []):
             self._current_dir = os.path.dirname(os.path.abspath(__file__))
             self._metric_name = "psu_energy_ac_system"
             self._metrics = {"time":int, "value":int}
