@@ -25,7 +25,6 @@ typedef struct procfs_time_t { // struct is a specification and this static make
 // between Threads.
 // TODO: If this code ever gets multi-threaded please review this assumption to
 // not pollute another threads state
-static long int user_hz;
 static unsigned int msleep_time=1000;
 
 static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
@@ -48,8 +47,8 @@ static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
     // after this multiplication we are on microseconds
     // integer division is deliberately, cause we don't loose precision as *1000000 is done before
 
-    procfs_time_struct->idle_time = ((procfs_time_struct->wait_time + procfs_time_struct->iowait_time)*1000000)/user_hz;
-    procfs_time_struct->compute_time = ((procfs_time_struct->user_time + procfs_time_struct->nice_time + procfs_time_struct->system_time + procfs_time_struct->irq_time + procfs_time_struct->softirq_time + procfs_time_struct->steal_time)*1000000)/user_hz;
+    procfs_time_struct->idle_time = procfs_time_struct->wait_time + procfs_time_struct->iowait_time;
+    procfs_time_struct->compute_time = procfs_time_struct->user_time + procfs_time_struct->nice_time + procfs_time_struct->system_time + procfs_time_struct->irq_time + procfs_time_struct->softirq_time + procfs_time_struct->steal_time;
 }
 
 
@@ -85,7 +84,6 @@ int main(int argc, char **argv) {
     int c;
 
     setvbuf(stdout, NULL, _IONBF, 0);
-    user_hz = sysconf(_SC_CLK_TCK);
 
     while ((c = getopt (argc, argv, "i:h")) != -1) {
         switch (c) {
@@ -98,7 +96,6 @@ int main(int argc, char **argv) {
             double resolution;
 
             printf("\tEnvironment variables:\n");
-            printf("\tUserHZ\t\t%ld\n", user_hz);
             clock_getres(CLOCK_REALTIME, &res);
             resolution = res.tv_sec + (((double)res.tv_nsec)/1.0e9);
             printf("\tSystemHZ\t%ld\n", (unsigned long)(1/resolution + 0.5));
