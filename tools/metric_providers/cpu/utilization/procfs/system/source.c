@@ -9,12 +9,14 @@ typedef struct procfs_time_t { // struct is a specification and this static make
     unsigned long user_time;
     unsigned long nice_time;
     unsigned long system_time;
-    unsigned long idle_time;
+    unsigned long wait_time;
     unsigned long iowait_time;
     unsigned long irq_time;
     unsigned long softirq_time;
     unsigned long steal_time;
+    // guest times are ignored as they are already accounted in user_time, system_time
     unsigned long compute_time; // custom attr by us not in standard /proc/stat format
+    unsigned long idle_time; // custom attr by us not in standard /proc/stat format
 } procfs_time_t;
 
 
@@ -36,7 +38,7 @@ static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
         exit(1);
     }
 
-    fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &procfs_time_struct->user_time, &procfs_time_struct->nice_time, &procfs_time_struct->system_time, &procfs_time_struct->idle_time, &procfs_time_struct->iowait_time, &procfs_time_struct->irq_time, &procfs_time_struct->softirq_time, &procfs_time_struct->steal_time);
+    fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &procfs_time_struct->user_time, &procfs_time_struct->nice_time, &procfs_time_struct->system_time, &procfs_time_struct->wait_time, &procfs_time_struct->iowait_time, &procfs_time_struct->irq_time, &procfs_time_struct->softirq_time, &procfs_time_struct->steal_time);
 
     // debug
     // printf("Read: cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", procfs_time_struct->user_time, procfs_time_struct->nice_time, procfs_time_struct->system_time, procfs_time_struct->idle_time, procfs_time_struct->iowait_time, procfs_time_struct->irq_time, procfs_time_struct->softirq_time, procfs_time_struct->steal_time);
@@ -46,15 +48,8 @@ static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
     // after this multiplication we are on microseconds
     // integer division is deliberately, cause we don't loose precision as *1000000 is done before
 
-    procfs_time_struct->user_time = (procfs_time_struct->user_time*1000000)/user_hz;
-    procfs_time_struct->nice_time = (procfs_time_struct->nice_time*1000000)/user_hz;
-    procfs_time_struct->system_time = (procfs_time_struct->system_time*1000000)/user_hz;
-    procfs_time_struct->idle_time = (procfs_time_struct->idle_time*1000000)/user_hz;
-    procfs_time_struct->iowait_time = (procfs_time_struct->iowait_time*1000000)/user_hz;
-    procfs_time_struct->irq_time = (procfs_time_struct->irq_time*1000000)/user_hz;
-    procfs_time_struct->softirq_time = (procfs_time_struct->softirq_time*1000000)/user_hz;
-    procfs_time_struct->steal_time = (procfs_time_struct->steal_time*1000000)/user_hz;
-    procfs_time_struct->compute_time = procfs_time_struct->user_time + procfs_time_struct->nice_time + procfs_time_struct->system_time + procfs_time_struct->iowait_time + procfs_time_struct->irq_time + procfs_time_struct->softirq_time + procfs_time_struct->steal_time;
+    procfs_time_struct->idle_time = ((procfs_time_struct->wait_time + procfs_time_struct->iowait_time)*1000000)/user_hz;
+    procfs_time_struct->compute_time = ((procfs_time_struct->user_time + procfs_time_struct->nice_time + procfs_time_struct->system_time + procfs_time_struct->irq_time + procfs_time_struct->softirq_time + procfs_time_struct->steal_time)*1000000)/user_hz;
 }
 
 
