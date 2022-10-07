@@ -22,16 +22,16 @@ static unsigned int msleep_time=1000;
 static container_t *containers = NULL;
 
 static long int read_cpu_proc(FILE *fd) {
-    long int user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time, guest_time;
+    long int user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time;
 
-    fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld", &user_time, &nice_time, &system_time, &idle_time, &iowait_time, &irq_time, &softirq_time, &steal_time, &guest_time);
+    fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &user_time, &nice_time, &system_time, &idle_time, &iowait_time, &irq_time, &softirq_time, &steal_time);
 
-    // printf("Read: cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time, guest_time);
+    // printf("Read: cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time);
     if(idle_time <= 0) fprintf(stderr, "Idle time strange value %ld \n", idle_time);
 
     // after this multiplication we are on microseconds
     // integer division is deliberately, cause we don't loose precision as *1000000 is done before
-    return ((user_time+nice_time+system_time+idle_time+iowait_time+irq_time+softirq_time+steal_time+guest_time)*1000000)/user_hz;
+    return ((user_time+nice_time+system_time+idle_time+iowait_time+irq_time+softirq_time+steal_time)*1000000)/user_hz;
 }
 
 
@@ -118,8 +118,6 @@ static int output_stats(container_t *containers, int length) {
     return 1;
 }
 
-// TODO: better arguement parsing, atm it assumes first argument is msleep_time,
-//       and rest are container ids with no real error checking
 int main(int argc, char **argv) {
 
     int c;
