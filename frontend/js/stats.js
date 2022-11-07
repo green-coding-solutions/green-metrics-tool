@@ -352,10 +352,7 @@ const createGraph = (element, data, labels, title) => {
 
 const fillAvgContainers = (stats_data, metrics) => {
 
-<<<<<<< HEAD
-=======
     const psu_ac_energy_in_mWh = ((metrics.psu_ac_energy) / 3600) * 1000;
->>>>>>> dev
     const atx_energy_in_mWh = ((metrics.atx_energy) / 3600) * 1000;
     const cpu_energy_in_mWh = ((metrics.cpu_energy) / 3600) * 1000;
     const memory_energy_in_mWh = ((metrics.memory_energy) / 3600) * 1000;
@@ -386,10 +383,7 @@ const fillAvgContainers = (stats_data, metrics) => {
 
     if(cpu_energy_in_mWh) document.querySelector("#component-power").innerText = ((metrics.cpu_energy+metrics.memory_energy)/stats_data.project.measurement_duration_in_s).toFixed(2) + " W"
     if(atx_energy_in_mWh) document.querySelector("#atx-power").innerText = (metrics.atx_energy / stats_data.project.measurement_duration_in_s).toFixed(2) + " W"
-<<<<<<< HEAD
-=======
     if(psu_ac_energy_in_mWh) document.querySelector("#psu-ac-power").innerText = (metrics.psu_ac_energy / stats_data.project.measurement_duration_in_s).toFixed(2) + " W"
->>>>>>> dev
 
 
     if(network_io) document.querySelector("#network-io").innerText = network_io.toFixed(2) + " MB"
