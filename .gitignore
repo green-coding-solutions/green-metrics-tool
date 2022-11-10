@@ -4,4 +4,4 @@ sftp-config.json
 TODO
 flows
 compose.yml
-static-binary
+metric-provider-binary

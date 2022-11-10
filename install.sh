@@ -21,8 +21,8 @@ find "$parent_dir" -type d |
 while IFS= read -r subdir; do
     make_path="$subdir/$make_file"
     if [[ -f "$make_path" ]]; then
-        echo "Installing $subdir/static-binary ..."
-        rm -f $subdir/static-binary 2> /dev/null
+        echo "Installing $subdir/metric-provider-binary ..."
+        rm -f $subdir/metric-provider-binary 2> /dev/null
         make -C $subdir
     fi
 done
@@ -39,6 +39,6 @@ fi
 
 if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
     echo "$etc_hosts_line_2" | sudo tee -a /etc/hosts
-else    
+else
     echo "Entry was already present..."
 fi

@@ -40,9 +40,9 @@ class BaseMetricProvider:
 
     def start_profiling(self, containers=None):
         if self._sudo:
-            call_string = f"sudo {self._current_dir}/static-binary -i {self._resolution}"
+            call_string = f"sudo {self._current_dir}/metric-provider-binary -i {self._resolution}"
         else:
-            call_string = f"{self._current_dir}/static-binary -i {self._resolution}"
+            call_string = f"{self._current_dir}/metric-provider-binary -i {self._resolution}"
         if hasattr(self, '_extra_switches'):
              call_string += " " # space at start
              call_string += " ".join(self._extra_switches)
