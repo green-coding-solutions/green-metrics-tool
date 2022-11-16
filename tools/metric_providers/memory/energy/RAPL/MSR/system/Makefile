@@ -1,6 +1,6 @@
-CFLAGS = -o3 -Wall -lm -static -static-libgcc
+CFLAGS = -o3 -Wall -lm
 
-static-binary: source.c
+metric-provider-binary: source.c
 	gcc $< $(CFLAGS) -o $@
 	sudo chown root $@
 	sudo chmod u+s $@

@@ -32,6 +32,9 @@ measurement:
     network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider: 100
 #    psu.energy.ac.system.provider.PsuEnergyAcSystemProvider: 100
     psu.energy.dc.system.provider.PsuEnergyDcSystemProvider: 100
+    lm_sensors.temperature.cpu.provider.LmSenorsCpuTempProvider: 100
+#    lm_sensors.fan.1.provider.FanOneProvider: 100
+#    lm_sensors.fan.2.provider.FanTwoProvider: 100
 
 admin:
   # This address will get an email, when a new project was added through the frontend

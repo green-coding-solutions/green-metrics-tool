@@ -53,6 +53,21 @@ const metrics_info = {
       unit: 'us',
       SI_conversion_factor: 1,
       unit_after_conversion: 'us'
+  },
+  cpu_temperature: {
+    unit: 'C',
+    SI_conversion_factor: 100,
+    unit_after_conversion: 'C'
+  },
+  fan_1: {
+    unit: 'RPM',
+    SI_conversion_factor: 1,
+    unit_after_conversion: 'RPM'
+  },
+  fan_2: {
+    unit: 'RPM',
+    SI_conversion_factor: 1,
+    unit_after_conversion: 'RPM'
   }
 }
 
@@ -158,7 +173,20 @@ const fillProjectTab = (selector, data) => {
 }
 
 const getMetrics = (stats_data, style='apex') => {
-    const metrics = {cpu_utilization_containers: [], cpu_utilization_system: [], mem_total: [], network_io: {}, series: {}, psu_dc_energy: 0, psu_ac_energy: 0, cpu_energy: 0, memory_energy: 0}
+    const metrics = {
+        cpu_utilization_containers: [],
+        cpu_utilization_system: [],
+        mem_total: [],
+        network_io: {},
+        series: {},
+        psu_dc_energy: 0,
+        psu_ac_energy: 0,
+        cpu_energy: 0,
+        memory_energy: 0,
+        cpu_temperature: [],
+        fan_1: [],
+        fan_2: []
+    }
 
     let accumulate = 0;
 

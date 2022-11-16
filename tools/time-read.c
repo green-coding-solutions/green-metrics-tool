@@ -38,6 +38,7 @@ int main(int argc, char **argv) {
 
         //select(0, NULL,NULL, NULL, &delay);
         interval != 0 && usleep(interval);
+        fflush(stdout);
 	}
 	return 0;
 }
