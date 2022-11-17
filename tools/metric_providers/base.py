@@ -17,7 +17,7 @@ class BaseMetricProvider:
         with open(self._filename, 'r') as f:
             csv_data = f.read()
 
-        csv_data = csv_data[:csv_data.rfind('\n')] # remove the last line from the string
+        csv_data = csv_data[:csv_data.rfind('\n')] # remove the last line from the string, as it may be broken due to the output buffering of the metrics reporter
 
         df = pandas.read_csv(StringIO(csv_data),
             sep=" ",
@@ -40,9 +40,13 @@ class BaseMetricProvider:
 
     def start_profiling(self, containers=None):
         if self._sudo:
-            call_string = f"sudo {self._current_dir}/static-binary -i {self._resolution} "
+            call_string = f"sudo {self._current_dir}/static-binary -i {self._resolution}"
         else:
-            call_string = f"{self._current_dir}/static-binary -i {self._resolution} "
+            call_string = f"{self._current_dir}/static-binary -i {self._resolution}"
+        if hasattr(self, '_extra_switches'):
+             call_string += " " # space at start
+             call_string += " ".join(self._extra_switches)
+
         if self._metrics.get('container_id') is not None:
              call_string += " -s "
              call_string += ",".join(containers.keys())
@@ -53,7 +57,8 @@ class BaseMetricProvider:
         self._ps = subprocess.Popen(
             [call_string],
             shell=True,
-            preexec_fn=os.setsid
+            preexec_fn=os.setsid,
+            stderr=subprocess.PIPE
             # since we are launching the command with shell=True we cannot use ps.terminate() / ps.kill().
             # This would just kill the executing shell, but not it's child and make the process an orphan.
             # therefore we use os.setsid here and later call os.getpgid(pid) to get process group that the shell
@@ -61,6 +66,7 @@ class BaseMetricProvider:
         )
 
     def stop_profiling(self):
+        if self._ps is None: return
         try:
             print(f"Killing process with id: {self._ps.pid}")
             ps_group_id = os.getpgid(self._ps.pid)

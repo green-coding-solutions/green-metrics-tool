@@ -21,12 +21,17 @@ measurement:
   idle-time-end: 5
   flow-process-runtime: 60
   metric-providers:
-    cpu.cgroup.container.provider.CpuCgroupContainerProvider: 100
-    energy.RAPL.MSR.system.provider.EnergyRaplMsrSystemProvider: 100
-    memory.cgroup.container.provider.MemoryCgroupContainerProvider: 100
-    time.cgroup.container.provider.TimeCgroupContainerProvider: 100
-    time.cgroup.system.provider.TimeCgroupSystemProvider: 100
-    time.proc.system.provider.TimeProcSystemProvider: 100
+    cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider: 100
+    cpu.energy.RAPL.MSR.system.provider.CpuEnergyRaplMsrSystemProvider: 100
+    cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider: 100
+#    cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider: 100
+#    cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider: 100
+#    cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider: 100
+    memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider: 100
+    memory.energy.RAPL.MSR.system.provider.MemoryEnergyRaplMsrSystemProvider: 100
+    network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider: 100
+#    psu.energy.ac.system.provider.PsuEnergyAcSystemProvider: 100
+    psu.energy.dc.system.provider.PsuEnergyDcSystemProvider: 100
 
 admin:
   # This address will get an email, when a new project was added through the frontend

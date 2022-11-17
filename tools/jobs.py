@@ -93,7 +93,7 @@ def do_project_job(job_id, project_id):
     uri = data[1]
     email = data[2]
 
-    runner = Runner()
+    runner = Runner(skip_unsafe=True)
     try:
         runner.run(uri=uri, uri_type='URL', project_id=project_id) # Start main code. Only URL is allowed for cron jobs
         runner.cleanup()

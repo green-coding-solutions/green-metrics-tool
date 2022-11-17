@@ -100,12 +100,14 @@ async def get_projects():
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/stats/uri')
-async def get_stats_by_uri(uri: str):
+async def get_stats_by_uri(uri: str, remove_idle: bool=False):
     if(uri is None or uri.strip() == ''):
         return {'success': False, 'err': 'URI is empty'}
 
     query = """
-            SELECT
+            WITH times AS (
+                SELECT id, start_measurement, end_measurement FROM projects WHERE uri = %s
+            ) SELECT
                 projects.id as project_id, stats.container_name, stats.time, stats.metric, stats.value
             FROM
                 stats
@@ -115,10 +117,21 @@ async def get_stats_by_uri(uri: str):
                 projects.id = stats.project_id
             WHERE
                 projects.uri = %s
-            ORDER BY
+    """
+    if remove_idle:
+        query = f""" {query}
+                AND
+                stats.time > (SELECT times.start_measurement FROM times WHERE times.id = projects.id)
+                AND
+                stats.time < (SELECT times.end_measurement FROM times WHERE times.id = projects.id)
+        """
+
+    # extremly important to order here, cause the charting library in JS cannot do that automatically!
+    query = f""" {query} ORDER BY
                 stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
             """
-    params = (uri,)
+
+    params = (uri, uri)
     data = DB().fetch_all(query, params)
 
     if(data is None or data == []):
@@ -128,21 +141,32 @@ async def get_stats_by_uri(uri: str):
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/stats/single/{project_id}')
-async def get_stats_single(project_id: str):
+async def get_stats_single(project_id: str, remove_idle: bool=False):
     if(project_id is None or project_id.strip() == ''):
         return {'success': False, 'err': 'Project_id is empty'}
 
     query = """
-            SELECT
+            WITH times AS (
+                SELECT start_measurement, end_measurement FROM projects WHERE id = %s
+            ) SELECT
                 stats.container_name, stats.time, stats.metric, stats.value
             FROM
                 stats
             WHERE
                 stats.project_id = %s
-            ORDER BY
-                stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
             """
-    params = params=(project_id,)
+    if remove_idle:
+        query = f""" {query}
+                AND
+                stats.time > (SELECT start_measurement FROM times)
+                AND
+                stats.time < (SELECT end_measurement FROM times)
+        """
+
+    # extremly important to order here, cause the charting library in JS cannot do that automatically!
+    query = f" {query} ORDER BY stats.time ASC"
+
+    params = params=(project_id,project_id)
     data = DB().fetch_all(query, params=params)
 
     if(data is None or data == []):
@@ -231,6 +255,8 @@ async def post_project_add(project: Project):
         """
     params = (project.url,project.name,project.email)
     project_id = DB().fetch_one(query,params=params)
+    # This order as selected on purpose. If the admin mail fails, we currently do
+    # not want the job to be queued, as we want to monitor every project execution manually
     email_helpers.send_admin_email(f"New project added from Web Interface: {project.name}", project) # notify admin of new project
     jobs.insert_job("project", project_id)
 
