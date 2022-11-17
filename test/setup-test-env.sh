@@ -15,8 +15,8 @@ if [[ -z "$db_pw" ]] ; then
 fi
 
 echo "Updating config.yml with new password ..."
-cp ../config.yml.example ../test-config.yml
-sed -i -e "s|host: |host: test-|" ../test-config.yml
+cp ../config.yml ../test-config.yml
+sed -i -e "s|host: green-|host: test-|" ../test-config.yml
 sed -i -e "s|PLEASE_CHANGE_THIS|$db_pw|" ../test-config.yml
 
 echo "Creating test-compose.yml ..."
@@ -25,10 +25,10 @@ sed -i -e "s|PATH_TO_GREEN_METRICS_TOOL_REPO|$PWD/../|" ../docker/test-compose.y
 sed -i -e "s|PLEASE_CHANGE_THIS|$db_pw|" ../docker/test-compose.yml
 sed -i -e "s|# - TEST_CONFIG_SETUP|- $PWD/../test-config.yml|" ../docker/test-compose.yml
 
-sed -i -e "s|container_name: |container_name: test-|" ../docker/test-compose.yml
+sed -i -e "s|container_name: green-|container_name: test-|" ../docker/test-compose.yml
 sed -i -e "s|green-coding-postgres-data|green-coding-postgres-test-data|" ../docker/test-compose.yml
 
-etc_hosts_line_1="127.0.0.1 test-green-coding-postgres-container"
+etc_hosts_line_1="127.0.0.1 test-coding-postgres-container"
 
 
 echo "Writing to /etc/hosts file..."
