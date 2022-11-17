@@ -1,10 +1,10 @@
-name: Tests
+name: Pytest
 
 on:
-  push:
-    branches: [ "integration-tests-initial" ]
-  pull_request:
-    branches: [ "integration-tests-initial" ]
+  #push:
+  #  branches: [ "main", "dev" ]
+
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
         working-directory: ./test
         run: |
           docker compose -f ../docker/test-compose.yml up -d
-      
+     
       - name: Sleep for 10 seconds
         run: sleep 10s
         shell: bash
@@ -46,4 +46,4 @@ jobs:
       - name: Stop Containers
         working-directory: ./test
         run: |
-          ./stop-test-containers.sh
+          docker compose -f ../docker/test-compose.yml down
