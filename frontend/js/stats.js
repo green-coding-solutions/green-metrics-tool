@@ -24,6 +24,11 @@ const metrics_info = {
       SI_conversion_factor: 1000,
       unit_after_conversion: 'J'
   },
+  psu_energy_xgboost_system: {
+      unit: 'W',
+      SI_conversion_factor: 1,
+      unit_after_conversion: 'W'
+  },
   memory_energy_rapl_msr_system: {
       unit: 'mJ',
       SI_conversion_factor: 1000,
@@ -165,54 +170,62 @@ const getMetrics = (stats_data, style='apex') => {
 
     const t0 = performance.now();
 
-    stats_data.data.forEach(el => {
-        const container_name = el[0];
-        const time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
-        const metric_name = el[2];
-        let value = el[3];
+    try {
+         // define here, so we can alert it later in error case.
+         // this was done, because we apparently often forget to add new metrics here and this helps debugging quickly with the alert later :)
+        var metric_name = null
 
-        accumulate = 0; // default
+        stats_data.data.forEach(el => {
+            const container_name = el[0];
+            const time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
+            metric_name = el[2];
+            let value = el[3];
 
-        // here we use the undivided time on purpose
-        if (el[1] > stats_data.project.start_measurement && el[1] < stats_data.project.end_measurement) {
-            accumulate = 1;
-        }
+            accumulate = 0; // default
 
+            // here we use the undivided time on purpose
+            if (el[1] > stats_data.project.start_measurement && el[1] < stats_data.project.end_measurement) {
+                accumulate = 1;
+            }
 
-        value = value / metrics_info[metric_name].SI_conversion_factor;
+            value = value / metrics_info[metric_name].SI_conversion_factor;
 
-        if (metric_name == 'cpu_utilization_cgroup_container') {
-            if (accumulate === 1) metrics.cpu_utilization_containers.push(value);
-        } else if (metric_name == 'cpu_utilization_procfs_system') {
-            if (accumulate === 1) metrics.cpu_utilization_system.push(value);
-        } else if (metric_name == 'cpu_energy_rapl_msr_system') {
-            if (accumulate === 1) metrics.cpu_energy += value;
-        } else if (metric_name == 'atx_energy_dc_channel') {
-            if (accumulate === 1) metrics.atx_energy += value;
-        } else if (metric_name == 'psu_energy_ac_system') {
-            if (accumulate === 1) metrics.psu_ac_energy += value;
-        } else if (metric_name == 'memory_energy_rapl_msr_system') {
-            if (accumulate === 1) metrics.memory_energy += value;
-        } else if (metric_name == 'memory_total_cgroup_container') {
-            if (accumulate === 1) metrics.mem_total.push(value);
-        } else if (metric_name == 'network_io_cgroup_container') {
-            if (accumulate === 1) metrics.network_io[container_name] = value; // save only the last value per container (overwrite)
-        }
+            if (metric_name == 'cpu_utilization_cgroup_container') {
+                if (accumulate === 1) metrics.cpu_utilization_containers.push(value);
+            } else if (metric_name == 'cpu_utilization_procfs_system') {
+                if (accumulate === 1) metrics.cpu_utilization_system.push(value);
+            } else if (metric_name == 'cpu_energy_rapl_msr_system') {
+                if (accumulate === 1) metrics.cpu_energy += value;
+            } else if (metric_name == 'atx_energy_dc_channel') {
+                if (accumulate === 1) metrics.atx_energy += value;
+            } else if (metric_name == 'psu_energy_ac_system') {
+                if (accumulate === 1) metrics.psu_ac_energy += value;
+            } else if (metric_name == 'memory_energy_rapl_msr_system') {
+                if (accumulate === 1) metrics.memory_energy += value;
+            } else if (metric_name == 'memory_total_cgroup_container') {
+                if (accumulate === 1) metrics.mem_total.push(value);
+            } else if (metric_name == 'network_io_cgroup_container') {
+                if (accumulate === 1) metrics.network_io[container_name] = value; // save only the last value per container (overwrite)
+            }
 
-        // Depending on the charting library the object has to be reformatted
-        // First we check if structure is initialized
-        if (metrics.series[metric_name] == undefined)  metrics.series[metric_name] = {};
-        if (metrics.series[metric_name][container_name] == undefined) {
-            metrics.series[metric_name][container_name] = { name: container_name, data: [] }
-        }
+            // Depending on the charting library the object has to be reformatted
+            // First we check if structure is initialized
+            if (metrics.series[metric_name] == undefined)  metrics.series[metric_name] = {};
+            if (metrics.series[metric_name][container_name] == undefined) {
+                metrics.series[metric_name][container_name] = { name: container_name, data: [] }
+            }
 
-        // now we handle the library specific formatting
-        if(style=='apex') {
-            metrics.series[metric_name][container_name]['data'].push({ x: time_in_ms, y: value })
-        } else if(style=='echarts') {
-            metrics.series[metric_name][container_name]['data'].push([time_in_ms, value])
-        } else throw "Unknown chart style"
-    })
+            // now we handle the library specific formatting
+            if(style=='apex') {
+                metrics.series[metric_name][container_name]['data'].push({ x: time_in_ms, y: value })
+            } else if(style=='echarts') {
+                metrics.series[metric_name][container_name]['data'].push([time_in_ms, value])
+            } else throw "Unknown chart style"
+        })
+    } catch (err) {
+        alert(err)
+        alert(metric_name)
+    }
 
     const t1 = performance.now();
     console.log(`getMetrics Took ${t1 - t0} milliseconds.`);
