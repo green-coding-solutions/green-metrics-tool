@@ -96,9 +96,9 @@ class Runner:
             module_path = f"metric_providers.{module_path}"
 
             print(f"Importing {class_name} from {module_path}")
-            print(f"Resolution is {config['measurement']['metric-providers'][metric_provider]}")
+            print(f"Configuration is {config['measurement']['metric-providers'][metric_provider]}")
             module = importlib.import_module(module_path)
-            metric_provider_obj = getattr(module, class_name)(resolution=config['measurement']['metric-providers'][metric_provider]) # the additional () creates the instance
+            metric_provider_obj = getattr(module, class_name)(resolution=config['measurement']['metric-providers'][metric_provider]['resolution']) # the additional () creates the instance
 
             self.metric_providers.append(metric_provider_obj)
 

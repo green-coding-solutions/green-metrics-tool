@@ -3,9 +3,13 @@ import subprocess
 from io import StringIO
 import glob
 import pandas
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(f"{current_dir}/../../../../../../lib")
+sys.path.append(current_dir)
 
-import model.xgboost as mlmodel
+from global_config import GlobalConfig
+
+import model.xgb as mlmodel
 
 if __name__ == "__main__":
     sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../../../../..')
@@ -51,10 +55,13 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
         df['project_id'] = project_id
 
         Z = df.loc[:,['value']]
-        Z['HW_CPUFreq'] = 12321
-        Z['CPUCores'] = 14
-        Z['TDP'] = 150
-        Z['HW_MemAmountGB'] = 196
+
+        provider_config = GlobalConfig().config['measurement']['metric-providers']['psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider']
+
+        Z['HW_CPUFreq'] = provider_config['HW_CPUFreq']
+        Z['CPUCores'] = provider_config['CPUCores']
+        Z['TDP'] = provider_config['TDP']
+        Z['HW_MemAmountGB'] = provider_config['HW_MemAmountGB']
 
         Z = Z.rename(columns={'value': 'utilization'})
         Z.utilization = Z.utilization / 100
