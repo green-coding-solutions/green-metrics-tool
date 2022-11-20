@@ -34,6 +34,9 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
 
     def read_metrics(self, project_id, containers):
 
+        if not os.path.isfile("/tmp/green-metrics-tool/cpu_utilization_procfs_system.log"):
+            raise RuntimeError("could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log file. did you activate the CpuUtilizationProcfsSystemProvider in the config.yml too? This is required to run PsuEnergyXgboostSystemProvider")
+
         with open("/tmp/green-metrics-tool/cpu_utilization_procfs_system.log", 'r') as f:
             csv_data = f.read()
         csv_data = csv_data[:csv_data.rfind('\n')] # remove the last line from the string, as it may be broken due to the output buffering of the metrics reporter
@@ -57,6 +60,12 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
         Z = df.loc[:,['value']]
 
         provider_config = GlobalConfig().config['measurement']['metric-providers']['psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider']
+
+        if not 'HW_CPUFreq' in provider_config: raise RuntimeError("Please set the HW_CPUFreq config option for PsuEnergyXgboostSystemProvider in the config.yml")
+        if not 'CPUChips' in provider_config: raise RuntimeError("Please set the CPUChips config option for PsuEnergyXgboostSystemProvider in the config.yml")
+        if not 'CPUCores' in provider_config: raise RuntimeError("Please set the CPUCores config option for PsuEnergyXgboostSystemProvider in the config.yml")
+        if not 'TDP' in provider_config: raise RuntimeError("Please set the TDP config option for PsuEnergyXgboostSystemProvider in the config.yml")
+        if not 'HW_MemAmountGB' in provider_config: raise RuntimeError("Please set the HW_MemAmountGB config option for PsuEnergyXgboostSystemProvider in the config.yml")
 
         Z['HW_CPUFreq'] = provider_config['HW_CPUFreq']
         Z['CPUCores'] = provider_config['CPUCores']
