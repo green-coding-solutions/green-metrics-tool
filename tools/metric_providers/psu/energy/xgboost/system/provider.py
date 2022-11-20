@@ -65,7 +65,7 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
 
         Z = Z.rename(columns={'value': 'utilization'})
         Z.utilization = Z.utilization / 100
-        model = mlmodel.train_model(2, Z)
+        model = mlmodel.train_model(provider_config['CPUChips'], Z)
 
         df['value'] = model.predict(Z)
         df.value = df.value.astype(int)
