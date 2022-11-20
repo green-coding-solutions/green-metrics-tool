@@ -13,6 +13,11 @@ class BaseMetricProvider:
             raise RuntimeError("You must set the _metric_name instance variable in the child class")
         self._filename = f"/tmp/green-metrics-tool/{self._metric_name}.log"
 
+    # implemented as getter function and not direct access, so it can be overloaded
+    # some child classes might not actually have _ps attribute set
+    def get_stderr(self):
+        return self._ps.stderr.read()
+
     def read_metrics(self, project_id, containers):
         with open(self._filename, 'r') as f:
             csv_data = f.read()
@@ -39,6 +44,7 @@ class BaseMetricProvider:
         return df
 
     def start_profiling(self, containers=None):
+
         if self._sudo:
             call_string = f"sudo {self._current_dir}/static-binary -i {self._resolution}"
         else:
@@ -64,6 +70,9 @@ class BaseMetricProvider:
             # therefore we use os.setsid here and later call os.getpgid(pid) to get process group that the shell
             # and the process are running in. These we then can send the signal to and kill them
         )
+
+        # set_block False enables non-blocking reads on stderr.read(). Otherwise it would wait forever on empty
+        os.set_blocking(self._ps.stderr.fileno(), False)
 
     def stop_profiling(self):
         if self._ps is None: return

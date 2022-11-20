@@ -32,6 +32,7 @@ measurement:
     network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider: 100
 #    psu.energy.ac.system.provider.PsuEnergyAcSystemProvider: 100
     psu.energy.dc.system.provider.PsuEnergyDcSystemProvider: 100
+    psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider: 0
 
 admin:
   # This address will get an email, when a new project was added through the frontend
