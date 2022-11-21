@@ -1,0 +1,3 @@
+[submodule "tools/metric_providers/psu/energy/xgboost/system/model"]
+	path = tools/metric_providers/psu/energy/xgboost/system/model
+	url = https://github.com/green-coding-berlin/spec-power-model
