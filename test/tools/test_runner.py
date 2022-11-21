@@ -58,7 +58,7 @@ def test_runner_with_wordpress_example_app(capsys):
     subprocess.run(["mkdir", "/tmp/example-applications/"])
     subprocess.run(["git", "clone", example_repo, "/tmp/example-applications/"], check=True, capture_output=True, encoding='UTF-8')
 
-    uri = '/tmp/example-applications/wordpress-official-starter/'
+    uri = '/tmp/example-applications/wordpress-official-data/'
     subprocess.run(["docker", "compose",   "-f", uri+"compose.yml", "build"])
     
     project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
@@ -66,7 +66,7 @@ def test_runner_with_wordpress_example_app(capsys):
                 (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(project_name, uri))[0]
 
     # Run the application
-    runner = Runner()
+    runner = Runner(allow_unsafe=True)
     runner.run(uri=uri, uri_type="folder", project_id=project_id)
 
     ## Capture Std.Out and Std.Err and make Assertions
