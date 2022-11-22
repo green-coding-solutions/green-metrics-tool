@@ -82,7 +82,7 @@ async def get_notes(project_id):
 async def get_projects():
     query = """
             SELECT
-                id, name, uri, last_run
+                id, name, uri, end_measurement, last_run
             FROM
                 projects
             ORDER BY
