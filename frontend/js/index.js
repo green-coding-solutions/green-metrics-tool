@@ -33,7 +33,7 @@
         const link_node = document.createElement('a');
         content.push({ title: el[1] });
         if(el[3] == null) {
-            link_node.innerText = "asd" + el[1] + " (no data yet 🔥)";
+            link_node.innerText =  el[1] + " (no data yet 🔥)";
         } else {
             link_node.innerText = el[1];
         }
