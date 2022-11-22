@@ -2,7 +2,7 @@ name: Daily Test Run
 
 on:
   schedule:
-    - cron: '0 0 * * 1-5'
+    - cron: '0 0 * * *'
       branches: [ "main", "dev" ]
 
   # Allows you to run this workflow manually from the Actions tab
