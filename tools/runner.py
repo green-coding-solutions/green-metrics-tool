@@ -96,9 +96,9 @@ class Runner:
             module_path = f"metric_providers.{module_path}"
 
             print(f"Importing {class_name} from {module_path}")
-            print(f"Resolution is {config['measurement']['metric-providers'][metric_provider]}")
+            print(f"Configuration is {config['measurement']['metric-providers'][metric_provider]}")
             module = importlib.import_module(module_path)
-            metric_provider_obj = getattr(module, class_name)(resolution=config['measurement']['metric-providers'][metric_provider]) # the additional () creates the instance
+            metric_provider_obj = getattr(module, class_name)(resolution=config['measurement']['metric-providers'][metric_provider]['resolution']) # the additional () creates the instance
 
             self.metric_providers.append(metric_provider_obj)
 
@@ -244,13 +244,12 @@ class Runner:
         for metric_provider in self.metric_providers:
             print(f"Starting measurement provider {metric_provider.__class__.__name__}")
             metric_provider.start_profiling(self.containers)
-            os.set_blocking(metric_provider._ps.stderr.fileno(), False) # set_block False enables non-blocking reads on stderr.read(). Otherwise it would wait forever on empty
 
         print(TerminalColors.HEADER, "\nWaiting for Metric Providers to boot ...", TerminalColors.ENDC)
         time.sleep(2)
 
         for metric_provider in self.metric_providers:
-            stderr_read = metric_provider._ps.stderr.read()
+            stderr_read = metric_provider.get_stderr()
             print(f"Stderr check on {metric_provider.__class__.__name__}")
             if stderr_read is not None:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
@@ -314,7 +313,7 @@ class Runner:
 
         print(TerminalColors.HEADER, "Stopping metric providers and parsing stats", TerminalColors.ENDC)
         for metric_provider in self.metric_providers:
-            stderr_read = metric_provider._ps.stderr.read()
+            stderr_read = metric_provider.get_stderr()
             if stderr_read is not None:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
