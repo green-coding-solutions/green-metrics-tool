@@ -29,7 +29,7 @@ done
 
 echo "Linking DC measurement provider library file to /usr/lib"
 sudo rm /usr/lib/libpicohrdl.so.2
-sudo ln -s ./tools/metric_providers/psu/energy/dc/system/libpicohrdl.so.2 /usr/lib/
+sudo ln -s $(pwd)/tools/metric_providers/psu/energy/dc/system/libpicohrdl.so.2 /usr/lib/
 
 etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
 etc_hosts_line_2="127.0.0.1 api.green-coding.local metrics.green-coding.local"

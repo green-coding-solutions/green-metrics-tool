@@ -41,10 +41,10 @@ measurement:
       resolution: 100
 #    psu.energy.ac.system.provider.PsuEnergyAcSystemProvider:
 #      resolution: 100
-#     psu.energy.dc.system.provider.PsuEnergyDcSystemProvider:
-#       resolution: 100
-#     psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider:
-#       resolution: 100
+#    psu.energy.dc.system.provider.PsuEnergyDcSystemProvider:
+#      resolution: 100
+#    psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider:
+#      resolution: 61 # Do not change this. Provider is tailored to work at fixed resolution
        # This is a default configuration. Please change this to your system!
 #      CPUChips: 1
 #      HW_CPUFreq: 3100
