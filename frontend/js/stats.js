@@ -157,12 +157,12 @@ const fillProjectData = (project, key = null) => {
     }
 }
 
-const fillProjectTab = (selector, data) => {
+const fillProjectTab = (selector, data, parent = '') => {
     for (item in data) {
         if(typeof data[item] == 'object')
-            fillProjectTab(selector, data[item])
+            fillProjectTab(selector, data[item], `${item}.`)
         else
-            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${data?.[item]}</td></tr>`)
+            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${parent}${item}</strong></td><td>${data?.[item]}</td></tr>`)
 
     }
 }
