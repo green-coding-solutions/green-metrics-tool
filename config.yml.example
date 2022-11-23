@@ -43,8 +43,8 @@ measurement:
 #      resolution: 100
 #     psu.energy.dc.system.provider.PsuEnergyDcSystemProvider:
 #       resolution: 100
-#    psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider:
-#      resolution: 100
+#     psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider:
+#       resolution: 100
        # This is a default configuration. Please change this to your system!
 #      CPUChips: 1
 #      HW_CPUFreq: 3100
