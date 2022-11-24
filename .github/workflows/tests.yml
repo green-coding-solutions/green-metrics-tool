@@ -45,8 +45,6 @@ jobs:
         run: |
           ./install.sh -p testpw
 
-      # TODO: Write script that takes search terms like "cgroup" and "RAPL",
-      #       iterates over metrics providers, and turns them off while leaving the rest on
       - name: Turn off metric providers which do not work in github vm
         run: |
           ./disable-metric-provider.sh cgroup RAPL ac dc xgboost
