@@ -2,17 +2,22 @@
 
 # example usage:> ./disable-metric-privoders.sh RAPL cgroup ac dc
 
-echo "Editing config.yml... "
+config="config.yml"
+echo "Editing ${config}... "
 
 # First turn on all metric providers
 echo "first turning on all metric providers"
-sed -i "/metric-providers:/,/admin:/s/^#    /    /" config.yml
+sed -i "/metric-providers:/,/admin:/s/^#    /    /" $config
 
-# Then comment out instances of the word
+# Then disable specific providers
 for word in "$@"
 do
     echo "disabling metric providers containing $word ..."
-   sed -i "/metric-providers:/,/admin:/s/^.*\.$word\./#&/" config.yml
+    if [[ "$word" == "xgboost" ]]; then
+        sed -i "/\.${word}\./,+7s/^/#/" $config
+    else
+        sed -i "/\.${word}\./,+1s/^/#/" $config
+    fi 
 done
 
 echo "fin"
