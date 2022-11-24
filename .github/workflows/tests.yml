@@ -16,7 +16,7 @@ jobs:
     outputs:
       should_run: ${{ steps.should_run.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: print latest_commit
         run: echo ${{ github.sha }}
 
@@ -47,7 +47,7 @@ jobs:
 
       - name: Turn off metric providers which do not work in github vm
         run: |
-          ./disable-metric-provider.sh cgroup RAPL ac dc xgboost
+          ./disable-metric-providers.sh cgroup RAPL ac dc xgboost
 
       - name: Setup Test environment
         working-directory: ./test
