@@ -20,6 +20,7 @@ jobs:
       - name: print latest_commit
         run: echo ${{ github.sha }}
 
+      #TODO: instead of 24 hours, last workflow run
       - id: should_run
         continue-on-error: true
         name: check latest commit is less than a day
@@ -48,15 +49,7 @@ jobs:
       #       iterates over metrics providers, and turns them off while leaving the rest on
       - name: Turn off metric providers which do not work in github vm
         run: |
-          sed -i -e "s|cpu.utilization.cgroup|#cpu.utilization.cgroup|" config.yml
-          sed -i -e "s|cpu.energy.RAPL|#cpu.energy.RAPL|" config.yml
-          sed -i -e "s|cpu.time.cgroup|#cpu.time.cgroup|" config.yml
-          sed -i -e "s|memory.total.cgroup|#memory.total.cgroup|" config.yml
-          sed -i -e "s|memory.energy.RAPL|#memory.energy.RAPL|" config.yml
-          sed -i -e "s|network.io.cgroup|#network.io.cgroup|" config.yml
-          sed -i -e "s|psu.energy.ac|#psu.energy.ac|" config.yml
-          sed -i -e "s|psu.energy.dc|#psu.energy.dc|" config.yml
-          sed -i -e "s||#|" config.yml
+          ./disable-metric-provider.sh cgroup RAPL ac dc xgboost
 
       - name: Setup Test environment
         working-directory: ./test
