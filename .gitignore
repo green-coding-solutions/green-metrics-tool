@@ -5,3 +5,6 @@ TODO
 flows
 compose.yml
 static-binary
+.pytest_cache
+test-compose.yml
+test-config.yml

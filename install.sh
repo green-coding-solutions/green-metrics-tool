@@ -1,7 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 
-read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
+db_pw=''
+while getopts "p:" o; do
+    case "$o" in
+        p)
+            db_pw=${OPTARG}
+            ;;
+    esac
+done
+
+if [[ -z "$db_pw" ]] ; then
+    read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
+fi
 
 echo "Updating compose.yml with current path ..."
 cp docker/compose.yml.example docker/compose.yml
