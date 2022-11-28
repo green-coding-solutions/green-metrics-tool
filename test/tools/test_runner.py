@@ -60,7 +60,7 @@ def off_test_runner_reports(capsys):
     ## Assert that there is no std.err output
     assert captured.err == ''
 
-def test_runner_with_wordpress_example_app(capsys):
+def test_runner_example_application_wordpress_official_data(capsys):
     config = GlobalConfig(config_name="test-config.yml").config
 
     download_example_repo()

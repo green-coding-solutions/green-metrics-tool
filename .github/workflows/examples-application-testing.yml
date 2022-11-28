@@ -1,0 +1,75 @@
+name: Daily Test Run
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+      branches: [ "main", "dev" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  #TODO: is there a way to do this that's even more light-weight?
+  check_date:
+    runs-on: self-hosted
+    name: Check latest commit
+    outputs:
+      should_run: ${{ steps.should_run.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: print latest_commit
+        run: echo ${{ github.sha }}
+
+      #TODO: instead of 24 hours, last workflow run
+      - id: should_run
+        continue-on-error: true
+        name: check latest commit is less than a day
+        if: ${{ github.event_name == 'schedule' }}
+        run: test -z $(git rev-list  --after="24 hours"  ${{ github.sha }}) && echo "::set-output name=should_run::false"
+
+  run-tests:
+    needs: check_date
+    if: ${{ needs.check_date.outputs.should_run != 'false' }}
+    runs-on: self-hosted
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+      
+      - name: Install python testing dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install fastapi pytest psycopg2 numpy pandas
+      
+      - name: Run Install Script
+        run: |
+          ./install.sh -p testpw
+
+        # running .disable-metric-providers without parameters will turn on all metric providers
+      - name: Turn on all metric providers
+        run: |
+          ./disable-metric-providers.sh
+
+      - name: Setup Test environment
+        working-directory: ./test
+        run: |
+          ./setup-test-env.sh -p testpw
+          
+      - name: Start Test container
+        working-directory: ./test
+        run: |
+          docker compose -f ../docker/test-compose.yml up -d
+     
+      - name: Sleep for 10 seconds
+        run: sleep 10s
+        shell: bash
+          
+      - name: Run Tests
+        working-directory: ./test
+        run: |
+          pytest -k "runner and example_application"
+          
+      - name: Stop Containers
+        working-directory: ./test
+        run: |
+          docker compose -f ../docker/test-compose.yml down
