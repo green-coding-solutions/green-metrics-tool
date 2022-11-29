@@ -21,20 +21,40 @@ measurement:
   idle-time-end: 5
   flow-process-runtime: 60
   metric-providers:
-    cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider: 100
-    cpu.energy.RAPL.MSR.system.provider.CpuEnergyRaplMsrSystemProvider: 100
-    cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider: 100
-#    cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider: 100
-#    cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider: 100
-#    cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider: 100
-    memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider: 100
-    memory.energy.RAPL.MSR.system.provider.MemoryEnergyRaplMsrSystemProvider: 100
-    network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider: 100
-#    psu.energy.ac.system.provider.PsuEnergyAcSystemProvider: 100
-    psu.energy.dc.system.provider.PsuEnergyDcSystemProvider: 100
-    lm_sensors.temperature.cpu.provider.LmSenorsCpuTempProvider: 100
+#    lm_sensors.temperature.cpu.provider.LmSenorsCpuTempProvider: 100
 #    lm_sensors.fan.1.provider.FanOneProvider: 100
 #    lm_sensors.fan.2.provider.FanTwoProvider: 100
+    cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
+      resolution: 100
+    cpu.energy.RAPL.MSR.system.provider.CpuEnergyRaplMsrSystemProvider:
+      resolution: 100
+    cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
+      resolution: 100
+#    cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
+      resolution: 100
+#    cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider:
+      resolution: 100
+#    cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider:
+      resolution: 100
+    memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider:
+      resolution: 100
+    memory.energy.RAPL.MSR.system.provider.MemoryEnergyRaplMsrSystemProvider:
+      resolution: 100
+    network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
+      resolution: 100
+#    psu.energy.ac.system.provider.PsuEnergyAcSystemProvider:
+      resolution: 100
+     psu.energy.dc.system.provider.PsuEnergyDcSystemProvider:
+       resolution: 100
+#    psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider:
+#      resolution: 100
+       # This is a default configuration. Please change this to your system!
+#      CPUChips: 1
+#      HW_CPUFreq: 3100
+#      CPUCores: 28
+#      TDP: 150
+#      HW_MemAmountGB: 16
+
 
 admin:
   # This address will get an email, when a new project was added through the frontend
