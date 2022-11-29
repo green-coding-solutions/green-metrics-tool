@@ -1,4 +1,4 @@
-name: Daily Test Run
+name: Examples Directory Tests Run
 
 on:
   schedule:
@@ -38,17 +38,16 @@ jobs:
       
       - name: Install python testing dependencies
         run: |
-          python -m pip install --upgrade pip
+          python3 -m pip install --upgrade pip
           pip install fastapi pytest psycopg2 numpy pandas
       
       - name: Run Install Script
         run: |
           ./install.sh -p testpw
 
-        # running .disable-metric-providers without parameters will turn on all metric providers
-      - name: Turn on all metric providers
+      - name: Turn off metric providers
         run: |
-          ./disable-metric-providers.sh
+          ./disable-metric-providers.sh ac dc xgboost CpuTimeCgroupSystemProvider
 
       - name: Setup Test environment
         working-directory: ./test
