@@ -14,11 +14,10 @@ for word in "$@"
 do
     echo "disabling metric providers containing $word ..."
     if [[ "$word" == "xgboost" ]]; then
-        sed -i "/\.${word}\./,+7s/^/#/" $config
+        sed -i "/\.${word}\(:\|\.\)/,+7s/^/#/" $config
     else
-        sed -i "/\.${word}\./,+1s/^/#/" $config
+        sed -i "/\.${word}\(:\|\.\)/,+1s/^/#/" $config
     fi 
 done
 
 echo "fin"
-
