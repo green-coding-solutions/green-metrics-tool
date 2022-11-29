@@ -22,10 +22,10 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
     MA 02110-1301 USA.
 */
-#ifndef PROG_SENSORS_SOURCE_H
-#define PROG_SENSORS_SOURCE_H
+#ifndef TOOLS_METRIC_PROVIDERS_LM_SENSORS_SOURCE_H_
+#define TOOLS_METRIC_PROVIDERS_LM_SENSORS_SOURCE_H_
 
 extern int fahrenheit;
 extern char degstr[5];
 
-#endif /* def PROG_SENSORS_SOURCE_H */
+#endif  //  TOOLS_METRIC_PROVIDERS_LM_SENSORS_SOURCE_H_

@@ -24,8 +24,8 @@
     MA 02110-1301 USA.
 */
 
-#ifndef PROG_SENSORS_CHIPS_H
-#define PROG_SENSORS_CHIPS_H
+#ifndef TOOLS_METRIC_PROVIDERS_LM_SENSORS_CHIPS_H_
+#define TOOLS_METRIC_PROVIDERS_LM_SENSORS_CHIPS_H_
 
 #include "sensors/sensors.h"
 
@@ -33,10 +33,9 @@
  * Retrieved subfeatures
  */
 struct sensor_subfeature_data {
-	double value;		/* Subfeature value. Not used for alarms. */
-	const char *name;	/* Subfeature name */
-	const char *unit;	/* Unit to be displayed for this subfeature.
-				   This field is optional. */
+    double value;     /* Subfeature value. Not used for alarms. */
+    const char *name; /* Subfeature name */
+    const char *unit; /* Unit to be displayed for this subfeature. This field is optional. */
 };
 
 /*
@@ -44,12 +43,12 @@ struct sensor_subfeature_data {
  * for a given feature.
  */
 struct sensor_subfeature_list {
-	int subfeature;
-	const struct sensor_subfeature_list *exists;
-				/* Complementary subfeatures to be displayed
-				   if subfeature exists */
-	int alarm;		/* true if this is an alarm */
-	const char *name;	/* subfeature name to be printed */
+    int subfeature;
+    const struct sensor_subfeature_list *exists;
+    /* Complementary subfeatures to be displayed
+       if subfeature exists */
+    int alarm;        /* true if this is an alarm */
+    const char *name; /* subfeature name to be printed */
 };
 
 void print_chip_raw(const sensors_chip_name *name);
@@ -61,4 +60,4 @@ int chip_fan_raw(const sensors_chip_name *name, const sensors_feature *feature);
 
 int get_label_size(const sensors_chip_name *name);
 
-#endif /* def PROG_SENSORS_CHIPS_H */
+#endif  // TOOLS_METRIC_PROVIDERS_LM_SENSORS_CHIPS_H_
