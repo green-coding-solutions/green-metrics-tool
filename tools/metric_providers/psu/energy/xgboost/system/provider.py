@@ -46,14 +46,7 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
             dtype={"time":int, "value":int}
         )
 
-        if self._metrics.get('container_id') is None:
-            df['container_name'] = '[SYSTEM]' # standard container name when only system was measured
-        else:
-            df['container_name'] = df.container_id
-            for container_id in containers:
-                df.loc[df.container_name == container_id, 'container_name'] = containers[container_id]
-            df = df.drop('container_id', axis=1)
-
+        df['container_name'] = '[SYSTEM]' # standard container name when only system was measured
         df['metric'] = self._metric_name
         df['project_id'] = project_id
 
