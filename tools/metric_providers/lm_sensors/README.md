@@ -6,14 +6,13 @@ If you call the program without a parameter it will output all the sensors/ valu
 This is only for debugging! The proper way to call the code is by specifying a label.
 
 ```
-./metric-provider-binary CPU -i 100
+./metric-provider-binary -c coretemp-isa-0000 -f "Package id 0" -i 100
 ```
 
 Please note that the values might seam a little high. This is because we all values as integers and not floats. So
 a reading of 60.25 degrees will become 6025.
 
 A lot of the code is copied from https://github.com/lm-sensors/lm-sensors/tree/master/prog/sensors
-
 
 
 ## Install

@@ -188,9 +188,8 @@ const getMetrics = (stats_data, style='apex') => {
         psu_ac_energy: 0,
         cpu_energy: 0,
         memory_energy: 0,
-        cpu_temperature: [],
-        fan_1: [],
-        fan_2: []
+        lm_sensors_temp: [],
+        lm_sensors_fan: [],
     }
 
     let accumulate = 0;
