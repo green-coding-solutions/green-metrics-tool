@@ -53,7 +53,8 @@ class BaseMetricProvider:
              call_string += " " # space at start
              call_string += " ".join(self._extra_switches)
 
-        if self._metrics.get('container_id') is not None:
+        # This needs refactoring see https://github.com/green-coding-berlin/green-metrics-tool/issues/45
+        if self._metrics.get('container_id') is not None and not self.__dict__.get('_fake_container', False):
              call_string += " -s "
              call_string += ",".join(containers.keys())
         call_string += f" > {self._filename}"

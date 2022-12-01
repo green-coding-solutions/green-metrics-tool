@@ -64,17 +64,12 @@ const metrics_info = {
       SI_conversion_factor: 1,
       unit_after_conversion: 'us'
   },
-  cpu_temperature: {
+  lm_sensors_temp: {
     unit: 'C',
     SI_conversion_factor: 100,
     unit_after_conversion: 'C'
   },
-  fan_1: {
-    unit: 'RPM',
-    SI_conversion_factor: 1,
-    unit_after_conversion: 'RPM'
-  },
-  fan_2: {
+  lm_sensors_fan: {
     unit: 'RPM',
     SI_conversion_factor: 1,
     unit_after_conversion: 'RPM'
