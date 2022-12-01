@@ -15,19 +15,11 @@ example_repo="https://github.com/green-coding-berlin/example-applications"
 project_name = "test_" + utils.randomword(12)
 downloaded_examples=False
 
-#TODO: Figure out why this isn't working in CI and fix.
-def off_test_runner_reports(capsys):
+def test_runner_reports(capsys):
     config = GlobalConfig(config_name="test-config.yml").config
-
-    download_example_repo()
-
-    uri = '/tmp/example-applications/stress/'
-    
-    # if we wanna use local copy
-    #uri = os.path.abspath(os.path.join(current_dir, '..', 'stress-application/'))
-    
-    #TODO: if switch to local copy, remember to use "/compose.yml
-    subprocess.run(["docker", "compose", "-f", uri+"compose.yml", "build"])
+  
+    uri = os.path.abspath(os.path.join(current_dir, '..', 'stress-application/'))    
+    subprocess.run(["docker", "compose", "-f", uri+"/compose.yml", "build"])
     
     project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
                 VALUES \
@@ -35,7 +27,6 @@ def off_test_runner_reports(capsys):
 
     # Run the application
     runner = Runner()
-    #TODO: if switch to local copy, figure out why this doesn't run
     runner.run(uri=uri, uri_type="folder", project_id=project_id)
 
     ## Capture Std.Out and Std.Err and make Assertions
@@ -96,4 +87,3 @@ def download_example_repo():
         subprocess.run(["mkdir", "/tmp/example-applications/"])
         subprocess.run(["git", "clone", example_repo, "/tmp/example-applications/"], check=True, capture_output=True, encoding='UTF-8')
         downloaded_examples=True
-
