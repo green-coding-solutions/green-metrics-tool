@@ -31,11 +31,11 @@ measurement:
     cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
       resolution: 100
 #    cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
-      resolution: 100
+#      resolution: 100
 #    cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider:
-      resolution: 100
+#      resolution: 100
 #    cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider:
-      resolution: 100
+#      resolution: 100
     memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider:
       resolution: 100
     memory.energy.RAPL.MSR.system.provider.MemoryEnergyRaplMsrSystemProvider:
@@ -43,9 +43,9 @@ measurement:
     network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
       resolution: 100
 #    psu.energy.ac.system.provider.PsuEnergyAcSystemProvider:
-      resolution: 100
-     psu.energy.dc.system.provider.PsuEnergyDcSystemProvider:
-       resolution: 100
+#      resolution: 100
+#    psu.energy.dc.system.provider.PsuEnergyDcSystemProvider:
+#      resolution: 61 # Do not change this. Provider is tailored to work at fixed resolution
 #    psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider:
 #      resolution: 100
        # This is a default configuration. Please change this to your system!

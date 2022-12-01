@@ -167,12 +167,12 @@ const fillProjectData = (project, key = null) => {
     }
 }
 
-const fillProjectTab = (selector, data) => {
+const fillProjectTab = (selector, data, parent = '') => {
     for (item in data) {
         if(typeof data[item] == 'object')
-            fillProjectTab(selector, data[item])
+            fillProjectTab(selector, data[item], `${item}.`)
         else
-            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${data?.[item]}</td></tr>`)
+            document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${parent}${item}</strong></td><td>${data?.[item]}</td></tr>`)
 
     }
 }
@@ -204,7 +204,7 @@ const getMetrics = (stats_data, style='apex') => {
         var metric_name = null
 
         stats_data.data.forEach(el => {
-            const container_name = el[0];
+            const detail_name = el[0];
             const time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
             metric_name = el[2];
             let value = el[3];
@@ -233,21 +233,21 @@ const getMetrics = (stats_data, style='apex') => {
             } else if (metric_name == 'memory_total_cgroup_container') {
                 if (accumulate === 1) metrics.mem_total.push(value);
             } else if (metric_name == 'network_io_cgroup_container') {
-                if (accumulate === 1) metrics.network_io[container_name] = value; // save only the last value per container (overwrite)
+                if (accumulate === 1) metrics.network_io[detail_name] = value; // save only the last value per container (overwrite)
             }
 
             // Depending on the charting library the object has to be reformatted
             // First we check if structure is initialized
             if (metrics.series[metric_name] == undefined)  metrics.series[metric_name] = {};
-            if (metrics.series[metric_name][container_name] == undefined) {
-                metrics.series[metric_name][container_name] = { name: container_name, data: [] }
+            if (metrics.series[metric_name][detail_name] == undefined) {
+                metrics.series[metric_name][detail_name] = { name: detail_name, data: [] }
             }
 
             // now we handle the library specific formatting
             if(style=='apex') {
-                metrics.series[metric_name][container_name]['data'].push({ x: time_in_ms, y: value })
+                metrics.series[metric_name][detail_name]['data'].push({ x: time_in_ms, y: value })
             } else if(style=='echarts') {
-                metrics.series[metric_name][container_name]['data'].push([time_in_ms, value])
+                metrics.series[metric_name][detail_name]['data'].push([time_in_ms, value])
             } else throw "Unknown chart style"
         })
     } catch (err) {

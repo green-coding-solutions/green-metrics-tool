@@ -264,7 +264,7 @@ class Runner:
         if debug.active: debug.pause("metric-providers start complete. Waiting to start flow")
 
         start_measurement = int(time.time_ns() / 1_000)
-        notes.append({"note" : "Start of measurement", 'container_name' : '[SYSTEM]', "timestamp": start_measurement})
+        notes.append({"note" : "Start of measurement", 'detail_name' : '[SYSTEM]', "timestamp": start_measurement})
 
         # run the flows
         for el in obj['flow']:
@@ -272,7 +272,7 @@ class Runner:
             for inner_el in el['commands']:
 
                 if "note" in inner_el:
-                    notes.append({"note" : inner_el['note'], 'container_name' : el['container'], "timestamp": int(time.time_ns() / 1_000)})
+                    notes.append({"note" : inner_el['note'], 'detail_name' : el['container'], "timestamp": int(time.time_ns() / 1_000)})
 
                 if inner_el['type'] == 'console':
                     print(TerminalColors.HEADER, "\nConsole command", inner_el['command'], "on container", el['container'], TerminalColors.ENDC)
@@ -292,7 +292,7 @@ class Runner:
                         encoding="UTF-8"
                     )
 
-                    self.ps_to_read.append({'cmd': docker_exec_command, 'ps': ps, 'read-notes-stdout': inner_el.get('read-notes-stdout', False), 'container_name': el['container']})
+                    self.ps_to_read.append({'cmd': docker_exec_command, 'ps': ps, 'read-notes-stdout': inner_el.get('read-notes-stdout', False), 'detail_name': el['container']})
 
                     if inner_el.get('detach', None) == True :
                         print("Process should be detached. Running asynchronously and detaching ...")
@@ -306,7 +306,7 @@ class Runner:
                 if debug.active: debug.pause("Waiting to start next command in flow")
 
         end_measurement = int(time.time_ns() / 1_000)
-        notes.append({"note" : "End of measurement", 'container_name' : '[SYSTEM]', "timestamp": end_measurement})
+        notes.append({"note" : "End of measurement", 'detail_name' : '[SYSTEM]', "timestamp": end_measurement})
 
         print(TerminalColors.HEADER, f"\nIdling containers after run for {config['measurement']['idle-time-end']}s", TerminalColors.ENDC)
         time.sleep(config['measurement']['idle-time-end'])
@@ -335,7 +335,7 @@ class Runner:
                 print("Output from process: ", line)
                 if(ps['read-notes-stdout']):
                     timestamp, note = line.split(' ', 1) # Fixed format according to our specification. If unpacking fails this is wanted error
-                    notes.append({"note" : note, 'container_name' : ps['container_name'], "timestamp": timestamp})
+                    notes.append({"note" : note, 'detail_name' : ps['detail_name'], "timestamp": timestamp})
 
         process_helpers.kill_ps(self.ps_to_kill) # kill process only after reading. Otherwise the stream buffer might be gone
 

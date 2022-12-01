@@ -6,3 +6,7 @@ flows
 compose.yml
 metric-provider-binary
 .vscode
+static-binary
+.pytest_cache
+test-compose.yml
+test-config.yml

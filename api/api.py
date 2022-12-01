@@ -63,7 +63,7 @@ async def home():
 async def get_notes(project_id):
     query = """
             SELECT
-                project_id, container_name, note, time
+                project_id, detail_name, note, time
             FROM
                 notes
             WHERE project_id = %s
@@ -82,7 +82,7 @@ async def get_notes(project_id):
 async def get_projects():
     query = """
             SELECT
-                id, name, uri, last_run
+                id, name, uri, end_measurement, last_run
             FROM
                 projects
             ORDER BY
@@ -108,7 +108,7 @@ async def get_stats_by_uri(uri: str, remove_idle: bool=False):
             WITH times AS (
                 SELECT id, start_measurement, end_measurement FROM projects WHERE uri = %s
             ) SELECT
-                projects.id as project_id, stats.container_name, stats.time, stats.metric, stats.value
+                projects.id as project_id, stats.detail_name, stats.time, stats.metric, stats.value
             FROM
                 stats
             LEFT JOIN
@@ -149,7 +149,7 @@ async def get_stats_single(project_id: str, remove_idle: bool=False):
             WITH times AS (
                 SELECT start_measurement, end_measurement FROM projects WHERE id = %s
             ) SELECT
-                stats.container_name, stats.time, stats.metric, stats.value
+                stats.detail_name, stats.time, stats.metric, stats.value
             FROM
                 stats
             WHERE
@@ -181,7 +181,7 @@ async def get_stats_multi(p: list[str] | None = Query(default=None)):
 
     query = """
             SELECT
-                projects.id, projects.name, stats.container_name, stats.time, stats.metric, stats.value
+                projects.id, projects.name, stats.detail_name, stats.time, stats.metric, stats.value
             FROM
                 stats
             LEFT JOIN
@@ -208,7 +208,7 @@ async def get_stats_compare(p: list[str] | None = Query(default=None)):
 
     query = """
             SELECT
-                projects.name, stats.container_name, stats.metric, AVG(stats.value)
+                projects.name, stats.detail_name, stats.metric, AVG(stats.value)
             FROM
                 stats
             LEFT JOIN
@@ -219,7 +219,7 @@ async def get_stats_compare(p: list[str] | None = Query(default=None)):
                 stats.metric = ANY(ARRAY['cpu','mem','system-energy'])
             AND
                 STATS.project_id = ANY(%s::uuid[])
-            GROUP BY projects.name, stats.container_name, stats.metric
+            GROUP BY projects.name, stats.detail_name, stats.metric
             """
     params = (p,)
     data = DB().fetch_all(query, params=params)

@@ -1,0 +1,20 @@
+---
+name: Stress Container One Core 5 Seconds
+author: Arne Tarara
+version: 1
+architecture: linux
+
+services:
+  ubuntu-stress:
+    type: container
+    image: stress_stress
+
+flow:
+  - name: Stress
+    container: ubuntu-stress
+    commands:
+# Alpine does not have stress, so we use stress-ng
+# We need the -q flag because otherwise it will write debug to STDERR
+      - type: console
+        command: stress-ng -c 1 -t 5 -q
+        note: Starting Stress
