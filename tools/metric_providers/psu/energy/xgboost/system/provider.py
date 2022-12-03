@@ -46,7 +46,7 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
             dtype={"time":int, "value":int}
         )
 
-        df['container_name'] = '[SYSTEM]' # standard container name when only system was measured
+        df['detail_name'] = '[SYSTEM]' # standard container name when only system was measured
         df['metric'] = self._metric_name
         df['project_id'] = project_id
 
