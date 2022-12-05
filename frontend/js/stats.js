@@ -63,6 +63,11 @@ const metrics_info = {
       unit: 'us',
       SI_conversion_factor: 1,
       unit_after_conversion: 'us'
+  },
+  psu_energy_powerspy2: {
+    unit: 'mW',
+    SI_conversion_factor: 1000,
+    unit_after_conversion: 'W'
   }
 }
 
@@ -168,7 +173,7 @@ const fillProjectTab = (selector, data, parent = '') => {
 }
 
 const getMetrics = (stats_data, style='apex') => {
-    const metrics = {cpu_utilization_containers: [], cpu_utilization_system: [], mem_total: [], network_io: {}, series: {}, psu_dc_energy: 0, psu_ac_energy: 0, cpu_energy: 0, memory_energy: 0}
+    const metrics = {psu_energy_powerspy2: [], cpu_utilization_containers: [], cpu_utilization_system: [], mem_total: [], network_io: {}, series: {}, psu_dc_energy: 0, psu_ac_energy: 0, cpu_energy: 0, memory_energy: 0}
 
     let accumulate = 0;
 
