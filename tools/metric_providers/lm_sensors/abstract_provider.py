@@ -37,13 +37,7 @@ class LmSenorsProvider(BaseMetricProvider):
 
         self._extra_switches = self._create_options()
         self._resolution = resolution
-
-        # This is a little hack to allow multiple features to be exported by the same metric provider.
-        # We act like the features are containers. This should probably be refactored so it is clearer
-        # what we actually do. https://github.com/green-coding-berlin/green-metrics-tool/issues/45
-        self._metrics = {"time":int, "value":int, "container_id":str}
-        self._fake_container = True
-
+        self._metrics = {"time":int, "value":int, "sensor_name":str}
 
         super().__init__()
 

@@ -30,7 +30,10 @@ class BaseMetricProvider:
             dtype=self._metrics
         )
 
-        if self._metrics.get('package_id') is not None:
+        if self._metrics.get('sensor_name') is not None:
+            df['detail_name'] = df.sensor_name
+            df = df.drop('sensor_name', axis=1)
+        elif self._metrics.get('package_id') is not None:
             df['detail_name'] = df.package_id
             df = df.drop('package_id', axis=1)
         elif self._metrics.get('container_id') is not None:
@@ -57,7 +60,7 @@ class BaseMetricProvider:
              call_string += " ".join(self._extra_switches)
 
         # This needs refactoring see https://github.com/green-coding-berlin/green-metrics-tool/issues/45
-        if self._metrics.get('container_id') is not None and not self.__dict__.get('_fake_container', False):
+        if self._metrics.get('container_id') is not None:
              call_string += " -s "
              call_string += ",".join(containers.keys())
         call_string += f" > {self._filename}"

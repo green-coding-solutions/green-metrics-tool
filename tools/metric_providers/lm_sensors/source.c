@@ -283,7 +283,8 @@ int main(int argc, char *argv[]) {
                         char *label;
 
                         if (!(label = sensors_get_label(chip_name, feature))) {
-                            fprintf(stderr, "ERROR: Can't get label of feature %s ignoring!\n", feature->name);
+                            //fprintf(stderr, "ERROR: Can't get label of feature %s ignoring!\n", feature->name); // only for manual debug purposes
+                            free(label);
                             continue;
                         }
 
