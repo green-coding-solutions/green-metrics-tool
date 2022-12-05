@@ -1,4 +1,4 @@
-CFLAGS = -o3 -Wall -static -static-libgcc
+CFLAGS = -o3 -Wall
 
-static-binary: source.c
+metric-provider-binary: source.c
 	gcc $< $(CFLAGS) -o $@
