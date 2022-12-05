@@ -52,7 +52,7 @@ def main(args):
 
     df = df.astype(int)
 
-    df = df.melt(id_vars=['time'], var_name='container_name', value_name='value')
+    df = df.melt(id_vars=['time'], var_name='detail_name', value_name='value')
 
     df['project_id'] = args.project_id
     df['metric'] = 'atx_energy_dc_channel'

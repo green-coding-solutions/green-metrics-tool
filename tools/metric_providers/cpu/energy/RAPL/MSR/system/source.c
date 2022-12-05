@@ -441,7 +441,7 @@ static int rapl_msr() {
         // For now, skip reporting this value. in the future, we can use a branchless alternative
         if(energy_output>=0) {
             gettimeofday(&now, NULL);
-            printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000));
+            printf("%ld%06ld %ld Package_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), j);
         }
         /*
         else {

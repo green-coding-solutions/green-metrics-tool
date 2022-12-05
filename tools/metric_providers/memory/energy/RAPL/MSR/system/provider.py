@@ -7,7 +7,7 @@ class MemoryEnergyRaplMsrSystemProvider(BaseMetricProvider):
         def __init__(self, resolution):
             self._current_dir = os.path.dirname(os.path.abspath(__file__))
             self._metric_name = "memory_energy_rapl_msr_system"
-            self._metrics = {"time":int, "value":int}
+            self._metrics = {"time":int, "value":int, "package_id":str}
             self._resolution = resolution
             self._extra_switches = ['-d']
             super().__init__()
