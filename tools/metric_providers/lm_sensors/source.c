@@ -283,7 +283,8 @@ int main(int argc, char *argv[]) {
                         char *label;
 
                         if (!(label = sensors_get_label(chip_name, feature))) {
-                            //fprintf(stderr, "ERROR: Can't get label of feature %s ignoring!\n", feature->name); // only for manual debug purposes
+                            //  Only for manual debug purposes
+                            //  fprintf(stderr, "ERROR: Can't get label of feature %s ignoring!\n", feature->name);
                             free(label);
                             continue;
                         }
@@ -297,12 +298,20 @@ int main(int argc, char *argv[]) {
                                 to_add_to_list->feature = feature;
 
                                 chip_feature_output = g_list_append(chip_feature_output, to_add_to_list);
+                                features_to_filter = g_list_remove_link(features_to_filter, feature_iterator);
                             }
                         }
                         free(label);
                     }
                 }
             }
+        }
+
+        if (g_list_length(features_to_filter) > 0) {
+            for (feature_iterator = features_to_filter; feature_iterator; feature_iterator = feature_iterator->next) {
+                fprintf(stderr, "Feature '%s' specified but can not be found!\n", ((char *) feature_iterator->data));
+            }
+            exit(1);
         }
 
         /* The main loop */
