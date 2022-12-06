@@ -34,6 +34,11 @@ const metrics_info = {
       SI_conversion_factor: 1,
       unit_after_conversion: 'W'
   },
+  atx_energy_dc_channel: {
+      unit: 'mJ',
+      SI_conversion_factor: 1000,
+      unit_after_conversion: 'J'
+  },
   memory_energy_rapl_msr_system: {
       unit: 'mJ',
       SI_conversion_factor: 1000,
