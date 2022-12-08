@@ -30,8 +30,8 @@ const metrics_info = {
       unit_after_conversion: 'J'
   },
   psu_energy_xgboost_system: {
-      unit: 'W',
-      SI_conversion_factor: 1,
+      unit: 'mW',
+      SI_conversion_factor: 1000,
       unit_after_conversion: 'W'
   },
   atx_energy_dc_channel: {
