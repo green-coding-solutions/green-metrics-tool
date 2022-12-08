@@ -1,6 +1,3 @@
-# Tests Readme
-The tests are currently all written using pytest. There are test containers which are instrumented and used so that your local database is not
-
 ## Pre-reqs
 Make sure you have pytest installed:
 `pip install pytest`
