@@ -34,6 +34,11 @@ const metrics_info = {
       SI_conversion_factor: 1,
       unit_after_conversion: 'W'
   },
+  atx_energy_dc_channel: {
+      unit: 'mJ',
+      SI_conversion_factor: 1000,
+      unit_after_conversion: 'J'
+  },
   memory_energy_rapl_msr_system: {
       unit: 'mJ',
       SI_conversion_factor: 1000,
@@ -63,6 +68,16 @@ const metrics_info = {
       unit: 'us',
       SI_conversion_factor: 1,
       unit_after_conversion: 'us'
+  },
+  lm_sensors_temp: {
+    unit: 'C',
+    SI_conversion_factor: 100,
+    unit_after_conversion: 'C'
+  },
+  lm_sensors_fan: {
+    unit: 'RPM',
+    SI_conversion_factor: 1,
+    unit_after_conversion: 'RPM'
   }
 }
 
@@ -168,7 +183,19 @@ const fillProjectTab = (selector, data, parent = '') => {
 }
 
 const getMetrics = (stats_data, style='apex') => {
-    const metrics = {cpu_utilization_containers: [], cpu_utilization_system: [], mem_total: [], network_io: {}, series: {}, psu_dc_energy: 0, psu_ac_energy: 0, cpu_energy: 0, memory_energy: 0}
+    const metrics = {
+        cpu_utilization_containers: [],
+        cpu_utilization_system: [],
+        mem_total: [],
+        network_io: {},
+        series: {},
+        psu_dc_energy: 0,
+        psu_ac_energy: 0,
+        cpu_energy: 0,
+        memory_energy: 0,
+        lm_sensors_temp: [],
+        lm_sensors_fan: [],
+    }
 
     let accumulate = 0;
 

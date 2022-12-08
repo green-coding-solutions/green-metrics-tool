@@ -21,6 +21,9 @@ measurement:
   idle-time-end: 5
   flow-process-runtime: 60
   metric-providers:
+#    lm_sensors.temperature.cpu.provider.LmSenorsCpuTempProvider: 100
+#    lm_sensors.fan.1.provider.FanOneProvider: 100
+#    lm_sensors.fan.2.provider.FanTwoProvider: 100
     cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
       resolution: 100
     cpu.energy.RAPL.MSR.system.provider.CpuEnergyRaplMsrSystemProvider:
@@ -51,6 +54,16 @@ measurement:
 #      CPUCores: 28
 #      TDP: 150
 #      HW_MemAmountGB: 16
+#    lm_sensors.temperature.provider.LmTempSenorsProvider:
+#      resolution: 100
+       # Please change these values according to the names in '$ sensors'
+#      chips: ['thinkpad-isa-0000', 'coretemp-isa-0000']
+#      features: ['CPU', 'Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
+#    lm_sensors.fan.provider.LmFanSenorsProvider:
+#      resolution: 100
+       # Please change these values according to the names in '$ sensors'
+#      chips: ['thinkpad-isa-0000']
+#      features: ['fan1', 'fan2']
 
 
 admin:
