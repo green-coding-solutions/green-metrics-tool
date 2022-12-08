@@ -321,7 +321,7 @@ const createAvgContainer = (metric_name, value, unit) => {
     } else if(metric_name.indexOf('memory_total_') !== -1) {
         color = 'purple';
         icon = 'memory';
-        explaination = 'Max memory load - all containers'
+        explaination = 'max. load - all containers'
 
     } else if(metric_name.indexOf('network_io') !== -1) {
         color = 'blue';
@@ -335,9 +335,9 @@ const createAvgContainer = (metric_name, value, unit) => {
 
     node.innerHTML = `
         <div class="ui content">
-            <div class="ui top attached ${color} label">${metric_name}</div>
+            <div class="ui top attached ${color} label overflow-ellipsis">${metric_name}</div>
             <div class="description">
-                <div class="ui tiny statistic">
+                <div class="ui mini statistic">
                     <div class="value">
                         <i class="${icon} icon"></i> ${value.toFixed(2)} ${unit}
                     </div>
