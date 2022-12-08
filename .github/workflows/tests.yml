@@ -29,7 +29,7 @@ jobs:
 
   run-tests:
     needs: check_date
-    if: ${{ needs.check_date.outputs.should_run = 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.check_date.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
