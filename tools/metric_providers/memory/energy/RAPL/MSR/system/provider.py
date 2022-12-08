@@ -10,6 +10,7 @@ class MemoryEnergyRaplMsrSystemProvider(BaseMetricProvider):
             self._metrics = {"time":int, "value":int, "package_id":str}
             self._resolution = resolution
             self._extra_switches = ['-d']
+            self._unit = 'mJ'
             super().__init__()
 
 if __name__ == "__main__":

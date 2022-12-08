@@ -22,6 +22,7 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
         self._metric_name = "psu_energy_xgboost_system"
         self._metrics = {"time":int, "value":int}
         self._resolution = resolution
+        self._unit = 'mW'
         super().__init__()
 
     # Since no process is ever started we just return None
@@ -73,6 +74,7 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
         predicitons = mlmodel.interpolate_predictions(predictions)
 
         df['value'] = df['value'].apply(lambda x: predictions[x/100]*1000) # will result in mW
+        df['unit'] = self._unit
         df.value = df.value.astype(int)
 
         return df

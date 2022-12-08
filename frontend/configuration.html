@@ -71,13 +71,14 @@
                     <div class="ui tab segment" data-tab="one">
                         <div class="description">
 
-                            <div class="ui fluid icon input" id="energy-display">
+                            <div>
+                                <span id="energy-display"></span>
+                                <button class="positive ui button" onclick="toggleWatts();">Toggle</button>
                             </div>
-                            <button class="positive ui button" onclick="toggleWatts();">Toggle Watts</button>
-                            <div class="ui fluid icon input" id="remove-idle">
+                            <div>
+                                <span id="remove-idle"></span>
+                                <button class="positive ui button" onclick="toggleRemoveIdle();">Toggle</button>
                             </div>
-                            <button class="positive ui button" onclick="toggleRemoveIdle();">Toggle remove idle</button>
-
                         </div>
                     </div>
                     <!--

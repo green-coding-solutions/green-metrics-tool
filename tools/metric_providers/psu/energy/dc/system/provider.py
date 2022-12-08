@@ -11,6 +11,7 @@ class PsuEnergyDcSystemProvider(BaseMetricProvider):
             self._metric_name = "psu_energy_dc_system"
             self._metrics = {"time":int, "value":int}
             self._resolution = resolution
+            self._unit = 'mJ'
             super().__init__()
 
 if __name__ == "__main__":

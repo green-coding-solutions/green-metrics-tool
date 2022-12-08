@@ -9,7 +9,7 @@ class LmFanSenorsProvider(LmSenorsProvider):
         self._provider_config_path = 'lm_sensors.fan.provider.LmFanSenorsProvider'
         self._current_dir = os.path.dirname(os.path.abspath(__file__)) + '/..'
         self._metric_name = "lm_sensors_fan"
-
+        self._unit = 'RPM'
         super().__init__(resolution)
 
 
