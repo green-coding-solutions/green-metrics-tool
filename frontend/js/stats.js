@@ -1,86 +1,101 @@
-const metrics_info = {
-  cpu_utilization_cgroup_container: {
-      unit: 'Ratio',
-      SI_conversion_factor: 100,  // CPU comes as ratio, but since stored as integer is was multiplicated with 100
-      unit_after_conversion: '%'
-  },
-  cpu_utilization_procfs_system: {
-      unit: 'Ratio',
-      SI_conversion_factor: 100,  // CPU comes as ratio, but since stored as integer is was multiplicated with 100
-      unit_after_conversion: '%'
-  },
-  cpu_energy_rapl_msr_system: {
-      unit: 'mJ',
-      SI_conversion_factor: 1000,
-      unit_after_conversion: 'J'
-  },
-  psu_energy_dc_system: {
-      unit: 'mJ',
-      SI_conversion_factor: 1000,
-      unit_after_conversion: 'J'
-  },
-  psu_energy_ac_system: {
-      unit: 'mJ',
-      SI_conversion_factor: 1000,
-      unit_after_conversion: 'J'
-  },
-  psu_energy_ac_system: {
-      unit: 'mJ',
-      SI_conversion_factor: 1000,
-      unit_after_conversion: 'J'
-  },
-  psu_energy_xgboost_system: {
-      unit: 'mW',
-      SI_conversion_factor: 1000,
-      unit_after_conversion: 'W'
-  },
-  atx_energy_dc_channel: {
-      unit: 'mJ',
-      SI_conversion_factor: 1000,
-      unit_after_conversion: 'J'
-  },
-  memory_energy_rapl_msr_system: {
-      unit: 'mJ',
-      SI_conversion_factor: 1000,
-      unit_after_conversion: 'J'
-  },
-  memory_total_cgroup_container: {
-      unit: 'Bytes',
-      SI_conversion_factor: 1000000,
-      unit_after_conversion: 'MB'
-  },
-  network_io_cgroup_container: {
-      unit: 'Bytes',
-      SI_conversion_factor: 1000000,
-      unit_after_conversion: 'MB'
-  },
-  cpu_time_cgroup_container: {
-      unit: 'us',
-      SI_conversion_factor: 1,
-      unit_after_conversion: 'us'
-  },
-  cpu_time_cgroup_system: {
-      unit: 'us',
-      SI_conversion_factor: 1,
-      unit_after_conversion: 'us'
-  },
-  cpu_time_procfs_system: {
-      unit: 'us',
-      SI_conversion_factor: 1,
-      unit_after_conversion: 'us'
-  },
-  lm_sensors_temp: {
-    unit: 'C',
-    SI_conversion_factor: 100,
-    unit_after_conversion: 'C'
-  },
-  lm_sensors_fan: {
-    unit: 'RPM',
-    SI_conversion_factor: 1,
-    unit_after_conversion: 'RPM'
-  }
-}
+var display_in_watts = localStorage.getItem('display_in_watts');
+if(display_in_watts == 'true') display_in_watts = true;
+else display_in_watts = false;
 
+var metrics_info = {
+      cpu_utilization_cgroup_container: {
+          unit: 'Ratio',
+          SI_conversion_factor: 100,  // CPU comes as ratio, but since stored as integer is was multiplicated with 100
+          unit_after_conversion: '%'
+      },
+      cpu_utilization_procfs_system: {
+          unit: 'Ratio',
+          SI_conversion_factor: 100,  // CPU comes as ratio, but since stored as integer is was multiplicated with 100
+          unit_after_conversion: '%'
+      },
+      cpu_energy_rapl_msr_system: {
+          unit: 'mJ',
+          SI_conversion_factor: 1000,
+          unit_after_conversion: 'J'
+      },
+      psu_energy_sdia_system: {
+          unit: 'mW',
+          SI_conversion_factor: 1000,
+          unit_after_conversion: 'W'
+      },
+      psu_energy_dc_system: {
+          unit: 'mJ',
+          SI_conversion_factor: 1000,
+          unit_after_conversion: 'J'
+      },
+      psu_energy_ac_system: {
+          unit: 'mJ',
+          SI_conversion_factor: 1000,
+          unit_after_conversion: 'J'
+      },
+      psu_energy_xgboost_system: {
+          unit: 'mW',
+          SI_conversion_factor: 1000,
+          unit_after_conversion: 'W'
+      },
+      atx_energy_dc_channel: {
+          unit: 'mJ',
+          SI_conversion_factor: 1000,
+          unit_after_conversion: 'J'
+      },
+      memory_energy_rapl_msr_system: {
+          unit: 'mJ',
+          SI_conversion_factor: 1000,
+          unit_after_conversion: 'J'
+      },
+      memory_total_cgroup_container: {
+          unit: 'Bytes',
+          SI_conversion_factor: 1000000,
+          unit_after_conversion: 'MB'
+      },
+      network_io_cgroup_container: {
+          unit: 'Bytes',
+          SI_conversion_factor: 1000000,
+          unit_after_conversion: 'MB'
+      },
+      cpu_time_cgroup_container: {
+          unit: 'us',
+          SI_conversion_factor: 1,
+          unit_after_conversion: 'us'
+      },
+      cpu_time_cgroup_system: {
+          unit: 'us',
+          SI_conversion_factor: 1,
+          unit_after_conversion: 'us'
+      },
+      cpu_time_procfs_system: {
+          unit: 'us',
+          SI_conversion_factor: 1,
+          unit_after_conversion: 'us'
+      },
+      lm_sensors_temp: {
+        unit: 'm°C',
+        SI_conversion_factor: 100,
+        unit_after_conversion: '°C'
+      },
+      lm_sensors_fan: {
+        unit: 'RPM',
+        SI_conversion_factor: 1,
+        unit_after_conversion: 'RPM'
+      }
+    }
+if(display_in_watts) {
+    metrics_info.cpu_energy_rapl_msr_system.unit = 'mW'
+    metrics_info.cpu_energy_rapl_msr_system.unit_after_conversion = 'W'
+    metrics_info.psu_energy_dc_system.unit = 'mW'
+    metrics_info.psu_energy_dc_system.unit_after_conversion = 'W'
+    metrics_info.psu_energy_ac_system.unit = 'mW'
+    metrics_info.psu_energy_ac_system.unit_after_conversion = 'W'
+    metrics_info.atx_energy_dc_channel.unit = 'mW'
+    metrics_info.atx_energy_dc_channel.unit_after_conversion = 'W'
+    metrics_info.memory_energy_rapl_msr_system.unit = 'mW'
+    metrics_info.memory_energy_rapl_msr_system.unit_after_conversion = 'W'
+}
 const getApexOptions = () => {
     return {
         series: null,
@@ -203,15 +218,27 @@ const getMetrics = (stats_data, style='apex') => {
     const t0 = performance.now();
 
     try {
-         // define here, so we can alert it later in error case.
+         // define here as var (not let!), so we can alert it later in error case.
          // this was done, because we apparently often forget to add new metrics here and this helps debugging quickly with the alert later :)
         var metric_name = null
 
+        // this can be let
+        let time_before = 0;
+        let detail_name = null;
+
         stats_data.data.forEach(el => {
-            const detail_name = el[0];
+            const time_after = el[1] / 1000000;
             const time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
-            metric_name = el[2];
             let value = el[3];
+            let metric_changed = false;
+
+            if(metric_name !== el[2] || detail_name !== el[0]) {
+                // metric changed -> reset time counter and update variables
+                metric_name = el[2];
+                detail_name = el[0];
+                time_before = time_after;
+                metric_changed = true;
+            }
 
             accumulate = 0; // default
 
@@ -240,6 +267,11 @@ const getMetrics = (stats_data, style='apex') => {
                 if (accumulate === 1) metrics.network_io[detail_name] = value; // save only the last value per container (overwrite)
             }
 
+            if(display_in_watts) value = value/(time_after-time_before);
+            time_before = time_after;
+
+            if(metric_changed && display_in_watts) return; // if watts display then graph value will be zero. We skip that.
+
             // Depending on the charting library the object has to be reformatted
             // First we check if structure is initialized
             if (metrics.series[metric_name] == undefined)  metrics.series[metric_name] = {};
@@ -249,9 +281,9 @@ const getMetrics = (stats_data, style='apex') => {
 
             // now we handle the library specific formatting
             if(style=='apex') {
-                metrics.series[metric_name][detail_name]['data'].push({ x: time_in_ms, y: value })
+                metrics.series[metric_name][detail_name]['data'].push({ x: time_in_ms, y: value})
             } else if(style=='echarts') {
-                metrics.series[metric_name][detail_name]['data'].push([time_in_ms, value])
+                metrics.series[metric_name][detail_name]['data'].push([time_in_ms, value]);
             } else throw "Unknown chart style"
         })
     } catch (err) {

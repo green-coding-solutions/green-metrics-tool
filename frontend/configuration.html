@@ -15,32 +15,24 @@
     <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
     <script src="/dist/js/jquery.min.js" defer></script>
     <script src="/js/main.js" defer></script>
+    <script src="/js/configuration.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
-    <script src="/dist/js/echarts.min.js" defer></script>
-    <!-- <script src="/dist/js/apexcharts.min.js" defer></script> -->
     <script src="/dist/js/tab.min.js" defer></script>
-    <script src="/js/multi.js" defer></script>
-
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/reset.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/site.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/card.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/container.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/header.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/input.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/icon.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/menu.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/segment.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/label.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/statistic.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/image.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/message.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/toast.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/image.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/transition.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/loader.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/dimmer.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/tab.min.css">
-    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/message.min.css">
-
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
 <body class="preload">
@@ -61,12 +53,41 @@
             <b><i class="chart line icon"></i>Data Analysis</b>
         </a>
         <a class="item" href="/configuration.html">
-            <b><i class="gear icon"></i>Configuration</b>
+            <b><i class="cogs icon"></i>Configuration</b>
         </a>
     </div> <!-- end menu -->
     <div class="main ui container" id="main">
-        <h1>Not yet implemented :(</h1>
-        <div class="clearing" style="display:block; height: 10px;"></div>
+        <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Configutation</h1>
+        <div class="ui horizontal card" id="horizontal-card">
+            <div class="content">
+                <div class="header"><a class="ui red ribbon label" href="#">
+                        <h3>Project Data</h3>
+                    </a></div>
+                <div class="description">
+                    <div class="ui secondary menu">
+                        <a class="item active" data-tab="one">General</a>
+                        <!--<a class="item" data-tab="two">Measurement</a>-->
+                    </div>
+                    <div class="ui tab segment" data-tab="one">
+                        <div class="description">
+
+                            <div class="ui fluid icon input" id="energy-display">
+                            </div>
+                            <button class="positive ui button" onclick="toggleWatts();">Toggle Watts</button>
+                            <div class="ui fluid icon input" id="remove-idle">
+                            </div>
+                            <button class="positive ui button" onclick="toggleRemoveIdle();">Toggle remove idle</button>
+
+                        </div>
+                    </div>
+                    <!--
+                    <div class="ui active tab segment" data-tab="two">
+                        <table class="table-hover" id="measurement-config"></table>
+                    </div>
+                    -->
+                </div>
+            </div>
+        </div><!-- end ui horizontal card -->
     </div>
 </body>
 </html>
