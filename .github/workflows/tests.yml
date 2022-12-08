@@ -14,27 +14,31 @@ jobs:
     runs-on: ubuntu-latest
     name: Check latest commit
     outputs:
-      should_run: ${{ steps.should_run.outputs.should_run }}
+      should_run: ${{ steps.check_gmt_commits.outputs.should_run }}
     steps:
       - uses: actions/checkout@v3
       - name: print latest_commit
         run: echo ${{ github.sha }}
 
       #TODO: instead of 24 hours, last workflow run
-      - id: should_run
+      - id: check_gmt_commits
         continue-on-error: true
         name: check latest commit is less than a day
         if: ${{ github.event_name == 'schedule' }}
-        run: test -z $(git rev-list  --after="24 hours"  ${{ github.sha }}) && echo "::set-output name=should_run::false"
+        run: test -n $(git rev-list  --after="24 hours"  ${{ github.sha }}) && echo "should_run=true" >> $GITHUB_OUTPUT
 
   run-tests:
     needs: check_date
-    if: ${{ needs.check_date.outputs.should_run != 'false' }}
+    if: ${{ needs.check_date.outputs.should_run = 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        branch: ['dev', 'main']
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ matrix.branch }}
       
       - name: Install python testing dependencies
         run: |
@@ -66,7 +70,7 @@ jobs:
       - name: Run Tests
         working-directory: ./test
         run: |
-          pytest
+          pytest -k "not example_application"
           
       - name: Stop Containers
         working-directory: ./test
