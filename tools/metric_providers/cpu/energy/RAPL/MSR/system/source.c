@@ -403,7 +403,14 @@ static int rapl_msr() {
     double package_before[MAX_PACKAGES],package_after[MAX_PACKAGES];
     int j;
     struct timeval now;
+    long long time_before = 0;
+    long long time_after = 0;
+    char time_str[20];
+    char *pEnd;
 
+    gettimeofday(&now, NULL);
+    sprintf(time_str, "%ld%06ld", now.tv_sec, now.tv_usec);
+    time_before = strtoll(time_str, &pEnd, 10);
     for(j=0;j<total_packages;j++) {
 
         fd=open_msr(package_map[j]);
@@ -421,6 +428,9 @@ static int rapl_msr() {
 
     usleep(msleep_time*1000);
 
+    gettimeofday(&now, NULL);
+    sprintf(time_str, "%ld%06ld", now.tv_sec, now.tv_usec);
+    time_after = strtoll(time_str, &pEnd, 10);
     for(j=0;j<total_packages;j++) {
         fd=open_msr(package_map[j]);
 
@@ -440,8 +450,7 @@ static int rapl_msr() {
         // The register can overflow at some point, leading to the subtraction giving an incorrect value (negative)
         // For now, skip reporting this value. in the future, we can use a branchless alternative
         if(energy_output>=0) {
-            gettimeofday(&now, NULL);
-            printf("%ld%06ld %ld Package_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), j);
+            printf("%ld%06ld %ld Package_%d\n", now.tv_sec, now.tv_usec, (long int)((energy_output*1000000000)/(time_after-time_before)), j); // ((J->mJ)/(ms))*10**3 -> mW
         }
         /*
         else {

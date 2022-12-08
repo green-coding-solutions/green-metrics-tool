@@ -128,7 +128,7 @@ async def get_stats_by_uri(uri: str, remove_idle: bool=False):
 
     # extremly important to order here, cause the charting library in JS cannot do that automatically!
     query = f""" {query} ORDER BY
-                stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
+                stats.metric ASC, stats.detail_name ASC, stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
             """
 
     params = (uri, uri)
@@ -164,7 +164,7 @@ async def get_stats_single(project_id: str, remove_idle: bool=False):
         """
 
     # extremly important to order here, cause the charting library in JS cannot do that automatically!
-    query = f" {query} ORDER BY stats.time ASC"
+    query = f" {query} ORDER BY stats.metric ASC, stats.detail_name ASC, stats.time ASC"
 
     params = params=(project_id,project_id)
     data = DB().fetch_all(query, params=params)

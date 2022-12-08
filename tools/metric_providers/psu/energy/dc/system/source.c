@@ -411,8 +411,8 @@ void StreamChannels (void)
                         DEBUG("Timestamp: %ld%06ld - Diff: %ld - ", now.tv_sec, now.tv_usec, (now.tv_sec - before.tv_sec) + (now.tv_usec - before.tv_usec));
                         DEBUG("g_times: %ld and %ld\t", g_times[0], g_times[1]);
                         DEBUG("Channel %d: ", channel);
-                        DEBUG("%f \n", ((AdcToMv((HRDL_INPUTS) channel, g_values [i]) / 1000) / 0.005) * 12 * msleep_time * 1000);
-                        printf("%ld%06ld %d\n", now.tv_sec, now.tv_usec, (int)(((AdcToMv((HRDL_INPUTS) channel, g_values [i]) / 1000) / 0.005) * 12 * msleep_time));
+                        DEBUG("%f \n", ((AdcToMv((HRDL_INPUTS) channel, g_values [i]) / 1000) / 0.005) * 12);
+                        printf("%ld%06ld %d\n", now.tv_sec, now.tv_usec, (int)(((AdcToMv((HRDL_INPUTS) channel, g_values [i])) / 0.005) * 12)); // value in mW
                         i++;
                     }
                 }

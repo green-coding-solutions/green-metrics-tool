@@ -10,14 +10,20 @@ const metrics_info = {
       unit_after_conversion: '%'
   },
   cpu_energy_rapl_msr_system: {
-      unit: 'mJ',
+      unit: 'mW',
       SI_conversion_factor: 1000,
-      unit_after_conversion: 'J'
+      unit_after_conversion: 'W'
   },
-  psu_energy_dc_system: {
-      unit: 'mJ',
+  psu_energy_sdia_system: {
+      unit: 'mW',
       SI_conversion_factor: 1000,
-      unit_after_conversion: 'J'
+      unit_after_conversion: 'W'
+  },
+
+  psu_energy_dc_system: {
+      unit: 'mW',
+      SI_conversion_factor: 1000,
+      unit_after_conversion: 'W'
   },
   psu_energy_ac_system: {
       unit: 'mJ',
@@ -40,9 +46,9 @@ const metrics_info = {
       unit_after_conversion: 'J'
   },
   memory_energy_rapl_msr_system: {
-      unit: 'mJ',
+      unit: 'mW',
       SI_conversion_factor: 1000,
-      unit_after_conversion: 'J'
+      unit_after_conversion: 'W'
   },
   memory_total_cgroup_container: {
       unit: 'Bytes',
@@ -70,9 +76,9 @@ const metrics_info = {
       unit_after_conversion: 'us'
   },
   lm_sensors_temp: {
-    unit: 'C',
+    unit: 'm°C',
     SI_conversion_factor: 100,
-    unit_after_conversion: 'C'
+    unit_after_conversion: '°C'
   },
   lm_sensors_fan: {
     unit: 'RPM',
@@ -203,15 +209,25 @@ const getMetrics = (stats_data, style='apex') => {
     const t0 = performance.now();
 
     try {
-         // define here, so we can alert it later in error case.
+         // define here as var (not let!), so we can alert it later in error case.
          // this was done, because we apparently often forget to add new metrics here and this helps debugging quickly with the alert later :)
         var metric_name = null
 
+        // this can be let
+        let time_before = 0;
+        let detail_name = null;
+
         stats_data.data.forEach(el => {
-            const detail_name = el[0];
+            const time_after = el[1] / 1000000;
             const time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
-            metric_name = el[2];
             let value = el[3];
+
+            if(metric_name !== el[2] || detail_name !== el[0]) {
+                // metric changed -> reset time counter and update variables
+                metric_name = el[2];
+                detail_name = el[0];
+                time_before = time_after;
+            }
 
             accumulate = 0; // default
 
@@ -227,18 +243,20 @@ const getMetrics = (stats_data, style='apex') => {
             } else if (metric_name == 'cpu_utilization_procfs_system') {
                 if (accumulate === 1) metrics.cpu_utilization_system.push(value);
             } else if (metric_name == 'cpu_energy_rapl_msr_system') {
-                if (accumulate === 1) metrics.cpu_energy += value;
+                if (accumulate === 1) metrics.cpu_energy += value*(time_after-time_before);
             } else if (metric_name == 'psu_energy_dc_system') {
-                if (accumulate === 1) metrics.psu_dc_energy += value;
+                if (accumulate === 1) metrics.psu_dc_energy += value*(time_after-time_before);
             } else if (metric_name == 'psu_energy_ac_system') {
-                if (accumulate === 1) metrics.psu_ac_energy += value;
+                if (accumulate === 1) metrics.psu_ac_energy += value*(time_after-time_before);
             } else if (metric_name == 'memory_energy_rapl_msr_system') {
-                if (accumulate === 1) metrics.memory_energy += value;
+                if (accumulate === 1) metrics.memory_energy += value*(time_after-time_before);
             } else if (metric_name == 'memory_total_cgroup_container') {
                 if (accumulate === 1) metrics.mem_total.push(value);
             } else if (metric_name == 'network_io_cgroup_container') {
                 if (accumulate === 1) metrics.network_io[detail_name] = value; // save only the last value per container (overwrite)
             }
+            console.log(`Metric name ${metric_name}, Time diff ${time_after-time_before}`)
+            time_before = time_after;
 
             // Depending on the charting library the object has to be reformatted
             // First we check if structure is initialized
