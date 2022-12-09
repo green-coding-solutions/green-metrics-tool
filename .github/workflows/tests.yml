@@ -44,7 +44,7 @@ jobs:
       - name: Install python testing dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install fastapi pytest psycopg2 numpy pandas
+          pip install fastapi pytest psycopg2 numpy pandas xgboost statsmodels scipy scikit-learn
       
       - name: Run Install Script
         run: |
@@ -52,7 +52,7 @@ jobs:
 
       - name: Turn off metric providers which do not work in github vm
         run: |
-          ./disable-metric-providers.sh cgroup RAPL ac dc xgboost
+          ./disable-metric-providers.sh cgroup RAPL ac dc
 
       - name: Setup Test environment
         working-directory: ./test
