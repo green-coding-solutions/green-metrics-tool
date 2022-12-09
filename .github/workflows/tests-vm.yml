@@ -54,7 +54,7 @@ jobs:
 
       - name: Turn off metric providers which do not work in github vm
         run: |
-          ./disable-metric-providers.sh RAPL System Sensors Debug
+          ./disable-metric-providers.sh RAPL System Sensors Debug CGroupV2
 
       - name: Setup Test environment
         working-directory: ./test
