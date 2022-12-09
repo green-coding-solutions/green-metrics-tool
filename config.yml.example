@@ -46,6 +46,14 @@ measurement:
 #      resolution: 100
 #    psu.energy.dc.system.provider.PsuEnergyDcSystemProvider:
 #      resolution: 61 # Do not change this. Provider is tailored to work at fixed resolution
+#    psu.energy.sdia.system.provider.PsuEnergySdiaSystemProvider:
+#      resolution: 100
+       # This is a default configuration. Please change this to your system!
+#      CPUChips: 1
+#      HW_CPUFreq: 3100
+#      CPUCores: 28
+#      TDP: 150
+#      HW_MemAmountGB: 16
 #    psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider:
 #      resolution: 100
        # This is a default configuration. Please change this to your system!
