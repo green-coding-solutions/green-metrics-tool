@@ -30,10 +30,10 @@ measurement:
   #--- Github-Off
     cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
       resolution: 100
+    memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider:
+      resolution: 100
   #--- :-)
     cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
-      resolution: 100
-    memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider:
       resolution: 100
     network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
       resolution: 100
