@@ -27,8 +27,10 @@ measurement:
   # https://docs.green-coding.org/docs/installation/installation-overview/
   # You can ignore any line that starts with #---
   #--- Always-On - We recommend these providers to be always enabled
+  #--- Github-Off
     cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
       resolution: 100
+  #--- :-)
     cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
       resolution: 100
     memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider:
