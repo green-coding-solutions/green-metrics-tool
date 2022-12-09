@@ -1,24 +1,22 @@
 #!/bin/bash
 
-# example usage:> ./disable-metric-privoders.sh RAPL cgroup ac dc
-
+# example usage:> ./disable-metric-privoders.sh RAPL Always-Off
+# See config.yml.example for category names
 config="config.yml"
 echo "Editing ${config}... "
 
 # First turn on all metric providers
 echo "first turning on all metric providers"
-sed -i "/metric-providers:/,/admin:/s/^#    /    /" $config
+sed -i "/metric-providers:/,/admin:/   s/^#    /    /" $config
 
 # Then disable specific providers
-for word in "$@"
+for category in "$@"
 do
-    echo "disabling metric providers containing $word ..."
-    if [[ "$word" == "xgboost" ]]; then
-        sed -i "/\.${word}\./,+7s/^/#/" $config
-    else
-        sed -i "/\.${word}\./,+1s/^/#/" $config
-    fi 
+    echo "disabling metric providers in category $category ..."
+    #  /#--- ${category}/,/#---/          -> Range to disable between
+    #  { /#--- ${category}/b; /#---/b;    -> Make the range exclusive (default is inclusive)
+    #  s/^/#/                             -> Substitution to make between the range
+    sed -i -e"/#--- ${category}/,/#---/   { /#--- ${category}/b; /#---/b; s/^/#/ }" $config
 done
 
 echo "fin"
-
