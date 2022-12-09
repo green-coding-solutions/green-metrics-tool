@@ -32,6 +32,7 @@ jobs:
     if: ${{ needs.check_date.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         branch: ['dev', 'main']
     steps:
