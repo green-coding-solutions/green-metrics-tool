@@ -17,7 +17,7 @@ project:
 measurement:
   idle-time-start: 10
   idle-time-end: 5
-  flow-process-runtime: 60
+  flow-process-runtime: 1800
   metric-providers:
 
   # Please select the needed providers according to the working ones on your system
