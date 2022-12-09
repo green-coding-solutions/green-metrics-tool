@@ -76,6 +76,7 @@ jobs:
           pytest
           
       - name: Stop Containers
+        if: always()
         working-directory: ./test
         run: |
           docker compose -f ../docker/test-compose.yml down -v
