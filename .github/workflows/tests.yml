@@ -54,7 +54,7 @@ jobs:
 
       - name: Turn off metric providers which do not work in github vm
         run: |
-          ./disable-metric-providers.sh cgroup RAPL ac dc
+          ./disable-metric-providers.sh RAPL System Sensors Debug
 
       - name: Setup Test environment
         working-directory: ./test
@@ -73,9 +73,9 @@ jobs:
       - name: Run Tests
         working-directory: ./test
         run: |
-          pytest -k "not example_application"
+          pytest
           
       - name: Stop Containers
         working-directory: ./test
         run: |
-          docker compose -f ../docker/test-compose.yml down
+          docker compose -f ../docker/test-compose.yml down -v
