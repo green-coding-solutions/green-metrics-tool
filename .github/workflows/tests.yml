@@ -41,13 +41,14 @@ jobs:
           ref: ${{ matrix.branch }}
           submodules: 'true'
       
-      - name: Install python testing dependencies
+      - name: Install python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install fastapi pytest psycopg2 numpy pandas xgboost statsmodels scipy scikit-learn
       
-      - name: Run Install Script
+      - name: Run Prereqs and Install Script
         run: |
+          sudo apt install lm-sensors libsensors-dev libglib2.0-dev
           ./install.sh -p testpw
 
       - name: Turn off metric providers which do not work in github vm
