@@ -10,6 +10,7 @@ class NetworkIoDockerStatsContainerProvider(BaseMetricProvider):
             self._metric_name = "network_io_docker_stats_container"
             self._metrics = {"time":int, "value":int, "container_id":str}
             self._resolution = resolution
+            self._unit = 'Bytes'
             super().__init__()
 
         def start_profiling(self, containers=None):

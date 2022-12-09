@@ -24,6 +24,7 @@ CREATE TABLE stats (
     detail_name text,
     metric text,
     value bigint,
+    unit text,
     time bigint,
     created_at timestamp with time zone DEFAULT now()
 );

@@ -108,7 +108,7 @@ async def get_stats_by_uri(uri: str, remove_idle: bool=False):
             WITH times AS (
                 SELECT id, start_measurement, end_measurement FROM projects WHERE uri = %s
             ) SELECT
-                projects.id as project_id, stats.detail_name, stats.time, stats.metric, stats.value
+                projects.id as project_id, stats.detail_name, stats.time, stats.metric, stats.value, stats.unit
             FROM
                 stats
             LEFT JOIN
@@ -128,7 +128,7 @@ async def get_stats_by_uri(uri: str, remove_idle: bool=False):
 
     # extremly important to order here, cause the charting library in JS cannot do that automatically!
     query = f""" {query} ORDER BY
-                stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
+                stats.metric ASC, stats.detail_name ASC, stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
             """
 
     params = (uri, uri)
@@ -149,7 +149,7 @@ async def get_stats_single(project_id: str, remove_idle: bool=False):
             WITH times AS (
                 SELECT start_measurement, end_measurement FROM projects WHERE id = %s
             ) SELECT
-                stats.detail_name, stats.time, stats.metric, stats.value
+                stats.detail_name, stats.time, stats.metric, stats.value, stats.unit
             FROM
                 stats
             WHERE
@@ -164,7 +164,7 @@ async def get_stats_single(project_id: str, remove_idle: bool=False):
         """
 
     # extremly important to order here, cause the charting library in JS cannot do that automatically!
-    query = f" {query} ORDER BY stats.time ASC"
+    query = f" {query} ORDER BY stats.metric ASC, stats.detail_name ASC, stats.time ASC"
 
     params = params=(project_id,project_id)
     data = DB().fetch_all(query, params=params)
@@ -181,7 +181,7 @@ async def get_stats_multi(p: list[str] | None = Query(default=None)):
 
     query = """
             SELECT
-                projects.id, projects.name, stats.detail_name, stats.time, stats.metric, stats.value
+                projects.id, projects.name, stats.detail_name, stats.time, stats.metric, stats.value, stats.unit
             FROM
                 stats
             LEFT JOIN
@@ -208,7 +208,7 @@ async def get_stats_compare(p: list[str] | None = Query(default=None)):
 
     query = """
             SELECT
-                projects.name, stats.detail_name, stats.metric, AVG(stats.value)
+                projects.name, stats.detail_name, stats.metric, stats.unit, AVG(stats.value)
             FROM
                 stats
             LEFT JOIN

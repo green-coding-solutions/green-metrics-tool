@@ -9,6 +9,7 @@ class CpuTimeCgroupContainerProvider(BaseMetricProvider):
             self._metric_name = "cpu_time_cgroup_container"
             self._metrics = {"time":int, "value":int, "container_id":str}
             self._resolution = resolution
+            self._unit = 'us'
             super().__init__()
 
 if __name__ == "__main__":
