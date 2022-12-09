@@ -73,7 +73,7 @@ measurement:
        # Please change these values according to the names in '$ sensors'
 #      chips: ['thinkpad-isa-0000']
 #      features: ['fan1', 'fan2']
-    #--- Debug - These providers are just for development of the tool itself
+  #--- Debug - These providers are just for development of the tool itself
 #    cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
 #      resolution: 100
 #    cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider:
