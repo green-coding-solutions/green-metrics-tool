@@ -6,8 +6,6 @@ on:
 
 jobs:
   run-tests:
-    needs: check_date
-    if: ${{ needs.check_date.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
