@@ -114,7 +114,7 @@ const convertValue = (metric_name, value, unit) => {
       case 'Ratio':
         return [value / 100, '%'];
         break;
-      case 'm°C':
+      case 'centi°C':
         return [value / 100, '°C'];
         break;
 
