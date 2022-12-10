@@ -1,6 +1,6 @@
 ## Pre-reqs
 Make sure you have pytest installed:
-`pip install pytest`
+`pip3 install pytest pydantic`
 
 We assume that your green-metrics-tool is already set up to work on your machine, as it will use your local config.yml file to determine which metric providers can be utilized in the tests.
 
@@ -9,7 +9,7 @@ run:
 
 `./setup-test-env.sh`
 
-from the test directory. This will create a copy of the config.yml and docker compose files that will be used in the test containers.
+from the test directory. This will create a copy of the `config.yml` and docker compose.yml` files that will be used in the test containers.
 
 You will need to re-run this setup script if new metric providers are added or the config.yml is otherwise changed in a significant way.
 
