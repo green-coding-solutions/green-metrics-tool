@@ -1,5 +1,5 @@
 name: Daily Test Run - Virtual Machine
-
+run-name: Schedualed - ${{ github.ref_name }}
 on:
   schedule:
     - cron: '0 0 * * *'
@@ -48,7 +48,7 @@ jobs:
       
       - name: Run Prereqs and Install Script
         run: |
-          sudo apt install lm-sensors libsensors-dev libglib2.0-dev
+          sudo apt install lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev
           ./install.sh -p testpw
 
       - name: Turn off metric providers which do not work in github vm
