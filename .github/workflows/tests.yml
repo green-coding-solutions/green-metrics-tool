@@ -1,5 +1,5 @@
 name: Daily Test Run - VM - Manual
-
+run-name: Manual - ${{ github.ref_name }}
 on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
