@@ -359,7 +359,7 @@ class Runner:
         for metric_provider in self.metric_providers:
             metric_provider.stop_profiling()
 
-        print("Finally block. Stopping containers")
+        print("Stopping containers")
         for container_name in self.containers.values():
             subprocess.run(["docker", "rm", "-f", container_name], stderr=subprocess.DEVNULL)
 
@@ -442,7 +442,7 @@ if __name__ == "__main__":
     except subprocess.CalledProcessError as e:
         error_helpers.log_error("Docker command failed", "Stdout:", e.stdout, "Stderr:", e.stderr, project_id)
     except KeyError as e:
-        error_helpers.log_error("Was expecting a value inside the JSON file, but value was missing: ", e, project_id)
+        error_helpers.log_error("Was expecting a value inside the usage_scenario.yml file, but value was missing: ", e, project_id)
     except RuntimeError as e:
         error_helpers.log_error("RuntimeError occured in runner.py: ", e, project_id)
     except BaseException as e:
