@@ -262,7 +262,9 @@ async def post_project_add(project: Project):
 
     return {"success": True}
 
-def get_project(project_id):
+
+@app.get('/v1/project/{project_id}')
+async def get_project(project_id: str):
     query = """
             SELECT
                 id, name, uri, (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements LEFT JOIN categories as t on t.id = elements) as categories, start_measurement, end_measurement, measurement_config, machine_specs, usage_scenario, last_run, created_at
@@ -272,7 +274,7 @@ def get_project(project_id):
                 id = %s
             """
     params = (project_id,)
-    return DB().fetch_one(query, params=params, cursor_factory = psycopg2.extras.RealDictCursor)
+    return DB().fetch_one(query, params=params, cursor_factory=psycopg2.extras.RealDictCursor)
 
 if __name__ == "__main__":
     app.run()

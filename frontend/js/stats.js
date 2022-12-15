@@ -491,13 +491,31 @@ $(document).ready( (e) => {
         const url_params = (new URLSearchParams(query_string))
 
         try {
-            var notes_json = await makeAPICall('/v1/notes/' + url_params.get('id'))
+            var project_data = await makeAPICall('/v1/project/' + url_params.get('id'))
+        } catch (err) {
+            showNotification('Could not get project data from API', err);
+        }
+        try {
             var stats_data = await makeAPICall('/v1/stats/single/' + url_params.get('id'))
         } catch (err) {
-            showNotification('Could not get data from API', err);
+            showNotification('Could not get stats data from API', err);
+        }
+        try {
+            var notes_json = await makeAPICall('/v1/notes/' + url_params.get('id'))
+        } catch (err) {
+            showNotification('Could not get notes data from API', err);
+        }
+
+        $('.ui.secondary.menu .item').tab();
+
+        if (typeof project_data === 'undefined') {
             return;
         }
-        $('.ui.secondary.menu .item').tab();
+        fillProjectData(project_data)
+
+        if (stats_data.success == false) {
+            return;
+        }
 
         const metrics = getMetrics(stats_data, 'echarts');
 
@@ -505,9 +523,12 @@ $(document).ready( (e) => {
         // timestamp is in microseconds, therefore divide by 10**6
         stats_data.project['measurement_duration_in_s'] = (stats_data.project?.end_measurement - stats_data.project?.start_measurement) / 1000000
 
-        fillProjectData(stats_data.project)
-        displayGraphs(metrics, notes_json.data, 'echarts');
         fillAvgContainers(stats_data, metrics);
+
+        if (notes_json.success == false) {
+            return;
+        }
+        displayGraphs(metrics, notes_json.data, 'echarts');
         document.querySelector('#api-loader').remove();
 
         // after all instances have been placed the flexboxes might have rearranged. We need to trigger resize
