@@ -266,81 +266,82 @@ class Runner:
         start_measurement = int(time.time_ns() / 1_000)
         notes.append({"note" : "Start of measurement", 'detail_name' : '[SYSTEM]', "timestamp": start_measurement})
 
-        # run the flows
-        for el in obj['flow']:
-            print(TerminalColors.HEADER, "\nRunning flow: ", el['name'], TerminalColors.ENDC)
-            for inner_el in el['commands']:
+        try:
+            # run the flows
+            for el in obj['flow']:
+                print(TerminalColors.HEADER, "\nRunning flow: ", el['name'], TerminalColors.ENDC)
+                for inner_el in el['commands']:
 
-                if "note" in inner_el:
-                    notes.append({"note" : inner_el['note'], 'detail_name' : el['container'], "timestamp": int(time.time_ns() / 1_000)})
+                    if "note" in inner_el:
+                        notes.append({"note" : inner_el['note'], 'detail_name' : el['container'], "timestamp": int(time.time_ns() / 1_000)})
 
-                if inner_el['type'] == 'console':
-                    print(TerminalColors.HEADER, "\nConsole command", inner_el['command'], "on container", el['container'], TerminalColors.ENDC)
+                    if inner_el['type'] == 'console':
+                        print(TerminalColors.HEADER, "\nConsole command", inner_el['command'], "on container", el['container'], TerminalColors.ENDC)
 
-                    docker_exec_command = ['docker', 'exec']
+                        docker_exec_command = ['docker', 'exec']
 
-                    docker_exec_command.append(el['container'])
-                    docker_exec_command.extend( inner_el['command'].split(' ') )
+                        docker_exec_command.append(el['container'])
+                        docker_exec_command.extend( inner_el['command'].split(' ') )
 
-                    # Note: In case of a detach wish in the usage_scenario.yml:
-                    # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
-                    # Since Popen always make the process asynchronous we can leverage this to emulate a detached behaviour
-                    ps = subprocess.Popen(
-                        docker_exec_command,
-                        stderr=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        encoding="UTF-8"
-                    )
+                        # Note: In case of a detach wish in the usage_scenario.yml:
+                        # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
+                        # Since Popen always make the process asynchronous we can leverage this to emulate a detached behaviour
+                        ps = subprocess.Popen(
+                            docker_exec_command,
+                            stderr=subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            encoding="UTF-8"
+                        )
 
-                    self.ps_to_read.append({'cmd': docker_exec_command, 'ps': ps, 'read-notes-stdout': inner_el.get('read-notes-stdout', False), 'detail_name': el['container']})
+                        self.ps_to_read.append({'cmd': docker_exec_command, 'ps': ps, 'read-notes-stdout': inner_el.get('read-notes-stdout', False), 'detail_name': el['container']})
 
-                    if inner_el.get('detach', None) == True :
-                        print("Process should be detached. Running asynchronously and detaching ...")
-                        self.ps_to_kill.append({"pid": ps.pid, "cmd": inner_el['command'], "ps_group": False})
+                        if inner_el.get('detach', None) == True :
+                            print("Process should be detached. Running asynchronously and detaching ...")
+                            self.ps_to_kill.append({"pid": ps.pid, "cmd": inner_el['command'], "ps_group": False})
+                        else:
+                            print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
+                            process_helpers.timeout(ps, inner_el['command'], config['measurement']['flow-process-runtime'])
                     else:
-                        print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
-                        process_helpers.timeout(ps, inner_el['command'], config['measurement']['flow-process-runtime'])
-                else:
-                    raise RuntimeError("Unknown command type in flow: ", inner_el['type'])
+                        raise RuntimeError("Unknown command type in flow: ", inner_el['type'])
 
-                if debug.active: debug.pause("Waiting to start next command in flow")
+                    if debug.active: debug.pause("Waiting to start next command in flow")
 
-        end_measurement = int(time.time_ns() / 1_000)
-        notes.append({"note" : "End of measurement", 'detail_name' : '[SYSTEM]', "timestamp": end_measurement})
+            end_measurement = int(time.time_ns() / 1_000)
+            notes.append({"note" : "End of measurement", 'detail_name' : '[SYSTEM]', "timestamp": end_measurement})
 
-        print(TerminalColors.HEADER, f"\nIdling containers after run for {config['measurement']['idle-time-end']}s", TerminalColors.ENDC)
-        time.sleep(config['measurement']['idle-time-end'])
+            print(TerminalColors.HEADER, f"\nIdling containers after run for {config['measurement']['idle-time-end']}s", TerminalColors.ENDC)
+            time.sleep(config['measurement']['idle-time-end'])
 
-        print(TerminalColors.HEADER, "Stopping metric providers and parsing stats", TerminalColors.ENDC)
-        for metric_provider in self.metric_providers:
-            stderr_read = metric_provider.get_stderr()
-            if stderr_read is not None:
-                raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
+            print(TerminalColors.HEADER, "Stopping metric providers and parsing stats", TerminalColors.ENDC)
+            for metric_provider in self.metric_providers:
+                stderr_read = metric_provider.get_stderr()
+                if stderr_read is not None:
+                    raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
-            metric_provider.stop_profiling()
+                metric_provider.stop_profiling()
 
-            df = metric_provider.read_metrics(project_id, self.containers)
-            print(f"Imported",TerminalColors.HEADER, df.shape[0], TerminalColors.ENDC, "metrics from ", metric_provider.__class__.__name__)
-            if df is None or df.shape[0] == 0:
-                raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
+                df = metric_provider.read_metrics(project_id, self.containers)
+                print(f"Imported",TerminalColors.HEADER, df.shape[0], TerminalColors.ENDC, "metrics from ", metric_provider.__class__.__name__)
+                if df is None or df.shape[0] == 0:
+                    raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
 
-            f = StringIO(df.to_csv(index=False, header=False))
-            DB().copy_from(file=f, table='stats', columns=df.columns, sep=",")
+                f = StringIO(df.to_csv(index=False, header=False))
+                DB().copy_from(file=f, table='stats', columns=df.columns, sep=",")
 
 
-        # now we have free capacity to parse the stdout / stderr of the processes
-        print(TerminalColors.HEADER, "\nGetting output from processes: ", TerminalColors.ENDC)
-        for ps in self.ps_to_read:
-            for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd']):
-                print("Output from process: ", line)
-                if(ps['read-notes-stdout']):
-                    timestamp, note = line.split(' ', 1) # Fixed format according to our specification. If unpacking fails this is wanted error
-                    notes.append({"note" : note, 'detail_name' : ps['detail_name'], "timestamp": timestamp})
+            # now we have free capacity to parse the stdout / stderr of the processes
+            print(TerminalColors.HEADER, "\nGetting output from processes: ", TerminalColors.ENDC)
+            for ps in self.ps_to_read:
+                for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd']):
+                    print("Output from process: ", line)
+                    if(ps['read-notes-stdout']):
+                        timestamp, note = line.split(' ', 1) # Fixed format according to our specification. If unpacking fails this is wanted error
+                        notes.append({"note" : note, 'detail_name' : ps['detail_name'], "timestamp": timestamp})
 
-        process_helpers.kill_ps(self.ps_to_kill) # kill process only after reading. Otherwise the stream buffer might be gone
-
-        print(TerminalColors.HEADER, "\nSaving notes: ", TerminalColors.ENDC, notes) # we here only want the header to be colored, not the notes itself
-        save_notes(project_id, notes)
+            process_helpers.kill_ps(self.ps_to_kill)  # kill process only after reading. Otherwise the stream buffer might be gone
+        finally:
+            print(TerminalColors.HEADER, "\nSaving notes: ", TerminalColors.ENDC, notes)  # we here only want the header to be colored, not the notes itself
+            save_notes(project_id, notes)
 
         print(TerminalColors.HEADER, "\nUpdating start and end measurement times", TerminalColors.ENDC)
         DB().query("""UPDATE projects
@@ -348,7 +349,7 @@ class Runner:
             WHERE id = %s
             """, params=(start_measurement, end_measurement, project_id))
 
-        self.cleanup() # always run cleanup automatically after each run
+        self.cleanup()  # always run cleanup automatically after each run
 
 
     def cleanup(self): # TODO: Could be done when destroying object. but do we have all infos then?
