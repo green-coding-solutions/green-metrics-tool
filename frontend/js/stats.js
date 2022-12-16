@@ -127,7 +127,7 @@ const convertValue = (metric_name, value, unit) => {
 
 }
 
-const getMetrics = (stats_data, style='apex') => {
+const getMetrics = (stats_data, start_measurement, end_measurement, style='apex') => {
     const metrics = {}
     let accumulate = 0;
     const t0 = performance.now();
@@ -159,7 +159,7 @@ const getMetrics = (stats_data, style='apex') => {
             accumulate = 0; // default
 
             // here we use the undivided time on purpose
-            if (el[1] > stats_data.project.start_measurement && el[1] < stats_data.project.end_measurement) {
+            if (el[1] > start_measurement && el[1] < end_measurement) {
                 accumulate = 1;
             }
 
@@ -394,7 +394,7 @@ const createGraph = (element, data, labels, title) => {
 });
 };
 
-const fillAvgContainers = (stats_data, metrics) => {
+const fillAvgContainers = (measurement_duration_in_s, metrics) => {
 
     // let total_energy_in_mWh = 0;
     let component_energy_in_mWh = 0;
@@ -407,11 +407,11 @@ const fillAvgContainers = (stats_data, metrics) => {
             case 'J':
                 if(display_in_watts) createAvgContainer(metric_name, (acc / 3600) * 1000, 'mWh');
                 else createAvgContainer(metric_name, acc, 'J');
-                createAvgContainer(metric_name, acc / stats_data.project.measurement_duration_in_s, 'W');
+                createAvgContainer(metric_name, acc / measurement_duration_in_s, 'W');
                 break;
             case 'W':
                 createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, 'W');
-                createAvgContainer(metric_name, ((acc / metrics[metric_name].sum.length)*stats_data.project.measurement_duration_in_s)/3.6, ' mWh (approx!)');
+                createAvgContainer(metric_name, ((acc / metrics[metric_name].sum.length)*measurement_duration_in_s)/3.6, ' mWh (approx!)');
                 break;
             case '%':
                 createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, '%');
@@ -449,7 +449,7 @@ const fillAvgContainers = (stats_data, metrics) => {
     } else {
         document.querySelector("#component-energy").innerHTML = `${(component_energy_in_mWh).toFixed(2)} J`
     }
-    document.querySelector("#component-power").innerHTML = `${(component_energy_in_mWh / stats_data.project.measurement_duration_in_s).toFixed(2)} W`
+    document.querySelector("#component-power").innerHTML = `${(component_energy_in_mWh / measurement_duration_in_s).toFixed(2)} W`
 
     // network via formula: https://www.green-coding.org/co2-formulas/
     const network_io_in_mWh = (network_io * 0.00006) * 1000000;
@@ -491,23 +491,44 @@ $(document).ready( (e) => {
         const url_params = (new URLSearchParams(query_string))
 
         try {
-            var notes_json = await makeAPICall('/v1/notes/' + url_params.get('id'))
+            var project_data = await makeAPICall('/v1/project/' + url_params.get('id'))
+        } catch (err) {
+            showNotification('Could not get project data from API', err);
+        }
+        try {
             var stats_data = await makeAPICall('/v1/stats/single/' + url_params.get('id'))
         } catch (err) {
-            showNotification('Could not get data from API', err);
-            return;
+            showNotification('Could not get stats data from API', err);
         }
+        try {
+            var notes_json = await makeAPICall('/v1/notes/' + url_params.get('id'))
+        } catch (err) {
+            showNotification('Could not get notes data from API', err);
+        }
+
         $('.ui.secondary.menu .item').tab();
 
-        const metrics = getMetrics(stats_data, 'echarts');
+        if (project_data == undefined || project_data.success == false) {
+            return;
+        }
+        fillProjectData(project_data.data)
+
+        if (stats_data == undefined || stats_data.success == false) {
+            return;
+        }
+
+        const metrics = getMetrics(stats_data, project_data.data.start_measurement, project_data.data.end_measurement, 'echarts');
 
         // create new custom field
         // timestamp is in microseconds, therefore divide by 10**6
-        stats_data.project['measurement_duration_in_s'] = (stats_data.project?.end_measurement - stats_data.project?.start_measurement) / 1000000
+        const measurement_duration_in_s = (project_data.data.end_measurement - project_data.data.start_measurement) / 1000000
 
-        fillProjectData(stats_data.project)
+        fillAvgContainers(measurement_duration_in_s, metrics);
+
+        if (notes_json == undefined || notes_json.success == false) {
+            return;
+        }
         displayGraphs(metrics, notes_json.data, 'echarts');
-        fillAvgContainers(stats_data, metrics);
         document.querySelector('#api-loader').remove();
 
         // after all instances have been placed the flexboxes might have rearranged. We need to trigger resize
