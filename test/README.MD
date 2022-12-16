@@ -1,6 +1,6 @@
 ## Pre-reqs
-Make sure you have pytest installed:
-`pip3 install pytest pydantic`
+Make sure you have `pytest` and `pydantic` installed:
+`pip install pytest pydantic`
 
 We assume that your green-metrics-tool is already set up to work on your machine, as it will use your local config.yml file to determine which metric providers can be utilized in the tests.
 
