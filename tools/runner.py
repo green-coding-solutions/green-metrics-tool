@@ -350,6 +350,8 @@ class Runner:
 
         self.cleanup() # always run cleanup automatically after each run
 
+        print(TerminalColors.OKGREEN, "\n\n>>>>>>> MEASUREMENT SUCCESSFULLY COMPLETED <<<<<<<\n\n",TerminalColors.ENDC)
+
 
     def cleanup(self): # TODO: Could be done when destroying object. but do we have all infos then?
 
