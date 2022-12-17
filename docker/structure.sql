@@ -21,9 +21,10 @@ CREATE TABLE projects (
 CREATE TABLE stats (
     id SERIAL PRIMARY KEY,
     project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    container_name text,
+    detail_name text,
     metric text,
     value bigint,
+    unit text,
     time bigint,
     created_at timestamp with time zone DEFAULT now()
 );
@@ -49,7 +50,7 @@ CREATE TABLE jobs (
 CREATE TABLE notes (
     id SERIAL PRIMARY KEY,
     project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    container_name text,
+    detail_name text,
     note text,
     time bigint,
     created_at timestamp with time zone DEFAULT now()

@@ -90,8 +90,9 @@ void ResetChannels()
         g_channelSettings[i].enabled = 0;
         g_channelSettings[i].range = (HRDL_RANGE) 0;
         g_channelSettings[i].singleEnded = 1;
-        int status = HRDLSetAnalogInChannel(g_device, i, (int16_t) 0, (HRDL_RANGE) 0, (int16_t) 0);
-        DEBUG("Status after disabling channel %d: %d\n", i, status);
+        DEBUG("Status after disabling channel %d: %d\n",
+                i,
+                HRDLSetAnalogInChannel(g_device, i, (int16_t) 0, (HRDL_RANGE) 0, (int16_t) 0));
     }
 }
 
@@ -373,7 +374,7 @@ void StreamChannels (void)
 
     DEBUG("Starting data collection...\n");
     status = HRDLRun(g_device, BUFFER_SIZE, (int16_t) HRDL_BM_STREAM);
-    
+
     if (status == 0) {
         HRDLGetUnitInfo(g_device, strError, (int16_t) 80, HRDL_SETTINGS);
         fprintf(stderr, "Error occurred: %s\n\n", strError);
@@ -392,9 +393,9 @@ void StreamChannels (void)
 
     gettimeofday(&before, NULL);
 
- 
+
     while (1) {
-    
+
 
 
         nValues = HRDLGetTimesAndValues(g_device, g_times, g_values, NULL, BUFFER_SIZE/numberOfActiveChannels);
@@ -420,6 +421,7 @@ void StreamChannels (void)
             before.tv_sec = now.tv_sec;
         }
         usleep(1000*msleep_time); // sleep no longer than maximum buffer size allows. We will not loose values though as results are buffered
+	fflush(stdout);
    }
 
 }
@@ -473,7 +475,6 @@ void CollectBlockImmediate (void)
     int32_t        i;
     int16_t        overflow = 0;
     int16_t        channel;
-    static        int16_t ok;
     int8_t        strError[80];
     int16_t        timeCount = 0;
     int16_t        noOfActiveChannels = 0;
@@ -688,7 +689,7 @@ int main (int argc, char** argv)
                                     "Kernel Driver Ver.:"};
 
     int c;
- 
+
     while ((c = getopt (argc, argv, "hi:d")) != -1) {
         switch (c) {
         case 'h':
@@ -753,7 +754,7 @@ int main (int argc, char** argv)
                     default:
                         fprintf(stderr, "Invalid unit type returned from driver\n");
                         exit(-1);
-                        return;
+                        return -1;
                 }
             }
 

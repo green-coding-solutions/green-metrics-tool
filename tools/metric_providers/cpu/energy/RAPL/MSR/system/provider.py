@@ -7,8 +7,9 @@ class CpuEnergyRaplMsrSystemProvider(BaseMetricProvider):
         def __init__(self, resolution):
             self._current_dir = os.path.dirname(os.path.abspath(__file__))
             self._metric_name = "cpu_energy_rapl_msr_system"
-            self._metrics = {"time":int, "value":int}
+            self._metrics = {"time":int, "value":int, "package_id":str}
             self._resolution = resolution
+            self._unit = 'mJ'
             super().__init__()
 
 if __name__ == "__main__":

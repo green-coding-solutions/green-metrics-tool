@@ -7,7 +7,7 @@ architecture: linux
 services:
   ubuntu-stress:
     type: container
-    image: stress_stress
+    image: gcb_stress
 
 flow:
   - name: Stress

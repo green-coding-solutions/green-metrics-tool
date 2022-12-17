@@ -1,6 +1,21 @@
-## System configuration
-In order for the `sudo` call to work an entry in the `/etc/sudoers` file is necessary.
+# Building
+
+Just run `make`.
+
+It will require `sudo` rights as it will set the UID bit.
+
+# Running
+
+Just run `./metric-provider-binary`.
+
+You can specify a resoltion for the output frequency in *ms* through the `-i` flag.
+
+Example:
 
 ```bash
-sudo PATH_TO_GREEN_METRICS_TOOL/tools/metric_providers/energy/system/RAPL/MSR/static-binary -i 100
+./metric-provider-binary -i 100
 ```
+
+# Documentation
+
+For details and output format please look at https://docs.green-coding.org/docs/measuring/metric-providers/cpu-energy-rapl-msr-system/

@@ -1,53 +1,32 @@
-name: Daily Test Run
+name: Daily Test Run - VM - Manual
 
 on:
-  schedule:
-    - cron: '0 0 * * *'
-      branches: [ "main", "dev" ]
-
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
-  #TODO: is there a way to do this that's even more light-weight?
-  check_date:
-    runs-on: ubuntu-latest
-    name: Check latest commit
-    outputs:
-      should_run: ${{ steps.should_run.outputs.should_run }}
-    steps:
-      - uses: actions/checkout@v3
-      - name: print latest_commit
-        run: echo ${{ github.sha }}
-
-      #TODO: instead of 24 hours, last workflow run
-      - id: should_run
-        continue-on-error: true
-        name: check latest commit is less than a day
-        if: ${{ github.event_name == 'schedule' }}
-        run: test -z $(git rev-list  --after="24 hours"  ${{ github.sha }}) && echo "::set-output name=should_run::false"
-
   run-tests:
-    needs: check_date
-    if: ${{ needs.check_date.outputs.should_run != 'false' }}
     runs-on: ubuntu-latest
-
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ matrix.branch }}
+          submodules: 'true'
       
-      - name: Install python testing dependencies
+      - name: Install python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install fastapi pytest psycopg2 numpy pandas
+          pip install fastapi pytest psycopg2 numpy pandas xgboost statsmodels scipy scikit-learn
       
-      - name: Run Install Script
+      - name: Run Prereqs and Install Script
         run: |
+          sudo apt install lm-sensors libsensors-dev libglib2.0-dev
           ./install.sh -p testpw
 
       - name: Turn off metric providers which do not work in github vm
         run: |
-          ./disable-metric-providers.sh cgroup RAPL ac dc xgboost
+          ./disable-metric-providers.sh RAPL System Sensors Debug CGroupV2
 
       - name: Setup Test environment
         working-directory: ./test
@@ -69,6 +48,7 @@ jobs:
           pytest
           
       - name: Stop Containers
+        if: always()
         working-directory: ./test
         run: |
-          docker compose -f ../docker/test-compose.yml down
+          docker compose -f ../docker/test-compose.yml down -v

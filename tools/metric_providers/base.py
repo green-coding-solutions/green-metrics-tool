@@ -30,14 +30,21 @@ class BaseMetricProvider:
             dtype=self._metrics
         )
 
-        if self._metrics.get('container_id') is None:
-            df['container_name'] = '[SYSTEM]' # standard container name when only system was measured
-        else:
-            df['container_name'] = df.container_id
+        if self._metrics.get('sensor_name') is not None:
+            df['detail_name'] = df.sensor_name
+            df = df.drop('sensor_name', axis=1)
+        elif self._metrics.get('package_id') is not None:
+            df['detail_name'] = df.package_id
+            df = df.drop('package_id', axis=1)
+        elif self._metrics.get('container_id') is not None:
+            df['detail_name'] = df.container_id
             for container_id in containers:
-                df.loc[df.container_name == container_id, 'container_name'] = containers[container_id]
+                df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]
             df = df.drop('container_id', axis=1)
+        else:
+            df['detail_name'] = '[SYSTEM]' # standard container name when only system was measured
 
+        df['unit'] = self._unit
         df['metric'] = self._metric_name
         df['project_id'] = project_id
 
@@ -46,13 +53,14 @@ class BaseMetricProvider:
     def start_profiling(self, containers=None):
 
         if self._sudo:
-            call_string = f"sudo {self._current_dir}/static-binary -i {self._resolution}"
+            call_string = f"sudo {self._current_dir}/metric-provider-binary -i {self._resolution}"
         else:
-            call_string = f"{self._current_dir}/static-binary -i {self._resolution}"
+            call_string = f"{self._current_dir}/metric-provider-binary -i {self._resolution}"
         if hasattr(self, '_extra_switches'):
              call_string += " " # space at start
              call_string += " ".join(self._extra_switches)
 
+        # This needs refactoring see https://github.com/green-coding-berlin/green-metrics-tool/issues/45
         if self._metrics.get('container_id') is not None:
              call_string += " -s "
              call_string += ",".join(containers.keys())
@@ -81,6 +89,12 @@ class BaseMetricProvider:
             ps_group_id = os.getpgid(self._ps.pid)
             print(f" and process group {ps_group_id}")
             os.killpg(os.getpgid(self._ps.pid), signal.SIGTERM)
+            try:
+                self._ps.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                # If the process hasn't gracefully exited after 5 seconds we kill it
+                os.killpg(os.getpgid(self._ps.pid), signal.SIGKILL)
+
         except ProcessLookupError:
             print(f"Could not find process-group for {ps['pid']}", file=sys.stderr) # process/-group may have already closed
 

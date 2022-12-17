@@ -9,6 +9,7 @@ class CpuTimeProcfsSystemProvider(BaseMetricProvider):
             self._metric_name = "cpu_time_procfs_system"
             self._metrics = {"time":int, "value":int}
             self._resolution = resolution
+            self._unit = 'us'
             super().__init__()
 
 if __name__ == "__main__":

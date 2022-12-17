@@ -7,11 +7,11 @@ def save_notes(project_id, notes):
     for note in notes:
         DB().query("""
                 INSERT INTO notes
-                ("project_id", "container_name", "note", "time", "created_at")
+                ("project_id", "detail_name", "note", "time", "created_at")
                 VALUES
                 (%s, %s, %s, %s, NOW())
                 """,
-                params=(project_id, note['container_name'], note['note'], note['timestamp'])
+                params=(project_id, note['detail_name'], note['note'], note['timestamp'])
         )
 
 if __name__ == "__main__":
@@ -23,6 +23,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args() # script will exit if arguments not present
 
-    save_notes(args.project_id, [{"note": "This is my note", "timestamp": time.time_ns(), "container_name": "Arnes_ Container"}])
+    save_notes(args.project_id, [{"note": "This is my note", "timestamp": time.time_ns(), "detail_name": "Arnes_ Container"}])
 
 

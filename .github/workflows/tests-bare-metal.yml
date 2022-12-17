@@ -1,0 +1,81 @@
+name: Daily Test Run - Bare Metal
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+      branches: [ "main", "dev" ]
+  # Allows you to run this workflow manually from the Actions tab
+  #workflow_dispatch:
+
+jobs:
+  #TODO: is there a way to do this that's even more light-weight?
+  check_date:
+    runs-on: self-hosted
+    name: Check latest commit
+    outputs:
+      should_run: ${{ steps.check_gmt_commits.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: print latest_commit
+        run: echo ${{ github.sha }}
+
+      #TODO: instead of 24 hours, last workflow run
+      - id: check_gmt_commits
+        continue-on-error: true
+        name: check latest commit is less than a day
+        if: ${{ github.event_name == 'schedule' }}
+        run: test -n $(git rev-list  --after="24 hours"  ${{ github.sha }}) && echo "should_run=true" >> $GITHUB_OUTPUT
+
+  run-tests:
+    needs: check_date
+    if: ${{ needs.check_date.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ['dev', 'main']
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ matrix.branch }}
+          submodules: 'true'
+      
+      - name: Install python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install fastapi pytest psycopg2 numpy pandas xgboost statsmodels scipy scikit-learn
+      
+      - name: Run Prereqs and Install Script
+        run: |
+          sudo apt install lm-sensors libsensors-dev libglib2.0-dev
+          ./install.sh -p testpw
+
+      - name: Turn off metric providers which do not work in github vm
+        run: |
+          ./disable-metric-providers.sh System Sensors Debug
+
+      - name: Setup Test environment
+        working-directory: ./test
+        run: |
+          ./setup-test-env.sh -p testpw
+          
+      - name: Start Test container
+        working-directory: ./test
+        run: |
+          docker compose -f ../docker/test-compose.yml up -d
+     
+      - name: Sleep for 10 seconds
+        run: sleep 10s
+        shell: bash
+          
+      - name: Run Tests
+        working-directory: ./test
+        run: |
+          pytest
+          
+      - name: Stop Containers
+        if: always()
+        working-directory: ./test
+        run: |
+          docker compose -f ../docker/test-compose.yml down -v

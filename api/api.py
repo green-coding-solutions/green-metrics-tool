@@ -63,7 +63,7 @@ async def home():
 async def get_notes(project_id):
     query = """
             SELECT
-                project_id, container_name, note, time
+                project_id, detail_name, note, time
             FROM
                 notes
             WHERE project_id = %s
@@ -108,7 +108,7 @@ async def get_stats_by_uri(uri: str, remove_idle: bool=False):
             WITH times AS (
                 SELECT id, start_measurement, end_measurement FROM projects WHERE uri = %s
             ) SELECT
-                projects.id as project_id, stats.container_name, stats.time, stats.metric, stats.value
+                projects.id as project_id, stats.detail_name, stats.time, stats.metric, stats.value, stats.unit
             FROM
                 stats
             LEFT JOIN
@@ -128,7 +128,7 @@ async def get_stats_by_uri(uri: str, remove_idle: bool=False):
 
     # extremly important to order here, cause the charting library in JS cannot do that automatically!
     query = f""" {query} ORDER BY
-                stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
+                stats.metric ASC, stats.detail_name ASC, stats.time ASC  -- extremly important to order here, cause the charting library in JS cannot do that automatically!
             """
 
     params = (uri, uri)
@@ -149,7 +149,7 @@ async def get_stats_single(project_id: str, remove_idle: bool=False):
             WITH times AS (
                 SELECT start_measurement, end_measurement FROM projects WHERE id = %s
             ) SELECT
-                stats.container_name, stats.time, stats.metric, stats.value
+                stats.detail_name, stats.time, stats.metric, stats.value, stats.unit
             FROM
                 stats
             WHERE
@@ -164,14 +164,14 @@ async def get_stats_single(project_id: str, remove_idle: bool=False):
         """
 
     # extremly important to order here, cause the charting library in JS cannot do that automatically!
-    query = f" {query} ORDER BY stats.time ASC"
+    query = f" {query} ORDER BY stats.metric ASC, stats.detail_name ASC, stats.time ASC"
 
     params = params=(project_id,project_id)
     data = DB().fetch_all(query, params=params)
 
-    if(data is None or data == []):
-        return {'success': False, 'err': 'Data is empty'}
-    return {"success": True, "data": data, "project": get_project(project_id)}
+    if (data is None or data == []):
+        return {"success": False, "err": "Data is empty"}
+    return {"success": True, "data": data}
 
 @app.get('/v1/stats/multi')
 async def get_stats_multi(p: list[str] | None = Query(default=None)):
@@ -181,7 +181,7 @@ async def get_stats_multi(p: list[str] | None = Query(default=None)):
 
     query = """
             SELECT
-                projects.id, projects.name, stats.container_name, stats.time, stats.metric, stats.value
+                projects.id, projects.name, stats.detail_name, stats.time, stats.metric, stats.value, stats.unit
             FROM
                 stats
             LEFT JOIN
@@ -208,7 +208,7 @@ async def get_stats_compare(p: list[str] | None = Query(default=None)):
 
     query = """
             SELECT
-                projects.name, stats.container_name, stats.metric, AVG(stats.value)
+                projects.name, stats.detail_name, stats.metric, stats.unit, AVG(stats.value)
             FROM
                 stats
             LEFT JOIN
@@ -219,7 +219,7 @@ async def get_stats_compare(p: list[str] | None = Query(default=None)):
                 stats.metric = ANY(ARRAY['cpu','mem','system-energy'])
             AND
                 STATS.project_id = ANY(%s::uuid[])
-            GROUP BY projects.name, stats.container_name, stats.metric
+            GROUP BY projects.name, stats.detail_name, stats.metric
             """
     params = (p,)
     data = DB().fetch_all(query, params=params)
@@ -262,7 +262,9 @@ async def post_project_add(project: Project):
 
     return {"success": True}
 
-def get_project(project_id):
+
+@app.get('/v1/project/{project_id}')
+async def get_project(project_id: str):
     query = """
             SELECT
                 id, name, uri, (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements LEFT JOIN categories as t on t.id = elements) as categories, start_measurement, end_measurement, measurement_config, machine_specs, usage_scenario, last_run, created_at
@@ -272,7 +274,10 @@ def get_project(project_id):
                 id = %s
             """
     params = (project_id,)
-    return DB().fetch_one(query, params=params, cursor_factory = psycopg2.extras.RealDictCursor)
+    data = DB().fetch_one(query, params=params, cursor_factory=psycopg2.extras.RealDictCursor)
+    if (data is None or data == []):
+        return {'success': False, 'err': 'Data is empty'}
+    return {"success": True, "data": data}
 
 if __name__ == "__main__":
     app.run()
