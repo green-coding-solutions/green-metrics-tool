@@ -50,6 +50,7 @@ class BaseMetricProvider:
         else:
             df['detail_name'] = '[SYSTEM]' # standard container name when only system was measured
 
+        df['unit'] = self._unit
         df['metric'] = self._metric_name
         df['project_id'] = project_id
 

@@ -34,6 +34,7 @@ async function makeAPICall(path, values=null) {
     }
 
     let json_response = null;
+    if(localStorage.getItem('remove_idle') == 'true') path += "?remove_idle=true"
     await fetch(api_url + path, options)
         .then(response => response.json())
         .then(my_json => {

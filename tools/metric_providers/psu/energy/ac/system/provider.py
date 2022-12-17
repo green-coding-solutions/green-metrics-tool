@@ -11,6 +11,7 @@ class PsuEnergyAcSystemProvider(BaseMetricProvider):
             self._metric_name = "psu_energy_ac_system"
             self._metrics = {"time":int, "value":int}
             self._resolution = resolution
+            self._unit = 'mJ'
             super().__init__()
 
         def start_profiling(self, containers=None):
