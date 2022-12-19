@@ -1,11 +1,19 @@
-This metrics reporter can read from the Picolog HRDL ADC-24 when it is instrumented via the Streaming feature.
+# Building
 
-The `metric-provider-binary` file can be used as usual by giving the -i argument with the resolution.
+Just run `make`.
 
-The file however does not start unless you set the LD_LIBRARY_PATH to this directory.
-This is only a hotfix and will be corrected shortly.
+It will require `sudo` rights as it will set the UID bit.
 
-This README is mostly a placeholder to have the info for the fix at hand.
+# Running
+
+Just run: 
+```bash
+./metric-provider-binary -i 61`.
+```
+
+Please use always the resolution of *61 ms* as the provider is configured
+to set up the streaming channel for this resolution.
+
 
 ## Overhead warning
 
