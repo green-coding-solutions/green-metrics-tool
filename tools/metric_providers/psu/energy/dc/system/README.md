@@ -6,3 +6,10 @@ The file however does not start unless you set the LD_LIBRARY_PATH to this direc
 This is only a hotfix and will be corrected shortly.
 
 This README is mostly a placeholder to have the info for the fix at hand.
+
+## Overhead warning
+
+This metric provider has high overhead when used as it draws significant energy
+through the USB port.
+
+Please check [the documentation](https://docs.green-coding.org/docs/measuring/metric-providers/psu-energy-dc-system/) for details.
