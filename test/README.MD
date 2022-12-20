@@ -7,9 +7,9 @@ We assume that your green-metrics-tool is already set up to work on your machine
 ## First time setup
 run:
 
-`./setup-test-env.sh`
+`python3 setup-test-env.py`
 
-from the test directory. This will create a copy of the `config.yml` and docker compose.yml` files that will be used in the test containers.
+from the test directory. This will create a copy of the `config.yml` and docker `compose.yml` files that will be used in the test containers.
 
 You will need to re-run this setup script if new metric providers are added or the config.yml is otherwise changed in a significant way.
 
