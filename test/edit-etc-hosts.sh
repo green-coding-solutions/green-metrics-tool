@@ -1,8 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-etc_hosts_line_1="127.0.0.1 test-coding-postgres-container"
-
+etc_hosts_line_1="127.0.0.1 test-green-coding-postgres-container"
 
 echo "Writing to /etc/hosts file..."
 if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
