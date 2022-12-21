@@ -29,11 +29,12 @@ from terminal_colors import TerminalColors
 from debug_helper import DebugHelper
 
 class Runner:
-    def __init__(self, debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False):
+    def __init__(self, debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False, verbose_provider_boot=False):
         self.debug_mode = debug_mode
         self.allow_unsafe = allow_unsafe
         self.no_file_cleanup = no_file_cleanup
         self.skip_unsafe = skip_unsafe
+        self.verbose_provider_boot = verbose_provider_boot
 
         self.containers = {}
         self.networks = []
@@ -244,6 +245,9 @@ class Runner:
         for metric_provider in self.metric_providers:
             print(f"Starting measurement provider {metric_provider.__class__.__name__}")
             metric_provider.start_profiling(self.containers)
+            if self.verbose_provider_boot:
+                print(f"Waiting for measurement provider {metric_provider.__class__.__name__} to boot")
+                time.sleep(2)
 
         print(TerminalColors.HEADER, "\nWaiting for Metric Providers to boot ...", TerminalColors.ENDC)
         time.sleep(2)
@@ -394,6 +398,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action='store_true', help="Activate steppable debug mode")
     parser.add_argument("--allow-unsafe", action='store_true', help="Activate unsafe volume bindings, ports and complex environment vars")
     parser.add_argument("--skip-unsafe", action='store_true', help="Skip unsafe volume bindings, ports and complex environment vars")
+    parser.add_argument("--verbose-provider-boot", action='store_true', help="Boot metric providers gradually")
 
     args = parser.parse_args()
 
@@ -433,7 +438,7 @@ if __name__ == "__main__":
                 VALUES \
                 (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(args.name, args.uri))[0]
 
-    runner = Runner(debug_mode=args.debug, allow_unsafe=args.allow_unsafe, no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe)
+    runner = Runner(debug_mode=args.debug, allow_unsafe=args.allow_unsafe, no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe, verbose_provider_boot=args.verbose_provider_boot)
     try:
         runner.run(uri=args.uri, uri_type=uri_type, project_id=project_id) # Start main code
         print(TerminalColors.OKGREEN, "\n\n####################################################################################")
