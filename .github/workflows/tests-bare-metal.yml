@@ -13,22 +13,35 @@ jobs:
     runs-on: self-hosted
     name: Check latest commit
     outputs:
-      should_run: ${{ steps.check_gmt_commits.outputs.should_run }}
+      recent_dev_commit: ${{ steps.check_dev_commits.outputs.recent_dev_commit }}
+      recent_main_commit: ${{ steps.check_main_commits.outputs.recent_main_commit }}
     steps:
       - uses: actions/checkout@v3
       - name: print latest_commit
         run: echo ${{ github.sha }}
 
-      #TODO: instead of 24 hours, last workflow run
-      - id: check_gmt_commits
+       - id: check_dev_commits
         continue-on-error: true
-        name: check latest commit is less than a day
+        name: check latest dev commit is less than a day
         if: ${{ github.event_name == 'schedule' }}
-        run: test -n $(git rev-list  --after="24 hours"  ${{ github.sha }}) && echo "should_run=true" >> $GITHUB_OUTPUT
+        run: |
+         dateofcommit=$(curl -s https://api.github.com/repos/green-coding-berlin/green-metrics-tool/commits/dev | jq -r '.commit.author.date')
+         commit_timestamp=$(date --date "$dateofcommit" +'%s')
+         one_day_ago=$(date --date '1 day ago' +'%s')
+         [ $commit_timestamp -gt $one_day_ago ] && echo "recent_dev_commit=true" >> $GITHUB_OUTPUT
 
+      - id: check_main_commits
+        continue-on-error: true
+        name: check latest main commit is less than a day
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+         dateofcommit=$(curl -s https://api.github.com/repos/green-coding-berlin/green-metrics-tool/commits/main | jq -r '.commit.author.date')
+         commit_timestamp=$(date --date "$dateofcommit" +'%s')
+         one_day_ago=$(date --date '1 day ago' +'%s')
+         [ $commit_timestamp -gt $one_day_ago ] && echo "recent_main_commit=true" >> $GITHUB_OUTPUT
   run-tests:
     needs: check_date
-    if: ${{ needs.check_date.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.check_date.outputs.recent_dev_commit == 'true' || needs.check_date.outputs.recent_main_commit == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: self-hosted
     strategy:
       fail-fast: false
