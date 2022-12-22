@@ -9,25 +9,30 @@ runs:
   using: 'composite'
   steps:
     - name: Install python dependencies
+      shell: bash
       run: |
         python -m pip install --upgrade pip
         pip install fastapi pytest psycopg2 numpy pandas xgboost statsmodels scipy scikit-learn
     
     - name: Run Prereqs and Install Script
+      shell: bash
       run: |
         sudo apt install lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev
         ./install.sh -p testpw
 
     - name: Turn off metric providers which do not work in github vm
+      shell: bash
       run: |
         ./disable-metric-providers.sh ${{ metrics-to-turn-off }}
 
     - name: Setup Test environment
+      shell: bash
       working-directory: ./test
       run: |
         ./setup-test-env.sh -p testpw
         
     - name: Start Test container
+      shell: bash
       working-directory: ./test
       run: |
         docker compose -f ../docker/test-compose.yml up -d
@@ -37,11 +42,13 @@ runs:
       shell: bash
         
     - name: Run Tests
+      shell: bash
       working-directory: ./test
       run: |
         pytest
         
     - name: Stop Containers
+      shell: bash
       if: always()
       working-directory: ./test
       run: |
