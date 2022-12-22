@@ -23,7 +23,7 @@ runs:
     - name: Turn off metric providers which do not work in github vm
       shell: bash
       run: |
-        ./disable-metric-providers.sh ${{ metrics-to-turn-off }}
+        ./disable-metric-providers.sh ${{ inputs.metrics-to-turn-off }}
 
     - name: Setup Test environment
       shell: bash
