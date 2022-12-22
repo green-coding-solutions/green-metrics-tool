@@ -4,7 +4,6 @@ inputs:
   metrics-to-turn-off:
     description: 'a list of metrics to turn off that is passed to the disable metrics script'
     required: false
-    default: ''
 outputs:
 runs:
   using: 'composite'
