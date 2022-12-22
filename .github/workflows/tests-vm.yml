@@ -45,7 +45,7 @@ jobs:
 
   run-tests:
     needs: check_date
-    if: ${{ needs.check_date.outputs.recent_dev_commit == 'true' || needs.check_date.outputs.recent_main_commit == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.check_date.outputs.recent_dev_commit == 'true' || needs.check_date.outputs.recent_main_commit == 'true' || github.event_name == 'push' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
