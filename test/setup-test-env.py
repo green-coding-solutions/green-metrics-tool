@@ -60,6 +60,14 @@ def edit_compose_file():
             v = v.replace('PATH_TO_GREEN_METRICS_TOOL_REPO', '{cd}/../'.format(cd=current_dir))
             new_vol_list.append(v)
 
+        ## Change the depends on: in services as well
+        if 'depends_on' in compose['services'][service]:
+            depends_on_list = compose['services'][service]['depends_on']
+            new_depends_on_list=[]
+            for d in depends_on_list:
+                new_depends_on_list.append('test-{d}'.format(d=d))
+            compose['services'][service]['depends_on'] = new_depends_on_list
+
         ## for nginx and gunicorn services, add test config mapping
         if 'nginx' in service or 'gunicorn' in service:
             new_vol_list.append('{cd}/../test-config.yml:/var/www/green-metrics-tool/config.yml'.format(cd=current_dir))
