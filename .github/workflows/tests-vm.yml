@@ -51,7 +51,7 @@ jobs:
         with:
            metrics-to-turn-off: 'RAPL System Sensors Debug CGroupV2'
 
-   run-tests-main:
+  run-tests-main:
     needs: check_date
     if: ${{ needs.check_date.outputs.recent_main_commit == 'true' }}
     runs-on: ubuntu-latest
