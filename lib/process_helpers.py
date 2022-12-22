@@ -4,19 +4,33 @@ import subprocess
 
 def kill_ps(ps_to_kill):
     print("Killing processes")
-    for ps in ps_to_kill:
-        print(f"Trying to kill {ps['cmd']} with PID: {ps['pid']}")
+    for ps_info in ps_to_kill:
+        pid = ps_info['ps'].pid
+        print(f"Trying to kill {ps_info['cmd']} with PID: {pid}")
         try:
             if(ps['ps_group'] == True):
                 try:
-                    ps_group_id = os.getpgid(ps['pid'])
+                    ps_group_id = os.getpgid(pid)
                     print(f" with process group {ps_group_id}")
-                    os.killpg(os.getpgid(ps['pid']), signal.SIGTERM)
+                    os.killpg(os.getpgid(pid), signal.SIGTERM)
+                    try:
+                        ps_info['ps'].wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        # If the process hasn't gracefully exited after 5 seconds we kill it
+                        os.killpg(os.getpgid(pid), signal.SIGKILL)
                 except ProcessLookupError:
-                    print(f"Could not find process-group for {ps['pid']}") # process may be not have been in a process group
-            os.kill(ps['pid'], signal.SIGTERM) # always, just in case the calling process (typically the shell) did not die
+                    print(f"Could not find process-group for {pid}") # process may be not have been in a process group
+            os.kill(pid, signal.SIGTERM) # always, just in case the calling process (typically the shell) did not die
+            try:
+                ps_info['ps'].wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                # If the process hasn't gracefully exited after 5 seconds we kill it
+                os.killpg(os.getpgid(pid), signal.SIGKILL)
+
         except ProcessLookupError:
-            print(f"Could not find process {ps['pid']}") # process may already have ended or been killed in the process group
+            print(f"Could not find process {pid}") # process may already have ended or been killed in the process group
+
+
 
 
 def timeout(ps, cmd: str, duration: int):
