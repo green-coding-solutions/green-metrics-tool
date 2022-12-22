@@ -29,7 +29,7 @@ runs:
       shell: bash
       working-directory: ./test
       run: |
-        ./setup-test-env.sh -p testpw
+        python3 setup-test-env.py
         
     - name: Start Test container
       shell: bash
