@@ -25,7 +25,7 @@ def kill_ps(ps_to_kill):
                 ps_info['ps'].wait(timeout=5)
             except subprocess.TimeoutExpired:
                 # If the process hasn't gracefully exited after 5 seconds we kill it
-                os.killpg(os.getpgid(pid), signal.SIGKILL)
+                os.kill(pid, signal.SIGKILL)
 
         except ProcessLookupError:
             print(f"Could not find process {pid}") # process may already have ended or been killed in the process group
