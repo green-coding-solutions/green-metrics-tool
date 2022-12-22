@@ -18,7 +18,7 @@ jobs:
       - id: check_dev_commits
         continue-on-error: true
         name: check latest dev commit is less than a day
-        if: ${{ github.event_name == 'schedule' }}
+        #if: ${{ github.event_name == 'schedule' }}
         run: |
          dateofcommit=$(curl -s https://api.github.com/repos/green-coding-berlin/green-metrics-tool/commits/dev | jq -r '.commit.author.date')
          commit_timestamp=$(date --date "$dateofcommit" +'%s')
@@ -28,7 +28,7 @@ jobs:
       - id: check_main_commits
         continue-on-error: true
         name: check latest main commit is less than a day
-        if: ${{ github.event_name == 'schedule' }}
+        #if: ${{ github.event_name == 'schedule' }}
         run: |
          dateofcommit=$(curl -s https://api.github.com/repos/green-coding-berlin/green-metrics-tool/commits/main | jq -r '.commit.author.date')
          commit_timestamp=$(date --date "$dateofcommit" +'%s')
