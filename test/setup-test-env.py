@@ -29,7 +29,6 @@ def edit_config_file():
 
     config['postgresql']['host'] = 'test-green-coding-postgres-container'
     config['postgresql']['password'] = db_pw
-    #config['postgresql']['db_name'] = ??? # does this need changing too?
     config['admin']['no_emails'] = True
 
     with open(test_config_path, 'w') as test_config_file:
@@ -42,7 +41,7 @@ def edit_compose_file():
         compose = yaml.load(base_compose_file, Loader=yaml.FullLoader)
 
     # Save old volume names, as we will have to look for them under services/volumes soon
-    vol_keys = dict.fromkeys(compose['volumes'])
+    vol_keys = compose['volumes'].keys()
 
     # Edit volume names with pre-pended 'test' 
     for e in compose.get('volumes').copy():
@@ -57,7 +56,7 @@ def edit_compose_file():
         for v in service_volumes:
             for k in vol_keys:
                 v = v.replace(k,'test-{k}'.format(k=k))
-            v = v.replace('PATH_TO_GREEN_METRICS_TOOL_REPO', '{cd}/../'.format(cd=current_dir))
+            v = v.replace('PATH_TO_GREEN_METRICS_TOOL_REPO', '{cwd}/../'.format(cwd=current_dir))
             new_vol_list.append(v)
 
         ## Change the depends on: in services as well
@@ -70,7 +69,7 @@ def edit_compose_file():
 
         ## for nginx and gunicorn services, add test config mapping
         if 'nginx' in service or 'gunicorn' in service:
-            new_vol_list.append('{cd}/../test-config.yml:/var/www/green-metrics-tool/config.yml'.format(cd=current_dir))
+            new_vol_list.append('{cwd}/../test-config.yml:/var/www/green-metrics-tool/config.yml'.format(cwd=current_dir))
         compose['services'][service]['volumes'] = new_vol_list
 
         # For postgresql, change password
@@ -97,8 +96,8 @@ def edit_compose_file():
 def edit_etc_hosts():
     subprocess.run(['./edit-etc-hosts.sh'])
 
-
-edit_config_file()
-edit_compose_file()
-edit_etc_hosts()
-print('fin.')
+if __name__ == "__main__":
+    edit_config_file()
+    edit_compose_file()
+    edit_etc_hosts()
+    print('fin.')

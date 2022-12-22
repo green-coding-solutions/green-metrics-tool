@@ -1,5 +1,5 @@
 name: Daily Test Run - Bare Metal
-run-name: Schedualed - ${{ github.ref_name }}
+run-name: Scheduled - ${{ github.ref_name }}
 on:
   schedule:
     - cron: '0 0 * * *'
