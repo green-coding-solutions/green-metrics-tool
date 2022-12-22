@@ -7,7 +7,8 @@ on:
 
 jobs:
   check_date:
-    runs-on: self-hosted
+    #runs-on: self-hosted
+    runs-on: ubuntu-latest
     name: Check latest commit
     outputs:
       recent_dev_commit: ${{ steps.check_dev_commits.outputs.recent_dev_commit }}
@@ -32,6 +33,7 @@ jobs:
          commit_timestamp=$(date --date "$dateofcommit" +'%s')
          one_day_ago=$(date --date '1 day ago' +'%s')
          [ $commit_timestamp -gt $one_day_ago ] && echo "recent_main_commit=true" >> $GITHUB_OUTPUT
+
   run-tests-dev:
     needs: check_date
     if: ${{ needs.check_date.outputs.recent_dev_commit == 'true' }}
