@@ -339,7 +339,7 @@ const createAvgContainer = (metric_name, value, unit) => {
             <div class="description">
                 <div class="ui mini statistic">
                     <div class="value">
-                        <i class="${icon} icon"></i> ${value.toFixed(2)} ${unit}
+                        <i class="${icon} icon"></i> ${value.toFixed(2)} <span class="si-unit">${unit}</span>
                     </div>
                 </div>
                 <div class="ui bottom right attached label">${explaination}</div>
@@ -445,17 +445,17 @@ const fillAvgContainers = (measurement_duration_in_s, metrics) => {
     }
 
     if(display_in_watts) {
-        document.querySelector("#component-energy").innerHTML = `${(component_energy_in_mWh / 3.6).toFixed(2)} mWh`
+        document.querySelector("#component-energy").innerHTML = `${(component_energy_in_mWh / 3.6).toFixed(2)} <span class="si-unit">mWh</span>`
     } else {
-        document.querySelector("#component-energy").innerHTML = `${(component_energy_in_mWh).toFixed(2)} J`
+        document.querySelector("#component-energy").innerHTML = `${(component_energy_in_mWh).toFixed(2)} <span class="si-unit">J</span>`
     }
-    document.querySelector("#component-power").innerHTML = `${(component_energy_in_mWh / measurement_duration_in_s).toFixed(2)} W`
+    document.querySelector("#component-power").innerHTML = `${(component_energy_in_mWh / measurement_duration_in_s).toFixed(2)} <span class="si-unit">W</span>`
 
     // network via formula: https://www.green-coding.org/co2-formulas/
     const network_io_in_mWh = (network_io * 0.00006) * 1000000;
-    if(network_io_in_mWh) document.querySelector("#network-energy").innerHTML = `${network_io_in_mWh.toFixed(2)} mWh`
+    if(network_io_in_mWh) document.querySelector("#network-energy").innerHTML = `${network_io_in_mWh.toFixed(2)} <span class="si-unit">mWh</span>`
     const network_io_co2_in_kg = ( (network_io_in_mWh / 1000000) * 519) / 1000;
-    if(network_io_co2_in_kg) document.querySelector("#network-co2").innerHTML = `${network_io_co2_in_kg.toFixed(2)} kg`
+    if(network_io_co2_in_kg) document.querySelector("#network-co2").innerHTML = `${network_io_co2_in_kg.toFixed(2)} <span class="si-unit">kg</span>`
 
     // co2 calculations
     let total_CO2_in_kg = ( ((component_energy_in_mWh + network_io_co2_in_kg) / 1000000) * 519) / 1000;
@@ -467,8 +467,8 @@ const fillAvgContainers = (measurement_duration_in_s, metrics) => {
     else if(total_CO2_in_kg < 0.0001) co2_display = { value: total_CO2_in_kg*(10**6), unit: 'mg'};
     else if(total_CO2_in_kg < 0.1) co2_display = { value: total_CO2_in_kg*(10**3), unit: 'g'};
 
-    if (co2_display.value) document.querySelector("#component-co2").innerHTML = `${(co2_display.value).toFixed(2)} ${co2_display.unit}`
-    if (co2_budget_utilization) document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + " %"
+    if (co2_display.value) document.querySelector("#component-co2").innerHTML = `${(co2_display.value).toFixed(2)} <span class="si-unit">${co2_display.unit}</span>`
+    if (co2_budget_utilization) document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + ' <span class="si-unit">%</span>'
 
     upscaled_CO2_in_kg = total_CO2_in_kg * 100 * 30 ; // upscaled by 30 days for 10.000 requests (or runs) per day
 

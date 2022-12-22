@@ -297,7 +297,7 @@ class Runner:
 
                         if inner_el.get('detach', None) == True :
                             print("Process should be detached. Running asynchronously and detaching ...")
-                            self.ps_to_kill.append({"pid": ps.pid, "cmd": inner_el['command'], "ps_group": False})
+                            self.ps_to_kill.append({"ps": ps, "cmd": inner_el['command'], "ps_group": False})
                         else:
                             print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
                             process_helpers.timeout(ps, inner_el['command'], config['measurement']['flow-process-runtime'])
