@@ -1,11 +1,11 @@
-name: Daily Test Run - VM - Manual
+name: Manual Test Run - Virtual Machine
 run-name: Manual - ${{ github.ref_name }}
 on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
-  run-tests:
+  run-tests-manual:
     runs-on: ubuntu-latest
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -13,41 +13,7 @@ jobs:
         with:
           submodules: 'true'
       
-      - name: Install python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install fastapi pytest psycopg2 numpy pandas xgboost statsmodels scipy scikit-learn
-      
-      - name: Run Prereqs and Install Script
-        run: |
-          sudo apt install lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev
-          ./install.sh -p testpw
-
-      - name: Turn off metric providers which do not work in github vm
-        run: |
-          ./disable-metric-providers.sh RAPL System Sensors Debug CGroupV2
-
-      - name: Setup Test environment
-        working-directory: ./test
-        run: |
-          ./setup-test-env.sh -p testpw
-          
-      - name: Start Test container
-        working-directory: ./test
-        run: |
-          docker compose -f ../docker/test-compose.yml up -d
-     
-      - name: Sleep for 10 seconds
-        run: sleep 10s
-        shell: bash
-          
-      - name: Run Tests
-        working-directory: ./test
-        run: |
-          pytest
-          
-      - name: Stop Containers
-        if: always()
-        working-directory: ./test
-        run: |
-          docker compose -f ../docker/test-compose.yml down -v
+      - name: 'Setup, Run, and Teardown Tests'
+        uses: ./.github/actions/gmt-pytest
+        with:
+           metrics-to-turn-off: 'RAPL System Sensors Debug CGroupV2'
