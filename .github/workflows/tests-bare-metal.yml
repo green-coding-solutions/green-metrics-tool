@@ -13,7 +13,7 @@ jobs:
       recent_dev_commit: ${{ steps.check_dev_commits.outputs.recent_dev_commit }}
       recent_main_commit: ${{ steps.check_main_commits.outputs.recent_main_commit }}
     steps:
-       - id: check_dev_commits
+      - id: check_dev_commits
         continue-on-error: true
         name: check latest dev commit is less than a day
         if: ${{ github.event_name == 'schedule' }}
