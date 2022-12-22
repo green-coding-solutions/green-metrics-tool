@@ -4,12 +4,11 @@ on:
   schedule:
     - cron: '0 0 * * *'
       branches: [ "main", "dev" ]
-  push:
-    branch: test-pipeline-improvements
+  #push:
+  #  branch: test-pipeline-improvements
 jobs:
   check_date:
-    #runs-on: self-hosted
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     name: Check latest commit
     outputs:
       recent_dev_commit: ${{ steps.check_dev_commits.outputs.recent_dev_commit }}
