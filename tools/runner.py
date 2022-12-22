@@ -103,6 +103,8 @@ class Runner:
 
             self.metric_providers.append(metric_provider_obj)
 
+        self.metric_providers.sort(key=lambda item: 'rapl' not in item.__class__.__name__.lower())
+
         if debug.active: debug.pause("Initial load complete. Waiting to start network setup")
 
         if 'networks' in obj: # for some rare containers there is no network, like machine learning for example
@@ -240,13 +242,16 @@ class Runner:
 
         if debug.active: debug.pause("Container setup complete. Waiting to start metric-providers")
 
-        print(TerminalColors.HEADER, "\nStarting measurement providers", TerminalColors.ENDC)
+        print(TerminalColors.HEADER, "\nStarting metric providers", TerminalColors.ENDC)
+
+        notes = []  # notes may have duplicate timestamps, therefore list and no dict structure
 
         for metric_provider in self.metric_providers:
-            print(f"Starting measurement provider {metric_provider.__class__.__name__}")
+            message = f"Booting {metric_provider.__class__.__name__}"
+            print(message)
             metric_provider.start_profiling(self.containers)
             if self.verbose_provider_boot:
-                print(f"Waiting for measurement provider {metric_provider.__class__.__name__} to boot")
+                notes.append({"note": message, 'detail_name': '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
                 time.sleep(2)
 
         print(TerminalColors.HEADER, "\nWaiting for Metric Providers to boot ...", TerminalColors.ENDC)
@@ -258,10 +263,8 @@ class Runner:
             if stderr_read is not None:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
-
-        notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
-
         print(TerminalColors.HEADER, f"\nPre-idling containers for {config['measurement']['idle-time-start']}s", TerminalColors.ENDC)
+        notes.append({"note": "Pre-idling containers", 'detail_name': '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
 
         time.sleep(config['measurement']['idle-time-start'])
 
@@ -314,7 +317,10 @@ class Runner:
             notes.append({"note" : "End of measurement", 'detail_name' : '[SYSTEM]', "timestamp": end_measurement})
 
             print(TerminalColors.HEADER, f"\nIdling containers after run for {config['measurement']['idle-time-end']}s", TerminalColors.ENDC)
+
             time.sleep(config['measurement']['idle-time-end'])
+
+            notes.append({"note": "End of post-measurement idle", 'detail_name': '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
 
             print(TerminalColors.HEADER, "Stopping metric providers and parsing stats", TerminalColors.ENDC)
             for metric_provider in self.metric_providers:
