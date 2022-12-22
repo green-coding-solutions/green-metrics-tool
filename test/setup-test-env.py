@@ -41,7 +41,7 @@ def edit_compose_file():
         compose = yaml.load(base_compose_file, Loader=yaml.FullLoader)
 
     # Save old volume names, as we will have to look for them under services/volumes soon
-    vol_keys = compose['volumes'].keys()
+    vol_keys = compose['volumes'].copy().keys()
 
     # Edit volume names with pre-pended 'test' 
     for e in compose.get('volumes').copy():
