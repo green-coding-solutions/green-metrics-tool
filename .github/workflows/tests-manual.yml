@@ -1,0 +1,19 @@
+name: Manual Test Run - Virtual Machine
+run-name: Manual - ${{ github.ref_name }}
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  run-tests-manual:
+    runs-on: ubuntu-latest
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'true'
+      
+      - name: 'Setup, Run, and Teardown Tests'
+        uses: ./.github/actions/gmt-pytest
+        with:
+           metrics-to-turn-off: 'RAPL System Sensors Debug CGroupV2'

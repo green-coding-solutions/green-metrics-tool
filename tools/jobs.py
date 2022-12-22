@@ -29,18 +29,8 @@ def get_job(job_type):
     clear_old_jobs()
     query = "SELECT id, type, project_id FROM jobs WHERE failed=false AND type=%s ORDER BY created_at ASC LIMIT 1"
 
-    data = DB().fetch_one(query, (job_type,))
+    return DB().fetch_one(query, (job_type,))
 
-    if(data is None or data == []):
-        print("No job to process. Exiting")
-        exit(0)
-
-    if data[1] == "email":
-        do_email_job(data[0], data[2])
-    elif data[1] ==  "project":
-        do_project_job(data[0], data[2])
-    else:
-        raise RuntimeError(f"Job w/ id {data[0]} has unkown type: {data[1]}.")
 
 def delete_job(job_id):
     query = "DELETE FROM jobs WHERE id=%s"
@@ -60,38 +50,43 @@ def check_job_running(job_type, job_id):
         params_update =  (job_id,)
         DB().query(query_update, params=params_update)
 
+
 def clear_old_jobs():
     query = "DELETE FROM jobs WHERE last_run < NOW() - INTERVAL '20 minutes' AND failed=false"
     DB().query(query)
 
-def do_email_job(job_id, project_id):
-    check_job_running('email', job_id)
+def get_project(project_id):
+    data = DB().fetch_one("SELECT uri,email FROM projects WHERE id = %s LIMIT 1", (project_id, ))
 
-    query = "SELECT email FROM projects WHERE id = %s"
-    params = (project_id,)
-    data = DB().fetch_one(query, params=params)
     if(data is None or data == []):
         raise RuntimeError(f"couldn't find project w/ id: {project_id}")
 
+    return data
+
+def process_job(job_id, job_type, project_id):
     try:
-        email_helpers.send_report_email(data[0], project_id)
-        delete_job(job_id)
+        if job_type == "email":
+            _do_email_job(job_id, project_id)
+        elif job_type ==  "project":
+            _do_project_job(job_id, project_id)
+        else:
+            raise RuntimeError(f"Job w/ id {job_id} has unkown type: {job_type}.")
     except Exception as e:
-        DB().query("UPDATE jobs SET failed=true WHERE id=%s", params=(job_id,))
+        DB().query("UPDATE jobs SET failed=true, running=false WHERE id=%s", params=(job_id,))
         raise e
 
-def do_project_job(job_id, project_id):
+def _do_email_job(job_id, project_id): # should not be called without enclosing try-except block
+    check_job_running('email', job_id)
+
+    [uri, email] = get_project(project_id)
+
+    email_helpers.send_report_email(email, project_id)
+    delete_job(job_id)
+
+def _do_project_job(job_id, project_id): # should not be called without enclosing try-except block
     check_job_running('project', job_id)
 
-    data = DB().fetch_one("SELECT id,uri,email FROM projects WHERE id = %s LIMIT 1", (project_id, ))
-
-    if(data is None or data == []):
-        print("No job to process. Exiting")
-        exit(0)
-
-    project_id = data[0]
-    uri = data[1]
-    email = data[2]
+    [uri, email] = get_project(project_id)
 
     runner = Runner(skip_unsafe=True)
     try:
@@ -100,7 +95,6 @@ def do_project_job(job_id, project_id):
         insert_job("email", project_id=project_id)
         delete_job(job_id)
     except Exception as e:
-        error_helpers.log_error("Exception occured in runner.py: ", e)
         runner.cleanup() # catch so we can cleanup
         DB().query("UPDATE jobs SET failed=true, running=false WHERE id=%s", params=(job_id,))
         raise e
@@ -116,11 +110,20 @@ if __name__ == "__main__":
     #p = "8a4384d7-19a7-4d48-ac24-132d7db52671"
     #print("Inserted Job ID: ", insert_job("project", p))
 
+    project_id = None
     try:
-        get_job(args.type)
+        job = get_job(args.type)
+        if(job is None or job == []):
+            print("No job to process. Exiting")
+            exit(0)
+        project_id = job[2]
+        process_job(*job)
         print("Successfully processed jobs queue item.")
     except Exception as e:
         error_helpers.log_error("Base exception occured in jobs.py: ", e)
-        email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error("Base exception occured in jobs.py: ", e), project_id=None)
+        email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error("Base exception occured in jobs.py: ", e), project_id=project_id)
+        if project_id is not None:
+            [uri, email] = get_project(project_id)
+            email_helpers.send_error_email(email, e, project_id=project_id) # reduced error message to client
 
 

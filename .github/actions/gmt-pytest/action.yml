@@ -1,0 +1,55 @@
+name: 'GMT Pytest'
+description:  'Run Pytest with setup and teardown'
+inputs:
+  metrics-to-turn-off:
+    description: 'a list of metrics to turn off that is passed to the disable metrics script'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - name: Install python dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install fastapi pytest psycopg2 numpy pandas xgboost statsmodels scipy scikit-learn
+    
+    - name: Run Prereqs and Install Script
+      shell: bash
+      run: |
+        sudo apt install lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev
+        ./install.sh -p testpw
+
+    - name: Turn off metric providers which do not work in github vm
+      shell: bash
+      run: |
+        ./disable-metric-providers.sh ${{ inputs.metrics-to-turn-off }}
+
+    - name: Setup Test environment
+      shell: bash
+      working-directory: ./test
+      run: |
+        python3 setup-test-env.py
+        
+    - name: Start Test container
+      shell: bash
+      working-directory: ./test
+      run: |
+        docker compose -f ../docker/test-compose.yml up -d
+   
+    - name: Sleep for 10 seconds
+      run: sleep 10s
+      shell: bash
+        
+    - name: Run Tests
+      shell: bash
+      working-directory: ./test
+      run: |
+        pytest
+        
+    - name: Stop Containers
+      shell: bash
+      if: always()
+      working-directory: ./test
+      run: |
+        docker compose -f ../docker/test-compose.yml down -v
