@@ -29,11 +29,12 @@ from terminal_colors import TerminalColors
 from debug_helper import DebugHelper
 
 class Runner:
-    def __init__(self, debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False):
+    def __init__(self, debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False, verbose_provider_boot=False):
         self.debug_mode = debug_mode
         self.allow_unsafe = allow_unsafe
         self.no_file_cleanup = no_file_cleanup
         self.skip_unsafe = skip_unsafe
+        self.verbose_provider_boot = verbose_provider_boot
 
         self.containers = {}
         self.networks = []
@@ -101,6 +102,8 @@ class Runner:
             metric_provider_obj = getattr(module, class_name)(resolution=config['measurement']['metric-providers'][metric_provider]['resolution']) # the additional () creates the instance
 
             self.metric_providers.append(metric_provider_obj)
+
+        self.metric_providers.sort(key=lambda item: 'rapl' not in item.__class__.__name__.lower())
 
         if debug.active: debug.pause("Initial load complete. Waiting to start network setup")
 
@@ -239,11 +242,17 @@ class Runner:
 
         if debug.active: debug.pause("Container setup complete. Waiting to start metric-providers")
 
-        print(TerminalColors.HEADER, "\nStarting measurement providers", TerminalColors.ENDC)
+        print(TerminalColors.HEADER, "\nStarting metric providers", TerminalColors.ENDC)
+
+        notes = []  # notes may have duplicate timestamps, therefore list and no dict structure
 
         for metric_provider in self.metric_providers:
-            print(f"Starting measurement provider {metric_provider.__class__.__name__}")
+            message = f"Booting {metric_provider.__class__.__name__}"
+            print(message)
             metric_provider.start_profiling(self.containers)
+            if self.verbose_provider_boot:
+                notes.append({"note": message, 'detail_name': '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
+                time.sleep(2)
 
         print(TerminalColors.HEADER, "\nWaiting for Metric Providers to boot ...", TerminalColors.ENDC)
         time.sleep(2)
@@ -254,10 +263,8 @@ class Runner:
             if stderr_read is not None:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
-
-        notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
-
         print(TerminalColors.HEADER, f"\nPre-idling containers for {config['measurement']['idle-time-start']}s", TerminalColors.ENDC)
+        notes.append({"note": "Pre-idling containers", 'detail_name': '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
 
         time.sleep(config['measurement']['idle-time-start'])
 
@@ -310,7 +317,10 @@ class Runner:
             notes.append({"note" : "End of measurement", 'detail_name' : '[SYSTEM]', "timestamp": end_measurement})
 
             print(TerminalColors.HEADER, f"\nIdling containers after run for {config['measurement']['idle-time-end']}s", TerminalColors.ENDC)
+
             time.sleep(config['measurement']['idle-time-end'])
+
+            notes.append({"note": "End of post-measurement idle", 'detail_name': '[SYSTEM]', "timestamp": int(time.time_ns() / 1_000)})
 
             print(TerminalColors.HEADER, "Stopping metric providers and parsing stats", TerminalColors.ENDC)
             for metric_provider in self.metric_providers:
@@ -394,6 +404,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action='store_true', help="Activate steppable debug mode")
     parser.add_argument("--allow-unsafe", action='store_true', help="Activate unsafe volume bindings, ports and complex environment vars")
     parser.add_argument("--skip-unsafe", action='store_true', help="Skip unsafe volume bindings, ports and complex environment vars")
+    parser.add_argument("--verbose-provider-boot", action='store_true', help="Boot metric providers gradually")
 
     args = parser.parse_args()
 
@@ -433,7 +444,7 @@ if __name__ == "__main__":
                 VALUES \
                 (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(args.name, args.uri))[0]
 
-    runner = Runner(debug_mode=args.debug, allow_unsafe=args.allow_unsafe, no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe)
+    runner = Runner(debug_mode=args.debug, allow_unsafe=args.allow_unsafe, no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe, verbose_provider_boot=args.verbose_provider_boot)
     try:
         runner.run(uri=args.uri, uri_type=uri_type, project_id=project_id) # Start main code
         print(TerminalColors.OKGREEN, "\n\n####################################################################################")
