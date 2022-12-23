@@ -96,7 +96,6 @@ def _do_project_job(job_id, project_id): # should not be called without enclosin
         delete_job(job_id)
     except Exception as e:
         runner.cleanup() # catch so we can cleanup
-        DB().query("UPDATE jobs SET failed=true, running=false WHERE id=%s", params=(job_id,))
         raise e
 
 if __name__ == "__main__":

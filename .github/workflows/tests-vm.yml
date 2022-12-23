@@ -45,7 +45,7 @@ jobs:
         with:
           ref: 'dev'
           submodules: 'true'
-
+      
       - name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
@@ -61,7 +61,7 @@ jobs:
         with:
           ref: 'main'
           submodules: 'true'
-
+      
       - name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
