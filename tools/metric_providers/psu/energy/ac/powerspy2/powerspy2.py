@@ -117,7 +117,7 @@ class PowerSpy2:
         while True:
             try:
                 res = self.readResponse()
-                rmsPower = math.sqrt(int(res[19:27], 16) * self.uscale * self.iscale )
+                rmsPower = math.sqrt((int(res[19:27], 16)) ** 2 * self.uscale * self.iscale )
                 sys.stdout.buffer.write(f"{int(time.time_ns()/ 1000)} {int(rmsPower * 1000)}\n".encode())
                 sys.stdout.buffer.flush()
             except KeyboardInterrupt:
