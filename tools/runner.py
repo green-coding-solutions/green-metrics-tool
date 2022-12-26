@@ -84,7 +84,7 @@ class Runner:
             SET machine_specs=%s, measurement_config=%s, usage_scenario = %s, last_run = NOW()
             WHERE id = %s
             """, params=(
-                json.dumps({'cpu': hardware_info.get_cpu(), 'mem_total': hardware_info.get_mem()}),
+                json.dumps(hardware_info.get_values()),
                 json.dumps(config['measurement']),
                 json.dumps(obj),
                 project_id)
