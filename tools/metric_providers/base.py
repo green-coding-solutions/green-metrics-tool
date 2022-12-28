@@ -1,8 +1,12 @@
+#pylint: disable=no-member,consider-using-with,subprocess-popen-preexec-fn
+
 import os
 import subprocess
 import signal
-import pandas
+import sys
 from io import StringIO
+import pandas
+
 
 class BaseMetricProvider:
 
@@ -11,8 +15,10 @@ class BaseMetricProvider:
         self._ps = None
         self._sudo = sudo
 
-        if not hasattr(self, '_metric_name'):
-            raise RuntimeError("You must set the _metric_name instance variable in the child class")
+        attrs_that_need_set = ['_metric_name', '_metrics', '_resolution', '_unit', '_current_dir']
+        for attr in attrs_that_need_set:
+            if not hasattr(self, attr):
+                raise RuntimeError(f"You must set the {attr} instance variable in the child class!")
 
         if not os.path.exists(self._temp_path):
             os.mkdir(self._temp_path)
@@ -25,36 +31,37 @@ class BaseMetricProvider:
         return self._ps.stderr.read()
 
     def read_metrics(self, project_id, containers):
-        with open(self._filename, 'r') as f:
-            csv_data = f.read()
+        with open(self._filename, 'r', encoding='utf-8') as file:
+            csv_data = file.read()
 
-        csv_data = csv_data[:csv_data.rfind('\n')] # remove the last line from the string, as it may be broken due to the output buffering of the metrics reporter
+        # remove the last line from the string, as it may be broken due to the output buffering of the metrics reporter
+        csv_data = csv_data[:csv_data.rfind('\n')]
 
-        df = pandas.read_csv(StringIO(csv_data),
-            sep=" ",
-            names=self._metrics.keys(),
-            dtype=self._metrics
-        )
+        csv = pandas.read_csv(StringIO(csv_data),
+                             sep=' ',
+                             names=self._metrics.keys(),
+                             dtype=self._metrics
+                             )
 
         if self._metrics.get('sensor_name') is not None:
-            df['detail_name'] = df.sensor_name
-            df = df.drop('sensor_name', axis=1)
+            csv['detail_name'] = csv.sensor_name
+            csv = csv.drop('sensor_name', axis=1)
         elif self._metrics.get('package_id') is not None:
-            df['detail_name'] = df.package_id
-            df = df.drop('package_id', axis=1)
+            csv['detail_name'] = csv.package_id
+            csv = csv.drop('package_id', axis=1)
         elif self._metrics.get('container_id') is not None:
-            df['detail_name'] = df.container_id
+            csv['detail_name'] = csv.container_id
             for container_id in containers:
-                df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]
-            df = df.drop('container_id', axis=1)
+                csv.loc[csv.detail_name == container_id, 'detail_name'] = containers[container_id]
+            csv = csv.drop('container_id', axis=1)
         else:
-            df['detail_name'] = '[SYSTEM]' # standard container name when only system was measured
+            csv['detail_name'] = '[SYSTEM]'  # standard container name when only system was measured
 
-        df['unit'] = self._unit
-        df['metric'] = self._metric_name
-        df['project_id'] = project_id
+        csv['unit'] = self._unit
+        csv['metric'] = self._metric_name
+        csv['project_id'] = project_id
 
-        return df
+        return csv
 
     def start_profiling(self, containers=None):
 
@@ -63,13 +70,13 @@ class BaseMetricProvider:
         else:
             call_string = f"{self._current_dir}/metric-provider-binary -i {self._resolution}"
         if hasattr(self, '_extra_switches'):
-             call_string += " " # space at start
-             call_string += " ".join(self._extra_switches)
+            call_string += ' '  # space at start
+            call_string += ' '.join(self._extra_switches)
 
         # This needs refactoring see https://github.com/green-coding-berlin/green-metrics-tool/issues/45
         if self._metrics.get('container_id') is not None:
-             call_string += " -s "
-             call_string += ",".join(containers.keys())
+            call_string += ' -s '
+            call_string += ','.join(containers.keys())
         call_string += f" > {self._filename}"
 
         print(call_string)
@@ -89,7 +96,8 @@ class BaseMetricProvider:
         os.set_blocking(self._ps.stderr.fileno(), False)
 
     def stop_profiling(self):
-        if self._ps is None: return
+        if self._ps is None:
+            return
         try:
             print(f"Killing process with id: {self._ps.pid}")
             ps_group_id = os.getpgid(self._ps.pid)
@@ -102,6 +110,7 @@ class BaseMetricProvider:
                 os.killpg(os.getpgid(self._ps.pid), signal.SIGKILL)
 
         except ProcessLookupError:
-            print(f"Could not find process-group for {ps['pid']}", file=sys.stderr) # process/-group may have already closed
+            print(f"Could not find process-group for {self._ps.pid}",
+                    file=sys.stderr)  # process/-group may have already closed
 
         self._ps = None

@@ -1,3 +1,5 @@
+#pylint: disable=import-error
+
 import os
 
 from metric_providers.lm_sensors.abstract_provider import LmSenorsProvider
@@ -8,7 +10,7 @@ class LmTempSenorsProvider(LmSenorsProvider):
 
         self._provider_config_path = 'lm_sensors.temperature.provider.LmTempSenorsProvider'
         self._current_dir = os.path.dirname(os.path.abspath(__file__)) + '/..'
-        self._metric_name = "lm_sensors_temp"
+        self._metric_name = 'lm_sensors_temp'
         self._unit = 'centi°C'
         super().__init__(resolution)
 

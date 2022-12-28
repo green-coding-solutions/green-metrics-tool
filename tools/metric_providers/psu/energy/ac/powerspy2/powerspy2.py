@@ -2,6 +2,8 @@
 # SPDX-FileCopyrightText: 2022 Volker Krause <vkrause@kde.org>
 # SPDX-License-Identifier: LGPL-2.0-or-later
 
+# pylint: skip-file
+
 import argparse
 import datetime
 import math
@@ -10,6 +12,7 @@ import struct
 import sys
 import time
 import signal
+
 
 class PowerSpy2:
     uscale = 1.0
@@ -20,7 +23,6 @@ class PowerSpy2:
         raise KeyboardInterrupt
 
     signal.signal(signal.SIGTERM, term_handler)
-
 
     def __init__(self, device):
         self.s = serial.Serial(device, timeout=1.0)
@@ -94,7 +96,7 @@ class PowerSpy2:
     def measureRealtime(self, periods):
         self.initCallibration()
         self.sendRequest(f"<J{periods:04X}>".encode())
-        self.readResponse() # TODO check for errors
+        self.readResponse()  # TODO check for errors
         sys.stdout.buffer.write(b'RMS Voltage [V];RMS Current [A];RMS Power [W];Peak Voltage [V];Peak Current [A]\n')
         while True:
             try:
@@ -104,7 +106,8 @@ class PowerSpy2:
                 rmsPower = math.sqrt(int(res[19:27], 16) * self.uscale * self.iscale)
                 peakVoltage = int(res[28:32], 16) * self.uscale
                 peakCurrent = int(res[33:37], 16) * self.iscale
-                sys.stdout.buffer.write(f"{rmsVoltage:.3f};{rmsCurrent:.3f};{rmsPower:.3f};{peakVoltage:.3f};{peakCurrent:.3f}\n".encode())
+                sys.stdout.buffer.write(
+                    f"{rmsVoltage:.3f};{rmsCurrent:.3f};{rmsPower:.3f};{peakVoltage:.3f};{peakCurrent:.3f}\n".encode())
                 sys.stdout.buffer.flush()
             except KeyboardInterrupt:
                 break
@@ -113,21 +116,20 @@ class PowerSpy2:
     def measurePowerRealtime(self, periods):
         self.initCallibration()
         self.sendRequest(f"<J{periods:04X}>".encode())
-        self.readResponse() # TODO check for errors
+        self.readResponse()  # TODO check for errors
         while True:
             try:
                 res = self.readResponse()
-                rmsPower = math.sqrt((int(res[19:27], 16)) ** 2 * self.uscale * self.iscale )
+                rmsPower = math.sqrt((int(res[19:27], 16)) ** 2 * self.uscale * self.iscale)
                 sys.stdout.buffer.write(f"{int(time.time_ns()/ 1000)} {int(rmsPower * 1000)}\n".encode())
                 sys.stdout.buffer.flush()
             except KeyboardInterrupt:
                 break
         self.stopRealtimeMeasure()
 
-
     def stopRealtimeMeasure(self):
         self.sendRequest(b'<Q>')
-        self.readResponse() # TODO check for errors
+        self.readResponse()  # TODO check for errors
 
     def frequencyRequest(self):
         print(f"Frequncy: {self.getFrequency()*0.01}Hz")
@@ -140,21 +142,22 @@ class PowerSpy2:
     def getRealTimeClock(self):
         self.sendRequest(b'<G>')
         res = self.readResponse()
-        dt = datetime.datetime(2000 + int(res[1:3], 16), int(res[3:5], 16), int(res[5:7], 16), int(res[7:9], 16), int(res[9:11], 16), int(res[11:13], 16))
+        dt = datetime.datetime(2000 + int(res[1:3], 16), int(res[3:5], 16),
+                               int(res[5:7], 16), int(res[7:9], 16), int(res[9:11], 16), int(res[11:13], 16))
         print(dt)
 
     def startLog(self):
         self.sendRequest(b'<O>')
-        res = self.readResponse() # TODO error handling
+        res = self.readResponse()  # TODO error handling
 
     def stopLog(self):
         self.sendRequest(b'<P>')
-        res = self.readResponse() # TODO error handling
+        res = self.readResponse()  # TODO error handling
         print(res)
 
     def setLogPeriod(self, periods):
         self.sendRequest(f"<M{periods:02X}>".encode())
-        res = self.readResponse() # TODO error handling
+        res = self.readResponse()  # TODO error handling
 
     def listFiles(self):
         self.sendRequest(b'<U>')
@@ -166,7 +169,7 @@ class PowerSpy2:
         return result
 
     def transferFile(self, fileName):
-        #self.stop() # in case of transfering the current file, that must not change size while we do this
+        # self.stop() # in case of transfering the current file, that must not change size while we do this
         fileSize = -1
         for f in self.listFiles():
             if f[0] == fileName:
@@ -176,7 +179,7 @@ class PowerSpy2:
             print(f"No such file: {fileName}", file=sys.stderr)
             return
 
-        fileSize += 2 # for the enclosing angle brackets, which is even there in case of block reads
+        fileSize += 2  # for the enclosing angle brackets, which is even there in case of block reads
         for block in range(0, (fileSize // 2048) + 1):
             self.sendRequest(f"<X{fileName[0:6]} {block:04X}>".encode())
             if block < fileSize // 2048:
@@ -192,33 +195,38 @@ class PowerSpy2:
 
     def setCaptureLength(self, periods):
         self.sendRequest(f"<L{periods:02X}>".encode())
-        res = self.readResponse() # TODO error handling
+        res = self.readResponse()  # TODO error handling
 
     def startCapture(self):
         self.sendRequest(b'<S>')
-        res = self.readResponse() # TODO error handling
+        res = self.readResponse()  # TODO error handling
 
     def cancelCapture(self):
         self.sendRequest(b'<P>')
-        res = self.readResponse() # TODO error handling
+        res = self.readResponse()  # TODO error handling
         print(res)
 
     def readDataBufferA(self):
         self.sendRequest(b'<A>')
         header = self.readBinaryResponse(3)
         size = struct.unpack('>H', header[1:3])[0]
-        res = self.readBinaryResponse(size * 8);
-        print(res, len(res), size) # TODO - decode
+        res = self.readBinaryResponse(size * 8)
+        print(res, len(res), size)  # TODO - decode
 
     def readDataBufferB(self):
         self.sendRequest(b'<B>')
-        res = self.readBinaryResponse(65536) # TODO seems to be 1024 * number of capture periods?
-        print(res, len(res)) # TODO - decode
+        res = self.readBinaryResponse(65536)  # TODO seems to be 1024 * number of capture periods?
+        print(res, len(res))  # TODO - decode
+
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='PowerSpy2 power analyzer tool.')
-    parser.add_argument('command', type=str, nargs=1, help='Command: identify, dump-eeprom, show-calibration, show-clock, frequency, measure, ls, get, start-log, stop-log, read, start-capture, cancel-capture')
+    parser.add_argument(
+        'command',
+        type=str,
+        nargs=1,
+        help='Command: identify, dump-eeprom, show-calibration, show-clock, frequency, measure, ls, get, start-log, stop-log, read, start-capture, cancel-capture')
     parser.add_argument('--debug', action='store_true', help='Print device communication')
     parser.add_argument('--device', default='/dev/rfcomm0', help='RFCOMM device to connect to')
     parser.add_argument('--period', '-p', type=int, default=50, help='Measurement interval in number of periods')
