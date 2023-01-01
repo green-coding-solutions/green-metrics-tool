@@ -64,7 +64,7 @@ class Runner:
         # Instantiate debug helper with correct mode
         debug = DebugHelper(self.debug_mode)
 
-        subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], check=True)
+        subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], check=True, stderr=subprocess.DEVNULL)
         subprocess.run(['mkdir', '/tmp/green-metrics-tool'], check=True)
 
         if uri_type == 'URL':
@@ -132,8 +132,8 @@ class Runner:
             print(TerminalColors.HEADER, '\nSetting up networks', TerminalColors.ENDC)
             for network in obj['networks']:
                 print('Creating network: ', network)
-                # remove first if present to not get error
-                subprocess.run(['docker', 'network', 'rm', network], check=True)
+                # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
+                subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL)
                 subprocess.run(['docker', 'network', 'create', network], check=True)
                 self.networks.append(network)
 
@@ -440,11 +440,12 @@ class Runner:
 
         print('Removing network')
         for network_name in self.networks:
-            subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=True)
+            # no check=True, as the network might already be gone. We do not want to fail here
+            subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL)
 
-        if self.no_file_cleanup is None:
+        if not self.no_file_cleanup:
             print('Removing files')
-            subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], check=True)
+            subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], stderr=subprocess.DEVNULL, check=True)
 
         process_helpers.kill_ps(self.ps_to_kill)
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
@@ -511,7 +512,7 @@ if __name__ == '__main__':
         sys.exit(2)
 
     # We issue a fetch_one() instead of a query() here, cause we want to get the project_id
-    projectId = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
+    project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
                 VALUES \
                 (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(args.name, args.uri))[0]
 
@@ -519,26 +520,26 @@ if __name__ == '__main__':
                     skip_unsafe=args.skip_unsafe, verbose_provider_boot=args.verbose_provider_boot)
     try:
         runner.run(uri=args.uri, uri_type=run_type,
-                   project_id=projectId)  # Start main code
+                   project_id=project_id)  # Start main code
         print(TerminalColors.OKGREEN,
             '\n\n####################################################################################')
-        print(f"Please access your report with the ID: {projectId}")
+        print(f"Please access your report with the ID: {project_id}")
         print('####################################################################################\n\n',
             TerminalColors.ENDC)
 
     except FileNotFoundError as e:
-        error_helpers.log_error('Docker command failed.', e, projectId)
+        error_helpers.log_error('Docker command failed.', e, project_id)
     except subprocess.CalledProcessError as e:
         error_helpers.log_error(
-            'Docker command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, projectId)
+            'Docker command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, project_id)
     except KeyError as e:
         error_helpers.log_error(
-            'Was expecting a value inside the usage_scenario.yml file, but value was missing: ', e, projectId)
+            'Was expecting a value inside the usage_scenario.yml file, but value was missing: ', e, project_id)
     except RuntimeError as e:
         error_helpers.log_error(
-            'RuntimeError occured in runner.py: ', e, projectId)
+            'RuntimeError occured in runner.py: ', e, project_id)
     except BaseException as e:
         error_helpers.log_error(
-            'Base exception occured in runner.py: ', e, projectId)
+            'Base exception occured in runner.py: ', e, project_id)
     finally:
         runner.cleanup()  # run just in case. Will be noop on successful run

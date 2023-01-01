@@ -22,6 +22,7 @@ import email_helpers
 import error_helpers
 import psycopg2.extras
 
+
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic
 faulthandler.enable()  # will catch segfaults and write to STDERR
@@ -193,9 +194,9 @@ async def get_stats_single(project_id: str, remove_idle: bool = False):
 
 
 @app.get('/v1/stats/multi')
-async def get_stats_multi(para: list[str] | None = Query(default=None)):
-    for p_id in para:
-        if p_id is None or p_id.strip() == '':
+async def get_stats_multi(pids: list[str] | None = Query(default=None)):
+    for pid in pids:
+        if pid is None or pid.strip() == '':
             return {'success': False, 'err': 'Project_id is empty'}
 
     query = """
@@ -212,7 +213,7 @@ async def get_stats_multi(para: list[str] | None = Query(default=None)):
             AND
                 STATS.project_id = ANY(%s::uuid[])
             """
-    params = (para,)
+    params = (pids,)
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
@@ -221,9 +222,9 @@ async def get_stats_multi(para: list[str] | None = Query(default=None)):
 
 
 @app.get('/v1/stats/compare')
-async def get_stats_compare(para: list[str] | None = Query(default=None)):
-    for p_id in para:
-        if p_id is None or p_id.strip() == '':
+async def get_stats_compare(pids: list[str] | None = Query(default=None)):
+    for pid in pids:
+        if pid is None or pid.strip() == '':
             return {'success': False, 'err': 'Project_id is empty'}
 
     query = """
@@ -241,7 +242,7 @@ async def get_stats_compare(para: list[str] | None = Query(default=None)):
                 STATS.project_id = ANY(%s::uuid[])
             GROUP BY projects.name, stats.detail_name, stats.metric
             """
-    params = (para,)
+    params = (pids,)
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:

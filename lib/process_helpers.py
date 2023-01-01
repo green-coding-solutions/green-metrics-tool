@@ -46,7 +46,12 @@ def timeout(process, cmd: str, duration: int):
         print(f"Process exceeded runtime of {duration}s. Terminating ...")
         process.terminate()
         raise RuntimeError(f"Process exceeded runtime of {duration}s: {cmd}") from exc
-
+        try:
+            process.wait(5)
+        except subprocess.TimeoutExpired as e:
+            print("Process could not terminate in 5s time. Killing ...")
+            process.kill()
+            raise RuntimeError(f"Process could not terminate in 5s time and was killed: {cmd}")
 
 def parse_stream_generator(process, cmd):
     stderr_stream = process.stderr.read()

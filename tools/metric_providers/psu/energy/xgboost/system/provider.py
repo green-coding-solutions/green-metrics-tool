@@ -84,7 +84,7 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
         model = mlmodel.train_model(provider_config['CPUChips'], Z)
 
         predictions = mlmodel.infer_predictions(model, Z)
-        #predicitons = mlmodel.interpolate_predictions(predictions)
+        predicitons = mlmodel.interpolate_predictions(predictions)
 
         csv['value'] = csv['value'].apply(lambda x: predictions[x / 100] * 1000)  # will result in mW
         csv['unit'] = self._unit
