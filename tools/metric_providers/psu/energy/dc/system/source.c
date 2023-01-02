@@ -271,7 +271,7 @@ int16_t SelectUnit(void)
         {
             HRDLGetUnitInfo(devices[i], line, sizeof (line), HRDL_ERROR);
 
-            if (atoi(line) == HRDL_NOT_FOUND)
+            if (atoi((char*)line ) == HRDL_NOT_FOUND)
             {
                 DEBUG("%d: No Unit Found\n", i + 1);
             }
@@ -426,218 +426,6 @@ void StreamChannels (void)
 
 }
 
-/* **********************************************
-    Alternative retrieveal function
-    *********************************************
-    Function is nice in usage and is kept is as demo purpose
-    However since we must trigger every channel on its own it will take 60ms * amount of channels to read.
-    This is not good!
-
-*************************************************/
-void CollectSingleBlocked (void)
-{
-    int16_t channel;
-    int32_t value;
-    int16_t status;
-    struct timeval now;
-    struct timeval before;
-
-    while(1) {
-       for (channel = HRDL_ANALOG_IN_CHANNEL_1; channel <= 3; channel+=2)
-        {
-            if (!g_channelSettings[channel].enabled) { continue; }
-
-            // the call block as long as the next measurement is available
-            status = HRDLGetSingleValue(g_device, channel, HRDL_625_MV, HRDL_100MS, g_channelSettings[channel].singleEnded, NULL, &value);
-
-            if (!status) {
-                printf("Channel %d not converted\n", channel);
-                continue;
-            }
-
-            gettimeofday(&now, NULL); // at least one nValues is available
-            printf("%ld%06ld - Diff in ms: %ld - ", now.tv_sec, now.tv_usec, ((now.tv_sec - before.tv_sec) + (now.tv_usec - before.tv_usec))/1000 );
-            printf ("Channel %d:\t%f\n", channel, AdcToMv ((HRDL_INPUTS) channel, value));
-            before.tv_usec = now.tv_usec;
-            before.tv_sec = now.tv_sec;
-
-        }
-    }
-
-}
-
-
-
-
-/************************************* TEST ****************************/
-void CollectBlockImmediate (void)
-{
-    int32_t        i;
-    int16_t        overflow = 0;
-    int16_t        channel;
-    int8_t        strError[80];
-    int16_t        timeCount = 0;
-    int16_t        noOfActiveChannels = 0;
-    int16_t        status = 1;
-    int32_t        numValuesCollectedPerChannel = 0;
-
-    printf("\nCollect block immediate...\n");
-
-    for (i = HRDL_ANALOG_IN_CHANNEL_1; i <= g_maxNoOfChannels; i++)
-    {
-        status = HRDLSetAnalogInChannel(g_device,
-                                        (int16_t)i,
-                                        g_channelSettings[i].enabled,
-                                        (int16_t) g_channelSettings[i].range,
-                                        g_channelSettings[i].singleEnded);
-
-        if (status == 0)
-        {
-            HRDLGetUnitInfo(g_device, strError, (int16_t) 80, HRDL_SETTINGS);
-            printf("First Error occurred: %s\n\n", strError);
-            return;
-        }
-    }
-
-    //
-    // Collect data at one hundred millisecond intervals. The enabled channels will be
-    // converted at 60 ms intervals. This means that the channels will be
-    // converted at closer intervals to each other but a penalty will be
-    // paid in terms of noise free resolution.
-    //
-    // To increase noise free resolution, the conversion time should be increased.
-    //
-
-    status = HRDLSetInterval(g_device, 60, HRDL_60MS);
-
-    if (status == 0)
-    {
-        HRDLGetUnitInfo(g_device, strError, (int16_t)80, HRDL_SETTINGS);
-        printf("Second Error occurred: %s\n\n", strError);
-        return;
-    }
-
-    //
-    // Start it collecting,
-    //  then wait for completion
-    //
-
-    status = HRDLRun(g_device, BUFFER_SIZE, (int16_t) HRDL_BM_BLOCK);
-
-    if (status == 0)
-    {
-        HRDLGetUnitInfo(g_device, strError, (int16_t) 80, HRDL_SETTINGS);
-        printf("Third Error occurred: %s\n\n", strError);
-        return;
-    }
-
-    printf("Waiting for device to complete collection.");
-
-    while (!HRDLReady(g_device))
-    {
-        Sleep(1000);
-        printf(".");
-    }
-
-    printf("\n");
-
-    //
-    // Should be done now...
-    // get the times (in milliseconds)
-    // and the analog values (in ADC counts)
-    //
-    status = HRDLGetNumberOfEnabledChannels(g_device, &noOfActiveChannels);
-    noOfActiveChannels = noOfActiveChannels + (int16_t)(g_channelSettings[HRDL_DIGITAL_CHANNELS].enabled);
-    numValuesCollectedPerChannel = HRDLGetTimesAndValues(g_device, g_times, g_values, &overflow, (int32_t) (BUFFER_SIZE / noOfActiveChannels));
-
-    if (numValuesCollectedPerChannel == 0)
-    {
-        HRDLGetUnitInfo(g_device, strError, (int16_t)80, HRDL_SETTINGS);
-        printf("Fourth Error occurred: %s\n\n", strError);
-        return;
-    }
-
-    //
-    // Print out the first 10 readings,
-    //  converting the readings to mV if required
-    //
-    printf("First 5 readings\n");
-    printf("Time shown in each row is for first reading in set.\n\n");
-    printf("Time\t");
-
-    for (channel = HRDL_DIGITAL_CHANNELS; channel <= HRDL_MAX_ANALOG_CHANNELS; channel++)
-    {
-        if (g_channelSettings[channel].enabled && channel == HRDL_DIGITAL_CHANNELS)
-        {
-            printf("1234\t");
-        }
-        else if (g_channelSettings[channel].enabled)
-        {
-            printf("Ch%d\t", channel);
-        }
-    }
-
-    printf ("\n(ms)\t");
-
-    for (channel = HRDL_DIGITAL_CHANNELS; channel <= HRDL_MAX_ANALOG_CHANNELS; channel++)
-    {
-        if (g_channelSettings[channel].enabled && channel == HRDL_DIGITAL_CHANNELS)
-        {
-            printf(" DO \t");
-        }
-        else if (g_channelSettings[channel].enabled)
-        {
-            if (g_scaleTo_mv)
-            {
-                printf ("(mV)\t");
-            }
-            else
-            {
-                printf ("(ADC)\t");
-            }
-        }
-    }
-
-    printf ("\n");
-
-    //
-    // Check to see if an overflow occured during the last data collection
-    //
-    if (overflow)
-    {
-        printf("An over voltage occured during the last data run.\n\n");
-    }
-
-    timeCount = 0;
-
-    // Display the first 10 readings for each active channel
-    // The time displayed will be for the first reading in each row
-    for (i = 0; i < 10 * noOfActiveChannels;)
-    {
-        printf ("%ld\t", g_times [timeCount * noOfActiveChannels]);
-
-        for (channel = HRDL_DIGITAL_CHANNELS; channel <= HRDL_MAX_ANALOG_CHANNELS; channel++)
-        {
-            if (g_channelSettings[channel].enabled)
-            {
-                if (channel == HRDL_DIGITAL_CHANNELS)
-                {
-                    printf("%d%d%d%d\t",  0x01 & (g_values [i]), 0x01 & (g_values [i] >> 0x1), 0x01 & (g_values [i] >> 0x2), 0x01 & (g_values [i] >> 0x3));
-                    i++;
-                }
-                else
-                {
-                    printf ("%f\t", AdcToMv ((HRDL_INPUTS) channel, g_values [i++]));
-                }
-            }
-        }
-        printf("\n");
-        timeCount++;
-    }
-
-    HRDLStop(g_device);
-}
-
 
 /****************************************************************************
 * Handler functions
@@ -680,13 +468,6 @@ int main (int argc, char** argv)
     int8_t         line [80];
     int16_t        lineNo;
 
-    int8_t description[7][25] = { "Driver Version    :",
-                                    "USB Version       :",
-                                    "Hardware Version  :",
-                                    "Variant Info      :",
-                                    "Batch and Serial  :",
-                                    "Calibration Date  :",
-                                    "Kernel Driver Ver.:"};
 
     int c;
 
@@ -741,7 +522,7 @@ int main (int argc, char** argv)
 
             if (lineNo == HRDL_VARIANT_INFO)
             {
-                switch(atoi(line))
+                switch(atoi((char*)line))
                 {
                     case 20:
                         g_maxNoOfChannels = 8;
@@ -757,16 +538,18 @@ int main (int argc, char** argv)
                         return -1;
                 }
             }
-
-            if (lineNo == HRDL_VARIANT_INFO)
-            {
-                DEBUG("%s ADC-%s\n", description[lineNo], line);
-            }
-            else
-            {
-                DEBUG("%s %s\n", description[lineNo], line);
-            }
+            #ifdef DEBUG_BUILD2
+            int8_t description[7][25] = { "Driver Version    :",
+                                            "USB Version       :",
+                                            "Hardware Version  :",
+                                            "Variant Info      :",
+                                            "Batch and Serial  :",
+                                            "Calibration Date  :",
+                                            "Kernel Driver Ver.:"};
+            #endif
+            DEBUG("%s %s\n", description[lineNo], line);
         }
+
 
         DEBUG("Convert ADC counts to mV? (Y/N): \n");
         g_scaleTo_mv = 1;
