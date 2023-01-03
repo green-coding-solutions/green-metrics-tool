@@ -15,7 +15,7 @@
         }
 
         checkedBoxes.forEach(checkbox => {
-            link += "&pid[]=" + checkbox.value;
+            link += "&pids[]=" + checkbox.value;
         });
         //console.log(link);
         window.location = link;

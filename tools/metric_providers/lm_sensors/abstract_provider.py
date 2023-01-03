@@ -28,8 +28,8 @@ class LmSenorsProvider(BaseMetricProvider):
             raise RuntimeError(
                 f"Please set the 'features' config option for {self._provider_config_path} in the config.yml")
 
-        return ['-c'] + [''' + i + ''' for i in provider_config['chips']] \
-            + ['-f'] + [''' + i + ''' for i in provider_config['features']]
+        return ['-c'] + [f"'{i}'" for i in provider_config['chips']] \
+            + ['-f'] + [f"'{i}'" for i in provider_config['features']]
 
     def __init__(self, resolution):
 
