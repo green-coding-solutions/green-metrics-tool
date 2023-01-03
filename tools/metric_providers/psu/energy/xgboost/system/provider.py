@@ -40,8 +40,8 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
                 Did you activate the CpuUtilizationProcfsSystemProvider in the config.yml too? \
                 This is required to run PsuEnergyXgboostSystemProvider')
 
-        with open('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log', 'r', encoding='utf-8') as f:
-            csv_data = f.read()
+        with open('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log', 'r', encoding='utf-8') as file:
+            csv_data = file.read()
         # remove the last line from the string, as it may be broken due to the output buffering of the metrics reporter
         csv_data = csv_data[:csv_data.rfind('\n')]
         csv = pandas.read_csv(StringIO(csv_data),
@@ -83,10 +83,10 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
         Z.utilization = Z.utilization / 100
         model = mlmodel.train_model(provider_config['CPUChips'], Z)
 
-        predictions = mlmodel.infer_predictions(model, Z)
-        predicitons = mlmodel.interpolate_predictions(predictions)
+        infer_predictions = mlmodel.infer_predictions(model, Z)
+        interpolate_predictions = mlmodel.interpolate_predictions(infer_predictions)
 
-        csv['value'] = csv['value'].apply(lambda x: predictions[x / 100] * 1000)  # will result in mW
+        csv['value'] = csv['value'].apply(lambda x: interpolate_predictions[x / 100] * 1000)  # will result in mW
         csv['unit'] = self._unit
         csv.value = csv.value.astype(int)
 

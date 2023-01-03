@@ -4,7 +4,7 @@
 # Here we need to disable the import checking as pylint doesn't understand the witchcraft of changing sys.path
 #pylint: disable=wrong-import-order,wrong-import-position,import-error
 
-# We disble naming convention to allow names like p,kv etc. Even if it is not 'allowed' it makes the code more readable
+# We disable naming convention to allow names like p,kv etc. Even if it is not 'allowed' it makes the code more readable
 #pylint: disable=invalid-name
 
 # As pretty much everything is done in one big flow we trigger all the too-many-* checks. Which normally makes sense
@@ -13,6 +13,10 @@
 
 # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
 #pylint: disable=broad-except
+
+# To make the code more readable we allow `project_id` in `main` and in method parameters to make clear that it is the
+# same thing
+#pylint: disable=redefined-outer-name
 
 import subprocess
 import json
@@ -133,6 +137,7 @@ class Runner:
             for network in obj['networks']:
                 print('Creating network: ', network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
+                #pylint: disable=subprocess-run-check
                 subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL)
                 subprocess.run(['docker', 'network', 'create', network], check=True)
                 self.networks.append(network)
@@ -441,6 +446,7 @@ class Runner:
         print('Removing network')
         for network_name in self.networks:
             # no check=True, as the network might already be gone. We do not want to fail here
+            #pylint: disable=subprocess-run-check
             subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL)
 
         if not self.no_file_cleanup:
