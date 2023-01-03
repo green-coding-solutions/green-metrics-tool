@@ -39,7 +39,9 @@ while IFS= read -r subdir; do
 done
 
 echo "Building sgx binaries"
-make -C lib
+make -C lib/sgx-software-enable
+mv lib/sgx-software-enable/sgx_enable tools/
+rm lib/sgx-software-enable/sgx_enable.o
 
 echo "Linking DC measurement provider library file to /usr/lib"
 sudo rm -f /usr/lib/libpicohrdl.so.2

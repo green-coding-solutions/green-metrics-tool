@@ -83,7 +83,7 @@ info_list = [
     # This is also listed in the complete dump but we include it here again so it is more visible in the listing
     [rfwr, 'Turbo Boost', '/sys/devices/system/cpu/intel_pstate/no_turbo', r'(?P<o>.*)'],
     [rfwr, 'Virtualization', '/proc/cpuinfo', r'(?P<o>hypervisor)'],
-    [rpwrs, 'SGX', [os.path.join(CURRENT_PATH, 'sgx_enable'), '-s'], r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwrs, 'SGX', [os.path.join(CURRENT_PATH, '../tools/sgx_enable'), '-s'], r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rdr, 'CPU scheduling', '/sys/kernel/debug/sched'],
 ]
 
