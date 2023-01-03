@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
-
-import json
-import time
-import subprocess
+#pylint: disable=invalid-name
 
 from powerspy2 import PowerSpy2
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -15,7 +12,6 @@ if __name__ == "__main__":
     parser.add_argument('--interval', '-i', type=int, default=1000, help='Measurement interval in number of ms')
 
     args = parser.parse_args()
-
 
     p = PowerSpy2(args.device)
     if args.debug:
@@ -28,7 +24,7 @@ if __name__ == "__main__":
 
     avg_period = int(round(periods_seconds * (args.interval / 1000)))
     if avg_period > max_avg_period:
-      print('PowerSpy capacity exceeded: it will be average of averaged values for one second.')
-      avg_period = int(round(periods_seconds))
+        print('PowerSpy capacity exceeded: it will be average of averaged values for one second.')
+        avg_period = int(round(periods_seconds))
 
     p.measurePowerRealtime(avg_period)

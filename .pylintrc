@@ -3,3 +3,16 @@
 # Maximum number of characters on a single line.
 max-line-length=120
 
+
+[MESSAGES CONTROL]
+
+disable=missing-function-docstring,
+    missing-module-docstring,
+    missing-class-docstring,
+    too-few-public-methods,
+    duplicate-code,
+
+[MASTER]
+ignore=env
+ignore-patterns=^env.*
+ignore-paths=^env.*$
