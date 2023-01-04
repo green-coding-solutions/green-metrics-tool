@@ -27,10 +27,11 @@ def read_process_with_regex(path, regex, params=REGEX_PARAMS):
     '''Reads the data from a process and then matches the output. The process must terminate and not require user
        input! The matching character for the regex is a 'o'. If the process fails (exit val not 0) an exception
        is thrown.'''
-    result = subprocess.run(path, stdout=subprocess.PIPE, shell=True, check=True)
-    std_data = result.stdout.decode('utf-8')
+    result = subprocess.run(path, stdout=subprocess.PIPE, shell=True, encoding='UTF-8', check=False)
+    if result.returncode != 0:
+        return 'Unknown'
 
-    match = re.search(regex, std_data, params)
+    match = re.search(regex, result.stdout, params)
 
     return match.group('o') if match is not None else 'Unknown'
 
