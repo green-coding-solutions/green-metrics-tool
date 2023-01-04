@@ -15,6 +15,7 @@ class PowerSpy2Provider(BaseMetricProvider):
         self._metric_name = 'psu_energy_powerspy2'
         self._metrics = {'time': int, 'value': int}
         self._resolution = resolution
+        self._unit = 'mW'
         super().__init__()
 
     def start_profiling(self, containers=None):
