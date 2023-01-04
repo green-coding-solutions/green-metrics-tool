@@ -1,15 +1,8 @@
-# This is copied from https://raw.githubusercontent.com/intel/sgx-software-enable/master/Makefile
-# and then modified a little to fit our needs
+PYTHON_PATH := $(shell which python3)
+PWD         := $(shell pwd)
 
-CC=gcc
+all: add_hardware_info_root
 
-all: sgx_enable
+add_hardware_info_root:
+	echo "ALL ALL=(ALL) NOPASSWD:$(PYTHON_PATH) $(PWD)/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
 
-%.o: %.c
-	$(CC) -c $<
-
-sgx_enable: sgx_enable.o
-	$(CC) -o $@ $?
-
-clean:
-	rm -f *.o sgx_enable

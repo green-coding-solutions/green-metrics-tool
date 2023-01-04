@@ -1,6 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+function print_message {
+    echo ""
+    echo "$1"
+}
+
 db_pw=''
 while getopts "p:" o; do
     case "$o" in
@@ -14,17 +19,16 @@ if [[ -z "$db_pw" ]] ; then
     read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
 fi
 
-echo "Updating compose.yml with current path ..."
+print_message "Updating compose.yml with current path ..."
 cp docker/compose.yml.example docker/compose.yml
 sed -i -e "s|PATH_TO_GREEN_METRICS_TOOL_REPO|$PWD|" docker/compose.yml
 sed -i -e "s|PLEASE_CHANGE_THIS|$db_pw|" docker/compose.yml
 
-echo "Updating config.yml with new password ..."
+print_message "Updating config.yml with new password ..."
 cp config.yml.example config.yml
 sed -i -e "s|PLEASE_CHANGE_THIS|$db_pw|" config.yml
 
-
-echo "Building binaries ..."
+print_message "Building binaries ..."
 metrics_subdir="tools/metric_providers"
 parent_dir="./$metrics_subdir"
 make_file="Makefile"
@@ -38,19 +42,22 @@ while IFS= read -r subdir; do
     fi
 done
 
-echo "Building sgx binaries"
+print_message "Building sgx binaries"
 make -C lib/sgx-software-enable
 mv lib/sgx-software-enable/sgx_enable tools/
 rm lib/sgx-software-enable/sgx_enable.o
 
-echo "Linking DC measurement provider library file to /usr/lib"
+print_message "Adding hardware_info_root.py to sudoers file"
+make -C lib/
+
+print_message "Linking DC measurement provider library file to /usr/lib"
 sudo rm -f /usr/lib/libpicohrdl.so.2
 sudo ln -s $(pwd)/tools/metric_providers/psu/energy/dc/system/libpicohrdl.so.2 /usr/lib/
 
 etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
 etc_hosts_line_2="127.0.0.1 api.green-coding.local metrics.green-coding.local"
 
-echo "Writing to /etc/hosts file..."
+print_message "Writing to /etc/hosts file..."
 if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
     echo "$etc_hosts_line_1" | sudo tee -a /etc/hosts
 else
