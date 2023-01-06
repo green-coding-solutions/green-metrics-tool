@@ -162,3 +162,7 @@ a,
 .si-unit {
     text-transform: none;
 }
+
+.ui.fluid.image.menu-logo {
+    width: 90%;
+}
