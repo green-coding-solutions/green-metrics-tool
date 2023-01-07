@@ -2,6 +2,12 @@ var display_in_watts = localStorage.getItem('display_in_watts');
 if(display_in_watts == 'true') display_in_watts = true;
 else display_in_watts = false;
 
+const copyToClipboard = (e) => {
+  if (navigator && navigator.clipboard && navigator.clipboard.writeText)
+    return navigator.clipboard.writeText(e.target.parentElement.parentElement.children[0].href);
+  return Promise.reject('The Clipboard API is not available.');
+};
+
 const getApexOptions = () => {
     return {
         series: null,
@@ -492,9 +498,28 @@ $(document).ready( (e) => {
 
         try {
             var project_data = await makeAPICall('/v1/project/' + url_params.get('id'))
+            // replace the project_id for the badges
+            if (document.location.host.indexOf('metrics.green-coding.org') === 0)
+                api_url = "https://api.green-coding.org";
+            else
+                api_url = "http://api.green-coding.local:8000";
+
+
+            document.querySelectorAll("#badges a").forEach(el => {
+               el.href = el.href.replace("__project_id__", url_params.get('id'))
+               el.href = el.href.replace("https://api.green-coding.org", api_url)
+               el.children[0].src = el.href
+            });
+
+            document.querySelectorAll(".copy-badge").forEach(el => {
+                el.addEventListener('click', copyToClipboard)
+            })
+
+
         } catch (err) {
             showNotification('Could not get project data from API', err);
         }
+
         try {
             var stats_data = await makeAPICall('/v1/stats/single/' + url_params.get('id'))
         } catch (err) {
@@ -536,3 +561,4 @@ $(document).ready( (e) => {
 
     })();
 });
+

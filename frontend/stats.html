@@ -38,6 +38,8 @@
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/loader.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/dimmer.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/tab.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/divider.min.css">
+
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
 <body class="preload">
@@ -66,14 +68,15 @@
         <div class="ui horizontal card" id="horizontal-card">
             <div class="content">
                 <div class="header"><a class="ui red ribbon label" href="#">
-                        <h3>Project Data</h3>
-                    </a></div>
+                    <h3>Project Data</h3>
+                </a></div>
                 <div class="description">
                     <div class="ui secondary menu">
                         <a class="item active" data-tab="one">General</a>
                         <a class="item" data-tab="two">Measurement</a>
-                        <a class="item" data-tab="three">Machine</a>
-                        <a class="item" data-tab="four">usage_scenario</a>
+                        <a class="item" data-tab="three">Badges</a>
+                        <a class="item" data-tab="four">Machine</a>
+                        <a class="item" data-tab="five">usage_scenario</a>
                     </div>
                     <div class="ui tab segment" data-tab="one">
                         <table class="table-hover" id="project-data"></table>
@@ -81,10 +84,45 @@
                     <div class="ui active tab segment" data-tab="two">
                         <table class="table-hover" id="measurement-config"></table>
                     </div>
-                    <div class="ui tab segment" data-tab="three">
+                    <div class="ui active tab segment" data-tab="three">
+                        <div id="badges">
+                            <div class="inline field">
+                                <a href="https://api.green-coding.org/v1/badge/single/__project_id__?metric=ml-estimated"><img src=""></a>
+                                <div class="ui left pointing blue basic label">
+                                    XGBoost estimated AC energy
+                                </div>
+                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                            </div>
+                            <div class="ui divider"></div>
+                            <div class="inline field">
+                                <a href="https://api.green-coding.org/v1/badge/single/__project_id__?metric=RAPL"><img src=""></a>
+                                <div class="ui left pointing blue basic label">
+                                    RAPL component energy
+                                </div>
+                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                            </div>
+                            <div class="ui divider"></div>
+                            <div class="inline field">
+                                <a href="https://api.green-coding.org/v1/badge/single/__project_id__?metric=DC"><img src=""></a>
+                                <div class="ui left pointing blue basic label">
+                                    Measured DC energy
+                                </div>
+                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                            </div>
+                            <div class="ui divider"></div>
+                            <div class="inline field">
+                                <a href="https://api.green-coding.org/v1/badge/single/__project_id__?metric=AC"><img src=""></a>
+                                <div class="ui left pointing blue basic label">
+                                    Measured AC energy
+                                </div>
+                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ui tab segment" data-tab="four">
                         <table class="table-hover" id="machine-specs"></table>
                     </div>
-                    <div class="ui active tab segment" data-tab="four">
+                    <div class="ui active tab segment" data-tab="five">
                         <a href="https://onlineyamltools.com/convert-yaml-to-json" target='_blank' rel="noopener">Convert to YAML</a>
                         <table class="table-hover" id="usage-scenario"></table>
                     </div>

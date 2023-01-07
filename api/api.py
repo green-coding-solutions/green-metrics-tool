@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from starlette.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi import Response
 from fastapi import FastAPI, Request, Query
 from global_config import GlobalConfig
 from db import DB
@@ -21,6 +22,7 @@ import jobs
 import email_helpers
 import error_helpers
 import psycopg2.extras
+import anybadge
 
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
@@ -252,6 +254,56 @@ async def get_stats_compare(pids: list[str] | None = Query(default=None)):
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
     return {'success': True, 'data': data}
+
+# A route to return all of the available entries in our catalog.
+@app.get('/v1/badge/single/{project_id}')
+async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
+
+    if project_id is None or project_id.strip() == '':
+        return {'success': False, 'err': 'Project_id is empty'}
+
+    query = '''
+        WITH times AS (
+            SELECT start_measurement, end_measurement FROM projects WHERE id = %s
+        ) SELECT
+            (SELECT start_measurement FROM times), (SELECT end_measurement FROM times), SUM(stats.value), stats.unit
+        FROM
+            stats
+        WHERE
+            stats.project_id = %s
+            AND stats.time >= (SELECT start_measurement FROM times)
+            AND stats.time <= (SELECT end_measurement FROM times)
+            AND stats.metric LIKE %s
+            GROUP BY stats.unit
+    '''
+
+    value = None
+    if metric == 'ml-estimated':
+        value = 'psu_energy_xgboost_system'
+    elif metric == 'RAPL':
+        value = '%_rapl_%'
+    elif metric == 'DC':
+        value = 'psu_energy_dc_system'
+    elif metric == 'AC':
+        value = 'psu_energy_ac_system'
+    else:
+        raise RuntimeError('Unknown metric submitted')
+
+    params = (project_id, project_id, value)
+    data = DB().fetch_one(query, params=params)
+
+    if data is None or data == []:
+        badge_value = 'No energy stats yet'
+    else:
+        badge_value= f"{data[2]} {data[3]} via {metric}"
+
+    badge = anybadge.Badge(
+        label='Energy cost',
+        value=badge_value,
+        num_value_padding_chars=1,
+        default_color='cornflowerblue')
+    return Response(content=str(badge), media_type="image/svg+xml")
+
 
 class Project(BaseModel):
     name: str
