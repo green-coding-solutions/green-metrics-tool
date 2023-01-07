@@ -34,10 +34,10 @@ async def catch_exceptions_middleware(request: Request, call_next):
     try:
         return await call_next(request)
     except Exception as exception:
-        error_helpers.log_error('Error in API call:', str(Request), ' with next call: ', call_next, exception)
+        error_helpers.log_error('Error in API call: ', str(request), ' with next call: ', call_next, exception)
         email_helpers.send_error_email(
             GlobalConfig().config['admin']['email'],
-            error_helpers.format_error('Error in API call:', str(request), ' with next call: ', call_next, exception),
+            error_helpers.format_error('Error in API call: ', str(request), ' with next call: ', call_next, exception),
             project_id=None,
         )
         return JSONResponse(
@@ -194,6 +194,8 @@ async def get_stats_single(project_id: str, remove_idle: bool = False):
 
 
 @app.get('/v1/stats/multi')
+# pylint: disable=unsupported-binary-operation
+# Here pylint does not understand the type hinting
 async def get_stats_multi(pids: list[str] | None = Query(default=None)):
     for pid in pids:
         if pid is None or pid.strip() == '':
@@ -222,6 +224,8 @@ async def get_stats_multi(pids: list[str] | None = Query(default=None)):
 
 
 @app.get('/v1/stats/compare')
+# pylint: disable=unsupported-binary-operation
+# Here pylint does not understand the type hinting
 async def get_stats_compare(pids: list[str] | None = Query(default=None)):
     for pid in pids:
         if pid is None or pid.strip() == '':
