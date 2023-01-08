@@ -295,7 +295,8 @@ async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
     if data is None or data == []:
         badge_value = 'No energy stats yet'
     else:
-        badge_value= f"{data[2]} {data[3]} via {metric}"
+        [energy_value, energy_unit] = rescale_energy_value(data[2], data[3])
+        badge_value= f"{energy_value:.2f} {energy_unit} via {metric}"
 
     badge = anybadge.Badge(
         label='Energy cost',
@@ -360,6 +361,21 @@ async def get_project(project_id: str):
         return {'success': False, 'err': 'Data is empty'}
     return {'success': True, 'data': data}
 
+# Helper functions, not directly callable through routes
+
+def rescale_energy_value(value, unit):
+    # We only expect values to be mJ for energy!
+    if unit != 'mJ':
+        raise RuntimeError('Unexpected unit occured for energy rescaling: ', unit)
+
+    # pylint: disable=multiple-statements
+    if value > 1_000_000_000: energy_rescaled = [value/(10**12), 'GJ']
+    elif value > 1_000_000_000: energy_rescaled = [value/(10**9), 'MJ']
+    elif value > 1_000_000: energy_rescaled = [value/(10**6), 'kJ']
+    elif value > 1_000: energy_rescaled = [value/(10**3), 'J']
+    elif value < 0.001: energy_rescaled = [value*(10**3), 'nJ']
+
+    return energy_rescaled
 
 if __name__ == '__main__':
     app.run()
