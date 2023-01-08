@@ -41,18 +41,17 @@ measurement:
 #      resolution: 100
        #-- This is a default configuration. Please change this to your system!
 #      CPUChips: 1
-#      HW_CPUFreq: 3100
-#      CPUThreads: 56
-#      TDP: 150
-#      HW_MemAmountGB: 16
+#      TDP: 65
 #    psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider:
 #      resolution: 100
        #-- This is a default configuration. Please change this to your system!
 #      CPUChips: 1
-#      HW_CPUFreq: 3100
-#      CPUThreads: 56
-#      TDP: 150
+#      HW_CPUFreq: 3200
+#      CPUCores: 4
+#      CPUThreads: 4
+#      TDP: 65
 #      HW_MemAmountGB: 16
+#      Hardware_Availability_Year: 2011
   #--- RAPL - Only enable these if you have RAPL enabled on your machine
 #    cpu.energy.RAPL.MSR.system.provider.CpuEnergyRaplMsrSystemProvider:
 #      resolution: 100

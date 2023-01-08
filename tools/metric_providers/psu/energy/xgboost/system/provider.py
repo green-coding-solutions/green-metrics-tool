@@ -81,6 +81,14 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
         Z['TDP'] = provider_config['TDP']
         Z['HW_MemAmountGB'] = provider_config['HW_MemAmountGB']
 
+        # now we process the optional parameters
+        if 'CPUCores' in provider_config:
+            Z['CPUCores'] = provider_config['CPUCores']
+
+        if 'Hardware_Availability_Year' in provider_config:
+            Z['Hardware_Availability_Year'] = provider_config['Hardware_Availability_Year']
+
+
         Z = Z.rename(columns={'value': 'utilization'})
         Z.utilization = Z.utilization / 100
         model = mlmodel.train_model(provider_config['CPUChips'], Z)
