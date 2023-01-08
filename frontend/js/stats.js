@@ -8,6 +8,14 @@ const copyToClipboard = (e) => {
   return Promise.reject('The Clipboard API is not available.');
 };
 
+const rescaleCO2Value = (total_CO2_in_kg) => {
+    if     (total_CO2_in_kg < 0.0000000001) co2_display = [total_CO2_in_kg*(10**12), 'ng'];
+    else if(total_CO2_in_kg < 0.0000001) co2_display = [total_CO2_in_kg*(10**9), 'ug'];
+    else if(total_CO2_in_kg < 0.0001) co2_display = [total_CO2_in_kg*(10**6), 'mg'];
+    else if(total_CO2_in_kg < 0.1) co2_display = [total_CO2_in_kg*(10**3), 'g'];
+    return co2_display;
+}
+
 const getApexOptions = () => {
     return {
         series: null,
@@ -320,6 +328,11 @@ const createAvgContainer = (metric_name, value, unit) => {
     if(metric_name.indexOf('_container') !== -1) explaination = 'all containers';
 
     if(metric_name.indexOf('_energy_') !== -1) {
+        color = 'blue';
+        icon = 'batter three quarters';
+        if (unit == 'W') explaination = 'system (avg.)';
+        else explaination = 'system';
+    } else if(metric_name.indexOf('_power_') !== -1) {
         color = 'orange';
         icon = 'power off';
         if (unit == 'W') explaination = 'system (avg.)';
@@ -330,7 +343,7 @@ const createAvgContainer = (metric_name, value, unit) => {
         explaination = 'max. load - all containers'
 
     } else if(metric_name.indexOf('network_io') !== -1) {
-        color = 'blue';
+        color = 'olive';
         icon = 'exchange alternate';
         explaination = '<a href="https://docs.green-coding.org/docs/measuring/metric-providers/network-io-cgroup-container/"><i class="question circle icon"></i></a>'
     } else if(metric_name.indexOf('cpu_utilization') !== -1) {
@@ -402,8 +415,7 @@ const createGraph = (element, data, labels, title) => {
 
 const fillAvgContainers = (measurement_duration_in_s, metrics) => {
 
-    // let total_energy_in_mWh = 0;
-    let component_energy_in_mWh = 0;
+    let component_energy_in_J = 0;
     let network_io = 0;
     for (metric_name in metrics) {
         let acc = metrics[metric_name].sum.reduce((a, b) => a + b, 0)
@@ -413,9 +425,12 @@ const fillAvgContainers = (measurement_duration_in_s, metrics) => {
             case 'J':
                 if(display_in_watts) createAvgContainer(metric_name, (acc / 3600) * 1000, 'mWh');
                 else createAvgContainer(metric_name, acc, 'J');
-                createAvgContainer(metric_name, acc / measurement_duration_in_s, 'W');
+                createAvgContainer(metric_name.replace('_energy_', '_power_'), acc / measurement_duration_in_s, 'W');
                 break;
             case 'W':
+                // This functionality is considered legacy. You should not use providers that report in W
+                // Reason being is that Watts reporting is currently not integrated but only averaged when
+                // calculating energy. Therefore the "approx" is added.
                 createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, 'W');
                 createAvgContainer(metric_name, ((acc / metrics[metric_name].sum.length)*measurement_duration_in_s)/3.6, ' mWh (approx!)');
                 break;
@@ -442,7 +457,7 @@ const fillAvgContainers = (measurement_duration_in_s, metrics) => {
 
         // handle compound metrics
         if(metric_name == 'cpu_energy_rapl_msr_system' || metric_name == 'memory_energy_rapl_msr_system') {
-            component_energy_in_mWh += acc;
+            component_energy_in_J += acc;
         }
         if(metric_name == 'network_io_cgroup_container') {
             network_io += max;
@@ -450,30 +465,34 @@ const fillAvgContainers = (measurement_duration_in_s, metrics) => {
 
     }
 
+    const component_energy_in_mWh = component_energy_in_J / 3.6
     if(display_in_watts) {
-        document.querySelector("#component-energy").innerHTML = `${(component_energy_in_mWh / 3.6).toFixed(2)} <span class="si-unit">mWh</span>`
+        document.querySelector("#component-energy").innerHTML = `${component_energy_in_mWh.toFixed(2)} <span class="si-unit">mWh</span>`
     } else {
-        document.querySelector("#component-energy").innerHTML = `${(component_energy_in_mWh).toFixed(2)} <span class="si-unit">J</span>`
+        document.querySelector("#component-energy").innerHTML = `${component_energy_in_J.toFixed(2)} <span class="si-unit">J</span>`
     }
-    document.querySelector("#component-power").innerHTML = `${(component_energy_in_mWh / measurement_duration_in_s).toFixed(2)} <span class="si-unit">W</span>`
+    document.querySelector("#component-power").innerHTML = `${(component_energy_in_J / measurement_duration_in_s).toFixed(2)} <span class="si-unit">W</span>`
 
     // network via formula: https://www.green-coding.org/co2-formulas/
-    const network_io_in_mWh = (network_io * 0.00006) * 1000000;
-    if(network_io_in_mWh) document.querySelector("#network-energy").innerHTML = `${network_io_in_mWh.toFixed(2)} <span class="si-unit">mWh</span>`
-    const network_io_co2_in_kg = ( (network_io_in_mWh / 1000000) * 519) / 1000;
-    if(network_io_co2_in_kg) document.querySelector("#network-co2").innerHTML = `${network_io_co2_in_kg.toFixed(2)} <span class="si-unit">kg</span>`
+    const network_io_in_mWh = network_io * 0.00006 * 1000000;
+    const network_io_in_J = network_io_in_mWh * 3.6;  //  60 * 60 / 1000 => 3.6
+    if(display_in_watts) {
+        if(network_io_in_mWh) document.querySelector("#network-energy").innerHTML = `${network_io_in_mWh.toFixed(2)} <span class="si-unit">mWh</span>`
+    } else {
+        if(network_io_in_J) document.querySelector("#network-energy").innerHTML = `${network_io_in_J.toFixed(2)} <span class="si-unit">J</span>`
+    }
 
     // co2 calculations
-    let total_CO2_in_kg = ( ((component_energy_in_mWh + network_io_co2_in_kg) / 1000000) * 519) / 1000;
-    const daily_co2_budget_in_kg_per_day = 1.739; // (12.7 * 1000 * 0.05) / 365 from https://www.pawprint.eco/eco-blog/average-carbon-footprint-uk and https://www.pawprint.eco/eco-blog/average-carbon-footprint-globally
-    let co2_budget_utilization = total_CO2_in_kg*100 / daily_co2_budget_in_kg_per_day;
-    let co2_display = { value: total_CO2_in_kg, unit: 'kg'};
-    if     (total_CO2_in_kg < 0.0000000001) co2_display = { value: total_CO2_in_kg*(10**12), unit: 'ng'};
-    else if(total_CO2_in_kg < 0.0000001) co2_display = { value: total_CO2_in_kg*(10**9), unit: 'ug'};
-    else if(total_CO2_in_kg < 0.0001) co2_display = { value: total_CO2_in_kg*(10**6), unit: 'mg'};
-    else if(total_CO2_in_kg < 0.1) co2_display = { value: total_CO2_in_kg*(10**3), unit: 'g'};
+    const network_io_co2_in_kg = ( (network_io_in_mWh / 1000000) * 519) / 1000;
+    const [network_co2_value, network_co2_unit] = rescaleCO2Value(network_io_co2_in_kg)
+    if (network_co2_value) document.querySelector("#network-co2").innerHTML = `${(network_co2_value).toFixed(2)} <span class="si-unit">${network_co2_unit}</span>`
 
-    if (co2_display.value) document.querySelector("#component-co2").innerHTML = `${(co2_display.value).toFixed(2)} <span class="si-unit">${co2_display.unit}</span>`
+    const total_CO2_in_kg = ( ((component_energy_in_mWh + network_io_in_mWh) / 1000000) * 519) / 1000;
+    const [component_co2_value, component_co2_unit] = rescaleCO2Value(total_CO2_in_kg)
+    if (component_co2_value) document.querySelector("#component-co2").innerHTML = `${(component_co2_value).toFixed(2)} <span class="si-unit">${component_co2_unit}</span>`
+
+    const daily_co2_budget_in_kg_per_day = 1.739; // (12.7 * 1000 * 0.05) / 365 from https://www.pawprint.eco/eco-blog/average-carbon-footprint-uk and https://www.pawprint.eco/eco-blog/average-carbon-footprint-globally
+    const co2_budget_utilization = total_CO2_in_kg*100 / daily_co2_budget_in_kg_per_day;
     if (co2_budget_utilization) document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + ' <span class="si-unit">%</span>'
 
     upscaled_CO2_in_kg = total_CO2_in_kg * 100 * 30 ; // upscaled by 30 days for 10.000 requests (or runs) per day
