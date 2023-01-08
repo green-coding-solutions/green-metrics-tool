@@ -42,7 +42,7 @@ measurement:
        #-- This is a default configuration. Please change this to your system!
 #      CPUChips: 1
 #      HW_CPUFreq: 3100
-#      CPUCores: 28
+#      CPUThreads: 56
 #      TDP: 150
 #      HW_MemAmountGB: 16
 #    psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider:
@@ -50,7 +50,7 @@ measurement:
        #-- This is a default configuration. Please change this to your system!
 #      CPUChips: 1
 #      HW_CPUFreq: 3100
-#      CPUCores: 28
+#      CPUThreads: 56
 #      TDP: 150
 #      HW_MemAmountGB: 16
   #--- RAPL - Only enable these if you have RAPL enabled on your machine

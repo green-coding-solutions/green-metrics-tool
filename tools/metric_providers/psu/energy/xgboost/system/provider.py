@@ -22,7 +22,7 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
         self._metric_name = 'psu_energy_xgboost_system'
         self._metrics = {'time': int, 'value': int}
         self._resolution = resolution
-        self._unit = 'mW'
+        self._unit = 'mJ'
         super().__init__()
 
     # Since no process is ever started we just return None
@@ -67,9 +67,9 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
         if 'CPUChips' not in provider_config:
             raise RuntimeError(
                 'Please set the CPUChips config option for PsuEnergyXgboostSystemProvider in the config.yml')
-        if 'CPUCores' not in provider_config:
+        if 'CPUThreads' not in provider_config:
             raise RuntimeError(
-                'Please set the CPUCores config option for PsuEnergyXgboostSystemProvider in the config.yml')
+                'Please set the CPUThreads config option for PsuEnergyXgboostSystemProvider in the config.yml')
         if 'TDP' not in provider_config:
             raise RuntimeError('Please set the TDP config option for PsuEnergyXgboostSystemProvider in the config.yml')
         if 'HW_MemAmountGB' not in provider_config:
@@ -77,7 +77,7 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
                 'Please set the HW_MemAmountGB config option for PsuEnergyXgboostSystemProvider in the config.yml')
 
         Z['HW_CPUFreq'] = provider_config['HW_CPUFreq']
-        Z['CPUCores'] = provider_config['CPUCores']
+        Z['CPUThreads'] = provider_config['CPUThreads']
         Z['TDP'] = provider_config['TDP']
         Z['HW_MemAmountGB'] = provider_config['HW_MemAmountGB']
 
@@ -88,13 +88,16 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
         inferred_predictions = mlmodel.infer_predictions(model, Z)
         interpolated_predictions = mlmodel.interpolate_predictions(inferred_predictions)
 
-        df['value'] = df['value'].apply(lambda x: interpolated_predictions[x / 100] * 1000)  # will result in ,W
+
+        df.value = df.value.apply(lambda x: interpolated_predictions[x / 100])  # will result in W
+        df.value = (df.value * df.time.diff()) / 1_000 # W * us / 1_000 will result in mJ
+
         df['unit'] = self._unit
 
+        df.value = df.value.fillna(0)
         df.value = df.value.astype(int)
 
         return df
-
 
 if __name__ == '__main__':
     import argparse

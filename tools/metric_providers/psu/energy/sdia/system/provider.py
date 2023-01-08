@@ -22,7 +22,7 @@ class PsuEnergySdiaSystemProvider(BaseMetricProvider):
         self._metric_name = 'psu_energy_sdia_system'
         self._metrics = {'time': int, 'value': int}
         self._resolution = resolution
-        self._unit = 'mW'
+        self._unit = 'mJ'
         super().__init__()
 
     # Since no process is ever started we just return None
@@ -70,10 +70,13 @@ class PsuEnergySdiaSystemProvider(BaseMetricProvider):
         # since the CPU-Utilization is a ratio, we technically have to divide by 10,000 to get a 0...1 range.
         # And then again at the end multiply with 1000 to get mW. We take the
         # shortcut and just mutiply the 0.65 ratio from the SDIA by 10 -> 6.5
-        df['value'] = ((df['value'] * provider_config['TDP']) / 6.5) * provider_config['CPUChips']  #will result in mW
-        df.value = df.value.astype(int)
+        df.value = ((df.value * provider_config['TDP']) / 6.5) * provider_config['CPUChips'] # will result in mW
+        df.value = (df.value * df.time.diff()) / 1_000_000 # mW * us / 1_000_000 will result in mJ
 
         df['unit'] = self._unit
+
+        df.value = df.value.fillna(0)
+        df.value = df.value.astype(int)
 
         return df
 
