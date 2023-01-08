@@ -45,17 +45,18 @@ class PsuEnergySdiaSystemProvider(BaseMetricProvider):
 
         # remove the last line from the string, as it may be broken due to the output buffering of the metrics reporter
         csv_data = csv_data[:csv_data.rfind('\n')]
-        csv = pandas.read_csv(StringIO(csv_data),
+        # pylint: disable=invalid-name
+        df = pandas.read_csv(StringIO(csv_data),
                              sep=' ',
                              names={'time': int, 'value': int}.keys(),
                              dtype={'time': int, 'value': int}
                              )
 
-        csv['detail_name'] = '[SYSTEM]'  # standard container name when only system was measured
-        csv['metric'] = self._metric_name
-        csv['project_id'] = project_id
+        df['detail_name'] = '[SYSTEM]'  # standard container name when only system was measured
+        df['metric'] = self._metric_name
+        df['project_id'] = project_id
 
-        #Z = csv.loc[:, ['value']]
+        #Z = df.loc[:, ['value']]
 
         provider_config = GlobalConfig(
         ).config['measurement']['metric-providers']['psu.energy.sdia.system.provider.PsuEnergySdiaSystemProvider']
@@ -69,12 +70,12 @@ class PsuEnergySdiaSystemProvider(BaseMetricProvider):
         # since the CPU-Utilization is a ratio, we technically have to divide by 10,000 to get a 0...1 range.
         # And then again at the end multiply with 1000 to get mW. We take the
         # shortcut and just mutiply the 0.65 ratio from the SDIA by 10 -> 6.5
-        csv['value'] = ((csv['value'] * provider_config['TDP']) / 6.5) * provider_config['CPUChips']  #will result in mW
-        csv.value = csv.value.astype(int)
+        df['value'] = ((df['value'] * provider_config['TDP']) / 6.5) * provider_config['CPUChips']  #will result in mW
+        df.value = df.value.astype(int)
 
-        csv['unit'] = self._unit
+        df['unit'] = self._unit
 
-        return csv
+        return df
 
 
 if __name__ == '__main__':

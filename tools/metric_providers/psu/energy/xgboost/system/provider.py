@@ -1,4 +1,4 @@
-# pylint: disable=import-error,wrong-import-position,protected-access,unused-argument,invalid-name,no-name-in-module
+# pylint: disable=import-error,wrong-import-position,protected-access,unused-argument,no-name-in-module
 
 import sys
 import os
@@ -44,17 +44,19 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
             csv_data = file.read()
         # remove the last line from the string, as it may be broken due to the output buffering of the metrics reporter
         csv_data = csv_data[:csv_data.rfind('\n')]
-        csv = pandas.read_csv(StringIO(csv_data),
+
+        # pylint: disable=invalid-name
+        df = pandas.read_csv(StringIO(csv_data),
                               sep=' ',
                               names={'time': int, 'value': int}.keys(),
                               dtype={'time': int, 'value': int}
                               )
 
-        csv['detail_name'] = '[SYSTEM]'  # standard container name when only system was measured
-        csv['metric'] = self._metric_name
-        csv['project_id'] = project_id
+        df['detail_name'] = '[SYSTEM]'  # standard container name when only system was measured
+        df['metric'] = self._metric_name
+        df['project_id'] = project_id
 
-        Z = csv.loc[:, ['value']]
+        Z = df.loc[:, ['value']]
 
         provider_config = GlobalConfig(
         ).config['measurement']['metric-providers']['psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider']
@@ -83,18 +85,18 @@ class PsuEnergyXgboostSystemProvider(BaseMetricProvider):
         Z.utilization = Z.utilization / 100
         model = mlmodel.train_model(provider_config['CPUChips'], Z)
 
-        infer_predictions = mlmodel.infer_predictions(model, Z)
-        interpolate_predictions = mlmodel.interpolate_predictions(infer_predictions)
+        inferred_predictions = mlmodel.infer_predictions(model, Z)
+        interpolated_predictions = mlmodel.interpolate_predictions(inferred_predictions)
 
-        csv['value'] = csv['value'].apply(lambda x: interpolate_predictions[x / 100] * 1000)  # will result in mW
-        csv['unit'] = self._unit
-        csv.value = csv.value.astype(int)
+        df['value'] = df['value'].apply(lambda x: interpolated_predictions[x / 100] * 1000)  # will result in ,W
+        df['unit'] = self._unit
 
-        return csv
+        df.value = df.value.astype(int)
+
+        return df
 
 
 if __name__ == '__main__':
-    import time
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -103,8 +105,9 @@ if __name__ == '__main__':
     o = PsuEnergyXgboostSystemProvider(resolution=100)
 
     print('Starting to profile')
-    o.start_profiling()
-    time.sleep(0)
-    o.stop_profiling()
-    o.read_metrics(21371289321, None)
-    print('Done, check ', o._filename)
+    dataframe = o.read_metrics(2321739821, None)
+    print(dataframe)
+
+    # Debugging REPL
+    import code
+    code.interact(local=dict(globals(), **locals()))

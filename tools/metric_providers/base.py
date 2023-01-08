@@ -37,31 +37,32 @@ class BaseMetricProvider:
         # remove the last line from the string, as it may be broken due to the output buffering of the metrics reporter
         csv_data = csv_data[:csv_data.rfind('\n')]
 
-        csv = pandas.read_csv(StringIO(csv_data),
+        # pylint: disable=invalid-name
+        df = pandas.read_csv(StringIO(csv_data),
                              sep=' ',
                              names=self._metrics.keys(),
                              dtype=self._metrics
                              )
 
         if self._metrics.get('sensor_name') is not None:
-            csv['detail_name'] = csv.sensor_name
-            csv = csv.drop('sensor_name', axis=1)
+            df['detail_name'] = df.sensor_name
+            df = df.drop('sensor_name', axis=1)
         elif self._metrics.get('package_id') is not None:
-            csv['detail_name'] = csv.package_id
-            csv = csv.drop('package_id', axis=1)
+            df['detail_name'] = df.package_id
+            df = df.drop('package_id', axis=1)
         elif self._metrics.get('container_id') is not None:
-            csv['detail_name'] = csv.container_id
+            df['detail_name'] = df.container_id
             for container_id in containers:
-                csv.loc[csv.detail_name == container_id, 'detail_name'] = containers[container_id]
-            csv = csv.drop('container_id', axis=1)
+                df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]
+            df = df.drop('container_id', axis=1)
         else:
-            csv['detail_name'] = '[SYSTEM]'  # standard container name when only system was measured
+            df['detail_name'] = '[SYSTEM]'  # standard container name when only system was measured
 
-        csv['unit'] = self._unit
-        csv['metric'] = self._metric_name
-        csv['project_id'] = project_id
+        df['unit'] = self._unit
+        df['metric'] = self._metric_name
+        df['project_id'] = project_id
 
-        return csv
+        return df
 
     def start_profiling(self, containers=None):
 
