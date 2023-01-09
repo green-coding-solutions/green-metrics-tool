@@ -172,7 +172,7 @@ class Runner:
 
             if 'volumes' in service:
                 if self.allow_unsafe:
-                    if isinstance(service['volumes'], list):
+                    if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
@@ -186,7 +186,7 @@ class Runner:
 
             if 'ports' in service:
                 if self.allow_unsafe:
-                    if isinstance(service['ports'], list):
+                    if not isinstance(service['ports'], list):
                         raise RuntimeError(f"ports must be a list but is: {type(service['ports'])}")
                     for ports in service['ports']:
                         print('Setting ports: ', service['ports'])
