@@ -6,9 +6,17 @@ inputs:
     required: false
     default: ''
   gmt-directory:
-    description: The root directory of the gmt repository
+    description: 'The root directory of the gmt repository'
     required: false
     default: '.'
+  tests-directory:
+    description: 'The directory where to run the tests from'
+    required: false
+    default: './test'
+  tests-command:
+    description: 'The command to run the tests'
+    required: false
+    default: 'pytest'
 runs:
   using: 'composite'
   steps:
@@ -49,9 +57,8 @@ runs:
         
     - name: Run Tests
       shell: bash
-      working-directory: ${{ inputs.gmt-directory }}/test
-      run: |
-        pytest
+      working-directory: ${{ tests-directory }}
+      run: ${{ inputs.tests-command }}
         
     - name: Stop Containers
       shell: bash
