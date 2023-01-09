@@ -16,13 +16,13 @@ jobs:
       recent_main_commit: ${{ steps.check_main_commits.outputs.recent_commit }}
     steps:
       - id: check_dev_commits
-        uses: green-coding-berlin/green-metrics-tool/.github/actions/branch-activity-check@tests-minor-cleanups
+        uses: green-coding-berlin/green-metrics-tool/.github/actions/branch-activity-check@dev
         with:
          repo: 'green-coding-berlin/green-metrics-tool'
          branch: 'dev'
 
       - id: check_main_commits
-        uses: green-coding-berlin/green-metrics-tool/.github/actions/branch-activity-check@tests-minor-cleanups
+        uses: green-coding-berlin/green-metrics-tool/.github/actions/branch-activity-check@dev
         with:
           repo: 'green-coding-berlin/green-metrics-tool'
           branch: 'dev'
