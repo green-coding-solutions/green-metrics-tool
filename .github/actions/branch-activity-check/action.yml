@@ -1,0 +1,33 @@
+name: 'Branch Activity Checker'
+description: 'check if there has been a commit in the specificed repo/branch within the specified time period and write to github output'
+inputs:
+  repo:
+    description: 'format: {repo-owner}/{repo-name}'
+    required: true
+  branch:
+    description: 'the branch to check'
+    required: true
+  time-unit:
+    description: 'The unit of time you are looking back for, i.e. day,week, hour, etc.'
+    required: false
+    default: 'day'
+  time-value:
+    description: 'How far back you are looking'
+    required: false
+    default: '1'
+outputs:
+  recent_commit:
+    description: 'Returns true if there was a commit within the specified time period, false if there was not'
+    value: ${{ steps.check_commits.outputs.recent_commit }}
+runs:
+  using: 'composite'
+  steps:
+    - id: check_commits
+      continue-on-error: true
+      name: check latest dev commit is less than a day
+      shell: bash
+      run: |
+       dateofcommit=$(curl -s https://api.github.com/repos/${{ inputs.repo }}/commits/${{ inputs.branch }} | jq -r '.commit.author.date')
+       commit_timestamp=$(date --date "$dateofcommit" +'%s')
+       time_ago=$(date --date '${{ inputs.time-value }} ${{ inputs.time-unit }} ago' +'%s')
+       [ $commit_timestamp -gt $time_ago ] && echo "recent_commit=true" >> $GITHUB_OUTPUT

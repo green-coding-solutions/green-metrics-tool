@@ -5,35 +5,29 @@ on:
     - cron: '0 0 * * *'
       branches: [ "main", "dev" ]
   #push:
-  #  branch: test-pipeline-improvements
+  #  branch: tests-minor-cleanups
 
 jobs:
   check_date:
     runs-on: ubuntu-latest
     name: Check latest commit
     outputs:
-      recent_dev_commit: ${{ steps.check_dev_commits.outputs.recent_dev_commit }}
-      recent_main_commit: ${{ steps.check_main_commits.outputs.recent_main_commit }}
+      recent_dev_commit: ${{ steps.check_dev_commits.outputs.recent_commit }}
+      recent_main_commit: ${{ steps.check_main_commits.outputs.recent_commit }}
     steps:
       - id: check_dev_commits
-        continue-on-error: true
-        name: check latest dev commit is less than a day
-        if: ${{ github.event_name == 'schedule' }}
-        run: |
-         dateofcommit=$(curl -s https://api.github.com/repos/green-coding-berlin/green-metrics-tool/commits/dev | jq -r '.commit.author.date')
-         commit_timestamp=$(date --date "$dateofcommit" +'%s')
-         one_day_ago=$(date --date '1 day ago' +'%s')
-         [ $commit_timestamp -gt $one_day_ago ] && echo "recent_dev_commit=true" >> $GITHUB_OUTPUT
+        uses: green-coding-berlin/green-metrics-tool/.github/actions/branch-activity-check@tests-minor-cleanups
+        with:
+         repo: 'green-coding-berlin/green-metrics-tool'
+         branch: 'dev'
 
       - id: check_main_commits
-        continue-on-error: true
-        name: check latest main commit is less than a day
-        if: ${{ github.event_name == 'schedule' }}
-        run: |
-         dateofcommit=$(curl -s https://api.github.com/repos/green-coding-berlin/green-metrics-tool/commits/main | jq -r '.commit.author.date')
-         commit_timestamp=$(date --date "$dateofcommit" +'%s')
-         one_day_ago=$(date --date '1 day ago' +'%s')
-         [ $commit_timestamp -gt $one_day_ago ] && echo "recent_main_commit=true" >> $GITHUB_OUTPUT
+        uses: green-coding-berlin/green-metrics-tool/.github/actions/branch-activity-check@tests-minor-cleanups
+        with:
+          repo: 'green-coding-berlin/green-metrics-tool'
+          branch: 'dev'
+          time-unit: 'day'
+          time-value: '1'
 
   run-tests-dev:
     needs: check_date
