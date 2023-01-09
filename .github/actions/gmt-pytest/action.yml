@@ -57,7 +57,7 @@ runs:
         
     - name: Run Tests
       shell: bash
-      working-directory: ${{ tests-directory }}
+      working-directory: ${{ inputs.tests-directory }}
       run: ${{ inputs.tests-command }}
         
     - name: Stop Containers
