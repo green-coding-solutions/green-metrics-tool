@@ -368,6 +368,8 @@ def rescale_energy_value(value, unit):
     if unit != 'mJ':
         raise RuntimeError('Unexpected unit occured for energy rescaling: ', unit)
 
+    energy_rescaled = [value, unit]
+
     # pylint: disable=multiple-statements
     if value > 1_000_000_000: energy_rescaled = [value/(10**12), 'GJ']
     elif value > 1_000_000_000: energy_rescaled = [value/(10**9), 'MJ']
