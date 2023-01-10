@@ -8,7 +8,9 @@ Currently no special setup is done to isolate the containers from the host OS an
 
 Ensure that you run this only in an isolated VM / dedicated server.
 
-![Tests Status](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm.yml/badge.svg)
+![Tests Status - Main](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-main.yml/badge.svg)
+
+![Tests Status - Dev](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-dev.yml/badge.svg)
 
 
 # Introduction

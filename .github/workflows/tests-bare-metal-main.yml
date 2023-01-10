@@ -1,4 +1,4 @@
-name: Daily Test Run - Bare Metal
+name: Daily Test Run - Bare Metal - Main Branch
 run-name: Scheduled - ${{ github.ref_name }}
 on:
   schedule:

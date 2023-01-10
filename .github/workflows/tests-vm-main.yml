@@ -1,4 +1,4 @@
-name: Daily Test Run - Virtual Machine
+name: Daily Test Run - Virtual Machine - Main Branch
 run-name: Scheduled - ${{ github.ref_name }}
 on:
   schedule:
