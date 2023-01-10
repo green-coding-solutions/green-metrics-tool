@@ -63,7 +63,7 @@ To check if your code works you can call `pylint -j0 **.py` in the project direc
 
 We recommend that you set a pre-commit hook to lint your code every time you commit. This can be done by adding
 ```
-git diff --diff-filter=d --cached --name-only | grep -E -i '.py$' | xargs pylint -j0
+git diff --diff-filter=d --cached --name-only | grep -E -i '.py$' | xargs -r pylint -j0
 ```
 to a file named `./.git/hooks/pre-commit` and making it executable `chmod +x ./.git/hooks/pre-commit`
 
