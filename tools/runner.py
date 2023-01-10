@@ -137,8 +137,7 @@ class Runner:
             for network in obj['networks']:
                 print('Creating network: ', network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
-                #pylint: disable=subprocess-run-check
-                subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL)
+                subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
                 subprocess.run(['docker', 'network', 'create', network], check=True)
                 self.networks.append(network)
 
@@ -446,8 +445,7 @@ class Runner:
         print('Removing network')
         for network_name in self.networks:
             # no check=True, as the network might already be gone. We do not want to fail here
-            #pylint: disable=subprocess-run-check
-            subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL)
+            subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
 
         if not self.no_file_cleanup:
             print('Removing files')
