@@ -71,7 +71,7 @@ info_list = [
     [rpwr, 'Architecture', '/usr/bin/hostnamectl', r'Architecture:\s*(?P<o>.*)'],
     [rpwr, 'Hardware Vendor', '/usr/bin/hostnamectl', r'Hardware Vendor:\s*(?P<o>.*)'],
     [rpwr, 'Hardware Model', '/usr/bin/hostnamectl', r'Hardware Model:\s*(?P<o>.*)'],
-    [rpwr, 'Processes', ['/usr/bin/ps', '-ef'], r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Processes', ['/usr/bin/ps', '-aux'], r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [
         rpwrs,
         'Scaling Governor',
