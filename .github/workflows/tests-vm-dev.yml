@@ -3,7 +3,7 @@ run-name: Scheduled - ${{ github.ref_name }}
 on:
   schedule:
     - cron: '0 0 * * *'
-      branches: [ "main", "dev" ]
+      branches: [ "dev" ]
   #push:
   #  branch: tests-minor-cleanups
 
@@ -13,21 +13,12 @@ jobs:
     name: Check latest commit
     outputs:
       recent_dev_commit: ${{ steps.check_dev_commits.outputs.recent_commit }}
-      recent_main_commit: ${{ steps.check_main_commits.outputs.recent_commit }}
     steps:
       - id: check_dev_commits
         uses: green-coding-berlin/green-metrics-tool/.github/actions/branch-activity-check@dev
         with:
          repo: 'green-coding-berlin/green-metrics-tool'
          branch: 'dev'
-
-      - id: check_main_commits
-        uses: green-coding-berlin/green-metrics-tool/.github/actions/branch-activity-check@dev
-        with:
-          repo: 'green-coding-berlin/green-metrics-tool'
-          branch: 'dev'
-          time-unit: 'day'
-          time-value: '1'
 
   run-tests-dev:
     needs: check_date
@@ -38,22 +29,6 @@ jobs:
       - uses: actions/checkout@v3
         with:
           ref: 'dev'
-          submodules: 'true'
-      
-      - name: 'Setup, Run, and Teardown Tests'
-        uses: ./.github/actions/gmt-pytest
-        with:
-           metrics-to-turn-off: 'RAPL System Sensors Debug CGroupV2'
-
-  run-tests-main:
-    needs: check_date
-    if: ${{ needs.check_date.outputs.recent_main_commit == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
-        with:
-          ref: 'main'
           submodules: 'true'
       
       - name: 'Setup, Run, and Teardown Tests'

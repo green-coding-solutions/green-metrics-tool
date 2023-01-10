@@ -3,7 +3,7 @@ run-name: Scheduled - ${{ github.ref_name }}
 on:
   schedule:
     - cron: '0 0 * * *'
-      branches: [ "main", "dev" ]
+      branches: [ "main" ]
   #push:
   #  branch: test-pipeline-improvements
 jobs:
@@ -11,37 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     name: Check latest commit
     outputs:
-      recent_dev_commit: ${{ steps.check_dev_commits.outputs.recent_commit }}
       recent_main_commit: ${{ steps.check_main_commits.outputs.recent_commit }}
     steps:
-      - id: check_dev_commits
-        uses: green-coding-berlin/green-metrics-tool/.github/actions/branch-activity-check@dev
-        with:
-         repo: 'green-coding-berlin/green-metrics-tool'
-         branch: 'dev'
-
       - id: check_main_commits
         uses: green-coding-berlin/green-metrics-tool/.github/actions/branch-activity-check@dev
         with:
           repo: 'green-coding-berlin/green-metrics-tool'
-          branch: 'dev'
-          time-unit: 'day'
-          time-value: '1'
-
-  run-tests-dev:
-    needs: check_date
-    if: ${{ needs.check_date.outputs.recent_dev_commit == 'true' }}
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: 'dev'
-          submodules: 'true'
-      
-      - name: 'Setup, Run, and Teardown Tests'
-        uses: ./.github/actions/gmt-pytest
-        with:
-           metrics-to-turn-off: 'System Sensors Debug'
+          branch: 'main'
 
   run-tests-main:
     needs: check_date
