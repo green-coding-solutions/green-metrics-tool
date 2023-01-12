@@ -59,7 +59,11 @@ We use `pylint` to check for clean code, with a few minor variations:
   do most of the heavy lifting. We could refactor this but this would lead to very unreadable code in the greater
   context of things.
 
-To check if your code works you can call `pylint -j0 **.py` in the project directory.
+To check if your code works you can call
+```
+pylint $(git ls-files '*.py')
+```
+in the project directory.
 
 We recommend that you set a pre-commit hook to lint your code every time you commit. This can be done by adding
 ```
