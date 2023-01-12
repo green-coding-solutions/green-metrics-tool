@@ -22,6 +22,8 @@ To run the tests, you need to first start the test containers, then run pytest, 
 There are a few scripts to make this easy.
 
 `./start-test-containers.sh` will start the test containers (non-detached mode)
+    you can run this with -d flag to start the containers in detached mode:
+    `./start-test-containers.sh -d`
 `./stop-test-containers.sh` will stop them.
 `./run-tests.sh` will do everything - start the containers, run pytest, and then stop the containers.
 

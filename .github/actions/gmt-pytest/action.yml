@@ -5,6 +5,18 @@ inputs:
     description: 'a list of metrics to turn off that is passed to the disable metrics script'
     required: false
     default: ''
+  gmt-directory:
+    description: 'The root directory of the gmt repository'
+    required: false
+    default: '.'
+  tests-directory:
+    description: 'The directory where to run the tests from'
+    required: false
+    default: './test'
+  tests-command:
+    description: 'The command to run the tests'
+    required: false
+    default: 'pytest'
 runs:
   using: 'composite'
   steps:
@@ -16,26 +28,28 @@ runs:
     
     - name: Run Prereqs and Install Script
       shell: bash
+      working-directory: ${{ inputs.gmt-directory }}
       run: |
         sudo apt install lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev
         ./install.sh -p testpw
 
     - name: Turn off metric providers which do not work in github vm
       shell: bash
+      working-directory: ${{ inputs.gmt-directory }}
       run: |
         ./disable-metric-providers.sh ${{ inputs.metrics-to-turn-off }}
 
     - name: Setup Test environment
       shell: bash
-      working-directory: ./test
+      working-directory: ${{ inputs.gmt-directory }}/test
       run: |
         python3 setup-test-env.py
         
     - name: Start Test container
       shell: bash
-      working-directory: ./test
+      working-directory: ${{ inputs.gmt-directory }}/test
       run: |
-        docker compose -f ../docker/test-compose.yml up -d
+        ./start-test-containers.sh -d
    
     - name: Sleep for 10 seconds
       run: sleep 10s
@@ -43,13 +57,12 @@ runs:
         
     - name: Run Tests
       shell: bash
-      working-directory: ./test
-      run: |
-        pytest
+      working-directory: ${{ inputs.tests-directory }}
+      run: ${{ inputs.tests-command }}
         
     - name: Stop Containers
       shell: bash
       if: always()
-      working-directory: ./test
+      working-directory: ${{ inputs.gmt-directory }}/test
       run: |
-        docker compose -f ../docker/test-compose.yml down -v
+        ./stop-test-containers.sh
