@@ -137,8 +137,7 @@ class Runner:
             for network in obj['networks']:
                 print('Creating network: ', network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
-                #pylint: disable=subprocess-run-check
-                subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL)
+                subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
                 subprocess.run(['docker', 'network', 'create', network], check=True)
                 self.networks.append(network)
 
@@ -172,7 +171,7 @@ class Runner:
 
             if 'volumes' in service:
                 if self.allow_unsafe:
-                    if isinstance(service['volumes'], list):
+                    if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
@@ -186,7 +185,7 @@ class Runner:
 
             if 'ports' in service:
                 if self.allow_unsafe:
-                    if isinstance(service['ports'], list):
+                    if not isinstance(service['ports'], list):
                         raise RuntimeError(f"ports must be a list but is: {type(service['ports'])}")
                     for ports in service['ports']:
                         print('Setting ports: ', service['ports'])
@@ -446,8 +445,7 @@ class Runner:
         print('Removing network')
         for network_name in self.networks:
             # no check=True, as the network might already be gone. We do not want to fail here
-            #pylint: disable=subprocess-run-check
-            subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL)
+            subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
 
         if not self.no_file_cleanup:
             print('Removing files')

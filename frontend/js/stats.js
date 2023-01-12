@@ -4,7 +4,7 @@ else display_in_watts = false;
 
 const copyToClipboard = (e) => {
   if (navigator && navigator.clipboard && navigator.clipboard.writeText)
-    return navigator.clipboard.writeText(e.target.parentElement.parentElement.children[0].href);
+    return navigator.clipboard.writeText(e.target.parentElement.parentElement.children[0].innerHTML);
   return Promise.reject('The Clipboard API is not available.');
 };
 
@@ -517,23 +517,23 @@ $(document).ready( (e) => {
 
         try {
             var project_data = await makeAPICall('/v1/project/' + url_params.get('id'))
-            // replace the project_id for the badges
-            if (document.location.host.indexOf('metrics.green-coding.org') === 0)
-                api_url = "https://api.green-coding.org";
-            else
-                api_url = "http://api.green-coding.local:8000";
 
-
-            document.querySelectorAll("#badges a").forEach(el => {
-               el.href = el.href.replace("__project_id__", url_params.get('id'))
-               el.href = el.href.replace("https://api.green-coding.org", api_url)
-               el.children[0].src = el.href
-            });
-
+            document.querySelectorAll("#badges span.energy-badge-container").forEach(el => {
+                const link_node = document.createElement("a")
+                const img_node = document.createElement("img")
+                if (document.location.host.indexOf('metrics.green-coding.org') === 0) {
+                    link_node.href = `https://metrics.green-coding.org/stats.html?id=${url_params.get('id')}`
+                    img_node.src = `https://api.green-coding.org/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
+                } else {
+                    link_node.href = `http://metrics.green-coding.local:8000/stats.html?id=${url_params.get('id')}`
+                    img_node.src = `http://api.green-coding.local:8000/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
+                }
+                link_node.appendChild(img_node)
+                el.appendChild(link_node)
+            })
             document.querySelectorAll(".copy-badge").forEach(el => {
                 el.addEventListener('click', copyToClipboard)
             })
-
 
         } catch (err) {
             showNotification('Could not get project data from API', err);
