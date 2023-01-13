@@ -48,7 +48,10 @@ mv lib/sgx-software-enable/sgx_enable tools/
 rm lib/sgx-software-enable/sgx_enable.o
 
 print_message "Adding hardware_info_root.py to sudoers file"
-make -C lib/
+PYTHON_PATH=$(which python3)
+PWD=$(pwd)
+echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
+
 
 print_message "Linking DC measurement provider library file to /usr/lib"
 sudo rm -f /usr/lib/libpicohrdl.so.2
