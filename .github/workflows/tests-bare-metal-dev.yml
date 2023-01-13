@@ -3,7 +3,6 @@ run-name: Scheduled - ${{ github.ref_name }}
 on:
   schedule:
     - cron: '0 0 * * *'
-      branches: [ "dev" ]
   #push:
   #  branch: test-pipeline-improvements
 jobs:

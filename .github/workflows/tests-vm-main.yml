@@ -3,7 +3,6 @@ run-name: Scheduled - ${{ github.ref_name }}
 on:
   schedule:
     - cron: '0 0 * * *'
-      branches: [ "main", "dev" ]
   #push:
   #  branch: tests-minor-cleanups
 
