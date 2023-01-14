@@ -61,7 +61,7 @@ class Runner:
         self.ps_to_read = []
         self.metric_providers = []
 
-    def run(self, uri, uri_type, project_id):
+    def run(self, uri, uri_type, project_id, filename='usage_scenario.yml'):
 
         config = GlobalConfig().config
 
@@ -80,7 +80,7 @@ class Runner:
         else:
             folder = uri
 
-        with open(f"{folder}/usage_scenario.yml", encoding='utf-8') as fp:
+        with open(f"{folder}/{filename}", encoding='utf-8') as fp:
             obj = yaml.safe_load(fp)
 
         print(TerminalColors.HEADER, '\nHaving Usage Scenario ', obj['name'], TerminalColors.ENDC)
@@ -472,6 +472,10 @@ if __name__ == '__main__':
             with / or a remote git repository starting with http(s)://')
     parser.add_argument(
         '--name', type=str, help='A name which will be stored to the database to discern this run from others')
+    parser.add_argument(
+        '--filename', type=str, default='usage_scenario.yml',
+        help='An optional alternative filename if you do not want to use "usage_scenario.yml"')
+
     parser.add_argument('--no-file-cleanup', action='store_true',
                         help='Do not delete files in /tmp/green-metrics-tool')
     parser.add_argument('--debug', action='store_true',
@@ -525,7 +529,7 @@ if __name__ == '__main__':
                     skip_unsafe=args.skip_unsafe, verbose_provider_boot=args.verbose_provider_boot)
     try:
         runner.run(uri=args.uri, uri_type=run_type,
-                   project_id=project_id)  # Start main code
+                   project_id=project_id, filename=args.filename)  # Start main code
         print(TerminalColors.OKGREEN,
             '\n\n####################################################################################')
         print(f"Please access your report with the ID: {project_id}")
