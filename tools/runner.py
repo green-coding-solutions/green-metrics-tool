@@ -357,6 +357,7 @@ class Runner:
                             'cmd': docker_exec_command,
                             'ps': ps,
                             'read-notes-stdout': inner_el.get('read-notes-stdout', False),
+                            'ignore-errors': inner_el.get('ignore-errors', False),
                             'detail_name': el['container']})
 
                         if inner_el.get('detach', None) is True:
@@ -406,7 +407,7 @@ class Runner:
             # now we have free capacity to parse the stdout / stderr of the processes
             print(TerminalColors.HEADER, '\nGetting output from processes: ', TerminalColors.ENDC)
             for ps in self.ps_to_read:
-                for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd']):
+                for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd'], ps['ignore-errors']):
                     print('Output from process: ', line)
                     if ps['read-notes-stdout']:
                         # Fixed format according to our specification. If unpacking fails this is wanted error

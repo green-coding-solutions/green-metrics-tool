@@ -57,9 +57,9 @@ def timeout(process, cmd: str, duration: int):
         #pylint: disable=raise-missing-from
         raise RuntimeError(f"Process exceeded runtime of {duration}s: {cmd}")
 
-def parse_stream_generator(process, cmd):
+def parse_stream_generator(process, cmd, ignore_errors: False):
     stderr_stream = process.stderr.read()
-    if stderr_stream != '':
+    if stderr_stream != '' and not ignore_errors:
         raise RuntimeError(
             f"Stderr of docker exec command '{cmd}' was not empty: {stderr_stream}")
 
