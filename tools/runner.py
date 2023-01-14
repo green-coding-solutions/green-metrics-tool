@@ -44,7 +44,7 @@ from global_config import GlobalConfig
 from save_notes import save_notes  # local file import
 
 def arrows(text):
-    return f"\n\n>>>> {text} <<<<<<\n\n"
+    return f"\n\n>>>> {text} <<<<\n\n"
 
 class Runner:
     def __init__(self,
