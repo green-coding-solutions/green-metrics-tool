@@ -200,7 +200,7 @@ class Runner:
 
             if 'environment' in service:
                 for docker_env_var in service['environment']:
-                    if not self.allow_unsafe and re.search('^[A-Z_]+$', docker_env_var) is None:
+                    if not self.allow_unsafe and re.search(r'^[A-Z_]+$', str(docker_env_var)) is None:
                         if self.skip_unsafe:
                             warn_message= arrows(f"Found environment var key with wrong format. \
                                  Only ^[A-Z_]+$ allowed: {docker_env_var} - Skipping")
@@ -211,7 +211,7 @@ class Runner:
                                 or --skip-unsafe")
 
                     if not self.allow_unsafe and \
-                        re.search('^[a-zA-Z_]+[a-zA-Z0-9_-]*$', service['environment'][docker_env_var]) is None:
+                        re.search(r'^[a-zA-Z_]+[a-zA-Z0-9_-]*$', str(service['environment'][docker_env_var])) is None:
                         if self.skip_unsafe:
                             print(TerminalColors.WARNING, arrows(f"Found environment var value with wrong format. \
                                     Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - \
