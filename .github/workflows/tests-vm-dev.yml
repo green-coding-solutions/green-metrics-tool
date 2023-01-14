@@ -1,5 +1,5 @@
 name: Daily Test Run - Virtual Machine - Dev Branch
-run-name: Scheduled - ${{ github.ref_name }}
+run-name: Scheduled - DEV Branch
 on:
   schedule:
     - cron: '0 0 * * *'
