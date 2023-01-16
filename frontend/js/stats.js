@@ -521,12 +521,12 @@ $(document).ready( (e) => {
             document.querySelectorAll("#badges span.energy-badge-container").forEach(el => {
                 const link_node = document.createElement("a")
                 const img_node = document.createElement("img")
-                if (document.location.host.indexOf('metrics.green-coding.org') === 0) {
-                    link_node.href = `https://metrics.green-coding.org/stats.html?id=${url_params.get('id')}`
-                    img_node.src = `https://api.green-coding.org/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
+                if (document.location.host.indexOf('metrics.green-coding.local') === 0) {
+                    link_node.href = `http://metrics.green-coding.local:9142/stats.html?id=${url_params.get('id')}`
+                    img_node.src = `http://api.green-coding.local:9142/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
                 } else {
-                    link_node.href = `http://metrics.green-coding.local:8000/stats.html?id=${url_params.get('id')}`
-                    img_node.src = `http://api.green-coding.local:8000/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
+                    link_node.href = `https://metrics.green-coding.berlin/stats.html?id=${url_params.get('id')}`
+                    img_node.src = `https://api.green-coding.berlin/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
                 }
                 link_node.appendChild(img_node)
                 el.appendChild(link_node)
