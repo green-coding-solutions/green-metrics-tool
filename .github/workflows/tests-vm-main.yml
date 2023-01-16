@@ -14,7 +14,7 @@ jobs:
       recent_main_commit: ${{ steps.check_main_commits.outputs.recent_commit }}
     steps:
       - id: check_main_commits
-        uses: green-coding-berlin/green-ci-activity-checker@main
+        uses: green-coding-berlin/eco-ci-activity-checker@main
         with:
           repo: 'green-coding-berlin/green-metrics-tool'
           branch: 'main'
