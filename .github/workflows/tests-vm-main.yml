@@ -3,8 +3,6 @@ run-name: Scheduled - main branch
 on:
   schedule:
     - cron: '0 0 * * *'
-  #push:
-  #  branch: tests-minor-cleanups
 
 jobs:
   check_date:
