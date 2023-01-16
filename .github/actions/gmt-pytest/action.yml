@@ -58,7 +58,15 @@ runs:
     - name: Run Tests
       shell: bash
       working-directory: ${{ inputs.tests-directory }}
-      run: ${{ inputs.tests-command }}
+      run: |
+        ${{ inputs.tests-command }} > /tmp/test-results.txt
+
+    - name: Display Results
+      shell: bash
+      if: always()
+      working-directory: ${{ inputs.tests-directory }}
+      run: |
+        cat /tmp/test-results.txt >> $GITHUB_STEP_SUMMARY
         
     - name: Stop Containers
       shell: bash
