@@ -36,10 +36,27 @@ async def catch_exceptions_middleware(request: Request, call_next):
     try:
         return await call_next(request)
     except Exception as exception:
-        error_helpers.log_error('Error in API call: ', str(request), ' with next call: ', call_next, exception)
+
+        body = await request.body()
+        error_message = f"""
+            Error in API call
+
+            URL: {request.url}
+
+            Query-Params: {request.query_params}
+
+            Client: {request.client}
+
+            Headers: {str(request.headers)}
+
+            Body: {body}
+
+            Exception: {exception}
+        """
+        error_helpers.log_error(error_message)
         email_helpers.send_error_email(
             GlobalConfig().config['admin']['email'],
-            error_helpers.format_error('Error in API call: ', str(request), ' with next call: ', call_next, exception),
+            error_helpers.format_error(error_message),
             project_id=None,
         )
         return JSONResponse(

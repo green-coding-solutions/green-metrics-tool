@@ -1,11 +1,8 @@
 name: Daily Test Run - Virtual Machine - Main Branch
-run-name: Scheduled - ${{ github.ref_name }}
+run-name: Scheduled - main branch
 on:
   schedule:
     - cron: '0 0 * * *'
-      branches: [ "main", "dev" ]
-  #push:
-  #  branch: tests-minor-cleanups
 
 jobs:
   check_date:
@@ -15,7 +12,7 @@ jobs:
       recent_main_commit: ${{ steps.check_main_commits.outputs.recent_commit }}
     steps:
       - id: check_main_commits
-        uses: green-coding-berlin/green-ci-branch-activity-checker@main
+        uses: green-coding-berlin/eco-ci-activity-checker@main
         with:
           repo: 'green-coding-berlin/green-metrics-tool'
           branch: 'main'

@@ -44,7 +44,7 @@ from global_config import GlobalConfig
 from save_notes import save_notes  # local file import
 
 def arrows(text):
-    return f"\n\n>>>> {text} <<<<<<\n\n"
+    return f"\n\n>>>> {text} <<<<\n\n"
 
 class Runner:
     def __init__(self,
@@ -61,7 +61,7 @@ class Runner:
         self.ps_to_read = []
         self.metric_providers = []
 
-    def run(self, uri, uri_type, project_id):
+    def run(self, uri, uri_type, project_id, filename='usage_scenario.yml'):
 
         config = GlobalConfig().config
 
@@ -80,7 +80,7 @@ class Runner:
         else:
             folder = uri
 
-        with open(f"{folder}/usage_scenario.yml", encoding='utf-8') as fp:
+        with open(f"{folder}/{filename}", encoding='utf-8') as fp:
             obj = yaml.safe_load(fp)
 
         print(TerminalColors.HEADER, '\nHaving Usage Scenario ', obj['name'], TerminalColors.ENDC)
@@ -200,7 +200,7 @@ class Runner:
 
             if 'environment' in service:
                 for docker_env_var in service['environment']:
-                    if not self.allow_unsafe and re.search('^[A-Z_]+$', docker_env_var) is None:
+                    if not self.allow_unsafe and re.search(r'^[A-Z_]+$', str(docker_env_var)) is None:
                         if self.skip_unsafe:
                             warn_message= arrows(f"Found environment var key with wrong format. \
                                  Only ^[A-Z_]+$ allowed: {docker_env_var} - Skipping")
@@ -211,7 +211,7 @@ class Runner:
                                 or --skip-unsafe")
 
                     if not self.allow_unsafe and \
-                        re.search('^[a-zA-Z_]+[a-zA-Z0-9_-]*$', service['environment'][docker_env_var]) is None:
+                        re.search(r'^[a-zA-Z_]+[a-zA-Z0-9_-]*$', str(service['environment'][docker_env_var])) is None:
                         if self.skip_unsafe:
                             print(TerminalColors.WARNING, arrows(f"Found environment var value with wrong format. \
                                     Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - \
@@ -357,6 +357,7 @@ class Runner:
                             'cmd': docker_exec_command,
                             'ps': ps,
                             'read-notes-stdout': inner_el.get('read-notes-stdout', False),
+                            'ignore-errors': inner_el.get('ignore-errors', False),
                             'detail_name': el['container']})
 
                         if inner_el.get('detach', None) is True:
@@ -406,7 +407,7 @@ class Runner:
             # now we have free capacity to parse the stdout / stderr of the processes
             print(TerminalColors.HEADER, '\nGetting output from processes: ', TerminalColors.ENDC)
             for ps in self.ps_to_read:
-                for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd']):
+                for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd'], ps['ignore-errors']):
                     print('Output from process: ', line)
                     if ps['read-notes-stdout']:
                         # Fixed format according to our specification. If unpacking fails this is wanted error
@@ -471,6 +472,10 @@ if __name__ == '__main__':
             with / or a remote git repository starting with http(s)://')
     parser.add_argument(
         '--name', type=str, help='A name which will be stored to the database to discern this run from others')
+    parser.add_argument(
+        '--filename', type=str, default='usage_scenario.yml',
+        help='An optional alternative filename if you do not want to use "usage_scenario.yml"')
+
     parser.add_argument('--no-file-cleanup', action='store_true',
                         help='Do not delete files in /tmp/green-metrics-tool')
     parser.add_argument('--debug', action='store_true',
@@ -524,7 +529,7 @@ if __name__ == '__main__':
                     skip_unsafe=args.skip_unsafe, verbose_provider_boot=args.verbose_provider_boot)
     try:
         runner.run(uri=args.uri, uri_type=run_type,
-                   project_id=project_id)  # Start main code
+                   project_id=project_id, filename=args.filename)  # Start main code
         print(TerminalColors.OKGREEN,
             '\n\n####################################################################################')
         print(f"Please access your report with the ID: {project_id}")

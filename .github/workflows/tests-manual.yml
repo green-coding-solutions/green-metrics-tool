@@ -13,7 +13,22 @@ jobs:
         with:
           submodules: 'true'
       
+      - name: Eco CI Energy Estimation
+        uses: green-coding-berlin/eco-ci-energy-estimation@v1.0
+        with:
+          task: initialize
+
+      - name: Eco CI Energy Estimation
+        uses: green-coding-berlin/eco-ci-energy-estimation@v1.0
+        with:
+          task: start-measurement
+
       - name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
            metrics-to-turn-off: 'RAPL System Sensors Debug CGroupV2'
+
+      - name: Eco CI Energy Estimation
+        uses: green-coding-berlin/eco-ci-energy-estimation@v1.0
+        with:
+          task: get-measurement

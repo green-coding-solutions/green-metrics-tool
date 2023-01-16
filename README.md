@@ -8,9 +8,9 @@ Currently no special setup is done to isolate the containers from the host OS an
 
 Ensure that you run this only in an isolated VM / dedicated server.
 
-![Tests Status - Main](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-main.yml/badge.svg)
+[![Tests Status - Main](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-main.yml/badge.svg)](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-main.yml)
 
-![Tests Status - Dev](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-dev.yml/badge.svg)
+[![Tests Status - Dev](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-dev.yml/badge.svg)](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-dev.yml)
 
 
 # Introduction
@@ -42,7 +42,7 @@ To see the the documentation and how to install and use the tool please go to [G
 ![Web Flow Demo with CPU measurement provider](images/cpu-image-webflow.png "Web Charts demo with docker stats provider instead of energy")
 > Web Flow Demo with CPU measurement provider
 > 
-
+- update test badges to link to workflow run page
 ![Web Flow Demo with energy measurement provider](images/energy-image-webflow.png "Web Charts demo with docker stats provider instead of energy")
 > Web Flow Demo with energy measurement provider
 > 
