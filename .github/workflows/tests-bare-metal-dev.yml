@@ -17,8 +17,6 @@ jobs:
         with:
          repo: 'green-coding-berlin/green-metrics-tool'
          branch: 'dev'
-         workflow-id: 45267392
-
   run-tests-dev:
     needs: check_date
     if: ${{ needs.check_date.outputs.recent_dev_commit == 'true' }}
