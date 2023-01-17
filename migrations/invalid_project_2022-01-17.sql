@@ -1,0 +1,1 @@
+ALTER TABLE "public"."projects" ADD "invalid_project" text  NULL;
