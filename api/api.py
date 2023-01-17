@@ -62,7 +62,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
         return JSONResponse(
             content={
                 'success': False,
-                'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.org',
+                'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.berlin',
             },
             status_code=500,
         )
@@ -75,8 +75,8 @@ app.middleware('http')(catch_exceptions_middleware)
 origins = [
     'http://metrics.green-coding.local:9142',
     'http://api.green-coding.local:9142',
-    'https://metrics.green-coding.org',
-    'https://api.green-coding.org',
+    'https://metrics.green-coding.berlin',
+    'https://api.green-coding.berlin',
 ]
 
 app.add_middleware(

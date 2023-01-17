@@ -345,7 +345,7 @@ const createAvgContainer = (metric_name, value, unit) => {
     } else if(metric_name.indexOf('network_io') !== -1) {
         color = 'olive';
         icon = 'exchange alternate';
-        explaination = '<a href="https://docs.green-coding.org/docs/measuring/metric-providers/network-io-cgroup-container/"><i class="question circle icon"></i></a>'
+        explaination = '<a href="https://docs.green-coding.berlin/docs/measuring/metric-providers/network-io-cgroup-container/"><i class="question circle icon"></i></a>'
     } else if(metric_name.indexOf('cpu_utilization') !== -1) {
         if(metric_name.indexOf('_system') !== -1) explaination = 'system';
         color = 'yellow';
@@ -473,7 +473,7 @@ const fillAvgContainers = (measurement_duration_in_s, metrics) => {
     }
     document.querySelector("#component-power").innerHTML = `${(component_energy_in_J / measurement_duration_in_s).toFixed(2)} <span class="si-unit">W</span>`
 
-    // network via formula: https://www.green-coding.org/co2-formulas/
+    // network via formula: https://www.green-coding.berlin/co2-formulas/
     const network_io_in_mWh = network_io * 0.00006 * 1000000;
     const network_io_in_J = network_io_in_mWh * 3.6;  //  60 * 60 / 1000 => 3.6
     if(display_in_watts) {
