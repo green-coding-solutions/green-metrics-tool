@@ -12,7 +12,7 @@ smtp:
   user: SMTP_AUTH_USER
 project:
   name: My test project
-  url: https://metrics.green-coding.org/
+  url: https://metrics.green-coding.berlin/
 
 measurement:
   idle-time-start: 10
@@ -21,10 +21,10 @@ measurement:
   metric-providers:
 
   # Please select the needed providers according to the working ones on your system
-  # More info https://docs.green-coding.org/docs/measuring/metric-providers
+  # More info https://docs.green-coding.berlin/docs/measuring/metric-providers
   # Please activate and deactivate any provider in this list by uncommenting it.
   # Keep in mind that some reporters need separate installation steps to be found @
-  # https://docs.green-coding.org/docs/installation/installation-overview/
+  # https://docs.green-coding.berlin/docs/installation/installation-overview/
   # You can ignore any line that starts with #---
   #--- Always-On - We recommend these providers to be always enabled
     cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:

@@ -21,7 +21,7 @@ services:
     depends_on:
       - green-coding-postgres
     ports:
-      - 8000:80
+      - 9142:80
     restart: always
     volumes:
       - green-coding-shared-tmp:/tmp

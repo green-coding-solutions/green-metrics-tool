@@ -33,7 +33,7 @@ Subject: {subject}
 
 --
 Green Coding Berlin
-https://www.green-coding.org
+https://www.green-coding.berlin
 
     """
     message = message.format(
@@ -58,7 +58,7 @@ Project id: {project_id}
 
 --
 Green Coding Berlin
-https://www.green-coding.org
+https://www.green-coding.berlin
 
     """
     message = message.format(
@@ -80,7 +80,7 @@ Your report is now accessible under the URL: {url}stats.html?id={report_id}
 
 --
 Green Coding Berlin
-https://www.green-coding.org
+https://www.green-coding.berlin
 
     """
     message = message.format(
