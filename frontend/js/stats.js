@@ -563,6 +563,10 @@ $(document).ready( (e) => {
 
         fillProjectData(project_data.data)
 
+        if (project_data.data.invalid_project) {
+            showNotification('Project measurement has been marked as invalid', project_data.data.invalid_project);
+        }
+
         if (stats_data == undefined || stats_data.success == false) {
             return;
         }
