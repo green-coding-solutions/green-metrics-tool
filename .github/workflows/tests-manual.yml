@@ -14,12 +14,12 @@ jobs:
           submodules: 'true'
       
       - name: Eco CI Energy Estimation
-        uses: green-coding-berlin/eco-ci-energy-estimation@v1.0
+        uses: green-coding-berlin/eco-ci-energy-estimation@main
         with:
           task: initialize
 
       - name: Eco CI Energy Estimation
-        uses: green-coding-berlin/eco-ci-energy-estimation@v1.0
+        uses: green-coding-berlin/eco-ci-energy-estimation@main
         with:
           task: start-measurement
 
@@ -29,6 +29,6 @@ jobs:
            metrics-to-turn-off: 'RAPL System Sensors Debug CGroupV2'
 
       - name: Eco CI Energy Estimation
-        uses: green-coding-berlin/eco-ci-energy-estimation@v1.0
+        uses: green-coding-berlin/eco-ci-energy-estimation@main
         with:
           task: get-measurement

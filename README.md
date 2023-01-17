@@ -29,13 +29,13 @@ During this process the performance metrics of the containers are read through d
 This repository contains the command line tools to schedule and run the measurement report
 as well as a web interface to view the measured metrics in some nice charts.
 
-# Frontend  
-To see the frontend in action and get an idea of what kind of metrics the tool can collect and display go to out [Green Metrics Frontend](https://metrics.green-coding.org)
+# Frontend
+To see the frontend in action and get an idea of what kind of metrics the tool can collect and display go to out [Green Metrics Frontend](https://metrics.green-coding.berlin)
 
 
 # Documentation
 
-To see the the documentation and how to install and use the tool please go to [Green Metrics Tool Documentation](https://docs.green-coding.org)
+To see the the documentation and how to install and use the tool please go to [Green Metrics Tool Documentation](https://docs.green-coding.berlin)
 
 # Screenshots
 
