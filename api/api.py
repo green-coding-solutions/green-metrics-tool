@@ -120,6 +120,8 @@ async def get_projects():
                 id, name, uri, end_measurement, last_run
             FROM
                 projects
+            WHERE
+                invalid_project IS NULL
             ORDER BY
                 created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
             """
