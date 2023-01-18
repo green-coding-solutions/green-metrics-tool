@@ -30,6 +30,20 @@ class PowerSpy2:
             print(f"Connected to {self.s.name}", file=sys.stderr)
         self.stopRealtimeMeasure()
 
+    def mseconds_to_period(self, milli_seconds):
+        # PowerSpy v2 (assuming all other versions) supports 65535 averaging periods.
+        max_avg_period = 65535
+        frequency = self.getFrequency()
+        periods_seconds = 1382400.0 / frequency
+
+        avg_period = int(round(periods_seconds * (milli_seconds / 1000)))
+
+        if avg_period > max_avg_period:
+            print('PowerSpy capacity exceeded: it will be average of averaged values for one second.')
+            avg_period = int(round(periods_seconds))
+
+        return avg_period
+
     def sendRequest(self, req):
         if self.debug:
             print(f"> {req}", file=sys.stderr)
@@ -103,7 +117,7 @@ class PowerSpy2:
                 res = self.readResponse()
                 rmsVoltage = math.sqrt(int(res[1:9], 16) * math.pow(self.uscale, 2))
                 rmsCurrent = math.sqrt(int(res[10:18], 16) * math.pow(self.iscale, 2))
-                rmsPower = math.sqrt(int(res[19:27], 16) * self.uscale * self.iscale)
+                rmsPower = math.sqrt(int(res[19:27], 16) ** 2 * self.uscale * self.iscale)
                 peakVoltage = int(res[28:32], 16) * self.uscale
                 peakCurrent = int(res[33:37], 16) * self.iscale
                 sys.stdout.buffer.write(
@@ -113,18 +127,41 @@ class PowerSpy2:
                 break
         self.stopRealtimeMeasure()
 
-    def measurePowerRealtime(self, periods):
+    def measurePowerRealtime(self, periods, unit='mW'):
         self.initCallibration()
         self.sendRequest(f"<J{periods:04X}>".encode())
         self.readResponse()  # TODO check for errors
         while True:
             try:
                 res = self.readResponse()
-                rmsPower = math.sqrt((int(res[19:27], 16)) ** 2 * self.uscale * self.iscale)
-                sys.stdout.buffer.write(f"{int(time.time_ns()/ 1000)} {int(rmsPower * 1000)}\n".encode())
-                sys.stdout.buffer.flush()
+                if res[19:25] == b'FFFFFF':
+                    # This is a little hacky but if nothing is plugged into the powerspy it returns
+                    # b'FFFFFFF' so we set it to 0 to avoid confusion
+                    rmsPower = 0
+                else:
+                    rmsPower = math.sqrt((int(res[19:27], 16)) ** 2 * self.uscale * self.iscale)
+
+                    if unit == 'mW':
+                        rmsPower = rmsPower * 10
+                    elif unit == 'W':
+                        rmsPower = rmsPower / 100
+                    elif unit == 'J':
+                        # Make sure that periods is 1 second
+                        assert periods == self.mseconds_to_period(1000)
+                        rmsPower = rmsPower / 100
+                    elif unit == 'mJ':
+                        # Make sure that periods is 1 second
+                        assert periods == self.mseconds_to_period(1000)
+                        rmsPower = rmsPower * 10
+                    else:
+                        raise ValueError("Unit needs to be mW, W, J or mJ")
+
+                # We have no real way of showing which unit the output is. The user will need to take care of this!
+                sys.stdout.buffer.write(f"{int(time.time_ns()/ 1000)} {int(rmsPower)}\n".encode())
             except KeyboardInterrupt:
+                sys.stdout.buffer.flush()
                 break
+
         self.stopRealtimeMeasure()
 
     def stopRealtimeMeasure(self):

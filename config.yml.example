@@ -62,6 +62,8 @@ measurement:
 #      resolution: 100
 #    psu.energy.dc.system.provider.PsuEnergyDcSystemProvider:
 #      resolution: 61 # Do not change this. Provider is tailored to work at fixed resolution
+#    psu.energy.ac.powerspy2.provider.PowerSpy2Provider:
+#      resolution: 1000
   #--- Sensors
 #    lm_sensors.temperature.provider.LmTempSenorsProvider:
 #      resolution: 100
