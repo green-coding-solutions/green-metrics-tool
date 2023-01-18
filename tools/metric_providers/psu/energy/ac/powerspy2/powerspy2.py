@@ -117,6 +117,7 @@ class PowerSpy2:
                 res = self.readResponse()
                 rmsVoltage = math.sqrt(int(res[1:9], 16) * math.pow(self.uscale, 2))
                 rmsCurrent = math.sqrt(int(res[10:18], 16) * math.pow(self.iscale, 2))
+                # The return value seems to be centiwatt
                 rmsPower = math.sqrt(int(res[19:27], 16) ** 2 * self.uscale * self.iscale)
                 peakVoltage = int(res[28:32], 16) * self.uscale
                 peakCurrent = int(res[33:37], 16) * self.iscale
@@ -139,6 +140,7 @@ class PowerSpy2:
                     # b'FFFFFFF' so we set it to 0 to avoid confusion
                     rmsPower = 0
                 else:
+                    # The return value seems to be centiwatt
                     rmsPower = math.sqrt((int(res[19:27], 16)) ** 2 * self.uscale * self.iscale)
 
                     if unit == 'mW':
