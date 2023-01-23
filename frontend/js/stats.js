@@ -306,6 +306,14 @@ const createChartContainer = (container, el, counter) => {
 
     chart_node.innerHTML = `
     <div class="content">
+        <div class="ui icon buttons">
+            <button class="ui button"><i class="angle double left icon"></i></button>
+            <button class="ui button"><i class="angle left icon"></i></button>
+            <button class="ui button"><i class="compress icon"></i></button>
+            <button class="ui button"><i class="expand icon"></i></button>
+            <button class="ui button"><i class="angle right icon"></i></button>
+            <button class="ui button"><i class="angle double right icon"></i></button>
+        </div>
         <div class="description">
             <div class="statistics-chart" id=${el}-chart></div>
         </div>
