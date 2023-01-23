@@ -75,20 +75,37 @@ class Runner:
             # always remove the folder if URL provided, cause -v directory binding always creates it
             # no check cause might fail when directory might be missing due to manual delete
             folder = '/tmp/green-metrics-tool/repo'
-            # TBD: What about recurse submodules?
-            # --recurse-submodules --shallow-submodules
             if branch:
                 print(f"Branch specified: {branch}")
                 # git clone -b <branchname> --single-branch <remote-repo-url>
                 subprocess.run(
-                    ['git', 'clone', '--depth', '1', '-b', branch, '--single-branch', uri, '/tmp/green-metrics-tool/repo'],
+                    [
+                        'git',
+                        'clone',
+                        '--depth', '1',
+                        '-b', branch,
+                        '--single-branch',
+                        '--recurse-submodules',
+                        '--shallow-submodules',
+                        uri,
+                        '/tmp/green-metrics-tool/repo'
+                    ],
                     check=True,
                     capture_output=True,
                     encoding='UTF-8',
                 )
             else:
                 subprocess.run(
-                    ['git', 'clone', '--depth', '1', uri, '/tmp/green-metrics-tool/repo'],
+                    [
+                        'git',
+                        'clone',
+                        '--depth', '1',
+                        '--single-branch',
+                        '--recurse-submodules',
+                        '--shallow-submodules',
+                        uri,
+                        '/tmp/green-metrics-tool/repo'
+                    ],
                     check=True,
                     capture_output=True,
                     encoding='UTF-8'
