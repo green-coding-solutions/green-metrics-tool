@@ -7,6 +7,7 @@ CREATE TABLE projects (
     id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
     name text,
     uri text,
+    branch text,
     email text,
     categories int[],
     usage_scenario jsonb,
