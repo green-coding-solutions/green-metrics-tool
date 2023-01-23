@@ -62,7 +62,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
         return JSONResponse(
             content={
                 'success': False,
-                'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.org',
+                'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.berlin',
             },
             status_code=500,
         )
@@ -73,10 +73,10 @@ async def catch_exceptions_middleware(request: Request, call_next):
 app.middleware('http')(catch_exceptions_middleware)
 
 origins = [
-    'http://metrics.green-coding.local:8000',
-    'http://api.green-coding.local:8000',
-    'https://metrics.green-coding.org',
-    'https://api.green-coding.org',
+    'http://metrics.green-coding.local:9142',
+    'http://api.green-coding.local:9142',
+    'https://metrics.green-coding.berlin',
+    'https://api.green-coding.berlin',
 ]
 
 app.add_middleware(
@@ -327,6 +327,7 @@ class Project(BaseModel):
     name: str
     url: str
     email: str
+    branch: str
 
 
 @app.post('/v1/project/add')
@@ -341,14 +342,17 @@ async def post_project_add(project: Project):
     if project.email is None or project.email.strip() == '':
         return {'success': False, 'err': 'E-mail is empty'}
 
+    if project.branch.strip() == '':
+        project.branch = None
+
     # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
     query = """
         INSERT INTO
-            projects (uri,name,email)
-        VALUES (%s, %s, %s)
+            projects (uri,name,email, branch)
+        VALUES (%s, %s, %s, %s)
         RETURNING id
         """
-    params = (project.url, project.name, project.email)
+    params = (project.url, project.name, project.email, project.branch)
     project_id = DB().fetch_one(query, params=params)
     # This order as selected on purpose. If the admin mail fails, we currently do
     # not want the job to be queued, as we want to monitor every project execution manually
@@ -364,7 +368,7 @@ async def post_project_add(project: Project):
 async def get_project(project_id: str):
     query = """
             SELECT
-                id, name, uri, (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements \
+                id, name, uri, branch, (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements \
                     LEFT JOIN categories as t on t.id = elements) as categories, start_measurement, end_measurement, \
                     measurement_config, machine_specs, usage_scenario, last_run, created_at
             FROM

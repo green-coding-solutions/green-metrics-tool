@@ -61,7 +61,7 @@ class Runner:
         self.ps_to_read = []
         self.metric_providers = []
 
-    def run(self, uri, uri_type, project_id, filename='usage_scenario.yml'):
+    def run(self, uri, uri_type, project_id, filename='usage_scenario.yml', branch=None):
 
         config = GlobalConfig().config
 
@@ -74,9 +74,42 @@ class Runner:
         if uri_type == 'URL':
             # always remove the folder if URL provided, cause -v directory binding always creates it
             # no check cause might fail when directory might be missing due to manual delete
-            subprocess.run(['git', 'clone', uri, '/tmp/green-metrics-tool/repo'], check=True,
-                           capture_output=True, encoding='UTF-8')  # always name target-dir repo according to spec
             folder = '/tmp/green-metrics-tool/repo'
+            if branch:
+                print(f"Branch specified: {branch}")
+                # git clone -b <branchname> --single-branch <remote-repo-url>
+                subprocess.run(
+                    [
+                        'git',
+                        'clone',
+                        '--depth', '1',
+                        '-b', branch,
+                        '--single-branch',
+                        '--recurse-submodules',
+                        '--shallow-submodules',
+                        uri,
+                        '/tmp/green-metrics-tool/repo'
+                    ],
+                    check=True,
+                    capture_output=True,
+                    encoding='UTF-8',
+                )
+            else:
+                subprocess.run(
+                    [
+                        'git',
+                        'clone',
+                        '--depth', '1',
+                        '--single-branch',
+                        '--recurse-submodules',
+                        '--shallow-submodules',
+                        uri,
+                        '/tmp/green-metrics-tool/repo'
+                    ],
+                    check=True,
+                    capture_output=True,
+                    encoding='UTF-8'
+                )  # always name target-dir repo according to spec
         else:
             folder = uri
 
@@ -471,6 +504,8 @@ if __name__ == '__main__':
         '--uri', type=str, help='The URI to get the usage_scenario.yml from. Can be either a local directory starting \
             with / or a remote git repository starting with http(s)://')
     parser.add_argument(
+        '--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
+    parser.add_argument(
         '--name', type=str, help='A name which will be stored to the database to discern this run from others')
     parser.add_argument(
         '--filename', type=str, default='usage_scenario.yml',
@@ -521,15 +556,15 @@ if __name__ == '__main__':
         sys.exit(2)
 
     # We issue a fetch_one() instead of a query() here, cause we want to get the project_id
-    project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
+    project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at", "branch") \
                 VALUES \
-                (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(args.name, args.uri))[0]
+                (%s,%s,\'manual\',NULL,NOW(),%s) RETURNING id;', params=(args.name, args.uri, args.branch))[0]
 
     runner = Runner(debug_mode=args.debug, allow_unsafe=args.allow_unsafe, no_file_cleanup=args.no_file_cleanup,
                     skip_unsafe=args.skip_unsafe, verbose_provider_boot=args.verbose_provider_boot)
     try:
         runner.run(uri=args.uri, uri_type=run_type,
-                   project_id=project_id, filename=args.filename)  # Start main code
+                   project_id=project_id, filename=args.filename, branch=args.branch)  # Start main code
         print(TerminalColors.OKGREEN,
             '\n\n####################################################################################')
         print(f"Please access your report with the ID: {project_id}")

@@ -203,10 +203,10 @@
         else
         {
           try {
-            if(document.location.host.indexOf('metrics.green-coding.org') === 0)
-              api_url = "https://api.green-coding.org";
+            if(document.location.host.indexOf('metrics.green-coding.local') === 0)
+                api_url = "http://api.green-coding.local:9142";
             else
-              api_url = "http://api.green-coding.local:8000";
+                api_url = "https://api.green-coding.berlin";
 
               params = url_params.getAll('pid[]');
               api_url += '/v1/stats/compare?dummy=dummy'

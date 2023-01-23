@@ -33,7 +33,7 @@
       <div class="mdc-drawer__content">
         <div class="user-info">
           <p class="name">Demo User</p>
-          <p class="email">info@green-coding.org</p>
+          <p class="email">info@green-coding.berlin</p>
         </div>
         <div class="mdc-list-group">
           <nav class="mdc-list mdc-drawer-menu">
@@ -266,10 +266,10 @@
         else 
         {
           try {
-            if(document.location.host.indexOf('metrics.green-coding.org') === 0)
-              api_url = "https://api.green-coding.org";
+            if(document.location.host.indexOf('metrics.green-coding.local') === 0)
+              api_url = "http://api.green-coding.local:9142";
             else
-              api_url = "http://api.green-coding.local:8000";
+              api_url = "https://api.green-coding.berlin";
 
               params = url_params.getAll('pid[]');
               if(params.length != 2) {

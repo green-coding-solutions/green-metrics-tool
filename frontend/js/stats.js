@@ -345,7 +345,7 @@ const createAvgContainer = (metric_name, value, unit) => {
     } else if(metric_name.indexOf('network_io') !== -1) {
         color = 'olive';
         icon = 'exchange alternate';
-        explaination = '<a href="https://docs.green-coding.org/docs/measuring/metric-providers/network-io-cgroup-container/"><i class="question circle icon"></i></a>'
+        explaination = '<a href="https://docs.green-coding.berlin/docs/measuring/metric-providers/network-io-cgroup-container/"><i class="question circle icon"></i></a>'
     } else if(metric_name.indexOf('cpu_utilization') !== -1) {
         if(metric_name.indexOf('_system') !== -1) explaination = 'system';
         color = 'yellow';
@@ -473,7 +473,7 @@ const fillAvgContainers = (measurement_duration_in_s, metrics) => {
     }
     document.querySelector("#component-power").innerHTML = `${(component_energy_in_J / measurement_duration_in_s).toFixed(2)} <span class="si-unit">W</span>`
 
-    // network via formula: https://www.green-coding.org/co2-formulas/
+    // network via formula: https://www.green-coding.berlin/co2-formulas/
     const network_io_in_mWh = network_io * 0.00006 * 1000000;
     const network_io_in_J = network_io_in_mWh * 3.6;  //  60 * 60 / 1000 => 3.6
     if(display_in_watts) {
@@ -521,12 +521,12 @@ $(document).ready( (e) => {
             document.querySelectorAll("#badges span.energy-badge-container").forEach(el => {
                 const link_node = document.createElement("a")
                 const img_node = document.createElement("img")
-                if (document.location.host.indexOf('metrics.green-coding.org') === 0) {
-                    link_node.href = `https://metrics.green-coding.org/stats.html?id=${url_params.get('id')}`
-                    img_node.src = `https://api.green-coding.org/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
+                if (document.location.host.indexOf('metrics.green-coding.local') === 0) {
+                    link_node.href = `http://metrics.green-coding.local:9142/stats.html?id=${url_params.get('id')}`
+                    img_node.src = `http://api.green-coding.local:9142/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
                 } else {
-                    link_node.href = `http://metrics.green-coding.local:8000/stats.html?id=${url_params.get('id')}`
-                    img_node.src = `http://api.green-coding.local:8000/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
+                    link_node.href = `https://metrics.green-coding.berlin/stats.html?id=${url_params.get('id')}`
+                    img_node.src = `https://api.green-coding.berlin/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
                 }
                 link_node.appendChild(img_node)
                 el.appendChild(link_node)
@@ -555,6 +555,12 @@ $(document).ready( (e) => {
         if (project_data == undefined || project_data.success == false) {
             return;
         }
+
+        // create new custom field
+        // timestamp is in microseconds, therefore divide by 10**6
+        const measurement_duration_in_s = (project_data.data.end_measurement - project_data.data.start_measurement) / 1000000
+        project_data.data['duration'] = `${measurement_duration_in_s} s`
+
         fillProjectData(project_data.data)
 
         if (stats_data == undefined || stats_data.success == false) {
@@ -563,9 +569,6 @@ $(document).ready( (e) => {
 
         const metrics = getMetrics(stats_data, project_data.data.start_measurement, project_data.data.end_measurement, 'echarts');
 
-        // create new custom field
-        // timestamp is in microseconds, therefore divide by 10**6
-        const measurement_duration_in_s = (project_data.data.end_measurement - project_data.data.start_measurement) / 1000000
 
         fillAvgContainers(measurement_duration_in_s, metrics);
 

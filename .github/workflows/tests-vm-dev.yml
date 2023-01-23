@@ -10,17 +10,19 @@ jobs:
     runs-on: ubuntu-latest
     name: Check latest commit
     outputs:
-      recent_dev_commit: ${{ steps.check_dev_commits.outputs.recent_commit }}
+      should_run: ${{ steps.check_dev_commits.outputs.should_run }}
     steps:
       - id: check_dev_commits
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: green-coding-berlin/eco-ci-activity-checker@main
         with:
          repo: 'green-coding-berlin/green-metrics-tool'
          branch: 'dev'
+         workflow-id: 45267392
 
   run-tests-dev:
     needs: check_date
-    if: ${{ needs.check_date.outputs.recent_dev_commit == 'true' }}
+    if: ${{ needs.check_date.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'}}
     runs-on: ubuntu-latest
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
