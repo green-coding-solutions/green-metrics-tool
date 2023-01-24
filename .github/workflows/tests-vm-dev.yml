@@ -1,0 +1,37 @@
+name: Daily Test Run - Virtual Machine - Dev Branch
+run-name: Scheduled - DEV Branch
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  check_date:
+    runs-on: ubuntu-latest
+    name: Check latest commit
+    outputs:
+      should_run: ${{ steps.check_dev_commits.outputs.should_run }}
+    steps:
+      - id: check_dev_commits
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        uses: green-coding-berlin/eco-ci-activity-checker@main
+        with:
+         repo: 'green-coding-berlin/green-metrics-tool'
+         branch: 'dev'
+         workflow-id: 45267392
+
+  run-tests-dev:
+    needs: check_date
+    if: ${{ needs.check_date.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'}}
+    runs-on: ubuntu-latest
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+        with:
+          ref: 'dev'
+          submodules: 'true'
+      
+      - name: 'Setup, Run, and Teardown Tests'
+        uses: ./.github/actions/gmt-pytest
+        with:
+           metrics-to-turn-off: 'RAPL System Sensors Debug CGroupV2'

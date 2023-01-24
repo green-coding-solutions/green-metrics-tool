@@ -47,6 +47,6 @@ def test_runner_reports(capsys):
 
     # Assert that Cleanup has run
     assert re.search(
-        '>>>> MEASUREMENT SUCCESSFULLY COMPLETED <<<<<<', captured.out)
+        '>>>> MEASUREMENT SUCCESSFULLY COMPLETED <<<<', captured.out)
     # Assert that there is no std.err output
     assert captured.err == ''

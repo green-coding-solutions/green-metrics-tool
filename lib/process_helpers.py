@@ -42,22 +42,24 @@ def timeout(process, cmd: str, duration: int):
         # This could maybe be optimized with manual code
         # Also if this code is slow on windows it should be reimplemented
         process.wait(duration)
-    except subprocess.TimeoutExpired as exc:
+    except subprocess.TimeoutExpired:
         print(f"Process exceeded runtime of {duration}s. Terminating ...")
         process.terminate()
         try:
             process.wait(5)
-        except subprocess.TimeoutExpired as e:
+        except subprocess.TimeoutExpired:
             print("Process could not terminate in 5s time. Killing ...")
             process.kill()
+            #pylint: disable=raise-missing-from
             raise RuntimeError(f"Process could not terminate in 5s time and was killed: {cmd}")
         # We want to safely kill the process, but still this is considered a critical
         # error condition. Therefore we throw an exception nonetheless to mark it
+        #pylint: disable=raise-missing-from
         raise RuntimeError(f"Process exceeded runtime of {duration}s: {cmd}")
 
-def parse_stream_generator(process, cmd):
+def parse_stream_generator(process, cmd, ignore_errors: False):
     stderr_stream = process.stderr.read()
-    if stderr_stream != '':
+    if stderr_stream != '' and not ignore_errors:
         raise RuntimeError(
             f"Stderr of docker exec command '{cmd}' was not empty: {stderr_stream}")
 

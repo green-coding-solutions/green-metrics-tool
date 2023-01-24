@@ -5,33 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>Green Metrics Tool - Experimental 0.1</title>
+  <meta name="description" content="Measuring the energy of your software" />
+  <meta name="referrer" content="no-referrer-when-downgrade" />
   <!-- plugins:css -->
-  <link rel="stylesheet" href="/assets/vendors/mdi/css/materialdesignicons.min.css">
-  <link rel="stylesheet" href="/assets/vendors/css/vendor.bundle.base.css">
+  <link rel="stylesheet" href="/vendors/mdi/css/materialdesignicons.min.css">
+  <link rel="stylesheet" href="/vendors/css/vendor.bundle.base.css">
   <!-- endinject -->
   <!-- Plugin css for this page -->
-  <link rel="stylesheet" href="/assets/vendors/flag-icon-css/css/flag-icon.min.css">
-  <link rel="stylesheet" href="/assets/vendors/jvectormap/jquery-jvectormap.css">
+  <link rel="stylesheet" href="/vendors/flag-icon-css/css/flag-icon.min.css">
+  <link rel="stylesheet" href="/vendors/jvectormap/jquery-jvectormap.css">
   <!-- End plugin css for this page -->
   <!-- Layout styles -->
-  <link rel="stylesheet" href="/assets/css/demo/style.css">
+  <link rel="stylesheet" href="/css/demo/style.css">
   <!-- End layout styles -->
-  <link rel="shortcut icon" href="/assets/images/favicon.png" />
+  <link rel="shortcut icon" href="/images/favicon.png" />
 </head>
 <body class="preload">
-<script src="../assets/js/preloader.js"></script>
+<script src="/js/preloader.js"></script>
   <div class="body-wrapper">
     <!-- partial:partials/_sidebar.html -->
     <aside class="mdc-drawer mdc-drawer--dismissible mdc-drawer--open">
       <div class="mdc-drawer__header">
         <a href="index.html" class="brand-logo">
-          <img src="../assets/images/logo.svg" alt="logo">
+          <img src="/images/logo.svg" alt="logo">
         </a>
       </div>
       <div class="mdc-drawer__content">
         <div class="user-info">
           <p class="name">Demo User</p>
-          <p class="email">info@green-coding.org</p>
+          <p class="email">info@green-coding.berlin</p>
         </div>
         <div class="mdc-list-group">
           <nav class="mdc-list mdc-drawer-menu">
@@ -87,7 +89,7 @@
               <button class="mdc-button mdc-menu-button">
                 <span class="d-flex align-items-center">
                   <span class="figure">
-                    <img src="../assets/images/faces/face1.jpg" alt="user" class="user">
+                    <img src="/images/faces/face1.jpg" alt="user" class="user">
                   </span>
                   <span class="user-name">Demo User</span>
                 </span>
@@ -197,7 +199,7 @@
                 <ul class="mdc-list" role="menu" aria-hidden="true" aria-orientation="vertical">
                   <li class="mdc-list-item" role="menuitem">
                     <div class="item-thumbnail">
-                      <img src="../assets/images/faces/face4.jpg" alt="user">
+                      <img src="/images/faces/face4.jpg" alt="user">
                     </div>
                     <div class="item-content d-flex align-items-start flex-column justify-content-center">
                       <h6 class="item-subject font-weight-normal">Mark send you a message</h6>
@@ -206,7 +208,7 @@
                   </li>
                   <li class="mdc-list-item" role="menuitem">
                     <div class="item-thumbnail">
-                      <img src="../assets/images/faces/face2.jpg" alt="user">
+                      <img src="/images/faces/face2.jpg" alt="user">
                     </div>
                     <div class="item-content d-flex align-items-start flex-column justify-content-center">
                       <h6 class="item-subject font-weight-normal">Cregh send you a message</h6>
@@ -215,7 +217,7 @@
                   </li>
                   <li class="mdc-list-item" role="menuitem">
                     <div class="item-thumbnail">
-                      <img src="../assets/images/faces/face3.jpg" alt="user">
+                      <img src="/images/faces/face3.jpg" alt="user">
                     </div>
                     <div class="item-content d-flex align-items-start flex-column justify-content-center">
                       <h6 class="item-subject font-weight-normal">Profile picture updated</h6>
@@ -264,10 +266,10 @@
         else 
         {
           try {
-            if(document.location.host.indexOf('metrics.green-coding.org') === 0)
-              api_url = "https://api.green-coding.org";
+            if(document.location.host.indexOf('metrics.green-coding.local') === 0)
+              api_url = "http://api.green-coding.local:9142";
             else
-              api_url = "http://api.green-coding.local:8000";
+              api_url = "https://api.green-coding.berlin";
 
               params = url_params.getAll('pid[]');
               if(params.length != 2) {
@@ -316,19 +318,19 @@
     </div>
   </div>
   <!-- plugins:js -->
-  <script src="../assets/vendors/js/vendor.bundle.base.js"></script>
+  <script src="/vendors/js/vendor.bundle.base.js"></script>
   <!-- endinject -->
   <!-- Plugin js for this page-->
-  <script src="../assets/vendors/chartjs/Chart.min.js"></script>
-  <script src="../assets/vendors/jvectormap/jquery-jvectormap.min.js"></script>
-  <script src="../assets/vendors/jvectormap/jquery-jvectormap-world-mill-en.js"></script>
+  <script src="/vendors/chartjs/Chart.min.js"></script>
+  <script src="/vendors/jvectormap/jquery-jvectormap.min.js"></script>
+  <script src="/vendors/jvectormap/jquery-jvectormap-world-mill-en.js"></script>
   <!-- End plugin js for this page-->
   <!-- inject:js -->
-  <!-- <script src="../assets/js/material.js"></script> -->
-  <script src="../assets/js/misc.js"></script>
+  <!-- <script src="/js/material.js"></script> -->
+  <script src="/js/misc.js"></script>
   <!-- endinject -->
   <!-- Custom js for this page-->
-  <script src="../assets/js/dashboard.js"></script>
+  <script src="/js/dashboard.js"></script>
   <!-- End custom js for this page-->
   
   <script>

@@ -59,11 +59,15 @@ We use `pylint` to check for clean code, with a few minor variations:
   do most of the heavy lifting. We could refactor this but this would lead to very unreadable code in the greater
   context of things.
 
-To check if your code works you can call `pylint -j0 **.py` in the project directory.
+To check if your code works you can call
+```
+pylint $(git ls-files '*.py')
+```
+in the project directory.
 
 We recommend that you set a pre-commit hook to lint your code every time you commit. This can be done by adding
 ```
-git diff --diff-filter=d --cached --name-only | grep -E -i '.py$' | xargs pylint -j0
+git diff --diff-filter=d --cached --name-only | grep -E -i '.py$' | xargs -r pylint -j0
 ```
 to a file named `./.git/hooks/pre-commit` and making it executable `chmod +x ./.git/hooks/pre-commit`
 
@@ -85,15 +89,16 @@ guidelines on when to use or avoid this directive follow:
 
 Branch naming conventions:
 
-- Use `<desc>-<issue number>` for feature/topic branches
-- Use `wip-` as a prefix for branches are not stable and should not be branched off
+- Use `<issue number>-<desc>` for feature/topic branches
+- Use `<issue number>-wip` as a prefix for branches are not stable and should not be branched off, or without an
+existing issue just use `wip-`
 - Prefer hyphens to underscores and lowercase branch names
-  - `csv-reports-142` not `CSV_Reports_142`
+  - `142-csv-reports` not `142_CSV_Reports`
 
 Merging with dev:
 
 1. File an issue if one does not exist already
-2. Create a branch of the form `<desc>-<issue number>`
+2. Create a branch of the form `<issue number>-<desc>`
 3. Make sure your branch is up to date, then push to GitHub
 4. Create a pull request against `dev`
 5. Assign reviewers

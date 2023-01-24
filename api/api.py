@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from starlette.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi import Response
 from fastapi import FastAPI, Request, Query
 from global_config import GlobalConfig
 from db import DB
@@ -21,6 +22,7 @@ import jobs
 import email_helpers
 import error_helpers
 import psycopg2.extras
+import anybadge
 
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
@@ -34,16 +36,33 @@ async def catch_exceptions_middleware(request: Request, call_next):
     try:
         return await call_next(request)
     except Exception as exception:
-        error_helpers.log_error('Error in API call:', str(Request), ' with next call: ', call_next, exception)
+
+        body = await request.body()
+        error_message = f"""
+            Error in API call
+
+            URL: {request.url}
+
+            Query-Params: {request.query_params}
+
+            Client: {request.client}
+
+            Headers: {str(request.headers)}
+
+            Body: {body}
+
+            Exception: {exception}
+        """
+        error_helpers.log_error(error_message)
         email_helpers.send_error_email(
             GlobalConfig().config['admin']['email'],
-            error_helpers.format_error('Error in API call:', str(request), ' with next call: ', call_next, exception),
+            error_helpers.format_error(error_message),
             project_id=None,
         )
         return JSONResponse(
             content={
                 'success': False,
-                'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.org',
+                'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.berlin',
             },
             status_code=500,
         )
@@ -54,10 +73,10 @@ async def catch_exceptions_middleware(request: Request, call_next):
 app.middleware('http')(catch_exceptions_middleware)
 
 origins = [
-    'http://metrics.green-coding.local:8000',
-    'http://api.green-coding.local:8000',
-    'https://metrics.green-coding.org',
-    'https://api.green-coding.org',
+    'http://metrics.green-coding.local:9142',
+    'http://api.green-coding.local:9142',
+    'https://metrics.green-coding.berlin',
+    'https://api.green-coding.berlin',
 ]
 
 app.add_middleware(
@@ -194,6 +213,8 @@ async def get_stats_single(project_id: str, remove_idle: bool = False):
 
 
 @app.get('/v1/stats/multi')
+# pylint: disable=unsupported-binary-operation
+# Here pylint does not understand the type hinting
 async def get_stats_multi(pids: list[str] | None = Query(default=None)):
     for pid in pids:
         if pid is None or pid.strip() == '':
@@ -222,6 +243,8 @@ async def get_stats_multi(pids: list[str] | None = Query(default=None)):
 
 
 @app.get('/v1/stats/compare')
+# pylint: disable=unsupported-binary-operation
+# Here pylint does not understand the type hinting
 async def get_stats_compare(pids: list[str] | None = Query(default=None)):
     for pid in pids:
         if pid is None or pid.strip() == '':
@@ -249,10 +272,62 @@ async def get_stats_compare(pids: list[str] | None = Query(default=None)):
         return {'success': False, 'err': 'Data is empty'}
     return {'success': True, 'data': data}
 
+# A route to return all of the available entries in our catalog.
+@app.get('/v1/badge/single/{project_id}')
+async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
+
+    if project_id is None or project_id.strip() == '':
+        return {'success': False, 'err': 'Project_id is empty'}
+
+    query = '''
+        WITH times AS (
+            SELECT start_measurement, end_measurement FROM projects WHERE id = %s
+        ) SELECT
+            (SELECT start_measurement FROM times), (SELECT end_measurement FROM times), SUM(stats.value), stats.unit
+        FROM
+            stats
+        WHERE
+            stats.project_id = %s
+            AND stats.time >= (SELECT start_measurement FROM times)
+            AND stats.time <= (SELECT end_measurement FROM times)
+            AND stats.metric LIKE %s
+            GROUP BY stats.unit
+    '''
+
+    value = None
+    if metric == 'ml-estimated':
+        value = 'psu_energy_xgboost_system'
+    elif metric == 'RAPL':
+        value = '%_rapl_%'
+    elif metric == 'DC':
+        value = 'psu_energy_dc_system'
+    elif metric == 'AC':
+        value = 'psu_energy_ac_system'
+    else:
+        raise RuntimeError('Unknown metric submitted')
+
+    params = (project_id, project_id, value)
+    data = DB().fetch_one(query, params=params)
+
+    if data is None or data == []:
+        badge_value = 'No energy stats yet'
+    else:
+        [energy_value, energy_unit] = rescale_energy_value(data[2], data[3])
+        badge_value= f"{energy_value:.2f} {energy_unit} via {metric}"
+
+    badge = anybadge.Badge(
+        label='Energy cost',
+        value=badge_value,
+        num_value_padding_chars=1,
+        default_color='cornflowerblue')
+    return Response(content=str(badge), media_type="image/svg+xml")
+
+
 class Project(BaseModel):
     name: str
     url: str
     email: str
+    branch: str
 
 
 @app.post('/v1/project/add')
@@ -267,14 +342,17 @@ async def post_project_add(project: Project):
     if project.email is None or project.email.strip() == '':
         return {'success': False, 'err': 'E-mail is empty'}
 
+    if project.branch.strip() == '':
+        project.branch = None
+
     # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
     query = """
         INSERT INTO
-            projects (uri,name,email)
-        VALUES (%s, %s, %s)
+            projects (uri,name,email, branch)
+        VALUES (%s, %s, %s, %s)
         RETURNING id
         """
-    params = (project.url, project.name, project.email)
+    params = (project.url, project.name, project.email, project.branch)
     project_id = DB().fetch_one(query, params=params)
     # This order as selected on purpose. If the admin mail fails, we currently do
     # not want the job to be queued, as we want to monitor every project execution manually
@@ -290,7 +368,7 @@ async def post_project_add(project: Project):
 async def get_project(project_id: str):
     query = """
             SELECT
-                id, name, uri, (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements \
+                id, name, uri, branch, (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements \
                     LEFT JOIN categories as t on t.id = elements) as categories, start_measurement, end_measurement, \
                     measurement_config, machine_specs, usage_scenario, last_run, created_at
             FROM
@@ -304,6 +382,23 @@ async def get_project(project_id: str):
         return {'success': False, 'err': 'Data is empty'}
     return {'success': True, 'data': data}
 
+# Helper functions, not directly callable through routes
+
+def rescale_energy_value(value, unit):
+    # We only expect values to be mJ for energy!
+    if unit != 'mJ':
+        raise RuntimeError('Unexpected unit occured for energy rescaling: ', unit)
+
+    energy_rescaled = [value, unit]
+
+    # pylint: disable=multiple-statements
+    if value > 1_000_000_000: energy_rescaled = [value/(10**12), 'GJ']
+    elif value > 1_000_000_000: energy_rescaled = [value/(10**9), 'MJ']
+    elif value > 1_000_000: energy_rescaled = [value/(10**6), 'kJ']
+    elif value > 1_000: energy_rescaled = [value/(10**3), 'J']
+    elif value < 0.001: energy_rescaled = [value*(10**3), 'nJ']
+
+    return energy_rescaled
 
 if __name__ == '__main__':
     app.run()

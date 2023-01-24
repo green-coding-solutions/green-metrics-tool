@@ -1,0 +1,34 @@
+name: Daily Test Run - Bare Metal - Main Branch
+run-name: Scheduled - ${{ github.ref_name }}
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  #push:
+  #  branch: test-pipeline-improvements
+jobs:
+  check_date:
+    runs-on: ubuntu-latest
+    name: Check latest commit
+    outputs:
+      recent_main_commit: ${{ steps.check_main_commits.outputs.recent_commit }}
+    steps:
+      - id: check_main_commits
+        uses: green-coding-berlin/eco-ci-activity-checker@main
+        with:
+          repo: 'green-coding-berlin/green-metrics-tool'
+          branch: 'main'
+
+  run-tests-main:
+    needs: check_date
+    if: ${{ needs.check_date.outputs.recent_main_commit == 'true' }}
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: 'main'
+          submodules: 'true'
+      
+      - name: 'Setup, Run, and Teardown Tests'
+        uses: ./.github/actions/gmt-pytest
+        with:
+           metrics-to-turn-off: 'System Sensors Debug'

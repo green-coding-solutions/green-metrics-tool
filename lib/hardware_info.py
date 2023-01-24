@@ -72,7 +72,7 @@ info_list = [
     [rpwr, 'Architecture', '/usr/bin/hostnamectl', r'Architecture:\s*(?P<o>.*)'],
     [rpwr, 'Hardware Vendor', '/usr/bin/hostnamectl', r'Hardware Vendor:\s*(?P<o>.*)'],
     [rpwr, 'Hardware Model', '/usr/bin/hostnamectl', r'Hardware Model:\s*(?P<o>.*)'],
-    [rpwr, 'Processes', ['/usr/bin/ps', '-ef'], r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Processes', ['/usr/bin/ps', '-aux'], r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [
         rpwrs,
         'Scaling Governor',
@@ -86,6 +86,7 @@ info_list = [
     [rfwr, 'Turbo Boost', '/sys/devices/system/cpu/intel_pstate/no_turbo', r'(?P<o>.*)'],
     [rfwr, 'Virtualization', '/proc/cpuinfo', r'(?P<o>hypervisor)'],
     [rpwrs, 'SGX', [os.path.join(CURRENT_PATH, '../tools/sgx_enable'), '-s'], r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rfwr, 'IO scheduling', '/sys/block/sda/queue/scheduler', r'(?P<o>.*)'],
 ]
 
 

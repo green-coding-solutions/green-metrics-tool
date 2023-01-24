@@ -16,10 +16,10 @@ let showNotification = (message_title, message_text, type='warning') => {
 
 
 async function makeAPICall(path, values=null) {
-    if (document.location.host.indexOf('metrics.green-coding.org') === 0)
-        api_url = "https://api.green-coding.org";
+    if (document.location.host.indexOf('metrics.green-coding.local') === 0)
+        api_url = "http://api.green-coding.local:9142";
     else
-        api_url = "http://api.green-coding.local:8000";
+        api_url = "https://api.green-coding.berlin";
 
     if(values != null ) {
         var options = {

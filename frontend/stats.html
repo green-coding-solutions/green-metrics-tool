@@ -11,8 +11,8 @@
     <link rel="icon" href="/images/favicon-32x32.png" sizes="32x32">
     <!-- Site Properities -->
     <title>Green Metrics Tool - Experimental 0.1</title>
-    <meta name="description" content="Using Fomantic UI with Other Libraries" />
-    <meta name="keywords" content="html5, ui, library, framework, javascript, fork, official" />
+    <meta name="referrer" content="no-referrer-when-downgrade" />
+    <meta name="description" content="Detailed energy statistics for software measurement" />
     <script src="/dist/js/jquery.min.js" defer></script>
     <script src="/js/main.js" defer></script>
     <script src="/js/stats.js" defer></script>
@@ -38,12 +38,14 @@
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/loader.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/dimmer.min.css">
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/tab.min.css">
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/divider.min.css">
+
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
 <body class="preload">
     <div id="menu" class="ui inverted vertical menu">
         <div>
-            <img class="ui fluid image" src="/images/logo.png">
+            <img class="ui fluid image menu-logo" src="/images/logo.png">
         </div>
         <div class="item">
             <p>Demo user</p>
@@ -66,14 +68,15 @@
         <div class="ui horizontal card" id="horizontal-card">
             <div class="content">
                 <div class="header"><a class="ui red ribbon label" href="#">
-                        <h3>Project Data</h3>
-                    </a></div>
+                    <h3>Project Data</h3>
+                </a></div>
                 <div class="description">
                     <div class="ui secondary menu">
                         <a class="item active" data-tab="one">General</a>
                         <a class="item" data-tab="two">Measurement</a>
-                        <a class="item" data-tab="three">Machine</a>
-                        <a class="item" data-tab="four">usage_scenario</a>
+                        <a class="item" data-tab="three">Badges</a>
+                        <a class="item" data-tab="four">Machine</a>
+                        <a class="item" data-tab="five">usage_scenario</a>
                     </div>
                     <div class="ui tab segment" data-tab="one">
                         <table class="table-hover" id="project-data"></table>
@@ -81,10 +84,45 @@
                     <div class="ui active tab segment" data-tab="two">
                         <table class="table-hover" id="measurement-config"></table>
                     </div>
-                    <div class="ui tab segment" data-tab="three">
+                    <div class="ui active tab segment" data-tab="three">
+                        <div id="badges">
+                            <div class="inline field">
+                                <span class="energy-badge-container" data-metric="ml-estimated"></span>
+                                <div class="ui left pointing blue basic label">
+                                    XGBoost estimated AC energy
+                                </div>
+                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                            </div>
+                            <div class="ui divider"></div>
+                            <div class="inline field">
+                                <span class="energy-badge-container" data-metric="RAPL"></span>
+                                <div class="ui left pointing blue basic label">
+                                    RAPL component energy
+                                </div>
+                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                            </div>
+                            <div class="ui divider"></div>
+                            <div class="inline field">
+                                <span class="energy-badge-container" data-metric="DC"></span>
+                                <div class="ui left pointing blue basic label">
+                                    Measured DC energy
+                                </div>
+                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                            </div>
+                            <div class="ui divider"></div>
+                            <div class="inline field">
+                                <span class="energy-badge-container" data-metric="AC"></span>
+                                <div class="ui left pointing blue basic label">
+                                    Measured AC energy
+                                </div>
+                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ui tab segment" data-tab="four">
                         <table class="table-hover" id="machine-specs"></table>
                     </div>
-                    <div class="ui active tab segment" data-tab="four">
+                    <div class="ui active tab segment" data-tab="five">
                         <a href="https://onlineyamltools.com/convert-yaml-to-json" target='_blank' rel="noopener">Convert to YAML</a>
                         <table class="table-hover" id="usage-scenario"></table>
                     </div>
@@ -101,7 +139,7 @@
         <div class="ui five cards stackable no-transform-statistics">
             <div class="ui card">
                 <div class="ui content">
-                    <div class="ui top attached orange label overflow-ellipsis">Component Energy</div>
+                    <div class="ui top attached blue label overflow-ellipsis">Component Energy</div>
                     <div class="ui bottom right attached label">RAPL CPU+Memory</div>
                     <div class="description">
                         <div class="ui mini statistic">
@@ -114,7 +152,7 @@
             </div>
             <div class="ui card">
                 <div class="ui content">
-                    <div class="ui top attached orange label overflow-ellipsis">Component Power (avg.)</div>
+                    <div class="ui top attached blue label overflow-ellipsis">Component Power (avg.)</div>
                     <div class="ui bottom right attached label">RAPL CPU+Memory</div>
                     <div class="description">
                         <div class="ui mini statistic">
@@ -127,8 +165,8 @@
             </div>
             <div class="ui card">
                 <div class="ui content">
-                    <div class="ui top orange attached label overflow-ellipsis">Network Energy </div>
-                    <div class="ui bottom right attached label"><a href="https://www.green-coding.org/co2-formulas/">via Formula</a></div>
+                    <div class="ui top blue attached label overflow-ellipsis">Network Energy </div>
+                    <div class="ui bottom right attached label"><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></div>
                     <div class="description">
                         <div class="ui mini statistic">
                             <div class="value">
@@ -154,7 +192,7 @@
             <div class="ui card">
                 <div class="ui content">
                     <div class="ui top black attached label overflow-ellipsis">Network CO2 </div>
-                    <div class="ui bottom right attached label"><a href="https://www.green-coding.org/co2-formulas/">via Formula</a></div>
+                    <div class="ui bottom right attached label"><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></div>
                     <div class="description">
                         <div class="ui mini statistic">
                             <div class="value">

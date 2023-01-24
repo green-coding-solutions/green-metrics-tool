@@ -44,7 +44,7 @@ from global_config import GlobalConfig
 from save_notes import save_notes  # local file import
 
 def arrows(text):
-    return f"\n\n>>>> {text} <<<<<<\n\n"
+    return f"\n\n>>>> {text} <<<<\n\n"
 
 class Runner:
     def __init__(self,
@@ -61,7 +61,7 @@ class Runner:
         self.ps_to_read = []
         self.metric_providers = []
 
-    def run(self, uri, uri_type, project_id):
+    def run(self, uri, uri_type, project_id, filename='usage_scenario.yml', branch=None):
 
         config = GlobalConfig().config
 
@@ -74,13 +74,46 @@ class Runner:
         if uri_type == 'URL':
             # always remove the folder if URL provided, cause -v directory binding always creates it
             # no check cause might fail when directory might be missing due to manual delete
-            subprocess.run(['git', 'clone', uri, '/tmp/green-metrics-tool/repo'], check=True,
-                           capture_output=True, encoding='UTF-8')  # always name target-dir repo according to spec
             folder = '/tmp/green-metrics-tool/repo'
+            if branch:
+                print(f"Branch specified: {branch}")
+                # git clone -b <branchname> --single-branch <remote-repo-url>
+                subprocess.run(
+                    [
+                        'git',
+                        'clone',
+                        '--depth', '1',
+                        '-b', branch,
+                        '--single-branch',
+                        '--recurse-submodules',
+                        '--shallow-submodules',
+                        uri,
+                        '/tmp/green-metrics-tool/repo'
+                    ],
+                    check=True,
+                    capture_output=True,
+                    encoding='UTF-8',
+                )
+            else:
+                subprocess.run(
+                    [
+                        'git',
+                        'clone',
+                        '--depth', '1',
+                        '--single-branch',
+                        '--recurse-submodules',
+                        '--shallow-submodules',
+                        uri,
+                        '/tmp/green-metrics-tool/repo'
+                    ],
+                    check=True,
+                    capture_output=True,
+                    encoding='UTF-8'
+                )  # always name target-dir repo according to spec
         else:
             folder = uri
 
-        with open(f"{folder}/usage_scenario.yml", encoding='utf-8') as fp:
+        with open(f"{folder}/{filename}", encoding='utf-8') as fp:
             obj = yaml.safe_load(fp)
 
         print(TerminalColors.HEADER, '\nHaving Usage Scenario ', obj['name'], TerminalColors.ENDC)
@@ -148,8 +181,7 @@ class Runner:
             for network in obj['networks']:
                 print('Creating network: ', network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
-                #pylint: disable=subprocess-run-check
-                subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL)
+                subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
                 subprocess.run(['docker', 'network', 'create', network], check=True)
                 self.networks.append(network)
 
@@ -183,7 +215,7 @@ class Runner:
 
             if 'volumes' in service:
                 if self.allow_unsafe:
-                    if isinstance(service['volumes'], list):
+                    if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
@@ -197,7 +229,7 @@ class Runner:
 
             if 'ports' in service:
                 if self.allow_unsafe:
-                    if isinstance(service['ports'], list):
+                    if not isinstance(service['ports'], list):
                         raise RuntimeError(f"ports must be a list but is: {type(service['ports'])}")
                     for ports in service['ports']:
                         print('Setting ports: ', service['ports'])
@@ -212,7 +244,7 @@ class Runner:
 
             if 'environment' in service:
                 for docker_env_var in service['environment']:
-                    if not self.allow_unsafe and re.search('^[A-Z_]+$', docker_env_var) is None:
+                    if not self.allow_unsafe and re.search(r'^[A-Z_]+$', str(docker_env_var)) is None:
                         if self.skip_unsafe:
                             warn_message= arrows(f"Found environment var key with wrong format. \
                                  Only ^[A-Z_]+$ allowed: {docker_env_var} - Skipping")
@@ -223,7 +255,7 @@ class Runner:
                                 or --skip-unsafe")
 
                     if not self.allow_unsafe and \
-                        re.search('^[a-zA-Z_]+[a-zA-Z0-9_-]*$', service['environment'][docker_env_var]) is None:
+                        re.search(r'^[a-zA-Z_]+[a-zA-Z0-9_-]*$', str(service['environment'][docker_env_var])) is None:
                         if self.skip_unsafe:
                             print(TerminalColors.WARNING, arrows(f"Found environment var value with wrong format. \
                                     Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - \
@@ -369,6 +401,7 @@ class Runner:
                             'cmd': docker_exec_command,
                             'ps': ps,
                             'read-notes-stdout': inner_el.get('read-notes-stdout', False),
+                            'ignore-errors': inner_el.get('ignore-errors', False),
                             'detail_name': el['container']})
 
                         if inner_el.get('detach', None) is True:
@@ -418,7 +451,7 @@ class Runner:
             # now we have free capacity to parse the stdout / stderr of the processes
             print(TerminalColors.HEADER, '\nGetting output from processes: ', TerminalColors.ENDC)
             for ps in self.ps_to_read:
-                for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd']):
+                for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd'], ps['ignore-errors']):
                     print('Output from process: ', line)
                     if ps['read-notes-stdout']:
                         # Fixed format according to our specification. If unpacking fails this is wanted error
@@ -457,8 +490,7 @@ class Runner:
         print('Removing network')
         for network_name in self.networks:
             # no check=True, as the network might already be gone. We do not want to fail here
-            #pylint: disable=subprocess-run-check
-            subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL)
+            subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
 
         if not self.no_file_cleanup:
             print('Removing files')
@@ -483,7 +515,13 @@ if __name__ == '__main__':
         '--uri', type=str, help='The URI to get the usage_scenario.yml from. Can be either a local directory starting \
             with / or a remote git repository starting with http(s)://')
     parser.add_argument(
+        '--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
+    parser.add_argument(
         '--name', type=str, help='A name which will be stored to the database to discern this run from others')
+    parser.add_argument(
+        '--filename', type=str, default='usage_scenario.yml',
+        help='An optional alternative filename if you do not want to use "usage_scenario.yml"')
+
     parser.add_argument('--no-file-cleanup', action='store_true',
                         help='Do not delete files in /tmp/green-metrics-tool')
     parser.add_argument('--debug', action='store_true',
@@ -529,15 +567,15 @@ if __name__ == '__main__':
         sys.exit(2)
 
     # We issue a fetch_one() instead of a query() here, cause we want to get the project_id
-    project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
+    project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at", "branch") \
                 VALUES \
-                (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(args.name, args.uri))[0]
+                (%s,%s,\'manual\',NULL,NOW(),%s) RETURNING id;', params=(args.name, args.uri, args.branch))[0]
 
     runner = Runner(debug_mode=args.debug, allow_unsafe=args.allow_unsafe, no_file_cleanup=args.no_file_cleanup,
                     skip_unsafe=args.skip_unsafe, verbose_provider_boot=args.verbose_provider_boot)
     try:
         runner.run(uri=args.uri, uri_type=run_type,
-                   project_id=project_id)  # Start main code
+                   project_id=project_id, filename=args.filename, branch=args.branch)  # Start main code
         print(TerminalColors.OKGREEN,
             '\n\n####################################################################################')
         print(f"Please access your report with the ID: {project_id}")
