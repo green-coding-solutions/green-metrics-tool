@@ -16,7 +16,7 @@ from global_config import GlobalConfig
 from metric_providers.base import BaseMetricProvider
 
 
-class LmSenorsProvider(BaseMetricProvider):
+class LmSensorsProvider(BaseMetricProvider):
 
     def _create_options(self):
         provider_config = GlobalConfig().config['measurement']['metric-providers'][self._provider_config_path]
@@ -36,7 +36,7 @@ class LmSenorsProvider(BaseMetricProvider):
         if __name__ == '__main__':
             # If you run this on the command line you will need to set this in the config
             # This is separate so it is always clear what config is used.
-            self._provider_config_path = 'lm_sensors.abstract_provider.LmSenorsProvider'
+            self._provider_config_path = 'lm_sensors.abstract_provider.LmSensorsProvider'
             self._current_dir = os.path.dirname(os.path.abspath(__file__))
             self._metric_name = 'lm_sensors'
 
@@ -50,7 +50,7 @@ class LmSenorsProvider(BaseMetricProvider):
 if __name__ == '__main__':
     import time
 
-    o = LmSenorsProvider(resolution=100)
+    o = LmSensorsProvider(resolution=100)
 
     print(o._current_dir)
     print('Starting to profile')

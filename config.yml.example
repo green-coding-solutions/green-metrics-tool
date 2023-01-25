@@ -63,12 +63,12 @@ measurement:
 #    psu.energy.dc.system.provider.PsuEnergyDcSystemProvider:
 #      resolution: 61 # Do not change this. Provider is tailored to work at fixed resolution
   #--- Sensors
-#    lm_sensors.temperature.provider.LmTempSenorsProvider:
+#    lm_sensors.temperature.provider.LmSensorsTempProvider:
 #      resolution: 100
        #-- Please change these values according to the names in '$ sensors'
 #      chips: ['thinkpad-isa-0000', 'coretemp-isa-0000']
 #      features: ['CPU', 'Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
-#    lm_sensors.fan.provider.LmFanSenorsProvider:
+#    lm_sensors.fan.provider.LmSensorsFanProvider:
 #      resolution: 100
        # Please change these values according to the names in '$ sensors'
 #      chips: ['thinkpad-isa-0000']

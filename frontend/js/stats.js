@@ -555,6 +555,12 @@ $(document).ready( (e) => {
         if (project_data == undefined || project_data.success == false) {
             return;
         }
+
+        // create new custom field
+        // timestamp is in microseconds, therefore divide by 10**6
+        const measurement_duration_in_s = (project_data.data.end_measurement - project_data.data.start_measurement) / 1000000
+        project_data.data['duration'] = `${measurement_duration_in_s} s`
+
         fillProjectData(project_data.data)
 
         if (stats_data == undefined || stats_data.success == false) {
@@ -563,9 +569,6 @@ $(document).ready( (e) => {
 
         const metrics = getMetrics(stats_data, project_data.data.start_measurement, project_data.data.end_measurement, 'echarts');
 
-        // create new custom field
-        // timestamp is in microseconds, therefore divide by 10**6
-        const measurement_duration_in_s = (project_data.data.end_measurement - project_data.data.start_measurement) / 1000000
 
         fillAvgContainers(measurement_duration_in_s, metrics);
 

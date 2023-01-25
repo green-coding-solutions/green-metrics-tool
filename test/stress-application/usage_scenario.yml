@@ -4,10 +4,20 @@ author: Arne Tarara
 version: 1
 architecture: linux
 
+networks:
+  network-for-pytests:
+
 services:
   ubuntu-stress:
     type: container
     image: gcb_stress
+    networks:
+      - network-for-pytests
+  ubuntu-stress-2:
+    type: container
+    image: gcb_stress
+    networks:
+      - network-for-pytests
 
 flow:
   - name: Stress
