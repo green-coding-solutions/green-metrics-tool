@@ -565,6 +565,7 @@ $(document).ready( (e) => {
 
         if (project_data.data.invalid_project) {
             showNotification('Project measurement has been marked as invalid', project_data.data.invalid_project);
+            document.body.style.backgroundImage="url(images/noncompliant.png)";
         }
 
         if (stats_data == undefined || stats_data.success == false) {
