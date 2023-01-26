@@ -60,7 +60,7 @@ class Runner:
         self._filename = filename
         self._branch = branch
         self._folder = '/tmp/green-metrics-tool/repo' # default if not changed in checkout_repository
-        self._usage_scenario = None
+        self._usage_scenario = {}
 
 
         # transient variables that are created by the runner itself
@@ -74,6 +74,7 @@ class Runner:
         self.__start_measurement = None
         self.__end_measurement = None
 
+    #pylint: disable=no-self-use
     def prepare_filesystem_location(self):
         subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], check=True, stderr=subprocess.DEVNULL)
         subprocess.run(['mkdir', '/tmp/green-metrics-tool'], check=True)
@@ -141,7 +142,7 @@ class Runner:
 
         if self._usage_scenario.get('architecture') is not None and output != self._usage_scenario['architecture']:
             raise RuntimeError('Specified architecture does not match system architecture:'
-                f"system ({output}) != specified ({self._usage_scenario['architecture']})")
+                f"system ({output}) != specified ({self._usage_scenario.get('architecture')})")
 
     def update_and_insert_specs(self):
         config = GlobalConfig().config
@@ -529,33 +530,34 @@ class Runner:
             Methods thus will behave differently given the runner was instantiated with different arguments.
 
         '''
+        try:
+            self.prepare_filesystem_location()
+            self.checkout_repository()
+            self.initial_parse()
+            self.update_and_insert_specs()
+            self.import_metric_providers()
+            if self._debugger.active:
+                self._debugger.pause('Initial load complete. Waiting to start network setup')
+            self.setup_networks()
 
-        self.prepare_filesystem_location()
-        self.checkout_repository()
-        self.initial_parse()
-        self.update_and_insert_specs()
-        self.import_metric_providers()
-        if self._debugger.active:
-            self._debugger.pause('Initial load complete. Waiting to start network setup')
-        self.setup_networks()
+            if self._debugger.active:
+                self._debugger.pause('Network setup complete. Waiting to start container setup')
 
-        if self._debugger.active:
-            self._debugger.pause('Network setup complete. Waiting to start container setup')
+            self.setup_services()
 
-        self.setup_services()
+            if self._debugger.active:
+                self._debugger.pause('Container setup complete. Waiting to start metric-providers')
 
-        if self._debugger.active:
-            self._debugger.pause('Container setup complete. Waiting to start metric-providers')
+            self.start_metric_providers()
+            if self._debugger.active:
+                self._debugger.pause('metric-providers start complete. Waiting to start flow')
 
-        self.start_metric_providers()
-        if self._debugger.active:
-            self._debugger.pause('metric-providers start complete. Waiting to start flow')
-
-        self.pre_idle_containers()
-        self.start_measurement()
-        self.run_flows() # can trigger debug breakpoints
-        self.update_start_and_end_times()
-        self.cleanup()  # always run cleanup automatically after each run
+            self.pre_idle_containers()
+            self.start_measurement()
+            self.run_flows() # can trigger debug breakpoints
+            self.update_start_and_end_times()
+        finally:
+            self.cleanup()  # always run cleanup automatically after each run
 
         print(TerminalColors.OKGREEN, arrows('MEASUREMENT SUCCESSFULLY COMPLETED'), TerminalColors.ENDC)
 
@@ -651,5 +653,3 @@ if __name__ == '__main__':
     except BaseException as e:
         error_helpers.log_error(
             'Base exception occured in runner.py: ', e, project_id)
-    finally:
-        runner.cleanup()  # run just in case. Will be noop on successful run

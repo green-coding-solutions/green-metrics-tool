@@ -20,13 +20,13 @@ def test_runner_reports(capsys):
         current_dir, '..', 'stress-application/'))
     subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
-    project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
+    pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
                 VALUES \
                 (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(PROJECT_NAME, uri))[0]
 
     # Run the application
-    runner = Runner()
-    runner.run(uri=uri, uri_type='folder', project_id=project_id)
+    runner = Runner(uri=uri, uri_type='folder', pid=pid)
+    runner.run()
 
     # Capture Std.Out and Std.Err and make Assertions
     captured = capsys.readouterr()
