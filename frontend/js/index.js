@@ -40,17 +40,21 @@
         link_node.title = el[1];
         link_node.href = "/stats.html?id=" + el[0];
         li_node.appendChild(link_node);
+
+        uri = el[2]
         
         // Modify the branch name if the database returned null
         if (!el[3]) {
             if (el[2].startsWith("http")) {
                 el[3] = 'main/master'
+                uri = `<a href="${uri}">${uri}</a>`
             }
             else {
                 el[3] = '-'
             }
         }
-        li_node.innerHTML = '<td class="td-index">' + li_node.innerHTML + '</td><td class="td-index">' + el[2] + '</td><td class="td-index">' + el[3] + '</td><td class="td-index">' + el[4] + '</td><td><input type="checkbox" value="' + el[0] + '" name="chbx-proj" />&nbsp;</td>';
+
+        li_node.innerHTML = `<td class="td-index">${li_node.innerHTML}</td><td class="td-index">${uri}</td><td class="td-index">${el[3]}</td><td class="td-index">${el[4]}</td><td><input type="checkbox" value="${el[0]}" name="chbx-proj" />&nbsp;</td>`;
         document.querySelector("#projects-table").appendChild(li_node);
     });
     $('.ui.search').search({ source: content });
