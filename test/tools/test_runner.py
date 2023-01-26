@@ -35,13 +35,13 @@ def setup_module(module):
             current_dir, '..', 'stress-application/'))
         subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
-        project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
-                    VALUES \
-                    (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(PROJECT_NAME, uri))[0]
+    pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
+                VALUES \
+                (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(PROJECT_NAME, uri))[0]
 
-        # Run the application
-        runner = Runner()
-        runner.run(uri=uri, uri_type='folder', project_id=project_id)
+    # Run the application
+    runner = Runner(uri=uri, uri_type='folder', pid=pid)
+    runner.run()
 
     global RUN_STD_ERR, RUN_STD_OUT
     RUN_STD_ERR = err.getvalue()
@@ -94,4 +94,3 @@ def test_db_rows_are_written_and_presented():
         ## Assert that all the providers in the config are represented
         metric_providers.remove(d_provider)
     assert len(metric_providers) == 0
-    

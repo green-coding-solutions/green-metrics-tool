@@ -9,14 +9,11 @@
 
 # As pretty much everything is done in one big flow we trigger all the too-many-* checks. Which normally makes sense
 # but in this case it would make the code a lot more complicated separating this out into loads of sub-functions
-#pylint: disable=too-many-branches,too-many-statements,too-many-arguments,too-many-locals,too-many-instance-attributes
+#pylint: disable=too-many-branches,too-many-statements,too-many-arguments,too-many-instance-attributes
 
 # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
 #pylint: disable=broad-except
 
-# To make the code more readable we allow `project_id` in `main` and in method parameters to make clear that it is the
-# same thing
-#pylint: disable=redefined-outer-name
 
 import subprocess
 import json
@@ -31,8 +28,8 @@ from io import StringIO
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{current_dir}/../lib")
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from debug_helper import DebugHelper
 from terminal_colors import TerminalColors
@@ -48,46 +45,58 @@ def arrows(text):
 
 class Runner:
     def __init__(self,
+        uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False, verbose_provider_boot=False):
-        self.debug_mode = debug_mode
-        self.allow_unsafe = allow_unsafe
-        self.no_file_cleanup = no_file_cleanup
-        self.skip_unsafe = skip_unsafe
-        self.verbose_provider_boot = verbose_provider_boot
+        self._debugger = DebugHelper(debug_mode)
+        self._allow_unsafe = allow_unsafe
+        self._no_file_cleanup = no_file_cleanup
+        self._skip_unsafe = skip_unsafe
+        self._verbose_provider_boot = verbose_provider_boot
 
-        self.containers = {}
-        self.networks = []
-        self.ps_to_kill = []
-        self.ps_to_read = []
-        self.metric_providers = []
+        # variables that should not change if you call run multiple times
+        self._uri = uri
+        self._uri_type = uri_type
+        self._project_id = pid
+        self._filename = filename
+        self._branch = branch
+        self._folder = '/tmp/green-metrics-tool/repo' # default if not changed in checkout_repository
+        self._usage_scenario = {}
 
-    def run(self, uri, uri_type, project_id, filename='usage_scenario.yml', branch=None):
 
-        config = GlobalConfig().config
+        # transient variables that are created by the runner itself
+        # these are accessed and processed on cleanup and then reset
+        self.__containers = {}
+        self.__networks = []
+        self.__ps_to_kill = []
+        self.__ps_to_read = []
+        self.__metric_providers = []
+        self.__notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
+        self.__start_measurement = None
+        self.__end_measurement = None
 
-        # Instantiate debug helper with correct mode
-        debug = DebugHelper(self.debug_mode)
-
+    def prepare_filesystem_location(self):
         subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], check=True, stderr=subprocess.DEVNULL)
         subprocess.run(['mkdir', '/tmp/green-metrics-tool'], check=True)
 
-        if uri_type == 'URL':
+
+    def checkout_repository(self):
+
+        if self._uri_type == 'URL':
             # always remove the folder if URL provided, cause -v directory binding always creates it
             # no check cause might fail when directory might be missing due to manual delete
-            folder = '/tmp/green-metrics-tool/repo'
-            if branch:
-                print(f"Branch specified: {branch}")
+            if self._branch:
+                print(f"Branch specified: {self._branch}")
                 # git clone -b <branchname> --single-branch <remote-repo-url>
                 subprocess.run(
                     [
                         'git',
                         'clone',
                         '--depth', '1',
-                        '-b', branch,
+                        '-b', self._branch,
                         '--single-branch',
                         '--recurse-submodules',
                         '--shallow-submodules',
-                        uri,
+                        self._uri,
                         '/tmp/green-metrics-tool/repo'
                     ],
                     check=True,
@@ -103,7 +112,7 @@ class Runner:
                         '--single-branch',
                         '--recurse-submodules',
                         '--shallow-submodules',
-                        uri,
+                        self._uri,
                         '/tmp/green-metrics-tool/repo'
                     ],
                     check=True,
@@ -111,16 +120,17 @@ class Runner:
                     encoding='UTF-8'
                 )  # always name target-dir repo according to spec
         else:
-            folder = uri
+            self._folder = self._uri
 
-        with open(f"{folder}/{filename}", encoding='utf-8') as fp:
-            obj = yaml.safe_load(fp)
+    def initial_parse(self):
+        with open(f"{self._folder}/{self._filename}", encoding='utf-8') as fp:
+            self._usage_scenario = yaml.safe_load(fp)
 
-        print(TerminalColors.HEADER, '\nHaving Usage Scenario ', obj['name'], TerminalColors.ENDC)
-        print('From: ', obj['author'])
-        print('Version ', obj['version'], '\n')
+        print(TerminalColors.HEADER, '\nHaving Usage Scenario ', self._usage_scenario['name'], TerminalColors.ENDC)
+        print('From: ', self._usage_scenario['author'])
+        print('Version ', self._usage_scenario['version'], '\n')
 
-        if self.allow_unsafe:
+        if self._allow_unsafe:
             print(TerminalColors.WARNING, arrows('Warning: Runner is running in unsafe mode'), TerminalColors.ENDC)
 
         # Sanity checks first, before we insert anything in DB and rely on the linux subsystem to be present.
@@ -129,16 +139,19 @@ class Runner:
             check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8')
         output = ps.stdout.strip().lower()
 
-        if obj.get('architecture') is not None and output != obj['architecture']:
+        if self._usage_scenario.get('architecture') is not None and output != self._usage_scenario['architecture']:
             raise RuntimeError('Specified architecture does not match system architecture:'
-                f"system ({output}) != specified ({obj['architecture']})")
+                f"system ({output}) != specified ({self._usage_scenario.get('architecture')})")
+
+    def update_and_insert_specs(self):
+        config = GlobalConfig().config
 
         # There are two ways we get hardware info. First things we don't need to be root to do which we get through
         # a method call. And then things we need root privilege which we need to call as a subprocess with sudo. The
         # install.sh script should have called the makefile which adds the script to the sudoes file.
         machine_specs = hardware_info.get_default_values()
 
-        python_file = os.path.abspath(os.path.join(current_dir, '../lib/hardware_info_root.py'))
+        python_file = os.path.abspath(os.path.join(CURRENT_DIR, '../lib/hardware_info_root.py'))
         ps = subprocess.run(['sudo', sys.executable, python_file], stdout=subprocess.PIPE, check=True, encoding='UTF-8')
         machine_specs_root = json.loads(ps.stdout)
 
@@ -151,11 +164,13 @@ class Runner:
             """, params=(
             json.dumps(machine_specs),
             json.dumps(config['measurement']),
-            json.dumps(obj),
-            project_id)
+            json.dumps(self._usage_scenario),
+            self._project_id)
         )
 
-        # Import metric providers dynamically
+    def import_metric_providers(self):
+        config = GlobalConfig().config
+
         print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
         # will iterate over keys
         for metric_provider in config['measurement']['metric-providers']:
@@ -169,29 +184,26 @@ class Runner:
             metric_provider_obj = getattr(module, class_name)(
                 resolution=config['measurement']['metric-providers'][metric_provider]['resolution'])
 
-            self.metric_providers.append(metric_provider_obj)
+            self.__metric_providers.append(metric_provider_obj)
 
-        self.metric_providers.sort(key=lambda item: 'rapl' not in item.__class__.__name__.lower())
+        self.__metric_providers.sort(key=lambda item: 'rapl' not in item.__class__.__name__.lower())
 
-        if debug.active:
-            debug.pause('Initial load complete. Waiting to start network setup')
-
-        if 'networks' in obj:  # for some rare containers there is no network, like machine learning for example
+    def setup_networks(self):
+        # for some rare containers there is no network, like machine learning for example
+        if 'networks' in self._usage_scenario:
             print(TerminalColors.HEADER, '\nSetting up networks', TerminalColors.ENDC)
-            for network in obj['networks']:
+            for network in self._usage_scenario['networks']:
                 print('Creating network: ', network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
                 subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
                 subprocess.run(['docker', 'network', 'create', network], check=True)
-                self.networks.append(network)
+                self.__networks.append(network)
 
-        if debug.active:
-            debug.pause('Initial load complete. Waiting to start container setup')
-
-        for container_name in obj['services']:
+    def setup_services(self):
+        for container_name in self._usage_scenario['services']:
             print(TerminalColors.HEADER, '\nSetting up containers', TerminalColors.ENDC)
 
-            service = obj['services'][container_name]
+            service = self._usage_scenario['services'][container_name]
 
             print('Resetting container')
             # often not running. so no check=true
@@ -209,18 +221,18 @@ class Runner:
 
             docker_run_string.append('-v')
             if 'folder-destination' in service:
-                docker_run_string.append(f"{folder}:{service['folder-destination']}:ro")
+                docker_run_string.append(f"{self._folder}:{service['folder-destination']}:ro")
             else:
-                docker_run_string.append(f"{folder}:/tmp/repo:ro")
+                docker_run_string.append(f"{self._folder}:/tmp/repo:ro")
 
             if 'volumes' in service:
-                if self.allow_unsafe:
+                if self._allow_unsafe:
                     if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
                         docker_run_string.append(f"{volume}")
-                elif self.skip_unsafe:
+                elif self._skip_unsafe:
                     print(TerminalColors.WARNING,
                           arrows('Found volumes entry but not running in unsafe mode. Skipping'),
                           TerminalColors.ENDC)
@@ -228,14 +240,14 @@ class Runner:
                     raise RuntimeError('Found "volumes" but neither --skip-unsafe nor --allow-unsafe is set')
 
             if 'ports' in service:
-                if self.allow_unsafe:
+                if self._allow_unsafe:
                     if not isinstance(service['ports'], list):
                         raise RuntimeError(f"ports must be a list but is: {type(service['ports'])}")
                     for ports in service['ports']:
                         print('Setting ports: ', service['ports'])
                         docker_run_string.append('-p')
                         docker_run_string.append(ports)
-                elif self.skip_unsafe:
+                elif self._skip_unsafe:
                     print(TerminalColors.WARNING,
                           arrows('Found ports entry but not running in unsafe mode. Skipping'),
                           TerminalColors.ENDC)
@@ -244,8 +256,8 @@ class Runner:
 
             if 'environment' in service:
                 for docker_env_var in service['environment']:
-                    if not self.allow_unsafe and re.search(r'^[A-Z_]+$', str(docker_env_var)) is None:
-                        if self.skip_unsafe:
+                    if not self._allow_unsafe and re.search(r'^[A-Z_]+$', str(docker_env_var)) is None:
+                        if self._skip_unsafe:
                             warn_message= arrows(f"Found environment var key with wrong format. \
                                  Only ^[A-Z_]+$ allowed: {docker_env_var} - Skipping")
                             print(TerminalColors.WARNING, warn_message, TerminalColors.ENDC)
@@ -254,9 +266,9 @@ class Runner:
                             Only ^[A-Z_]+$ allowed: {docker_env_var} - Maybe consider using --allow-unsafe \
                                 or --skip-unsafe")
 
-                    if not self.allow_unsafe and \
+                    if not self._allow_unsafe and \
                         re.search(r'^[a-zA-Z_]+[a-zA-Z0-9_-]*$', str(service['environment'][docker_env_var])) is None:
-                        if self.skip_unsafe:
+                        if self._skip_unsafe:
                             print(TerminalColors.WARNING, arrows(f"Found environment var value with wrong format. \
                                     Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - \
                                     Skipping"), TerminalColors.ENDC)
@@ -292,7 +304,7 @@ class Runner:
             )
 
             container_id = ps.stdout.strip()
-            self.containers[container_id] = container_name
+            self.__containers[container_id] = container_name
             print('Stdout:', container_id)
 
             if 'setup-commands' not in service:
@@ -323,57 +335,56 @@ class Runner:
             # else:
             #    raise RuntimeError('Unknown type detected in setup: ', el.get('type', None))
 
-        # --- setup finished
+        print(TerminalColors.HEADER, '\nCurrent known containers: ', self.__containers, TerminalColors.ENDC)
 
-        print(TerminalColors.HEADER, '\nCurrent known containers: ', self.containers, TerminalColors.ENDC)
 
-        if debug.active:
-            debug.pause('Container setup complete. Waiting to start metric-providers')
-
+    def start_metric_providers(self):
         print(TerminalColors.HEADER, '\nStarting metric providers', TerminalColors.ENDC)
 
-        notes = []  # notes may have duplicate timestamps, therefore list and no dict structure
-
-        for metric_provider in self.metric_providers:
+        for metric_provider in self.__metric_providers:
             message = f"Booting {metric_provider.__class__.__name__}"
             print(message)
-            metric_provider.start_profiling(self.containers)
-            if self.verbose_provider_boot:
-                notes.append({'note': message, 'detail_name': '[SYSTEM]', 'timestamp': int(
+            metric_provider.start_profiling(self.__containers)
+            if self._verbose_provider_boot:
+                self.__notes.append({'note': message, 'detail_name': '[SYSTEM]', 'timestamp': int(
                     time.time_ns() / 1_000)})
                 time.sleep(2)
 
         print(TerminalColors.HEADER, '\nWaiting for Metric Providers to boot ...', TerminalColors.ENDC)
         time.sleep(2)
 
-        for metric_provider in self.metric_providers:
+        for metric_provider in self.__metric_providers:
             stderr_read = metric_provider.get_stderr()
             print(f"Stderr check on {metric_provider.__class__.__name__}")
             if stderr_read is not None:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
+    def pre_idle_containers(self):
+        config = GlobalConfig().config
         print(TerminalColors.HEADER,
               f"\nPre-idling containers for {config['measurement']['idle-time-start']}s", TerminalColors.ENDC)
-        notes.append({'note': 'Pre-idling containers',
+        self.__notes.append({'note': 'Pre-idling containers',
                      'detail_name': '[SYSTEM]', 'timestamp': int(time.time_ns() / 1_000)})
 
         time.sleep(config['measurement']['idle-time-start'])
 
-        if debug.active:
-            debug.pause('metric-providers start complete. Waiting to start flow')
 
-        start_measurement = int(time.time_ns() / 1_000)
-        notes.append({'note': 'Start of measurement',
-                     'detail_name': '[SYSTEM]', 'timestamp': start_measurement})
+    def start_measurement(self):
+        self.__start_measurement = int(time.time_ns() / 1_000)
+        self.__notes.append({'note': 'Start of measurement',
+                     'detail_name': '[SYSTEM]', 'timestamp': self.__start_measurement})
 
+
+    def run_flows(self):
+        config = GlobalConfig().config
         try:
             # run the flows
-            for el in obj['flow']:
+            for el in self._usage_scenario['flow']:
                 print(TerminalColors.HEADER, '\nRunning flow: ', el['name'], TerminalColors.ENDC)
                 for inner_el in el['commands']:
                     if 'note' in inner_el:
-                        notes.append({'note': inner_el['note'], 'detail_name': el['container'], 'timestamp': int(
-                            time.time_ns() / 1_000)})
+                        self.__notes.append({'note': inner_el['note'], 'detail_name': el['container'],
+                            'timestamp': int(time.time_ns() / 1_000)})
 
                     if inner_el['type'] == 'console':
                         print(TerminalColors.HEADER, '\nConsole command',
@@ -397,7 +408,7 @@ class Runner:
                             encoding='UTF-8'
                             )
 
-                        self.ps_to_read.append({
+                        self.__ps_to_read.append({
                             'cmd': docker_exec_command,
                             'ps': ps,
                             'read-notes-stdout': inner_el.get('read-notes-stdout', False),
@@ -406,7 +417,7 @@ class Runner:
 
                         if inner_el.get('detach', None) is True:
                             print('Process should be detached. Running asynchronously and detaching ...')
-                            self.ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
+                            self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
                         else:
                             print(f"Process should be synchronous. \
                                 Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
@@ -415,22 +426,23 @@ class Runner:
                     else:
                         raise RuntimeError('Unknown command type in flow: ', inner_el['type'])
 
-                    if debug.active:
-                        debug.pause('Waiting to start next command in flow')
+                    if self._debugger.active:
+                        self._debugger.pause('Waiting to start next command in flow')
 
-            end_measurement = int(time.time_ns() / 1_000)
-            notes.append({'note': 'End of measurement', 'detail_name': '[SYSTEM]', 'timestamp': end_measurement})
+            self.__end_measurement = int(time.time_ns() / 1_000)
+            self.__notes.append({'note': 'End of measurement', 'detail_name': '[SYSTEM]',
+                                'timestamp': self.__end_measurement})
 
             print(TerminalColors.HEADER,
                   f"\nIdling containers after run for {config['measurement']['idle-time-end']}s", TerminalColors.ENDC)
 
             time.sleep(config['measurement']['idle-time-end'])
 
-            notes.append({'note': 'End of post-measurement idle',
+            self.__notes.append({'note': 'End of post-measurement idle',
                 'detail_name': '[SYSTEM]', 'timestamp': int(time.time_ns() / 1_000)})
 
             print(TerminalColors.HEADER, 'Stopping metric providers and parsing stats', TerminalColors.ENDC)
-            for metric_provider in self.metric_providers:
+            for metric_provider in self.__metric_providers:
                 stderr_read = metric_provider.get_stderr()
                 if stderr_read is not None:
                     raise RuntimeError(
@@ -438,7 +450,7 @@ class Runner:
 
                 metric_provider.stop_profiling()
 
-                df = metric_provider.read_metrics(project_id, self.containers)
+                df = metric_provider.read_metrics(self._project_id, self.__containers)
                 print('Imported', TerminalColors.HEADER,
                       df.shape[0], TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
                 if df is None or df.shape[0] == 0:
@@ -450,60 +462,103 @@ class Runner:
 
             # now we have free capacity to parse the stdout / stderr of the processes
             print(TerminalColors.HEADER, '\nGetting output from processes: ', TerminalColors.ENDC)
-            for ps in self.ps_to_read:
+            for ps in self.__ps_to_read:
                 for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd'], ps['ignore-errors']):
                     print('Output from process: ', line)
                     if ps['read-notes-stdout']:
                         # Fixed format according to our specification. If unpacking fails this is wanted error
                         timestamp, note = line.split(' ', 1)
-                        notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
+                        self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
 
             # kill process only after reading. Otherwise the stream buffer might be gone
-            process_helpers.kill_ps(self.ps_to_kill)
+            process_helpers.kill_ps(self.__ps_to_kill)
         finally:
             # we here only want the header to be colored, not the notes itself
-            print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, notes)
-            save_notes(project_id, notes)
+            print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)
+            save_notes(self._project_id, self.__notes)
 
+    def update_start_and_end_times(self):
         print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
         DB().query("""UPDATE projects
             SET start_measurement=%s, end_measurement=%s
             WHERE id = %s
-            """, params=(start_measurement, end_measurement, project_id))
-
-        self.cleanup()  # always run cleanup automatically after each run
-
-        print(TerminalColors.OKGREEN, arrows('MEASUREMENT SUCCESSFULLY COMPLETED'), TerminalColors.ENDC)
+            """, params=(self.__start_measurement, self.__end_measurement, self._project_id))
 
     def cleanup(self):
         #https://github.com/green-coding-berlin/green-metrics-tool/issues/97
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
 
         print('Stopping metric providers')
-        for metric_provider in self.metric_providers:
+        for metric_provider in self.__metric_providers:
             metric_provider.stop_profiling()
 
         print('Stopping containers')
-        for container_name in self.containers.values():
+        for container_name in self.__containers.values():
             subprocess.run(['docker', 'rm', '-f', container_name], check=True, stderr=subprocess.DEVNULL)
 
         print('Removing network')
-        for network_name in self.networks:
+        for network_name in self.__networks:
             # no check=True, as the network might already be gone. We do not want to fail here
             subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
 
-        if not self.no_file_cleanup:
+        if not self._no_file_cleanup:
             print('Removing files')
             subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], stderr=subprocess.DEVNULL, check=True)
 
-        process_helpers.kill_ps(self.ps_to_kill)
+        process_helpers.kill_ps(self.__ps_to_kill)
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
-        self.containers = {}
-        self.networks = []
-        self.ps_to_kill = []
-        self.ps_to_read = []
-        self.metric_providers = []
+        self.__notes = []
+        self.__containers = {}
+        self.__networks = []
+        self.__ps_to_kill = []
+        self.__ps_to_read = []
+        self.__metric_providers = []
+        self.__start_measurement = None
+        self.__end_measurement = None
+
+
+    def run(self):
+        '''
+            The run function is just a wrapper for the intended sequential flow of a GMT run.
+            Mainly designed to call the functions individually for testing, but also
+            if the flow ever needs to repeat certain blocks.
+
+            The runner is to be thought of as a state machine.
+
+            Methods thus will behave differently given the runner was instantiated with different arguments.
+
+        '''
+        try:
+            self.prepare_filesystem_location()
+            self.checkout_repository()
+            self.initial_parse()
+            self.update_and_insert_specs()
+            self.import_metric_providers()
+            if self._debugger.active:
+                self._debugger.pause('Initial load complete. Waiting to start network setup')
+            self.setup_networks()
+
+            if self._debugger.active:
+                self._debugger.pause('Network setup complete. Waiting to start container setup')
+
+            self.setup_services()
+
+            if self._debugger.active:
+                self._debugger.pause('Container setup complete. Waiting to start metric-providers')
+
+            self.start_metric_providers()
+            if self._debugger.active:
+                self._debugger.pause('metric-providers start complete. Waiting to start flow')
+
+            self.pre_idle_containers()
+            self.start_measurement()
+            self.run_flows() # can trigger debug breakpoints
+            self.update_start_and_end_times()
+        finally:
+            self.cleanup()  # always run cleanup automatically after each run
+
+        print(TerminalColors.OKGREEN, arrows('MEASUREMENT SUCCESSFULLY COMPLETED'), TerminalColors.ENDC)
 
 
 if __name__ == '__main__':
@@ -571,11 +626,12 @@ if __name__ == '__main__':
                 VALUES \
                 (%s,%s,\'manual\',NULL,NOW(),%s) RETURNING id;', params=(args.name, args.uri, args.branch))[0]
 
-    runner = Runner(debug_mode=args.debug, allow_unsafe=args.allow_unsafe, no_file_cleanup=args.no_file_cleanup,
-                    skip_unsafe=args.skip_unsafe, verbose_provider_boot=args.verbose_provider_boot)
+    runner = Runner(uri=args.uri, uri_type=run_type, pid=project_id, filename=args.filename,
+                    branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
+                    no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe,
+                    verbose_provider_boot=args.verbose_provider_boot)
     try:
-        runner.run(uri=args.uri, uri_type=run_type,
-                   project_id=project_id, filename=args.filename, branch=args.branch)  # Start main code
+        runner.run()  # Start main code
         print(TerminalColors.OKGREEN,
             '\n\n####################################################################################')
         print(f"Please access your report with the ID: {project_id}")
@@ -596,5 +652,3 @@ if __name__ == '__main__':
     except BaseException as e:
         error_helpers.log_error(
             'Base exception occured in runner.py: ', e, project_id)
-    finally:
-        runner.cleanup()  # run just in case. Will be noop on successful run
