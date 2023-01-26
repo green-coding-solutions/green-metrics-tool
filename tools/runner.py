@@ -133,12 +133,23 @@ class Runner:
             raise RuntimeError('Specified architecture does not match system architecture:'
                 f"system ({output}) != specified ({obj['architecture']})")
 
+        # There are two ways we get hardware info. First things we don't need to be root to do which we get through
+        # a method call. And then things we need root privilege which we need to call as a subprocess with sudo. The
+        # install.sh script should have called the makefile which adds the script to the sudoes file.
+        machine_specs = hardware_info.get_default_values()
+
+        python_file = os.path.abspath(os.path.join(current_dir, '../lib/hardware_info_root.py'))
+        ps = subprocess.run(['sudo', sys.executable, python_file], stdout=subprocess.PIPE, check=True, encoding='UTF-8')
+        machine_specs_root = json.loads(ps.stdout)
+
+        machine_specs.update(machine_specs_root)
+
         # Insert auxilary info for the run. Not critical.
         DB().query("""UPDATE projects
             SET machine_specs=%s, measurement_config=%s, usage_scenario = %s, last_run = NOW()
             WHERE id = %s
             """, params=(
-            json.dumps(hardware_info.get_values()),
+            json.dumps(machine_specs),
             json.dumps(config['measurement']),
             json.dumps(obj),
             project_id)

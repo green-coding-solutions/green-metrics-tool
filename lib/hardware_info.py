@@ -1,4 +1,6 @@
-'''This module takes a list of system configurations to read and puts them in a json data structure.
+'''This module takes a list of system configurations to read and puts them in an dict. This file only gets the
+things we don't need to be root to get. Please look into the hardware_info_root.py for everything that needs
+root.
 '''
 import re
 import os
@@ -38,11 +40,10 @@ def read_process_with_regex(path, regex, params=REGEX_PARAMS):
 
 def read_directory_recursive(directory):
     '''Reads all the files in a directory recursively and adds them to the return dict. We ignore most errors.'''
-    # pylint: disable=unused-variable
     output_dic = {}
 
     dir_path = directory
-    for (dir_path, dir_names, file_names) in os.walk(dir_path):
+    for (dir_path, _, file_names) in os.walk(dir_path):
         for filename in file_names:
             try:
                 with open(os.path.join(dir_path, filename), 'r', encoding='utf8') as file_ptr:
@@ -85,16 +86,17 @@ info_list = [
     [rfwr, 'Turbo Boost', '/sys/devices/system/cpu/intel_pstate/no_turbo', r'(?P<o>.*)'],
     [rfwr, 'Virtualization', '/proc/cpuinfo', r'(?P<o>hypervisor)'],
     [rpwrs, 'SGX', [os.path.join(CURRENT_PATH, '../tools/sgx_enable'), '-s'], r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
-    [rdr, 'CPU scheduling', '/sys/kernel/debug/sched'],
     [rfwr, 'IO scheduling', '/sys/block/sda/queue/scheduler', r'(?P<o>.*)'],
 ]
 
 
-def get_values():
+def get_values(list_of_tasks):
     '''Creates an object with all the data populated'''
-    return {x[1]: x[0](*x[2:]) for x in info_list}
+    return {x[1]: x[0](*x[2:]) for x in list_of_tasks}
 
+def get_default_values():
+    return get_values(info_list)
 
 if __name__ == '__main__':
     pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(get_values())
+    pp.pprint(get_values(info_list))
