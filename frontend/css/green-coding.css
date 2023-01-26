@@ -166,3 +166,7 @@ a,
 .ui.fluid.image.menu-logo {
     width: 90%;
 }
+
+.invalidated-measurement {
+    background: #e9eaef url("/images/noncompliant.png");
+}
