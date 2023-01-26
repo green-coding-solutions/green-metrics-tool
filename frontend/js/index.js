@@ -47,7 +47,7 @@
                 el[3] = 'main/master'
             }
             else {
-                el[3] = ''
+                el[3] = '-'
             }
         }
         li_node.innerHTML = '<td class="td-index">' + li_node.innerHTML + '</td><td class="td-index">' + el[2] + '</td><td class="td-index">' + el[3] + '</td><td class="td-index">' + el[4] + '</td><td><input type="checkbox" value="' + el[0] + '" name="chbx-proj" />&nbsp;</td>';
