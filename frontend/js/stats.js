@@ -297,22 +297,65 @@ const displayGraphs = (metrics, notes, style='apex') => {
     }
 }
 
+function moveRight(el) {
+    const next = el.nextElementSibling;
+    if (!next) return;
+    swap(el, next)
+    window.dispatchEvent(new Event('resize'));
+}
+
+function moveToLast(el) {
+    const last = el.parentNode.childNodes[el.parentNode.childNodes.length - 1];
+    swap(el, last)
+    window.dispatchEvent(new Event('resize'));
+}
+
+function moveLeft(el) {
+    const previous = el.previousElementSibling;
+    if (!previous) return;
+    swap(previous, el)
+    window.dispatchEvent(new Event('resize'));
+}
+
+function moveToFirst(el) {
+    const first = el.parentNode.childNodes[0];
+    swap(first, el)
+    window.dispatchEvent(new Event('resize'));
+}
+
+function fullWidth(el) {
+    el.style.flex = "0 0 100%"
+    window.dispatchEvent(new Event('resize'));
+}
+
+function normalWidth(el) {
+    el.style.flex = ""
+    window.dispatchEvent(new Event('resize'));
+}
+
+function swap(node1, node2) {
+    const afterNode2 = node2.nextElementSibling;
+    const parent = node2.parentNode;
+    node1.replaceWith(node2);
+    parent.insertBefore(node1, afterNode2);
+}
 
 const createChartContainer = (container, el, counter) => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");
     chart_node.classList.add('statistics-chart-card')
     chart_node.classList.add('ui')
+    chart_node.id = el
 
     chart_node.innerHTML = `
     <div class="content">
         <div class="ui icon buttons">
-            <button class="ui button"><i class="angle double left icon"></i></button>
-            <button class="ui button"><i class="angle left icon"></i></button>
-            <button class="ui button"><i class="compress icon"></i></button>
-            <button class="ui button"><i class="expand icon"></i></button>
-            <button class="ui button"><i class="angle right icon"></i></button>
-            <button class="ui button"><i class="angle double right icon"></i></button>
+            <button onclick="moveToFirst(${el})" class="ui button"><i class="angle double left icon"></i></button>
+            <button onclick="moveLeft(${el})" class="ui button"><i class="angle left icon"></i></button>
+            <button onclick="normalWidth(${el})" class="ui button"><i class="compress icon"></i></button>
+            <button onclick="fullWidth(${el})" class="ui button"><i class="expand icon"></i></button>
+            <button onclick="moveRight(${el})" class="ui button"><i class="angle right icon"></i></button>
+            <button onclick="moveToLast(${el})" class="ui button"><i class="angle double right icon"></i></button>
         </div>
         <div class="description">
             <div class="statistics-chart" id=${el}-chart></div>
