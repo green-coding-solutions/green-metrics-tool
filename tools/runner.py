@@ -14,9 +14,6 @@
 # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
 #pylint: disable=broad-except
 
-# To make the code more readable we allow `project_id` in `main` and in method parameters to make clear that it is the
-# same thing
-#pylint: disable=redefined-outer-name
 
 import subprocess
 import json
@@ -48,7 +45,7 @@ def arrows(text):
 
 class Runner:
     def __init__(self,
-        uri, uri_type, project_id, filename='usage_scenario.yml', branch=None,
+        uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False, verbose_provider_boot=False):
         self._debugger = DebugHelper(debug_mode)
         self._allow_unsafe = allow_unsafe
@@ -59,7 +56,7 @@ class Runner:
         # variables that should not change if you call run multiple times
         self._uri = uri
         self._uri_type = uri_type
-        self._project_id = project_id
+        self._project_id = pid
         self._filename = filename
         self._branch = branch
         self._folder = '/tmp/green-metrics-tool/repo' # default if not changed in checkout_repository
@@ -453,7 +450,7 @@ class Runner:
 
                 metric_provider.stop_profiling()
 
-                df = metric_provider.read_metrics(project_id, self.__containers)
+                df = metric_provider.read_metrics(self._project_id, self.__containers)
                 print('Imported', TerminalColors.HEADER,
                       df.shape[0], TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
                 if df is None or df.shape[0] == 0:
@@ -628,7 +625,7 @@ if __name__ == '__main__':
                 VALUES \
                 (%s,%s,\'manual\',NULL,NOW(),%s) RETURNING id;', params=(args.name, args.uri, args.branch))[0]
 
-    runner = Runner(uri=args.uri, uri_type=run_type, project_id=project_id, filename=args.filename,
+    runner = Runner(uri=args.uri, uri_type=run_type, pid=project_id, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe,
                     verbose_provider_boot=args.verbose_provider_boot)
