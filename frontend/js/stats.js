@@ -297,15 +297,17 @@ const displayGraphs = (metrics, notes, style='apex') => {
     }
 }
 
-function moveRight(el) {
-    const next = el.nextElementSibling;
+function moveRight(e) {
+
+    el = e.target.closest(".statistics-chart-card")
+    const next = el.nextSibling;
     if (!next) return;
-    swap(el, next)
+    next.after(el)
     window.dispatchEvent(new Event('resize'));
 }
 
 function moveToLast(el) {
-    const last = el.parentNode.childNodes[el.parentNode.childNodes.length - 1];
+    const last = el.parentNode.lastChild;
     swap(el, last)
     window.dispatchEvent(new Event('resize'));
 }
@@ -354,7 +356,7 @@ const createChartContainer = (container, el, counter) => {
             <button onclick="moveLeft(${el})" class="ui button"><i class="angle left icon"></i></button>
             <button onclick="normalWidth(${el})" class="ui button"><i class="compress icon"></i></button>
             <button onclick="fullWidth(${el})" class="ui button"><i class="expand icon"></i></button>
-            <button onclick="moveRight(${el})" class="ui button"><i class="angle right icon"></i></button>
+            <button class="ui button move-right"><i class="angle right icon"></i></button>
             <button onclick="moveToLast(${el})" class="ui button"><i class="angle double right icon"></i></button>
         </div>
         <div class="description">
@@ -363,6 +365,10 @@ const createChartContainer = (container, el, counter) => {
     </div>`
     document.querySelector(container).appendChild(chart_node)
     //document.querySelector(container).parentNode.insertBefore(chart_node, null);
+
+    chart_node.querySelector('.move-right').addEventListener("click", moveRight, false);
+
+
     return chart_node.querySelector('.statistics-chart');
 }
 
