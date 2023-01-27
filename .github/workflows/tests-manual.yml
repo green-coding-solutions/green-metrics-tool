@@ -11,6 +11,7 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
         with:
+          ref: ${{ github.ref_name }}
           submodules: 'true'
       
       - name: Eco CI Energy Estimation
