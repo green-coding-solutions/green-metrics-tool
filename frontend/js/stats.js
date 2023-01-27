@@ -515,6 +515,12 @@ $(document).ready( (e) => {
         const query_string = window.location.search;
         const url_params = (new URLSearchParams(query_string))
 
+        if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
+            showNotification('No project id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
+            return;
+        }
+
+
         try {
             var project_data = await makeAPICall('/v1/project/' + url_params.get('id'))
 
