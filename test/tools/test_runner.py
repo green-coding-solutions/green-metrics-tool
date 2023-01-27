@@ -54,7 +54,7 @@ def test_no_errors():
 def test_cleanup_success():
     # Assert that Cleanup has run
     assert re.search(
-        '>>>> MEASUREMENT SUCCESSFULLY COMPLETED <<<<<<', RUN_STD_OUT)
+        '>>>> MEASUREMENT SUCCESSFULLY COMPLETED <<<<', RUN_STD_OUT)
 
 def test_db_rows_are_written_and_presented():
     # for every metric provider, check that there were rows written in the DB with info for that provider
