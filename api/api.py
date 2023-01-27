@@ -117,9 +117,11 @@ async def get_notes(project_id):
 async def get_projects():
     query = """
             SELECT
-                id, name, uri, end_measurement, last_run
+                id, name, uri, branch, end_measurement, last_run
             FROM
                 projects
+            WHERE
+                invalid_project IS NULL
             ORDER BY
                 created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
             """
@@ -370,7 +372,7 @@ async def get_project(project_id: str):
             SELECT
                 id, name, uri, branch, (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements \
                     LEFT JOIN categories as t on t.id = elements) as categories, start_measurement, end_measurement, \
-                    measurement_config, machine_specs, usage_scenario, last_run, created_at
+                    measurement_config, machine_specs, usage_scenario, last_run, created_at, invalid_project
             FROM
                 projects
             WHERE

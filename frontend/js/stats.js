@@ -515,6 +515,12 @@ $(document).ready( (e) => {
         const query_string = window.location.search;
         const url_params = (new URLSearchParams(query_string))
 
+        if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
+            showNotification('No project id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
+            return;
+        }
+
+
         try {
             var project_data = await makeAPICall('/v1/project/' + url_params.get('id'))
 
@@ -562,6 +568,11 @@ $(document).ready( (e) => {
         project_data.data['duration'] = `${measurement_duration_in_s} s`
 
         fillProjectData(project_data.data)
+
+        if (project_data.data.invalid_project) {
+            showNotification('Project measurement has been marked as invalid', project_data.data.invalid_project);
+            document.body.classList.add("invalidated-measurement")
+        }
 
         if (stats_data == undefined || stats_data.success == false) {
             return;
