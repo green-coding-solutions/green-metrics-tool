@@ -17,8 +17,7 @@ CREATE TABLE projects (
     end_measurement bigint,
     invalid_project text,
     last_run timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now(),
-    invalid_project text
+    created_at timestamp with time zone DEFAULT now()
 );
 
 CREATE TABLE stats (
