@@ -9,20 +9,20 @@ jobs:
   run-tests-dev:
     runs-on: ubuntu-latest
     steps:
-      - id: check_date
+      - id: check-date
         if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: green-coding-berlin/eco-ci-activity-checker@main
         with:
           repo: 'green-coding-berlin/green-metrics-tool'
           branch: 'dev'
           workflow-id: 45267392
-      - if: ${{ github.event_name == 'workflow_dispatch' || check_date.outputs.should_run == 'true'}}
+      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
         name: 'Checkout repository'
         uses: actions/checkout@v3
         with:
           ref: 'dev'
           submodules: 'true'
-      - if: ${{ github.event_name == 'workflow_dispatch' || check_date.outputs.should_run == 'true'}}
+      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
         name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
