@@ -115,10 +115,12 @@ class PowerSpy2:
         while True:
             try:
                 res = self.readResponse()
+                # We need to check if this is correct! Take with a grain of salt till then
                 rmsVoltage = math.sqrt(int(res[1:9], 16) * math.pow(self.uscale, 2))
                 rmsCurrent = math.sqrt(int(res[10:18], 16) * math.pow(self.iscale, 2))
-                # The return value seems to be centiwatt
-                rmsPower = math.sqrt(int(res[19:27], 16) ** 2 * self.uscale * self.iscale)
+
+                # This seems to be fine
+                rmsPower = int(res[19:27], 16) * self.uscale * self.iscale
                 peakVoltage = int(res[28:32], 16) * self.uscale
                 peakCurrent = int(res[33:37], 16) * self.iscale
                 sys.stdout.buffer.write(
@@ -128,11 +130,15 @@ class PowerSpy2:
                 break
         self.stopRealtimeMeasure()
 
-    def measurePowerRealtime(self, periods, unit='mW'):
+    def measurePowerRealtime(self, milliseconds, unit='mW', use_package_time=False):
+
         self.initCallibration()
+        periods = self.mseconds_to_period(milliseconds)
         self.sendRequest(f"<J{periods:04X}>".encode())
         self.readResponse()  # TODO check for errors
         while True:
+            timestamp_before = time.time_ns()
+
             try:
                 res = self.readResponse()
                 if res[19:25] == b'FFFFFF':
@@ -140,21 +146,31 @@ class PowerSpy2:
                     # b'FFFFFFF' so we set it to 0 to avoid confusion
                     rmsPower = 0
                 else:
-                    # The return value seems to be centiwatt
-                    rmsPower = math.sqrt((int(res[19:27], 16)) ** 2 * self.uscale * self.iscale)
+                    # The return value seems to be watt
+                    rmsPower = int(res[19:27], 16) * self.uscale * self.iscale
+
+                    if use_package_time:
+                        # We need to calculate the time for joule output
+                        timestamp_after = time.time_ns()
+                        effective_sleep_time = timestamp_after - timestamp_before
+                        # we want microjoule. Therefore / 10**9 to get seconds and then * 10**3 to get mJ
+                        conversion_factor = effective_sleep_time / 1_000_000
 
                     if unit == 'mW':
-                        rmsPower = rmsPower * 10
+                        rmsPower = rmsPower * 1_000
                     elif unit == 'W':
-                        rmsPower = rmsPower / 100
+                        pass
                     elif unit == 'J':
-                        # Make sure that periods is 1 second
-                        assert periods == self.mseconds_to_period(1000)
-                        rmsPower = rmsPower / 100
+                        if use_package_time:
+                            rmsPower = rmsPower / 1_000 * conversion_factor
+                        else:
+                            rmsPower = rmsPower / 1_000 * milliseconds
+                        rmsPower = rmsPower
                     elif unit == 'mJ':
-                        # Make sure that periods is 1 second
-                        assert periods == self.mseconds_to_period(1000)
-                        rmsPower = rmsPower * 10
+                        if use_package_time:
+                            rmsPower = rmsPower * conversion_factor
+                        else:
+                            rmsPower = rmsPower * milliseconds
                     else:
                         raise ValueError("Unit needs to be mW, W, J or mJ")
 
