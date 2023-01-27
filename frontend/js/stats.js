@@ -298,7 +298,6 @@ const displayGraphs = (metrics, notes, style='apex') => {
 }
 
 function moveRight(e) {
-
     el = e.target.closest(".statistics-chart-card")
     const next = el.nextSibling;
     if (!next) return;
@@ -306,40 +305,38 @@ function moveRight(e) {
     window.dispatchEvent(new Event('resize'));
 }
 
-function moveToLast(el) {
+function moveToLast(e) {
+    el = e.target.closest(".statistics-chart-card")
     const last = el.parentNode.lastChild;
-    swap(el, last)
+    last.after(el)
     window.dispatchEvent(new Event('resize'));
 }
 
-function moveLeft(el) {
+function moveLeft(e) {
+    el = e.target.closest(".statistics-chart-card")
     const previous = el.previousElementSibling;
     if (!previous) return;
-    swap(previous, el)
+    previous.before(el)
     window.dispatchEvent(new Event('resize'));
 }
 
-function moveToFirst(el) {
+function moveToFirst(e) {
+    el = e.target.closest(".statistics-chart-card")
     const first = el.parentNode.childNodes[0];
-    swap(first, el)
+    first.before(el)
     window.dispatchEvent(new Event('resize'));
 }
 
-function fullWidth(el) {
+function fullWidth(e) {
+    el = e.target.closest(".statistics-chart-card")
     el.style.flex = "0 0 100%"
     window.dispatchEvent(new Event('resize'));
 }
 
-function normalWidth(el) {
+function normalWidth(e) {
+    el = e.target.closest(".statistics-chart-card")
     el.style.flex = ""
     window.dispatchEvent(new Event('resize'));
-}
-
-function swap(node1, node2) {
-    const afterNode2 = node2.nextElementSibling;
-    const parent = node2.parentNode;
-    node1.replaceWith(node2);
-    parent.insertBefore(node1, afterNode2);
 }
 
 const createChartContainer = (container, el, counter) => {
@@ -347,26 +344,29 @@ const createChartContainer = (container, el, counter) => {
     chart_node.classList.add("card");
     chart_node.classList.add('statistics-chart-card')
     chart_node.classList.add('ui')
-    chart_node.id = el
 
     chart_node.innerHTML = `
     <div class="content">
         <div class="ui icon buttons">
-            <button onclick="moveToFirst(${el})" class="ui button"><i class="angle double left icon"></i></button>
-            <button onclick="moveLeft(${el})" class="ui button"><i class="angle left icon"></i></button>
-            <button onclick="normalWidth(${el})" class="ui button"><i class="compress icon"></i></button>
-            <button onclick="fullWidth(${el})" class="ui button"><i class="expand icon"></i></button>
+            <button class="ui button move-first"><i class="angle double left icon"></i></button>
+            <button class="ui button move-left"><i class="angle left icon"></i></button>
+            <button class="ui button normal-width"><i class="compress icon"></i></button>
+            <button class="ui button full-width"><i class="expand icon"></i></button>
             <button class="ui button move-right"><i class="angle right icon"></i></button>
-            <button onclick="moveToLast(${el})" class="ui button"><i class="angle double right icon"></i></button>
+            <button class="ui button move-last"><i class="angle double right icon"></i></button>
         </div>
         <div class="description">
             <div class="statistics-chart" id=${el}-chart></div>
         </div>
     </div>`
     document.querySelector(container).appendChild(chart_node)
-    //document.querySelector(container).parentNode.insertBefore(chart_node, null);
 
+    chart_node.querySelector('.move-first').addEventListener("click", moveToFirst, false);
+    chart_node.querySelector('.move-left').addEventListener("click", moveLeft, false);
+    chart_node.querySelector('.normal-width').addEventListener("click",normalWidth, false);
+    chart_node.querySelector('.full-width').addEventListener("click", fullWidth, false);
     chart_node.querySelector('.move-right').addEventListener("click", moveRight, false);
+    chart_node.querySelector('.move-last').addEventListener("click", moveToLast, false);
 
 
     return chart_node.querySelector('.statistics-chart');
