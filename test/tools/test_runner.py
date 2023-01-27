@@ -35,13 +35,13 @@ def setup_module(module):
             current_dir, '..', 'stress-application/'))
         subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
-    pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
-                VALUES \
-                (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(PROJECT_NAME, uri))[0]
+        pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
+                    VALUES \
+                    (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(PROJECT_NAME, uri))[0]
 
-    # Run the application
-    runner = Runner(uri=uri, uri_type='folder', pid=pid)
-    runner.run()
+        # Run the application
+        runner = Runner(uri=uri, uri_type='folder', pid=pid)
+        runner.run()
 
     global RUN_STD_ERR, RUN_STD_OUT
     RUN_STD_ERR = err.getvalue()
@@ -54,7 +54,7 @@ def test_no_errors():
 def test_cleanup_success():
     # Assert that Cleanup has run
     assert re.search(
-        '>>>> MEASUREMENT SUCCESSFULLY COMPLETED <<<<<<', RUN_STD_OUT)
+        '>>>> MEASUREMENT SUCCESSFULLY COMPLETED <<<<', RUN_STD_OUT)
 
 def test_db_rows_are_written_and_presented():
     # for every metric provider, check that there were rows written in the DB with info for that provider
