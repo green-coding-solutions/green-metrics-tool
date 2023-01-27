@@ -53,8 +53,6 @@
         link_node.href = `/stats.html?id=${id}`;
         li_node.appendChild(link_node);
 
-        // Modify the branch name if the database returned null
-        if (uri.startsWith("http")) uri = `<a href="${uri}">${uri}</a>`
 
         if (!branch) {
             if (uri.startsWith("http")) {
@@ -64,6 +62,10 @@
                 branch = '-'
             }
         }
+
+        // Modify the branch name if the database returned null
+        if (uri.startsWith("http")) uri = `<a href="${uri}">${uri}</a>`
+
 
         li_node.innerHTML = `<td class="td-index">${li_node.innerHTML}</td><td class="td-index">${uri}</td><td class="td-index">${branch}</td><td class="td-index"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td><td><input type="checkbox" value="${id}" name="chbx-proj" />&nbsp;</td>`;
         document.querySelector("#projects-table").appendChild(li_node);
