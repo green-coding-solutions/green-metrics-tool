@@ -42,6 +42,7 @@
         let branch = el[3]
         const end_measurement = el[4]
         const last_run = el[5]
+        const invalid_project = el[6]
 
         content.push({ title: name });
         if(end_measurement == null) {
@@ -49,6 +50,11 @@
         } else {
             link_node.innerText = name;
         }
+        if(invalid_project != null) {
+            link_node.innerHTML = `${name} <span class="ui yellow horizontal label" title="${invalid_project}">invalidated</span>`;
+        }
+
+
         link_node.title = name;
         link_node.href = `/stats.html?id=${id}`;
         li_node.appendChild(link_node);
