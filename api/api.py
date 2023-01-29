@@ -117,11 +117,9 @@ async def get_notes(project_id):
 async def get_projects():
     query = """
             SELECT
-                id, name, uri, branch, end_measurement, last_run
+                id, name, uri, branch, end_measurement, last_run, invalid_project
             FROM
                 projects
-            WHERE
-                invalid_project IS NULL
             ORDER BY
                 created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
             """
