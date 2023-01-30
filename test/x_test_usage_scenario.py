@@ -3,7 +3,7 @@
 #  docker port CONTAINER [PRIVATE_PORT[/PROTO]]
 
 
-#pylint: disable=fixme,import-error,wrong-import-position, global-statement, unused-argument, invalid-name
+#pylint: disable=fixme,import-error,wrong-import-position, global-statement, unused-argument, invalid-name, redefined-outer-name
 # unused-argument because its not happy with 'module', which is unfortunately necessary for pytest
 # also disabled invalid-name because its not happy with single word for d in data , for example
 
@@ -11,19 +11,18 @@
 
 import io
 import os
-import pytest
 import shutil
 import sys
 import subprocess
-import re
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{current_dir}/../tools")
 sys.path.append(f"{current_dir}/../lib")
 
 from contextlib import redirect_stdout, redirect_stderr
-from db import DB
 from pathlib import Path
+from db import DB
+import pytest
 import utils
 from runner import Runner
 from global_config import GlobalConfig
@@ -67,8 +66,9 @@ def insert_project(uri):
                     (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(project_name, uri))[0]
     return pid
 
+#pylint: disable=too-many-arguments
 def setup_runner(usage_scenario, uri='default', uri_type='folder', branch=None,
-        debug_mode=False, allow_unsafe=False, no_file_cleanup=False, 
+        debug_mode=False, allow_unsafe=False, no_file_cleanup=False,
         skip_unsafe=False, verbose_provider_boot=False):
     usage_scenario_path = os.path.join(current_dir, 'data/usage_scenarios/', usage_scenario)
     if uri == 'default':
@@ -77,7 +77,7 @@ def setup_runner(usage_scenario, uri='default', uri_type='folder', branch=None,
         uri = os.path.join(current_dir, 'tmp/', dir_name)
     pid = insert_project(uri)
     return Runner(uri=uri, uri_type=uri_type, pid=pid, filename=usage_scenario, branch=branch,
-        debug_mode=debug_mode, allow_unsafe=allow_unsafe, no_file_cleanup=no_file_cleanup, 
+        debug_mode=debug_mode, allow_unsafe=allow_unsafe, no_file_cleanup=no_file_cleanup,
         skip_unsafe=skip_unsafe, verbose_provider_boot=verbose_provider_boot)
 
 RUNNER_STEPS = ['prepare_filesystem_location',
@@ -94,6 +94,8 @@ RUNNER_STEPS = ['prepare_filesystem_location',
                 'update_start_and_end_times',
                 ]
 # This function runs the runner up to and *including* the specified step
+# TODO: double check this pylint disable!
+#pylint: disable=redefined-argument-from-local
 def run_until(runner, step):
     for step in RUNNER_STEPS:
         getattr(runner, step)()
@@ -109,7 +111,7 @@ def test_env_variable_allow_unsafe_true():
     try:
         run_until(runner, 'setup_services')
         ps = subprocess.run(
-                ['docker', 'exec', 'test-container', '/bin/sh', 
+                ['docker', 'exec', 'test-container', '/bin/sh',
                 '-c', 'echo $TEST'],
                 check=True,
                 stderr=subprocess.PIPE,
@@ -127,7 +129,7 @@ def test_env_variable_skip_unsafe_true():
     try:
         run_until(runner, 'setup_services')
         ps = subprocess.run(
-                ['docker', 'exec', 'test-container', '/bin/sh', 
+                ['docker', 'exec', 'test-container', '/bin/sh',
                 '-c', 'echo $TEST'],
                 check=True,
                 stderr=subprocess.PIPE,
@@ -145,7 +147,7 @@ def test_env_variable_no_skip_or_allow():
         try:
             run_until(runner, 'setup_services')
             ps = subprocess.run(
-                ['docker', 'exec', 'test-container', '/bin/sh', 
+                ['docker', 'exec', 'test-container', '/bin/sh',
                 '-c', 'echo $TEST'],
                 check=True,
                 stderr=subprocess.PIPE,
@@ -175,7 +177,7 @@ def setup_env_variable():
 
 # Why doens't this work?
 # Is there a better way to do this test?
-def wip_test_env_variable_host_vars_not_readable(setup_env_variable):   
+def wip_test_env_variable_host_vars_not_readable(setup_env_variable):
     runner = setup_runner(usage_scenario='env_vars_stress.yml', allow_unsafe=True)
     ps = subprocess.run(
             ['echo', '$GMTTEST'],
@@ -188,7 +190,7 @@ def wip_test_env_variable_host_vars_not_readable(setup_env_variable):
     try:
         run_until(runner, 'setup_services')
         ps = subprocess.run(
-            ['docker', 'exec', 'test-container', '/bin/sh', 
+            ['docker', 'exec', 'test-container', '/bin/sh',
             '-c', 'echo $GMTTEST'],
             check=True,
             stderr=subprocess.PIPE,
@@ -226,7 +228,7 @@ def test_port_bindings_skip_unsafe_true():
 
     # need to catch exception here as otherwise the subprocess returning an error will
     # fail the test
-    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception):
         try:
             run_until(runner, 'setup_services')
             ps = subprocess.run(
@@ -261,7 +263,7 @@ def test_port_bindings_no_skip_or_allow():
     assert 'Found "ports" but neither --skip-unsafe nor --allow-unsafe is set' in str(e.value)
 
 # setup-commands: [array] (optional)
-# Array of commands to be run before actual load testing. 
+# Array of commands to be run before actual load testing.
 # uses ps -a to check that sh is process with PID 1
 # q: in a VM, still true?
 def test_setup_commands_one_command():
@@ -330,7 +332,7 @@ def test_volumes_bindings_skip_unsafe_true():
     err = io.StringIO()
     runner = setup_runner(usage_scenario='volume_bindings_stress.yml', skip_unsafe=True)
 
-    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception):
         try:
             run_until(runner, 'setup_services')
             ps = subprocess.run(
@@ -398,8 +400,8 @@ def test_container_is_in_network():
     assert 'test-container' in inspect
 
 # cmd: [str] (optional)
-#    Command to be executed when container is started. 
-#    When container does not have a daemon running typically a shell 
+#    Command to be executed when container is started.
+#    When container does not have a daemon running typically a shell
 #    is started here to have the container running like bash or sh
 def test_cmd_ran():
     runner = setup_runner(usage_scenario='cmd_stress.yml')
@@ -419,8 +421,8 @@ def test_cmd_ran():
     assert '1 root      0:00 sh' in docker_ps_out
 
 ### The tests for the runner options/flags
-## --uri URI             
-#   The URI to get the usage_scenario.yml from. Can be either a local directory starting with 
+## --uri URI
+#   The URI to get the usage_scenario.yml from. Can be either a local directory starting with
 #     / or a remote git repository starting with http(s)://
 def test_uri_local_dir():
     runner = setup_runner(usage_scenario='basic_stress.yml')
@@ -443,7 +445,7 @@ def test_uri_local_dir_missing():
 #     # https://github.com/green-coding-berlin/simple-example-application
 #     # basic positive case
 
-# ## --branch BRANCH       
+# ## --branch BRANCH
 # #    Optionally specify the git branch when targeting a git repository
 # def test_uri_local_branch():
 #     # should throw error
@@ -456,13 +458,13 @@ def test_uri_local_dir_missing():
 #     # give incorrect branch name
 #     # should throw error, assert vs error
 
-# #   --name NAME           
+# #   --name NAME
 # #    A name which will be stored to the database to discern this run from others
 # def test_name_is_in_db():
 #     # as implied, test if name is in DB
 #     # Open Question: is there a way to "stop" the run early? just to save on time
 
-# --filename FILENAME   
+# --filename FILENAME
 #    An optional alternative filename if you do not want to use "usage_scenario.yml"
 # def test_different_filename():
     # rename usage_scenario
@@ -472,7 +474,7 @@ def test_uri_local_dir_missing():
 #     # does it default to usage_scenario?
 #     # if:y, check with/without usage_scenario backup
 
-# #   --no-file-cleanup     
+# #   --no-file-cleanup
 # #    Do not delete files in /tmp/green-metrics-tool
 # def test_no_file_cleanup():
 #     # What files should be written there?
@@ -498,26 +500,3 @@ def test_uri_local_dir_missing():
 # def test_debug():
 # ## it stops the execution
 # # safe to check for first inital laod complete message
-
-
-# ## Do this as a seperate task/file
-# # just notes for now
-# ### Test Flow
-# # flow: [array] (Array of flows to interact with containers)
-# #     name: [str] An arbitrary name, that helps you distinguish later on where the load happend in the chart
-# #     container: [a-zA-Z0-9_] The name of the container specified on setup which you want the run the flow
-# #     commands: [array]
-# #         type: [console] (Only console currently supported)
-# #                 console will execute a shell command inside the container
-# #         command: [str]
-# #                 The command to be executed. 
-# #                 If type is console then piping or moving to background is not supported.
-# #         detach: [bool] (optional. default false)
-# #                 When the command is detached it will get sent to the background.
-# #                  This allows to run commands in parallel if needed, for instance if you want to stress the DB in parallel with a web request
-# #         note:   [str] (optional)
-# #                 A string that will appear as note attached to the datapoint of measurement (optional)
-# #         read-notes-stdout: [bool] (optional)
-# #                 Read notes from the STDOUT of the command. This is helpful if you have a long running command that does multiple steps and you want to log every step.
-
-
