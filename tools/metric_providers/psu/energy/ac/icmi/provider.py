@@ -45,7 +45,6 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('container_id', help='Please provide the container_id')
     args = parser.parse_args()
 
     o = PsuEnergyAcIpmiProvider(resolution=100)
