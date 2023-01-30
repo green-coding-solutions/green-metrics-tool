@@ -1,0 +1,1 @@
+watch -n 0.5 "sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics | head -1 | awk '{print \$4}'"
