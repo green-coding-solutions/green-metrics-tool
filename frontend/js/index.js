@@ -6,26 +6,6 @@
         return '' + y + '-' + (m<=9 ? '0' + m : m) + '-' + (d <= 9 ? '0' + d : d);
     }
 
-    const compareButton = () => {
-        var checkedBoxes = document.querySelectorAll('input[name=chbx-proj]:checked');
-        var link = "";
-        if (checkedBoxes.length == 2) {
-            link = "/multi.html?dummy=dummy";
-        }
-        else if (checkedBoxes.length > 2) {
-            link = "/compare.html?dummy=dummy";
-        }
-        else {
-            showNotification('Note', 'Please select at least two projects to compare');
-            return;
-        }
-
-        checkedBoxes.forEach(checkbox => {
-            link += "&pids[]=" + checkbox.value;
-        });
-        window.location = link;
-    }
-
     let content = [];
     try {
         var stats_data = await makeAPICall('/v1/projects')
@@ -73,7 +53,7 @@
         if (uri.startsWith("http")) uri = `<a href="${uri}">${uri}</a>`
 
 
-        li_node.innerHTML = `<td class="td-index">${li_node.innerHTML}</td><td class="td-index">${uri}</td><td class="td-index">${branch}</td><td class="td-index"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td><td><input type="checkbox" value="${id}" name="chbx-proj" />&nbsp;</td>`;
+        li_node.innerHTML = `<td class="td-index">${li_node.innerHTML}</td><td class="td-index">${uri}</td><td class="td-index">${branch}</td><td class="td-index"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td>`;
         document.querySelector("#projects-table").appendChild(li_node);
     });
     $('.ui.search').search({ source: content });
