@@ -506,7 +506,7 @@ class Runner:
 
         if not self._no_file_cleanup:
             print('Removing files')
-            #subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], stderr=subprocess.DEVNULL, check=True)
+            subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], stderr=subprocess.DEVNULL, check=True)
 
         process_helpers.kill_ps(self.__ps_to_kill)
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
