@@ -35,6 +35,7 @@ from debug_helper import DebugHelper
 from terminal_colors import TerminalColors
 import process_helpers
 import hardware_info
+import hardware_info_root
 import error_helpers
 from db import DB
 from global_config import GlobalConfig
@@ -75,6 +76,7 @@ class Runner:
         self.__end_measurement = None
 
     def prepare_filesystem_location(self):
+        #pylint: disable=no-self-use
         subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], check=True, stderr=subprocess.DEVNULL)
         subprocess.run(['mkdir', '/tmp/green-metrics-tool'], check=True)
 
@@ -133,13 +135,12 @@ class Runner:
         if self._allow_unsafe:
             print(TerminalColors.WARNING, arrows('Warning: Runner is running in unsafe mode'), TerminalColors.ENDC)
 
-        # Sanity checks first, before we insert anything in DB and rely on the linux subsystem to be present.
-        # ATM only linux is working https://github.com/green-coding-berlin/green-metrics-tool/issues/96
         ps = subprocess.run(['uname', '-s'],
             check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8')
         output = ps.stdout.strip().lower()
 
-        if self._usage_scenario.get('architecture') is not None and output != self._usage_scenario['architecture']:
+        if self._usage_scenario.get('architecture') is not None and \
+            output != self._usage_scenario['architecture'].lower():
             raise RuntimeError('Specified architecture does not match system architecture:'
                 f"system ({output}) != specified ({self._usage_scenario.get('architecture')})")
 
@@ -151,11 +152,13 @@ class Runner:
         # install.sh script should have called the makefile which adds the script to the sudoes file.
         machine_specs = hardware_info.get_default_values()
 
-        python_file = os.path.abspath(os.path.join(CURRENT_DIR, '../lib/hardware_info_root.py'))
-        ps = subprocess.run(['sudo', sys.executable, python_file], stdout=subprocess.PIPE, check=True, encoding='UTF-8')
-        machine_specs_root = json.loads(ps.stdout)
+        if len(hardware_info_root.get_root_list()) > 0:
+            python_file = os.path.abspath(os.path.join(CURRENT_DIR, '../lib/hardware_info_root.py'))
+            ps = subprocess.run(['sudo', sys.executable, python_file],
+                                stdout=subprocess.PIPE, check=True, encoding='UTF-8')
+            machine_specs_root = json.loads(ps.stdout)
 
-        machine_specs.update(machine_specs_root)
+            machine_specs.update(machine_specs_root)
 
         # Insert auxilary info for the run. Not critical.
         DB().query("""UPDATE projects
@@ -503,7 +506,7 @@ class Runner:
 
         if not self._no_file_cleanup:
             print('Removing files')
-            subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], stderr=subprocess.DEVNULL, check=True)
+            #subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], stderr=subprocess.DEVNULL, check=True)
 
         process_helpers.kill_ps(self.__ps_to_kill)
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)

@@ -5,6 +5,7 @@ root.
 import re
 import os
 import subprocess
+import platform
 import pprint
 
 REGEX_PARAMS = re.MULTILINE | re.IGNORECASE
@@ -64,7 +65,8 @@ rdr = read_directory_recursive
 rpwrs = lambda *x: ''.join(set(rpwr(*x).split('\n')))
 
 # For the matching the match group needs to be called 'o'
-info_list = [
+linux_info_list = [
+    [platform.system, 'Platform'],
     [rfwr, 'Cpu Info', '/proc/cpuinfo', r'model name.*:\s(?P<o>.*)'],
     [rfwr, 'Memory Total', '/proc/meminfo', r'MemTotal:\s*(?P<o>.*)'],
     [rpwr, 'Linux Version', '/usr/bin/hostnamectl', r'Kernel:\s*(?P<o>.*)'],
@@ -89,14 +91,31 @@ info_list = [
     [rfwr, 'IO scheduling', '/sys/block/sda/queue/scheduler', r'(?P<o>.*)'],
 ]
 
+# This is a very slimmed down version in comparison to the linux list. This is because we will not be using this
+# for debugging or benchmarks runs. So it is just a nice to have and not really critical
+mac_info_list = [
+    [platform.system, 'Platform'],
+    [rpwr, 'Cpu Info', 'sysctl -n machdep.cpu.brand_string', r'(?P<o>.*)'],
+    [rpwr, 'Memory Total', 'sysctl -n hw.memsize', r'(?P<o>.*)'],
+    [rpwr, 'Mac Version', 'sw_vers -productVersion', r'(?P<o>.*)'],
+    [rpwr, 'Build Version', 'sw_vers -buildVersion', r'(?P<o>.*)'],
+    [rpwr, 'Uname', 'uname -a', r'(?P<o>.*)'],
+]
+
+def get_list():
+    if platform.system() == 'Darwin':
+        return mac_info_list
+    else:
+        return linux_info_list
+
 
 def get_values(list_of_tasks):
     '''Creates an object with all the data populated'''
     return {x[1]: x[0](*x[2:]) for x in list_of_tasks}
 
 def get_default_values():
-    return get_values(info_list)
+    return get_values(get_list())
 
 if __name__ == '__main__':
     pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(get_values(info_list))
+    pp.pprint(get_default_values())

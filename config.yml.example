@@ -73,6 +73,9 @@ measurement:
        # Please change these values according to the names in '$ sensors'
 #      chips: ['thinkpad-isa-0000']
 #      features: ['fan1', 'fan2']
+  #--- MacOS: On Mac you only need this provider. Please delete all others!
+#    macos.powermetrics.provider.PowermetricsProvider:
+#      resolution: 100
   #--- Debug - These providers are just for development of the tool itself
 #    cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
 #      resolution: 100

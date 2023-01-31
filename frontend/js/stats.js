@@ -447,6 +447,15 @@ const fillAvgContainers = (measurement_duration_in_s, metrics) => {
             case '°C':
                 // no avg needed for now
                 break;
+            case 'ns':
+                // no avg needed for now
+                break;
+            case 'bytes':
+                // no avg needed for now
+                break;
+            case '*':
+                // no avg needed for now
+                break;
             case 'RPM':
                 createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, 'RPM (approx.)');
                 break;

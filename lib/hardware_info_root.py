@@ -5,11 +5,22 @@ sudo. This is why the output is json and not a nice representation as it needs t
 '''
 
 import json
+import platform
 from hardware_info import rdr, get_values
 
 root_info_list = [
     [rdr, 'CPU scheduling', '/sys/kernel/debug/sched'],
 ]
 
+def get_root_list():
+    if platform.system() == 'Darwin':
+        return []
+    else:
+        return root_info_list
+
+
 if __name__ == '__main__':
-    print(json.dumps(get_values(root_info_list)))
+    if platform.system() == 'Darwin':
+        print('{}')
+    else:
+        print(json.dumps(get_values(get_root_list())))
