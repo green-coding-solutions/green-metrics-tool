@@ -322,6 +322,13 @@ async def get_project(project_id: str):
         return {'success': False, 'err': 'Data is empty'}
     return {'success': True, 'data': data}
 
+@app.get('/robots.txt')
+async def robots_txt():
+    data =  "User-agent: *\n"
+    data += "Disallow: /"
+
+    return Response(content=data, media_type='text/plain')
+
 # Helper functions, not directly callable through routes
 
 def rescale_energy_value(value, unit):
