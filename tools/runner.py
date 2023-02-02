@@ -47,10 +47,10 @@ class Runner:
     def __init__(self,
         uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False, verbose_provider_boot=False):
-        
-        if skip_unsafe == True and allow_unsafe == True:
+
+        if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
-        
+
         self._debugger = DebugHelper(debug_mode)
         self._allow_unsafe = allow_unsafe
         self._no_file_cleanup = no_file_cleanup
@@ -127,8 +127,7 @@ class Runner:
         else:
             if self._branch:
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
-            else:
-                self._folder = self._uri
+            self._folder = self._uri
 
     def initial_parse(self):
         with open(f"{self._folder}/{self._filename}", encoding='utf-8') as fp:
