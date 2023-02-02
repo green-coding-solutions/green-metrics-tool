@@ -1,4 +1,4 @@
-# pylint: disable=import-error,wrong-import-position,protected-access
+# pylint: disable=import-error,wrong-import-position,protected-access,subprocess-popen-preexec-fn,consider-using-with,attribute-defined-outside-init
 
 import sys
 import os
@@ -16,18 +16,29 @@ class PsuEnergyAcIpmiProvider(BaseMetricProvider):
         self._metric_name = 'psu_energy_ac_ipmi'
         self._metrics = {'time': int, 'value': int}
         self._resolution = resolution
-        self._unit = 'mJ'
+        self._unit = 'W'
         super().__init__()
 
-    # pylint: disable=unused-argument
     def start_profiling(self, containers=None):
-        call_string = f"{self._current_dir}/metric-provider-binary -i {self._resolution}"
 
+        resolution_float = 0.001 * self._resolution
+
+        if self._sudo:
+            call_string = f"sudo {self._current_dir}/ipmi-get-system-power-stat.sh -i {resolution_float}"
+        else:
+            call_string = f"{self._current_dir}/ipmi-get-system-power-stat.sh -i {resolution_float}"
+        if hasattr(self, '_extra_switches'):
+            call_string += ' '  # space at start
+            call_string += ' '.join(self._extra_switches)
+
+        # This needs refactoring see https://github.com/green-coding-berlin/green-metrics-tool/issues/45
+        if self._metrics.get('container_id') is not None:
+            call_string += ' -s '
+            call_string += ','.join(containers.keys())
         call_string += f" > {self._filename}"
 
         print(call_string)
 
-        # pylint:disable=subprocess-popen-preexec-fn,consider-using-with,attribute-defined-outside-init
         self._ps = subprocess.Popen(
             [call_string],
             shell=True,
@@ -38,6 +49,9 @@ class PsuEnergyAcIpmiProvider(BaseMetricProvider):
             # therefore we use os.setsid here and later call os.getpgid(pid) to get process group that the shell
             # and the process are running in. These we then can send the signal to and kill them
         )
+
+        # set_block False enables non-blocking reads on stderr.read(). Otherwise it would wait forever on empty
+        os.set_blocking(self._ps.stderr.fileno(), False)
 
 
 if __name__ == '__main__':
