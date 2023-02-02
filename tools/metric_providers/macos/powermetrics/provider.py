@@ -115,6 +115,13 @@ class PowermetricsProvider(BaseMetricProvider):
                            '[SYSTEM]',
                            'mJ'])
 
+            if 'package_joules' in data['processor']:
+                dfs.append([cum_time_ms,
+                            int(float(data['processor']['package_joules']) * 1000),
+                           'package_joules',
+                           '[SYSTEM]',
+                           'mJ'])
+
             if 'gpu_power' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['gpu_power']) * conversion_factor),
