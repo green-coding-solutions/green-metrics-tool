@@ -207,7 +207,7 @@ def test_env_variable_forbidden_chars_not_allowed():
     assert dollar == '\n', assertion_info('empty string', dollar)
     assert backtick == '\n' , assertion_info('empty string', backtick)
     assert parenthesis == '\n', assertion_info('empty string', parenthesis)
-    expected_exception = 'Docker container setup environment var value had wrong format.' 
+    expected_exception = 'Docker container setup environment var value had wrong format.'
     assert expected_exception in str(e.value), \
         assertion_info(f"Exception: {expected_exception}", str(e.value))
 
@@ -254,7 +254,7 @@ def test_port_bindings_skip_unsafe_true():
         expected_container_error = 'Error: No public port \'9018/tcp\' published for test-container\n'
         assert docker_port_err == expected_container_error, \
             assertion_info(f"Container Error: {expected_container_error}", docker_port_err)
-    expected_warning = 'Found ports entry but not running in unsafe mode. Skipping' 
+    expected_warning = 'Found ports entry but not running in unsafe mode. Skipping'
     assert expected_warning in out.getvalue(), \
         assertion_info(f"Warning: {expected_warning}", 'no/different warning')
 
@@ -366,7 +366,7 @@ def test_volumes_bindings_skip_unsafe_true():
         finally:
             runner.cleanup()
         assert ls == '', assertion_info('empty list', ls)
-    expected_warning = 'Found volumes entry but not running in unsafe mode. Skipping' 
+    expected_warning = 'Found volumes entry but not running in unsafe mode. Skipping'
     assert expected_warning in out.getvalue(), \
         assertion_info(f"Warning: {expected_warning}", 'no/different warning')
 
@@ -387,8 +387,8 @@ def test_volumes_bindings_no_skip_or_allow():
         finally:
             runner.cleanup()
         assert ls == '', assertion_info('empty list', ls)
-    excpected_exception = 'Found "volumes" but neither --skip-unsafe nor --allow-unsafe is set' 
-    assert excpected_exception in str(e.value) ,\
+    expected_exception = 'Found "volumes" but neither --skip-unsafe nor --allow-unsafe is set'
+    assert expected_exception in str(e.value) ,\
         assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_network_created():
@@ -465,7 +465,7 @@ def test_uri_local_dir_missing():
 
     # basic positive case
 def test_uri_github_repo():
-    runner = setup_runner(usage_scenario='usage_scenario.yml', 
+    runner = setup_runner(usage_scenario='usage_scenario.yml',
         uri='https://github.com/green-coding-berlin/pytest-dummy-repo',
         uri_type='URL')
     out = io.StringIO()
@@ -491,7 +491,7 @@ def test_uri_local_branch():
     # this branch has a different usage_scenario file name - basic_stress
     # that makes sure that it really is pulling a different branch
 def test_uri_github_repo_branch():
-    runner = setup_runner(usage_scenario='basic_stress.yml', 
+    runner = setup_runner(usage_scenario='basic_stress.yml',
         uri='https://github.com/green-coding-berlin/pytest-dummy-repo',
         uri_type='URL',
         branch='test-branch')
@@ -506,7 +506,7 @@ def test_uri_github_repo_branch():
     ## Is the expected_exception OK or should it have a more graceful error?
     ## ATM this is just the default console error of a failed git command
 def test_uri_github_repo_branch_missing():
-    runner = setup_runner(usage_scenario='basic_stress.yml', 
+    runner = setup_runner(usage_scenario='basic_stress.yml',
         uri='https://github.com/green-coding-berlin/pytest-dummy-repo',
         uri_type='URL',
         branch='missing-branch')
@@ -530,6 +530,7 @@ def check_name_in_db(name):
 # This is an issue because it does not use the correct test-config.yml file
 # and therefore does not connect to the test db.
 # Not currently sure how to proceed here yet.
+#pylint: disable=unused-variable
 def wip_test_name_is_in_db():
     name = utils.randomword(12)
     stress_dir = os.path.join(current_dir, 'stress-application')
@@ -574,11 +575,10 @@ def test_no_file_cleanup():
     assert os.path.exists('/tmp/green-metrics-tool'), \
         assertion_info('tmp directory exists', os.path.exists('/tmp/green-metrics-tool'))
 
+#pylint: disable=unused-variable
 def test_skip_and_allow_unsafe_both_true():
-    out = io.StringIO()
-    err = io.StringIO()
     with pytest.raises(Exception) as e:
-            runner = setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, allow_unsafe=True)
+        runner = setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, allow_unsafe=True)
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
     assert str(e.value) == expected_exception, assertion_info('', str(e.value))
 
