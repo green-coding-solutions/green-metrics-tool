@@ -9,7 +9,10 @@ services:
     type: container
     image: gcb_stress
     environment:
-      TEST: 'hello world'
+      TESTALLOWED: 'alpha-num123_'
+      TESTBACKTICK: '`'
+      TESTDOLLAR: '$'
+      TESTPARENTHESIS: '()'
 
 flow:
   - name: Stress

@@ -7,8 +7,6 @@
 # unused-argument because its not happy with 'module', which is unfortunately necessary for pytest
 # also disabled invalid-name because its not happy with single word for d in data , for example
 
-#pytestmark = pytest.mark.skip("all tests still WIP")
-
 import io
 import os
 import re
@@ -106,116 +104,82 @@ def run_until(runner, step):
 # environment: [object] (optional)
 # Key-Value pairs for ENV variables inside the container
 
-def test_env_variable_allow_unsafe_true():
-    runner = setup_runner(usage_scenario='env_vars_stress.yml', allow_unsafe=True)
-    echo_out = None
+def get_env_vars(runner):
     try:
         run_until(runner, 'setup_services')
-        ps = subprocess.run(
-                ['docker', 'exec', 'test-container', '/bin/sh',
-                '-c', 'echo $TEST'],
-                check=True,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                encoding='UTF-8'
-            )
-        echo_out = ps.stdout
-    finally:
-        runner.cleanup()
-    assert echo_out == 'hello world\n', assertion_info('hello world', echo_out)
 
-def test_env_variable_skip_unsafe_true():
-    runner = setup_runner(usage_scenario='env_vars_stress.yml', skip_unsafe=True)
-    echo_out = None
-    try:
-        run_until(runner, 'setup_services')
         ps = subprocess.run(
-                ['docker', 'exec', 'test-container', '/bin/sh',
-                '-c', 'echo $TEST'],
-                check=True,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                encoding='UTF-8'
-            )
-        echo_out = ps.stdout
+            ['docker', 'exec', 'test-container', '/bin/sh',
+            '-c', 'echo $TESTALLOWED'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+        allowed = ps.stdout
+
+        ps = subprocess.run(
+            ['docker', 'exec', 'test-container', '/bin/sh',
+            '-c', 'echo $TESTBACKTICK'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+        backtick = ps.stdout
+
+        ps = subprocess.run(
+            ['docker', 'exec', 'test-container', '/bin/sh',
+            '-c', 'echo $TESTDOLLAR'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+        dollar = ps.stdout
+
+        ps = subprocess.run(
+            ['docker', 'exec', 'test-container', '/bin/sh',
+            '-c', 'echo $TESTPARENTHESIS'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+        parenthesis= ps.stdout
     finally:
         runner.cleanup()
-    assert echo_out == '\n', assertion_info('empty string', echo_out)
+
+    return allowed, backtick, dollar, parenthesis
 
 def test_env_variable_no_skip_or_allow():
     runner = setup_runner(usage_scenario='env_vars_stress.yml')
-    with pytest.raises(Exception) as e:
-        try:
-            run_until(runner, 'setup_services')
-            ps = subprocess.run(
-                ['docker', 'exec', 'test-container', '/bin/sh',
-                '-c', 'echo $TEST'],
-                check=True,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                encoding='UTF-8'
-            )
-            echo_out = ps.stdout
-        finally:
-            runner.cleanup()
-        assert echo_out == '', assertion_info('empty string', echo_out)
-    expected_exception = 'Maybe consider using --allow-unsafe --skip-unsafe'
-    assert expected_exception in str(e.value), \
-        assertion_info(f"Exception: {expected_exception}", str(e.value))
-
-# $ ` ( ) should not be allowed in env vars
-def test_env_variable_forbidden_chars_not_allowed():
-    out = io.StringIO()
-    err = io.StringIO()
-    runner = setup_runner(usage_scenario='env_vars_forbidden_chars_stress.yml', allow_unsafe=True)
-    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
-        try:
-            run_until(runner, 'setup_services')
-            ps = subprocess.run(
-                ['docker', 'exec', 'test-container', '/bin/sh',
-                '-c', 'echo $TestBacktick'],
-                check=True,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                encoding='UTF-8'
-            )
-            backtick = ps.stdout
-
-            ps = subprocess.run(
-                ['docker', 'exec', 'test-container', '/bin/sh',
-                '-c', 'echo $TestDollar'],
-                check=True,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                encoding='UTF-8'
-            )
-            dollar = ps.stdout
-
-            ps = subprocess.run(
-                ['docker', 'exec', 'test-container', '/bin/sh',
-                '-c', 'echo $TestParenthesis'],
-                check=True,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                encoding='UTF-8'
-            )
-            parenthesis= ps.stdout
-
-        finally:
-            runner.cleanup()
-    assert dollar == '\n', assertion_info('empty string', dollar)
-    assert backtick == '\n' , assertion_info('empty string', backtick)
-    assert parenthesis == '\n', assertion_info('empty string', parenthesis)
+    with pytest.raises(RuntimeError) as e:
+        get_env_vars(runner)
     expected_exception = 'Docker container setup environment var value had wrong format.'
     assert expected_exception in str(e.value), \
         assertion_info(f"Exception: {expected_exception}", str(e.value))
 
+def test_env_variable_skip_unsafe_true():
+    runner = setup_runner(usage_scenario='env_vars_stress.yml', skip_unsafe=True)
+    allowed, backtick, dollar, parenthesis = get_env_vars(runner)
+    assert allowed == 'alpha-num123_\n', assertion_info('alpha-num123_', allowed)
+    assert backtick == '\n', assertion_info('empty string', backtick)
+    assert dollar == '\n', assertion_info('empty string', dollar)
+    assert parenthesis == '\n', assertion_info('empty string', parenthesis)
+
+def test_env_variable_allow_unsafe_true():
+    runner = setup_runner(usage_scenario='env_vars_stress.yml', allow_unsafe=True)
+    allowed, backtick, dollar, parenthesis = get_env_vars(runner)
+    assert allowed == 'alpha-num123_\n', assertion_info('alpha-num123_', allowed)
+    assert backtick == '`\n', assertion_info('`', backtick)
+    assert dollar == '$\n', assertion_info('$', dollar)
+    assert parenthesis == '()\n', assertion_info('()', parenthesis)
 
 # ports: [int:int] (optional)
 # Docker container portmapping on host OS to be used with --allow-unsafe flag.
 
-def test_port_bindings_allow_unsafe_true():
-    runner = setup_runner(usage_scenario='port_bindings_stress.yml', allow_unsafe=True)
+def get_port_bindings(runner):
     try:
         run_until(runner, 'setup_services')
         ps = subprocess.run(
@@ -226,8 +190,14 @@ def test_port_bindings_allow_unsafe_true():
                 encoding='UTF-8'
             )
         port = ps.stdout
+        err = ps.stderr
     finally:
         runner.cleanup()
+    return port, err
+
+def test_port_bindings_allow_unsafe_true():
+    runner = setup_runner(usage_scenario='port_bindings_stress.yml', allow_unsafe=True)
+    port, _ = get_port_bindings(runner)
     assert port == '0.0.0.0:9017\n:::9017\n', assertion_info('0.0.0.0:9017:::9017', port)
 
 def test_port_bindings_skip_unsafe_true():
@@ -238,18 +208,7 @@ def test_port_bindings_skip_unsafe_true():
     # need to catch exception here as otherwise the subprocess returning an error will
     # fail the test
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception):
-        try:
-            run_until(runner, 'setup_services')
-            ps = subprocess.run(
-                    ['docker', 'port', 'test-container', '9018'],
-                    check=True,
-                    stderr=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    encoding='UTF-8'
-                )
-            docker_port_err = ps.stderr
-        finally:
-            runner.cleanup()
+        _, docker_port_err = get_port_bindings(runner)
         expected_container_error = 'Error: No public port \'9018/tcp\' published for test-container\n'
         assert docker_port_err == expected_container_error, \
             assertion_info(f"Container Error: {expected_container_error}", docker_port_err)
@@ -260,18 +219,7 @@ def test_port_bindings_skip_unsafe_true():
 def test_port_bindings_no_skip_or_allow():
     runner = setup_runner(usage_scenario='port_bindings_stress.yml')
     with pytest.raises(Exception) as e:
-        try:
-            run_until(runner, 'setup_services')
-            ps = subprocess.run(
-                    ['docker', 'port', 'test-container', '9018'],
-                    check=True,
-                    stderr=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    encoding='UTF-8'
-                )
-            docker_port_err = ps.stderr
-        finally:
-            runner.cleanup()
+        _, docker_port_err = get_port_bindings(runner)
         expected_container_error = 'Error: No public port \'9018/tcp\' published for test-container\n'
         assert docker_port_err == expected_container_error, \
             assertion_info(f"Container Error: {expected_container_error}", docker_port_err)
@@ -326,11 +274,7 @@ def create_test_file(path):
         os.mkdir(path)
     Path(f"{path}/test-file").touch()
 
-#volumes: [array] (optional)
-#Array of volumes to be mapped. Only read of runner.py is executed with --allow-unsafe flag
-def test_volume_bindings_allow_unsafe_true():
-    create_test_file('/tmp/gmt-test-data')
-    runner = setup_runner(usage_scenario='volume_bindings_stress.yml', allow_unsafe=True)
+def get_contents_of_bound_volume(runner):
     try:
         run_until(runner, 'setup_services')
         ps = subprocess.run(
@@ -343,6 +287,14 @@ def test_volume_bindings_allow_unsafe_true():
         ls = ps.stdout
     finally:
         runner.cleanup()
+    return ls
+
+#volumes: [array] (optional)
+#Array of volumes to be mapped. Only read of runner.py is executed with --allow-unsafe flag
+def test_volume_bindings_allow_unsafe_true():
+    create_test_file('/tmp/gmt-test-data')
+    runner = setup_runner(usage_scenario='volume_bindings_stress.yml', allow_unsafe=True)
+    ls = get_contents_of_bound_volume(runner)
     assert 'test-file' in ls, assertion_info('test-file', ls)
 
 def test_volumes_bindings_skip_unsafe_true():
@@ -352,18 +304,7 @@ def test_volumes_bindings_skip_unsafe_true():
     runner = setup_runner(usage_scenario='volume_bindings_stress.yml', skip_unsafe=True)
 
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception):
-        try:
-            run_until(runner, 'setup_services')
-            ps = subprocess.run(
-                ['docker', 'exec', 'test-container', 'ls', '/tmp/test-data'],
-                check=True,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                encoding='UTF-8'
-            )
-            ls = ps.stdout
-        finally:
-            runner.cleanup()
+        ls = get_contents_of_bound_volume(runner)
         assert ls == '', assertion_info('empty list', ls)
     expected_warning = 'Found volumes entry but not running in unsafe mode. Skipping'
     assert expected_warning in out.getvalue(), \
@@ -372,19 +313,8 @@ def test_volumes_bindings_skip_unsafe_true():
 def test_volumes_bindings_no_skip_or_allow():
     create_test_file('/tmp/gmt-test-data')
     runner = setup_runner(usage_scenario='volume_bindings_stress.yml')
-    with pytest.raises(Exception) as e:
-        try:
-            run_until(runner, 'setup_services')
-            ps = subprocess.run(
-                ['docker', 'exec', 'test-container', 'ls', '/tmp/test-data'],
-                check=True,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                encoding='UTF-8'
-            )
-            ls = ps.stdout
-        finally:
-            runner.cleanup()
+    with pytest.raises(RuntimeError) as e:
+        ls = get_contents_of_bound_volume(runner)
         assert ls == '', assertion_info('empty list', ls)
     expected_exception = 'Found "volumes" but neither --skip-unsafe nor --allow-unsafe is set'
     assert expected_exception in str(e.value) ,\
@@ -456,7 +386,7 @@ def test_uri_local_dir():
 
 def test_uri_local_dir_missing():
     runner = setup_runner(usage_scenario='basic_stress.yml', uri='/tmp/missing')
-    with pytest.raises(Exception) as e:
+    with pytest.raises(FileNotFoundError) as e:
         runner.run()
     expected_exception = 'No such file or directory: \'/tmp/missing/basic_stress.yml\''
     assert expected_exception in str(e.value),\
@@ -480,7 +410,7 @@ def test_uri_local_branch():
     runner = setup_runner(usage_scenario='basic_stress.yml', branch='test-branch')
     out = io.StringIO()
     err = io.StringIO()
-    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(RuntimeError) as e:
         runner.run()
     expected_exception = 'Specified --branch but using local URI. Did you mean to specify a github url?'
     assert str(e.value) == expected_exception, \
@@ -509,7 +439,7 @@ def test_uri_github_repo_branch_missing():
         uri='https://github.com/green-coding-berlin/pytest-dummy-repo',
         uri_type='URL',
         branch='missing-branch')
-    with pytest.raises(Exception) as e:
+    with pytest.raises(subprocess.CalledProcessError) as e:
         runner.run()
     expected_exception = 'returned non-zero exit status 128'
     assert expected_exception in str(e.value),\
@@ -528,7 +458,7 @@ def check_name_in_db(name):
 # Name is only put into DB during initial argument parsing, so must call with subprocess
 # This is an issue because it does not use the correct test-config.yml file
 # and therefore does not connect to the test db.
-# Not currently sure how to proceed here yet.
+# Not currently stest_env_variable_forbidden_chars_not_allowedure how to proceed here yet.
 #pylint: disable=unused-variable
 def wip_test_name_is_in_db():
     name = utils.randomword(12)
@@ -557,7 +487,7 @@ def test_different_filename_missing():
     pid = insert_project(uri)
     runner = Runner(uri=uri, uri_type='folder', pid=pid, filename='basic_stress.yml')
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(FileNotFoundError) as e:
         runner.run()
     expected_exception = 'No such file or directory:'
     assert expected_exception in str(e.value),\
@@ -576,7 +506,7 @@ def test_no_file_cleanup():
 
 #pylint: disable=unused-variable
 def test_skip_and_allow_unsafe_both_true():
-    with pytest.raises(Exception) as e:
+    with pytest.raises(RuntimeError) as e:
         runner = setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, allow_unsafe=True)
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
     assert str(e.value) == expected_exception, assertion_info('', str(e.value))
@@ -603,7 +533,7 @@ def test_verbose_provider_boot():
     uri = os.path.join(current_dir, 'tmp/', dir_name)
     pid = insert_project(uri)
     runner = Runner(uri=uri,uri_type='folder', pid=pid, filename='basic_stress.yml', verbose_provider_boot=True)
-    
+
     runner.run()
 
     query = """
@@ -624,10 +554,10 @@ def test_verbose_provider_boot():
     #for each metric provider, assert there is an an entry in notes
     for provider in metric_providers:
         assert any(provider in note for _, note in notes), \
-            assertion_info(f"Booting {provider}", f"note message: {note}")
+            assertion_info(f"Booting {provider}", f"notes: {notes}")
 
     #check that each timestamp in notes is no longer than 2 seconds apart
     for i in range(len(notes)-1):
         diff = notes[i+1][0] - notes[i][0]
-        assert diff <= 2100000 and diff >= 1900000, \
+        assert 1900000 <= diff <= 2100000, \
             assertion_info('2s apart', f"time difference of notes: {diff}")
