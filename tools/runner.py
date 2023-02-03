@@ -348,7 +348,7 @@ class Runner:
             if self._verbose_provider_boot:
                 self.__notes.append({'note': message, 'detail_name': '[SYSTEM]', 'timestamp': int(
                     time.time_ns() / 1_000)})
-                time.sleep(2)
+                time.sleep(10)
 
         print(TerminalColors.HEADER, '\nWaiting for Metric Providers to boot ...', TerminalColors.ENDC)
         time.sleep(2)
