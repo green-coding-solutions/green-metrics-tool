@@ -17,7 +17,7 @@ let showNotification = (message_title, message_text, type='warning') => {
 
 async function makeAPICall(path, values=null) {
     if (document.location.host.indexOf('metrics.green-coding.local') === 0)
-        api_url = "http://api.green-coding.local:9142";
+        api_url = API_URL;
     else
         api_url = "https://api.green-coding.berlin";
 
