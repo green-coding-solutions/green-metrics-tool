@@ -14,6 +14,7 @@ class BaseMetricProvider:
         self._temp_path = '/tmp/green-metrics-tool'
         self._ps = None
         self._sudo = sudo
+        self._metric_provider_executable = 'metric-provider-binary'
 
         attrs_that_need_set = ['_metric_name', '_metrics', '_resolution', '_unit', '_current_dir']
         for attr in attrs_that_need_set:
@@ -67,9 +68,9 @@ class BaseMetricProvider:
     def start_profiling(self, containers=None):
 
         if self._sudo:
-            call_string = f"sudo {self._current_dir}/metric-provider-binary -i {self._resolution}"
+            call_string = f"sudo {self._current_dir}/{self._metric_provdider_executable} -i {self._resolution}"
         else:
-            call_string = f"{self._current_dir}/metric-provider-binary -i {self._resolution}"
+            call_string = f"{self._current_dir}/{self._metric_provdider_executable} -i {self._resolution}"
         if hasattr(self, '_extra_switches'):
             call_string += ' '  # space at start
             call_string += ' '.join(self._extra_switches)
