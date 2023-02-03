@@ -15,7 +15,7 @@ from starlette.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi import Response
-from fastapi import FastAPI, Request, Query
+from fastapi import FastAPI, Request
 from global_config import GlobalConfig
 from db import DB
 import jobs
@@ -117,7 +117,7 @@ async def get_notes(project_id):
 async def get_projects():
     query = """
             SELECT
-                id, name, uri, end_measurement, last_run
+                id, name, uri, branch, end_measurement, last_run, invalid_project
             FROM
                 projects
             ORDER BY
@@ -211,66 +211,6 @@ async def get_stats_single(project_id: str, remove_idle: bool = False):
         return {'success': False, 'err': 'Data is empty'}
     return {'success': True, 'data': data}
 
-
-@app.get('/v1/stats/multi')
-# pylint: disable=unsupported-binary-operation
-# Here pylint does not understand the type hinting
-async def get_stats_multi(pids: list[str] | None = Query(default=None)):
-    for pid in pids:
-        if pid is None or pid.strip() == '':
-            return {'success': False, 'err': 'Project_id is empty'}
-
-    query = """
-            SELECT
-                projects.id, projects.name, stats.detail_name, stats.time, stats.metric, stats.value, stats.unit
-            FROM
-                stats
-            LEFT JOIN
-                projects
-            ON
-                stats.project_id = projects.id
-            WHERE
-                stats.metric = ANY(ARRAY['cpu','mem','system-energy'])
-            AND
-                STATS.project_id = ANY(%s::uuid[])
-            """
-    params = (pids,)
-    data = DB().fetch_all(query, params=params)
-
-    if data is None or data == []:
-        return {'success': False, 'err': 'Data is empty'}
-    return {'success': True, 'data': data}
-
-
-@app.get('/v1/stats/compare')
-# pylint: disable=unsupported-binary-operation
-# Here pylint does not understand the type hinting
-async def get_stats_compare(pids: list[str] | None = Query(default=None)):
-    for pid in pids:
-        if pid is None or pid.strip() == '':
-            return {'success': False, 'err': 'Project_id is empty'}
-
-    query = """
-            SELECT
-                projects.name, stats.detail_name, stats.metric, stats.unit, AVG(stats.value)
-            FROM
-                stats
-            LEFT JOIN
-                projects
-            ON
-                stats.project_id = projects.id
-            WHERE
-                stats.metric = ANY(ARRAY['cpu','mem','system-energy'])
-            AND
-                STATS.project_id = ANY(%s::uuid[])
-            GROUP BY projects.name, stats.detail_name, stats.metric
-            """
-    params = (pids,)
-    data = DB().fetch_all(query, params=params)
-
-    if data is None or data == []:
-        return {'success': False, 'err': 'Data is empty'}
-    return {'success': True, 'data': data}
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/badge/single/{project_id}')
@@ -370,7 +310,7 @@ async def get_project(project_id: str):
             SELECT
                 id, name, uri, branch, (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements \
                     LEFT JOIN categories as t on t.id = elements) as categories, start_measurement, end_measurement, \
-                    measurement_config, machine_specs, usage_scenario, last_run, created_at
+                    measurement_config, machine_specs, usage_scenario, last_run, created_at, invalid_project
             FROM
                 projects
             WHERE
@@ -381,6 +321,13 @@ async def get_project(project_id: str):
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
     return {'success': True, 'data': data}
+
+@app.get('/robots.txt')
+async def robots_txt():
+    data =  "User-agent: *\n"
+    data += "Disallow: /"
+
+    return Response(content=data, media_type='text/plain')
 
 # Helper functions, not directly callable through routes
 

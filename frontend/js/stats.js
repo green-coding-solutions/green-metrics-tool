@@ -297,6 +297,47 @@ const displayGraphs = (metrics, notes, style='apex') => {
     }
 }
 
+function moveRight(e) {
+    el = e.target.closest(".statistics-chart-card")
+    const next = el.nextSibling;
+    if (!next) return;
+    next.after(el)
+    window.dispatchEvent(new Event('resize'));
+}
+
+function moveToLast(e) {
+    el = e.target.closest(".statistics-chart-card")
+    const last = el.parentNode.lastChild;
+    last.after(el)
+    window.dispatchEvent(new Event('resize'));
+}
+
+function moveLeft(e) {
+    el = e.target.closest(".statistics-chart-card")
+    const previous = el.previousElementSibling;
+    if (!previous) return;
+    previous.before(el)
+    window.dispatchEvent(new Event('resize'));
+}
+
+function moveToFirst(e) {
+    el = e.target.closest(".statistics-chart-card")
+    const first = el.parentNode.childNodes[0];
+    first.before(el)
+    window.dispatchEvent(new Event('resize'));
+}
+
+function fullWidth(e) {
+    el = e.target.closest(".statistics-chart-card")
+    el.style.flex = "0 0 100%"
+    window.dispatchEvent(new Event('resize'));
+}
+
+function normalWidth(e) {
+    el = e.target.closest(".statistics-chart-card")
+    el.style.flex = ""
+    window.dispatchEvent(new Event('resize'));
+}
 
 const createChartContainer = (container, el, counter) => {
     const chart_node = document.createElement("div")
@@ -306,12 +347,28 @@ const createChartContainer = (container, el, counter) => {
 
     chart_node.innerHTML = `
     <div class="content">
+        <div class="ui icon buttons">
+            <button class="ui button move-first"><i class="angle double left icon"></i></button>
+            <button class="ui button move-left"><i class="angle left icon"></i></button>
+            <button class="ui button normal-width"><i class="compress icon"></i></button>
+            <button class="ui button full-width"><i class="expand icon"></i></button>
+            <button class="ui button move-right"><i class="angle right icon"></i></button>
+            <button class="ui button move-last"><i class="angle double right icon"></i></button>
+        </div>
         <div class="description">
             <div class="statistics-chart" id=${el}-chart></div>
         </div>
     </div>`
     document.querySelector(container).appendChild(chart_node)
-    //document.querySelector(container).parentNode.insertBefore(chart_node, null);
+
+    chart_node.querySelector('.move-first').addEventListener("click", moveToFirst, false);
+    chart_node.querySelector('.move-left').addEventListener("click", moveLeft, false);
+    chart_node.querySelector('.normal-width').addEventListener("click",normalWidth, false);
+    chart_node.querySelector('.full-width').addEventListener("click", fullWidth, false);
+    chart_node.querySelector('.move-right').addEventListener("click", moveRight, false);
+    chart_node.querySelector('.move-last').addEventListener("click", moveToLast, false);
+
+
     return chart_node.querySelector('.statistics-chart');
 }
 
@@ -515,6 +572,12 @@ $(document).ready( (e) => {
         const query_string = window.location.search;
         const url_params = (new URLSearchParams(query_string))
 
+        if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
+            showNotification('No project id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
+            return;
+        }
+
+
         try {
             var project_data = await makeAPICall('/v1/project/' + url_params.get('id'))
 
@@ -562,6 +625,11 @@ $(document).ready( (e) => {
         project_data.data['duration'] = `${measurement_duration_in_s} s`
 
         fillProjectData(project_data.data)
+
+        if (project_data.data.invalid_project) {
+            showNotification('Project measurement has been marked as invalid', project_data.data.invalid_project);
+            document.body.classList.add("invalidated-measurement")
+        }
 
         if (stats_data == undefined || stats_data.success == false) {
             return;

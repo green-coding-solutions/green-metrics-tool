@@ -28,6 +28,9 @@ print_message "Updating config.yml with new password ..."
 cp config.yml.example config.yml
 sed -i -e "s|PLEASE_CHANGE_THIS|$db_pw|" config.yml
 
+print_message "Installing needed binaries for building ..."
+sudo apt install lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev
+
 print_message "Building binaries ..."
 metrics_subdir="tools/metric_providers"
 parent_dir="./$metrics_subdir"

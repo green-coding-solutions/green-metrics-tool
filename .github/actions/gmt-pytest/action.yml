@@ -22,15 +22,16 @@ runs:
   steps:
     - name: Install python dependencies
       shell: bash
+      working-directory: ${{ inputs.gmt-directory }}
       run: |
         python -m pip install --upgrade pip
-        pip install fastapi pytest psycopg2 numpy pandas xgboost statsmodels scipy scikit-learn
+        pip install -r requirements.txt
+        pip install -r tools/metric_providers/psu/energy/xgboost/system/model/requirements.txt
     
     - name: Run Prereqs and Install Script
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
-        sudo apt install lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev
         ./install.sh -p testpw
 
     - name: Turn off metric providers which do not work in github vm
@@ -66,7 +67,7 @@ runs:
       if: always()
       working-directory: ${{ inputs.tests-directory }}
       run: |
-        cat /tmp/test-results.txt | grep -Pz '(=*) short test summary(.*\n)*' >> $GITHUB_STEP_SUMMARY
+        cat /tmp/test-results.txt | grep -oPz '(=*) short test summary(.*\n)*' >> $GITHUB_STEP_SUMMARY
 
     - name: Stop Containers
       shell: bash

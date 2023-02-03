@@ -15,11 +15,14 @@ class PowerSpy2Provider(BaseMetricProvider):
         self._metric_name = 'psu_energy_powerspy2'
         self._metrics = {'time': int, 'value': int}
         self._resolution = resolution
-        self._unit = 'mW'
+        self._unit = 'mJ'
         super().__init__()
 
     def start_profiling(self, containers=None):
-        call_string = f"{self._current_dir}/metric-provider.py -i {self._resolution}"
+        # We ignore the resolution here as everything under 1 second doesn't really make sense for the powerspy in the
+        # mode we are using it. This can be extended in the future once we figure out how to log to a file and don't
+        # rely on the "streaming" of data.
+        call_string = f"{self._current_dir}/metric-provider.py -u mJ -i {self._resolution}"
 
         call_string += f" > {self._filename}"
 
