@@ -559,5 +559,5 @@ def test_verbose_provider_boot():
     #check that each timestamp in notes is no longer than 2 seconds apart
     for i in range(len(notes)-1):
         diff = notes[i+1][0] - notes[i][0]
-        assert 1900000 <= diff <= 2100000, \
+        assert 9900000 <= diff <= 10100000, \
             assertion_info('2s apart', f"time difference of notes: {diff}")
