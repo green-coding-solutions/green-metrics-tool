@@ -159,7 +159,6 @@ def test_env_variable_no_skip_or_allow():
         finally:
             runner.cleanup()
         assert echo_out == '', assertion_info('empty string', echo_out)
-    print(str(e.value))
     expected_exception = 'Maybe consider using --allow-unsafe --skip-unsafe'
     assert expected_exception in str(e.value), \
         assertion_info(f"Exception: {expected_exception}", str(e.value))
@@ -582,8 +581,6 @@ def test_skip_and_allow_unsafe_both_true():
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
     assert str(e.value) == expected_exception, assertion_info('', str(e.value))
 
-# ## it stops the execution
-# # safe to check for first inital load complete message
 def test_debug(monkeypatch):
     monkeypatch.setattr('sys.stdin', io.StringIO('Enter'))
     runner = setup_runner(usage_scenario='basic_stress.yml', debug_mode=True)
@@ -595,8 +592,42 @@ def test_debug(monkeypatch):
     assert expected_output in out.getvalue(), \
         assertion_info(expected_output, 'no/different output')
 
-# def test_verbose_provider_boot():
-#     # providers are not started at the same time, but with 2 second delay
-#     # there is a note added when it starts "Booting {metric_provider}"
-#     # can check for this note in the DB
-#     # and the notes are about 2s apart
+    # providers are not started at the same time, but with 2 second delay
+    # there is a note added when it starts "Booting {metric_provider}"
+    # can check for this note in the DB and the notes are about 2s apart
+def test_verbose_provider_boot():
+    # not using setup_runner just to have the PID for later, potentially refactor
+    dir_name = utils.randomword(12)
+    usage_scenario_path = os.path.join(current_dir, 'data/usage_scenarios/basic_stress.yml')
+    make_proj_dir(dir_name=dir_name, usage_scenario_path=usage_scenario_path)
+    uri = os.path.join(current_dir, 'tmp/', dir_name)
+    pid = insert_project(uri)
+    runner = Runner(uri=uri,uri_type='folder', pid=pid, filename='basic_stress.yml', verbose_provider_boot=True)
+    
+    runner.run()
+
+    query = """
+            SELECT
+                time, note
+            FROM
+                notes
+            WHERE 
+                project_id = %s 
+                AND note LIKE %s
+            ORDER BY
+                time
+            """
+
+    notes = DB().fetch_all(query, (pid,'Booting%',))
+    metric_providers = utils.get_metric_providers(config)
+
+    #for each metric provider, assert there is an an entry in notes
+    for provider in metric_providers:
+        assert any(provider in note for _, note in notes), \
+            assertion_info(f"Booting {provider}", f"note message: {note}")
+
+    #check that each timestamp in notes is no longer than 2 seconds apart
+    for i in range(len(notes)-1):
+        diff = notes[i+1][0] - notes[i][0]
+        assert diff <= 2100000 and diff >= 1900000, \
+            assertion_info('2s apart', f"time difference of notes: {diff}")
