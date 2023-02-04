@@ -27,3 +27,7 @@ def get_pid(project_name):
 ## E.g. 'foo_bar' -> 'FooBar'
 def get_pascal_case(in_string):
     return ''.join([s.capitalize() for s in in_string.split('_')])
+
+def get_metric_providers(config):
+    metric_providers_keys = config['measurement']['metric-providers'].keys()
+    return [(m.split('.')[-1]) for m in metric_providers_keys]

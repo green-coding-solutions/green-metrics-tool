@@ -26,5 +26,5 @@ flow:
 # Alpine does not have stress, so we use stress-ng
 # We need the -q flag because otherwise it will write debug to STDERR
       - type: console
-        command: stress-ng -c 1 -t 5 -q
+        command: stress-ng -c 1 -t 1 -q
         note: Starting Stress
