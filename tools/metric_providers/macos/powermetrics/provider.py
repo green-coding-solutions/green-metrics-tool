@@ -5,6 +5,9 @@ import os
 import subprocess
 import plistlib
 import pandas
+import pytz
+import datetime
+from datetime import tzinfo
 
 if __name__ == '__main__':
     sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../..')
@@ -70,7 +73,17 @@ class PowermetricsProvider(BaseMetricProvider):
             data = plistlib.loads(data)
 
             if cum_time is None:
-                cum_time = int(data['timestamp'].timestamp() * 1e9)
+                # Get the system's local timezone
+                local_tz = pytz.timezone(datetime.datetime.now().astimezone().tzname())
+
+                # Set the timezone on the timestamp to UTC
+                utc_time = pytz.timezone('UTC').localize(data['timestamp'])
+
+                # Convert the datetime object to the system's local timezone
+                local_dt = utc_time.astimezone(local_tz)
+
+                # Convert seconds to nano seconds
+                cum_time = int(local_dt.timestamp() * 1e9)
 
             cum_time = cum_time + data['elapsed_ns']
 
