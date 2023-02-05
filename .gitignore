@@ -11,3 +11,4 @@ static-binary
 test-compose.yml
 test-config.yml
 tools/sgx_enable
+env/
