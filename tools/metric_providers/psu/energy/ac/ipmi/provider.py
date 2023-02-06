@@ -11,13 +11,14 @@ from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyAcIpmiProvider(BaseMetricProvider):
     def __init__(self, resolution):
-        super().__init__()
-        self._current_dir = os.path.dirname(os.path.abspath(__file__))
-        self._metric_name = 'psu_energy_ac_ipmi'
-        self._metrics = {'time': int, 'value': int}
-        self._resolution = 0.001 * resolution
-        self._unit = 'W'
-        self._metric_provider_executable = 'ipmi-get-system-power-stat.sh'
+        super().__init__(
+            metric_name="psu_energy_ac_ipmi",
+            metrics={"time": int, "value": int},
+            resolution=0.001 * resolution,
+            unit="W",
+            current_dir=os.path.dirname(os.path.abspath(__file__)),
+            metric_provider_executable="ipmi-get-system-power-stat.sh",
+        )
 
 
 if __name__ == '__main__':

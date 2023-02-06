@@ -1,4 +1,4 @@
-#pylint: disable=no-member,consider-using-with,subprocess-popen-preexec-fn
+# pylint: disable=no-member,consider-using-with,subprocess-popen-preexec-fn,import-error,too-many-instance-attributes,too-many-arguments
 
 import os
 import subprocess
@@ -10,16 +10,26 @@ import pandas
 
 class BaseMetricProvider:
 
-    def __init__(self, sudo=False):
+    def __init__(
+        self,
+        metric_name,
+        metrics,
+        resolution,
+        unit,
+        current_dir,
+        metric_provider_executable="metric-provider-binary",
+        sudo=False,
+    ):
+        self._metric_name = metric_name
+        self._metrics = metrics
+        self._resolution = resolution
+        self._unit = unit
+        self._current_dir = current_dir
+        self._metric_provider_executable = metric_provider_executable
+        self._sudo = sudo
+
         self._temp_path = '/tmp/green-metrics-tool'
         self._ps = None
-        self._sudo = sudo
-        self._metric_provider_executable = 'metric-provider-binary'
-
-        attrs_that_need_set = ['_metric_name', '_metrics', '_resolution', '_unit', '_current_dir']
-        for attr in attrs_that_need_set:
-            if not hasattr(self, attr):
-                raise RuntimeError(f"You must set the {attr} instance variable in the child class!")
 
         if not os.path.exists(self._temp_path):
             os.mkdir(self._temp_path)
@@ -68,9 +78,9 @@ class BaseMetricProvider:
     def start_profiling(self, containers=None):
 
         if self._sudo:
-            call_string = f"sudo {self._current_dir}/{self._metric_provdider_executable} -i {self._resolution}"
+            call_string = f"sudo {self._current_dir}/{self._metric_provider_executable} -i {self._resolution}"
         else:
-            call_string = f"{self._current_dir}/{self._metric_provdider_executable} -i {self._resolution}"
+            call_string = f"{self._current_dir}/{self._metric_provider_executable} -i {self._resolution}"
         if hasattr(self, '_extra_switches'):
             call_string += ' '  # space at start
             call_string += ' '.join(self._extra_switches)
