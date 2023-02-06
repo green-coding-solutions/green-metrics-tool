@@ -129,9 +129,61 @@ class Runner:
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
             self._folder = self._uri
 
+    # This method loads the yml file and takes care that the includes work and are secure.
+    # It uses the tagging infrastructure provided by https://pyyaml.org/wiki/PyYAMLDocumentation
+    # Inspiration from https://github.com/tanbro/pyyaml-include which we can't use as it doesn't
+    # do security checking and has no option to select when imported
+    def load_yml_file(self):
+        #pylint: disable=too-many-ancestors
+        class Loader(yaml.SafeLoader):
+            def __init__(self, stream):
+                # We need to find our own root as the Loader is instantiated in PyYaml
+                self._root = os.path.split(stream.name)[0]
+                super().__init__(stream)
+
+            def include(self, node):
+                # We allow two types of includes
+                # !include <filename> => ScalarNode
+                # and
+                # !include <filename> <selector> => SequenceNode
+                if isinstance(node, yaml.nodes.ScalarNode):
+                    nodes = [self.construct_scalar(node)]
+                elif isinstance(node, yaml.nodes.SequenceNode):
+                    nodes = self.construct_sequence(node)
+                else:
+                    raise ValueError("We don't support Mapping Nodes to date")
+
+                filename = os.path.abspath(os.path.join(self._root, nodes[0]))
+
+                if not filename.startswith(self._root):
+                    raise ImportError("Import tries to escape root!")
+
+                with open(filename, 'r', encoding='utf-8') as f:
+                    # We want to enable a deep search for keys
+                    def recursive_lookup(k, d):
+                        if k in d:
+                            return d[k]
+                        for v in d.values():
+                            if isinstance(v, dict):
+                                return recursive_lookup(k, v)
+                        return None
+
+                    # We can use load here as the Loader extends SafeLoader
+                    if len(nodes) == 1:
+                        # There is no selector specified
+                        return yaml.load(f, Loader)
+
+                    return recursive_lookup(nodes[1], yaml.load(f, Loader))
+
+        Loader.add_constructor('!include', Loader.include)
+
+        with open(f"{self._folder}/{self._filename}", 'r', encoding='utf-8') as fp:
+            # We can use load here as the Loader extends SafeLoader
+            self._usage_scenario = yaml.load(fp, Loader)
+
     def initial_parse(self):
-        with open(f"{self._folder}/{self._filename}", encoding='utf-8') as fp:
-            self._usage_scenario = yaml.safe_load(fp)
+
+        self.load_yml_file()
 
         print(TerminalColors.HEADER, '\nHaving Usage Scenario ', self._usage_scenario['name'], TerminalColors.ENDC)
         print('From: ', self._usage_scenario['author'])
