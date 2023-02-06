@@ -6,12 +6,12 @@ from metric_providers.lm_sensors.abstract_provider import LmSensorsProvider
 class LmSensorsTempProvider(LmSensorsProvider):
 
     def __init__(self, resolution):
+        self._provider_config_path = 'lm_sensors.temperature.provider.LmSensorsTempProvider'
         super().__init__(
             metric_name="lm_sensors_temp",
             resolution=resolution,
             unit="centi°C",
         )
-        self._provider_config_path = 'lm_sensors.temperature.provider.LmSensorsTempProvider'
 
 
 # We don't have a main here as this is just used to set the metric_name so we can use it in the frontend. Please
