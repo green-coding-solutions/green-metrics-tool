@@ -11,12 +11,13 @@ from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyDcSystemProvider(BaseMetricProvider):
     def __init__(self, resolution):
-        self._current_dir = os.path.dirname(os.path.abspath(__file__))
-        self._metric_name = 'psu_energy_dc_system'
-        self._metrics = {'time': int, 'value': int}
-        self._resolution = resolution
-        self._unit = 'mJ'
-        super().__init__()
+        super().__init__(
+            metric_name="psu_energy_dc_system",
+            metrics={"time": int, "value": int},
+            resolution=resolution,
+            unit="mJ",
+            current_dir=os.path.dirname(os.path.abspath(__file__)),
+        )
 
 
 if __name__ == '__main__':

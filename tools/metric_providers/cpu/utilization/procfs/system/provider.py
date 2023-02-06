@@ -11,12 +11,13 @@ from metric_providers.base import BaseMetricProvider
 
 class CpuUtilizationProcfsSystemProvider(BaseMetricProvider):
     def __init__(self, resolution):
-        self._current_dir = os.path.dirname(os.path.abspath(__file__))
-        self._metric_name = 'cpu_utilization_procfs_system'
-        self._metrics = {'time': int, 'value': int}
-        self._resolution = resolution
-        self._unit = 'Ratio'
-        super().__init__()
+        super().__init__(
+            metric_name="cpu_utilization_procfs_system",
+            metrics={'time': int, 'value': int},
+            resolution=resolution,
+            unit="Ratio",
+            current_dir=os.path.dirname(os.path.abspath(__file__)),
+        )
 
 
 if __name__ == '__main__':

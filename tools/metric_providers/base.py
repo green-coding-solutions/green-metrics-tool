@@ -30,6 +30,7 @@ class BaseMetricProvider:
 
         self._temp_path = '/tmp/green-metrics-tool'
         self._ps = None
+        self._extra_switches = []
 
         if not os.path.exists(self._temp_path):
             os.mkdir(self._temp_path)

@@ -12,12 +12,13 @@ from metric_providers.base import BaseMetricProvider
 
 class NetworkIoDockerStatsContainerProvider(BaseMetricProvider):
     def __init__(self, resolution):
-        self._current_dir = os.path.dirname(os.path.abspath(__file__))
-        self._metric_name = 'network_io_docker_stats_container'
-        self._metrics = {'time': int, 'value': int, 'container_id': str}
-        self._resolution = resolution
-        self._unit = 'Bytes'
-        super().__init__()
+        super().__init__(
+            metric_name="network_io_docker_stats_container",
+            metrics={"time": int, "value": int, "container_id": str},
+            resolution=resolution,
+            unit="Bytes",
+            current_dir=os.path.dirname(os.path.abspath(__file__)),
+        )
 
     def start_profiling(self, containers=None):
         print('Start profiling Overloaded for docker_stats. This provider is only for testing! \

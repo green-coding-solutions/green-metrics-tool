@@ -31,26 +31,27 @@ class LmSensorsProvider(BaseMetricProvider):
         return ['-c'] + [f"'{i}'" for i in provider_config['chips']] \
             + ['-f'] + [f"'{i}'" for i in provider_config['features']]
 
-    def __init__(self, resolution):
+    def __init__(self, metric_name, resolution, unit):
+        super().__init__(
+            metric_name=metric_name,
+            metrics={'time': int, 'value': int, 'sensor_name': str},
+            resolution=resolution,
+            unit=unit,
+            current_dir=os.path.dirname(os.path.abspath(__file__)),
+        )
 
         if __name__ == '__main__':
             # If you run this on the command line you will need to set this in the config
             # This is separate so it is always clear what config is used.
             self._provider_config_path = 'lm_sensors.abstract_provider.LmSensorsProvider'
-            self._current_dir = os.path.dirname(os.path.abspath(__file__))
-            self._metric_name = 'lm_sensors'
 
         self._extra_switches = self._create_options()
-        self._resolution = resolution
-        self._metrics = {'time': int, 'value': int, 'sensor_name': str}
-
-        super().__init__()
 
 
 if __name__ == '__main__':
     import time
 
-    o = LmSensorsProvider(resolution=100)
+    o = LmSensorsProvider(metric_name="lm_sensors", resolution=100, unit="")
 
     print(o._current_dir)
     print('Starting to profile')
