@@ -25,11 +25,11 @@ project_name = 'test_' + utils.randomword(12)
 
 
 # Runs once per file before any test(
-# This will run the stress-application e2e through the GMT CLI
+#pylint: disable=expression-not-assigned
 def setup_module(module):
     out = io.StringIO()
     err = io.StringIO()
-
+    GlobalConfig(config_name='test-config.yml').config
     with redirect_stdout(out), redirect_stderr(err):
         uri = os.path.abspath(os.path.join(
             current_dir, '..', 'stress-application/'))
