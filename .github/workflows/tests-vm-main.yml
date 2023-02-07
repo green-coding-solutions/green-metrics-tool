@@ -3,6 +3,7 @@ run-name: Scheduled - main branch
 on:
   schedule:
     - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
   check_date:
