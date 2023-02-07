@@ -1,0 +1,27 @@
+# config.js 150
+
+Open • ArneTR opened about 2 days ago • 1 comment
+Assignees: djesic
+
+  1. rename current configuration.js to dashboard_settings.js
+  2. All domain calls should use a variable from the config.js file
+     that is set through install.sh script. the domain
+     to be used is given in the config.yml file
+  3. config.js should be ignored in git
+  4. documentation has to be added
+  5. grep for any occurrence of "green-coding"  to remove all domain
+     mentions from the checked in code (apart from
+     config.yml.example of course)
+
+djesic (Member) • 2d • Newest comment
+
+  Fix typo in the name of configuration.html
+
+async / defer loading order
+
+
+Please enter the desired API endpoint URL: (default: http://api.green-coding.local:9142)
+Please enter the desired metrics dashboard URL: (default: http://api.green-coding.local:9142)
+
+make nginx.example files to not pollute the git status when entering the URLs
+when editing nginx files, remove the leading http(s)://

@@ -73,8 +73,8 @@ async def catch_exceptions_middleware(request: Request, call_next):
 app.middleware('http')(catch_exceptions_middleware)
 
 origins = [
-    'http://metrics.green-coding.local:9142',
-    'http://api.green-coding.local:9142',
+    '__METRICS_URL__',
+    '__API_URL__',
     'https://metrics.green-coding.berlin',
     'https://api.green-coding.berlin',
 ]
