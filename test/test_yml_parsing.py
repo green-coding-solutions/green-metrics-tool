@@ -25,6 +25,23 @@ class TestYML(unittest.TestCase):
 
         self.assertEqual(result_obj, runner._usage_scenario)
 
+    def test_(self):
+        test_dir = os.path.join(current_dir, 'data/usage_scenarios/')
+        test_root_file = 'import_two_root.yml'
+        runner = Runner(uri=test_dir, uri_type='folder', pid=1, filename=test_root_file)
+        runner.checkout_repository() # We need to do this to setup the file paths correctly
+
+        runner.load_yml_file()
+        result_obj = {'name': 'my sample flow',
+                      'author': 'Arne Tarara',
+                      'services': {'my-database':
+                                   {'some-key': 'something',
+                                    'setup-commands':
+                                    ['cp /tmp/repo/test_1MB.jpg /usr/local/apache2/htdocs/test_1MB.jpg']}}}
+
+
+        self.assertEqual(result_obj, runner._usage_scenario)
+
 
     def test_invalid_path(self):
         test_dir = os.path.join(current_dir, 'data/usage_scenarios/')

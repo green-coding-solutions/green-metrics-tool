@@ -1,0 +1,9 @@
+name: my sample flow
+author: Arne Tarara
+
+compose-file: !include import_two_compose.yml
+
+services:
+  my-database:
+    setup-commands:
+      - cp /tmp/repo/test_1MB.jpg /usr/local/apache2/htdocs/test_1MB.jpg

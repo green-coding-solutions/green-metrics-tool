@@ -179,7 +179,28 @@ class Runner:
 
         with open(f"{self._folder}/{self._filename}", 'r', encoding='utf-8') as fp:
             # We can use load here as the Loader extends SafeLoader
-            self._usage_scenario = yaml.load(fp, Loader)
+            yml_obj = yaml.load(fp, Loader)
+            # Now that we have parsed the yml file we need to check for the special case in which we have a
+            # compose-file key. In this case we merge the data we find under this key but overwrite it with
+            # the data from the including file.
+
+            # We need to write our own merge method as dict.update doesn't do a "deep" merge
+            def merge_dicts(dict1, dict2):
+                for k, v in dict2.items():
+                    if k in dict1 and isinstance(v, dict) and isinstance(dict1[k], dict):
+                        merge_dicts(dict1[k], v)
+                    else:
+                        dict1[k] = v
+                return dict1
+
+            new_dict = {}
+            if 'compose-file' in yml_obj.keys():
+                for k,v in yml_obj['compose-file'].items():
+                    new_dict[k] = merge_dicts(v,yml_obj[k])
+
+            yml_obj.update(new_dict)
+            del yml_obj['compose-file']
+            self._usage_scenario = yml_obj
 
     def initial_parse(self):
 
