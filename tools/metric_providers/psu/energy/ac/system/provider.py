@@ -12,12 +12,13 @@ from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyAcSystemProvider(BaseMetricProvider):
     def __init__(self, resolution):
-        self._current_dir = os.path.dirname(os.path.abspath(__file__))
-        self._metric_name = 'psu_energy_ac_system'
-        self._metrics = {'time': int, 'value': int}
-        self._resolution = resolution
-        self._unit = 'mJ'
-        super().__init__()
+        super().__init__(
+            metric_name="psu_energy_ac_system",
+            metrics={"time": int, "value": int},
+            resolution=resolution,
+            unit="mJ",
+            current_dir=os.path.dirname(os.path.abspath(__file__)),
+        )
 
     #pylint: disable=unused-argument
     def start_profiling(self, containers=None):
