@@ -37,12 +37,12 @@ measurement:
     network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
       resolution: 100
   #--- Model based
-#    psu.energy.sdia.system.provider.PsuEnergySdiaSystemProvider:
+#    psu.energy.ac.sdia.system.provider.PsuEnergyAcSdiaSystemProvider:
 #      resolution: 100
        #-- This is a default configuration. Please change this to your system!
 #      CPUChips: 1
 #      TDP: 65
-#    psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider:
+#    psu.energy.ac.xgboost.system.provider.PsuEnergyAcXgboostSystemProvider:
 #      resolution: 100
        #-- This is a default configuration. Please change this to your system!
 #      CPUChips: 1
@@ -58,13 +58,13 @@ measurement:
 #    memory.energy.RAPL.MSR.system.provider.MemoryEnergyRaplMsrSystemProvider:
 #      resolution: 100
   #--- System power - These providers need special hardware / lab equipment to work
-#    psu.energy.ac.system.provider.PsuEnergyAcSystemProvider:
+#    psu.energy.ac.gude.system.provider.PsuEnergyAcGudeSystemProvider:
 #      resolution: 100
-#    psu.energy.dc.system.provider.PsuEnergyDcSystemProvider:
+#    psu.energy.dc.picolog.system.provider.PsuEnergyDcPicologSystemProvider:
 #      resolution: 61 # Do not change this. Provider is tailored to work at fixed resolution
-#    psu.energy.ac.powerspy2.provider.PowerSpy2Provider:
+#    psu.energy.ac.powerspy2.system.provider.PsuEnergyAcPowerspy2SystemProvider:
 #      resolution: 250
-#    psu.energy.ac.ipmi.provider.PsuEnergyAcIpmiProvider:
+#    psu.energy.ac.ipmi.system.provider.PsuEnergyAcIpmiSystemProvider:
 #      resolution: 100
   #--- Sensors
 #    lm_sensors.temperature.provider.LmSensorsTempProvider:

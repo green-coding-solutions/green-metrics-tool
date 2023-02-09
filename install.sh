@@ -32,7 +32,7 @@ print_message "Installing needed binaries for building ..."
 sudo apt install lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev
 
 print_message "Building binaries ..."
-metrics_subdir="tools/metric_providers"
+metrics_subdir="metric_providers"
 parent_dir="./$metrics_subdir"
 make_file="Makefile"
 find "$parent_dir" -type d |
@@ -55,10 +55,6 @@ PYTHON_PATH=$(which python3)
 PWD=$(pwd)
 echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
 
-
-print_message "Linking DC measurement provider library file to /usr/lib"
-sudo rm -f /usr/lib/libpicohrdl.so.2
-sudo ln -s $(pwd)/tools/metric_providers/psu/energy/dc/system/libpicohrdl.so.2 /usr/lib/
 
 etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
 etc_hosts_line_2="127.0.0.1 api.green-coding.local metrics.green-coding.local"
