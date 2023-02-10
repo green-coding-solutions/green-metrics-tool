@@ -38,7 +38,7 @@ jobs:
         name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
-         metrics-to-turn-off: 'RAPL System Sensors Debug CGroupV2'
+         metrics-to-turn-off: 'RAPL System Sensors Debug CGroupV2 MacOS'
 
       - name: Eco CI Energy Estimation
         uses: green-coding-berlin/eco-ci-energy-estimation@main
