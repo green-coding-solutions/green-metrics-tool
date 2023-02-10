@@ -15,7 +15,7 @@ import sys
 import subprocess
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{current_dir}/../tools")
+sys.path.append(f"{current_dir}/..")
 sys.path.append(f"{current_dir}/../lib")
 
 from contextlib import redirect_stdout, redirect_stderr
@@ -23,8 +23,8 @@ from pathlib import Path
 from db import DB
 import pytest
 import utils
-from runner import Runner
 from global_config import GlobalConfig
+from runner import Runner
 
 config = GlobalConfig(config_name='test-config.yml').config
 
