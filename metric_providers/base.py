@@ -78,10 +78,15 @@ class BaseMetricProvider:
 
     def start_profiling(self, containers=None):
 
+        executable_path = self._metric_provider_executable
+        if self._metric_provider_executable[0] == '/':
+            executable_path = f"{self._current_dir}/executable_path"
+
         if self._sudo:
-            call_string = f"sudo {self._current_dir}/{self._metric_provider_executable} -i {self._resolution}"
+            call_string = f"sudo {executable_path} -i {self._resolution}"
         else:
-            call_string = f"{self._current_dir}/{self._metric_provider_executable} -i {self._resolution}"
+            call_string = f"{executable_path} -i {self._resolution}"
+
         if hasattr(self, '_extra_switches'):
             call_string += ' '  # space at start
             call_string += ' '.join(self._extra_switches)
@@ -115,12 +120,12 @@ class BaseMetricProvider:
             print(f"Killing process with id: {self._ps.pid}")
             ps_group_id = os.getpgid(self._ps.pid)
             print(f" and process group {ps_group_id}")
-            os.killpg(os.getpgid(self._ps.pid), signal.SIGTERM)
+            os.killpg(ps_group_id, signal.SIGTERM)
             try:
                 self._ps.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 # If the process hasn't gracefully exited after 5 seconds we kill it
-                os.killpg(os.getpgid(self._ps.pid), signal.SIGKILL)
+                os.killpg(ps_group_id, signal.SIGKILL)
 
         except ProcessLookupError:
             print(f"Could not find process-group for {self._ps.pid}",
