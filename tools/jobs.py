@@ -2,14 +2,15 @@
 import sys
 import os
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/..')
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 
 import faulthandler
-from runner import Runner
-from db import DB
-from global_config import GlobalConfig
 import email_helpers
 import error_helpers
+from db import DB
+from global_config import GlobalConfig
+from runner import Runner
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
