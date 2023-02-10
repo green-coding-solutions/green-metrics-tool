@@ -78,14 +78,13 @@ class BaseMetricProvider:
 
     def start_profiling(self, containers=None):
 
-        executable_path = self._metric_provider_executable
-        if self._metric_provider_executable[0] == '/':
-            executable_path = f"{self._current_dir}/executable_path"
+        call_string = f"{self._metric_provider_executable} -i {self._resolution}"
+
+        if self._metric_provider_executable[0] != '/':
+            call_string = f"{self._current_dir}/{call_string}"
 
         if self._sudo:
-            call_string = f"sudo {executable_path} -i {self._resolution}"
-        else:
-            call_string = f"{executable_path} -i {self._resolution}"
+            call_string = f"sudo {call_string} "
 
         if hasattr(self, '_extra_switches'):
             call_string += ' '  # space at start
