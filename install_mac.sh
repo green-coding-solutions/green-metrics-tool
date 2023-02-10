@@ -45,4 +45,5 @@ else
 fi
 
 echo "Building / Updating docker containers"
+docker compose -f docker/compose.yml down
 docker compose -f docker/compose.yml build
