@@ -3,32 +3,44 @@ run-name: Scheduled - main branch
 on:
   schedule:
     - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
-  check_date:
+  run-tests-dev:
     runs-on: ubuntu-latest
-    name: Check latest commit
-    outputs:
-      recent_main_commit: ${{ steps.check_main_commits.outputs.recent_commit }}
     steps:
-      - id: check_main_commits
+      - id: check-date
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: green-coding-berlin/eco-ci-activity-checker@main
         with:
           repo: 'green-coding-berlin/green-metrics-tool'
-          branch: 'main'
+          branch: 'dev'
+          workflow-id: 45267393
 
-  run-tests-main:
-    needs: check_date
-    if: ${{ needs.check_date.outputs.recent_main_commit == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
+      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
+        name: 'Checkout repository'
+        uses: actions/checkout@v3
         with:
-          ref: 'main'
+          ref: 'dev'
           submodules: 'true'
-      
-      - name: 'Setup, Run, and Teardown Tests'
+
+      - name: Eco CI Energy Estimation
+        uses: green-coding-berlin/eco-ci-energy-estimation@main
+        with:
+          task: initialize
+
+      - name: Eco CI Energy Estimation
+        uses: green-coding-berlin/eco-ci-energy-estimation@main
+        with:
+          task: start-measurement
+
+      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
+        name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
-           metrics-to-turn-off: 'RAPL System Sensors Debug CGroupV2'
+         metrics-to-turn-off: 'RAPL System Sensors Debug CGroupV2'
+
+      - name: Eco CI Energy Estimation
+        uses: green-coding-berlin/eco-ci-energy-estimation@main
+        with:
+          task: get-measurement
