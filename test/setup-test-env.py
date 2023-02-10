@@ -22,7 +22,7 @@ def edit_config_file():
     print('Creating test-config.yml...')
     config = None
     with open(base_config_path, encoding='utf8') as base_config_file:
-        config = yaml.load(base_config_file, Loader=yaml.FullLoader)
+        config = yaml.safe_load(base_config_file)
 
     # Reset SMTP
     for smtp_entry in config.get('smtp'):

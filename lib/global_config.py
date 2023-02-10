@@ -18,7 +18,3 @@ class GlobalConfig:
 
 if __name__ == '__main__':
     print(GlobalConfig().config['measurement'])
-
-    # DB().query('SELECT * FROM projects')
-    # DB().query('SELECT * FROM projects')
-    # DB().query('SELECT * FROM projects')
