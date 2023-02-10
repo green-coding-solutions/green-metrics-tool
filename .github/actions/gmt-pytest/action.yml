@@ -23,11 +23,16 @@ runs:
     - name: Install python dependencies
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
+      uses: actions/checkout@v3
+      uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip' # caching pip dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r tools/metric_providers/psu/energy/xgboost/system/model/requirements.txt
-    
+
     - name: Run Prereqs and Install Script
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
@@ -46,6 +51,33 @@ runs:
       run: |
         python3 setup-test-env.py
         
+    ## use hashFiles instead of this hack
+    ## need the check dockerfiles-gunicorn
+    ## think about which file changes would require a docker re-image
+       ## should just be the dockerfile-gunicorn but think about it
+     ## is there a way to check if a docker image is "stale"
+       ## aka, in compose.yml there is image:nginx - this means its nginx:latest
+       # can we check that the 'latest' we have cached is still up to date with actual latest
+       # SOlution: after 'restoring' the cached images, do a docker compose build
+       ## if they are stale ,will get new images, if not stale, will not rebuild
+    - name: Hash docker compose file
+      id: hash-requirements
+      shell: bash
+      run: echo "myhash=$(md5sum ${{ $GITHUB_WORKSPACE }}/${{ inputs.gmt-directory }}/docker/test-compose.yml | cut -d ' ' -f1)" >> $GITHUB_OUTPUT
+
+    - name: docker container cache
+      shell: bash
+      id: cache-containers
+      uses: actions/cache@v3
+      env:
+        cache-name: cache-docker-containers
+      with:
+        path: /var/lib/docker/overlay2
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ steps.hash-requirements.outputs.myhash }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-${{ steps.hash-requirements.outputs.myhash }}
+
+
     - name: Start Test container
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/test
