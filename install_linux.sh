@@ -75,3 +75,6 @@ if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
 else
     echo "Entry was already present..."
 fi
+
+echo "Building / Updating docker containers"
+docker compose -f docker/compose.yml build
