@@ -1,9 +1,8 @@
 import os
 import subprocess
 import plistlib
-import datetime
+from datetime import timezone
 import pandas
-import pytz
 
 #pylint: disable=import-error
 from db import DB
@@ -18,6 +17,8 @@ class PowermetricsProvider(BaseMetricProvider):
             resolution=resolution,
             unit="mJ",
             current_dir=os.path.dirname(os.path.abspath(__file__)),
+            metric_provider_executable='/usr/bin/powermetrics',
+            sudo=True,
         )
 
         # We can't use --show-all here as this sometimes triggers output on stderr
@@ -59,17 +60,8 @@ class PowermetricsProvider(BaseMetricProvider):
             data = plistlib.loads(data)
 
             if cum_time is None:
-                # Get the system's local timezone
-                local_tz = pytz.timezone(datetime.datetime.now().astimezone().tzname())
-
-                # Set the timezone on the timestamp to UTC
-                utc_time = pytz.timezone('UTC').localize(data['timestamp'])
-
-                # Convert the datetime object to the system's local timezone
-                local_dt = utc_time.astimezone(local_tz)
-
                 # Convert seconds to nano seconds
-                cum_time = int(local_dt.timestamp() * 1e9)
+                cum_time = int(data['timestamp'].replace(tzinfo=timezone.utc).timestamp() * 1e9)
 
             cum_time = cum_time + data['elapsed_ns']
 
