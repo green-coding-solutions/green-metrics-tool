@@ -29,7 +29,11 @@ cp config.yml.example config.yml
 sed -i -e "s|PLEASE_CHANGE_THIS|$db_pw|" config.yml
 
 print_message "Installing needed binaries for building ..."
-sudo apt install lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev
+if lsb_release -is | grep -q "Fedora"; then
+    sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel
+else
+    sudo apt install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev
+fi
 
 print_message "Building binaries ..."
 metrics_subdir="metric_providers"
