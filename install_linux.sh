@@ -22,17 +22,6 @@ api_url=${api_url:-"http://api.green-coding.local:9142"}
 read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.local:9142): " metrics_url
 metrics_url=${metrics_url:-"http://metrics.green-coding.local:9142"}
 
-echo $api_url
-echo $metrics_url
-
-print_message "Updating nginx with provided URLs ..."
-cp docker/nginx/api.conf.example docker/nginx/api.conf
-sed -i -e "s|__API_URL__|$api_url|" docker/nginx/api.conf
-cp docker/nginx/frontend.conf.example docker/nginx/frontend.conf
-sed -i -e "s|__METRICS_URL__|$metrics_url|" docker/nginx/frontend.conf
-
-exit 0
-
 if [[ -z "$db_pw" ]] ; then
     read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
 fi
@@ -45,6 +34,21 @@ sed -i -e "s|PLEASE_CHANGE_THIS|$db_pw|" docker/compose.yml
 print_message "Updating config.yml with new password ..."
 cp config.yml.example config.yml
 sed -i -e "s|PLEASE_CHANGE_THIS|$db_pw|" config.yml
+
+print_message "Updating project with provided URLs ..."
+sed -i -e "s|__API_URL__|$api_url|" config.yml
+sed -i -e "s|__METRICS_URL__|$metrics_url|" config.yml
+cp docker/nginx/api.conf.example docker/nginx/api.conf
+host_api_url=`echo $api_url | sed -E 's/^\s*.*:\/\///g'`
+host_api_url=${host_api_url%:*}
+sed -i -e "s|__API_URL__|$host_api_url|" docker/nginx/api.conf
+cp docker/nginx/frontend.conf.example docker/nginx/frontend.conf
+host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
+host_metrics_url=${host_metrics_url%:*}
+sed -i -e "s|__METRICS_URL__|$host_metrics_url|" docker/nginx/frontend.conf
+cp frontend/js/config.js.example frontend/js/config.js
+sed -i -e "s|__API_URL__|$api_url|" frontend/js/config.js
+sed -i -e "s|__METRICS_URL__|$metrics_url|" frontend/js/config.js
 
 print_message "Installing needed binaries for building ..."
 if lsb_release -is | grep -q "Fedora"; then
