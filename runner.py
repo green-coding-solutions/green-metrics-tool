@@ -36,6 +36,7 @@ import hardware_info_root
 import error_helpers
 from db import DB
 from global_config import GlobalConfig
+import utils
 from tools.save_notes import save_notes  # local file import
 
 def arrows(text):
@@ -63,6 +64,7 @@ class Runner:
         self._branch = branch
         self._folder = '/tmp/green-metrics-tool/repo' # default if not changed in checkout_repository
         self._usage_scenario = {}
+        self._architecture = utils.get_architecture()
 
 
         # transient variables that are created by the runner itself
@@ -75,7 +77,6 @@ class Runner:
         self.__notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
         self.__start_measurement = None
         self.__end_measurement = None
-
 
     def prepare_filesystem_location(self):
         subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], check=True, stderr=subprocess.DEVNULL)
@@ -138,14 +139,10 @@ class Runner:
         if self._allow_unsafe:
             print(TerminalColors.WARNING, arrows('Warning: Runner is running in unsafe mode'), TerminalColors.ENDC)
 
-        ps = subprocess.run(['uname', '-s'],
-            check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8')
-        output = ps.stdout.strip().lower()
-
         if self._usage_scenario.get('architecture') is not None and \
-            output != self._usage_scenario['architecture'].lower():
+            self._architecture != self._usage_scenario['architecture'].lower():
             raise RuntimeError('Specified architecture does not match system architecture:'
-                f"system ({output}) != specified ({self._usage_scenario.get('architecture')})")
+                f"system ({self._architecture}) != specified ({self._usage_scenario.get('architecture')})")
 
     def update_and_insert_specs(self):
         config = GlobalConfig().config
@@ -178,17 +175,25 @@ class Runner:
         config = GlobalConfig().config
 
         print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
+
+        # if there's a more elegant way to do this, I don't know it
+        if 'common' in config['measurement']['metric-providers']:
+            metric_providers = {**config['measurement']['metric-providers'][self._architecture],\
+                **config['measurement']['metric-providers']['common']}
+        else:
+            metric_providers = config['measurement']['metric-providers'][self._architecture]
+
         # will iterate over keys
-        for metric_provider in config['measurement']['metric-providers']:
+        for metric_provider in metric_providers:
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
 
             print(f"Importing {class_name} from {module_path}")
-            print(f"Configuration is {config['measurement']['metric-providers'][metric_provider]}")
+            print(f"Configuration is {metric_providers[metric_provider]}")
             module = importlib.import_module(module_path)
             # the additional () creates the instance
             metric_provider_obj = getattr(module, class_name)(
-                resolution=config['measurement']['metric-providers'][metric_provider]['resolution'])
+                resolution=metric_providers[metric_provider]['resolution'])
 
             self.__metric_providers.append(metric_provider_obj)
 
