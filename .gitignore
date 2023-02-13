@@ -1,5 +1,8 @@
 __pycache__
 config.yml
+docker/nginx/api.conf
+docker/nginx/frontend.conf
+frontend/js/config.js
 sftp-config.json
 TODO
 flows
