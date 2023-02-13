@@ -15,6 +15,24 @@ while getopts "p:" o; do
     esac
 done
 
+
+read -p "Please enter the desired API endpoint URL: (default: http://api.green-coding.local:9142): " api_url
+api_url=${api_url:-"http://api.green-coding.local:9142"}
+
+read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.local:9142): " metrics_url
+metrics_url=${metrics_url:-"http://metrics.green-coding.local:9142"}
+
+echo $api_url
+echo $metrics_url
+
+print_message "Updating nginx with provided URLs ..."
+cp docker/nginx/api.conf.example docker/nginx/api.conf
+sed -i -e "s|__API_URL__|$api_url|" docker/nginx/api.conf
+cp docker/nginx/frontend.conf.example docker/nginx/frontend.conf
+sed -i -e "s|__METRICS_URL__|$metrics_url|" docker/nginx/frontend.conf
+
+exit 0
+
 if [[ -z "$db_pw" ]] ; then
     read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
 fi
