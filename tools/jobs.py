@@ -102,15 +102,13 @@ def _do_project_job(job_id, project_id):
 
     [uri, _] = get_project(project_id)
 
-    runner = Runner(skip_unsafe=True)
+    runner = Runner(uri=uri, uri_type='URL', pid=project_id, skip_unsafe=True)
     try:
         # Start main code. Only URL is allowed for cron jobs
-        runner.run(uri=uri, uri_type='URL', project_id=project_id)
-        runner.cleanup()
+        runner.run()
         insert_job('email', project_id=project_id)
         delete_job(job_id)
     except Exception as exc:
-        runner.cleanup()  # catch so we can cleanup
         raise exc
 
 
