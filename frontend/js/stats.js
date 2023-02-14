@@ -327,9 +327,22 @@ function moveToFirst(e) {
     window.dispatchEvent(new Event('resize'));
 }
 
-function fullWidth(e) {
-    el = e.target.closest(".statistics-chart-card")
-    el.style.flex = "0 0 100%"
+function toggleWidth(e) {
+    chart = e.target.closest(".statistics-chart-card")
+    icon = e.target.closest(".button").firstChild
+
+    chart.classList.toggle("full-width")
+    if (chart.classList.contains("full-width"))
+    {
+        icon.classList.remove("expand")
+        icon.classList.add("compress")
+    }
+    else
+    {
+        icon.classList.remove("compress")
+        icon.classList.add("expand")
+    }
+
     window.dispatchEvent(new Event('resize'));
 }
 
@@ -347,11 +360,10 @@ const createChartContainer = (container, el, counter) => {
 
     chart_node.innerHTML = `
     <div class="content">
-        <div class="ui icon buttons">
+        <div class="ui right floated icon buttons">
             <button class="ui button move-first"><i class="angle double left icon"></i></button>
             <button class="ui button move-left"><i class="angle left icon"></i></button>
-            <button class="ui button normal-width"><i class="compress icon"></i></button>
-            <button class="ui button full-width"><i class="expand icon"></i></button>
+            <button class="ui button toggle-width"><i class="expand icon toggle-icon"></i></button>
             <button class="ui button move-right"><i class="angle right icon"></i></button>
             <button class="ui button move-last"><i class="angle double right icon"></i></button>
         </div>
@@ -363,8 +375,7 @@ const createChartContainer = (container, el, counter) => {
 
     chart_node.querySelector('.move-first').addEventListener("click", moveToFirst, false);
     chart_node.querySelector('.move-left').addEventListener("click", moveLeft, false);
-    chart_node.querySelector('.normal-width').addEventListener("click",normalWidth, false);
-    chart_node.querySelector('.full-width').addEventListener("click", fullWidth, false);
+    chart_node.querySelector('.toggle-width').addEventListener("click", toggleWidth, false);
     chart_node.querySelector('.move-right').addEventListener("click", moveRight, false);
     chart_node.querySelector('.move-last').addEventListener("click", moveToLast, false);
 

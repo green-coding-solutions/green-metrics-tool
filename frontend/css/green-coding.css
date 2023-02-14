@@ -170,3 +170,7 @@ a,
 .invalidated-measurement {
     background: #e9eaef url("/images/noncompliant.png");
 }
+
+.full-width {
+    flex: "0 0 100%"
+}
