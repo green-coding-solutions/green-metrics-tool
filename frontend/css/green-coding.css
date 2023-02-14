@@ -174,3 +174,8 @@ a,
 .full-width {
     flex: "0 0 100%"
 }
+
+.hide {
+    visibility: hidden;
+}
+
