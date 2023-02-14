@@ -346,6 +346,11 @@ function toggleWidth(e) {
     window.dispatchEvent(new Event('resize'));
 }
 
+function movers(e) {
+    icons = document.querySelector(".chart-navigation-icon")
+    icons.classList.toggle("hide")
+}
+
 const createChartContainer = (container, el, counter) => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");
@@ -355,9 +360,14 @@ const createChartContainer = (container, el, counter) => {
     chart_node.innerHTML = `
     <div class="content">
         <div class="ui right floated icon buttons">
+            <button class="ui button toggle-width"><i class="expand icon toggle-icon"></i></button>
+        </div>
+        <div class="ui right floated icon buttons">
+            <button class="ui button movers"><i class="arrows alternate icon"></i></button>
+        </div>
+        <div class="ui right floated icon buttons chart-navigation-icon hide">
             <button class="ui button move-first"><i class="angle double left icon"></i></button>
             <button class="ui button move-left"><i class="angle left icon"></i></button>
-            <button class="ui button toggle-width"><i class="expand icon toggle-icon"></i></button>
             <button class="ui button move-right"><i class="angle right icon"></i></button>
             <button class="ui button move-last"><i class="angle double right icon"></i></button>
         </div>
@@ -367,9 +377,10 @@ const createChartContainer = (container, el, counter) => {
     </div>`
     document.querySelector(container).appendChild(chart_node)
 
+    chart_node.querySelector('.toggle-width').addEventListener("click", toggleWidth, false);
+    chart_node.querySelector('.movers').addEventListener("click", movers, false);
     chart_node.querySelector('.move-first').addEventListener("click", moveToFirst, false);
     chart_node.querySelector('.move-left').addEventListener("click", moveLeft, false);
-    chart_node.querySelector('.toggle-width').addEventListener("click", toggleWidth, false);
     chart_node.querySelector('.move-right').addEventListener("click", moveRight, false);
     chart_node.querySelector('.move-last').addEventListener("click", moveToLast, false);
 
