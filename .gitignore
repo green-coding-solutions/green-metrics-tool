@@ -1,5 +1,5 @@
 __pycache__
-config.yml
+config.yml*
 sftp-config.json
 TODO
 flows
@@ -9,6 +9,6 @@ metric-provider-binary
 static-binary
 .pytest_cache
 test-compose.yml
-test-config.yml
+test-config.yml*
 tools/sgx_enable
 env/
