@@ -31,3 +31,7 @@ def get_pascal_case(in_string):
 def get_metric_providers(config):
     metric_providers_keys = config['measurement']['metric-providers'].keys()
     return [(m.split('.')[-1]) for m in metric_providers_keys]
+
+def assertion_info(expected, actual):
+    return f"Expected: {expected}, Actual: {actual}"
+    
