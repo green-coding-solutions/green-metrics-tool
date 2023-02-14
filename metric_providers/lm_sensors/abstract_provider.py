@@ -8,13 +8,12 @@ import sys
 from global_config import GlobalConfig
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{current_dir}/../../lib")
-import utils
 from metric_providers.base import BaseMetricProvider
 
 class LmSensorsProvider(BaseMetricProvider):
 
     def _create_options(self):
-        provider_config = GlobalConfig().config['measurement']['metric-providers'][utils.get_architecture()]\
+        provider_config = GlobalConfig().config['measurement']['metric-providers']['linux']\
             [self._provider_config_path]
 
         if 'chips' not in provider_config:
