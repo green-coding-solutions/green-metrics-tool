@@ -7,7 +7,7 @@ server {
     listen 9142;
     listen 443;
 
-    server_name api.green-coding.berlin api.green-coding.local;
+    server_name __API_URL__ ;
 
     location / {
         proxy_pass http://unix:/tmp/green-coding-api.sock;
