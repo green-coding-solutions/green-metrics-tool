@@ -33,10 +33,18 @@ def get_pascal_case(in_string):
 def get_metric_providers(config):
     architecture = get_architecture()
     if 'common' in config['measurement']['metric-providers']:
+        if config['measurement']['metric-providers']['common'] is None:
+            raise RuntimeError('No metric providers under \'common\' key in config.yml')
+        if config['measurement']['metric-providers'][architecture] is None:
+            raise RuntimeError(f"No metric providers under '{architecture}' key in config.yml")
         metric_providers = {**config['measurement']['metric-providers'][architecture],\
             **config['measurement']['metric-providers']['common']}
     else:
         metric_providers = config['measurement']['metric-providers'][architecture]
+    return metric_providers
+
+def get_metric_providers_names(config):
+    metric_providers = get_metric_providers(config)
     metric_providers_keys = metric_providers.keys()
     return [(m.split('.')[-1]) for m in metric_providers_keys]
 

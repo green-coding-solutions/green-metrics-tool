@@ -176,13 +176,7 @@ class Runner:
 
         print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
 
-        # if there's a more elegant way to do this, I don't know it
-        if 'common' in config['measurement']['metric-providers']:
-            metric_providers = {**config['measurement']['metric-providers'][self._architecture],\
-                **config['measurement']['metric-providers']['common']}
-        else:
-            metric_providers = config['measurement']['metric-providers'][self._architecture]
-
+        metric_providers = utils.get_metric_providers(config)
         # will iterate over keys
         for metric_provider in metric_providers:
             module_path, class_name = metric_provider.rsplit('.', 1)
