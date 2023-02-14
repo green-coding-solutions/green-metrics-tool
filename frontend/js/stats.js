@@ -346,12 +346,6 @@ function toggleWidth(e) {
     window.dispatchEvent(new Event('resize'));
 }
 
-function normalWidth(e) {
-    el = e.target.closest(".statistics-chart-card")
-    el.style.flex = ""
-    window.dispatchEvent(new Event('resize'));
-}
-
 const createChartContainer = (container, el, counter) => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");
