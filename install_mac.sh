@@ -7,19 +7,32 @@ function print_message {
 }
 
 db_pw=''
-while getopts "p:" o; do
+api_url=''
+metrics_url=''
+
+while getopts "p:a:m:" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
             ;;
+        a)
+            api_url=${OPTARG}
+            ;;
+        m)
+            metrics_url=${OPTARG}
+            ;;
     esac
 done
 
-read -p "Please enter the desired API endpoint URL: (default: http://api.green-coding.local:9142): " api_url
-api_url=${api_url:-"http://api.green-coding.local:9142"}
+if [[ -z $api_url ]] ; then
+    read -p "Please enter the desired API endpoint URL: (default: http://api.green-coding.local:9142): " api_url
+    api_url=${api_url:-"http://api.green-coding.local:9142"}
+fi
 
-read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.local:9142): " metrics_url
-metrics_url=${metrics_url:-"http://metrics.green-coding.local:9142"}
+if [[ -z $metrics_url ]] ; then
+    read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.local:9142): " metrics_url
+    metrics_url=${metrics_url:-"http://metrics.green-coding.local:9142"}
+fi 
 
 if [[ -z "$db_pw" ]] ; then
     read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
