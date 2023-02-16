@@ -347,7 +347,7 @@ function toggleWidth(e) {
 }
 
 function movers(e) {
-    icons = document.querySelector(".chart-navigation-icon")
+    icons = e.target.closest(".content").querySelector('.chart-navigation-icon')
     icons.classList.toggle("hide")
 }
 
