@@ -4,7 +4,7 @@ else display_in_watts = false;
 
 const copyToClipboard = (e) => {
   if (navigator && navigator.clipboard && navigator.clipboard.writeText)
-    return navigator.clipboard.writeText(e.target.parentElement.parentElement.children[0].innerHTML);
+    return navigator.clipboard.writeText(e.currentTarget.parentElement.parentElement.children[0].innerHTML);
   return Promise.reject('The Clipboard API is not available.');
 };
 
@@ -298,7 +298,7 @@ const displayGraphs = (metrics, notes, style='apex') => {
 }
 
 function moveRight(e) {
-    el = e.target.closest(".statistics-chart-card")
+    let el = e.currentTarget.closest(".statistics-chart-card")
     const next = el.nextSibling;
     if (!next) return;
     next.after(el)
@@ -306,14 +306,14 @@ function moveRight(e) {
 }
 
 function moveToLast(e) {
-    el = e.target.closest(".statistics-chart-card")
+    let el = e.currentTarget.closest(".statistics-chart-card")
     const last = el.parentNode.lastChild;
     last.after(el)
     window.dispatchEvent(new Event('resize'));
 }
 
 function moveLeft(e) {
-    el = e.target.closest(".statistics-chart-card")
+    let el = e.currentTarget.closest(".statistics-chart-card")
     const previous = el.previousElementSibling;
     if (!previous) return;
     previous.before(el)
@@ -321,15 +321,15 @@ function moveLeft(e) {
 }
 
 function moveToFirst(e) {
-    el = e.target.closest(".statistics-chart-card")
+    let el = e.currentTarget.closest(".statistics-chart-card")
     const first = el.parentNode.childNodes[0];
     first.before(el)
     window.dispatchEvent(new Event('resize'));
 }
 
 function toggleWidth(e) {
-    chart = e.target.closest(".statistics-chart-card")
-    icon = e.target.closest(".button").firstChild
+    let chart = e.currentTarget.closest(".statistics-chart-card")
+    let icon = e.currentTarget.firstChild
 
     chart.classList.toggle("full-width")
     if (chart.classList.contains("full-width"))
@@ -347,7 +347,7 @@ function toggleWidth(e) {
 }
 
 function movers(e) {
-    icons = e.target.closest(".content").querySelector('.chart-navigation-icon')
+    let icons = e.currentTarget.closest(".content").querySelector('.chart-navigation-icon')
     icons.classList.toggle("hide")
 }
 
