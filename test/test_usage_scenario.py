@@ -547,7 +547,7 @@ def test_verbose_provider_boot():
             """
 
     notes = DB().fetch_all(query, (pid,'Booting%',))
-    metric_providers = utils.get_metric_providers(config)
+    metric_providers = utils.get_metric_providers_names(config)
 
     #for each metric provider, assert there is an an entry in notes
     for provider in metric_providers:
