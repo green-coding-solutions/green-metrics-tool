@@ -17,6 +17,24 @@ test_compose_path = os.path.join(current_dir, f"../docker/{TEST_COMPOSE_NAME}")
 
 DB_PW = 'testpw'
 
+def copy_sql_structure():
+    print('Copying SQL structure...')
+    subprocess.run(
+        ['cp', '-f', '../docker/structure.sql', './structure.sql'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    subprocess.run(
+        ['sed', '-i', 's/green-coding/test-green-coding/g', './structure.sql'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
 
 def edit_config_file():
     print('Creating test-config.yml...')
@@ -29,6 +47,7 @@ def edit_config_file():
         config['smtp'][smtp_entry] = None
 
     config['postgresql']['host'] = 'test-green-coding-postgres-container'
+    config['postgresql']['dbname'] = 'test-green-coding'
     config['postgresql']['password'] = DB_PW
     config['admin']['no_emails'] = True
 
@@ -67,6 +86,7 @@ def edit_compose_file():
                 volume = volume.replace(k, f'test-{k}')
             volume = volume.replace('PATH_TO_GREEN_METRICS_TOOL_REPO',
                           f'{current_dir}/../')
+            volume = volume.replace('./structure.sql', '../test/structure.sql')
             new_vol_list.append(volume)
 
         # Change the depends on: in services as well
@@ -106,9 +126,13 @@ def edit_compose_file():
 def edit_etc_hosts():
     subprocess.run(['./edit-etc-hosts.sh'], check=True)
 
+def build_test_docker_image():
+    subprocess.run(['docker', 'compose', '-f', test_compose_path, 'build'], check=True)
 
 if __name__ == '__main__':
+    copy_sql_structure()
     edit_config_file()
     edit_compose_file()
     edit_etc_hosts()
+    build_test_docker_image()
     print('fin.')

@@ -13,5 +13,6 @@ static-binary
 .pytest_cache
 test-compose.yml
 test-config.yml
+test/structure.sql
 tools/sgx_enable
 venv/
