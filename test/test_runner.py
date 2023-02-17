@@ -76,7 +76,7 @@ def test_db_rows_are_written_and_presented():
     assert(data is not None or data != [])
 
     config = GlobalConfig(config_name='test-config.yml').config
-    metric_providers = utils.get_metric_providers_names(config)
+    metric_providers = utils.get_metric_providers(config)
 
     for d in data:
         d_provider = utils.get_pascal_case(d[0]) + 'Provider'

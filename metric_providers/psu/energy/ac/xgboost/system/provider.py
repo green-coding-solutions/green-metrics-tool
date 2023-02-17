@@ -55,7 +55,7 @@ class PsuEnergyAcXgboostSystemProvider(BaseMetricProvider):
 
         Z = df.loc[:, ['value']]
 
-        provider_config = GlobalConfig().config['measurement']['metric-providers']['common']\
+        provider_config = GlobalConfig().config['measurement']['metric-providers']\
         ['psu.energy.ac.xgboost.system.provider.PsuEnergyAcXgboostSystemProvider']
 
         if 'HW_CPUFreq' not in provider_config:

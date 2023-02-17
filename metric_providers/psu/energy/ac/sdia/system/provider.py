@@ -56,8 +56,7 @@ class PsuEnergyAcSdiaSystemProvider(BaseMetricProvider):
         #Z = df.loc[:, ['value']]
 
         provider_config = GlobalConfig(
-        ).config['measurement']['metric-providers']['common']\
-        ['psu.energy.ac.sdia.system.provider.PsuEnergyAcSdiaSystemProvider']
+        ).config['measurement']['metric-providers']['psu.energy.ac.sdia.system.provider.PsuEnergyAcSdiaSystemProvider']
 
         if 'CPUChips' not in provider_config:
             raise RuntimeError(
