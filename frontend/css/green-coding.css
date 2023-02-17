@@ -170,3 +170,18 @@ a,
 .invalidated-measurement {
     background: #e9eaef url("/images/noncompliant.png");
 }
+
+.full-width {
+    flex: 0 0 100%
+}
+
+.chart-navigation-icon {
+    transition: 0.2s;
+    width: 160px;
+    overflow: hidden;
+}
+
+.hide {
+    width: 0 !important;
+}
+
