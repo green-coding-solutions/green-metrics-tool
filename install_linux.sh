@@ -97,15 +97,17 @@ echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo
 etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
 etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
 
+print_message "Writing to /etc/hosts file..."
 
+# Entry 1 is needed for the local resolution of the containers through the jobs.py and runner.py
+if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
+    echo "$etc_hosts_line_1" | sudo tee -a /etc/hosts
+else
+    echo "Entry was already present..."
+fi
+
+# Entry 2 can be external URLs. These should not resolve to localhost if not explcitely wanted
 if [[ ${host_metrics_url} == *".green-coding.local"* ]];then
-    print_message "Writing to /etc/hosts file..."
-    if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
-        echo "$etc_hosts_line_1" | sudo tee -a /etc/hosts
-    else
-        echo "Entry was already present..."
-    fi
-
     if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
         echo "$etc_hosts_line_2" | sudo tee -a /etc/hosts
     else
