@@ -175,7 +175,13 @@ a,
     flex: 0 0 100%
 }
 
+.chart-navigation-icon {
+    transition: 0.2s;
+    width: 160px;
+    overflow: hidden;
+}
+
 .hide {
-    visibility: hidden;
+    width: 0 !important;
 }
 
