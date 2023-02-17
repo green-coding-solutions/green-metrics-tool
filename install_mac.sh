@@ -69,19 +69,21 @@ echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics" | sudo tee /etc/sudo
 
 
 etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
-etc_hosts_line_2="127.0.0.1 api.green-coding.local metrics.green-coding.local"
+etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
 
-echo "Writing to /etc/hosts file..."
-if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
-    echo -e "\n$etc_hosts_line_1" | sudo tee -a /etc/hosts
-else
-    echo "Entry was already present..."
-fi
+if [[ ${host_metrics_url} == *".local"* ]];then
+    print_message "Writing to /etc/hosts file..."
+    if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
+        echo -e "\n$etc_hosts_line_1" | sudo tee -a /etc/hosts
+    else
+        echo "Entry was already present..."
+    fi
 
-if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
-    echo -e "\n$etc_hosts_line_2" | sudo tee -a /etc/hosts
-else
-    echo "Entry was already present..."
+    if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
+        echo -e "\n$etc_hosts_line_2" | sudo tee -a /etc/hosts
+    else
+        echo "Entry was already present..."
+    fi
 fi
 
 echo "Building / Updating docker containers"
