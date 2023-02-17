@@ -267,7 +267,6 @@ class Project(BaseModel):
     email: str
     branch: str
 
-
 @app.post('/v1/project/add')
 async def post_project_add(project: Project):
 
@@ -326,6 +325,60 @@ async def robots_txt():
     data += "Disallow: /"
 
     return Response(content=data, media_type='text/plain')
+
+class Badge(BaseModel):
+    value: str
+    repo: str
+    branch: str
+    workflow: str
+    project_id: str
+
+@app.post('/v1/ci/badge/add/')
+async def post_ci_badge_add(badge: Badge):
+    if badge.value is None or badge.value.strip() == '':
+        return {'success': False, 'err': 'Badge value is empty'}
+
+    if badge.repo is None or badge.repo.strip() == '':
+        return {'success': False, 'err': 'Repo name is empty'}
+
+    if badge.branch is None or badge.branch.strip() == '':
+        return {'success': False, 'err': 'Branch is empty'}
+
+    if badge.workflow is None or badge.workflow.strip() == '':
+        return {'success': False, 'err': 'Workflow name is empty'}
+
+    if badge.project_id.strip() == '':
+        badge.project_id = None
+
+    query = """
+        INSERT INTO
+            badges (value, repo ,branch, workflow, project_id)
+        VALUES (%s, %s, %s, %s, %s)
+        """
+    params = (badge.value, badge.repo, badge.branch, badge.workflow, badge.project_id)
+    DB().query(query=query, params=params)
+
+    return {'success': True}
+
+@app.get('/v1/ci/badge/get/')
+async def get_ci_badge_get(repo: str, branch: str, workflow:str):
+    query = """
+        SELECT value
+        FROM badges
+        WHERE repo = %s AND branch = %s AND workflow = %s
+    """
+    params = (repo, branch, workflow)
+    data = DB().fetch_one(query, params=params)
+    if data is None or data == []:
+        return {'success': False, 'err': 'Data is empty'}
+
+    badge_value= f"{data[0]}"
+    badge = anybadge.Badge(
+        label='Energy Used',
+        value=badge_value,
+        num_value_padding_chars=1,
+        default_color='green')
+    return Response(content=str(badge), media_type="image/svg+xml")
 
 # Helper functions, not directly callable through routes
 
