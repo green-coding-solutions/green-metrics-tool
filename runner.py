@@ -589,6 +589,10 @@ if __name__ == '__main__':
         '--filename', type=str, default='usage_scenario.yml',
         help='An optional alternative filename if you do not want to use "usage_scenario.yml"')
 
+    parser.add_argument(
+        '--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be \
+        located in the same directory as the regular configuration file. Pass in only the name.')
+
     parser.add_argument('--no-file-cleanup', action='store_true',
                         help='Do not delete files in /tmp/green-metrics-tool')
     parser.add_argument('--debug', action='store_true',
@@ -632,6 +636,18 @@ if __name__ == '__main__':
         error_helpers.log_error('Could not detected correct URI. \
             Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ', args.uri)
         sys.exit(2)
+
+    if args.config_override is not None:
+        if args.config_override[-4:] != '.yml':
+            parser.print_help()
+            error_helpers.log_error('Config override file must be a yml file')
+            sys.exit(2)
+        if not Path(f"{CURRENT_DIR}/{args.config_override}").is_file():
+            parser.print_help()
+            error_helpers.log_error(f"Could not find config override file on local system.\
+                Please double check: {CURRENT_DIR}/{args.config_override}")
+            sys.exit(2)
+        GlobalConfig(config_name=args.config_override)
 
     # We issue a fetch_one() instead of a query() here, cause we want to get the project_id
     project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at", "branch") \

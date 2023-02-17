@@ -56,6 +56,9 @@ def get_metric_providers_names(config):
     metric_providers_keys = metric_providers.keys()
     return [(m.split('.')[-1]) for m in metric_providers_keys]
 
+def assertion_info(expected, actual):
+    return f"Expected: {expected}, Actual: {actual}"
+
 def get_architecture():
     ps = subprocess.run(['uname', '-s'],
             check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8')
