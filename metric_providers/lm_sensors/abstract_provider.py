@@ -3,7 +3,6 @@
 # Discussion is here https://github.com/green-coding-berlin/green-metrics-tool/issues/39
 
 import os
-
 #pylint: disable=import-error
 from global_config import GlobalConfig
 from metric_providers.base import BaseMetricProvider
@@ -11,7 +10,8 @@ from metric_providers.base import BaseMetricProvider
 class LmSensorsProvider(BaseMetricProvider):
 
     def _create_options(self):
-        provider_config = GlobalConfig().config['measurement']['metric-providers'][self._provider_config_path]
+        provider_config = GlobalConfig().config['measurement']['metric-providers']['linux']\
+            [self._provider_config_path]
 
         if 'chips' not in provider_config:
             raise RuntimeError(
