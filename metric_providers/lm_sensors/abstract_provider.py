@@ -3,11 +3,8 @@
 # Discussion is here https://github.com/green-coding-berlin/green-metrics-tool/issues/39
 
 import os
-import sys
 #pylint: disable=import-error
 from global_config import GlobalConfig
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{current_dir}/../../lib")
 from metric_providers.base import BaseMetricProvider
 
 class LmSensorsProvider(BaseMetricProvider):
