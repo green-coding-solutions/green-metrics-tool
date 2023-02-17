@@ -32,15 +32,23 @@ def get_pascal_case(in_string):
 
 def get_metric_providers(config):
     architecture = get_architecture()
-    if 'common' in config['measurement']['metric-providers']:
-        if config['measurement']['metric-providers']['common'] is None:
-            raise RuntimeError('No metric providers under \'common\' key in config.yml')
-        if config['measurement']['metric-providers'][architecture] is None:
-            raise RuntimeError(f"No metric providers under '{architecture}' key in config.yml")
-        metric_providers = {**config['measurement']['metric-providers'][architecture],\
-            **config['measurement']['metric-providers']['common']}
+
+    if 'metric-providers' not in config['measurement'] or config['measurement']['metric-providers'] is None:
+        raise RuntimeError('You must set the "metric-providers" key under \
+            "measurement" and set at least one provider.')
+
+    # we are checking for none, since we believe that YAML parsing can never return an empty list
+    # which should also be checked for then
+    if architecture not in config['measurement']['metric-providers'] or \
+            config['measurement']['metric-providers'][architecture] is None:
+        metric_providers = {}
     else:
         metric_providers = config['measurement']['metric-providers'][architecture]
+
+    if 'common' in config['measurement']['metric-providers']:
+        if config['measurement']['metric-providers']['common'] is not None:
+            metric_providers = {**metric_providers, **config['measurement']['metric-providers']['common']}
+
     return metric_providers
 
 def get_metric_providers_names(config):

@@ -177,6 +177,13 @@ class Runner:
         print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
 
         metric_providers = utils.get_metric_providers(config)
+
+        if not metric_providers:
+            print(TerminalColors.WARNING,
+                  arrows('No metric providers were configured in config.yml. Was this intentional?'),
+                  TerminalColors.ENDC)
+            return
+
         # will iterate over keys
         for metric_provider in metric_providers:
             module_path, class_name = metric_provider.rsplit('.', 1)
