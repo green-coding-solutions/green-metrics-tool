@@ -58,7 +58,6 @@
     });
     $('.ui.search').search({ source: content });
     $('table').tablesort();
-    $('#compare-button').on('click', compareButton);
 
 
 })();
