@@ -3,7 +3,6 @@ config.yml
 docker/nginx/api.conf
 docker/nginx/frontend.conf
 frontend/js/config.js
->>>>>>> dev
 sftp-config.json
 TODO
 flows
@@ -13,6 +12,6 @@ metric-provider-binary
 static-binary
 .pytest_cache
 test-compose.yml
-test-config.yml*
+test-config.yml
 tools/sgx_enable
 env/
