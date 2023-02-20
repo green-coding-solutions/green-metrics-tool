@@ -46,7 +46,8 @@ def arrows(text):
 class Runner:
     def __init__(self,
         uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
-        debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False, verbose_provider_boot=False):
+        debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False, allow_volumes=False,
+        verbose_provider_boot=False):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -55,6 +56,7 @@ class Runner:
         self._allow_unsafe = allow_unsafe
         self._no_file_cleanup = no_file_cleanup
         self._skip_unsafe = skip_unsafe
+        self._allow_volumes = allow_volumes
         self._verbose_provider_boot = verbose_provider_boot
 
         # variables that should not change if you call run multiple times
@@ -102,7 +104,7 @@ class Runner:
                         '--recurse-submodules',
                         '--shallow-submodules',
                         self._uri,
-                        '/tmp/green-metrics-tool/repo'
+                        self._folder
                     ],
                     check=True,
                     capture_output=True,
@@ -118,7 +120,7 @@ class Runner:
                         '--recurse-submodules',
                         '--shallow-submodules',
                         self._uri,
-                        '/tmp/green-metrics-tool/repo'
+                        self._folder
                     ],
                     check=True,
                     capture_output=True,
@@ -153,10 +155,16 @@ class Runner:
                 else:
                     raise ValueError("We don't support Mapping Nodes to date")
 
-                filename = os.path.abspath(os.path.join(self._root, nodes[0]))
+                filename = os.path.realpath(os.path.join(self._root, nodes[0]))
 
                 if not filename.startswith(self._root):
                     raise ImportError("Import tries to escape root!")
+
+                # To double check we also check if it is in the files allow list
+                if filename not in [os.path.join(self._root, item) for item in os.listdir(self._root)]:
+                    print(os.listdir(self._root))
+                    raise RuntimeError(f"{filename} not in allowed file list")
+
 
                 with open(filename, 'r', encoding='utf-8') as f:
                     # We want to enable a deep search for keys
@@ -186,11 +194,13 @@ class Runner:
 
             # We need to write our own merge method as dict.update doesn't do a "deep" merge
             def merge_dicts(dict1, dict2):
-                for k, v in dict2.items():
-                    if k in dict1 and isinstance(v, dict) and isinstance(dict1[k], dict):
-                        merge_dicts(dict1[k], v)
-                    else:
-                        dict1[k] = v
+                if isinstance(dict1, dict):
+                    for k, v in dict2.items():
+                        if k in dict1 and isinstance(v, dict) and isinstance(dict1[k], dict):
+                            merge_dicts(dict1[k], v)
+                        else:
+                            dict1[k] = v
+                    return dict1
                 return dict1
 
             new_dict = {}
@@ -312,6 +322,37 @@ class Runner:
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
                         docker_run_string.append(f"{volume}")
+                elif self._allow_volumes:
+                    if not isinstance(service['volumes'], list):
+                        raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
+                    for volume in service['volumes']:
+                        vol = volume.split(':')
+                        # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
+                        # could create volumes that would linger on our system.
+                        path = os.path.realpath(os.path.join(self._folder, vol[0]))
+                        if not os.path.exists(path):
+                            raise RuntimeError(f"Volume path does not exist {path}")
+
+                        # Check that the path starts with self._folder
+                        if not path.startswith(self._folder):
+                            raise RuntimeError(f"Trying to escape folder {path}")
+
+                        # To double check we also check if it is in the files allow list
+                        if path not in [os.path.join(self._folder, item) for item in os.listdir(self._folder)]:
+                            print( os.listdir(self._folder))
+                            raise RuntimeError(f"{path} not in allowed file list")
+
+                        if len(vol) == 3:
+                            if vol[2] != 'ro':
+                                raise RuntimeError('We only allow ro as parameter in volume mounts')
+
+                        docker_run_string.append('-v')
+
+                        if len(vol) == 3:
+                            docker_run_string.append(f"{path}:{vol[1]}:{vol[2]}")
+                        else:
+                            docker_run_string.append(f"{path}:{vol[1]}")
+
                 elif self._skip_unsafe:
                     print(TerminalColors.WARNING,
                           arrows('Found volumes entry but not running in unsafe mode. Skipping'),
@@ -663,6 +704,8 @@ if __name__ == '__main__':
                         help='Activate steppable debug mode')
     parser.add_argument('--allow-unsafe', action='store_true',
                         help='Activate unsafe volume bindings, ports and complex environment vars')
+    parser.add_argument('--allow-volumes', action='store_true',
+                        help='Allows a secure way to mount volumes')
     parser.add_argument('--skip-unsafe', action='store_true',
                         help='Skip unsafe volume bindings, ports and complex environment vars')
     parser.add_argument('--verbose-provider-boot',
@@ -709,7 +752,7 @@ if __name__ == '__main__':
     runner = Runner(uri=args.uri, uri_type=run_type, pid=project_id, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe,
-                    verbose_provider_boot=args.verbose_provider_boot)
+                    allow_volumes=args.allow_volumes, verbose_provider_boot=args.verbose_provider_boot)
     try:
         runner.run()  # Start main code
         print(TerminalColors.OKGREEN,
