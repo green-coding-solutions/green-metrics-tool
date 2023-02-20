@@ -333,7 +333,6 @@ class Runner:
                 # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
                 # injection of unwanted params
                 try:
-
                     ps = subprocess.run(
                         ['docker', 'exec', container_name, *cmd.split()],
                         check=True,
