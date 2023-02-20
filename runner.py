@@ -11,10 +11,13 @@
 # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
 #pylint: disable=broad-except
 
+# For the sake of external modules and path magic for local modules
+# pylint: disable=import-error
 
 import subprocess
 import json
 import os
+import logging
 import time
 import sys
 import importlib
@@ -305,7 +308,7 @@ class Runner:
             print(f"Running docker run with: {' '.join(docker_run_string)}")
 
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
-            # injection of unwawnted params
+            # injection of unwanted params
 
             ps = subprocess.run(
                 docker_run_string,
@@ -324,17 +327,30 @@ class Runner:
             print('Running commands')
             for cmd in service['setup-commands']:
                 print('Running command: docker exec ', cmd)
+                if self._debugger.active:
+                    self._debugger.pause('setup-commands: Waiting to start next command')
 
                 # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
-                # injection of unwawnted params
-                ps = subprocess.run(
-                    ['docker', 'exec', container_name, *cmd.split()],
-                    check=True,
-                    stderr=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    encoding='UTF-8'
-                )
-                print('Stdout:', ps.stdout)
+                # injection of unwanted params
+                try:
+
+                    ps = subprocess.run(
+                        ['docker', 'exec', container_name, *cmd.split()],
+                        check=True,
+                        stderr=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        encoding='UTF-8'
+                    )
+                    print('Stdout:', ps.stdout)
+                except subprocess.CalledProcessError as subprocess_exc:
+                    if self._debugger.active:
+                        logging.exception(subprocess_exc)
+                        logging.error(subprocess_exc.output)
+                        cont = input("Non-zero return code, continue? [y/N] : ")
+                        if cont.upper() == "Y":
+                            continue
+
+                    raise subprocess_exc
 
             # Obsolete warnings. But left in, cause reasoning for NotImplementedError still holds
             # elif el['type'] == 'Dockerfile':
@@ -613,7 +629,7 @@ if __name__ == '__main__':
 
     if args.allow_unsafe and args.skip_unsafe:
         parser.print_help()
-        error_helpers.log_error('--allow-unsafe and skip--unsafe in conjuction is not possible')
+        error_helpers.log_error('--allow-unsafe and skip--unsafe in conjunction is not possible')
         sys.exit(2)
 
     if args.name is None:
