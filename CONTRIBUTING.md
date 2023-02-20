@@ -76,8 +76,8 @@ guidelines on when to use or avoid this directive follow:
 
 - instead of disabling `unused-argument`, prefix the arg (or kwarg) with `_`
 
-- if you _do_ add disable directives, be aware of where you place them.  They can unintentially
-  effect more code than you indend.  The order of precidence should be:
+- if you _do_ add disable directives, be aware of where you place them.  They can unintentionally
+  affect more code than you intended.  The order of precedence should be:
 
   1. inline (only affects the current line)
   1. wrap small bits of code in `# pylint: disable` ... `# pylint: enable` blocks
