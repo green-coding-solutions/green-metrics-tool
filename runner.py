@@ -302,7 +302,7 @@ class Runner:
             if 'cmd' in service:  # must come last
                 docker_run_string.append(service['cmd'])
 
-            print(f"Running docker run with: {docker_run_string}")
+            print(f"Running docker run with: {' '.join(docker_run_string)}")
 
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
             # injection of unwawnted params
