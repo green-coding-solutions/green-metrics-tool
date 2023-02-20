@@ -29,6 +29,7 @@ measurement:
   # Keep in mind that some reporters need separate installation steps to be found @
   # https://docs.green-coding.berlin/docs/installation/installation-overview/
   # You can ignore any line that starts with #---
+    #--- Architecture - Linux Only
     linux:
     #--- Always-On - We recommend these providers to be always enabled
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
@@ -72,10 +73,12 @@ measurement:
 #        resolution: 100
 #      cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider:
 #        resolution: 100
+    #--- Architecture - MacOS
     macos:
     #--- MacOS: On Mac you only need this provider. Please delete all others!
 #      powermetrics.provider.PowermetricsProvider:
 #        resolution: 100
+    #--- Architecture - Common
     common:
     #--- Model based
 #      psu.energy.ac.sdia.system.provider.PsuEnergyAcSdiaSystemProvider:
