@@ -2,6 +2,7 @@
 import sys
 import os
 
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/..')
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 
@@ -26,8 +27,6 @@ def insert_job(job_type, project_id=None):
     return job_id
 
 # do the first job you get.
-
-
 def get_job(job_type):
     clear_old_jobs()
     query = "SELECT id, type, project_id FROM jobs WHERE failed=false AND type=%s ORDER BY created_at ASC LIMIT 1"
@@ -102,15 +101,13 @@ def _do_project_job(job_id, project_id):
 
     [uri, _] = get_project(project_id)
 
-    runner = Runner(skip_unsafe=True)
+    runner = Runner(uri=uri, uri_type='URL', pid=project_id, skip_unsafe=True)
     try:
         # Start main code. Only URL is allowed for cron jobs
-        runner.run(uri=uri, uri_type='URL', project_id=project_id)
-        runner.cleanup()
+        runner.run()
         insert_job('email', project_id=project_id)
         delete_job(job_id)
     except Exception as exc:
-        runner.cleanup()  # catch so we can cleanup
         raise exc
 
 
@@ -118,15 +115,29 @@ if __name__ == '__main__':
     #pylint: disable=broad-except,invalid-name
 
     import argparse
+    from pathlib import Path
 
     parser = argparse.ArgumentParser()
     parser.add_argument('type', help='Select the operation mode.', choices=[
                         'email', 'project'])
+
+    parser.add_argument(
+        '--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be \
+        located in the same directory as the regular configuration file. Pass in only the name.')
+
     args = parser.parse_args()  # script will exit if type is not present
 
-    # Debug
-    # p = '8a4384d7-19a7-4d48-ac24-132d7db52671'
-    # print('Inserted Job ID: ', insert_job('project', p))
+    if args.config_override is not None:
+        if args.config_override[-4:] != '.yml':
+            parser.print_help()
+            error_helpers.log_error('Config override file must be a yml file')
+            sys.exit(2)
+        if not Path(f"{CURRENT_DIR}/../{args.config_override}").is_file():
+            parser.print_help()
+            error_helpers.log_error(f"Could not find config override file on local system.\
+                Please double check: {CURRENT_DIR}/../{args.config_override}")
+            sys.exit(2)
+        GlobalConfig(config_name=args.config_override)
 
     project = None
     try:

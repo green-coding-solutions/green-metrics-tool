@@ -36,6 +36,7 @@ import hardware_info_root
 import error_helpers
 from db import DB
 from global_config import GlobalConfig
+import utils
 from tools.save_notes import save_notes  # local file import
 
 def arrows(text):
@@ -63,6 +64,7 @@ class Runner:
         self._branch = branch
         self._folder = '/tmp/green-metrics-tool/repo' # default if not changed in checkout_repository
         self._usage_scenario = {}
+        self._architecture = utils.get_architecture()
 
 
         # transient variables that are created by the runner itself
@@ -75,7 +77,6 @@ class Runner:
         self.__notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
         self.__start_measurement = None
         self.__end_measurement = None
-
 
     def prepare_filesystem_location(self):
         subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], check=True, stderr=subprocess.DEVNULL)
@@ -138,14 +139,10 @@ class Runner:
         if self._allow_unsafe:
             print(TerminalColors.WARNING, arrows('Warning: Runner is running in unsafe mode'), TerminalColors.ENDC)
 
-        ps = subprocess.run(['uname', '-s'],
-            check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, encoding='UTF-8')
-        output = ps.stdout.strip().lower()
-
         if self._usage_scenario.get('architecture') is not None and \
-            output != self._usage_scenario['architecture'].lower():
+            self._architecture != self._usage_scenario['architecture'].lower():
             raise RuntimeError('Specified architecture does not match system architecture:'
-                f"system ({output}) != specified ({self._usage_scenario.get('architecture')})")
+                f"system ({self._architecture}) != specified ({self._usage_scenario.get('architecture')})")
 
     def update_and_insert_specs(self):
         config = GlobalConfig().config
@@ -178,17 +175,26 @@ class Runner:
         config = GlobalConfig().config
 
         print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
+
+        metric_providers = utils.get_metric_providers(config)
+
+        if not metric_providers:
+            print(TerminalColors.WARNING,
+                  arrows('No metric providers were configured in config.yml. Was this intentional?'),
+                  TerminalColors.ENDC)
+            return
+
         # will iterate over keys
-        for metric_provider in config['measurement']['metric-providers']:
+        for metric_provider in metric_providers:
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
 
             print(f"Importing {class_name} from {module_path}")
-            print(f"Configuration is {config['measurement']['metric-providers'][metric_provider]}")
+            print(f"Configuration is {metric_providers[metric_provider]}")
             module = importlib.import_module(module_path)
             # the additional () creates the instance
             metric_provider_obj = getattr(module, class_name)(
-                resolution=config['measurement']['metric-providers'][metric_provider]['resolution'])
+                resolution=metric_providers[metric_provider]['resolution'])
 
             self.__metric_providers.append(metric_provider_obj)
 
@@ -583,6 +589,10 @@ if __name__ == '__main__':
         '--filename', type=str, default='usage_scenario.yml',
         help='An optional alternative filename if you do not want to use "usage_scenario.yml"')
 
+    parser.add_argument(
+        '--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be \
+        located in the same directory as the regular configuration file. Pass in only the name.')
+
     parser.add_argument('--no-file-cleanup', action='store_true',
                         help='Do not delete files in /tmp/green-metrics-tool')
     parser.add_argument('--debug', action='store_true',
@@ -626,6 +636,18 @@ if __name__ == '__main__':
         error_helpers.log_error('Could not detected correct URI. \
             Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ', args.uri)
         sys.exit(2)
+
+    if args.config_override is not None:
+        if args.config_override[-4:] != '.yml':
+            parser.print_help()
+            error_helpers.log_error('Config override file must be a yml file')
+            sys.exit(2)
+        if not Path(f"{CURRENT_DIR}/{args.config_override}").is_file():
+            parser.print_help()
+            error_helpers.log_error(f"Could not find config override file on local system.\
+                Please double check: {CURRENT_DIR}/{args.config_override}")
+            sys.exit(2)
+        GlobalConfig(config_name=args.config_override)
 
     # We issue a fetch_one() instead of a query() here, cause we want to get the project_id
     project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at", "branch") \
