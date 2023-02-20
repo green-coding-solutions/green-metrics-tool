@@ -30,7 +30,8 @@ def read_process_with_regex(path, regex, params=REGEX_PARAMS):
     '''Reads the data from a process and then matches the output. The process must terminate and not require user
        input! The matching character for the regex is a 'o'. If the process fails (exit val not 0) an exception
        is thrown.'''
-    result = subprocess.run(path, stdout=subprocess.PIPE, shell=True, encoding='UTF-8', check=False)
+    result = subprocess.run(path, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        shell=True, encoding='UTF-8', check=False)
     if result.returncode != 0:
         return 'Unknown'
 
@@ -105,8 +106,8 @@ mac_info_list = [
 def get_list():
     if platform.system() == 'Darwin':
         return mac_info_list
-    else:
-        return linux_info_list
+
+    return linux_info_list
 
 
 def get_values(list_of_tasks):
