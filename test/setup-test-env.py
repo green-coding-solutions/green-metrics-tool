@@ -55,9 +55,6 @@ def edit_config_file():
     config['measurement']['idle-time-start'] = 0
     config['measurement']['idle-time-end'] = 0
 
-    # set timeout for flow to 60s
-    config['measurement']['flow-process-runtime'] = 60
-
     with open(test_config_path, 'w', encoding='utf8') as test_config_file:
         yaml.dump(config, test_config_file)
 
