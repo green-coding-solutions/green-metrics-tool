@@ -1,29 +1,24 @@
-# ⚠️ Disclaimer ⚠️
-
-This tool is currently in experimental status and only suitable for development purposes. 
-
-Please do not run in a production environment. Especially not without proper isolation of the containers.
-
-Currently no special setup is done to isolate the containers from the host OS and an escape may easily be possible.
-
-Ensure that you run this only in an isolated VM / dedicated server.
-
 [![Tests Status - Main](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-main.yml/badge.svg)](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-main.yml)
 
 [![Tests Status - Dev](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-dev.yml/badge.svg)](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-dev.yml)
 
-
 # Introduction
 
-The Green Metrics Tool can orchestrate Docker containers according to a given specificaion in a usage-flow.json file.
+The Green Metrics Tool is a developer tool is indented for measuring the energy consumption of software and doing life-cycle-analysis.
 
-These containers will be setup on the host system and the testing specification in the usage-flow will be
+It is designed to re-use existing infrastructure and testing files as much as possible to be easily integrateable into every software repository and create transparency around software energy consumption.
+
+It can orchestrate Docker containers according to a given specificaion in a `usage_scenario.yml` file.
+
+These containers will be setup on the host system and the testing specification in the `usage_scenario.yml` will be
 run by sending the commands to the containers accordingly.
 
 During this process the performance metrics of the containers are read through different metric providers like:
-- cgroup CPU
-- cgroup memory
-- INTEL RAPL
+- CPU / DRAM energy (RAPL)
+- System energy (IMPI / PowerSpy2 / Machine-Learning-Model / SDIA Model)
+- DC energy (PicoLog)
+- container CPU utilization
+- container memory utilization
 - etc.
 
 This repository contains the command line tools to schedule and run the measurement report
@@ -39,10 +34,8 @@ To see the the documentation and how to install and use the tool please go to [G
 
 # Screenshots
 
-![Web Flow Demo with CPU measurement provider](images/cpu-image-webflow.png "Web Charts demo with docker stats provider instead of energy")
+![Web Flow Demo with CPU measurement provider](https://www.green-coding.berlin/img/projects/gmt-screenshot-1.webp "Web Charts demo with docker stats provider instead of energy")
 > Web Flow Demo with CPU measurement provider
-> 
-- update test badges to link to workflow run page
-![Web Flow Demo with energy measurement provider](images/energy-image-webflow.png "Web Charts demo with docker stats provider instead of energy")
+ 
+![Web Flow Demo with energy measurement provider](https://www.green-coding.berlin/img/projects/gmt-screenshot-2.webp "Web Charts demo with docker stats provider instead of energy")
 > Web Flow Demo with energy measurement provider
-> 
