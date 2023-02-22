@@ -72,8 +72,7 @@ class Runner:
         self.__ps_to_read = []
         self.__metric_providers = []
         self.__notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
-        self.__start_measurement = None
-        self.__end_measurement = None
+        self.__phases = {}
 
     def prepare_filesystem_location(self):
         subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], check=True, stderr=subprocess.DEVNULL)
@@ -368,20 +367,35 @@ class Runner:
             if stderr_read is not None:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
-    def pre_idle_containers(self):
+
+    def start_phase(self, phase):
         config = GlobalConfig().config
         print(TerminalColors.HEADER,
-              f"\nPre-idling containers for {config['measurement']['idle-time-start']}s", TerminalColors.ENDC)
-        self.__notes.append({'note': 'Pre-idling containers',
-                     'detail_name': '[SYSTEM]', 'timestamp': int(time.time_ns() / 1_000)})
+              f"\nStarting phase {phase}. Force-sleeping for {config['measurement']['phase-transition-sleep']}s", TerminalColors.ENDC)
 
-        time.sleep(config['measurement']['idle-time-start'])
+        time.sleep(config['measurement']['phase-transition-sleep'])
 
+        print(TerminalColors.HEADER,
+              f"\nForce-sleep endeded. Checking if temperature is back to baseline ...", TerminalColors.ENDC)
 
-    def start_measurement(self):
-        self.__start_measurement = int(time.time_ns() / 1_000)
-        self.__notes.append({'note': 'Start of measurement',
-                     'detail_name': '[SYSTEM]', 'timestamp': self.__start_measurement})
+        # TODO. Check if temperature is back to baseline
+        phase_time = int(time.time_ns() / 1_000)
+        self.__notes.append({'note': f"[START {phase}]",
+                     'detail_name': '[SYSTEM]', 'timestamp': phase_time})
+        if phase in self.__phases:
+            raise RuntimeError(f"'{phase}' as phase name has already used. Please set unique name for phases.")
+
+        self.__phases[phase] = {"start": phase_time}
+
+    def end_phase(self, phase):
+        phase_time = int(time.time_ns() / 1_000)
+        self.__notes.append({'note': f"[END {phase}]",
+                     'detail_name': '[SYSTEM]', 'timestamp': phase_time})
+
+        if phase not in self.__phases:
+            raise RuntimeError(f"Calling end_phase before start_phase. This is a developer error!")
+
+        self.__phases[phase]["end"] = phase_time
 
 
     def run_flows(self):
@@ -390,6 +404,9 @@ class Runner:
             # run the flows
             for el in self._usage_scenario['flow']:
                 print(TerminalColors.HEADER, '\nRunning flow: ', el['name'], TerminalColors.ENDC)
+
+                self.start_phase(el['name'].replace('[', '').replace(']',''))
+
                 for inner_el in el['commands']:
                     if 'note' in inner_el:
                         self.__notes.append({'note': inner_el['note'], 'detail_name': el['container'],
@@ -442,17 +459,7 @@ class Runner:
                     if self._debugger.active:
                         self._debugger.pause('Waiting to start next command in flow')
 
-            self.__end_measurement = int(time.time_ns() / 1_000)
-            self.__notes.append({'note': 'End of measurement', 'detail_name': '[SYSTEM]',
-                                'timestamp': self.__end_measurement})
-
-            print(TerminalColors.HEADER,
-                  f"\nIdling containers after run for {config['measurement']['idle-time-end']}s", TerminalColors.ENDC)
-
-            time.sleep(config['measurement']['idle-time-end'])
-
-            self.__notes.append({'note': 'End of post-measurement idle',
-                'detail_name': '[SYSTEM]', 'timestamp': int(time.time_ns() / 1_000)})
+            self.end_phase(el['name'].replace('[', '').replace(']',''))
 
             print(TerminalColors.HEADER, 'Stopping metric providers and parsing stats', TerminalColors.ENDC)
             for metric_provider in self.__metric_providers:
@@ -491,12 +498,14 @@ class Runner:
             print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)
             save_notes(self._project_id, self.__notes)
 
-    def update_start_and_end_times(self):
-        print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
+
+    def store_phases(self):
+        print(TerminalColors.HEADER, '\nUpdating phases in DB', TerminalColors.ENDC)
         DB().query("""UPDATE projects
-            SET start_measurement=%s, end_measurement=%s
+            SET phases=%s
             WHERE id = %s
-            """, params=(self.__start_measurement, self.__end_measurement, self._project_id))
+            """, params=(json.dumps(self.__phases), self._project_id))
+
 
     def cleanup(self):
         #https://github.com/green-coding-berlin/green-metrics-tool/issues/97
@@ -528,8 +537,7 @@ class Runner:
         self.__ps_to_kill = []
         self.__ps_to_read = []
         self.__metric_providers = []
-        self.__start_measurement = None
-        self.__end_measurement = None
+        self.__phases = {}
 
 
     def run(self):
@@ -544,6 +552,7 @@ class Runner:
 
         '''
         try:
+
             self.prepare_filesystem_location()
             self.checkout_repository()
             self.initial_parse()
@@ -551,24 +560,46 @@ class Runner:
             self.import_metric_providers()
             if self._debugger.active:
                 self._debugger.pause('Initial load complete. Waiting to start network setup')
-            self.setup_networks()
-
-            if self._debugger.active:
-                self._debugger.pause('Network setup complete. Waiting to start container setup')
-
-            self.setup_services()
-
-            if self._debugger.active:
-                self._debugger.pause('Container setup complete. Waiting to start metric-providers')
 
             self.start_metric_providers()
             if self._debugger.active:
                 self._debugger.pause('metric-providers start complete. Waiting to start flow')
 
-            self.pre_idle_containers()
-            self.start_measurement()
-            self.run_flows() # can trigger debug breakpoints
-            self.update_start_and_end_times()
+            self.start_phase('[BASELINE]')
+            self.end_phase('[BASELINE]')
+
+            self.setup_networks()
+
+            if self._debugger.active:
+                self._debugger.pause('Network setup complete. Waiting to start container setup')
+
+            self.start_phase('[INSTALLATION]')
+            # TODO
+            # Here the docker containers have to be first resetted with docker rmi
+            # then they have to be built / pulled
+            sleep(1)
+            self.end_phase('[INSTALLATION]')
+
+            self.start_phase('BOOT')
+            self.setup_services()
+            self.end_phase('BOOT')
+
+            if self._debugger.active:
+                self._debugger.pause('Container setup complete. Waiting to start metric-providers')
+
+            self.start_phase('[IDLE]')
+            # NOP
+            self.end_phase('[IDLE]')
+
+            self.run_flows() # can trigger debug breakpoints; Contains use phase
+
+            self.start_phase('[REMOVE]')
+            # NOP
+            sleep(1)
+            self.end_phase('[REMOVE]')
+
+            self.store_phases()
+
         finally:
             self.cleanup()  # always run cleanup automatically after each run
 

@@ -112,12 +112,70 @@
                 </div>
             </div>
         </div><!-- end ui horizontal card -->
-        <h3>container level metrics</h3>
-        <div class="ui five cards stackable no-transform-statistics" id="container-level-metrics">
-        </div><!-- end ui five cards stackable -->
-        <h3>system level metrics</h3>
-        <div class="ui five cards stackable no-transform-statistics" id="system-level-metrics">
-        </div><!-- end ui five cards stackable -->
+        <div class="ui horizontal card" id="horizontal-card">
+            <div class="content">
+                <div class="header"><a class="ui blue ribbon label" href="#">
+                    <h3>Resource consumption during application life cycle</h3>
+                </a></div>
+                <br>
+                <p>Use the following navigation to toggle the overview between the different phases.</p>
+                <p>Please note that the charts always display the full measurement with all phases.</p>
+            </div>
+        </div>
+
+        <div class="ui steps top attached">
+          <a class="active step"  data-tab="baseline">
+            <div class="content">
+              <div class="title">Baseline</div>
+              <div class="description" style="display:none">Energy consumption before installing application</div>
+            </div>
+          </a>
+          <a class="step" data-tab="installation">
+            <div class="content">
+              <div class="title">Installation</div>
+              <div class="description" style="display:none">This is where the containers are built / pulled</div>
+            </div>
+          </a>
+          <a class="step">
+            <div class="content">
+              <div class="title">Boot</div>
+              <div class="description" style="display:none">resource consumption while starting containers</div>
+            </div>
+          </a>
+          <a class="step">
+            <div class="content">
+              <div class="title">Idle</div>
+              <div class="description" style="display:none">resource consumption while running idle containers</div>
+            </div>
+          </a>
+          <a class="step">
+            <div class="content">
+              <div class="title">Runtime</div>
+              <div class="description" style="display:none">resource consumption while usage phase and executing usage scenario</div>
+            </div>
+          </a>
+          <a class="step">
+            <div class="content">
+              <div class="title">Extra</div>
+              <div class="description" style="display:none">An extra phase</div>
+            </div>
+          </a>
+        </div>
+
+        <div class="ui tab attached segment secondary" data-tab="baseline">
+          <h3 class="ui dividing header">container level metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics" id="container-level-metrics">
+          </div>
+          <h3 class="ui dividing header">system level metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics" id="system-level-metrics"></div>
+          <h3 class="ui dividing header">extra metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics" id="extra-metrics"></div>
+        </div>
+        <div class="ui tab attached segment secondary" data-tab="installation">
+          Empty
+        </div>
+
+
         <h3>compound metrics</h3>
         <div class="ui five cards stackable no-transform-statistics">
             <div class="ui card">
@@ -185,9 +243,6 @@
                     </div>
                 </div>
             </div>
-        </div><!-- end ui five cards stackable -->
-        <h3>extra metrics</h3>
-        <div class="ui five cards stackable no-transform-statistics" id="extra-metrics">
         </div><!-- end ui five cards stackable -->
 
         <div class="ui icon message">
