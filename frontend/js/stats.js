@@ -4,7 +4,7 @@ else display_in_watts = false;
 
 const copyToClipboard = (e) => {
   if (navigator && navigator.clipboard && navigator.clipboard.writeText)
-    return navigator.clipboard.writeText(e.currentTarget.parentElement.parentElement.children[0].innerHTML);
+    return navigator.clipboard.writeText(e.currentTarget.parentElement.parentElement.children[0].children[0].innerHTML);
   return Promise.reject('The Clipboard API is not available.');
 };
 
