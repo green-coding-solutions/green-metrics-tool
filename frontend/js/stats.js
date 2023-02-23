@@ -5,6 +5,7 @@ else display_in_watts = false;
 const copyToClipboard = (e) => {
   if (navigator && navigator.clipboard && navigator.clipboard.writeText)
     return navigator.clipboard.writeText(e.currentTarget.parentElement.parentElement.children[0].children[0].innerHTML);
+  alert('Copying badge on local is not working due to browser security models')
   return Promise.reject('The Clipboard API is not available.');
 };
 
