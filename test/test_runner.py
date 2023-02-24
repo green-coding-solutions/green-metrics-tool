@@ -61,7 +61,7 @@ def test_db_rows_are_written_and_presented():
     # also check (in the same test, to save on a DB call) that the output to STD.OUT
     # "Imported XXX metrics from {metric_provider}" displays the same count as in the DB
 
-    project_id = utils.get_pid(project_name)
+    project_id = utils.get_project_data(project_name)['id']
     assert(project_id is not None or project_id != '')
     query = """
             SELECT
