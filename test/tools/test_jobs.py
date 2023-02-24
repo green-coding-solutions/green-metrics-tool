@@ -32,9 +32,7 @@ def cleanup_projects():
 # This should be done once per module
 @pytest.fixture(autouse=True, scope="module")
 def build_image():
-    uri = os.path.abspath(os.path.join(
-            CURRENT_DIR, 'stress-application/'))
-    subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
+    subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/../stress-application/compose.yml", 'build'], check=True)
 
 def get_job(job_id):
     query = """
