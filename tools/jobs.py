@@ -3,8 +3,8 @@ import sys
 import os
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/..')
-sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
+sys.path.append(f"{CURRENT_DIR}/..")
+sys.path.append(f"{CURRENT_DIR}/../lib")
 
 import faulthandler
 import email_helpers
