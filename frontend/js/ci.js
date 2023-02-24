@@ -38,5 +38,29 @@ $(document).ready( (e) => {
         } catch (err) {
             showNotification('Could not get badge data from API', err);
         }
+
+        try {
+            api_string=`/v1/ci/badges/?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`;
+            var badges_data = await makeAPICall(api_string);
+        } catch (err) {
+                showNotification('Could not get data from API', err);
+                return;
+        }
+        badges_data.data.forEach(el => {
+            const li_node = document.createElement("tr");
+            const link_node = document.createElement('a');
+            const badge_value = el[0]
+            const run_id = el[1]
+            const created_at = el[2]
+           
+            // DM: unsure
+            //content.push({ title: name });
+            li_node.appendChild(link_node);
+
+            li_node.innerHTML = `<td class="td-index">${badge_value}</td><td class="td-index">${run_id}</td><td class="td-index"><span title="${created_at}">${(new Date(created_at)).toString()}</span></td>`;
+            document.querySelector("#badges-table").appendChild(li_node);
+        });
+        $('table').tablesort();
+
     })();
 });
