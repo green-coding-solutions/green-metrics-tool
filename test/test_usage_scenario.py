@@ -22,8 +22,8 @@ from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 from db import DB
 import pytest
-import psycopg2.extras
 import utils
+import yaml
 from global_config import GlobalConfig
 from runner import Runner
 
@@ -386,6 +386,9 @@ def test_uri_local_dir():
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
+
+    uri_in_db = utils.get_project_data(project_name)['uri']
+    assert uri_in_db == uri, utils.assertion_info(f"uri: {uri}", uri_in_db)
     assert ps.stderr == '', utils.assertion_info('no errors', ps.stderr)
 
 def test_uri_local_dir_missing():
@@ -407,6 +410,9 @@ def test_uri_github_repo():
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
+
+    uri_in_db = utils.get_project_data(project_name)['uri']
+    assert uri_in_db == uri, utils.assertion_info(f"uri: {uri}", uri_in_db)
     assert ps.stderr == '', utils.assertion_info('no errors', ps.stderr)
 
 ## --branch BRANCH
@@ -436,6 +442,9 @@ def test_uri_github_repo_branch():
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
+
+    branch_in_db = utils.get_project_data(project_name)['branch']
+    assert branch_in_db == 'test-branch', utils.assertion_info('branch: test-branch', branch_in_db)
     assert ps.stderr == '', utils.assertion_info('no errors', ps.stderr)
 
     # should throw error, assert vs error
@@ -453,11 +462,6 @@ def test_uri_github_repo_branch_missing():
     assert expected_exception in str(e.value),\
         utils.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
-# check if there is a project with this name in the db
-def check_name_in_db(name):
-    return DB().fetch_one('SELECT * FROM "projects" WHERE name=%s', params=(name,),
-        cursor_factory=psycopg2.extras.RealDictCursor)
-
 # #   --name NAME
 # #    A name which will be stored to the database to discern this run from others
 def test_name_is_in_db():
@@ -471,8 +475,8 @@ def test_name_is_in_db():
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
-    retval = check_name_in_db(project_name)
-    assert retval['name'] == project_name, utils.assertion_info(project_name, retval['name'])
+    name_in_db = utils.get_project_data(project_name)['name']
+    assert name_in_db == project_name, utils.assertion_info(f"name: {project_name}", name_in_db)
 
 # --filename FILENAME
 #    An optional alternative filename if you do not want to use "usage_scenario.yml"
@@ -492,6 +496,12 @@ def test_different_filename():
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
+
+    with open(usage_scenario_path, 'r', encoding='utf-8') as f:
+        usage_scenario_contents = yaml.safe_load(f)
+    usage_scenario_in_db = utils.get_project_data(project_name)['usage_scenario']
+    assert usage_scenario_in_db == usage_scenario_contents,\
+        utils.assertion_info(usage_scenario_contents, usage_scenario_in_db)
     assert ps.stderr == '', utils.assertion_info('no errors', ps.stderr)
 
 # if that filename is missing...
@@ -563,7 +573,7 @@ def test_verbose_provider_boot():
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
-    pid = utils.get_pid(project_name)
+    pid = utils.get_project_data(project_name)['id']
     query = """
             SELECT
                 time, note
