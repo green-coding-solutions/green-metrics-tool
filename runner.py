@@ -12,32 +12,29 @@
 #pylint: disable=broad-except
 
 
-import subprocess
+import faulthandler
+import importlib
 import json
 import os
-import time
-import sys
-import importlib
-import faulthandler
 import re
+import subprocess
+import sys
+import time
 from io import StringIO
+
 import yaml
 
-faulthandler.enable()  # will catch segfaults and write to STDERR
-
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/lib")
-
-from debug_helper import DebugHelper
-from terminal_colors import TerminalColors
-import process_helpers
-import hardware_info
-import hardware_info_root
-import error_helpers
-from db import DB
-from global_config import GlobalConfig
-import utils
+from lib import (error_helpers, hardware_info, hardware_info_root,
+                 process_helpers, utils)
+from lib.db import DB
+from lib.debug_helper import DebugHelper
+from lib.global_config import GlobalConfig
+from lib.terminal_colors import TerminalColors
 from tools.save_notes import save_notes  # local file import
+
+faulthandler.enable()  # will catch segfaults and write to STDERR
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -328,7 +325,7 @@ class Runner:
                 # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
                 # injection of unwawnted params
                 ps = subprocess.run(
-                    ['docker', 'exec', container_name, *cmd.split()],
+                    ['docker', 'exec', container_name, 'sh', '-c', cmd],
                     check=True,
                     stderr=subprocess.PIPE,
                     stdout=subprocess.PIPE,
@@ -405,7 +402,9 @@ class Runner:
                         docker_exec_command = ['docker', 'exec']
 
                         docker_exec_command.append(el['container'])
-                        docker_exec_command.extend(inner_el['command'].split(' '))
+                        docker_exec_command.append('sh')
+                        docker_exec_command.append('-c')
+                        docker_exec_command.append(inner_el['command'])
 
                         # Note: In case of a detach wish in the usage_scenario.yml:
                         # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
