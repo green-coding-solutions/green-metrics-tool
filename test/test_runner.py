@@ -8,9 +8,9 @@ import sys
 import subprocess
 import re
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{current_dir}/..")
-sys.path.append(f"{current_dir}/../lib")
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(f"{CURRENT_DIR}/..")
+sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from contextlib import redirect_stdout, redirect_stderr
 from db import DB
@@ -32,7 +32,7 @@ def setup_module(module):
     GlobalConfig(config_name='test-config.yml').config
     with redirect_stdout(out), redirect_stderr(err):
         uri = os.path.abspath(os.path.join(
-            current_dir, 'stress-application/'))
+            CURRENT_DIR, 'stress-application/'))
         subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
         pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
