@@ -5,7 +5,7 @@ from terminal_colors import TerminalColors
 
 def end_error(*errors):
     log_error(*errors)
-    sys.exit(2)
+    sys.exit(1)
 
 
 def format_error(*errors):

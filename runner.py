@@ -609,17 +609,17 @@ if __name__ == '__main__':
     if args.uri is None:
         parser.print_help()
         error_helpers.log_error('Please supply --uri to get usage_scenario.yml from')
-        sys.exit(2)
+        sys.exit(1)
 
     if args.allow_unsafe and args.skip_unsafe:
         parser.print_help()
         error_helpers.log_error('--allow-unsafe and skip--unsafe in conjuction is not possible')
-        sys.exit(2)
+        sys.exit(1)
 
     if args.name is None:
         parser.print_help()
         error_helpers.log_error('Please supply --name')
-        sys.exit(2)
+        sys.exit(1)
 
     if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://':
         print('Detected supplied URL: ', args.uri)
@@ -630,23 +630,23 @@ if __name__ == '__main__':
         if not Path(args.uri).is_dir():
             parser.print_help()
             error_helpers.log_error('Could not find folder on local system. Please double check: ', args.uri)
-            sys.exit(2)
+            sys.exit(1)
     else:
         parser.print_help()
         error_helpers.log_error('Could not detected correct URI. \
             Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ', args.uri)
-        sys.exit(2)
+        sys.exit(1)
 
     if args.config_override is not None:
         if args.config_override[-4:] != '.yml':
             parser.print_help()
             error_helpers.log_error('Config override file must be a yml file')
-            sys.exit(2)
+            sys.exit(1)
         if not Path(f"{CURRENT_DIR}/{args.config_override}").is_file():
             parser.print_help()
             error_helpers.log_error(f"Could not find config override file on local system.\
                 Please double check: {CURRENT_DIR}/{args.config_override}")
-            sys.exit(2)
+            sys.exit(1)
         GlobalConfig(config_name=args.config_override)
 
     # We issue a fetch_one() instead of a query() here, cause we want to get the project_id

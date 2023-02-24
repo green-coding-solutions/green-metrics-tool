@@ -13,7 +13,7 @@ def main(args):
 
     if df.isna().any().any():
         print('\nError: Dataframe contains NA columns! Please check the CSV file manually\n')
-        sys.exit(2)
+        sys.exit(1)
 
     df = df.rename({'Unnamed: 0': 'time'}, axis=1)
 
