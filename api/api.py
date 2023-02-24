@@ -10,6 +10,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
 
+import uuid
 from pydantic import BaseModel
 from starlette.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,7 +24,6 @@ import email_helpers
 import error_helpers
 import psycopg2.extras
 import anybadge
-
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic
@@ -331,34 +331,45 @@ class Badge(BaseModel):
     repo: str
     branch: str
     workflow: str
+    run_id: str
     project_id: str
 
 @app.post('/v1/ci/badge/add/')
 async def post_ci_badge_add(badge: Badge):
-    if badge.value is None or badge.value.strip() == '':
-        return {'success': False, 'err': 'Badge value is empty'}
-
-    if badge.repo is None or badge.repo.strip() == '':
-        return {'success': False, 'err': 'Repo name is empty'}
-
-    if badge.branch is None or badge.branch.strip() == '':
-        return {'success': False, 'err': 'Branch is empty'}
-
-    if badge.workflow is None or badge.workflow.strip() == '':
-        return {'success': False, 'err': 'Workflow name is empty'}
-
-    if badge.project_id.strip() == '':
-        badge.project_id = None
+    for i in Badge.schema()['properties'].keys():
+        key_value = getattr(badge, i)
+        if i == 'project_id':
+            if key_value is None or key_value.strip() == '':
+                badge.project_id = None
+            elif not is_valid_uuid(key_value.strip()):
+                return {'success': False, 'err': "project_id is not a valid uuid"}
+        elif key_value is None or key_value.strip() == '':
+            return {'success': False, 'err': f"{i} is empty"}
 
     query = """
         INSERT INTO
-            badges (value, repo ,branch, workflow, project_id)
-        VALUES (%s, %s, %s, %s, %s)
+            badges (value, repo ,branch, workflow, run_id, project_id)
+        VALUES (%s, %s, %s, %s, %s, %s)
         """
-    params = (badge.value, badge.repo, badge.branch, badge.workflow, badge.project_id)
+    params = (badge.value, badge.repo, badge.branch, badge.workflow, badge.run_id, badge.project_id)
     DB().query(query=query, params=params)
 
     return {'success': True}
+
+@app.get('/v1/ci/badges/')
+async def get_ci_badges(repo: str, branch: str, workflow:str):
+    query = """
+        SELECT value, run_id, created_at
+        FROM badges
+        WHERE repo = %s AND branch = %s AND workflow = %s
+        ORDER BY created_at DESC
+    """
+    params = (repo, branch, workflow)
+    data = DB().fetch_all(query, params=params)
+    if data is None or data == []:
+        return {'success': False, 'err': 'Data is empty'}
+
+    return {'success': True, 'data': data}
 
 @app.get('/v1/ci/badge/get/')
 async def get_ci_badge_get(repo: str, branch: str, workflow:str):
@@ -366,6 +377,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
         SELECT value
         FROM badges
         WHERE repo = %s AND branch = %s AND workflow = %s
+        ORDER BY created_at DESC
     """
     params = (repo, branch, workflow)
     data = DB().fetch_one(query, params=params)
@@ -397,6 +409,13 @@ def rescale_energy_value(value, unit):
     elif value < 0.001: energy_rescaled = [value*(10**3), 'nJ']
 
     return energy_rescaled
+
+def is_valid_uuid(val):
+    try:
+        uuid.UUID(str(val))
+        return True
+    except ValueError:
+        return False
 
 if __name__ == '__main__':
     app.run()
