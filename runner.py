@@ -156,7 +156,7 @@ class Runner:
                 filename = os.path.realpath(os.path.join(self._root, nodes[0]))
 
                 if not filename.startswith(self._root):
-                    raise ImportError("Import tries to escape root!")
+                    raise ImportError(f"Import tries to escape root! ({filename})")
 
                 # To double check we also check if it is in the files allow list
                 if filename not in [os.path.join(self._root, item) for item in os.listdir(self._root)]:
@@ -204,10 +204,14 @@ class Runner:
             new_dict = {}
             if 'compose-file' in yml_obj.keys():
                 for k,v in yml_obj['compose-file'].items():
-                    new_dict[k] = merge_dicts(v,yml_obj[k])
+                    if k in yml_obj:
+                        new_dict[k] = merge_dicts(v,yml_obj[k])
+                    else: # just copy over if no key exists in usage_scenario
+                        yml_obj[k] = v
+
+                del yml_obj['compose-file']
 
             yml_obj.update(new_dict)
-            del yml_obj['compose-file']
             self._usage_scenario = yml_obj
 
     def initial_parse(self):
