@@ -46,7 +46,7 @@ def arrows(text):
 class Runner:
     def __init__(self,
         uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
-        debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False, allow_volumes=False,
+        debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False,
         verbose_provider_boot=False):
 
         if skip_unsafe is True and allow_unsafe is True:
@@ -56,7 +56,6 @@ class Runner:
         self._allow_unsafe = allow_unsafe
         self._no_file_cleanup = no_file_cleanup
         self._skip_unsafe = skip_unsafe
-        self._allow_volumes = allow_volumes
         self._verbose_provider_boot = verbose_provider_boot
 
         # variables that should not change if you call run multiple times
@@ -322,7 +321,7 @@ class Runner:
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
                         docker_run_string.append(f"{volume}")
-                elif self._allow_volumes:
+                else: # safe volume bindings are active by default
                     if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
                     for volume in service['volumes']:
@@ -344,21 +343,10 @@ class Runner:
 
                         if len(vol) == 3:
                             if vol[2] != 'ro':
-                                raise RuntimeError('We only allow ro as parameter in volume mounts')
+                                raise RuntimeError('We only allow ro as parameter in volume mounts in unsafe mode')
 
                         docker_run_string.append('-v')
-
-                        if len(vol) == 3:
-                            docker_run_string.append(f"{path}:{vol[1]}:{vol[2]}")
-                        else:
-                            docker_run_string.append(f"{path}:{vol[1]}")
-
-                elif self._skip_unsafe:
-                    print(TerminalColors.WARNING,
-                          arrows('Found volumes entry but not running in unsafe mode. Skipping'),
-                          TerminalColors.ENDC)
-                else:
-                    raise RuntimeError('Found "volumes" but neither --skip-unsafe nor --allow-unsafe is set')
+                        docker_run_string.append(f"{path}:{vol[1]}:ro") # force mount as :ro
 
             if 'ports' in service:
                 if self._allow_unsafe:
@@ -704,8 +692,6 @@ if __name__ == '__main__':
                         help='Activate steppable debug mode')
     parser.add_argument('--allow-unsafe', action='store_true',
                         help='Activate unsafe volume bindings, ports and complex environment vars')
-    parser.add_argument('--allow-volumes', action='store_true',
-                        help='Allows a secure way to mount volumes')
     parser.add_argument('--skip-unsafe', action='store_true',
                         help='Skip unsafe volume bindings, ports and complex environment vars')
     parser.add_argument('--verbose-provider-boot',
@@ -752,7 +738,7 @@ if __name__ == '__main__':
     runner = Runner(uri=args.uri, uri_type=run_type, pid=project_id, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe,
-                    allow_volumes=args.allow_volumes, verbose_provider_boot=args.verbose_provider_boot)
+                    verbose_provider_boot=args.verbose_provider_boot)
     try:
         runner.run()  # Start main code
         print(TerminalColors.OKGREEN,
