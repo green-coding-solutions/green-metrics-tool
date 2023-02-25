@@ -24,6 +24,10 @@ from io import StringIO
 
 import yaml
 
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(f"{CURRENT_DIR}/lib")
+
+
 from lib import (error_helpers, hardware_info, hardware_info_root,
                  process_helpers, utils)
 from lib.db import DB
@@ -33,7 +37,6 @@ from lib.terminal_colors import TerminalColors
 from tools.save_notes import save_notes  # local file import
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def arrows(text):
