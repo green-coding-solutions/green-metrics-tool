@@ -21,7 +21,7 @@ class Project(BaseModel):
 
 
 config = GlobalConfig(config_name='test-config.yml').config
-API_URL = 'http://api.green-coding.local:9142'
+API_URL = 'http://api.green-coding.example:9142'
 PROJECT_NAME = 'test_' + utils.randomword(12)
 PROJECT = Project(name=PROJECT_NAME, url='testURL', email='testEmail', branch='')
 
