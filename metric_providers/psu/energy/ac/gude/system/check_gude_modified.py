@@ -43,6 +43,6 @@ if __name__ == '__main__':
     if args.i is None:
         parser.print_help()
         print('Please supply -i to set resolution in milliseconds')
-        sys.exit(2)
+        sys.exit(1)
 
     main(args.i)
