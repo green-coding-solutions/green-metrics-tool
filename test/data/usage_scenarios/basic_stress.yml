@@ -2,7 +2,6 @@
 name: Test Stress
 author: Dan Mateas
 version: 1
-architecture: linux
 
 services:
   ubuntu-stress:

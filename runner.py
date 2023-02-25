@@ -27,7 +27,6 @@ import yaml
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/lib")
 
-
 from lib import (error_helpers, hardware_info, hardware_info_root,
                  process_helpers, utils)
 from lib.db import DB
@@ -533,9 +532,11 @@ class Runner:
                             'ps': ps,
                             'read-notes-stdout': inner_el.get('read-notes-stdout', False),
                             'ignore-errors': inner_el.get('ignore-errors', False),
-                            'detail_name': el['container']})
+                            'detail_name': el['container'],
+                            'detach': inner_el.get('detach', False),
+                        })
 
-                        if inner_el.get('detach', None) is True:
+                        if inner_el.get('detach', False) is True:
                             print('Process should be detached. Running asynchronously and detaching ...')
                             self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
                         else:
@@ -580,18 +581,19 @@ class Runner:
                 f = StringIO(df.to_csv(index=False, header=False))
                 DB().copy_from(file=f, table='stats', columns=df.columns, sep=',')
 
+            # kill process only after reading. Otherwise the stream buffer might be gone
+            process_helpers.kill_ps(self.__ps_to_kill)
+
             # now we have free capacity to parse the stdout / stderr of the processes
             print(TerminalColors.HEADER, '\nGetting output from processes: ', TerminalColors.ENDC)
             for ps in self.__ps_to_read:
-                for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd'], ps['ignore-errors']):
+                for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd'], ps['ignore-errors'], ps['detach']):
                     print('Output from process: ', line)
                     if ps['read-notes-stdout']:
                         # Fixed format according to our specification. If unpacking fails this is wanted error
                         timestamp, note = line.split(' ', 1)
                         self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
 
-            # kill process only after reading. Otherwise the stream buffer might be gone
-            process_helpers.kill_ps(self.__ps_to_kill)
         finally:
             # we here only want the header to be colored, not the notes itself
             print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)

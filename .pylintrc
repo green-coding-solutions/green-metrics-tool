@@ -13,7 +13,8 @@ disable=missing-function-docstring,
     duplicate-code,
     too-many-nested-blocks,
     line-too-long,
-    wrong-import-position
+    wrong-import-position,
+    too-many-boolean-expressions,
 
 #    import-error
 
