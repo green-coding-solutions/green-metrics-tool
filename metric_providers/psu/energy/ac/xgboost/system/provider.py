@@ -3,9 +3,9 @@ import os
 from io import StringIO
 import pandas
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{current_dir}/../../../../../../lib")
-sys.path.append(current_dir)
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(f"{CURRENT_DIR}/../../../../../../lib")
+sys.path.append(CURRENT_DIR)
 
 #pylint: disable=import-error
 import model.xgb as mlmodel

@@ -1,0 +1,4 @@
+name: Import Error Test
+
+# This will expose passwords
+hacking: !include '../../../config.yml'

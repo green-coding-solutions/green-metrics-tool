@@ -15,8 +15,8 @@ root_info_list = [
 def get_root_list():
     if platform.system() == 'Darwin':
         return []
-    else:
-        return root_info_list
+
+    return root_info_list
 
 
 if __name__ == '__main__':
