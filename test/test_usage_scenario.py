@@ -15,7 +15,7 @@ import sys
 import subprocess
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{current_dir}/../tools")
+sys.path.append(f"{current_dir}/..")
 sys.path.append(f"{current_dir}/../lib")
 
 from contextlib import redirect_stdout, redirect_stderr
@@ -23,8 +23,8 @@ from pathlib import Path
 from db import DB
 import pytest
 import utils
-from runner import Runner
 from global_config import GlobalConfig
+from runner import Runner
 
 config = GlobalConfig(config_name='test-config.yml').config
 
@@ -62,9 +62,6 @@ def insert_project(uri):
                     VALUES \
                     (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(project_name, uri))[0]
     return pid
-
-def assertion_info(expected, actual):
-    return f"Expected: {expected}, Actual: {actual}"
 
 #pylint: disable=too-many-arguments
 def setup_runner(usage_scenario, uri='default', uri_type='folder', branch=None,
@@ -158,23 +155,23 @@ def test_env_variable_no_skip_or_allow():
         get_env_vars(runner)
     expected_exception = 'Docker container setup environment var value had wrong format.'
     assert expected_exception in str(e.value), \
-        assertion_info(f"Exception: {expected_exception}", str(e.value))
+        utils.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_env_variable_skip_unsafe_true():
     runner = setup_runner(usage_scenario='env_vars_stress.yml', skip_unsafe=True)
     allowed, backtick, dollar, parenthesis = get_env_vars(runner)
-    assert allowed == 'alpha-num123_\n', assertion_info('alpha-num123_', allowed)
-    assert backtick == '\n', assertion_info('empty string', backtick)
-    assert dollar == '\n', assertion_info('empty string', dollar)
-    assert parenthesis == '\n', assertion_info('empty string', parenthesis)
+    assert allowed == 'alpha-num123_\n', utils.assertion_info('alpha-num123_', allowed)
+    assert backtick == '\n', utils.assertion_info('empty string', backtick)
+    assert dollar == '\n', utils.assertion_info('empty string', dollar)
+    assert parenthesis == '\n', utils.assertion_info('empty string', parenthesis)
 
 def test_env_variable_allow_unsafe_true():
     runner = setup_runner(usage_scenario='env_vars_stress.yml', allow_unsafe=True)
     allowed, backtick, dollar, parenthesis = get_env_vars(runner)
-    assert allowed == 'alpha-num123_\n', assertion_info('alpha-num123_', allowed)
-    assert backtick == '`\n', assertion_info('`', backtick)
-    assert dollar == '$\n', assertion_info('$', dollar)
-    assert parenthesis == '()\n', assertion_info('()', parenthesis)
+    assert allowed == 'alpha-num123_\n', utils.assertion_info('alpha-num123_', allowed)
+    assert backtick == '`\n', utils.assertion_info('`', backtick)
+    assert dollar == '$\n', utils.assertion_info('$', dollar)
+    assert parenthesis == '()\n', utils.assertion_info('()', parenthesis)
 
 # ports: [int:int] (optional)
 # Docker container portmapping on host OS to be used with --allow-unsafe flag.
@@ -198,7 +195,7 @@ def get_port_bindings(runner):
 def test_port_bindings_allow_unsafe_true():
     runner = setup_runner(usage_scenario='port_bindings_stress.yml', allow_unsafe=True)
     port, _ = get_port_bindings(runner)
-    assert port == '0.0.0.0:9017\n:::9017\n', assertion_info('0.0.0.0:9017:::9017', port)
+    assert port == '0.0.0.0:9017\n:::9017\n', utils.assertion_info('0.0.0.0:9017:::9017', port)
 
 def test_port_bindings_skip_unsafe_true():
     out = io.StringIO()
@@ -211,10 +208,10 @@ def test_port_bindings_skip_unsafe_true():
         _, docker_port_err = get_port_bindings(runner)
         expected_container_error = 'Error: No public port \'9018/tcp\' published for test-container\n'
         assert docker_port_err == expected_container_error, \
-            assertion_info(f"Container Error: {expected_container_error}", docker_port_err)
+            utils.assertion_info(f"Container Error: {expected_container_error}", docker_port_err)
     expected_warning = 'Found ports entry but not running in unsafe mode. Skipping'
     assert expected_warning in out.getvalue(), \
-        assertion_info(f"Warning: {expected_warning}", 'no/different warning')
+        utils.assertion_info(f"Warning: {expected_warning}", 'no/different warning')
 
 def test_port_bindings_no_skip_or_allow():
     runner = setup_runner(usage_scenario='port_bindings_stress.yml')
@@ -222,10 +219,10 @@ def test_port_bindings_no_skip_or_allow():
         _, docker_port_err = get_port_bindings(runner)
         expected_container_error = 'Error: No public port \'9018/tcp\' published for test-container\n'
         assert docker_port_err == expected_container_error, \
-            assertion_info(f"Container Error: {expected_container_error}", docker_port_err)
+            utils.assertion_info(f"Container Error: {expected_container_error}", docker_port_err)
     expected_error = 'Found "ports" but neither --skip-unsafe nor --allow-unsafe is set'
     assert expected_error in str(e.value), \
-        assertion_info(f"Exception: {expected_error}", str(e.value))
+        utils.assertion_info(f"Exception: {expected_error}", str(e.value))
 
 # setup-commands: [array] (optional)
 # Array of commands to be run before actual load testing.
@@ -241,9 +238,9 @@ def test_setup_commands_one_command():
         finally:
             runner.cleanup()
     assert 'Running command: docker exec  ps -a' in out.getvalue(), \
-        assertion_info('stdout message: Running command: <command>', 'no/different stdout message')
+        utils.assertion_info('stdout message: Running command: <command>', 'no/different stdout message')
     assert '1 root      0:00 /bin/sh' in out.getvalue(), \
-        assertion_info('container stdout showing /bin/sh as process 1', 'different message in container stdout')
+        utils.assertion_info('container stdout showing /bin/sh as process 1', 'different message in container stdout')
 
 def test_setup_commands_multiple_commands():
     out = io.StringIO()
@@ -267,7 +264,8 @@ def test_setup_commands_multiple_commands():
 ', re.MULTILINE)
 
     assert re.search(expected_pattern, out.getvalue()), \
-        assertion_info('container stdout showing 3 commands run in sequence', 'different messages in container stdout')
+        utils.assertion_info('container stdout showing 3 commands run in sequence',\
+         'different messages in container stdout')
 
 def create_test_file(path):
     if not os.path.exists(path):
@@ -295,7 +293,7 @@ def test_volume_bindings_allow_unsafe_true():
     create_test_file('/tmp/gmt-test-data')
     runner = setup_runner(usage_scenario='volume_bindings_stress.yml', allow_unsafe=True)
     ls = get_contents_of_bound_volume(runner)
-    assert 'test-file' in ls, assertion_info('test-file', ls)
+    assert 'test-file' in ls, utils.assertion_info('test-file', ls)
 
 def test_volumes_bindings_skip_unsafe_true():
     create_test_file('/tmp/gmt-test-data')
@@ -305,20 +303,20 @@ def test_volumes_bindings_skip_unsafe_true():
 
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception):
         ls = get_contents_of_bound_volume(runner)
-        assert ls == '', assertion_info('empty list', ls)
+        assert ls == '', utils.assertion_info('empty list', ls)
     expected_warning = 'Found volumes entry but not running in unsafe mode. Skipping'
     assert expected_warning in out.getvalue(), \
-        assertion_info(f"Warning: {expected_warning}", 'no/different warning')
+        utils.assertion_info(f"Warning: {expected_warning}", 'no/different warning')
 
 def test_volumes_bindings_no_skip_or_allow():
     create_test_file('/tmp/gmt-test-data')
     runner = setup_runner(usage_scenario='volume_bindings_stress.yml')
     with pytest.raises(RuntimeError) as e:
         ls = get_contents_of_bound_volume(runner)
-        assert ls == '', assertion_info('empty list', ls)
+        assert ls == '', utils.assertion_info('empty list', ls)
     expected_exception = 'Found "volumes" but neither --skip-unsafe nor --allow-unsafe is set'
     assert expected_exception in str(e.value) ,\
-        assertion_info(f"Exception: {expected_exception}", str(e.value))
+        utils.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_network_created():
     runner = setup_runner(usage_scenario='network_stress.yml')
@@ -334,7 +332,7 @@ def test_network_created():
         ls = ps.stdout
     finally:
         runner.cleanup()
-    assert 'gmt-test-network' in ls, assertion_info('gmt-test-network', ls)
+    assert 'gmt-test-network' in ls, utils.assertion_info('gmt-test-network', ls)
 
 def test_container_is_in_network():
     runner = setup_runner(usage_scenario='network_stress.yml')
@@ -350,7 +348,7 @@ def test_container_is_in_network():
         inspect = ps.stdout
     finally:
         runner.cleanup()
-    assert 'test-container' in inspect, assertion_info('test-container', inspect)
+    assert 'test-container' in inspect, utils.assertion_info('test-container', inspect)
 
 # cmd: [str] (optional)
 #    Command to be executed when container is started.
@@ -370,7 +368,7 @@ def test_cmd_ran():
         docker_ps_out = ps.stdout
     finally:
         runner.cleanup()
-    assert '1 root      0:00 sh' in docker_ps_out, assertion_info('1 root      0:00 sh', docker_ps_out)
+    assert '1 root      0:00 sh' in docker_ps_out, utils.assertion_info('1 root      0:00 sh', docker_ps_out)
 
 ### The tests for the runner options/flags
 ## --uri URI
@@ -382,7 +380,7 @@ def test_uri_local_dir():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-    assert err.getvalue() == '', assertion_info('no errors', err.getvalue())
+    assert err.getvalue() == '', utils.assertion_info('no errors', err.getvalue())
 
 def test_uri_local_dir_missing():
     runner = setup_runner(usage_scenario='basic_stress.yml', uri='/tmp/missing')
@@ -390,7 +388,7 @@ def test_uri_local_dir_missing():
         runner.run()
     expected_exception = 'No such file or directory: \'/tmp/missing/basic_stress.yml\''
     assert expected_exception in str(e.value),\
-        assertion_info(f"Exception: {expected_exception}", str(e.value))
+        utils.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
     # basic positive case
 def test_uri_github_repo():
@@ -402,7 +400,7 @@ def test_uri_github_repo():
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-    assert err.getvalue() == '', assertion_info('no errors', err.getvalue())
+    assert err.getvalue() == '', utils.assertion_info('no errors', err.getvalue())
 
 ## --branch BRANCH
 #    Optionally specify the git branch when targeting a git repository
@@ -414,7 +412,7 @@ def test_uri_local_branch():
         runner.run()
     expected_exception = 'Specified --branch but using local URI. Did you mean to specify a github url?'
     assert str(e.value) == expected_exception, \
-        assertion_info(f"Exception: {expected_exception}", str(e.value))
+        utils.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
     # basic positive case, branch prepped ahead of time
     # this branch has a different usage_scenario file name - basic_stress
@@ -428,7 +426,7 @@ def test_uri_github_repo_branch():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-    assert err.getvalue() == '', assertion_info('no errors', err.getvalue())
+    assert err.getvalue() == '', utils.assertion_info('no errors', err.getvalue())
 
     # should throw error, assert vs error
     # give incorrect branch name
@@ -443,7 +441,7 @@ def test_uri_github_repo_branch_missing():
         runner.run()
     expected_exception = 'returned non-zero exit status 128'
     assert expected_exception in str(e.value),\
-        assertion_info(f"Exception: {expected_exception}", str(e.value))
+        utils.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 
 
@@ -491,7 +489,7 @@ def test_different_filename_missing():
         runner.run()
     expected_exception = 'No such file or directory:'
     assert expected_exception in str(e.value),\
-        assertion_info(f"Exception: {expected_exception}", str(e.value))
+        utils.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 #   --no-file-cleanup
 #    Do not delete files in /tmp/green-metrics-tool
@@ -502,14 +500,14 @@ def test_no_file_cleanup():
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
     assert os.path.exists('/tmp/green-metrics-tool'), \
-        assertion_info('tmp directory exists', os.path.exists('/tmp/green-metrics-tool'))
+        utils.assertion_info('tmp directory exists', os.path.exists('/tmp/green-metrics-tool'))
 
 #pylint: disable=unused-variable
 def test_skip_and_allow_unsafe_both_true():
     with pytest.raises(RuntimeError) as e:
         runner = setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, allow_unsafe=True)
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
-    assert str(e.value) == expected_exception, assertion_info('', str(e.value))
+    assert str(e.value) == expected_exception, utils.assertion_info('', str(e.value))
 
 def test_debug(monkeypatch):
     monkeypatch.setattr('sys.stdin', io.StringIO('Enter'))
@@ -520,7 +518,7 @@ def test_debug(monkeypatch):
         runner.run()
     expected_output = 'Initial load complete. Waiting to start network setup'
     assert expected_output in out.getvalue(), \
-        assertion_info(expected_output, 'no/different output')
+        utils.assertion_info(expected_output, 'no/different output')
 
     # providers are not started at the same time, but with 2 second delay
     # there is a note added when it starts "Booting {metric_provider}"
@@ -549,15 +547,15 @@ def test_verbose_provider_boot():
             """
 
     notes = DB().fetch_all(query, (pid,'Booting%',))
-    metric_providers = utils.get_metric_providers(config)
+    metric_providers = utils.get_metric_providers_names(config)
 
     #for each metric provider, assert there is an an entry in notes
     for provider in metric_providers:
         assert any(provider in note for _, note in notes), \
-            assertion_info(f"Booting {provider}", f"notes: {notes}")
+            utils.assertion_info(f"Booting {provider}", f"notes: {notes}")
 
     #check that each timestamp in notes is no longer than 2 seconds apart
     for i in range(len(notes)-1):
         diff = notes[i+1][0] - notes[i][0]
         assert 9900000 <= diff <= 10100000, \
-            assertion_info('2s apart', f"time difference of notes: {diff}")
+            utils.assertion_info('2s apart', f"time difference of notes: {diff}")

@@ -16,10 +16,6 @@ let showNotification = (message_title, message_text, type='warning') => {
 
 
 async function makeAPICall(path, values=null) {
-    if (document.location.host.indexOf('metrics.green-coding.local') === 0)
-        api_url = "http://api.green-coding.local:9142";
-    else
-        api_url = "https://api.green-coding.berlin";
 
     if(values != null ) {
         var options = {
@@ -35,7 +31,7 @@ async function makeAPICall(path, values=null) {
 
     let json_response = null;
     if(localStorage.getItem('remove_idle') == 'true') path += "?remove_idle=true"
-    await fetch(api_url + path, options)
+    await fetch(API_URL + path, options)
         .then(response => response.json())
         .then(my_json => {
             if (my_json.success != true) {
