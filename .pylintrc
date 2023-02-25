@@ -11,6 +11,7 @@ disable=missing-function-docstring,
     missing-class-docstring,
     too-few-public-methods,
     duplicate-code,
+    too-many-nested-blocks,
 
 [MASTER]
 ignore=env
