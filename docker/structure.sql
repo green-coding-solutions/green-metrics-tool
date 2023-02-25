@@ -44,6 +44,16 @@ CREATE TABLE machines (
     created_at timestamp with time zone DEFAULT now()
 );
 
+CREATE TABLE phase_stats (
+    id SERIAL PRIMARY KEY,
+    project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    metric text,
+    phase text,
+    value bigint,
+    unit text,
+    created_at timestamp with time zone DEFAULT now()
+);
+
 
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,

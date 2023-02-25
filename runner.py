@@ -77,6 +77,8 @@ class Runner:
         self.__metric_providers = []
         self.__notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
         self.__phases = {}
+        self.__start_measurement = None
+        self.__end_measurement = None
 
     def prepare_filesystem_location(self):
         subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], check=True, stderr=subprocess.DEVNULL)
@@ -480,9 +482,9 @@ class Runner:
     def start_phase(self, phase):
         config = GlobalConfig().config
         print(TerminalColors.HEADER,
-              f"\nStarting phase {phase}. Force-sleeping for {config['measurement']['phase-transition-sleep']}s", TerminalColors.ENDC)
+              f"\nStarting phase {phase}. Force-sleeping for {config['measurement']['phase-transition-time']}s", TerminalColors.ENDC)
 
-        time.sleep(config['measurement']['phase-transition-sleep'])
+        time.sleep(config['measurement']['phase-transition-time'])
 
         print(TerminalColors.HEADER,
               f"\nForce-sleep endeded. Checking if temperature is back to baseline ...", TerminalColors.ENDC)
@@ -494,7 +496,7 @@ class Runner:
         if phase in self.__phases:
             raise RuntimeError(f"'{phase}' as phase name has already used. Please set unique name for phases.")
 
-        self.__phases[phase] = {"start": phase_time}
+        self.__phases[phase] = {"start": phase_time, "name": phase}
 
     def end_phase(self, phase):
         phase_time = int(time.time_ns() / 1_000)
@@ -607,14 +609,33 @@ class Runner:
             print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)
             save_notes(self._project_id, self.__notes)
 
+    def start_measurement(self):
+        self.__start_measurement = int(time.time_ns() / 1_000)
+        self.__notes.append({'note': 'Start of measurement',
+                     'detail_name': '[SYSTEM]', 'timestamp': self.__start_measurement})
+
+    def end_measurement(self):
+        self.__end_measurement = int(time.time_ns() / 1_000)
+        self.__notes.append({'note': 'End of measurement', 'detail_name': '[SYSTEM]',
+                                'timestamp': self.__end_measurement})
+
+    def update_start_and_end_times(self):
+        print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
+        DB().query("""UPDATE projects
+            SET start_measurement=%s, end_measurement=%s
+            WHERE id = %s
+            """, params=(self.__start_measurement, self.__end_measurement, self._project_id))
 
     def store_phases(self):
         print(TerminalColors.HEADER, '\nUpdating phases in DB', TerminalColors.ENDC)
+        # internally PostgreSQL stores JSON ordered. This means our name-indexed dict will get
+        # re-ordered. Therefore we change the structure and make it a list now.
+        # We did not make this before, as we needed the duplicate checking of dicts
+        self.__phases = list(self.__phases.values())
         DB().query("""UPDATE projects
             SET phases=%s
             WHERE id = %s
             """, params=(json.dumps(self.__phases), self._project_id))
-
 
     def cleanup(self):
         #https://github.com/green-coding-berlin/green-metrics-tool/issues/97
@@ -647,7 +668,8 @@ class Runner:
         self.__ps_to_read = []
         self.__metric_providers = []
         self.__phases = {}
-
+        self.__start_measurement = None
+        self.__end_measurement = None
 
     def run(self):
         '''
@@ -674,6 +696,8 @@ class Runner:
             if self._debugger.active:
                 self._debugger.pause('metric-providers start complete. Waiting to start flow')
 
+            self.start_measurement()
+
             self.start_phase('[BASELINE]')
             self.end_phase('[BASELINE]')
 
@@ -686,12 +710,12 @@ class Runner:
             # TODO
             # Here the docker containers have to be first resetted with docker rmi
             # then they have to be built / pulled
-            sleep(1)
+            time.sleep(1)
             self.end_phase('[INSTALLATION]')
 
-            self.start_phase('BOOT')
+            self.start_phase('[BOOT]')
             self.setup_services()
-            self.end_phase('BOOT')
+            self.end_phase('[BOOT]')
 
             if self._debugger.active:
                 self._debugger.pause('Container setup complete. Waiting to start metric-providers')
@@ -704,10 +728,11 @@ class Runner:
 
             self.start_phase('[REMOVE]')
             # NOP
-            sleep(1)
+            time.sleep(1)
             self.end_phase('[REMOVE]')
-
+            self.end_measurement()
             self.store_phases()
+            self.update_start_and_end_times()
 
         finally:
             self.cleanup()  # always run cleanup automatically after each run
@@ -802,6 +827,17 @@ if __name__ == '__main__':
                     verbose_provider_boot=args.verbose_provider_boot)
     try:
         runner.run()  # Start main code
+
+        # this code should live at a different position.
+        # From a user perspective it makes perfect sense to run both jobs directly after each other
+        # In a cloud setup it however makes sense to free the measurement machine as soon as possible
+        # So this code should be individually callable, separate from the runner
+
+        # get all the metrics from the stats table grouped by metric
+        # loop over them issueing separate queries to the DB
+
+
+
         print(TerminalColors.OKGREEN,
             '\n\n####################################################################################')
         print(f"Please access your report with the ID: {project_id}")

@@ -661,8 +661,7 @@ $(document).ready( (e) => {
             return;
         }
 
-        const metrics = getMetrics(stats_data, project_data.data.start_measurement, project_data.data.end_measurement, 'echarts');
-
+        const metrics = getMetrics(stats_data, project_data.data.phases, 'echarts');
 
         fillAvgContainers(measurement_duration_in_s, metrics);
 
