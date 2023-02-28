@@ -60,7 +60,8 @@ CREATE TABLE notes (
 
 CREATE TABLE badges (
     id SERIAL PRIMARY KEY,
-    value text,
+    value bigint,
+    unit text,
     repo text,
     branch text,
     workflow text,

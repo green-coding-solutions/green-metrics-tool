@@ -327,7 +327,8 @@ async def robots_txt():
     return Response(content=data, media_type='text/plain')
 
 class Badge(BaseModel):
-    value: str
+    value: int
+    unit: str
     repo: str
     branch: str
     workflow: str
@@ -343,15 +344,23 @@ async def post_ci_badge_add(badge: Badge):
                 badge.project_id = None
             elif not is_valid_uuid(key_value.strip()):
                 return {'success': False, 'err': "project_id is not a valid uuid"}
+        elif i == 'value':
+            if key_value is None:
+                return {'success': False, 'err': f"{i} is empty"}
+        elif i == 'unit':
+            if key_value is None or key_value.strip() == '':
+                return {'success': False, 'err': f"{i} is empty"}
+            if key_value != 'mJ':
+                return {'success': False, 'err': "Unit is unsupported - only mJ currently accepted"}
         elif key_value is None or key_value.strip() == '':
             return {'success': False, 'err': f"{i} is empty"}
 
     query = """
         INSERT INTO
-            badges (value, repo ,branch, workflow, run_id, project_id)
-        VALUES (%s, %s, %s, %s, %s, %s)
+            badges (value, unit, repo ,branch, workflow, run_id, project_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
-    params = (badge.value, badge.repo, badge.branch, badge.workflow, badge.run_id, badge.project_id)
+    params = (badge.value, badge.unit, badge.repo, badge.branch, badge.workflow, badge.run_id, badge.project_id)
     DB().query(query=query, params=params)
 
     return {'success': True}
@@ -359,7 +368,7 @@ async def post_ci_badge_add(badge: Badge):
 @app.get('/v1/ci/badges/')
 async def get_ci_badges(repo: str, branch: str, workflow:str):
     query = """
-        SELECT value, run_id, created_at
+        SELECT value, unit, run_id, created_at
         FROM badges
         WHERE repo = %s AND branch = %s AND workflow = %s
         ORDER BY created_at DESC
@@ -369,12 +378,17 @@ async def get_ci_badges(repo: str, branch: str, workflow:str):
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
 
+    # for i in range(len(data)):
+    #     [energy_value, energy_unit] = rescale_energy_value(data[i][0], data[i][1])
+    #     data[i][0] = energy_value
+    #     data[i][1] = energy_unit
+
     return {'success': True, 'data': data}
 
 @app.get('/v1/ci/badge/get/')
 async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
-        SELECT value
+        SELECT value, unit
         FROM badges
         WHERE repo = %s AND branch = %s AND workflow = %s
         ORDER BY created_at DESC
@@ -384,7 +398,9 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
 
-    badge_value= f"{data[0]}"
+    [energy_value, energy_unit] = rescale_energy_value(data[0], data[1])
+    badge_value= f"{energy_value:.2f} {energy_unit}"
+
     badge = anybadge.Badge(
         label='Energy Used',
         value=badge_value,
