@@ -1,8 +1,23 @@
 const copyToClipboard = (e) => {
   if (navigator && navigator.clipboard && navigator.clipboard.writeText)
-    return navigator.clipboard.writeText(e.target.parentElement.parentElement.children[0].innerHTML);
+    return navigator.clipboard.writeText(e.currentTarget.parentElement.parentElement.children[0].innerHTML);
   return Promise.reject('The Clipboard API is not available.');
 };
+
+const addZed = (num) => {
+    return (num <= 9 ? '0' + num : num);
+}
+
+const formatDateTime = (date) => {
+        var h = date.getHours();
+        var m = date.getMinutes();
+        var s = date.getSeconds();
+
+        var timeString = '' + addZed(h) + ':' + addZed(m) + ':' + addZed(s) 
+        var dateString = date.toDateString();
+
+        return '' + dateString + ' | ' + timeString
+    }
 
 $(document).ready( (e) => {
     (async () => {
@@ -46,21 +61,28 @@ $(document).ready( (e) => {
                 showNotification('Could not get data from API', err);
                 return;
         }
+
+        const repo_link = `https://github.com/${url_params.get('repo')}`;
+        const repo_link_node = `<a href="${repo_link}">${url_params.get('repo')}</a>`
+        document.querySelector('#ci-data').insertAdjacentHTML('beforeend', `<tr><td><strong>Repository</strong></td><td>${repo_link_node}</td></tr>`)
+        document.querySelector('#ci-data').insertAdjacentHTML('beforeend', `<tr><td><strong>Branch</strong></td><td>${url_params.get('branch')}</td></tr>`)
+        document.querySelector('#ci-data').insertAdjacentHTML('beforeend', `<tr><td><strong>Workflow</strong></td><td>${url_params.get('workflow')}</td></tr>`)
+
         badges_data.data.forEach(el => {
             const li_node = document.createElement("tr");
-            const link_node = document.createElement('a');
             const badge_value = el[0]
-            const run_id = el[1]
-            const created_at = el[2]
-           
-            // DM: unsure
-            //content.push({ title: name });
-            li_node.appendChild(link_node);
+            const badge_unit = el[1]
 
-            li_node.innerHTML = `<td class="td-index">${badge_value}</td><td class="td-index">${run_id}</td><td class="td-index"><span title="${created_at}">${(new Date(created_at)).toString()}</span></td>`;
+            const value = badge_value + ' ' + badge_unit
+            const run_id = el[2]
+            const created_at = el[3]
+
+            li_node.innerHTML = `<td class="td-index">${value}</td>\
+                                <td class="td-index">${run_id}</td>\
+                                <td class="td-index"><span title="${created_at}">${formatDateTime(new Date(created_at))}</span></td>`;
             document.querySelector("#badges-table").appendChild(li_node);
         });
-        $('table').tablesort();
+       $('table').tablesort();
 
     })();
 });

@@ -17,6 +17,7 @@
     <script src="/js/config.js" defer></script>
     <script src="/js/main.js" defer></script>
     <script src="/js/ci.js" defer></script>
+    <script src="/dist/js/tablesort.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/echarts.min.js" defer></script>
@@ -47,6 +48,18 @@
         </a>
     </div> <!-- end menu -->
     <div class="main ui container" id="main">
+        <div class="ui horizontal card" id="horizontal-card">
+            <div class="content">
+                <div class="header"><a class="ui red ribbon label" href="#">
+                    <h3>CI Run Info</h3>
+                </a></div>
+                <div class="description">
+                    <div class="ui segment">
+                        <table class="table-hover" id="ci-data"></table>
+                    </div>
+                </div>
+            </div>
+        </div><!-- end ui horizontal card -->
         <div id="badges">
             <div class="inline field">
                 <span class="energy-badge-container" data-metric="ml-estimated"></span>
