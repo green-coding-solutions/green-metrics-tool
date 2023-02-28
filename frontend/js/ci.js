@@ -19,6 +19,17 @@ const formatDateTime = (date) => {
         return '' + dateString + ' | ' + timeString
     }
 
+const convertValue = (value, unit) => {
+    switch (unit) {
+      case 'mJ':
+        return [value / 1000, 'Joules'];
+        break;
+      default:
+        return [value, unit];        // no conversion in default calse
+    }
+
+}
+
 $(document).ready( (e) => {
     (async () => {
         const query_string = window.location.search;
@@ -37,19 +48,19 @@ $(document).ready( (e) => {
             return;
         }
 
+        const repo_link = `https://github.com/${url_params.get('repo')}`;
+        const repo_link_node = `<a href="${repo_link}">${url_params.get('repo')}</a>`
+        document.querySelector('#ci-data').insertAdjacentHTML('beforeend', `<tr><td><strong>Repository</strong></td><td>${repo_link_node}</td></tr>`)
+        document.querySelector('#ci-data').insertAdjacentHTML('beforeend', `<tr><td><strong>Branch</strong></td><td>${url_params.get('branch')}</td></tr>`)
+        document.querySelector('#ci-data').insertAdjacentHTML('beforeend', `<tr><td><strong>Workflow</strong></td><td>${url_params.get('workflow')}</td></tr>`)
 
         try {
-            document.querySelectorAll("#badges span.energy-badge-container").forEach(el => {
-                const link_node = document.createElement("a")
-                const img_node = document.createElement("img")
-                img_node.src = `${API_URL}/v1/ci/badge/get/?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`
-                link_node.appendChild(img_node)
-                el.appendChild(link_node)
-            })
-            document.querySelectorAll(".copy-badge").forEach(el => {
-                el.addEventListener('click', copyToClipboard)
-            })
-
+            const link_node = document.createElement("a")
+            const img_node = document.createElement("img")
+            img_node.src = `${API_URL}/v1/ci/badge/get/?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`
+            link_node.appendChild(img_node)
+            document.querySelector("span.energy-badge-container").appendChild(link_node)
+            document.querySelector(".copy-badge").addEventListener('click', copyToClipboard)
         } catch (err) {
             showNotification('Could not get badge data from API', err);
         }
@@ -58,27 +69,24 @@ $(document).ready( (e) => {
             api_string=`/v1/ci/badges/?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`;
             var badges_data = await makeAPICall(api_string);
         } catch (err) {
-                showNotification('Could not get data from API', err);
-                return;
+            showNotification('Could not get data from API', err);
+            return;
         }
-
-        const repo_link = `https://github.com/${url_params.get('repo')}`;
-        const repo_link_node = `<a href="${repo_link}">${url_params.get('repo')}</a>`
-        document.querySelector('#ci-data').insertAdjacentHTML('beforeend', `<tr><td><strong>Repository</strong></td><td>${repo_link_node}</td></tr>`)
-        document.querySelector('#ci-data').insertAdjacentHTML('beforeend', `<tr><td><strong>Branch</strong></td><td>${url_params.get('branch')}</td></tr>`)
-        document.querySelector('#ci-data').insertAdjacentHTML('beforeend', `<tr><td><strong>Workflow</strong></td><td>${url_params.get('workflow')}</td></tr>`)
 
         badges_data.data.forEach(el => {
             const li_node = document.createElement("tr");
-            const badge_value = el[0]
-            const badge_unit = el[1]
-
-            const value = badge_value + ' ' + badge_unit
-            const run_id = el[2]
+            
+            [badge_value, badge_unit] = convertValue(el[0], el[1])
+            const value = badge_value + ' ' + badge_unit;
+            
+            const run_id = el[2];
+            const run_link = `https://github.com/${url_params.get('repo')}/actions/runs/${run_id}`;
+            const run_link_node = `<a href="${run_link}">${run_id}</a>`
+            
             const created_at = el[3]
 
             li_node.innerHTML = `<td class="td-index">${value}</td>\
-                                <td class="td-index">${run_id}</td>\
+                                <td class="td-index">${run_link_node}</td>\
                                 <td class="td-index"><span title="${created_at}">${formatDateTime(new Date(created_at))}</span></td>`;
             document.querySelector("#badges-table").appendChild(li_node);
         });

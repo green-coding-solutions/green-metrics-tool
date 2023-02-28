@@ -56,21 +56,24 @@
                 <div class="description">
                     <div class="ui segment">
                         <table class="table-hover" id="ci-data"></table>
+                        <tr>
+                            <td><strong>Last Run Badge:</strong></td>
+                            <td>
+                                <span class="energy-badge-container" data-metric="ml-estimated"></span>
+                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                            </td>
+                        </tr>
                     </div>
                 </div>
             </div>
         </div><!-- end ui horizontal card -->
         <div id="badges">
-            <div class="inline field">
-                <span class="energy-badge-container" data-metric="ml-estimated"></span>
-                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
-            </div>
             <table class="ui sortable celled striped table" id="table">
             <thead>
                 <tr>
                     <th>Value</th>
-                    <th>Run</th>
-                    <th>Created At</th>
+                    <th>Run ID</th>
+                    <th>Ran At</th>
                 </tr>
             </thead>
             <tbody id="badges-table"></tbody>
