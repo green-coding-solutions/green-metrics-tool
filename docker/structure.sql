@@ -38,11 +38,18 @@ CREATE TABLE categories (
     created_at timestamp with time zone DEFAULT now()
 );
 
+CREATE TABLE machines (
+    id SERIAL PRIMARY KEY,
+    description text,
+    created_at timestamp with time zone DEFAULT now()
+);
+
 
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,
     project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE DEFAULT null,
     type text,
+    machine_id int REFERENCES machines(id) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT null,
     failed boolean DEFAULT false,
     running boolean DEFAULT false,
     last_run timestamp with time zone,

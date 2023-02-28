@@ -10,7 +10,7 @@
     <link rel="icon" href="/images/favicon-16x16.png" sizes="16x16">
     <link rel="icon" href="/images/favicon-32x32.png" sizes="32x32">
     <!-- Site Properties -->
-    <title>Green Metrics Tool - Online demo</title>
+    <title>Green Metrics Tool</title>
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <meta name="description" content="Submit a software for energy measurement to the Green Metrics Tool" />
     <script src="/dist/js/jquery.min.js" defer></script>
@@ -91,6 +91,10 @@
                         <div class="ui fluid icon input">
                             <input type="text" placeholder="Optional: git branch" id="text-field-hero-input4" name="branch">
                         </div>
+                        <select name="machine_id" class="ui fluid dropdown">
+                            <option value='0'>-- Select hardware for testing (default: any)--</option>
+                        </select>
+                        <br>
                         <button class="positive ui button">Submit software for certification</button>
                     </div>
                 </form>

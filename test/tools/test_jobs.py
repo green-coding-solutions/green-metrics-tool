@@ -8,10 +8,11 @@ from unittest.mock import patch
 import pytest
 import psycopg2.extras
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{current_dir}/../../tools")
-sys.path.append(f"{current_dir}/../../lib")
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(f"{CURRENT_DIR}/../../tools")
+sys.path.append(f"{CURRENT_DIR}/../../lib")
 
+#pylint: disable=import-error,wrong-import-position
 from db import DB
 import jobs
 import utils
@@ -87,8 +88,7 @@ def test_simple_project_job():
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
         utils.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
-# TODO: the patch here doesn't work atm 
-#pylint: disable=unused-argument # for the time being, until I ge the mocking to work
+#pylint: disable=unused-variable # for the time being, until I ge the mocking to work
 def test_simple_email_job():
     name = utils.randomword(12)
     uri='https://github.com/green-coding-berlin/pytest-dummy-repo'

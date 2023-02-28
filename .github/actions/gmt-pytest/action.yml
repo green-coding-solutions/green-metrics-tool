@@ -24,7 +24,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
-        python -m pip install --upgrade pip
+        python -m pip install --upgrade pip --user setuptools==58.3.0
         pip install -r requirements.txt -r requirements-dev.txt
         pip install -r metric_providers/psu/energy/ac/xgboost/system/model/requirements.txt
     
@@ -32,7 +32,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
-        ./install_linux.sh -p testpw -a http://api.green-coding.local:9142 -m http://metrics.green-coding.local:9142
+        ./install_linux.sh -p testpw -a http://api.green-coding.example:9142 -m http://metrics.green-coding.example:9142
 
     - name: Turn off metric providers which do not work in github vm
       shell: bash

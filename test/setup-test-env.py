@@ -1,9 +1,16 @@
 #pylint: disable=invalid-name
 
+import sys
 import os
 from copy import deepcopy
 import subprocess
 import yaml
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(f"{CURRENT_DIR}/../lib")
+
+# pylint: disable=import-error
+import utils
 
 BASE_CONFIG_NAME = 'config.yml'
 BASE_COMPOSE_NAME = 'compose.yml.example'
@@ -27,14 +34,18 @@ def copy_sql_structure():
         encoding='UTF-8'
     )
 
+    if utils.get_architecture() == 'macos':
+        command = ['sed', '-i', "", 's/green-coding/test-green-coding/g', './structure.sql']
+    else:
+        command = ['sed', '-i', 's/green-coding/test-green-coding/g', './structure.sql']
+
     subprocess.run(
-        ['sed', '-i', 's/green-coding/test-green-coding/g', './structure.sql'],
+        command,
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
-
 
 def edit_config_file():
     print('Creating test-config.yml...')
@@ -54,9 +65,6 @@ def edit_config_file():
     # change idle start/stop times to 0
     config['measurement']['idle-time-start'] = 0
     config['measurement']['idle-time-end'] = 0
-
-    # set timeout for flow to 60s
-    config['measurement']['flow-process-runtime'] = 60
 
     with open(test_config_path, 'w', encoding='utf8') as test_config_file:
         yaml.dump(config, test_config_file)

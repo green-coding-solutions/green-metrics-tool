@@ -3,8 +3,8 @@ import sys
 import os
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/..')
-sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
+sys.path.append(f"{CURRENT_DIR}/..")
+sys.path.append(f"{CURRENT_DIR}/../lib")
 
 import faulthandler
 import email_helpers
@@ -15,23 +15,29 @@ from runner import Runner
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
-def insert_job(job_type, project_id=None):
+def insert_job(job_type, project_id=None, machine_id=None):
     query = """
             INSERT INTO
-                jobs (type, failed, running, created_at, project_id)
+                jobs (type, failed, running, created_at, project_id, machine_id)
             VALUES
-                (%s, FALSE, FALSE, NOW(), %s) RETURNING id;
+                (%s, FALSE, FALSE, NOW(), %s, %s) RETURNING id;
             """
-    params = (job_type, project_id,)
+    params = (job_type, project_id, machine_id,)
     job_id = DB().fetch_one(query, params=params)[0]
     return job_id
 
 # do the first job you get.
 def get_job(job_type):
     clear_old_jobs()
-    query = "SELECT id, type, project_id FROM jobs WHERE failed=false AND type=%s ORDER BY created_at ASC LIMIT 1"
+    query = """
+        SELECT id, type, project_id
+        FROM jobs
+        WHERE failed=false AND type=%s AND (machine_id IS NULL or machine_id = %s)
+        ORDER BY created_at ASC
+        LIMIT 1
+    """
 
-    return DB().fetch_one(query, (job_type,))
+    return DB().fetch_one(query, (job_type, GlobalConfig().config['config']['machine_id']))
 
 
 def delete_job(job_id):
@@ -131,12 +137,12 @@ if __name__ == '__main__':
         if args.config_override[-4:] != '.yml':
             parser.print_help()
             error_helpers.log_error('Config override file must be a yml file')
-            sys.exit(2)
+            sys.exit(1)
         if not Path(f"{CURRENT_DIR}/../{args.config_override}").is_file():
             parser.print_help()
             error_helpers.log_error(f"Could not find config override file on local system.\
                 Please double check: {CURRENT_DIR}/../{args.config_override}")
-            sys.exit(2)
+            sys.exit(1)
         GlobalConfig(config_name=args.config_override)
 
     project = None
