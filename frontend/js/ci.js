@@ -48,8 +48,7 @@ const getEChartsOptions = () => {
             trigger: 'axis'
         },
         xAxis: {
-            type: 'time',
-            splitLine: {show: true}
+            data: []
         },
 
         yAxis: {
@@ -81,36 +80,20 @@ const getEChartsOptions = () => {
 const displayGraph = (runs) => {
     const element = createChartContainer("#chart-container", "run-energy");
     var options = getEChartsOptions();
-    options.title.text = `Workflow energy cost over time`;
+    options.title.text = `Workflow energy cost per run`;
 
-    console.log(runs)
-    //console.log(run)
-    //options.legend.data.push(run[2])
+    var run_ids = runs.map(function(value,index) { return value[2]; });
+    var values = runs.map(function(value,index) { return value[0]; });
+    console.log(values)
+    options.xAxis.data = run_ids
     options.series.push({
-            name: 'ci runs',
-            type: 'line',
-            smooth: true,
+            name: run_ids,
+            type: 'bar',
             symbol: 'none',
             areaStyle: {},
-            data: runs.forEach(),
-            markLine: { data: [ {type: "average",label: {formatter: "AVG_ii:\n{c}"}}]}
+            data: values,
+            markLine: { data: [ {type: "average",label: {formatter: "Average:\n{c}"}}]}
     });
-
-  /*   runs.forEach((run) => {
-        console.log(run)
-        options.legend.data.push(run[2])
-        options.series.push({
-                name: run[2],
-                type: 'line',
-                smooth: true,
-                symbol: 'none',
-                areaStyle: {},
-                data: runs[0].series,
-                markLine: { data: [ {type: "average",label: {formatter: "AVG_ii:\n{c}"}}]}
-        });
-
-    }); */
-
 
     const chart_instance = echarts.init(element);
     chart_instance.setOption(options);
