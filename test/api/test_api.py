@@ -18,12 +18,13 @@ class Project(BaseModel):
     url: str
     email: str
     branch: str
+    machine_id:int
 
 
 config = GlobalConfig(config_name='test-config.yml').config
-API_URL = 'http://api.green-coding.example:9142'
+API_URL = config['config']['api_url']
 PROJECT_NAME = 'test_' + utils.randomword(12)
-PROJECT = Project(name=PROJECT_NAME, url='testURL', email='testEmail', branch='')
+PROJECT = Project(name=PROJECT_NAME, url='testURL', email='testEmail', branch='', machine_id=0)
 
 @pytest.fixture()
 def cleanup_projects():
@@ -32,7 +33,7 @@ def cleanup_projects():
 
 def test_post_project_add(cleanup_projects):
     response = requests.post(f"{API_URL}/v1/project/add", json=PROJECT.dict(), timeout=15)
-    assert response.status_code == 200
+    assert response.status_code == 200, utils.assertion_info('success', response.text)
     pid = utils.get_pid(PROJECT_NAME)
     assert pid is not None
 
