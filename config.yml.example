@@ -13,6 +13,10 @@ smtp:
 project:
   name: My test project
   url: https://metrics.green-coding.berlin/
+config:
+  api_url: __API_URL__
+  metrics_url: __METRICS_URL__
+  machine_id:
 
 measurement:
   idle-time-start: 10
@@ -26,62 +30,73 @@ measurement:
   # Keep in mind that some reporters need separate installation steps to be found @
   # https://docs.green-coding.berlin/docs/installation/installation-overview/
   # You can ignore any line that starts with #---
-  #--- Always-On - We recommend these providers to be always enabled
-    cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
-      resolution: 100
-  #--- CGroupV2 - Turn these on if you have CGroupsV2 working on your machine
-    cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
-      resolution: 100
-    memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider:
-      resolution: 100
-    network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
-      resolution: 100
-  #--- Model based
-#    psu.energy.sdia.system.provider.PsuEnergySdiaSystemProvider:
-#      resolution: 100
-       #-- This is a default configuration. Please change this to your system!
-#      CPUChips: 1
-#      TDP: 65
-#    psu.energy.xgboost.system.provider.PsuEnergyXgboostSystemProvider:
-#      resolution: 100
-       #-- This is a default configuration. Please change this to your system!
-#      CPUChips: 1
-#      HW_CPUFreq: 3200
-#      CPUCores: 4
-#      CPUThreads: 4
-#      TDP: 65
-#      HW_MemAmountGB: 16
-#      Hardware_Availability_Year: 2011
-  #--- RAPL - Only enable these if you have RAPL enabled on your machine
-#    cpu.energy.RAPL.MSR.system.provider.CpuEnergyRaplMsrSystemProvider:
-#      resolution: 100
-#    memory.energy.RAPL.MSR.system.provider.MemoryEnergyRaplMsrSystemProvider:
-#      resolution: 100
-  #--- System power - These providers need special hardware / lab equipment to work
-#    psu.energy.ac.system.provider.PsuEnergyAcSystemProvider:
-#      resolution: 100
-#    psu.energy.dc.system.provider.PsuEnergyDcSystemProvider:
-#      resolution: 61 # Do not change this. Provider is tailored to work at fixed resolution
-#    psu.energy.ac.powerspy2.provider.PowerSpy2Provider:
-#      resolution: 250
-  #--- Sensors
-#    lm_sensors.temperature.provider.LmSensorsTempProvider:
-#      resolution: 100
-       #-- Please change these values according to the names in '$ sensors'
-#      chips: ['thinkpad-isa-0000', 'coretemp-isa-0000']
-#      features: ['CPU', 'Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
-#    lm_sensors.fan.provider.LmSensorsFanProvider:
-#      resolution: 100
-       # Please change these values according to the names in '$ sensors'
-#      chips: ['thinkpad-isa-0000']
-#      features: ['fan1', 'fan2']
-  #--- Debug - These providers are just for development of the tool itself
-#    cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
-#      resolution: 100
-#    cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider:
-#      resolution: 100
-#    cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider:
-#      resolution: 100
+    #--- Architecture - Linux Only
+    linux:
+    #--- Always-On - We recommend these providers to be always enabled
+      cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
+        resolution: 100
+    #--- CGroupV2 - Turn these on if you have CGroupsV2 working on your machine
+      cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
+        resolution: 100
+      memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider:
+        resolution: 100
+      network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
+        resolution: 100
+    #--- RAPL - Only enable these if you have RAPL enabled on your machine
+#      cpu.energy.RAPL.MSR.system.provider.CpuEnergyRaplMsrSystemProvider:
+#        resolution: 100
+#      memory.energy.RAPL.MSR.system.provider.MemoryEnergyRaplMsrSystemProvider:
+#        resolution: 100
+    #--- System power - These providers need special hardware / lab equipment to work
+#      psu.energy.ac.gude.system.provider.PsuEnergyAcGudeSystemProvider:
+#        resolution: 100
+#      psu.energy.dc.picolog.system.provider.PsuEnergyDcPicologSystemProvider:
+#        resolution: 61 # Do not change this. Provider is tailored to work at fixed resolution
+#      psu.energy.ac.powerspy2.system.provider.PsuEnergyAcPowerspy2SystemProvider:
+#        resolution: 250
+#      psu.energy.ac.ipmi.system.provider.PsuEnergyAcIpmiSystemProvider:
+#        resolution: 100
+    #--- Sensors
+#      lm_sensors.temperature.provider.LmSensorsTempProvider:
+#        resolution: 100
+      #-- Please change these values according to the names in '$ sensors'
+#        chips: ['thinkpad-isa-0000', 'coretemp-isa-0000']
+#        features: ['CPU', 'Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
+#      lm_sensors.fan.provider.LmSensorsFanProvider:
+#        resolution: 100
+      # Please change these values according to the names in '$ sensors'
+#        chips: ['thinkpad-isa-0000']
+#        features: ['fan1', 'fan2']
+    #--- Debug - These providers are just for development of the tool itself
+#      cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
+#        resolution: 100
+#      cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider:
+#        resolution: 100
+#      cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider:
+#        resolution: 100
+    #--- Architecture - MacOS
+    macos:
+    #--- MacOS: On Mac you only need this provider. Please delete all others!
+#      powermetrics.provider.PowermetricsProvider:
+#        resolution: 100
+    #--- Architecture - Common
+    common:
+    #--- Model based
+#      psu.energy.ac.sdia.system.provider.PsuEnergyAcSdiaSystemProvider:
+#        resolution: 100
+      #-- This is a default configuration. Please change this to your system!
+#        CPUChips: 1
+#        TDP: 65
+#      psu.energy.ac.xgboost.system.provider.PsuEnergyAcXgboostSystemProvider:
+#        resolution: 100
+      #-- This is a default configuration. Please change this to your system!
+#        CPUChips: 1
+#        HW_CPUFreq: 3200
+#        CPUCores: 4
+#        CPUThreads: 4
+#        TDP: 65
+#        HW_MemAmountGB: 16
+#        Hardware_Availability_Year: 2011
   #--- END
 
 

@@ -11,6 +11,13 @@ disable=missing-function-docstring,
     missing-class-docstring,
     too-few-public-methods,
     duplicate-code,
+    too-many-nested-blocks,
+    line-too-long,
+    too-many-boolean-expressions,
+    too-many-nested-blocks,
+    line-too-long,
+
+#    import-error
 
 [MASTER]
 ignore=env

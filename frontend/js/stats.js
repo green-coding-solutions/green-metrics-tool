@@ -4,7 +4,9 @@ else display_in_watts = false;
 
 const copyToClipboard = (e) => {
   if (navigator && navigator.clipboard && navigator.clipboard.writeText)
-    return navigator.clipboard.writeText(e.target.parentElement.parentElement.children[0].innerHTML);
+    return navigator.clipboard.writeText(e.currentTarget.closest('div.inline.field').querySelector('span').innerHTML)
+
+  alert('Copying badge on local is not working due to browser security models')
   return Promise.reject('The Clipboard API is not available.');
 };
 
@@ -298,7 +300,7 @@ const displayGraphs = (metrics, notes, style='apex') => {
 }
 
 function moveRight(e) {
-    el = e.target.closest(".statistics-chart-card")
+    let el = e.currentTarget.closest(".statistics-chart-card")
     const next = el.nextSibling;
     if (!next) return;
     next.after(el)
@@ -306,14 +308,14 @@ function moveRight(e) {
 }
 
 function moveToLast(e) {
-    el = e.target.closest(".statistics-chart-card")
+    let el = e.currentTarget.closest(".statistics-chart-card")
     const last = el.parentNode.lastChild;
     last.after(el)
     window.dispatchEvent(new Event('resize'));
 }
 
 function moveLeft(e) {
-    el = e.target.closest(".statistics-chart-card")
+    let el = e.currentTarget.closest(".statistics-chart-card")
     const previous = el.previousElementSibling;
     if (!previous) return;
     previous.before(el)
@@ -321,22 +323,34 @@ function moveLeft(e) {
 }
 
 function moveToFirst(e) {
-    el = e.target.closest(".statistics-chart-card")
+    let el = e.currentTarget.closest(".statistics-chart-card")
     const first = el.parentNode.childNodes[0];
     first.before(el)
     window.dispatchEvent(new Event('resize'));
 }
 
-function fullWidth(e) {
-    el = e.target.closest(".statistics-chart-card")
-    el.style.flex = "0 0 100%"
+function toggleWidth(e) {
+    let chart = e.currentTarget.closest(".statistics-chart-card")
+    let icon = e.currentTarget.firstChild
+
+    chart.classList.toggle("full-width")
+    if (chart.classList.contains("full-width"))
+    {
+        icon.classList.remove("expand")
+        icon.classList.add("compress")
+    }
+    else
+    {
+        icon.classList.remove("compress")
+        icon.classList.add("expand")
+    }
+
     window.dispatchEvent(new Event('resize'));
 }
 
-function normalWidth(e) {
-    el = e.target.closest(".statistics-chart-card")
-    el.style.flex = ""
-    window.dispatchEvent(new Event('resize'));
+function movers(e) {
+    let icons = e.currentTarget.closest(".content").querySelector('.chart-navigation-icon')
+    icons.classList.toggle("hide")
 }
 
 const createChartContainer = (container, el, counter) => {
@@ -347,11 +361,15 @@ const createChartContainer = (container, el, counter) => {
 
     chart_node.innerHTML = `
     <div class="content">
-        <div class="ui icon buttons">
+        <div class="ui right floated icon buttons">
+            <button class="ui button toggle-width"><i class="expand icon toggle-icon"></i></button>
+        </div>
+        <div class="ui right floated icon buttons">
+            <button class="ui button movers"><i class="arrows alternate icon"></i></button>
+        </div>
+        <div class="ui right floated icon buttons chart-navigation-icon hide">
             <button class="ui button move-first"><i class="angle double left icon"></i></button>
             <button class="ui button move-left"><i class="angle left icon"></i></button>
-            <button class="ui button normal-width"><i class="compress icon"></i></button>
-            <button class="ui button full-width"><i class="expand icon"></i></button>
             <button class="ui button move-right"><i class="angle right icon"></i></button>
             <button class="ui button move-last"><i class="angle double right icon"></i></button>
         </div>
@@ -361,10 +379,10 @@ const createChartContainer = (container, el, counter) => {
     </div>`
     document.querySelector(container).appendChild(chart_node)
 
+    chart_node.querySelector('.toggle-width').addEventListener("click", toggleWidth, false);
+    chart_node.querySelector('.movers').addEventListener("click", movers, false);
     chart_node.querySelector('.move-first').addEventListener("click", moveToFirst, false);
     chart_node.querySelector('.move-left').addEventListener("click", moveLeft, false);
-    chart_node.querySelector('.normal-width').addEventListener("click",normalWidth, false);
-    chart_node.querySelector('.full-width').addEventListener("click", fullWidth, false);
     chart_node.querySelector('.move-right').addEventListener("click", moveRight, false);
     chart_node.querySelector('.move-last').addEventListener("click", moveToLast, false);
 
@@ -504,6 +522,15 @@ const fillAvgContainers = (measurement_duration_in_s, metrics) => {
             case '°C':
                 // no avg needed for now
                 break;
+            case 'ns':
+                // no avg needed for now
+                break;
+            case 'bytes':
+                // no avg needed for now
+                break;
+            case '*':
+                // no avg needed for now
+                break;
             case 'RPM':
                 createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, 'RPM (approx.)');
                 break;
@@ -584,13 +611,8 @@ $(document).ready( (e) => {
             document.querySelectorAll("#badges span.energy-badge-container").forEach(el => {
                 const link_node = document.createElement("a")
                 const img_node = document.createElement("img")
-                if (document.location.host.indexOf('metrics.green-coding.local') === 0) {
-                    link_node.href = `http://metrics.green-coding.local:9142/stats.html?id=${url_params.get('id')}`
-                    img_node.src = `http://api.green-coding.local:9142/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
-                } else {
-                    link_node.href = `https://metrics.green-coding.berlin/stats.html?id=${url_params.get('id')}`
-                    img_node.src = `https://api.green-coding.berlin/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
-                }
+                link_node.href = `${METRICS_URL}/stats.html?id=${url_params.get('id')}`
+                img_node.src = `${API_URL}/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
                 link_node.appendChild(img_node)
                 el.appendChild(link_node)
             })

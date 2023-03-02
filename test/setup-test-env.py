@@ -1,9 +1,16 @@
 #pylint: disable=invalid-name
 
+import sys
 import os
 from copy import deepcopy
 import subprocess
 import yaml
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(f"{CURRENT_DIR}/../lib")
+
+# pylint: disable=import-error
+import utils
 
 BASE_CONFIG_NAME = 'config.yml'
 BASE_COMPOSE_NAME = 'compose.yml.example'
@@ -17,27 +24,47 @@ test_compose_path = os.path.join(current_dir, f"../docker/{TEST_COMPOSE_NAME}")
 
 DB_PW = 'testpw'
 
+def copy_sql_structure():
+    print('Copying SQL structure...')
+    subprocess.run(
+        ['cp', '-f', '../docker/structure.sql', './structure.sql'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    if utils.get_architecture() == 'macos':
+        command = ['sed', '-i', "", 's/green-coding/test-green-coding/g', './structure.sql']
+    else:
+        command = ['sed', '-i', 's/green-coding/test-green-coding/g', './structure.sql']
+
+    subprocess.run(
+        command,
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
 
 def edit_config_file():
     print('Creating test-config.yml...')
     config = None
     with open(base_config_path, encoding='utf8') as base_config_file:
-        config = yaml.load(base_config_file, Loader=yaml.FullLoader)
+        config = yaml.safe_load(base_config_file)
 
     # Reset SMTP
     for smtp_entry in config.get('smtp'):
         config['smtp'][smtp_entry] = None
 
     config['postgresql']['host'] = 'test-green-coding-postgres-container'
+    config['postgresql']['dbname'] = 'test-green-coding'
     config['postgresql']['password'] = DB_PW
     config['admin']['no_emails'] = True
 
     # change idle start/stop times to 0
     config['measurement']['idle-time-start'] = 0
     config['measurement']['idle-time-end'] = 0
-
-    # set timeout for flow to 60s
-    config['measurement']['flow-process-runtime'] = 60
 
     with open(test_config_path, 'w', encoding='utf8') as test_config_file:
         yaml.dump(config, test_config_file)
@@ -67,6 +94,7 @@ def edit_compose_file():
                 volume = volume.replace(k, f'test-{k}')
             volume = volume.replace('PATH_TO_GREEN_METRICS_TOOL_REPO',
                           f'{current_dir}/../')
+            volume = volume.replace('./structure.sql', '../test/structure.sql')
             new_vol_list.append(volume)
 
         # Change the depends on: in services as well
@@ -106,9 +134,13 @@ def edit_compose_file():
 def edit_etc_hosts():
     subprocess.run(['./edit-etc-hosts.sh'], check=True)
 
+def build_test_docker_image():
+    subprocess.run(['docker', 'compose', '-f', test_compose_path, 'build'], check=True)
 
 if __name__ == '__main__':
+    copy_sql_structure()
     edit_config_file()
     edit_compose_file()
     edit_etc_hosts()
+    build_test_docker_image()
     print('fin.')

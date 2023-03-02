@@ -73,10 +73,8 @@ async def catch_exceptions_middleware(request: Request, call_next):
 app.middleware('http')(catch_exceptions_middleware)
 
 origins = [
-    'http://metrics.green-coding.local:9142',
-    'http://api.green-coding.local:9142',
-    'https://metrics.green-coding.berlin',
-    'https://api.green-coding.berlin',
+    GlobalConfig().config['config']['metrics_url'],
+    GlobalConfig().config['config']['api_url'],
 ]
 
 app.add_middleware(
@@ -106,6 +104,23 @@ async def get_notes(project_id):
                 created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
             """
     data = DB().fetch_all(query, (project_id,))
+    if data is None or data == []:
+        return {'success': False, 'err': 'Data is empty'}
+
+    return {'success': True, 'data': data}
+
+# return a list of all possible registered machines
+@app.get('/v1/machines/')
+async def get_machines():
+    query = """
+            SELECT
+                id, description
+            FROM
+                machines
+            ORDER BY
+                description ASC
+            """
+    data = DB().fetch_all(query)
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
 
@@ -268,6 +283,7 @@ class Project(BaseModel):
     url: str
     email: str
     branch: str
+    machine_id: int
 
 
 @app.post('/v1/project/add')
@@ -285,6 +301,9 @@ async def post_project_add(project: Project):
     if project.branch.strip() == '':
         project.branch = None
 
+    if project.machine_id == 0:
+        project.machine_id = None
+
     # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
     query = """
         INSERT INTO
@@ -299,7 +318,7 @@ async def post_project_add(project: Project):
     email_helpers.send_admin_email(
         f"New project added from Web Interface: {project.name}", project
     )  # notify admin of new project
-    jobs.insert_job('project', project_id)
+    jobs.insert_job('project', project_id, project.machine_id)
 
     return {'success': True}
 

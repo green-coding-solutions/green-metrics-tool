@@ -1,6 +1,4 @@
 PyYAML==6.0
-pandas==1.5.2
-psycopg2==2.9.5
+pandas==1.5.3
+psycopg2-binary==2.9.5
 pyserial==3.5
-pydantic==1.10.2
-pytest==7.2.0

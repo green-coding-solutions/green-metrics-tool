@@ -30,4 +30,4 @@ jobs:
       - name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
-           metrics-to-turn-off: 'System Sensors Debug'
+           metrics-to-turn-off: 'System Sensors Debug MacOS'

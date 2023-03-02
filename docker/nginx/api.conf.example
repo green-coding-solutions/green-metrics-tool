@@ -1,0 +1,21 @@
+server {
+    listen [::]:80;
+    listen [::]:9142;
+    listen [::]:443;
+
+    listen 80;
+    listen 9142;
+    listen 443;
+
+    server_name __API_URL__ ;
+
+    location / {
+        proxy_pass http://unix:/tmp/green-coding-api.sock;
+        # Do not change this
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+    }
+}
