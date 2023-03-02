@@ -21,8 +21,11 @@ for more details.
 where addr is the mac address of your powerspy2 device. You can query this through `bluetoothctl devices`.
 Please note that you will have to do this as root!
 
-1) Make the rfcomm device read and writeable by all as root. `chmod 777 /dev/rfcomm0` This is potentially a security problem
-if you are on a shared machine!
+A one-liner, if your PowerSpy2 is already paired with the OS is:
+`bluetoothctl devices | awk '$0 ~ /PowerSpy/ {print $2}' | xargs -I % sudo rfcomm connect /dev/rfcomm0 % 1`
+
+1) Make the rfcomm device read and writeable by all as root. `sudo chmod 777 /dev/rfcomm0`
+This is potentially a security problem if you are on a shared machine!
 
 1) Please try running the metrics provider first to see if everything works.
 
