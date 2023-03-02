@@ -5,12 +5,12 @@ import os
 from copy import deepcopy
 import subprocess
 import yaml
+# pylint: disable=import-error
+import utils
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/../lib")
 
-# pylint: disable=import-error
-import utils
 
 BASE_CONFIG_NAME = 'config.yml'
 BASE_COMPOSE_NAME = 'compose.yml.example'
