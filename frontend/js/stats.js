@@ -133,7 +133,9 @@ const convertValue = (metric_name, value, unit) => {
       case 'centi°C':
         return [value / 100, '°C'];
         break;
-
+      case 'Hz':
+        return [value / 1000000, 'GHz'];
+        break;
       case 'Bytes':
         return [value / 1000000, 'MB'];
         break;
@@ -533,6 +535,9 @@ const fillAvgContainers = (measurement_duration_in_s, metrics) => {
                 break;
             case 'RPM':
                 createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, 'RPM (approx.)');
+                break;
+            case 'GHz':
+                createAvgContainer(metric_name, (acc / metrics[metric_name].sum.length), 'GHz (approx.)');
                 break;
 
             default:
