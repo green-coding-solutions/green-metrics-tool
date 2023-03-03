@@ -10,6 +10,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
 
+import uuid
 from pydantic import BaseModel
 from starlette.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,7 +24,6 @@ import email_helpers
 import error_helpers
 import psycopg2.extras
 import anybadge
-
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic
@@ -251,13 +251,13 @@ async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
 
     value = None
     if metric == 'ml-estimated':
-        value = 'psu_energy_xgboost_system'
+        value = 'psu_energy_ac_xgboost_system'
     elif metric == 'RAPL':
         value = '%_rapl_%'
     elif metric == 'DC':
-        value = 'psu_energy_dc_system'
+        value = 'psu_energy_dc_picolog_system'
     elif metric == 'AC':
-        value = 'psu_energy_ac_system'
+        value = 'psu_energy_ac_powerspy2_system'
     else:
         raise RuntimeError('Unknown metric submitted')
 
@@ -284,7 +284,6 @@ class Project(BaseModel):
     email: str
     branch: str
     machine_id: int
-
 
 @app.post('/v1/project/add')
 async def post_project_add(project: Project):
@@ -353,6 +352,83 @@ async def robots_txt():
 
     return Response(content=data, media_type='text/plain')
 
+class Badge(BaseModel):
+    value: int
+    unit: str
+    repo: str
+    branch: str
+    workflow: str
+    run_id: str
+    project_id: str
+
+@app.post('/v1/ci/badge/add/')
+async def post_ci_badge_add(badge: Badge):
+    for i in Badge.schema()['properties'].keys():
+        key_value = getattr(badge, i)
+        if i == 'project_id':
+            if key_value is None or key_value.strip() == '':
+                badge.project_id = None
+            elif not is_valid_uuid(key_value.strip()):
+                return {'success': False, 'err': "project_id is not a valid uuid"}
+        elif i == 'value':
+            if key_value is None:
+                return {'success': False, 'err': f"{i} is empty"}
+        elif i == 'unit':
+            if key_value is None or key_value.strip() == '':
+                return {'success': False, 'err': f"{i} is empty"}
+            if key_value != 'mJ':
+                return {'success': False, 'err': "Unit is unsupported - only mJ currently accepted"}
+        elif key_value is None or key_value.strip() == '':
+            return {'success': False, 'err': f"{i} is empty"}
+
+    query = """
+        INSERT INTO
+            badges (value, unit, repo ,branch, workflow, run_id, project_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+    params = (badge.value, badge.unit, badge.repo, badge.branch, badge.workflow, badge.run_id, badge.project_id)
+    DB().query(query=query, params=params)
+
+    return {'success': True}
+
+@app.get('/v1/ci/badges/')
+async def get_ci_badges(repo: str, branch: str, workflow:str):
+    query = """
+        SELECT value, unit, run_id, created_at
+        FROM badges
+        WHERE repo = %s AND branch = %s AND workflow = %s
+        ORDER BY created_at DESC
+    """
+    params = (repo, branch, workflow)
+    data = DB().fetch_all(query, params=params)
+    if data is None or data == []:
+        return {'success': False, 'err': 'Data is empty'}
+
+    return {'success': True, 'data': data}
+
+@app.get('/v1/ci/badge/get/')
+async def get_ci_badge_get(repo: str, branch: str, workflow:str):
+    query = """
+        SELECT value, unit
+        FROM badges
+        WHERE repo = %s AND branch = %s AND workflow = %s
+        ORDER BY created_at DESC
+    """
+    params = (repo, branch, workflow)
+    data = DB().fetch_one(query, params=params)
+    if data is None or data == []:
+        return {'success': False, 'err': 'Data is empty'}
+
+    [energy_value, energy_unit] = rescale_energy_value(data[0], data[1])
+    badge_value= f"{energy_value:.2f} {energy_unit}"
+
+    badge = anybadge.Badge(
+        label='Energy Used',
+        value=badge_value,
+        num_value_padding_chars=1,
+        default_color='green')
+    return Response(content=str(badge), media_type="image/svg+xml")
+
 # Helper functions, not directly callable through routes
 
 def rescale_energy_value(value, unit):
@@ -370,6 +446,13 @@ def rescale_energy_value(value, unit):
     elif value < 0.001: energy_rescaled = [value*(10**3), 'nJ']
 
     return energy_rescaled
+
+def is_valid_uuid(val):
+    try:
+        uuid.UUID(str(val))
+        return True
+    except ValueError:
+        return False
 
 if __name__ == '__main__':
     app.run()

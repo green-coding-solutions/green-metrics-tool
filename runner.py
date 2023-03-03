@@ -27,7 +27,6 @@ import yaml
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/lib")
 
-
 from lib import (error_helpers, hardware_info, hardware_info_root,
                  process_helpers, utils)
 from lib.db import DB
@@ -326,6 +325,10 @@ class Runner:
 
             if 'volumes' in service:
                 if self._allow_unsafe:
+                    # On old docker clients we experience some weird error, that we deem legacy
+                    # If a volum is supplied in the compose.yml file in this form: ./file.txt:/tmp/file.txt
+                    # and the file does NOT exist, then docker will create the folder in the current running dir
+                    # This is however not enabled anymore and hard to circumvent. We keep this as unfixed for now.
                     if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
                     for volume in service['volumes']:

@@ -10,7 +10,7 @@ CREATE TABLE projects (
     branch text,
     email text,
     categories int[],
-    usage_scenario jsonb,
+    usage_scenario json,
     machine_specs jsonb,
     measurement_config jsonb,
     start_measurement bigint,
@@ -72,5 +72,17 @@ CREATE TABLE notes (
     detail_name text,
     note text,
     time bigint,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE badges (
+    id SERIAL PRIMARY KEY,
+    value bigint,
+    unit text,
+    repo text,
+    branch text,
+    workflow text,
+    run_id text,
+    project_id uuid REFERENCES projects(id) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT null,
     created_at timestamp with time zone DEFAULT now()
 );

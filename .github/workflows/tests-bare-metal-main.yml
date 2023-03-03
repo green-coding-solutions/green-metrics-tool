@@ -1,34 +1,46 @@
-name: Daily Test Run - Bare Metal - Main Branch
-run-name: Scheduled - ${{ github.ref_name }}
+name: Daily Test Run - Virtual Machine - Main Branch
+run-name: Scheduled - main branch
 on:
   schedule:
-    - cron: '0 0 * * *'
-  #push:
-  #  branch: test-pipeline-improvements
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
 jobs:
-  check_date:
-    runs-on: ubuntu-latest
-    name: Check latest commit
-    outputs:
-      recent_main_commit: ${{ steps.check_main_commits.outputs.recent_commit }}
+  run-tests-main:
+    runs-on: self-hosted
     steps:
-      - id: check_main_commits
+      - id: check-date
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: green-coding-berlin/eco-ci-activity-checker@main
         with:
           repo: 'green-coding-berlin/green-metrics-tool'
           branch: 'main'
+          workflow-id: 45267391
 
-  run-tests-main:
-    needs: check_date
-    if: ${{ needs.check_date.outputs.recent_main_commit == 'true' }}
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v3
+      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
+        name: 'Checkout repository'
+        uses: actions/checkout@v3
         with:
           ref: 'main'
           submodules: 'true'
-      
-      - name: 'Setup, Run, and Teardown Tests'
+
+      - name: Eco CI Energy Estimation
+        uses: green-coding-berlin/eco-ci-energy-estimation@main
+        with:
+          task: initialize
+
+      - name: Eco CI Energy Estimation
+        uses: green-coding-berlin/eco-ci-energy-estimation@main
+        with:
+          task: start-measurement
+
+      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
+        name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
-           metrics-to-turn-off: 'System Sensors Debug MacOS'
+         metrics-to-turn-off: 'System Sensors Debug MacOS'
+
+      - name: Eco CI Energy Estimation
+        uses: green-coding-berlin/eco-ci-energy-estimation@main
+        with:
+          task: get-measurement

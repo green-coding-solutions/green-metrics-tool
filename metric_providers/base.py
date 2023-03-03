@@ -62,6 +62,9 @@ class BaseMetricProvider:
         elif self._metrics.get('package_id') is not None:
             df['detail_name'] = df.package_id
             df = df.drop('package_id', axis=1)
+        elif self._metrics.get('core_id') is not None:
+            df['detail_name'] = df.core_id
+            df = df.drop('core_id', axis=1)
         elif self._metrics.get('container_id') is not None:
             df['detail_name'] = df.container_id
             for container_id in containers:
