@@ -24,6 +24,87 @@ const convertValue = (value, unit) => {
 
 }
 
+const createChartContainer = (container, el) => {
+    const chart_node = document.createElement("div")
+    chart_node.classList.add("card");
+    chart_node.classList.add('statistics-chart-card')
+    chart_node.classList.add('ui')
+
+    chart_node.innerHTML = `
+    <div class="content">
+        <div class="description">
+            <div class="statistics-chart" id=${el}-chart></div>
+        </div>
+    </div>`
+    document.querySelector(container).appendChild(chart_node)
+
+
+    return chart_node.querySelector('.statistics-chart');
+}
+
+const getEChartsOptions = () => {
+    return {
+        tooltip: {
+            trigger: 'axis'
+        },
+        xAxis: {
+            data: []
+        },
+
+        yAxis: {
+            type: 'value',
+            splitLine: {show: true}
+        },
+        series: [],
+        title: {text: null},
+        animation: false,
+        legend: {
+            data: [],
+            bottom: 0,
+            // type: 'scroll' // maybe active this if legends gets too long
+        },
+        toolbox: {
+            itemSize: 25,
+            top: 55,
+            feature: {
+                dataZoom: {
+                yAxisIndex: 'none'
+                },
+                restore: {}
+            }
+            },
+
+    };
+}
+
+const displayGraph = (runs) => {
+    const element = createChartContainer("#chart-container", "run-energy");
+    var options = getEChartsOptions();
+    options.title.text = `Workflow energy cost per run`;
+
+    var run_ids = runs.map(function(value,index) { return value[2]; });
+    var values = runs.map(function(value,index) { return value[0]; });
+    console.log(values)
+    options.xAxis.data = run_ids
+    options.series.push({
+            name: run_ids,
+            type: 'bar',
+            symbol: 'none',
+            areaStyle: {},
+            data: values,
+            markLine: { data: [ {type: "average",label: {formatter: "Average:\n{c}"}}]}
+    });
+
+    const chart_instance = echarts.init(element);
+    chart_instance.setOption(options);
+
+    window.onresize = function() { // set callback when ever the user changes the viewport
+        chart_instance.resize();
+    }
+}
+
+
+
 $(document).ready( (e) => {
     (async () => {
         const query_string = window.location.search;
@@ -85,6 +166,7 @@ $(document).ready( (e) => {
             document.querySelector("#badges-table").appendChild(li_node);
         });
        $('table').tablesort();
-
+       displayGraph(badges_data.data)
+       
     })();
 });
