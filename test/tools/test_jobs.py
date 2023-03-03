@@ -1,5 +1,5 @@
 # test all functions in jobs.py
-#pylint: disable=invalid-name,missing-docstring,too-many-statements
+#pylint: disable=invalid-name,missing-docstring,too-many-statements,fixme
 
 import os
 import sys
@@ -23,6 +23,16 @@ config = GlobalConfig(config_name='test-config.yml').config
 def cleanup_jobs():
     yield
     DB().query('DELETE FROM jobs')
+
+@pytest.fixture(autouse=True, scope='module')
+def cleanup_projects():
+    yield
+    DB().query('DELETE FROM projects')
+
+# This should be done once per module
+@pytest.fixture(autouse=True, scope="module")
+def build_image():
+    subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/../stress-application/compose.yml", 'build'], check=True)
 
 def get_job(job_id):
     query = """
