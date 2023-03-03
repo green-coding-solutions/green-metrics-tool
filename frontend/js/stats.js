@@ -2,14 +2,6 @@ var display_in_watts = localStorage.getItem('display_in_watts');
 if(display_in_watts == 'true') display_in_watts = true;
 else display_in_watts = false;
 
-const copyToClipboard = (e) => {
-  if (navigator && navigator.clipboard && navigator.clipboard.writeText)
-    return navigator.clipboard.writeText(e.currentTarget.closest('div.inline.field').querySelector('span').innerHTML)
-
-  alert('Copying badge on local is not working due to browser security models')
-  return Promise.reject('The Clipboard API is not available.');
-};
-
 const rescaleCO2Value = (total_CO2_in_kg) => {
     if     (total_CO2_in_kg < 0.0000000001) co2_display = [total_CO2_in_kg*(10**12), 'ng'];
     else if(total_CO2_in_kg < 0.0000001) co2_display = [total_CO2_in_kg*(10**9), 'ug'];
@@ -133,7 +125,9 @@ const convertValue = (metric_name, value, unit) => {
       case 'centi°C':
         return [value / 100, '°C'];
         break;
-
+      case 'Hz':
+        return [value / 1000000, 'GHz'];
+        break;
       case 'Bytes':
         return [value / 1000000, 'MB'];
         break;
@@ -143,7 +137,7 @@ const convertValue = (metric_name, value, unit) => {
 
 }
 
-const getMetrics = (stats_data, phase_times, style='apex') => {
+const getMetrics = (stats_data, start_measurement, end_measurement, style='apex') => {
     const metrics = {}
     let accumulate = 0;
     const t0 = performance.now();
@@ -172,13 +166,11 @@ const getMetrics = (stats_data, phase_times, style='apex') => {
                 metric_changed = true;
             }
 
+            accumulate = 0; // default
+
             // here we use the undivided time on purpose
-            if (el[1] > current_phase.start && el[1] < current_phase.end) {
+            if (el[1] > start_measurement && el[1] < end_measurement) {
                 accumulate = 1;
-            } else if (accumulate == 1 && el[1] >= current_phase.end) { // will trigger only one time on phase end
-                accumulate = 0;
-                current_phase = phases.next() // advance phase
-                current_phase_name = 'next'
             }
 
             [value, unit] = convertValue(metric_name, value, unit);
@@ -191,7 +183,7 @@ const getMetrics = (stats_data, phase_times, style='apex') => {
                 }
             }
 
-            if(accumulate) metrics[metric_name][current_phase_name].sum.push(value); // we want the converted value, but not the Watts display. Adding only with Joules!
+            if(accumulate) metrics[metric_name].sum.push(value); // we want the converted value, but not the Watts display. Adding only with Joules!
 
             if(display_in_watts && metrics[metric_name].unit == 'J') {
                 value = value/(time_after-time_before); // convert Joules to Watts by dividing through the time difference of two measurements
@@ -495,61 +487,63 @@ const fillAvgContainers = (measurement_duration_in_s, metrics) => {
     let component_energy_in_J = 0;
     let network_io = 0;
     for (metric_name in metrics) {
-        for (phase in metrics[metric_name]) {
-            let acc = metrics[metric_name][phase].sum.reduce((a, b) => a + b, 0)
-            let max = (Math.max.apply(null, metrics[metric_name][phase].sum))
+        let acc = metrics[metric_name].sum.reduce((a, b) => a + b, 0)
+        let max = (Math.max.apply(null, metrics[metric_name].sum))
 
-            switch(metrics[metric_name].unit) {
-                case 'J':
-                    if(display_in_watts) createAvgContainer(metric_name, phase, (acc / 3600) * 1000, 'mWh');
-                    else createAvgContainer(metric_name, acc, 'J');
-                    createAvgContainer(metric_name.replace('_energy_', '_power_'), acc / measurement_duration_in_s, 'W');
-                    break;
-                case 'W':
-                    // This functionality is considered legacy. You should not use providers that report in W
-                    // Reason being is that Watts reporting is currently not integrated but only averaged when
-                    // calculating energy. Therefore the "approx" is added.
-                    createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, 'W');
-                    createAvgContainer(metric_name, ((acc / metrics[metric_name].sum.length)*measurement_duration_in_s)/3.6, ' mWh (approx!)');
-                    break;
-                case '%':
-                    createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, '%');
-                    createAvgContainer(metric_name, max, '% (Max)');
-                    break;
-                case 'MB':
-                    createAvgContainer(metric_name, max, 'MB');
-                    break;
-                case 'us':
-                    // createAvgContainer(metric_name, max, 'seconds'); // no avg needed for now
-                    break;
-                case '°C':
-                    // no avg needed for now
-                    break;
-                case 'ns':
-                    // no avg needed for now
-                    break;
-                case 'bytes':
-                    // no avg needed for now
-                    break;
-                case '*':
-                    // no avg needed for now
-                    break;
-                case 'RPM':
-                    createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, 'RPM (approx.)');
-                    break;
+        switch(metrics[metric_name].unit) {
+            case 'J':
+                if(display_in_watts) createAvgContainer(metric_name, (acc / 3600) * 1000, 'mWh');
+                else createAvgContainer(metric_name, acc, 'J');
+                createAvgContainer(metric_name.replace('_energy_', '_power_'), acc / measurement_duration_in_s, 'W');
+                break;
+            case 'W':
+                // This functionality is considered legacy. You should not use providers that report in W
+                // Reason being is that Watts reporting is currently not integrated but only averaged when
+                // calculating energy. Therefore the "approx" is added.
+                createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, 'W');
+                createAvgContainer(metric_name, ((acc / metrics[metric_name].sum.length)*measurement_duration_in_s)/3.6, ' mWh (approx!)');
+                break;
+            case '%':
+                createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, '%');
+                createAvgContainer(metric_name, max, '% (Max)');
+                break;
+            case 'MB':
+                createAvgContainer(metric_name, max, 'MB');
+                break;
+            case 'us':
+                // createAvgContainer(metric_name, max, 'seconds'); // no avg needed for now
+                break;
+            case '°C':
+                // no avg needed for now
+                break;
+            case 'ns':
+                // no avg needed for now
+                break;
+            case 'bytes':
+                // no avg needed for now
+                break;
+            case '*':
+                // no avg needed for now
+                break;
+            case 'RPM':
+                createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, 'RPM (approx.)');
+                break;
+            case 'GHz':
+                createAvgContainer(metric_name, (acc / metrics[metric_name].sum.length), 'GHz (approx.)');
+                break;
 
-                default:
-                    alert(`Unknown unit encountered in ${metric_name}: ${metrics[metric_name].unit}`);
-            }
-
-            // handle compound metrics
-            if(metric_name == 'cpu_energy_rapl_msr_system' || metric_name == 'memory_energy_rapl_msr_system') {
-                component_energy_in_J += acc;
-            }
-            if(metric_name == 'network_io_cgroup_container') {
-                network_io += max;
-            }
+            default:
+                alert(`Unknown unit encountered in ${metric_name}: ${metrics[metric_name].unit}`);
         }
+
+        // handle compound metrics
+        if(metric_name == 'cpu_energy_rapl_msr_system' || metric_name == 'memory_energy_rapl_msr_system') {
+            component_energy_in_J += acc;
+        }
+        if(metric_name == 'network_io_cgroup_container') {
+            network_io += max;
+        }
+
     }
 
     const component_energy_in_mWh = component_energy_in_J / 3.6
@@ -639,7 +633,6 @@ $(document).ready( (e) => {
         }
 
         $('.ui.secondary.menu .item').tab();
-        $('.ui.steps .step').tab();
 
         if (project_data == undefined || project_data.success == false) {
             return;
@@ -661,7 +654,8 @@ $(document).ready( (e) => {
             return;
         }
 
-        const metrics = getMetrics(stats_data, project_data.data.phases, 'echarts');
+        const metrics = getMetrics(stats_data, project_data.data.start_measurement, project_data.data.end_measurement, 'echarts');
+
 
         fillAvgContainers(measurement_duration_in_s, metrics);
 
