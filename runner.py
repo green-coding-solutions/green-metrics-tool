@@ -11,31 +11,35 @@
 # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
 #pylint: disable=broad-except
 
+# I can't make these go away, but the imports all work fine on my system >.<
+#pylint: disable=wrong-import-position, import-error
 
-import faulthandler
-import importlib
+import subprocess
 import json
 import os
-import re
-import subprocess
-import sys
 import time
+import sys
+import importlib
+import faulthandler
+import re
 from io import StringIO
-
 import yaml
+
+faulthandler.enable()  # will catch segfaults and write to STDERR
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/lib")
 
-from lib import (error_helpers, hardware_info, hardware_info_root,
-                 process_helpers, utils)
-from lib.db import DB
-from lib.debug_helper import DebugHelper
-from lib.global_config import GlobalConfig
-from lib.terminal_colors import TerminalColors
+from debug_helper import DebugHelper
+from terminal_colors import TerminalColors
+import process_helpers
+import hardware_info
+import hardware_info_root
+import error_helpers
+from db import DB
+from global_config import GlobalConfig
+import utils
 from tools.save_notes import save_notes  # local file import
-
-faulthandler.enable()  # will catch segfaults and write to STDERR
 
 
 def arrows(text):
