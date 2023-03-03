@@ -98,7 +98,6 @@ def test_simple_project_job():
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
         utils.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
-# TODO: the patch here doesn't work atm
 #pylint: disable=unused-variable # for the time being, until I ge the mocking to work
 def test_simple_email_job():
     name = utils.randomword(12)
