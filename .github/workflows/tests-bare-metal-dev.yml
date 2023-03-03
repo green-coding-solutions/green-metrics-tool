@@ -1,4 +1,4 @@
-name: Daily Test Run - Virtual Machine - Dev Branch
+name: Daily Test Run - Bare Metal - Dev Branch
 run-name: Scheduled - DEV Branch
 on:
   schedule:
