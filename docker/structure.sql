@@ -10,7 +10,7 @@ CREATE TABLE projects (
     branch text,
     email text,
     categories int[],
-    usage_scenario jsonb,
+    usage_scenario json,
     machine_specs jsonb,
     measurement_config jsonb,
     start_measurement bigint,
