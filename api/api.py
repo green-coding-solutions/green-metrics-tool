@@ -399,11 +399,6 @@ async def get_ci_badges(repo: str, branch: str, workflow:str):
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
 
-    # for i in range(len(data)):
-    #     [energy_value, energy_unit] = rescale_energy_value(data[i][0], data[i][1])
-    #     data[i][0] = energy_value
-    #     data[i][1] = energy_unit
-
     return {'success': True, 'data': data}
 
 @app.get('/v1/ci/badge/get/')
