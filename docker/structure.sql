@@ -73,6 +73,6 @@ CREATE TABLE badges (
     branch text,
     workflow text,
     run_id text,
-    project_id uuid,
+    project_id uuid REFERENCES projects(id) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT null,
     created_at timestamp with time zone DEFAULT now()
 );
