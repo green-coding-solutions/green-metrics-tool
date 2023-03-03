@@ -2,14 +2,6 @@ var display_in_watts = localStorage.getItem('display_in_watts');
 if(display_in_watts == 'true') display_in_watts = true;
 else display_in_watts = false;
 
-const copyToClipboard = (e) => {
-  if (navigator && navigator.clipboard && navigator.clipboard.writeText)
-    return navigator.clipboard.writeText(e.currentTarget.closest('div.inline.field').querySelector('span').innerHTML)
-
-  alert('Copying badge on local is not working due to browser security models')
-  return Promise.reject('The Clipboard API is not available.');
-};
-
 const rescaleCO2Value = (total_CO2_in_kg) => {
     if     (total_CO2_in_kg < 0.0000000001) co2_display = [total_CO2_in_kg*(10**12), 'ng'];
     else if(total_CO2_in_kg < 0.0000001) co2_display = [total_CO2_in_kg*(10**9), 'ug'];

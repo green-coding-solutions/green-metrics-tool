@@ -1,9 +1,3 @@
-const copyToClipboard = (e) => {
-  if (navigator && navigator.clipboard && navigator.clipboard.writeText)
-    return navigator.clipboard.writeText(e.currentTarget.parentElement.parentElement.children[0].innerHTML);
-  return Promise.reject('The Clipboard API is not available.');
-};
-
 const addZed = (num) => {
     return (num <= 9 ? '0' + num : num);
 }
