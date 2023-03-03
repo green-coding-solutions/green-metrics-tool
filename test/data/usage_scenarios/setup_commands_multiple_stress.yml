@@ -2,8 +2,7 @@
 name: Test Stress
 author: Dan Mateas
 version: 1
-architecture: linux
-  
+
 services:
   test-container:
     type: container

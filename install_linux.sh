@@ -25,13 +25,13 @@ while getopts "p:a:m:" o; do
 done
 
 if [[ -z $api_url ]] ; then
-    read -p "Please enter the desired API endpoint URL: (default: http://api.green-coding.local:9142): " api_url
-    api_url=${api_url:-"http://api.green-coding.local:9142"}
+    read -p "Please enter the desired API endpoint URL: (default: http://api.green-coding.example:9142): " api_url
+    api_url=${api_url:-"http://api.green-coding.example:9142"}
 fi
 
 if [[ -z $metrics_url ]] ; then
-    read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.local:9142): " metrics_url
-    metrics_url=${metrics_url:-"http://metrics.green-coding.local:9142"}
+    read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.example:9142): " metrics_url
+    metrics_url=${metrics_url:-"http://metrics.green-coding.example:9142"}
 fi 
 
 if [[ -z "$db_pw" ]] ; then
@@ -107,7 +107,7 @@ else
 fi
 
 # Entry 2 can be external URLs. These should not resolve to localhost if not explcitely wanted
-if [[ ${host_metrics_url} == *".green-coding.local"* ]];then
+if [[ ${host_metrics_url} == *".green-coding.example"* ]];then
     if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
         echo "$etc_hosts_line_2" | sudo tee -a /etc/hosts
     else

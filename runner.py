@@ -12,32 +12,31 @@
 #pylint: disable=broad-except
 
 
-import subprocess
+import faulthandler
+import importlib
 import json
 import os
-import time
-import sys
-import importlib
-import faulthandler
 import re
+import subprocess
+import sys
+import time
 from io import StringIO
-import yaml
 
-faulthandler.enable()  # will catch segfaults and write to STDERR
+import yaml
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/lib")
 
-from debug_helper import DebugHelper
-from terminal_colors import TerminalColors
-import process_helpers
-import hardware_info
-import hardware_info_root
-import error_helpers
-from db import DB
-from global_config import GlobalConfig
-import utils
+from lib import (error_helpers, hardware_info, hardware_info_root,
+                 process_helpers, utils)
+from lib.db import DB
+from lib.debug_helper import DebugHelper
+from lib.global_config import GlobalConfig
+from lib.terminal_colors import TerminalColors
 from tools.save_notes import save_notes  # local file import
+
+faulthandler.enable()  # will catch segfaults and write to STDERR
+
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -45,7 +44,8 @@ def arrows(text):
 class Runner:
     def __init__(self,
         uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
-        debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False, verbose_provider_boot=False):
+        debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False,
+        verbose_provider_boot=False):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -101,7 +101,7 @@ class Runner:
                         '--recurse-submodules',
                         '--shallow-submodules',
                         self._uri,
-                        '/tmp/green-metrics-tool/repo'
+                        self._folder
                     ],
                     check=True,
                     capture_output=True,
@@ -117,7 +117,7 @@ class Runner:
                         '--recurse-submodules',
                         '--shallow-submodules',
                         self._uri,
-                        '/tmp/green-metrics-tool/repo'
+                        self._folder
                     ],
                     check=True,
                     capture_output=True,
@@ -128,9 +128,94 @@ class Runner:
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
             self._folder = self._uri
 
+    # This method loads the yml file and takes care that the includes work and are secure.
+    # It uses the tagging infrastructure provided by https://pyyaml.org/wiki/PyYAMLDocumentation
+    # Inspiration from https://github.com/tanbro/pyyaml-include which we can't use as it doesn't
+    # do security checking and has no option to select when imported
+    def load_yml_file(self):
+        #pylint: disable=too-many-ancestors
+        class Loader(yaml.SafeLoader):
+            def __init__(self, stream):
+                # We need to find our own root as the Loader is instantiated in PyYaml
+                self._root = os.path.split(stream.name)[0]
+                super().__init__(stream)
+
+            def include(self, node):
+                # We allow two types of includes
+                # !include <filename> => ScalarNode
+                # and
+                # !include <filename> <selector> => SequenceNode
+                if isinstance(node, yaml.nodes.ScalarNode):
+                    nodes = [self.construct_scalar(node)]
+                elif isinstance(node, yaml.nodes.SequenceNode):
+                    nodes = self.construct_sequence(node)
+                else:
+                    raise ValueError("We don't support Mapping Nodes to date")
+
+                filename = os.path.realpath(os.path.join(self._root, nodes[0]))
+
+                if not filename.startswith(self._root):
+                    raise ImportError(f"Import tries to escape root! ({filename})")
+
+                # To double check we also check if it is in the files allow list
+                if filename not in [os.path.join(self._root, item) for item in os.listdir(self._root)]:
+                    print(os.listdir(self._root))
+                    raise RuntimeError(f"{filename} not in allowed file list")
+
+
+                with open(filename, 'r', encoding='utf-8') as f:
+                    # We want to enable a deep search for keys
+                    def recursive_lookup(k, d):
+                        if k in d:
+                            return d[k]
+                        for v in d.values():
+                            if isinstance(v, dict):
+                                return recursive_lookup(k, v)
+                        return None
+
+                    # We can use load here as the Loader extends SafeLoader
+                    if len(nodes) == 1:
+                        # There is no selector specified
+                        return yaml.load(f, Loader)
+
+                    return recursive_lookup(nodes[1], yaml.load(f, Loader))
+
+        Loader.add_constructor('!include', Loader.include)
+
+        with open(f"{self._folder}/{self._filename}", 'r', encoding='utf-8') as fp:
+            # We can use load here as the Loader extends SafeLoader
+            yml_obj = yaml.load(fp, Loader)
+            # Now that we have parsed the yml file we need to check for the special case in which we have a
+            # compose-file key. In this case we merge the data we find under this key but overwrite it with
+            # the data from the including file.
+
+            # We need to write our own merge method as dict.update doesn't do a "deep" merge
+            def merge_dicts(dict1, dict2):
+                if isinstance(dict1, dict):
+                    for k, v in dict2.items():
+                        if k in dict1 and isinstance(v, dict) and isinstance(dict1[k], dict):
+                            merge_dicts(dict1[k], v)
+                        else:
+                            dict1[k] = v
+                    return dict1
+                return dict1
+
+            new_dict = {}
+            if 'compose-file' in yml_obj.keys():
+                for k,v in yml_obj['compose-file'].items():
+                    if k in yml_obj:
+                        new_dict[k] = merge_dicts(v,yml_obj[k])
+                    else: # just copy over if no key exists in usage_scenario
+                        yml_obj[k] = v
+
+                del yml_obj['compose-file']
+
+            yml_obj.update(new_dict)
+            self._usage_scenario = yml_obj
+
     def initial_parse(self):
-        with open(f"{self._folder}/{self._filename}", encoding='utf-8') as fp:
-            self._usage_scenario = yaml.safe_load(fp)
+
+        self.load_yml_file()
 
         print(TerminalColors.HEADER, '\nHaving Usage Scenario ', self._usage_scenario['name'], TerminalColors.ENDC)
         print('From: ', self._usage_scenario['author'])
@@ -244,12 +329,32 @@ class Runner:
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
                         docker_run_string.append(f"{volume}")
-                elif self._skip_unsafe:
-                    print(TerminalColors.WARNING,
-                          arrows('Found volumes entry but not running in unsafe mode. Skipping'),
-                          TerminalColors.ENDC)
-                else:
-                    raise RuntimeError('Found "volumes" but neither --skip-unsafe nor --allow-unsafe is set')
+                else: # safe volume bindings are active by default
+                    if not isinstance(service['volumes'], list):
+                        raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
+                    for volume in service['volumes']:
+                        vol = volume.split(':')
+                        # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
+                        # could create volumes that would linger on our system.
+                        path = os.path.realpath(os.path.join(self._folder, vol[0]))
+                        if not os.path.exists(path):
+                            raise RuntimeError(f"Volume path does not exist {path}")
+
+                        # Check that the path starts with self._folder
+                        if not path.startswith(self._folder):
+                            raise RuntimeError(f"Trying to escape folder {path}")
+
+                        # To double check we also check if it is in the files allow list
+                        if path not in [os.path.join(self._folder, item) for item in os.listdir(self._folder)]:
+                            print( os.listdir(self._folder))
+                            raise RuntimeError(f"{path} not in allowed file list")
+
+                        if len(vol) == 3:
+                            if vol[2] != 'ro':
+                                raise RuntimeError('We only allow ro as parameter in volume mounts in unsafe mode')
+
+                        docker_run_string.append('-v')
+                        docker_run_string.append(f"{path}:{vol[1]}:ro") # force mount as :ro
 
             if 'ports' in service:
                 if self._allow_unsafe:
@@ -328,7 +433,7 @@ class Runner:
                 # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
                 # injection of unwawnted params
                 ps = subprocess.run(
-                    ['docker', 'exec', container_name, *cmd.split()],
+                    ['docker', 'exec', container_name, 'sh', '-c', cmd],
                     check=True,
                     stderr=subprocess.PIPE,
                     stdout=subprocess.PIPE,
@@ -405,7 +510,9 @@ class Runner:
                         docker_exec_command = ['docker', 'exec']
 
                         docker_exec_command.append(el['container'])
-                        docker_exec_command.extend(inner_el['command'].split(' '))
+                        docker_exec_command.append('sh')
+                        docker_exec_command.append('-c')
+                        docker_exec_command.append(inner_el['command'])
 
                         # Note: In case of a detach wish in the usage_scenario.yml:
                         # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
@@ -425,9 +532,11 @@ class Runner:
                             'ps': ps,
                             'read-notes-stdout': inner_el.get('read-notes-stdout', False),
                             'ignore-errors': inner_el.get('ignore-errors', False),
-                            'detail_name': el['container']})
+                            'detail_name': el['container'],
+                            'detach': inner_el.get('detach', False),
+                        })
 
-                        if inner_el.get('detach', None) is True:
+                        if inner_el.get('detach', False) is True:
                             print('Process should be detached. Running asynchronously and detaching ...')
                             self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
                         else:
@@ -472,18 +581,19 @@ class Runner:
                 f = StringIO(df.to_csv(index=False, header=False))
                 DB().copy_from(file=f, table='stats', columns=df.columns, sep=',')
 
+            # kill process only after reading. Otherwise the stream buffer might be gone
+            process_helpers.kill_ps(self.__ps_to_kill)
+
             # now we have free capacity to parse the stdout / stderr of the processes
             print(TerminalColors.HEADER, '\nGetting output from processes: ', TerminalColors.ENDC)
             for ps in self.__ps_to_read:
-                for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd'], ps['ignore-errors']):
+                for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd'], ps['ignore-errors'], ps['detach']):
                     print('Output from process: ', line)
                     if ps['read-notes-stdout']:
                         # Fixed format according to our specification. If unpacking fails this is wanted error
                         timestamp, note = line.split(' ', 1)
                         self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
 
-            # kill process only after reading. Otherwise the stream buffer might be gone
-            process_helpers.kill_ps(self.__ps_to_kill)
         finally:
             # we here only want the header to be colored, not the notes itself
             print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)

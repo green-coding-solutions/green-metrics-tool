@@ -109,6 +109,23 @@ async def get_notes(project_id):
 
     return {'success': True, 'data': data}
 
+# return a list of all possible registered machines
+@app.get('/v1/machines/')
+async def get_machines():
+    query = """
+            SELECT
+                id, description
+            FROM
+                machines
+            ORDER BY
+                description ASC
+            """
+    data = DB().fetch_all(query)
+    if data is None or data == []:
+        return {'success': False, 'err': 'Data is empty'}
+
+    return {'success': True, 'data': data}
+
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/projects')
@@ -234,13 +251,13 @@ async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
 
     value = None
     if metric == 'ml-estimated':
-        value = 'psu_energy_xgboost_system'
+        value = 'psu_energy_ac_xgboost_system'
     elif metric == 'RAPL':
         value = '%_rapl_%'
     elif metric == 'DC':
-        value = 'psu_energy_dc_system'
+        value = 'psu_energy_dc_picolog_system'
     elif metric == 'AC':
-        value = 'psu_energy_ac_system'
+        value = 'psu_energy_ac_powerspy2_system'
     else:
         raise RuntimeError('Unknown metric submitted')
 
@@ -266,6 +283,7 @@ class Project(BaseModel):
     url: str
     email: str
     branch: str
+    machine_id: int
 
 
 @app.post('/v1/project/add')
@@ -283,6 +301,9 @@ async def post_project_add(project: Project):
     if project.branch.strip() == '':
         project.branch = None
 
+    if project.machine_id == 0:
+        project.machine_id = None
+
     # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
     query = """
         INSERT INTO
@@ -297,7 +318,7 @@ async def post_project_add(project: Project):
     email_helpers.send_admin_email(
         f"New project added from Web Interface: {project.name}", project
     )  # notify admin of new project
-    jobs.insert_job('project', project_id)
+    jobs.insert_job('project', project_id, project.machine_id)
 
     return {'success': True}
 
