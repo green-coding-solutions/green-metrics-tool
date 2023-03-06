@@ -8,9 +8,9 @@ import sys
 import subprocess
 import re
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{current_dir}/..")
-sys.path.append(f"{current_dir}/../lib")
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(f"{CURRENT_DIR}/..")
+sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from contextlib import redirect_stdout, redirect_stderr
 from db import DB
@@ -32,7 +32,7 @@ def setup_module(module):
     GlobalConfig(config_name='test-config.yml').config
     with redirect_stdout(out), redirect_stderr(err):
         uri = os.path.abspath(os.path.join(
-            current_dir, 'stress-application/'))
+            CURRENT_DIR, 'stress-application/'))
         subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
         pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
@@ -61,7 +61,7 @@ def test_db_rows_are_written_and_presented():
     # also check (in the same test, to save on a DB call) that the output to STD.OUT
     # "Imported XXX metrics from {metric_provider}" displays the same count as in the DB
 
-    project_id = utils.get_pid(project_name)
+    project_id = utils.get_project_data(project_name)['id']
     assert(project_id is not None or project_id != '')
     query = """
             SELECT

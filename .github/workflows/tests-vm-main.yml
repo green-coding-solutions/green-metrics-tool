@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-tests-dev:
+  run-tests-main:
     runs-on: ubuntu-latest
     steps:
       - id: check-date
@@ -14,14 +14,14 @@ jobs:
         uses: green-coding-berlin/eco-ci-activity-checker@main
         with:
           repo: 'green-coding-berlin/green-metrics-tool'
-          branch: 'dev'
+          branch: 'main'
           workflow-id: 45267393
 
       - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
         name: 'Checkout repository'
         uses: actions/checkout@v3
         with:
-          ref: 'dev'
+          ref: 'main'
           submodules: 'true'
 
       - name: Eco CI Energy Estimation
