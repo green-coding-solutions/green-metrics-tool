@@ -1,4 +1,4 @@
-name: Daily Test Run - Virtual Machine - Main Branch
+name: Daily Test Run - Bare Metal - Main Branch
 run-name: Scheduled - main branch
 on:
   schedule:
@@ -9,13 +9,13 @@ jobs:
   run-tests-main:
     runs-on: self-hosted
     steps:
-      - id: check-date
-        if: ${{ github.event_name != 'workflow_dispatch' }}
-        uses: green-coding-berlin/eco-ci-activity-checker@main
-        with:
-          repo: 'green-coding-berlin/green-metrics-tool'
-          branch: 'main'
-          workflow-id: 45267391
+      # - id: check-date
+      #   if: ${{ github.event_name != 'workflow_dispatch' }}
+      #   uses: green-coding-berlin/eco-ci-activity-checker@main
+      #   with:
+      #     repo: 'green-coding-berlin/green-metrics-tool'
+      #     branch: 'main'
+      #     workflow-id: 45267391
 
       - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
         name: 'Checkout repository'
