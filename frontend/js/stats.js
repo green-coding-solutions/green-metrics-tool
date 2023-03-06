@@ -2,14 +2,6 @@ var display_in_watts = localStorage.getItem('display_in_watts');
 if(display_in_watts == 'true') display_in_watts = true;
 else display_in_watts = false;
 
-const copyToClipboard = (e) => {
-  if (navigator && navigator.clipboard && navigator.clipboard.writeText)
-    return navigator.clipboard.writeText(e.currentTarget.closest('div.inline.field').querySelector('span').innerHTML)
-
-  alert('Copying badge on local is not working due to browser security models')
-  return Promise.reject('The Clipboard API is not available.');
-};
-
 const rescaleCO2Value = (total_CO2_in_kg) => {
     if     (total_CO2_in_kg < 0.0000000001) co2_display = [total_CO2_in_kg*(10**12), 'ng'];
     else if(total_CO2_in_kg < 0.0000001) co2_display = [total_CO2_in_kg*(10**9), 'ug'];
@@ -133,7 +125,9 @@ const convertValue = (metric_name, value, unit) => {
       case 'centi°C':
         return [value / 100, '°C'];
         break;
-
+      case 'Hz':
+        return [value / 1000000, 'GHz'];
+        break;
       case 'Bytes':
         return [value / 1000000, 'MB'];
         break;
@@ -533,6 +527,9 @@ const fillAvgContainers = (measurement_duration_in_s, metrics) => {
                 break;
             case 'RPM':
                 createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, 'RPM (approx.)');
+                break;
+            case 'GHz':
+                createAvgContainer(metric_name, (acc / metrics[metric_name].sum.length), 'GHz (approx.)');
                 break;
 
             default:

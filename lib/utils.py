@@ -3,6 +3,7 @@
 import random
 import string
 import subprocess
+import psycopg2.extras
 
 from db import DB
 
@@ -10,20 +11,18 @@ def randomword(length):
     letters = string.ascii_lowercase
     return ''.join(random.choice(letters) for i in range(length))
 
-## Is there a better place for this function to live?
-def get_pid(project_name):
+def get_project_data(project_name):
     query = """
             SELECT
-                id
+                *
             FROM
                 projects
             WHERE name = %s
             """
-    data = DB().fetch_one(query, (project_name, ))
+    data = DB().fetch_one(query, (project_name, ), cursor_factory=psycopg2.extras.RealDictCursor)
     if (data is None or data == []):
         return None
-
-    return data[0]
+    return data
 
 ## Parse a string so that the first letter, and any letter after a _, is capitalized
 ## E.g. 'foo_bar' -> 'FooBar'
