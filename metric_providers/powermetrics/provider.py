@@ -79,21 +79,21 @@ class PowermetricsProvider(BaseMetricProvider):
             if docker_task is not None:
                 dfs.append([cum_time_ms,
                             docker_task['cputime_ns'],
-                            'docker_cpu_time', 'docker',
+                            'cpu_time_powermetrics_docker', 'docker',
                             'ns'])
                 dfs.append([cum_time_ms,
                             docker_task['diskio_bytesread'],
-                            'docker_bytesread',
+                            'disk_io_bytesread_powermetrics',
                             'docker',
                             'bytes'])
                 dfs.append([cum_time_ms,
                             docker_task['diskio_byteswritten'],
-                           'docker_byteswritten',
+                           'disk_io_byteswritten_powermetrics',
                            'docker',
                            'bytes'])
                 dfs.append([cum_time_ms,
                             int(docker_task['energy_impact']),
-                           'docker_energy_impact',
+                           'docker_energy_impact_powermetrics',
                            'energy_impact',
                            # We need to introduce a new unit here as the energy impact on Mac isn't well understood
                            # https://tinyurl.com/2p9c56pz
@@ -102,35 +102,35 @@ class PowermetricsProvider(BaseMetricProvider):
             if 'cpu_power' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['cpu_power']) * conversion_factor),
-                           'system_cpu_power',
+                           'cores_energy_powermetrics_system',
                            '[SYSTEM]',
                            'mJ'])
 
             if 'package_joules' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['package_joules']) * 1000),
-                           'package_joules',
+                           'cpu_energy_powermetrics_system',
                            '[SYSTEM]',
                            'mJ'])
 
             if 'gpu_power' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['gpu_power']) * conversion_factor),
-                            'system_gpu_power',
+                            'gpu_energy_powermetrics_system',
                             '[SYSTEM]',
                             'mJ'])
 
-            if 'combined_power' in data['processor']:
-                dfs.append([cum_time_ms,
-                            int(float(data['processor']['combined_power']) * conversion_factor),
-                            'system_combined_power',
-                            '[SYSTEM]',
-                            'mJ'])
+            #if 'combined_power' in data['processor']:
+            #    dfs.append([cum_time_ms,
+            #                int(float(data['processor']['combined_power']) * conversion_factor),
+            #                'system_combined_power',
+            #                '[SYSTEM]',
+            #                'mJ'])
 
             if 'ane_power' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['ane_power']) * conversion_factor),
-                            'system_ane_power',
+                            'ane_energy_powermetrics_system',
                             '[SYSTEM]',
                             'mJ'])
 

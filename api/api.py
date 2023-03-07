@@ -151,6 +151,24 @@ async def get_projects():
 
 
 # A route to return all of the available entries in our catalog.
+@app.get('/v1/phase_stats/single/{project_id}')
+async def get_phase_stats(project_id: str):
+    if project_id is None or project_id.strip() == '':
+        return {'success': False, 'err': 'Project ID is empty'}
+
+    query = """
+            SELECT metric, detail_name, phase, value, unit
+            FROM phase_stats
+            WHERE project_id = %s
+            ORDER BY metric ASC, detail_name ASC
+            """
+    data = DB().fetch_all(query, (project_id, ))
+    if data is None or data == []:
+        return {'success': False, 'err': 'Data is empty'}
+
+    return {'success': True, 'data': data}
+
+# A route to return all of the available entries in our catalog.
 @app.get('/v1/stats/uri')
 async def get_stats_by_uri(uri: str, remove_idle: bool = False):
     if uri is None or uri.strip() == '':
@@ -161,14 +179,9 @@ async def get_stats_by_uri(uri: str, remove_idle: bool = False):
                 SELECT id, start_measurement, end_measurement FROM projects WHERE uri = %s
             ) SELECT
                 projects.id as project_id, stats.detail_name, stats.time, stats.metric, stats.value, stats.unit
-            FROM
-                stats
-            LEFT JOIN
-                projects
-            ON
-                projects.id = stats.project_id
-            WHERE
-                projects.uri = %s
+            FROM stats
+            LEFT JOIN projects ON projects.id = stats.project_id
+            WHERE projects.uri = %s
     """
     if remove_idle:
         query = f""" {query}

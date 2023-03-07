@@ -123,58 +123,99 @@
             </div>
         </div>
 
-        <div class="ui steps top attached">
-          <a class="active step"  data-tab="baseline">
+        <div class="ui steps top attached phases">
+          <a class="active step" data-tab="[BASELINE]">
             <div class="content">
               <div class="title">Baseline</div>
               <div class="description" style="display:none">Energy consumption before installing application</div>
             </div>
           </a>
-          <a class="step" data-tab="installation">
+          <a class="step" data-tab="[INSTALLATION]">
             <div class="content">
               <div class="title">Installation</div>
               <div class="description" style="display:none">This is where the containers are built / pulled</div>
             </div>
           </a>
-          <a class="step">
+          <a class="step" data-tab="[BOOT]">
             <div class="content">
               <div class="title">Boot</div>
               <div class="description" style="display:none">resource consumption while starting containers</div>
             </div>
           </a>
-          <a class="step">
+          <a class="step" data-tab="[IDLE]">
             <div class="content">
               <div class="title">Idle</div>
               <div class="description" style="display:none">resource consumption while running idle containers</div>
             </div>
           </a>
-          <a class="step">
+          <a class="step runtime-step" data-tab="" style="display:none;"> <!-- empty element for copying. Usage phases will be inserted before -->
             <div class="content">
-              <div class="title">Runtime</div>
+              <div class="title"></div>
               <div class="description" style="display:none">resource consumption while usage phase and executing usage scenario</div>
             </div>
           </a>
-          <a class="step">
+          <a class="step" data-tab="[REMOVE]">
             <div class="content">
-              <div class="title">Extra</div>
-              <div class="description" style="display:none">An extra phase</div>
+              <div class="title">Remove</div>
+              <div class="description" style="display:none">When software is removed / uninstalled.</div>
             </div>
           </a>
         </div>
 
-        <div class="ui tab attached segment secondary" data-tab="baseline">
+        <div class="ui tab attached segment secondary" data-tab="[BASELINE]">
           <h3 class="ui dividing header">container level metrics</h3>
-          <div class="ui five cards stackable no-transform-statistics" id="container-level-metrics">
+          <div class="ui five cards stackable no-transform-statistics container-level-metrics">
           </div>
           <h3 class="ui dividing header">system level metrics</h3>
-          <div class="ui five cards stackable no-transform-statistics" id="system-level-metrics"></div>
+          <div class="ui five cards stackable no-transform-statistics system-level-metrics"></div>
           <h3 class="ui dividing header">extra metrics</h3>
-          <div class="ui five cards stackable no-transform-statistics" id="extra-metrics"></div>
+          <div class="ui five cards stackable no-transform-statistics extra-metrics"></div>
         </div>
-        <div class="ui tab attached segment secondary" data-tab="installation">
-          Empty
+        <div class="ui tab attached segment secondary" data-tab="[INSTALLATION]">
+          <h3 class="ui dividing header">container level metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics container-level-metrics">
+          </div>
+          <h3 class="ui dividing header">system level metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics system-level-metrics"></div>
+          <h3 class="ui dividing header">extra metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics extra-metrics"></div>
         </div>
-
+        <div class="ui tab attached segment secondary" data-tab="[BOOT]">
+          <h3 class="ui dividing header">container level metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics container-level-metrics">
+          </div>
+          <h3 class="ui dividing header">system level metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics system-level-metrics"></div>
+          <h3 class="ui dividing header">extra metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics extra-metrics"></div>
+        </div>
+        <div class="ui tab attached segment secondary" data-tab="[IDLE]">
+          <h3 class="ui dividing header">container level metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics container-level-metrics">
+          </div>
+          <h3 class="ui dividing header">system level metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics system-level-metrics"></div>
+          <h3 class="ui dividing header">extra metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics extra-metrics"></div>
+        </div>
+        <div class="ui tab attached segment secondary runtime-tab" data-tab="" style="display:none">
+          <h3 class="ui dividing header">container level metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics container-level-metrics">
+          </div>
+          <h3 class="ui dividing header">system level metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics system-level-metrics"></div>
+          <h3 class="ui dividing header">extra metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics extra-metrics"></div>
+        </div>
+        <div class="ui tab attached segment secondary" data-tab="[REMOVE]">
+          <h3 class="ui dividing header">container level metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics container-level-metrics">
+          </div>
+          <h3 class="ui dividing header">system level metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics system-level-metrics"></div>
+          <h3 class="ui dividing header">extra metrics</h3>
+          <div class="ui five cards stackable no-transform-statistics extra-metrics"></div>
+        </div>
 
         <h3>compound metrics</h3>
         <div class="ui five cards stackable no-transform-statistics">

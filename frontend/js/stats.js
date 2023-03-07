@@ -10,45 +10,6 @@ const rescaleCO2Value = (total_CO2_in_kg) => {
     return co2_display;
 }
 
-const getApexOptions = () => {
-    return {
-        series: null,
-        chart: {
-            type: 'area',
-            animations: {
-              enabled: false
-            }
-        },
-        dataLabels: {
-            enabled: false
-        },
-        stroke: {
-            curve: 'smooth'
-        },
-        title: {
-          text: '',
-        },
-        xaxis: {
-          tickAmount: 6,
-          type: "datetime"
-        },
-        annotations: {
-            xaxis: []
-        },
-        tooltip: {
-            enabled: true,
-            shared: true,
-            followCursor: true,
-            x: {
-              show: true,
-              format: 'HH:mm:ss',
-          },
-
-        },
-    };
-}
-
-
 const getEChartsOptions = () => {
     return {
         tooltip: {
@@ -137,9 +98,8 @@ const convertValue = (metric_name, value, unit) => {
 
 }
 
-const getMetrics = (stats_data, start_measurement, end_measurement, style='apex') => {
+const getMetrics = (stats_data, start_measurement, end_measurement) => {
     const metrics = {}
-    let accumulate = 0;
     const t0 = performance.now();
 
    try {
@@ -166,24 +126,14 @@ const getMetrics = (stats_data, start_measurement, end_measurement, style='apex'
                 metric_changed = true;
             }
 
-            accumulate = 0; // default
-
-            // here we use the undivided time on purpose
-            if (el[1] > start_measurement && el[1] < end_measurement) {
-                accumulate = 1;
-            }
-
             [value, unit] = convertValue(metric_name, value, unit);
             if (metrics[metric_name] == undefined) {
                 metrics[metric_name] = {
                     series: {},
                     unit: unit,
-                    sum: [],
                     converted_unit: unit
                 }
             }
-
-            if(accumulate) metrics[metric_name].sum.push(value); // we want the converted value, but not the Watts display. Adding only with Joules!
 
             if(display_in_watts && metrics[metric_name].unit == 'J') {
                 value = value/(time_after-time_before); // convert Joules to Watts by dividing through the time difference of two measurements
@@ -202,12 +152,7 @@ const getMetrics = (stats_data, start_measurement, end_measurement, style='apex'
                 metrics[metric_name].series[detail_name] = { name: detail_name, data: [] }
             }
 
-            // now we handle the library specific formatting
-            if(style=='apex') {
-                metrics[metric_name].series[detail_name]['data'].push({ x: time_in_ms, y: value})
-            } else if(style=='echarts') {
-                metrics[metric_name].series[detail_name]['data'].push([time_in_ms, value]);
-            } else throw "Unknown chart style"
+            metrics[metric_name].series[detail_name]['data'].push([time_in_ms, value]);
 
         })
     } catch (err) {
@@ -220,7 +165,7 @@ const getMetrics = (stats_data, start_measurement, end_measurement, style='apex'
     return metrics;
 }
 
-const displayGraphs = (metrics, notes, style='apex') => {
+const displayGraphs = (metrics, notes) => {
 
     let counter = 0; // for automatically creating pair of <div>s
     const note_positions = [
@@ -234,51 +179,41 @@ const displayGraphs = (metrics, notes, style='apex') => {
 
         const element = createChartContainer("#chart-container", metric_name, counter);
 
-        if(style=='apex') {
-            charts = [];
-            let options = getApexOptions();
-            options.title.text = `${metric_name} ${metrics[metric_name].converted_unit}`;
-            options.series = Object.values(metrics[metric_name].series);
-            (new ApexCharts(element, options)).render();
-        } else if(style == 'echarts') {
-            var options = getEChartsOptions();
-            options.title.text = `${metric_name} [${metrics[metric_name].converted_unit}]`;
-            for (detail_name in metrics[metric_name].series) {
-                options.legend.data.push(detail_name)
-                options.series.push({
-                    name: detail_name,
-                    type: 'line',
-                    smooth: true,
-                    symbol: 'none',
-                    areaStyle: {},
-                    data: metrics[metric_name].series[detail_name].data,
-                    markLine: { data: [ {type: "average",label: {formatter: "AVG_ii:\n{c}"}}]}
-                });
-            }
-            // now we add all notes to every chart
-            options.legend.data.push('Notes')
-            let notes_labels = [];
-            let inner_counter = 0;
-            notes.forEach(note => {
-                notes_labels.push({xAxis: note[3]/1000, label: {formatter: note[2], position: note_positions[inner_counter%2]}})
-                inner_counter++;
-            })
+        var options = getEChartsOptions();
+        options.title.text = `${metric_name} [${metrics[metric_name].converted_unit}]`;
+        for (detail_name in metrics[metric_name].series) {
+            options.legend.data.push(detail_name)
             options.series.push({
-                name: "Notes",
+                name: detail_name,
                 type: 'line',
                 smooth: true,
                 symbol: 'none',
                 areaStyle: {},
-                data: [],
-                markLine: { data: notes_labels}
+                data: metrics[metric_name].series[detail_name].data,
+                markLine: { data: [ {type: "average",label: {formatter: "AVG_ii:\n{c}"}}]}
             });
-            const chart_instance = echarts.init(element);
-            chart_instance.setOption(options);
-            chart_instances.push(chart_instance);
-
-        } else {
-            throw "Unknown chart style";
         }
+        // now we add all notes to every chart
+        options.legend.data.push('Notes')
+        let notes_labels = [];
+        let inner_counter = 0;
+        notes.forEach(note => {
+            notes_labels.push({xAxis: note[3]/1000, label: {formatter: note[2], position: note_positions[inner_counter%2]}})
+            inner_counter++;
+        })
+        options.series.push({
+            name: "Notes",
+            type: 'line',
+            smooth: true,
+            symbol: 'none',
+            areaStyle: {},
+            data: [],
+            markLine: { data: notes_labels}
+        });
+        const chart_instance = echarts.init(element);
+        chart_instance.setOption(options);
+        chart_instances.push(chart_instance);
+
         counter++;
 
     }
@@ -384,7 +319,23 @@ const createChartContainer = (container, el, counter) => {
     return chart_node.querySelector('.statistics-chart');
 }
 
-const createAvgContainer = (metric_name, value, unit) => {
+const createAvgContainer = (metric_name, detail_name, value, unit, phase) => {
+    let phase_tab_node = document.querySelector(`a.step[data-tab='${phase}']`);
+
+    if(phase_tab_node == null || phase_tab_node == undefined) {
+        let runtime_tab_node = document.querySelector('a.runtime-step');
+        let cloned_tab_node = runtime_tab_node.cloneNode(true);
+        cloned_tab_node.style.display = '';
+        cloned_tab_node.setAttribute('data-tab', phase);
+        cloned_tab_node.querySelector('.title').innerText = phase;
+        runtime_tab_node.parentNode.insertBefore(cloned_tab_node, runtime_tab_node)
+
+        let phase_step_node = document.querySelector('.runtime-tab');
+        let cloned_step_node = phase_step_node.cloneNode(true);
+        cloned_step_node.style.display = '';
+        cloned_step_node.setAttribute('data-tab', phase);
+        phase_step_node.parentNode.insertBefore(cloned_step_node, phase_step_node)
+    }
 
     const node = document.createElement("div")
     node.classList.add("card");
@@ -399,13 +350,11 @@ const createAvgContainer = (metric_name, value, unit) => {
     if(metric_name.indexOf('_energy_') !== -1) {
         color = 'blue';
         icon = 'batter three quarters';
-        if (unit == 'W') explaination = 'system (avg.)';
-        else explaination = 'system';
+        explaination = detail_name;
     } else if(metric_name.indexOf('_power_') !== -1) {
         color = 'orange';
         icon = 'power off';
-        if (unit == 'W') explaination = 'system (avg.)';
-        else explaination = 'system';
+        explaination = detail_name;
     } else if(metric_name.indexOf('memory_total_') !== -1) {
         color = 'purple';
         icon = 'memory';
@@ -416,7 +365,7 @@ const createAvgContainer = (metric_name, value, unit) => {
         icon = 'exchange alternate';
         explaination = '<a href="https://docs.green-coding.berlin/docs/measuring/metric-providers/network-io-cgroup-container/"><i class="question circle icon"></i></a>'
     } else if(metric_name.indexOf('cpu_utilization') !== -1) {
-        if(metric_name.indexOf('_system') !== -1) explaination = 'system';
+        explaination = detail_name;
         color = 'yellow';
         icon = 'memory';
     }
@@ -434,11 +383,12 @@ const createAvgContainer = (metric_name, value, unit) => {
             </div>
         </div>`;
 
-    if(metric_name.indexOf('_container') !== -1) document.querySelector('#container-level-metrics').appendChild(node)
-    else if(metric_name.indexOf('_system') !== -1) document.querySelector('#system-level-metrics').appendChild(node)
-    else document.querySelector('#extra-metrics').appendChild(node)
-
-    return node;
+    if(metric_name.indexOf('_container') !== -1)
+        document.querySelector(`div.tab[data-tab='${phase}'] > div.container-level-metrics`).appendChild(node)
+    else if(metric_name.indexOf('_system') !== -1)
+        document.querySelector(`div.tab[data-tab='${phase}'] > div.system-level-metrics`).appendChild(node)
+    else
+        document.querySelector(`div.tab[data-tab='${phase}'] > div.extra-metrics`).appendChild(node)
 }
 
 
@@ -482,69 +432,34 @@ const createGraph = (element, data, labels, title) => {
 });
 };
 
-const fillAvgContainers = (measurement_duration_in_s, metrics) => {
-
+const fillAvgContainers = (phase_stats) => {
     let component_energy_in_J = 0;
     let network_io = 0;
-    for (metric_name in metrics) {
-        let acc = metrics[metric_name].sum.reduce((a, b) => a + b, 0)
-        let max = (Math.max.apply(null, metrics[metric_name].sum))
 
-        switch(metrics[metric_name].unit) {
-            case 'J':
-                if(display_in_watts) createAvgContainer(metric_name, (acc / 3600) * 1000, 'mWh');
-                else createAvgContainer(metric_name, acc, 'J');
-                createAvgContainer(metric_name.replace('_energy_', '_power_'), acc / measurement_duration_in_s, 'W');
-                break;
-            case 'W':
-                // This functionality is considered legacy. You should not use providers that report in W
-                // Reason being is that Watts reporting is currently not integrated but only averaged when
-                // calculating energy. Therefore the "approx" is added.
-                createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, 'W');
-                createAvgContainer(metric_name, ((acc / metrics[metric_name].sum.length)*measurement_duration_in_s)/3.6, ' mWh (approx!)');
-                break;
-            case '%':
-                createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, '%');
-                createAvgContainer(metric_name, max, '% (Max)');
-                break;
-            case 'MB':
-                createAvgContainer(metric_name, max, 'MB');
-                break;
-            case 'us':
-                // createAvgContainer(metric_name, max, 'seconds'); // no avg needed for now
-                break;
-            case '°C':
-                // no avg needed for now
-                break;
-            case 'ns':
-                // no avg needed for now
-                break;
-            case 'bytes':
-                // no avg needed for now
-                break;
-            case '*':
-                // no avg needed for now
-                break;
-            case 'RPM':
-                createAvgContainer(metric_name, acc / metrics[metric_name].sum.length, 'RPM (approx.)');
-                break;
-            case 'GHz':
-                createAvgContainer(metric_name, (acc / metrics[metric_name].sum.length), 'GHz (approx.)');
-                break;
 
-            default:
-                alert(`Unknown unit encountered in ${metric_name}: ${metrics[metric_name].unit}`);
+    phase_stats.forEach(phase_stat => {
+        // phase stat [
+            // 0: metric
+            // 1: detail_name
+            // 2: phase
+            // 3: value
+            // 4: unit
+        // ]
+        let [value, unit] = convertValue(phase_stat[0], phase_stat[3], phase_stat[4]);
+        createAvgContainer(phase_stat[0], phase_stat[1], value, unit, phase_stat[2]);
+        if(unit == 'J' && display_in_watts) {
+            createAvgContainer(phase_stat[0], phase_stat[1], (value / 3_600) * 1_000 , 'mWh', phase_stat[2]);
         }
 
         // handle compound metrics
-        if(metric_name == 'cpu_energy_rapl_msr_system' || metric_name == 'memory_energy_rapl_msr_system') {
-            component_energy_in_J += acc;
+        if(phase_stat[0] == 'cpu_energy_rapl_msr_system' || phase_stat[0] == 'memory_energy_rapl_msr_system') {
+            component_energy_in_J += value;
         }
-        if(metric_name == 'network_io_cgroup_container') {
-            network_io += max;
+        if(phase_stat[0] == 'network_io_cgroup_container') {
+            network_io += value;
         }
 
-    }
+    }); // end foreach
 
     const component_energy_in_mWh = component_energy_in_J / 3.6
     if(display_in_watts) {
@@ -552,7 +467,6 @@ const fillAvgContainers = (measurement_duration_in_s, metrics) => {
     } else {
         document.querySelector("#component-energy").innerHTML = `${component_energy_in_J.toFixed(2)} <span class="si-unit">J</span>`
     }
-    document.querySelector("#component-power").innerHTML = `${(component_energy_in_J / measurement_duration_in_s).toFixed(2)} <span class="si-unit">W</span>`
 
     // network via formula: https://www.green-coding.berlin/co2-formulas/
     const network_io_in_mWh = network_io * 0.00006 * 1000000;
@@ -631,6 +545,11 @@ $(document).ready( (e) => {
         } catch (err) {
             showNotification('Could not get notes data from API', err);
         }
+        try {
+            var phase_stats_json = await makeAPICall('/v1/phase_stats/single/' + url_params.get('id'))
+        } catch (err) {
+            showNotification('Could not get phase_stats data from API', err);
+        }
 
         $('.ui.secondary.menu .item').tab();
 
@@ -650,19 +569,19 @@ $(document).ready( (e) => {
             document.body.classList.add("invalidated-measurement")
         }
 
+        fillAvgContainers(phase_stats_json.data);
+        $('.ui.steps.phases .step').tab();
+
         if (stats_data == undefined || stats_data.success == false) {
             return;
         }
 
-        const metrics = getMetrics(stats_data, project_data.data.start_measurement, project_data.data.end_measurement, 'echarts');
-
-
-        fillAvgContainers(measurement_duration_in_s, metrics);
+        const metrics = getMetrics(stats_data, project_data.data.start_measurement, project_data.data.end_measurement);
 
         if (notes_json == undefined || notes_json.success == false) {
             return;
         }
-        displayGraphs(metrics, notes_json.data, 'echarts');
+        displayGraphs(metrics, notes_json.data);
         document.querySelector('#api-loader').remove();
 
         // after all instances have been placed the flexboxes might have rearranged. We need to trigger resize
