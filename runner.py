@@ -464,10 +464,15 @@ class Runner:
         print(TerminalColors.HEADER, '\nCurrent known containers: ', self.__containers, TerminalColors.ENDC)
 
 
-    def start_metric_providers(self):
+    def start_metric_providers(self, allow_container=True, allow_other=True):
         print(TerminalColors.HEADER, '\nStarting metric providers', TerminalColors.ENDC)
 
         for metric_provider in self.__metric_providers:
+            if metric_provider._metric_name.endswith("_container") and not allow_container:
+                continue
+            if not metric_provider._metric_name.endswith("_container") and not allow_other:
+                continue
+
             message = f"Booting {metric_provider.__class__.__name__}"
             print(message)
             metric_provider.start_profiling(self.__containers)
@@ -480,6 +485,11 @@ class Runner:
         time.sleep(2)
 
         for metric_provider in self.__metric_providers:
+            if metric_provider._metric_name.endswith("_container") and not allow_container:
+                continue
+            if not metric_provider._metric_name.endswith("_container") and not allow_other:
+                continue
+
             stderr_read = metric_provider.get_stderr()
             print(f"Stderr check on {metric_provider.__class__.__name__}")
             if stderr_read is not None:
@@ -518,103 +528,99 @@ class Runner:
 
     def run_flows(self):
         config = GlobalConfig().config
-        try:
-            # run the flows
-            for el in self._usage_scenario['flow']:
-                print(TerminalColors.HEADER, '\nRunning flow: ', el['name'], TerminalColors.ENDC)
+        # run the flows
+        for el in self._usage_scenario['flow']:
+            print(TerminalColors.HEADER, '\nRunning flow: ', el['name'], TerminalColors.ENDC)
 
-                self.start_phase(el['name'].replace('[', '').replace(']',''))
+            self.start_phase(el['name'].replace('[', '').replace(']',''))
 
-                for inner_el in el['commands']:
-                    if 'note' in inner_el:
-                        self.__notes.append({'note': inner_el['note'], 'detail_name': el['container'],
-                            'timestamp': int(time.time_ns() / 1_000)})
+            for inner_el in el['commands']:
+                if 'note' in inner_el:
+                    self.__notes.append({'note': inner_el['note'], 'detail_name': el['container'],
+                        'timestamp': int(time.time_ns() / 1_000)})
 
-                    if inner_el['type'] == 'console':
-                        print(TerminalColors.HEADER, '\nConsole command',
-                              inner_el['command'], 'on container', el['container'], TerminalColors.ENDC)
+                if inner_el['type'] == 'console':
+                    print(TerminalColors.HEADER, '\nConsole command',
+                          inner_el['command'], 'on container', el['container'], TerminalColors.ENDC)
 
-                        docker_exec_command = ['docker', 'exec']
+                    docker_exec_command = ['docker', 'exec']
 
-                        docker_exec_command.append(el['container'])
-                        docker_exec_command.append('sh')
-                        docker_exec_command.append('-c')
-                        docker_exec_command.append(inner_el['command'])
+                    docker_exec_command.append(el['container'])
+                    docker_exec_command.append('sh')
+                    docker_exec_command.append('-c')
+                    docker_exec_command.append(inner_el['command'])
 
-                        # Note: In case of a detach wish in the usage_scenario.yml:
-                        # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
-                        # Since Popen always make the process asynchronous we can leverage this to emulate a detached
-                        # behavior
+                    # Note: In case of a detach wish in the usage_scenario.yml:
+                    # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
+                    # Since Popen always make the process asynchronous we can leverage this to emulate a detached
+                    # behavior
 
-                        #pylint: disable=consider-using-with
-                        ps = subprocess.Popen(
-                            docker_exec_command,
-                            stderr=subprocess.PIPE,
-                            stdout=subprocess.PIPE,
-                            encoding='UTF-8'
-                            )
+                    #pylint: disable=consider-using-with
+                    ps = subprocess.Popen(
+                        docker_exec_command,
+                        stderr=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        encoding='UTF-8'
+                        )
 
-                        self.__ps_to_read.append({
-                            'cmd': docker_exec_command,
-                            'ps': ps,
-                            'read-notes-stdout': inner_el.get('read-notes-stdout', False),
-                            'ignore-errors': inner_el.get('ignore-errors', False),
-                            'detail_name': el['container'],
-                            'detach': inner_el.get('detach', False),
-                        })
+                    self.__ps_to_read.append({
+                        'cmd': docker_exec_command,
+                        'ps': ps,
+                        'read-notes-stdout': inner_el.get('read-notes-stdout', False),
+                        'ignore-errors': inner_el.get('ignore-errors', False),
+                        'detail_name': el['container'],
+                        'detach': inner_el.get('detach', False),
+                    })
 
-                        if inner_el.get('detach', False) is True:
-                            print('Process should be detached. Running asynchronously and detaching ...')
-                            self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
-                        else:
-                            print(f"Process should be synchronous. \
-                                Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
-                            process_helpers.timeout(
-                                ps, inner_el['command'], config['measurement']['flow-process-runtime'])
+                    if inner_el.get('detach', False) is True:
+                        print('Process should be detached. Running asynchronously and detaching ...')
+                        self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
                     else:
-                        raise RuntimeError('Unknown command type in flow: ', inner_el['type'])
+                        print(f"Process should be synchronous. \
+                            Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
+                        process_helpers.timeout(
+                            ps, inner_el['command'], config['measurement']['flow-process-runtime'])
+                else:
+                    raise RuntimeError('Unknown command type in flow: ', inner_el['type'])
 
-                    if self._debugger.active:
-                        self._debugger.pause('Waiting to start next command in flow')
+                if self._debugger.active:
+                    self._debugger.pause('Waiting to start next command in flow')
 
-            self.end_phase(el['name'].replace('[', '').replace(']',''))
+        self.end_phase(el['name'].replace('[', '').replace(']',''))
 
-            print(TerminalColors.HEADER, 'Stopping metric providers and parsing stats', TerminalColors.ENDC)
-            for metric_provider in self.__metric_providers:
-                stderr_read = metric_provider.get_stderr()
-                if stderr_read is not None:
-                    raise RuntimeError(
-                        f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
+    def stop_metric_providers(self):
+        print(TerminalColors.HEADER, 'Stopping metric providers and parsing stats', TerminalColors.ENDC)
+        for metric_provider in self.__metric_providers:
+            stderr_read = metric_provider.get_stderr()
+            if stderr_read is not None:
+                raise RuntimeError(
+                    f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
-                metric_provider.stop_profiling()
+            metric_provider.stop_profiling()
 
-                df = metric_provider.read_metrics(self._project_id, self.__containers)
-                print('Imported', TerminalColors.HEADER,
-                      df.shape[0], TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
-                if df is None or df.shape[0] == 0:
-                    raise RuntimeError(
-                        f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
+            df = metric_provider.read_metrics(self._project_id, self.__containers)
+            print('Imported', TerminalColors.HEADER,
+                  df.shape[0], TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
+            if df is None or df.shape[0] == 0:
+                raise RuntimeError(
+                    f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
 
-                f = StringIO(df.to_csv(index=False, header=False))
-                DB().copy_from(file=f, table='stats', columns=df.columns, sep=',')
+            f = StringIO(df.to_csv(index=False, header=False))
+            DB().copy_from(file=f, table='stats', columns=df.columns, sep=',')
 
-            # kill process only after reading. Otherwise the stream buffer might be gone
-            process_helpers.kill_ps(self.__ps_to_kill)
+    def read_and_cleanup_processes(self):
+        process_helpers.kill_ps(self.__ps_to_kill)
 
-            # now we have free capacity to parse the stdout / stderr of the processes
-            print(TerminalColors.HEADER, '\nGetting output from processes: ', TerminalColors.ENDC)
-            for ps in self.__ps_to_read:
-                for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd'], ps['ignore-errors'], ps['detach']):
-                    print('Output from process: ', line)
-                    if ps['read-notes-stdout']:
-                        # Fixed format according to our specification. If unpacking fails this is wanted error
-                        timestamp, note = line.split(' ', 1)
-                        self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
+        # now we have free CPU capacity to parse the stdout / stderr of the processes
+        print(TerminalColors.HEADER, '\nGetting output from processes: ', TerminalColors.ENDC)
+        for ps in self.__ps_to_read:
+            for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd'], ps['ignore-errors'], ps['detach']):
+                print('Output from process: ', line)
+                if ps['read-notes-stdout']:
+                    # Fixed format according to our specification. If unpacking fails this is wanted error
+                    timestamp, note = line.split(' ', 1)
+                    self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
 
-        finally:
-            # we here only want the header to be colored, not the notes itself
-            print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)
-            save_notes(self._project_id, self.__notes)
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
@@ -690,6 +696,7 @@ class Runner:
 
         '''
         try:
+            config = GlobalConfig().config
 
             self.prepare_filesystem_location()
             self.checkout_repository()
@@ -697,21 +704,22 @@ class Runner:
             self.update_and_insert_specs()
             self.import_metric_providers()
             if self._debugger.active:
-                self._debugger.pause('Initial load complete. Waiting to start network setup')
+                self._debugger.pause('Initial load complete. Waiting to start metric providers')
 
-            self.start_metric_providers()
+            self.start_metric_providers(allow_other=True, allow_container=False)
             if self._debugger.active:
-                self._debugger.pause('metric-providers start complete. Waiting to start flow')
+                self._debugger.pause('metric-providers (system,others) start complete. Waiting to start measurement')
+
+            time.sleep(config['measurement']['idle-time-start'])
 
             self.start_measurement()
 
             self.start_phase('[BASELINE]')
+            time.sleep(1)
             self.end_phase('[BASELINE]')
 
-            self.setup_networks()
-
             if self._debugger.active:
-                self._debugger.pause('Network setup complete. Waiting to start container setup')
+                self._debugger.pause('Network setup complete. Waiting to start container build')
 
             self.start_phase('[INSTALLATION]')
             # TODO
@@ -720,29 +728,54 @@ class Runner:
             time.sleep(1)
             self.end_phase('[INSTALLATION]')
 
+            if self._debugger.active:
+                self._debugger.pause('Network setup complete. Waiting to start container boot')
+
             self.start_phase('[BOOT]')
+            self.setup_networks()
             self.setup_services()
             self.end_phase('[BOOT]')
 
             if self._debugger.active:
-                self._debugger.pause('Container setup complete. Waiting to start metric-providers')
+                self._debugger.pause('Container setup complete. Waiting to start container provider boot')
+
+            self.start_metric_providers(allow_container=True, allow_other=False)
+
+            if self._debugger.active:
+                self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')
 
             self.start_phase('[IDLE]')
-            # NOP
+            time.sleep(1)
             self.end_phase('[IDLE]')
+
+            if self._debugger.active:
+                self._debugger.pause('Container idle phase complete. Waiting to start flows')
 
             self.run_flows() # can trigger debug breakpoints; Contains use phase
 
+            if self._debugger.active:
+                self._debugger.pause('Container flows complete. Waiting to start remove phase')
+
             self.start_phase('[REMOVE]')
-            # NOP
             time.sleep(1)
             self.end_phase('[REMOVE]')
+
+            if self._debugger.active:
+                self._debugger.pause('Remove phase complete. Waiting to stop and cleanup')
+
             self.end_measurement()
+            time.sleep(config['measurement']['idle-time-end'])
+            self.stop_metric_providers()
+            self.read_and_cleanup_processes()
             self.store_phases()
             self.update_start_and_end_times()
 
         finally:
-            self.cleanup()  # always run cleanup automatically after each run
+            try:
+                print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)
+                save_notes(self._project_id, self.__notes)
+            finally:
+                self.cleanup()  # always run cleanup automatically after each run
 
         print(TerminalColors.OKGREEN, arrows('MEASUREMENT SUCCESSFULLY COMPLETED'), TerminalColors.ENDC)
 

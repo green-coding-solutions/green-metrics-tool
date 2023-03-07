@@ -15,6 +15,7 @@ CREATE TABLE projects (
     measurement_config jsonb,
     start_measurement bigint,
     end_measurement bigint,
+    phases JSON DEFAULT null,
     invalid_project text,
     last_run timestamp with time zone,
     created_at timestamp with time zone DEFAULT now()
@@ -28,6 +29,7 @@ CREATE TABLE stats (
     value bigint,
     unit text,
     time bigint,
+    phase text DEFAULT null,
     created_at timestamp with time zone DEFAULT now()
 );
 

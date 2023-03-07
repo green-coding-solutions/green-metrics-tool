@@ -185,3 +185,6 @@ a,
     width: 0 !important;
 }
 
+.ui.card .ui.bottom.right.attached.label {
+    font-size:10px !important;
+}

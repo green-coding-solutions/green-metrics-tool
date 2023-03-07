@@ -384,11 +384,11 @@ const createAvgContainer = (metric_name, detail_name, value, unit, phase) => {
         </div>`;
 
     if(metric_name.indexOf('_container') !== -1)
-        document.querySelector(`div.tab[data-tab='${phase}'] > div.container-level-metrics`).appendChild(node)
+        document.querySelector(`div.tab[data-tab='${phase}'] div.container-level-metrics`).appendChild(node)
     else if(metric_name.indexOf('_system') !== -1)
-        document.querySelector(`div.tab[data-tab='${phase}'] > div.system-level-metrics`).appendChild(node)
+        document.querySelector(`div.tab[data-tab='${phase}'] div.system-level-metrics`).appendChild(node)
     else
-        document.querySelector(`div.tab[data-tab='${phase}'] > div.extra-metrics`).appendChild(node)
+        document.querySelector(`div.tab[data-tab='${phase}'] div.extra-metrics`).appendChild(node)
 }
 
 
@@ -571,6 +571,51 @@ $(document).ready( (e) => {
 
         fillAvgContainers(phase_stats_json.data);
         $('.ui.steps.phases .step').tab();
+        $('.ui.accordion').accordion();
+
+        var chartDom = document.getElementById('piechart');
+        var myChart = echarts.init(chartDom);
+        var option;
+
+        option = {
+          legend: {
+            top: 'bottom'
+          },
+          toolbox: {
+            show: true,
+            feature: {
+              mark: { show: true },
+              dataView: { show: true, readOnly: false },
+              restore: { show: true },
+              saveAsImage: { show: true }
+            }
+          },
+          series: [
+            {
+              name: 'Nightingale Chart',
+              type: 'pie',
+               radius: [30, 100],
+              center: ['50%', '50%'],
+              roseType: 'radius',
+              itemStyle: {
+                borderRadius: 2
+              },
+              data: [
+                { value: 350, name: 'CPU Energy' },
+                { value: 11.44, name: 'DRAM Energy' },
+                { value: 150, name: 'HDDs+Overhead' },
+                { value: 50, name: 'PSU' },
+                { value: 20, name: 'Network' },
+              ]
+            }
+          ]
+        };
+
+        option && myChart.setOption(option);
+
+        // although there are multiple .step.runtime-step containers the first one
+        // marks the first runtime step and is shown by default
+        document.querySelector('.step.runtime-step').dispatchEvent(new Event('click'));
 
         if (stats_data == undefined || stats_data.success == false) {
             return;

@@ -76,7 +76,7 @@ if __name__ == '__main__':
             #    ) -- Backlog: if we need derivatives / integrations in the future
 
             query = """
-                SELECT SUM(value), MAX(value)
+                SELECT SUM(value), MAX(value), AVG(value)
                 FROM stats
                 WHERE project_id = %s AND metric = %s AND detail_name = %s AND time > %s and time < %s
             """
@@ -88,7 +88,7 @@ if __name__ == '__main__':
             value_max = 0
             print(results)
             if results[0] is not None:
-                (value_sum, value_max) = results
+                (value_sum, value_max, value_avg) = results
 
             query = """
                 INSERT INTO phase_stats
@@ -97,23 +97,30 @@ if __name__ == '__main__':
                     (%s, %s, %s, %s, %s, %s, NOW())
             """
 
-            DB().query(query,
-                    (project_id, metric, detail_name, phase['name'],
-                        value_sum,
-                    unit)
-            )
-            DB().query(query,
-                    (project_id, f"{metric}_MAX", detail_name, phase['name'],
-                        value_max,
-                    unit)
-            )
+            if metric == 'lm_sensors_temp' or metric == 'lm_sensors_fan'
+                DB().query(query,
+                        (project_id, f"{metric}_AVG", detail_name, phase['name'],
+                            value_avg,
+                        unit)
+                )
+            else:
+                DB().query(query,
+                        (project_id, f"{metric}_SUM", detail_name, phase['name'],
+                            value_sum,
+                        unit)
+                )
 
-
-
-            if ("_energy_" in metric and unit == 'mJ'):
+            if ("_energy_" in metric and unit == 'mJ'): # alternative to sum
                 DB().query(query,
                         (project_id, metric.replace('_energy_', '_power_'), detail_name, phase['name'],
                             value_sum / (phase['end'] - phase['start']), # sum of mJ / s => mW
                         'mW')
                 )
+
+            # always
+            DB().query(query,
+                    (project_id, f"{metric}_MAX", detail_name, phase['name'],
+                        value_max,
+                    unit)
+            )
 
