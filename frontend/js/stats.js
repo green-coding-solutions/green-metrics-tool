@@ -90,7 +90,7 @@ const fillProjectData = (project, key = null) => {
         if (item == 'machine_specs') {
             fillProjectTab('#machine-specs', project[item])
         } else if(item == 'usage_scenario') {
-            document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><pre>${JSON.stringify(project?.[item], null, 2)}</pre></td>`)
+            document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><pre>${json2yaml(project?.[item])}</pre></td>`)
 
         } else if(item == 'measurement_config') {
             fillProjectTab('#measurement-config', project[item])
