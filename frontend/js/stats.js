@@ -94,6 +94,20 @@ const fillProjectData = (project, key = null) => {
 
         } else if(item == 'measurement_config') {
             fillProjectTab('#measurement-config', project[item])
+        }  else if(item == 'commit_url') {
+            if (project?.[item] == null) {
+                document.querySelector('#project-data').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project?.[item]}</td></tr>`)
+            }
+            else {
+                document.querySelector('#project-data').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${project?.[item]}">${project?.[item]}</a></td></tr>`)
+            }
+        }  else if(item == 'uri') {
+            if (project?.[item].includes('http')) {
+                document.querySelector('#project-data').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${project?.[item]}">${project?.[item]}</a></td></tr>`)
+            }
+            else {
+                document.querySelector('#project-data').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project?.[item]}</td></tr>`)
+            }
         }  else {
 
             document.querySelector('#project-data').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project?.[item]}</td></tr>`)
