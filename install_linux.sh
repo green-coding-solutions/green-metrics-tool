@@ -118,3 +118,8 @@ fi
 echo "Building / Updating docker containers"
 docker compose -f docker/compose.yml down
 docker compose -f docker/compose.yml build
+
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
