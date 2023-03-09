@@ -47,14 +47,11 @@ const getEChartsOptions = () => {
         tooltip: {
             trigger: 'axis'
         },
-        xAxis: {
-            data: []
+        yAxis: {
         },
 
-        yAxis: {
-            type: 'value',
-            splitLine: {show: true}
-        },
+        xAxis: { type: 'category' },
+        dataset: {source:[]},
         series: [],
         title: {text: null},
         animation: false,
@@ -80,19 +77,20 @@ const getEChartsOptions = () => {
 const displayGraph = (runs) => {
     const element = createChartContainer("#chart-container", "run-energy");
     var options = getEChartsOptions();
-    options.title.text = `Workflow energy cost per run`;
 
-    var run_ids = runs.map(function(value,index) { return value[2]; });
-    var values = runs.map(function(value,index) { return value[0]; });
-    console.log(values)
-    options.xAxis.data = run_ids
-    options.series.push({
-            name: run_ids,
+    options.title.text = `Workflow energy cost per run`;
+    runs.forEach(run => {
+        options.dataset.source.push(run)
+        options.series.push({
             type: 'bar',
-            symbol: 'none',
-            areaStyle: {},
-            data: values,
-            markLine: { data: [ {type: "average",label: {formatter: "Average:\n{c}"}}]}
+            dimensions: ['value', 'unit', 'run_id', {name: 'timestamp', type: 'time'}],
+            encode: {
+                x: 'run_id',
+                y: 'value',
+                tooltip: ['value', 'run_id', 'timestamp']
+            },
+            stack: run[2]
+        })
     });
 
     const chart_instance = echarts.init(element);
