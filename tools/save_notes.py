@@ -9,6 +9,14 @@ from db import DB
 def save_notes(project_id, notes):
 
     for note in notes:
+        if not isinstance(note['timestamp'], int):
+            try:
+                note['timestamp'] = int(note['timestamp'])
+                if len(str(note['timestamp'])) != 16:
+                    raise ValueError('Timestamp too short')
+            except ValueError as e:
+                raise RuntimeError(f"Note did not match expected format: {note}") from e
+
         DB().query("""
                 INSERT INTO notes
                 ("project_id", "detail_name", "note", "time", "created_at")
