@@ -1,16 +1,15 @@
-#pylint: disable=invalid-name
+#pylint: disable=invalid-name,wrong-import-position,import-error
 
 import sys
 import os
 from copy import deepcopy
 import subprocess
 import yaml
-# pylint: disable=import-error
-import utils
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/../lib")
+sys.path.append(f"{CURRENT_DIR}/../lib/")
 
+import utils
 
 BASE_CONFIG_NAME = 'config.yml'
 BASE_COMPOSE_NAME = 'compose.yml.example'
