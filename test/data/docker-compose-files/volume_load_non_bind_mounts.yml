@@ -1,0 +1,12 @@
+version: '2'
+services:
+  test-container:
+    build: .
+    image: gcb_stress
+    container_name: test-container
+    restart: always
+    volumes:
+      - test-volume:/tmp/passwd
+
+volumes:
+  test-volume: /etc/passwd
