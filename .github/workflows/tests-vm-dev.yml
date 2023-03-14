@@ -44,4 +44,5 @@ jobs:
         uses: green-coding-berlin/eco-ci-energy-estimation@main
         with:
           task: get-measurement
+          branch: dev
 
