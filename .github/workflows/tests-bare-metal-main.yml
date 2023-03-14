@@ -17,8 +17,8 @@ jobs:
       #     branch: 'main'
       #     workflow-id: 45267391
 
-      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
-        name: 'Checkout repository'
+      # - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
+      - name: 'Checkout repository'
         uses: actions/checkout@v3
         with:
           ref: 'main'
@@ -34,8 +34,8 @@ jobs:
         with:
           task: start-measurement
 
-      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
-        name: 'Setup, Run, and Teardown Tests'
+      # - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
+      - name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
          metrics-to-turn-off: 'System Sensors Debug MacOS'

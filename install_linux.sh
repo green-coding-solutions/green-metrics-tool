@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+
 function print_message {
     echo ""
     echo "$1"
@@ -124,3 +128,5 @@ if [[ $no_build != true ]] ; then
     docker compose -f docker/compose.yml build
 fi
 
+echo ""
+echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
