@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+
 function print_message {
     echo ""
     echo "$1"
@@ -115,6 +119,9 @@ if [[ ${host_metrics_url} == *".green-coding.example"* ]];then
     fi
 fi
 
-echo "Building / Updating docker containers"
+print_message "Building / Updating docker containers"
 docker compose -f docker/compose.yml down
 docker compose -f docker/compose.yml build
+
+echo ""
+echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
