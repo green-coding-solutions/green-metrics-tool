@@ -1,4 +1,4 @@
-#pylint: disable=invalid-name
+#pylint: disable=invalid-name,wrong-import-position,import-error
 
 import sys
 import os
@@ -7,9 +7,8 @@ import subprocess
 import yaml
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/../lib")
+sys.path.append(f"{CURRENT_DIR}/../lib/")
 
-# pylint: disable=import-error
 import utils
 
 BASE_CONFIG_NAME = 'config.yml'
@@ -138,9 +137,17 @@ def build_test_docker_image():
     subprocess.run(['docker', 'compose', '-f', test_compose_path, 'build'], check=True)
 
 if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--no-docker-build', action='store_true',
+                        help='Do not build the docker image')
+    args = parser.parse_args()
+
     copy_sql_structure()
     edit_config_file()
     edit_compose_file()
     edit_etc_hosts()
-    build_test_docker_image()
+    if not args.no_docker_build:
+        build_test_docker_image()
     print('fin.')

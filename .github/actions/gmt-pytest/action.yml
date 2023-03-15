@@ -17,35 +17,50 @@ inputs:
     description: 'The command to run the tests'
     required: false
     default: 'pytest'
+  github-token:
+    description: 'pass in your secrets.GITHUB_TOKEN'
+    required: true
+
 runs:
   using: 'composite'
   steps:
-    - name: Install python dependencies
-      shell: bash
+    - name: setup python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+    
+    - name: pip install
       working-directory: ${{ inputs.gmt-directory }}
+      shell: bash
       run: |
-        python -m pip install --upgrade pip --user setuptools==58.3.0
         pip install -r requirements.txt -r requirements-dev.txt
         pip install -r metric_providers/psu/energy/ac/xgboost/system/model/requirements.txt
-    
-    - name: Run Prereqs and Install Script
-      shell: bash
-      working-directory: ${{ inputs.gmt-directory }}
-      run: |
-        ./install_linux.sh -p testpw -a http://api.green-coding.example:9142 -m http://metrics.green-coding.example:9142
 
-    - name: Turn off metric providers which do not work in github vm
+    - name: Run Install / Setup scripts
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
+        ./install_linux.sh -p testpw -a http://api.green-coding.example:9142 -m http://metrics.green-coding.example:9142 -n
         ./disable-metric-providers.sh ${{ inputs.metrics-to-turn-off }}
+        cd test && python3 setup-test-env.py --no-docker-build
 
-    - name: Setup Test environment
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@master
+
+    - name: Login to Docker Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.github-token }}
+
+    - name: Build docker-compose
       shell: bash
-      working-directory: ${{ inputs.gmt-directory }}/test
-      run: |
-        python3 setup-test-env.py
-        
+      working-directory: ${{ inputs.gmt-directory }}/docker
+      run: docker buildx bake --file test-compose.yml --file docker-compose-cache.json
+
     - name: Start Test container
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/test
