@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+
 function print_message {
     echo ""
     echo "$1"
@@ -10,7 +14,7 @@ db_pw=''
 api_url=''
 metrics_url=''
 
-while getopts "p:a:m:" o; do
+while getopts "p:a:m:n" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -20,6 +24,9 @@ while getopts "p:a:m:" o; do
             ;;
         m)
             metrics_url=${OPTARG}
+            ;;
+        n)
+            no_build=true
             ;;
     esac
 done
@@ -115,6 +122,11 @@ if [[ ${host_metrics_url} == *".green-coding.example"* ]];then
     fi
 fi
 
-echo "Building / Updating docker containers"
-docker compose -f docker/compose.yml down
-docker compose -f docker/compose.yml build
+if [[ $no_build != true ]] ; then
+    echo "Building / Updating docker containers"
+    docker compose -f docker/compose.yml down
+    docker compose -f docker/compose.yml build
+fi
+
+echo ""
+echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
