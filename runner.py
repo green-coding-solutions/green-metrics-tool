@@ -67,7 +67,6 @@ class Runner:
         self._filename = filename
         self._branch = branch
         self._folder = '/tmp/green-metrics-tool/repo' # default if not changed in checkout_repository
-        self._commit_url = None  # URL containing the state of the repo when cloned
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
 
@@ -130,7 +129,7 @@ class Runner:
                 )  # always name target-dir repo according to spec
 
             commit_hash = subprocess.run(
-                ['git', 'rev-parse', '--short', 'HEAD'],
+                ['git', 'rev-parse', 'HEAD'],
                 check=True,
                 capture_output=True,
                 encoding='UTF-8',
@@ -138,16 +137,11 @@ class Runner:
             )
             commit_hash = commit_hash.stdout.strip("\n")
 
-            if 'github' in self._uri:
-                self._commit_url = f"{self._uri.removesuffix('.git')}/tree/{commit_hash}"
-            elif 'gitlab' in self._uri:
-                self._commit_url = f"{self._uri.removesuffix('.git')}/-/tree/{commit_hash}"
-
             DB().query("""UPDATE projects
-                SET commit_url=%s
+                SET commit_hash=%s
                 WHERE id = %s
                 """,
-                params=(self._commit_url, self._project_id))
+                params=(commit_hash, self._project_id))
 
 
         else:
