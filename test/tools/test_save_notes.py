@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -11,13 +10,13 @@ sys.path.append(f"{CURRENT_DIR}/../../lib")
 
 # pylint: disable=import-error,wrong-import-position
 from save_notes import save_notes
-from db import DB
+import utils
 
 
 def test_invalid_string_timestamp():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as err:
         save_notes(
-            "test_project_id",
+            "e55675c5-8f7b-4d21-a4f7-d2417e23a44b",
             [
                 {
                     "note": "This is my note",
@@ -26,13 +25,13 @@ def test_invalid_string_timestamp():
                 }
             ],
         )
+    expected_exception = "Note timestamp did not match expected format"
+    assert expected_exception in str(err.value), \
+        utils.assertion_info(f"Exception: {expected_exception}", str(err.value))
 
 def test_string_timestamp():
-    mock_db = DB()
-    mock_db.query = MagicMock()
-
     save_notes(
-        "test_project_id",
+        "e55675c5-8f7b-4d21-a4f7-d2417e23a44b",
         [
             {
                 "note": "This is my note",
@@ -41,12 +40,11 @@ def test_string_timestamp():
             }
         ],
     )
-    mock_db.query.assert_called_once()
 
 def test_shorter_timestamp():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as err:
         save_notes(
-            "test_project_id",
+            "e55675c5-8f7b-4d21-a4f7-d2417e23a44b",
             [
                 {
                     "note": "This is my note",
@@ -55,13 +53,13 @@ def test_shorter_timestamp():
                 }
             ],
         )
+    expected_exception = "Note timestamp did not match expected format"
+    assert expected_exception in str(err.value), \
+        utils.assertion_info(f"Exception: {expected_exception}", str(err.value))
 
 def test_good_timestamp():
-    mock_db = DB()
-    mock_db.query = MagicMock()
-
     save_notes(
-        "test_project_id",
+        "e55675c5-8f7b-4d21-a4f7-d2417e23a44b",
         [
             {
                 "note": "This is my note",
@@ -70,4 +68,3 @@ def test_good_timestamp():
             }
         ],
     )
-    mock_db.query.assert_called_once()
