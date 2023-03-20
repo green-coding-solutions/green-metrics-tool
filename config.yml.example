@@ -17,6 +17,8 @@ config:
   api_url: __API_URL__
   metrics_url: __METRICS_URL__
   machine_id:
+client:
+  sleep_time: 300
 
 measurement:
   idle-time-start: 10
