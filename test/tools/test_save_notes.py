@@ -1,6 +1,6 @@
 import os
 import sys
-import time
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -10,18 +10,29 @@ sys.path.append(f"{CURRENT_DIR}/../../lib")
 
 # pylint: disable=import-error,wrong-import-position
 from save_notes import save_notes
+from db import DB
 import utils
 
+invalid_test_data = [
+    ("e55675c5-8f7b-4d21-a4f7-d2417e23a44b", "This is a note", "test", "string_instead_of_time"),
+    ("e55675c5-8f7b-4d21-a4f7-d2417e23a44b", "This is a note", "test", 1679393122),
+]
+valid_test_data = [
+    ("e55675c5-8f7b-4d21-a4f7-d2417e23a44b", "This is a note", "test", '1679393122123643'),
+    ("e55675c5-8f7b-4d21-a4f7-d2417e23a44b", "This is a note", "test", 1679393122123643),
+]
 
-def test_invalid_string_timestamp():
+
+@pytest.mark.parametrize("project_id,note,detail,timestamp", invalid_test_data)
+def test_invalid_timestamp(project_id, note, detail, timestamp):
     with pytest.raises(ValueError) as err:
         save_notes(
-            "e55675c5-8f7b-4d21-a4f7-d2417e23a44b",
+            project_id,
             [
                 {
-                    "note": "This is my note",
-                    "timestamp": 'string_instead_of_time',
-                    "detail_name": "Test_Container",
+                    "note": note,
+                    "detail_name": detail,
+                    "timestamp": timestamp,
                 }
             ],
         )
@@ -29,42 +40,20 @@ def test_invalid_string_timestamp():
     assert expected_exception in str(err.value), \
         utils.assertion_info(f"Exception: {expected_exception}", str(err.value))
 
-def test_string_timestamp():
+@pytest.mark.parametrize("project_id,note,detail,timestamp", valid_test_data)
+def test_valid_timestamp(project_id, note, detail, timestamp):
+    mock_db = DB()
+    mock_db.query = MagicMock()
+
     save_notes(
-        "e55675c5-8f7b-4d21-a4f7-d2417e23a44b",
+        project_id,
         [
             {
-                "note": "This is my note",
-                "timestamp": str(int(time.time_ns() / 1000)),
-                "detail_name": "Test_Container",
+                "note": note,
+                "detail_name": detail,
+                "timestamp": timestamp,
             }
         ],
     )
 
-def test_shorter_timestamp():
-    with pytest.raises(ValueError) as err:
-        save_notes(
-            "e55675c5-8f7b-4d21-a4f7-d2417e23a44b",
-            [
-                {
-                    "note": "This is my note",
-                    "timestamp": int(time.time()),
-                    "detail_name": "Test_Container",
-                }
-            ],
-        )
-    expected_exception = "Note timestamp did not match expected format"
-    assert expected_exception in str(err.value), \
-        utils.assertion_info(f"Exception: {expected_exception}", str(err.value))
-
-def test_good_timestamp():
-    save_notes(
-        "e55675c5-8f7b-4d21-a4f7-d2417e23a44b",
-        [
-            {
-                "note": "This is my note",
-                "timestamp": int(time.time_ns() / 1000),
-                "detail_name": "Test_Container",
-            }
-        ],
-    )
+    mock_db.query.assert_called_once()
