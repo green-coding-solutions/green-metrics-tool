@@ -110,7 +110,7 @@ const fillProjectData = (project, key = null) => {
                 document.querySelector('#project-data').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${commit_link}" target="_blank">${commit_link}</a></td></tr>`)
             }
         }  else if(item == 'uri') {
-            if (project?.[item].includes('http')) {
+            if (project?.[item].startsWith('http')) {
                 document.querySelector('#project-data').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${project?.[item]}" target="_blank">${project?.[item]}</a></td></tr>`)
             }
             else {
