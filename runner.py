@@ -127,6 +127,23 @@ class Runner:
                     capture_output=True,
                     encoding='UTF-8'
                 )  # always name target-dir repo according to spec
+
+            commit_hash = subprocess.run(
+                ['git', 'rev-parse', 'HEAD'],
+                check=True,
+                capture_output=True,
+                encoding='UTF-8',
+                cwd=self._folder
+            )
+            commit_hash = commit_hash.stdout.strip("\n")
+
+            DB().query("""UPDATE projects
+                SET commit_hash=%s
+                WHERE id = %s
+                """,
+                params=(commit_hash, self._project_id))
+
+
         else:
             if self._branch:
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
