@@ -55,10 +55,18 @@ const fillProjectData = (project, key = null) => {
 
         } else if(item == 'measurement_config') {
             fillProjectTab('#measurement-config', project[item])
-        }  else {
-
-            document.querySelector('#project-data').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project?.[item]}</td></tr>`)
+        } else if(item == 'phases') {
+            // skip
+        } else if(item == 'id' || item == 'name') {
+            document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project?.[item]}</td></tr>`)
+        } else if(item == 'uri') {
+            let entry = project?.[item];
+            if(project?.[item].indexOf('http') === 0) entry = `<a href="${project?.[item]}">${project?.[item]}</a>`;
+            document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${entry}</td></tr>`);
+        } else {
+            document.querySelector('#project-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project?.[item]}</td></tr>`)
         }
+
     }
 }
 
