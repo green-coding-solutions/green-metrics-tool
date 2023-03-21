@@ -85,12 +85,12 @@ class PowermetricsProvider(BaseMetricProvider):
                             docker_task['diskio_bytesread'],
                             'disk_io_bytesread_powermetrics',
                             'docker',
-                            'bytes'])
+                            'Bytes'])
                 dfs.append([cum_time_ms,
                             docker_task['diskio_byteswritten'],
                            'disk_io_byteswritten_powermetrics',
                            'docker',
-                           'bytes'])
+                           'Bytes'])
                 dfs.append([cum_time_ms,
                             int(docker_task['energy_impact']),
                            'docker_energy_impact_powermetrics',
