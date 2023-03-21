@@ -185,3 +185,8 @@ a,
     width: 0 !important;
 }
 
+.usage-scenario {
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
