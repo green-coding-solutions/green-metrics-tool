@@ -175,6 +175,8 @@
         </div>
 
         <div class="ui tab attached segment secondary" data-tab="[BASELINE]">
+          <h3 class="ui dividing header">key metrics</h3>
+          <div class="phases-piechart"></div>
           <h3 class="ui dividing header">container level metrics</h3>
           <div class="ui three cards stackable no-transform-statistics container-level-metrics">
           </div>
@@ -184,6 +186,8 @@
           <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
         </div>
         <div class="ui tab attached segment secondary" data-tab="[INSTALLATION]">
+          <h3 class="ui dividing header">key metrics</h3>
+          <div class="phases-piechart"></div>
           <h3 class="ui dividing header">container level metrics</h3>
           <div class="ui three cards stackable no-transform-statistics container-level-metrics">
           </div>
@@ -193,6 +197,8 @@
           <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
         </div>
         <div class="ui tab attached segment secondary" data-tab="[BOOT]">
+          <h3 class="ui dividing header">key metrics</h3>
+          <div class="phases-piechart"></div>
           <h3 class="ui dividing header">container level metrics</h3>
           <div class="ui three cards stackable no-transform-statistics container-level-metrics">
           </div>
@@ -202,6 +208,8 @@
           <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
         </div>
         <div class="ui tab attached segment secondary" data-tab="[IDLE]">
+          <h3 class="ui dividing header">key metrics</h3>
+          <div class="phases-piechart"></div>
           <h3 class="ui dividing header">container level metrics</h3>
           <div class="ui three cards stackable no-transform-statistics container-level-metrics">
           </div>
@@ -211,15 +219,18 @@
           <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
         </div>
         <div class="ui tab attached segment secondary runtime-tab" data-tab="" style="display:none;">
-            <h3 class="ui dividing header">key metrics</h3>
-            <div id="piechart" style="width: 500px; height: 300px; display: block; margin:auto;"></div>
+          <h3 class="ui dividing header">key metrics</h3>
+          <div class="phases-piechart"></div>
             <div class="ui three cards stackable no-transform-statistics">
                 <div class="ui card">
                     <div class="ui content">
                         <div class="ui top attached blue label overflow-ellipsis">Component Energy</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
+                            <i class="question circle icon"></i>
+                        </div>
                         <div class="ui bottom right attached label">RAPL CPU+Memory</div>
                         <div class="description">
-                            <div class="ui mini statistic">
+                            <div class="ui fluid tiny statistic">
                                 <div class="value">
                                     <i class="power off icon"></i> <span id="component-energy">N/A</span>
                                 </div>
@@ -230,9 +241,12 @@
                 <div class="ui card">
                     <div class="ui content">
                         <div class="ui top attached blue label overflow-ellipsis">Component Power (avg.)</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
+                            <i class="question circle icon"></i>
+                        </div>
                         <div class="ui bottom right attached label">RAPL CPU+Memory</div>
                         <div class="description">
-                            <div class="ui mini statistic">
+                            <div class="ui fluid tiny statistic">
                                 <div class="value">
                                     <i class="power off icon"></i> <span id="component-power">N/A</span>
                                 </div>
@@ -243,9 +257,12 @@
                 <div class="ui card">
                     <div class="ui content">
                         <div class="ui top blue attached label overflow-ellipsis">Network Energy </div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
+                            <i class="question circle icon"></i>
+                        </div>
                         <div class="ui bottom right attached label"><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></div>
                         <div class="description">
-                            <div class="ui mini statistic">
+                            <div class="ui fluid tiny statistic">
                                 <div class="value">
                                     <i class="power off icon"></i> <span id="network-energy">N/A</span>
                                 </div>
@@ -256,9 +273,12 @@
                 <div class="ui card">
                     <div class="ui content">
                         <div class="ui top black attached label overflow-ellipsis">Component CO2 </div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
+                            <i class="question circle icon"></i>
+                        </div>
                         <div class="ui bottom right attached label">RAPL CPU + Memory</div>
                         <div class="description">
-                            <div class="ui mini statistic">
+                            <div class="ui fluid tiny statistic">
                                 <div class="value">
                                     <i class="burn icon"></i> <span id="component-co2">N/A</span>
                                 </div>
@@ -269,9 +289,12 @@
                 <div class="ui card">
                     <div class="ui content">
                         <div class="ui top black attached label overflow-ellipsis">Network CO2 </div>
-                        <div class="ui bottom right attached label"><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u></div>
                         <div class="description">
-                            <div class="ui mini statistic">
+                            <div class="ui fluid tiny statistic">
                                 <div class="value">
                                     <i class="burn icon"></i> <span id="network-co2">N/A</span>
                                 </div>
@@ -296,6 +319,8 @@
           </div>
         </div>
         <div class="ui tab attached segment secondary" data-tab="[REMOVE]">
+          <h3 class="ui dividing header">key metrics</h3>
+          <div class="phases-piechart"></div>
           <h3 class="ui dividing header">container level metrics</h3>
           <div class="ui three cards stackable no-transform-statistics container-level-metrics">
           </div>

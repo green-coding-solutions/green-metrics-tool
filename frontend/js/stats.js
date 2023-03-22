@@ -46,28 +46,36 @@ const getEChartsOptions = () => {
     };
 }
 
-const fillProjectData = (project, key = null) => {
-    for (item in project) {
+const fillProjectData = (project_data, key = null) => {
+    for (item in project_data) {
         if (item == 'machine_specs') {
-            fillProjectTab('#machine-specs', project[item])
+            fillProjectTab('#machine-specs', project_data[item])
         } else if(item == 'usage_scenario') {
-            document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><pre>${JSON.stringify(project?.[item], null, 2)}</pre></td>`)
+            document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><pre>${JSON.stringify(project_data?.[item], null, 2)}</pre></td>`)
 
         } else if(item == 'measurement_config') {
-            fillProjectTab('#measurement-config', project[item])
+            fillProjectTab('#measurement-config', project_data[item])
         } else if(item == 'phases') {
             // skip
         } else if(item == 'id' || item == 'name') {
-            document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project?.[item]}</td></tr>`)
+            document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project_data?.[item]}</td></tr>`)
         } else if(item == 'uri') {
-            let entry = project?.[item];
-            if(project?.[item].indexOf('http') === 0) entry = `<a href="${project?.[item]}">${project?.[item]}</a>`;
+            let entry = project_data?.[item];
+            if(project_data?.[item].indexOf('http') === 0) entry = `<a href="${project_data?.[item]}">${project_data?.[item]}</a>`;
             document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${entry}</td></tr>`);
         } else {
-            document.querySelector('#project-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project?.[item]}</td></tr>`)
+            document.querySelector('#project-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project_data?.[item]}</td></tr>`)
         }
 
     }
+
+    $('.ui.secondary.menu .item').tab(); // activate tabs for project data
+
+    if (project_data.invalid_project) {
+        showNotification('Project measurement has been marked as invalid', project_data.invalid_project);
+        document.body.classList.add("invalidated-measurement")
+    }
+
 }
 
 const fillProjectTab = (selector, data, parent = '') => {
@@ -80,7 +88,7 @@ const fillProjectTab = (selector, data, parent = '') => {
     }
 }
 
-const convertValue = (metric_name, value, unit) => {
+const convertValue = (value, unit) => {
     switch (unit) {
       case 'mJ':
         return [value / 1000, 'J'];
@@ -97,6 +105,10 @@ const convertValue = (metric_name, value, unit) => {
       case 'Hz':
         return [value / 1000000, 'GHz'];
         break;
+      case 'ns':
+        return [value / 1000000000, 's'];
+        break;
+
       case 'Bytes':
         return [value / 1000000, 'MB'];
         break;
@@ -119,7 +131,7 @@ const getMetrics = (stats_data, start_measurement, end_measurement) => {
         let time_before = 0;
         let detail_name = null;
 
-        stats_data.data.forEach(el => {
+        stats_data.forEach(el => {
             const time_after = el[1] / 1000000;
             const time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
             let value = el[3];
@@ -134,7 +146,7 @@ const getMetrics = (stats_data, start_measurement, end_measurement) => {
                 metric_changed = true;
             }
 
-            [value, unit] = convertValue(metric_name, value, unit);
+            [value, unit] = convertValue(value, unit);
             if (metrics[metric_name] == undefined) {
                 metrics[metric_name] = {
                     series: {},
@@ -234,6 +246,8 @@ const displayGraphs = (metrics, notes) => {
             chart_instance.resize();
         })
     }
+
+    document.querySelector('#api-loader').remove();
 }
 
 function moveRight(e) {
@@ -327,7 +341,8 @@ const createChartContainer = (container, el, counter) => {
     return chart_node.querySelector('.statistics-chart');
 }
 
-const createAvgContainer = (metric_name, detail_name, value, unit, phase) => {
+const createAvgContainer = (metric, phase) => {
+
     let phase_tab_node = document.querySelector(`a.step[data-tab='${phase}']`);
 
     if(phase_tab_node == null || phase_tab_node == undefined) {
@@ -349,51 +364,36 @@ const createAvgContainer = (metric_name, detail_name, value, unit, phase) => {
     node.classList.add("card");
     node.classList.add('ui')
 
-    let color = 'grey';
-    let icon = 'circle'
-    let explaination = '';
+    let explanation = `${metric.detail_name}`
 
-    if(metric_name.indexOf('_container') !== -1) explaination = 'all containers';
-
-    if(metric_name.indexOf('_energy_') !== -1) {
-        color = 'blue';
-        icon = 'batter three quarters';
-        explaination = detail_name;
-    } else if(metric_name.indexOf('_power_') !== -1) {
-        color = 'orange';
-        icon = 'power off';
-        explaination = detail_name;
-    } else if(metric_name.indexOf('memory_total_') !== -1) {
-        color = 'purple';
-        icon = 'memory';
-        explaination = 'max. load - all containers'
-
-    } else if(metric_name.indexOf('network_io') !== -1) {
-        color = 'olive';
-        icon = 'exchange alternate';
-        explaination = '<a href="https://docs.green-coding.berlin/docs/measuring/metric-providers/network-io-cgroup-container/"><i class="question circle icon"></i></a>'
-    } else if(metric_name.indexOf('cpu_utilization') !== -1) {
-        explaination = detail_name;
-        color = 'yellow';
-        icon = 'memory';
+    let max_label = ''
+    if (metric.max != null) {
+        max_label = `<div class="ui bottom left attached label">
+                        ${metric.max} ${metric.unit} (MAX)
+                    </div>`
     }
 
     node.innerHTML = `
         <div class="ui content">
-            <div class="ui top attached ${color} label overflow-ellipsis">${metric_name}</div>
+            <div class="ui top attached ${metric.color} label overflow-ellipsis">${metric.clean_name}</div>
             <div class="description">
-                <div class="ui mini statistic">
+                <div class="ui fluid tiny statistic">
                     <div class="value">
-                        <i class="${icon} icon"></i> ${value.toFixed(2)} <span class="si-unit">${unit}</span>
+                        <i class="${metric.icon} icon"></i> ${metric.value.toFixed(2)} <span class="si-unit">${metric.unit}</span>
                     </div>
                 </div>
-                <div class="ui bottom right attached label">${explaination}</div>
+                ${max_label}
+                <div class="ui bottom right attached label icon rounded" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
+                    ${explanation}
+                    <i class="question circle icon"></i>
+                </div>
+
             </div>
         </div>`;
 
-    if(metric_name.indexOf('_container') !== -1)
+    if(metric.name.indexOf('_container') !== -1)
         document.querySelector(`div.tab[data-tab='${phase}'] div.container-level-metrics`).appendChild(node)
-    else if(metric_name.indexOf('_system') !== -1)
+    else if(metric.name.indexOf('_system') !== -1)
         document.querySelector(`div.tab[data-tab='${phase}'] div.system-level-metrics`).appendChild(node)
     else
         document.querySelector(`div.tab[data-tab='${phase}'] div.extra-metrics`).appendChild(node)
@@ -440,34 +440,24 @@ const createGraph = (element, data, labels, title) => {
 });
 };
 
-const fillAvgContainers = (phase_stats) => {
+const fillAvgContainers = (phase_stats_object) => {
+
     let component_energy_in_J = 0;
     let network_io = 0;
 
+    for (phase in phase_stats_object) {
+        for (metric_name in phase_stats_object[phase]) {
+            createAvgContainer(phase_stats_object[phase][metric_name], phase);
 
-    phase_stats.forEach(phase_stat => {
-        // phase stat [
-            // 0: metric
-            // 1: detail_name
-            // 2: phase
-            // 3: value
-            // 4: unit
-        // ]
-        let [value, unit] = convertValue(phase_stat[0], phase_stat[3], phase_stat[4]);
-        createAvgContainer(phase_stat[0], phase_stat[1], value, unit, phase_stat[2]);
-        if(unit == 'J' && display_in_watts) {
-            createAvgContainer(phase_stat[0], phase_stat[1], (value / 3_600) * 1_000 , 'mWh', phase_stat[2]);
+            // handle compound metrics
+            if(metric_name == 'cpu_energy_rapl_msr_system' || metric_name == 'memory_energy_rapl_msr_system') {
+                component_energy_in_J += value;
+            }
+            if(metric_name == 'network_io_cgroup_container') {
+                network_io += value;
+            }
         }
-
-        // handle compound metrics
-        if(phase_stat[0] == 'cpu_energy_rapl_msr_system' || phase_stat[0] == 'memory_energy_rapl_msr_system') {
-            component_energy_in_J += value;
-        }
-        if(phase_stat[0] == 'network_io_cgroup_container') {
-            network_io += value;
-        }
-
-    }); // end foreach
+    }
 
     const component_energy_in_mWh = component_energy_in_J / 3.6
     if(display_in_watts) {
@@ -508,86 +498,92 @@ const fillAvgContainers = (phase_stats) => {
         document.querySelector("#flights").innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
     }
 
+    $('.ui.steps.phases .step').tab();
+    $('.ui.accordion').accordion();
 
+    // although there are multiple .step.runtime-step containers the first one
+    // marks the first runtime step and is shown by default
+    document.querySelector('.step.runtime-step').dispatchEvent(new Event('click'));
 }
 
+const walkPhaseStats = (phase_stats_data) => {
+    phase_stats_object = {}
+    phase_stats_data.forEach(phase_stat => {
+        let [metric_name, detail_name, phase, value, unit] = phase_stat; // unpack
+        [value, unit] = convertValue(value, unit);
+        let metric_clean_name = metric_name;
 
-/* Chart starting code*/
-$(document).ready( (e) => {
-    (async () => {
-        const query_string = window.location.search;
-        const url_params = (new URLSearchParams(query_string))
+        let icon = 'circle'; // default
+        let color = 'grey'; // default
 
-        if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
-            showNotification('No project id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
-            return;
+        let metric_classifier_position = metric_name.lastIndexOf("_")
+        let metric_type = metric_name.substr(metric_classifier_position+1)
+        let metric_key = metric_name.substr(0,metric_classifier_position)
+
+        if (METRIC_MAPPINGS[metric_key] !== undefined) {
+            metric_clean_name = METRIC_MAPPINGS[metric_key]['clean_name'];
+            color = METRIC_MAPPINGS[metric_key]['color'];
+            icon = METRIC_MAPPINGS[metric_key]['icon'];
+        }
+        if (phase_stats_object[phase] == undefined) {
+            phase_stats_object[phase] = {}
+        }
+        if (phase_stats_object[phase][metric_key] == undefined) {
+
+            phase_stats_object[phase][metric_key] = {
+                clean_name: metric_clean_name,
+                name: metric_name,
+                type: metric_type,
+                value: value,
+                unit: unit,
+                detail_name: detail_name,
+                max: null,
+                color: color,
+                icon: icon
+            }
         }
 
-
-        try {
-            var project_data = await makeAPICall('/v1/project/' + url_params.get('id'))
-
-            document.querySelectorAll("#badges span.energy-badge-container").forEach(el => {
-                const link_node = document.createElement("a")
-                const img_node = document.createElement("img")
-                link_node.href = `${METRICS_URL}/stats.html?id=${url_params.get('id')}`
-                img_node.src = `${API_URL}/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
-                link_node.appendChild(img_node)
-                el.appendChild(link_node)
-            })
-            document.querySelectorAll(".copy-badge").forEach(el => {
-                el.addEventListener('click', copyToClipboard)
-            })
-
-        } catch (err) {
-            showNotification('Could not get project data from API', err);
+        if(metric_type == 'MAX') {
+            phase_stats_object[phase][metric_key]['max'] = value
+        } else {
+            phase_stats_object[phase][metric_key]['value'] = value
         }
+    });
+    return phase_stats_object;
+}
 
-        try {
-            var stats_data = await makeAPICall('/v1/stats/single/' + url_params.get('id'))
-        } catch (err) {
-            showNotification('Could not get stats data from API', err);
-        }
-        try {
-            var notes_json = await makeAPICall('/v1/notes/' + url_params.get('id'))
-        } catch (err) {
-            showNotification('Could not get notes data from API', err);
-        }
-        try {
-            var phase_stats_json = await makeAPICall('/v1/phase_stats/single/' + url_params.get('id'))
-        } catch (err) {
-            showNotification('Could not get phase_stats data from API', err);
-        }
+const displayAvgCharts = (phase_stats_object) => {
 
-        $('.ui.secondary.menu .item').tab();
+    const pie_chart_metrics = [
+        'gpu_energy_powermetrics_system',
+        'ane_energy_powermetrics_system',
+        'cores_energy_powermetrics_system',
+        'network_io_energy_powermetrics_system'
 
-        if (project_data == undefined || project_data.success == false) {
-            return;
-        }
+    ]
 
-        // create new custom field
-        // timestamp is in microseconds, therefore divide by 10**6
-        const measurement_duration_in_s = (project_data.data.end_measurement - project_data.data.start_measurement) / 1000000
-        project_data.data['duration'] = `${measurement_duration_in_s} s`
+    for (phase in phase_stats_object) {
+        let data = []
 
-        fillProjectData(project_data.data)
+        pie_chart_metrics.forEach(metric => {
+            if (phase_stats_object[phase]?.[metric]?.value != undefined) {
+                data.push({
+                    value: phase_stats_object[phase][metric].value,
+                    name: `${phase_stats_object[phase][metric].clean_name} [${phase_stats_object[phase][metric].unit}]`
+                })
+            }
+        })
 
-        if (project_data.data.invalid_project) {
-            showNotification('Project measurement has been marked as invalid', project_data.data.invalid_project);
-            document.body.classList.add("invalidated-measurement")
-        }
-
-        fillAvgContainers(phase_stats_json.data);
-        $('.ui.steps.phases .step').tab();
-        $('.ui.accordion').accordion();
-
-        var chartDom = document.getElementById('piechart');
+        var chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .phases-piechart`);
         var myChart = echarts.init(chartDom);
         var option;
 
         option = {
           legend: {
             top: 'bottom'
+          },
+          tooltip: {
+            trigger: 'item'
           },
           toolbox: {
             show: true,
@@ -608,34 +604,111 @@ $(document).ready( (e) => {
               itemStyle: {
                 borderRadius: 2
               },
-              data: [
-                { value: 350, name: 'CPU Energy' },
-                { value: 11.44, name: 'DRAM Energy' },
-                { value: 150, name: 'HDDs+Overhead' },
-                { value: 50, name: 'PSU' },
-                { value: 20, name: 'Network' },
-              ]
+              data: data
             }
           ]
         };
 
         option && myChart.setOption(option);
 
-        // although there are multiple .step.runtime-step containers the first one
-        // marks the first runtime step and is shown by default
-        document.querySelector('.step.runtime-step').dispatchEvent(new Event('click'));
+    }
 
-        if (stats_data == undefined || stats_data.success == false) {
+
+}
+
+
+async function makeAPICalls(url_params) {
+
+    try {
+        var project_data = await makeAPICall('/v1/project/' + url_params.get('id'))
+    } catch (err) {
+        showNotification('Could not get project data from API', err);
+    }
+
+    try {
+        var stats_data = await makeAPICall('/v1/stats/single/' + url_params.get('id'))
+    } catch (err) {
+        showNotification('Could not get stats data from API', err);
+    }
+    try {
+        var notes_data = await makeAPICall('/v1/notes/' + url_params.get('id'))
+    } catch (err) {
+        showNotification('Could not get notes data from API', err);
+    }
+    try {
+        var phase_stats_data = await makeAPICall('/v1/phase_stats/single/' + url_params.get('id'))
+    } catch (err) {
+        showNotification('Could not get phase_stats data from API', err);
+    }
+
+    return [project_data?.data, stats_data?.data, notes_data?.data, phase_stats_data?.data];
+}
+
+const renderBadges = (url_params) => {
+
+    document.querySelectorAll("#badges span.energy-badge-container").forEach(el => {
+        const link_node = document.createElement("a")
+        const img_node = document.createElement("img")
+        link_node.href = `${METRICS_URL}/stats.html?id=${url_params.get('id')}`
+        img_node.src = `${API_URL}/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
+        link_node.appendChild(img_node)
+        el.appendChild(link_node)
+    })
+    document.querySelectorAll(".copy-badge").forEach(el => {
+        el.addEventListener('click', copyToClipboard)
+    })
+}
+
+const getURLParams = () => {
+    const query_string = window.location.search;
+    const url_params = (new URLSearchParams(query_string))
+
+    if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
+        showNotification('No project id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
+        throw "Error";
+    }
+    return url_params;
+}
+
+
+/* Chart starting code*/
+$(document).ready( (e) => {
+    (async () => {
+
+        let url_params = getURLParams();
+
+        let [project_data, stats_data, notes_data, phase_stats_data] = await makeAPICalls(url_params);
+
+        if (project_data == undefined) {
             return;
         }
 
-        const metrics = getMetrics(stats_data, project_data.data.start_measurement, project_data.data.end_measurement);
+        renderBadges(url_params);
 
-        if (notes_json == undefined || notes_json.success == false) {
+        // create new custom field
+        // timestamp is in microseconds, therefore divide by 10**6
+        const measurement_duration_in_s = (project_data.end_measurement - project_data.start_measurement) / 1000000
+        project_data['duration'] = `${measurement_duration_in_s} s`
+
+        fillProjectData(project_data);
+
+        let phase_stats_object = walkPhaseStats(phase_stats_data)
+
+        fillAvgContainers(phase_stats_object);
+
+        if (stats_data == undefined) {
             return;
         }
-        displayGraphs(metrics, notes_json.data);
-        document.querySelector('#api-loader').remove();
+
+        displayAvgCharts(phase_stats_object);
+
+        const metrics = getMetrics(stats_data, project_data.start_measurement, project_data.end_measurement);
+
+        if (notes_data == undefined) {
+            return;
+        }
+
+        displayGraphs(metrics, notes_data);
 
         // after all instances have been placed the flexboxes might have rearranged. We need to trigger resize
         setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500); // needed for the graphs to resize

@@ -6,13 +6,8 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/..")
 sys.path.append(f"{CURRENT_DIR}/../lib")
 
-import psycopg2.extras
 import faulthandler
-import email_helpers
-import error_helpers
 from db import DB
-from global_config import GlobalConfig
-from runner import Runner
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
@@ -20,7 +15,6 @@ if __name__ == '__main__':
     #pylint: disable=broad-except,invalid-name
 
     import argparse
-    from pathlib import Path
 
     parser = argparse.ArgumentParser()
     parser.add_argument('project_id', help='Project ID', type=str)
@@ -76,7 +70,7 @@ if __name__ == '__main__':
             #    ) -- Backlog: if we need derivatives / integrations in the future
 
             query = """
-                SELECT SUM(value), MAX(value), AVG(value)
+                SELECT SUM(value), MAX(value), AVG(value), COUNT(value)
                 FROM stats
                 WHERE project_id = %s AND metric = %s AND detail_name = %s AND time > %s and time < %s
             """
@@ -86,41 +80,79 @@ if __name__ == '__main__':
 
             value_sum = 0
             value_max = 0
+            value_avg = 0
+            value_count = 0
             print(results)
             if results[0] is not None:
-                (value_sum, value_max, value_avg) = results
+                (value_sum, value_max, value_avg, value_count) = results
 
-            query = """
+            insert_query = """
                 INSERT INTO phase_stats
                     (project_id, metric, detail_name, phase, value, unit, created_at)
                 VALUES
                     (%s, %s, %s, %s, %s, %s, NOW())
             """
 
-            if metric == 'lm_sensors_temp' or metric == 'lm_sensors_fan'
-                DB().query(query,
+            if metric in ('lm_sensors_temp', 'lm_sensors_fan'):
+                DB().query(insert_query,
                         (project_id, f"{metric}_AVG", detail_name, phase['name'],
                             value_avg,
                         unit)
                 )
-            else:
-                DB().query(query,
-                        (project_id, f"{metric}_SUM", detail_name, phase['name'],
-                            value_sum,
+                DB().query(insert_query,
+                        (project_id, f"{metric}_MAX", detail_name, phase['name'],
+                            value_max,
                         unit)
                 )
 
-            if ("_energy_" in metric and unit == 'mJ'): # alternative to sum
-                DB().query(query,
-                        (project_id, metric.replace('_energy_', '_power_'), detail_name, phase['name'],
+            elif metric == 'network_io_cgroup_container':
+                # These metrics are accumulating already. We only need the max here and deliver it as total
+                DB().query(insert_query,
+                        (project_id, f"{metric}_TOTAL", detail_name, phase['name'],
+                            value_max,
+                        unit)
+                )
+                # No max here
+            elif metric == 'docker_energy_impact_powermetrics':
+                DB().query(insert_query,
+                        (project_id, f"{metric}_AVG", detail_name, phase['name'],
+                            value_avg,
+                        unit)
+                )
+                DB().query(insert_query,
+                        (project_id, f"{metric}_MAX", detail_name, phase['name'],
+                            value_max,
+                        unit)
+                )
+
+            elif "_energy_" in metric and unit == 'mJ':
+                DB().query(insert_query,
+                        (project_id, f"{metric}_TOTAL", detail_name, phase['name'],
+                            value_sum ,
+                        unit)
+                )
+
+                # for energy we want to deliver an extra value, the watts.
+                # Here we need to calculate the average differently
+                DB().query(insert_query,
+                        (project_id, f"{metric.replace('_energy_', '_power_')}_AVG", detail_name, phase['name'],
                             value_sum / (phase['end'] - phase['start']), # sum of mJ / s => mW
                         'mW')
                 )
+                DB().query(insert_query,
+                        (project_id, f"{metric.replace('_energy_', '_power_')}_MAX", detail_name, phase['name'],
+                            value_max / ((phase['end'] - phase['start']) / value_count), # max_value / avg_measurement_interval
+                        'mW')
+                )
 
-            # always
-            DB().query(query,
-                    (project_id, f"{metric}_MAX", detail_name, phase['name'],
-                        value_max,
-                    unit)
-            )
-
+            else:
+                DB().query(insert_query,
+                        (project_id, f"{metric}_TOTAL", detail_name, phase['name'],
+                            value_sum,
+                        unit)
+                )
+                DB().query(insert_query,
+                        (project_id, f"{metric}_MAX", detail_name, phase['name'],
+                            value_max,
+                        unit)
+                )

@@ -160,7 +160,7 @@ async def get_phase_stats(project_id: str):
             SELECT metric, detail_name, phase, value, unit
             FROM phase_stats
             WHERE project_id = %s
-            ORDER BY metric ASC, detail_name ASC
+            ORDER BY id ASC
             """
     data = DB().fetch_all(query, (project_id, ))
     if data is None or data == []:

@@ -185,6 +185,13 @@ a,
     width: 0 !important;
 }
 
-.ui.card .ui.bottom.right.attached.label {
+.ui.card .ui.bottom.attached.label {
     font-size:10px !important;
+}
+
+.phases-piechart {
+    width: 500px;
+    height: 300px;
+    display: block;
+    margin:auto;
 }
