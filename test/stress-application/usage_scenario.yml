@@ -3,6 +3,9 @@ name: Stress Container One Core 5 Seconds
 author: Arne Tarara
 version: 1
 
+builds:
+  gcb_stress: Dockerfile
+
 networks:
   network-for-pytests:
 

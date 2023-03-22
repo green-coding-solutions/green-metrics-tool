@@ -24,6 +24,8 @@ import faulthandler
 import re
 from io import StringIO
 import yaml
+import shutil
+from pathlib import Path
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
@@ -44,6 +46,28 @@ from tools.save_notes import save_notes  # local file import
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
+
+# This function takes a path and a file and joins them while making sure that no one is trying to escape the
+# path with `..`, symbolic links or similar.
+def join_path_and_file(path, file):
+    filename = os.path.realpath(os.path.join(path, file))
+
+    if not filename.startswith(path):
+        raise ValueError(f"{filename} not in path")
+
+    # To double check we also check if it is in the files allow list
+    if filename not in [os.path.join(path, item) for item in os.listdir(path)]:
+        raise ValueError(f"{filename} not in path")
+
+    # Anther way to implement this
+    if Path(path).resolve(strict=True) not in Path(path, file).resolve(strict=True).parents:
+        raise ValueError(f"{filename} not in path")
+
+    if os.path.exists(filename):
+        return filename
+    else:
+        raise FileNotFoundError(f"{filename} not found")
+
 
 class Runner:
     def __init__(self,
@@ -81,6 +105,7 @@ class Runner:
         self.__notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
         self.__start_measurement = None
         self.__end_measurement = None
+        self._docker_images_loaded = []
 
     def prepare_filesystem_location(self):
         subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], check=True, stderr=subprocess.DEVNULL)
@@ -173,16 +198,7 @@ class Runner:
                 else:
                     raise ValueError("We don't support Mapping Nodes to date")
 
-                filename = os.path.realpath(os.path.join(self._root, nodes[0]))
-
-                if not filename.startswith(self._root):
-                    raise ImportError(f"Import tries to escape root! ({filename})")
-
-                # To double check we also check if it is in the files allow list
-                if filename not in [os.path.join(self._root, item) for item in os.listdir(self._root)]:
-                    print(os.listdir(self._root))
-                    raise RuntimeError(f"{filename} not in allowed file list")
-
+                filename = join_path_and_file(self._root, nodes[0])
 
                 with open(filename, 'r', encoding='utf-8') as f:
                     # We want to enable a deep search for keys
@@ -305,6 +321,58 @@ class Runner:
             self.__metric_providers.append(metric_provider_obj)
 
         self.__metric_providers.sort(key=lambda item: 'rapl' not in item.__class__.__name__.lower())
+
+    def build_docker_images(self):
+
+        print(TerminalColors.HEADER, '\nBuilding Docker containers', TerminalColors.ENDC)
+
+        # Create directory /tmp/gmt_docker_images
+        temp_dir = "/tmp/gmt_docker_images"
+        os.makedirs(temp_dir, exist_ok=True)
+
+        for img_name in self._usage_scenario.get('builds', []):
+            docker_file = self._usage_scenario.get('builds')[img_name]
+
+            if not bool(re.match(r'^[a-zA-Z0-9_]*$', img_name)):
+                raise ValueError(f"In scenario file the builds contains an invalid image name: {img_name}")
+
+            # Make sure the docker file exists
+            if not os.path.exists(os.path.join(self._folder, docker_file)):
+                raise FileNotFoundError(f"Can not find docker file: {docker_file}")
+
+            docker_build_command = ['docker', 'run','--rm',
+                '-v', f"{self._folder}:/workspace:ro",
+                '-v', f"{temp_dir}:/output",
+                'gcr.io/kaniko-project/executor:latest',
+                f"--dockerfile=/workspace/{docker_file}",
+                '--context','dir:///workspace/',
+                f"--destination={img_name}:latest",
+                f"--tar-path=/output/{img_name}.tar",
+                '--no-push']
+
+            print(" ".join(docker_build_command))
+
+            ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True, encoding='UTF-8')
+
+            if ps.returncode != 0:
+                print(f"Error: {ps.stderr} \n {ps.stdout}")
+                raise OSError("Docker build failed")
+
+            # import the docker image locally
+            image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{img_name}.tar"]
+            print(" ".join(image_import_command))
+            ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True, encoding='UTF-8')
+
+            if ps.returncode != 0 or ps.stderr != "":
+                print(f"Error: {ps.stderr} \n {ps.stdout}")
+                raise OSError("Docker image import failed")
+
+            self._docker_images_loaded.append(img_name)
+
+
+        # Delete the directory /tmp/gmt_docker_images
+        shutil.rmtree(temp_dir)
+
 
     def setup_networks(self):
         # for some rare containers there is no network, like machine learning for example
@@ -652,6 +720,11 @@ class Runner:
             print('Removing files')
             subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], stderr=subprocess.DEVNULL, check=True)
 
+        print('Removing docker images')
+        for image in self._docker_images_loaded:
+            subprocess.run(['docker', 'rmi', image], stderr=subprocess.DEVNULL, check=True)
+
+
         process_helpers.kill_ps(self.__ps_to_kill)
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
@@ -682,6 +755,9 @@ class Runner:
             self.initial_parse()
             self.update_and_insert_specs()
             self.import_metric_providers()
+
+            self.build_docker_images()
+
             if self._debugger.active:
                 self._debugger.pause('Initial load complete. Waiting to start network setup')
             self.setup_networks()
