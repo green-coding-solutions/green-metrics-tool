@@ -331,6 +331,9 @@ class Runner:
         os.makedirs(temp_dir, exist_ok=True)
 
         for img_name in self._usage_scenario.get('builds', []):
+            self.__notes.append({'note':f"Building {img_name}" , 'detail_name': '[SYSTEM]', 'timestamp':
+                                 int(time.time_ns() / 1_000)})
+
             docker_file = self._usage_scenario.get('builds')[img_name]
 
             if not bool(re.match(r'^[a-zA-Z0-9_]*$', img_name)):
@@ -368,6 +371,8 @@ class Runner:
                 raise OSError("Docker image import failed")
 
             self._docker_images_loaded.append(img_name)
+            self.__notes.append({'note':f"Finished building {img_name}" , 'detail_name': '[SYSTEM]', 'timestamp':
+                                 int(time.time_ns() / 1_000)})
 
 
         # Delete the directory /tmp/gmt_docker_images
@@ -756,6 +761,9 @@ class Runner:
             self.update_and_insert_specs()
             self.import_metric_providers()
 
+            # This needs refactoring as we need to start the metrics providers before we start the containers for LCA
+            # So this needs to go after start_metric_providers with timing wrapped around so we know how much energy
+            # this is taking.
             self.build_docker_images()
 
             if self._debugger.active:
