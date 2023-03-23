@@ -18,6 +18,7 @@ import subprocess
 import json
 import os
 import time
+from html import escape
 import sys
 import importlib
 import faulthandler
@@ -388,7 +389,7 @@ class Runner:
 
             machine_specs.update(machine_specs_root)
 
-        # Insert auxilary info for the run. Not critical.
+        # Insert auxiliary info for the run. Not critical.
         DB().query("""UPDATE projects
             SET
                 machine_id=%s, machine_specs=%s, measurement_config=%s,
@@ -398,7 +399,7 @@ class Runner:
             config['machine']['id'],
             json.dumps(machine_specs),
             json.dumps(config['measurement']),
-            json.dumps(self._usage_scenario),
+            escape(json.dumps(self._usage_scenario), quote=False),
             self._filename,
             self._project_id)
         )
@@ -1162,7 +1163,7 @@ if __name__ == '__main__':
     # We issue a fetch_one() instead of a query() here, cause we want to get the project_id
     project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at", "branch") \
                 VALUES \
-                (%s,%s,\'manual\',NULL,NOW(),%s) RETURNING id;', params=(args.name, args.uri, args.branch))[0]
+                (%s,%s,\'manual\',NULL,NOW(),%s) RETURNING id;', params=(escape(args.name), args.uri, args.branch))[0]
 
     runner = Runner(uri=args.uri, uri_type=run_type, pid=project_id, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
