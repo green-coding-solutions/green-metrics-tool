@@ -4,6 +4,7 @@
 # pylint: disable=wrong-import-position
 
 import faulthandler
+from html import escape
 import sys
 import os
 
@@ -109,7 +110,16 @@ async def get_notes(project_id):
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
 
-    return {'success': True, 'data': data}
+    escaped_data = [
+        [
+            note[0],
+            escape(note[1], quote=False),
+            escape(note[2], quote=False),
+            note[3],
+        ]
+        for note in data
+    ]
+    return {'success': True, 'data': escaped_data}
 
 # return a list of all possible registered machines
 @app.get('/v1/machines/')
@@ -139,7 +149,19 @@ async def get_projects():
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
 
-    return {'success': True, 'data': data}
+    escaped_data = [
+        [
+            project[0],
+            escape(project[1], quote=False),
+            escape(project[2], quote=False),
+            project[3] if project[3] is None else escape(project[3], quote=False),
+            project[4],
+            project[5],
+            project[6] if project[6] is None else escape(project[6], quote=False),
+        ]
+        for project in data
+    ]
+    return {'success': True, 'data': escaped_data}
 
 
 # Just copy and paste if we want to deprecate URLs
@@ -275,14 +297,22 @@ async def post_project_add(project: Project):
     if project.url is None or project.url.strip() == '':
         return {'success': False, 'err': 'URL is empty'}
 
+    project.url = escape(project.url, quote=False)
+
     if project.name is None or project.name.strip() == '':
         return {'success': False, 'err': 'Name is empty'}
+
+    project.name = escape(project.name, quote=False)
 
     if project.email is None or project.email.strip() == '':
         return {'success': False, 'err': 'E-mail is empty'}
 
+    project.email = escape(project.email, quote=False)
+
     if project.branch.strip() == '':
         project.branch = None
+    else:
+        project.branch = escape(project.branch, quote=False)
 
     if project.machine_id == 0:
         project.machine_id = None
@@ -325,6 +355,27 @@ async def get_project(project_id: str):
     data = DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
+
+    def escape_dict(dictionary):
+        for key, value in dictionary.items():
+            if isinstance(value, str):
+                dictionary[key] = escape(value, quote=False)
+                continue
+            if isinstance(value, dict):
+                escape_dict(value)
+                continue
+            if isinstance(value, list):
+                for item in value:
+                    if isinstance(item, str):
+                        dictionary[key] = escape(item, quote=False)
+                        continue
+                    if isinstance(item, dict):
+                        escape_dict(item)
+
+        return dictionary
+
+    data = escape_dict(data)
+
     return {'success': True, 'data': data}
 
 @app.get('/robots.txt')
