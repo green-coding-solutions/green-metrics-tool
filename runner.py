@@ -1163,7 +1163,7 @@ if __name__ == '__main__':
     # We issue a fetch_one() instead of a query() here, cause we want to get the project_id
     project_id = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at", "branch") \
                 VALUES \
-                (%s,%s,\'manual\',NULL,NOW(),%s) RETURNING id;', params=(escape(args.name), args.uri, args.branch))[0]
+                (%s,%s,\'manual\',NULL,NOW(),%s) RETURNING id;', params=(escape(args.name), args.uri, escape(args.branch)))[0]
 
     runner = Runner(uri=args.uri, uri_type=run_type, pid=project_id, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
