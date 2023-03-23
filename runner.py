@@ -397,7 +397,7 @@ class Runner:
             WHERE id = %s
             """, params=(
             config['machine']['id'],
-            json.dumps(machine_specs),
+            escape(json.dumps(machine_specs), quote=False),
             json.dumps(config['measurement']),
             escape(json.dumps(self._usage_scenario), quote=False),
             self._filename,
