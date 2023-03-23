@@ -185,7 +185,7 @@ const getMetrics = (stats_data, start_measurement, end_measurement) => {
     return metrics;
 }
 
-const displayGraphs = (metrics, notes) => {
+const displayTimelineCharts = (metrics, notes) => {
 
     let counter = 0; // for automatically creating pair of <div>s
     const note_positions = [
@@ -239,7 +239,7 @@ const displayGraphs = (metrics, notes) => {
     }
 
     const t1 = performance.now();
-    console.log(`DisplayGraphs took ${t1 - t0} milliseconds.`);
+    console.log(`DisplayTimelineCharts took ${t1 - t0} milliseconds.`);
 
     window.onresize = function() { // set callback when ever the user changes the viewport
         chart_instances.forEach(chart_instance => {
@@ -433,7 +433,7 @@ const createKeyMetricBoxes = (energy, power, network_io, phase) => {
     const co2_budget_utilization = total_CO2_in_kg*100 / daily_co2_budget_in_kg_per_day;
     if (co2_budget_utilization) document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + ' <span class="si-unit">%</span>'
 
-    upscaled_CO2_in_kg = total_CO2_in_kg * 100 * 30 ; // upscaled by 30 days for 10.000 requests (or runs) per day
+    upscaled_CO2_in_kg = total_CO2_in_kg * 1000 * 365 ; // upscaled to 365 days for 1000 runs per day
 
     if(upscaled_CO2_in_kg) {
         document.querySelector("#trees").innerText = (upscaled_CO2_in_kg / 0.06 / 1000).toFixed(2);
@@ -567,26 +567,27 @@ const walkPhaseStats = (phase_stats_data) => {
     return phase_stats_object;
 }
 
-const displayAvgCharts = (phase_stats_object) => {
+const displayKeyMetricCharts = (phase_stats_object) => {
 
     const pie_chart_metrics = [
         'gpu_energy_powermetrics_system',
         'ane_energy_powermetrics_system',
         'cores_energy_powermetrics_system',
-        'network_io_energy_powermetrics_system'
-
+        'network_io_energy_powermetrics_system',
+        'cpu_energy_rapl_msr_system',
+        'memory_energy_rapl_msr_system',
+        'network_io_cgroup_container'
     ]
 
     for (phase in phase_stats_object) {
         let data = []
 
         pie_chart_metrics.forEach(metric => {
-            if (phase_stats_object[phase]?.[metric]?.value != undefined) {
-                data.push({
-                    value: phase_stats_object[phase][metric].value,
-                    name: `${phase_stats_object[phase][metric].clean_name} [${phase_stats_object[phase][metric].unit}]`
-                })
-            }
+            if (phase_stats_object[phase]?.[metric]?.value == undefined) return;
+            data.push({
+                value: phase_stats_object[phase][metric].value,
+                name: `${phase_stats_object[phase][metric].clean_name} [${phase_stats_object[phase][metric].unit}]`
+            })
         })
 
         var chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .phases-piechart`);
@@ -594,9 +595,6 @@ const displayAvgCharts = (phase_stats_object) => {
         var option;
 
         option = {
-          legend: {
-            top: 'bottom'
-          },
           tooltip: {
             trigger: 'item'
           },
@@ -709,7 +707,7 @@ $(document).ready( (e) => {
             return;
         }
 
-        displayAvgCharts(phase_stats_object);
+        displayKeyMetricCharts(phase_stats_object);
 
         const metrics = getMetrics(stats_data, project_data.start_measurement, project_data.end_measurement);
 
@@ -717,7 +715,7 @@ $(document).ready( (e) => {
             return;
         }
 
-        displayGraphs(metrics, notes_data);
+        displayTimelineCharts(metrics, notes_data);
 
         // after all instances have been placed the flexboxes might have rearranged. We need to trigger resize
         setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500); // needed for the graphs to resize

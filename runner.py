@@ -468,9 +468,9 @@ class Runner:
         print(TerminalColors.HEADER, '\nStarting metric providers', TerminalColors.ENDC)
 
         for metric_provider in self.__metric_providers:
-            if metric_provider._metric_name.endswith("_container") and not allow_container:
+            if metric_provider._metric_name.endswith('_container') and not allow_container:
                 continue
-            if not metric_provider._metric_name.endswith("_container") and not allow_other:
+            if not metric_provider._metric_name.endswith('_container') and not allow_other:
                 continue
 
             message = f"Booting {metric_provider.__class__.__name__}"
@@ -485,9 +485,9 @@ class Runner:
         time.sleep(2)
 
         for metric_provider in self.__metric_providers:
-            if metric_provider._metric_name.endswith("_container") and not allow_container:
+            if metric_provider._metric_name.endswith('_container') and not allow_container:
                 continue
-            if not metric_provider._metric_name.endswith("_container") and not allow_other:
+            if not metric_provider._metric_name.endswith('_container') and not allow_other:
                 continue
 
             stderr_read = metric_provider.get_stderr()
@@ -504,7 +504,7 @@ class Runner:
         time.sleep(config['measurement']['phase-transition-time'])
 
         print(TerminalColors.HEADER,
-              f"\nForce-sleep endeded. Checking if temperature is back to baseline ...", TerminalColors.ENDC)
+              '\nForce-sleep endeded. Checking if temperature is back to baseline ...', TerminalColors.ENDC)
 
         # TODO. Check if temperature is back to baseline
         phase_time = int(time.time_ns() / 1_000)
@@ -513,7 +513,7 @@ class Runner:
         if phase in self.__phases:
             raise RuntimeError(f"'{phase}' as phase name has already used. Please set unique name for phases.")
 
-        self.__phases[phase] = {"start": phase_time, "name": phase}
+        self.__phases[phase] = {'start': phase_time, 'name': phase}
 
     def end_phase(self, phase):
         phase_time = int(time.time_ns() / 1_000)
@@ -521,9 +521,9 @@ class Runner:
                      'detail_name': '[SYSTEM]', 'timestamp': phase_time})
 
         if phase not in self.__phases:
-            raise RuntimeError(f"Calling end_phase before start_phase. This is a developer error!")
+            raise RuntimeError('Calling end_phase before start_phase. This is a developer error!')
 
-        self.__phases[phase]["end"] = phase_time
+        self.__phases[phase]['end'] = phase_time
 
 
     def run_flows(self):
@@ -586,7 +586,7 @@ class Runner:
                 if self._debugger.active:
                     self._debugger.pause('Waiting to start next command in flow')
 
-        self.end_phase(el['name'].replace('[', '').replace(']',''))
+            self.end_phase(el['name'].replace('[', '').replace(']',''))
 
     def stop_metric_providers(self):
         print(TerminalColors.HEADER, 'Stopping metric providers and parsing stats', TerminalColors.ENDC)

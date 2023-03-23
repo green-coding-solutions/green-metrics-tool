@@ -16,6 +16,7 @@ disable=missing-function-docstring,
     too-many-boolean-expressions,
     too-many-nested-blocks,
     line-too-long,
+    protected-access
 
 #    import-error
 
