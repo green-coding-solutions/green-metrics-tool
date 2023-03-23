@@ -378,8 +378,8 @@ class Runner:
                             if vol[2] != 'ro':
                                 raise RuntimeError('We only allow ro as parameter in volume mounts in unsafe mode')
 
-                        docker_run_string.append('-v')
-                        docker_run_string.append(f"{path}:{vol[1]}:ro") # force mount as :ro
+                        docker_run_string.append('--mount')
+                        docker_run_string.append(f"type=bind,source={path},target={vol[1]},readonly")
 
             if 'ports' in service:
                 if self._allow_unsafe:
