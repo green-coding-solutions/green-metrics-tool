@@ -40,7 +40,6 @@ if __name__ == '__main__':
     phases = DB().fetch_one(query, (project_id, ))
 
     for phase in phases[0]:
-        print(phase)
         # we do not want to overwrite already set phases. This will only happen in an error case
         # or manual workings on the DB. But we still need to check.
         query = """
@@ -49,8 +48,8 @@ if __name__ == '__main__':
             WHERE phase IS NOT NULL AND time > %s AND time < %s AND project_id = %s
             """
         results = DB().fetch_one(query, (phase['start'], phase['end'], project_id, ))
-#        if results[0] != 0:
-#            raise RuntimeError(f"Non-zero results for {phase}, were {results[0]} results")
+        if results[0] != 0:
+            raise RuntimeError(f"Non-zero results for {phase}, were {results[0]} results")
 
         query = """
             UPDATE stats
@@ -61,7 +60,6 @@ if __name__ == '__main__':
 
         # now we go through all metrics in the project and aggregate them by lagging the table
         for (metric, unit, detail_name) in metrics: # unpack
-            print(metric, unit, detail_name)
             #    WITH times as (
             #        SELECT id, value, time, (time - LAG(time) OVER (ORDER BY detail_name ASC, time ASC)) AS diff, unit
             #        FROM stats
@@ -76,13 +74,12 @@ if __name__ == '__main__':
             """
             results = DB().fetch_one(query,
                 (project_id, metric, detail_name, phase['start'], phase['end'], ))
-            print(results)
 
             value_sum = 0
             value_max = 0
             value_avg = 0
             value_count = 0
-            print(results)
+
             if results[0] is not None:
                 (value_sum, value_max, value_avg, value_count) = results
 
@@ -113,7 +110,7 @@ if __name__ == '__main__':
                         unit)
                 )
                 # No max here
-            elif metric == 'docker_energy_impact_powermetrics':
+            elif metric == 'energy_impact_powermetrics_vm':
                 DB().query(insert_query,
                         (project_id, f"{metric}_AVG", detail_name, phase['name'],
                             value_avg,
@@ -136,12 +133,12 @@ if __name__ == '__main__':
                 # Here we need to calculate the average differently
                 DB().query(insert_query,
                         (project_id, f"{metric.replace('_energy_', '_power_')}_AVG", detail_name, phase['name'],
-                            value_sum / (phase['end'] - phase['start']), # sum of mJ / s => mW
+                            (value_sum  * 10**6) / (phase['end'] - phase['start']), # sum of mJ / s => mW
                         'mW')
                 )
                 DB().query(insert_query,
                         (project_id, f"{metric.replace('_energy_', '_power_')}_MAX", detail_name, phase['name'],
-                            value_max / ((phase['end'] - phase['start']) / value_count), # max_value / avg_measurement_interval
+                            (value_max * 10**6) / ((phase['end'] - phase['start']) / value_count), # max_value / avg_measurement_interval
                         'mW')
                 )
 

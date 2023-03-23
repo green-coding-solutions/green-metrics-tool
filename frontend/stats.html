@@ -65,12 +65,12 @@
                     <div class="ui tab segment" data-tab="one">
                         <table class="table-hover" id="project-data-top"></table>
                         <div class="ui accordion">
-                          <div class="title ui header">
-                            <i class="dropdown icon"></i> <u>Click here for more data ...</u>
-                          </div>
-                          <div class="content">
-                            <table class="table-hover" id="project-data-accordion"></table>
-                          </div>
+                            <div class="title ui header">
+                                <i class="dropdown icon"></i> <u>Click here for more data ...</u>
+                            </div>
+                            <div class="content">
+                                <table class="table-hover" id="project-data-accordion"></table>
+                            </div>
                         </div>
 
 
@@ -124,115 +124,61 @@
                 </div>
             </div>
         </div><!-- end ui horizontal card -->
-        <div class="ui horizontal card" id="horizontal-card">
-            <div class="content">
-                <div class="header"><a class="ui blue ribbon label" href="#">
-                    <h3>Resource consumption during application life cycle</h3>
-                </a></div>
-                <br>
-                <p>Use the following navigation to toggle the overview between the different phases.</p>
-                <p>Please note that the charts always display the full measurement with all phases.</p>
-            </div>
-        </div>
-
         <div class="ui steps top attached phases">
-          <a class="active step" data-tab="[BASELINE]">
-            <div class="content">
-              <div class="title">Baseline</div>
-              <div class="description" style="display:none">Energy consumption before installing application</div>
-            </div>
-          </a>
-          <a class="step" data-tab="[INSTALLATION]">
-            <div class="content">
-              <div class="title">Installation</div>
-              <div class="description" style="display:none">This is where the containers are built / pulled</div>
-            </div>
-          </a>
-          <a class="step" data-tab="[BOOT]">
-            <div class="content">
-              <div class="title">Boot</div>
-              <div class="description" style="display:none">resource consumption while starting containers</div>
-            </div>
-          </a>
-          <a class="step" data-tab="[IDLE]">
-            <div class="content">
-              <div class="title">Idle</div>
-              <div class="description" style="display:none">resource consumption while running idle containers</div>
-            </div>
-          </a>
-          <a class="step runtime-step" data-tab="" style="display:none;"> <!-- empty element for copying. Usage phases will be inserted before -->
-            <div class="content">
-              <div class="title"></div>
-              <div class="description" style="display:none">resource consumption while usage phase and executing usage scenario</div>
-            </div>
-          </a>
-          <a class="step" data-tab="[REMOVE]">
-            <div class="content">
-              <div class="title">Remove</div>
-              <div class="description" style="display:none">When software is removed / uninstalled.</div>
-            </div>
-          </a>
+            <a class="active step" data-tab="[BASELINE]">
+                <div class="content">
+                    <div class="title">Baseline<span class="ui icon" data-position="top left" data-inverted="" data-tooltip="Before container install / build / start and running software" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
+                    <div class="description" style="display:none">Energy consumption before installing application</div>
+                </div>
+            </a>
+            <a class="step" data-tab="[INSTALLATION]">
+                <div class="content">
+                    <div class="title">Installation<span class="ui icon" data-position="top left" data-inverted="" data-tooltip="Container build / download" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
+                    <div class="description" style="display:none">This is where the containers are built / pulled</div>
+                </div>
+            </a>
+            <a class="step" data-tab="[BOOT]">
+                <div class="content">
+                    <div class="title">Boot<span class="ui icon" data-position="top center" data-inverted="" data-tooltip="Container startup" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
+                    <div class="description" style="display:none">resource consumption while starting containers</div>
+                </div>
+            </a>
+            <a class="step" data-tab="[IDLE]">
+                <div class="content">
+                    <div class="title">Idle<span class="ui icon" data-position="top center" data-inverted="" data-tooltip="After container installation and boot. flow not started. But services, if any, are already running." style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
+                    <div class="description" style="display:none">resource consumption while running idle containers</div>
+                </div>
+            </a>
+            <a class="step runtime-step" data-tab="" style="display:none;"> <!-- empty element for copying. Usage phases will be inserted before -->
+                <div class="content">
+                    <div class="title"><span class="ui icon" data-inverted="" data-position="top right" data-tooltip="This is a user defined custom phase" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
+                    <div class="description" style="display:none">resource consumption while usage phase and executing usage scenario</div>
+                </div>
+            </a>
+            <a class="step" data-tab="[REMOVE]">
+                <div class="content">
+                    <div class="title">Remove<span class="ui icon" data-inverted="" data-position="top right" data-tooltip="This is the removal phase, including cache-purging, container stop etc." style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
+                    <div class="description" style="display:none">When software is removed / uninstalled.</div>
+                </div>
+            </a>
         </div>
 
         <div class="ui tab attached segment secondary" data-tab="[BASELINE]">
-          <h3 class="ui dividing header">key metrics</h3>
-          <div class="phases-piechart"></div>
-          <h3 class="ui dividing header">container level metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics container-level-metrics">
-          </div>
-          <h3 class="ui dividing header">system level metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
-          <h3 class="ui dividing header">extra metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
-        </div>
-        <div class="ui tab attached segment secondary" data-tab="[INSTALLATION]">
-          <h3 class="ui dividing header">key metrics</h3>
-          <div class="phases-piechart"></div>
-          <h3 class="ui dividing header">container level metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics container-level-metrics">
-          </div>
-          <h3 class="ui dividing header">system level metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
-          <h3 class="ui dividing header">extra metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
-        </div>
-        <div class="ui tab attached segment secondary" data-tab="[BOOT]">
-          <h3 class="ui dividing header">key metrics</h3>
-          <div class="phases-piechart"></div>
-          <h3 class="ui dividing header">container level metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics container-level-metrics">
-          </div>
-          <h3 class="ui dividing header">system level metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
-          <h3 class="ui dividing header">extra metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
-        </div>
-        <div class="ui tab attached segment secondary" data-tab="[IDLE]">
-          <h3 class="ui dividing header">key metrics</h3>
-          <div class="phases-piechart"></div>
-          <h3 class="ui dividing header">container level metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics container-level-metrics">
-          </div>
-          <h3 class="ui dividing header">system level metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
-          <h3 class="ui dividing header">extra metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
-        </div>
-        <div class="ui tab attached segment secondary runtime-tab" data-tab="" style="display:none;">
-          <h3 class="ui dividing header">key metrics</h3>
-          <div class="phases-piechart"></div>
+            <h3 class="ui dividing header">key metrics</h3>
+            <div class="phases-piechart"></div>
+            <br>
             <div class="ui three cards stackable no-transform-statistics">
                 <div class="ui card">
                     <div class="ui content">
-                        <div class="ui top attached blue label overflow-ellipsis">Component Energy</div>
-                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
+                        <div class="ui top attached orange label overflow-ellipsis">Machine Power</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Power of all hardware components during current usage phase.">
                             <i class="question circle icon"></i>
                         </div>
-                        <div class="ui bottom right attached label">RAPL CPU+Memory</div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
                         <div class="description">
                             <div class="ui fluid tiny statistic">
                                 <div class="value">
-                                    <i class="power off icon"></i> <span id="component-energy">N/A</span>
+                                    <i class="power off icon"></i> <span class="machine-power">N/A</span>
                                 </div>
                             </div>
                         </div>
@@ -240,15 +186,15 @@
                 </div>
                 <div class="ui card">
                     <div class="ui content">
-                        <div class="ui top attached blue label overflow-ellipsis">Component Power (avg.)</div>
-                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
+                        <div class="ui top attached blue label overflow-ellipsis">Machine Energy</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
                             <i class="question circle icon"></i>
                         </div>
-                        <div class="ui bottom right attached label">RAPL CPU+Memory</div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
                         <div class="description">
                             <div class="ui fluid tiny statistic">
                                 <div class="value">
-                                    <i class="power off icon"></i> <span id="component-power">N/A</span>
+                                    <i class="battery three quarters icon"></i> <span class="machine-energy">N/A</span>
                                 </div>
                             </div>
                         </div>
@@ -256,15 +202,15 @@
                 </div>
                 <div class="ui card">
                     <div class="ui content">
-                        <div class="ui top blue attached label overflow-ellipsis">Network Energy </div>
-                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
+                        <div class="ui top blue attached label overflow-ellipsis">Network Energy</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
                             <i class="question circle icon"></i>
                         </div>
                         <div class="ui bottom right attached label"><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></div>
                         <div class="description">
                             <div class="ui fluid tiny statistic">
                                 <div class="value">
-                                    <i class="power off icon"></i> <span id="network-energy">N/A</span>
+                                    <i class="battery three quarters icon"></i> <span class="network-energy">N/A</span>
                                 </div>
                             </div>
                         </div>
@@ -272,15 +218,15 @@
                 </div>
                 <div class="ui card">
                     <div class="ui content">
-                        <div class="ui top black attached label overflow-ellipsis">Component CO2 </div>
+                        <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (usage)</div>
                         <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
                             <i class="question circle icon"></i>
                         </div>
-                        <div class="ui bottom right attached label">RAPL CPU + Memory</div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
                         <div class="description">
                             <div class="ui fluid tiny statistic">
                                 <div class="value">
-                                    <i class="burn icon"></i> <span id="component-co2">N/A</span>
+                                    <i class="burn icon"></i> <span class="machine-co2">N/A</span>
                                 </div>
                             </div>
                         </div>
@@ -288,7 +234,7 @@
                 </div>
                 <div class="ui card">
                     <div class="ui content">
-                        <div class="ui top black attached label overflow-ellipsis">Network CO2 </div>
+                        <div class="ui top black attached label overflow-ellipsis">Network CO2</div>
                         <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
                             <i class="question circle icon"></i>
                         </div>
@@ -296,7 +242,23 @@
                         <div class="description">
                             <div class="ui fluid tiny statistic">
                                 <div class="value">
-                                    <i class="burn icon"></i> <span id="network-co2">N/A</span>
+                                    <i class="burn icon"></i> <span class="network-co2">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (manufacturing) </div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="CO2 (manufacturing) attr. to lifetime share of phase duration.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="embodied-carbon">N/A</span>
                                 </div>
                             </div>
                         </div>
@@ -304,30 +266,604 @@
                 </div>
             </div><!-- end ui three cards stackable -->
             <br>
-          <div class="ui accordion">
-              <div class="title ui header">
-                <i class="dropdown icon"></i> <u>Click here for detailed metrics ...</u>
-              </div>
-              <div class="content">
-                  <h3 class="ui dividing header">container level metrics</h3>
-                  <div class="ui three cards stackable no-transform-statistics container-level-metrics"></div>
-                  <h3 class="ui dividing header">system level metrics</h3>
-                  <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
-                  <h3 class="ui dividing header">extra metrics</h3>
-                  <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
-              </div>
-          </div>
+            <div class="ui accordion">
+                <div class="title ui header">
+                    <i class="dropdown icon"></i> <u>Click here for detailed metrics ...</u>
+                </div>
+                <div class="content">
+                    <h3 class="ui dividing header">container / VM level metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics container-level-metrics"></div>
+                    <h3 class="ui dividing header">system level metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
+                    <h3 class="ui dividing header">extra metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
+                </div>
+            </div>
+        </div>
+        <div class="ui tab attached segment secondary" data-tab="[INSTALLATION]">
+            <h3 class="ui dividing header">key metrics</h3>
+            <div class="phases-piechart"></div>
+            <br>
+            <div class="ui three cards stackable no-transform-statistics">
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top attached orange label overflow-ellipsis">Machine Power</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Power of all hardware components during current usage phase.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="power off icon"></i> <span class="machine-power">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top attached blue label overflow-ellipsis">Machine Energy</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="battery three quarters icon"></i> <span class="machine-energy">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top blue attached label overflow-ellipsis">Network Energy</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="battery three quarters icon"></i> <span class="network-energy">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (usage)</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="machine-co2">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Network CO2</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="network-co2">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (manufacturing) </div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="CO2 (manufacturing) attr. to lifetime share of phase duration.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="embodied-carbon">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- end ui three cards stackable -->
+            <br>
+            <div class="ui accordion">
+                <div class="title ui header">
+                    <i class="dropdown icon"></i> <u>Click here for detailed metrics ...</u>
+                </div>
+                <div class="content">
+                    <h3 class="ui dividing header">container / VM level metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics container-level-metrics"></div>
+                    <h3 class="ui dividing header">system level metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
+                    <h3 class="ui dividing header">extra metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
+                </div>
+            </div>
+        </div>
+        <div class="ui tab attached segment secondary" data-tab="[BOOT]">
+            <h3 class="ui dividing header">key metrics</h3>
+            <div class="phases-piechart"></div>
+            <br>
+            <div class="ui three cards stackable no-transform-statistics">
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top attached orange label overflow-ellipsis">Machine Power</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Power of all hardware components during current usage phase.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="power off icon"></i> <span class="machine-power">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top attached blue label overflow-ellipsis">Machine Energy</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="battery three quarters icon"></i> <span class="machine-energy">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top blue attached label overflow-ellipsis">Network Energy</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="battery three quarters icon"></i> <span class="network-energy">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (usage)</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="machine-co2">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Network CO2</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="network-co2">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (manufacturing) </div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="CO2 (manufacturing) attr. to lifetime share of phase duration.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="embodied-carbon">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- end ui three cards stackable -->
+            <br>
+            <div class="ui accordion">
+                <div class="title ui header">
+                    <i class="dropdown icon"></i> <u>Click here for detailed metrics ...</u>
+                </div>
+                <div class="content">
+                    <h3 class="ui dividing header">container / VM level metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics container-level-metrics"></div>
+                    <h3 class="ui dividing header">system level metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
+                    <h3 class="ui dividing header">extra metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
+                </div>
+            </div>
+        </div>
+        <div class="ui tab attached segment secondary" data-tab="[IDLE]">
+            <h3 class="ui dividing header">key metrics</h3>
+            <div class="phases-piechart"></div>
+            <br>
+            <div class="ui three cards stackable no-transform-statistics">
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top attached orange label overflow-ellipsis">Machine Power</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Power of all hardware components during current usage phase.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="power off icon"></i> <span class="machine-power">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top attached blue label overflow-ellipsis">Machine Energy</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="battery three quarters icon"></i> <span class="machine-energy">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top blue attached label overflow-ellipsis">Network Energy</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="battery three quarters icon"></i> <span class="network-energy">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (usage)</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="machine-co2">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Network CO2</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="network-co2">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (manufacturing) </div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="CO2 (manufacturing) attr. to lifetime share of phase duration.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="embodied-carbon">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- end ui three cards stackable -->
+            <br>
+            <div class="ui accordion">
+                <div class="title ui header">
+                    <i class="dropdown icon"></i> <u>Click here for detailed metrics ...</u>
+                </div>
+                <div class="content">
+                    <h3 class="ui dividing header">container / VM level metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics container-level-metrics"></div>
+                    <h3 class="ui dividing header">system level metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
+                    <h3 class="ui dividing header">extra metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
+                </div>
+            </div>
+        </div>
+        <div class="ui tab attached segment secondary runtime-tab" data-tab="" style="display:none;">
+            <h3 class="ui dividing header">key metrics</h3>
+            <div class="phases-piechart"></div>
+            <br>
+            <div class="ui three cards stackable no-transform-statistics">
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top attached orange label overflow-ellipsis">Machine Power</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Power of all hardware components during current usage phase.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="power off icon"></i> <span class="machine-power">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top attached blue label overflow-ellipsis">Machine Energy</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="battery three quarters icon"></i> <span class="machine-energy">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top blue attached label overflow-ellipsis">Network Energy</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="battery three quarters icon"></i> <span class="network-energy">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (usage)</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="machine-co2">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Network CO2</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="network-co2">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (manufacturing) </div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="CO2 (manufacturing) attr. to lifetime share of phase duration.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="embodied-carbon">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- end ui three cards stackable -->
+            <br>
+            <div class="ui accordion">
+                <div class="title ui header">
+                    <i class="dropdown icon"></i> <u>Click here for detailed metrics ...</u>
+                </div>
+                <div class="content">
+                    <h3 class="ui dividing header">container / VM level metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics container-level-metrics"></div>
+                    <h3 class="ui dividing header">system level metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
+                    <h3 class="ui dividing header">extra metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
+                </div>
+            </div>
         </div>
         <div class="ui tab attached segment secondary" data-tab="[REMOVE]">
-          <h3 class="ui dividing header">key metrics</h3>
-          <div class="phases-piechart"></div>
-          <h3 class="ui dividing header">container level metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics container-level-metrics">
-          </div>
-          <h3 class="ui dividing header">system level metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
-          <h3 class="ui dividing header">extra metrics</h3>
-          <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
+            <h3 class="ui dividing header">key metrics</h3>
+            <div class="phases-piechart"></div>
+            <br>
+            <div class="ui three cards stackable no-transform-statistics">
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top attached orange label overflow-ellipsis">Machine Power</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Power of all hardware components during current usage phase.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="power off icon"></i> <span class="machine-power">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top attached blue label overflow-ellipsis">Machine Energy</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="battery three quarters icon"></i> <span class="machine-energy">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top blue attached label overflow-ellipsis">Network Energy</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="battery three quarters icon"></i> <span class="network-energy">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (usage)</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label">[SYSTEM]</div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="machine-co2">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Network CO2</div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="network-co2">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui card">
+                    <div class="ui content">
+                        <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (manufacturing) </div>
+                        <div class="ui bottom left attached label icon button" data-position="bottom left" data-inverted="" data-tooltip="CO2 (manufacturing) attr. to lifetime share of phase duration.">
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom right attached label"><u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u></div>
+                        <div class="description">
+                            <div class="ui fluid tiny statistic">
+                                <div class="value">
+                                    <i class="burn icon"></i> <span class="embodied-carbon">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- end ui three cards stackable -->
+            <br>
+            <div class="ui accordion">
+                <div class="title ui header">
+                    <i class="dropdown icon"></i> <u>Click here for detailed metrics ...</u>
+                </div>
+                <div class="content">
+                    <h3 class="ui dividing header">container / VM level metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics container-level-metrics"></div>
+                    <h3 class="ui dividing header">system level metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
+                    <h3 class="ui dividing header">extra metrics</h3>
+                    <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
+                </div>
+            </div>
         </div>
 
         <div class="ui icon message">

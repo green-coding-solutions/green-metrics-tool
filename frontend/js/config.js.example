@@ -63,25 +63,25 @@ METRIC_MAPPINGS = {
         color: "blue",
         icon: "battery three quarters"
     },
-    cpu_time_powermetrics_docker: {
+    cpu_time_powermetrics_vm: {
         clean_name: "CPU time",
         explanation: "Effective execution time of the CPU for all cores combined",
         color: "brown",
         icon: "stopwatch"
     },
-    disk_io_bytesread_powermetrics: {
+    disk_io_bytesread_powermetrics_vm: {
         clean_name: "Bytes read (HDD/SDD)",
         explanation: "Effective execution time of the CPU for all cores combined",
         color: "green",
         icon: "upload"
     },
-    disk_io_byteswritten_powermetrics: {
+    disk_io_byteswritten_powermetrics_vm: {
         clean_name: "Bytes written (HDD/SDD)",
         explanation: "Effective execution time of the CPU for all cores combined",
         color: "green",
         icon: "download"
     },
-    docker_energy_impact_powermetrics: {
+    docker_energy_impact_powermetrics_vm: {
         clean_name: "Energy impact",
         explanation: "macOS proprietary value for relative energy impact on device",
         color: "red",

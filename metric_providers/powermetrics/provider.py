@@ -79,22 +79,23 @@ class PowermetricsProvider(BaseMetricProvider):
             if docker_task is not None:
                 dfs.append([cum_time_ms,
                             docker_task['cputime_ns'],
-                            'cpu_time_powermetrics_docker', 'docker',
+                            'cpu_time_powermetrics_vm',
+                            'docker_vm',
                             'ns'])
                 dfs.append([cum_time_ms,
                             docker_task['diskio_bytesread'],
-                            'disk_io_bytesread_powermetrics',
-                            'docker',
+                            'disk_io_bytesread_powermetrics_vm',
+                            'docker_vm',
                             'Bytes'])
                 dfs.append([cum_time_ms,
                             docker_task['diskio_byteswritten'],
-                           'disk_io_byteswritten_powermetrics',
-                           'docker',
+                           'disk_io_byteswritten_powermetrics_vm',
+                           'docker_vm',
                            'Bytes'])
                 dfs.append([cum_time_ms,
                             int(docker_task['energy_impact']),
-                           'docker_energy_impact_powermetrics',
-                           'energy_impact',
+                           'energy_impact_powermetrics_vm',
+                           'docker_vm',
                            # We need to introduce a new unit here as the energy impact on Mac isn't well understood
                            # https://tinyurl.com/2p9c56pz
                            '*'])
