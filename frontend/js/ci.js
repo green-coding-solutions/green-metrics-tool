@@ -44,11 +44,7 @@ const createChartContainer = (container, el) => {
 
 const getEChartsOptions = () => {
     return {
-        tooltip: {
-            trigger: 'axis'
-        },
-        yAxis: {
-        },
+        yAxis: { time: 'value', gridIndex: 0, name: "Run Energy" },
 
         xAxis: { type: 'category' },
         dataset: {source:[]},
@@ -75,23 +71,46 @@ const getEChartsOptions = () => {
 }
 
 const displayGraph = (runs) => {
+    console.log(runs)
     const element = createChartContainer("#chart-container", "run-energy");
     var options = getEChartsOptions();
+    var run_notes = {}
 
     options.title.text = `Workflow energy cost per run`;
     runs.forEach(run => {
-        options.dataset.source.push(run)
+        if (run[2] in run_notes) {
+            run_notes[run[2]].push(run[0])
+            options.dataset.source.forEach( series => {
+                if (series[0] == run[2]) {
+                    series.push(run[0])
+                    return
+                }
+            })
+        }
+        else {
+            run_notes[run[2]] = [run[0]]
+            options.dataset.source.push([run[2], run[0]])
+        }
+    });
+    console.log(run_notes)
+    console.log(options.dataset)
+
+    options.dataset.source.forEach(run => {
         options.series.push({
             type: 'bar',
-            dimensions: ['value', 'unit', 'run_id', {name: 'timestamp', type: 'time'}],
-            encode: {
-                x: 'run_id',
-                y: 'value',
-                tooltip: ['value', 'run_id', 'timestamp']
-            },
-            stack: run[2]
+            smooth: true,
+            seriesLayoutBy: 'column',
+            stack: 'test'
         })
-    });
+    })
+
+    options.tooltip = {
+        trigger: 'item',
+        formatter: function(params, ticket, callback) {
+          return `${run_notes[params.data[0]]}`;
+        }
+    }
+
 
     const chart_instance = echarts.init(element);
     chart_instance.setOption(options);
@@ -164,7 +183,7 @@ $(document).ready( (e) => {
             document.querySelector("#badges-table").appendChild(li_node);
         });
        $('table').tablesort();
-       displayGraph(badges_data.data)
+       displayGraph(badges_data.data.reverse())
        
     })();
 });
