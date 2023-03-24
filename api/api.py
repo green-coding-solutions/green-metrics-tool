@@ -389,10 +389,10 @@ async def post_ci_badge_add(badge: Badge):
 @app.get('/v1/ci/badges/')
 async def get_ci_badges(repo: str, branch: str, workflow:str):
     query = """
-        SELECT value, unit, run_id, created_at
+        SELECT label, value, unit, run_id, created_at
         FROM badges
         WHERE repo = %s AND branch = %s AND workflow = %s
-        ORDER BY created_at DESC
+        ORDER BY run_id ASC, created_at ASC
     """
     params = (repo, branch, workflow)
     data = DB().fetch_all(query, params=params)

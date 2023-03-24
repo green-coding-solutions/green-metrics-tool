@@ -44,7 +44,7 @@ const createChartContainer = (container, el) => {
 
 const getEChartsOptions = () => {
     return {
-        yAxis: { time: 'value', gridIndex: 0, name: "Run Energy" },
+        yAxis: { type: 'value', gridIndex: 0, name: "Run Energy" },
 
         xAxis: { type: 'category' },
         dataset: {source:[]},
@@ -71,49 +71,84 @@ const getEChartsOptions = () => {
 }
 
 const displayGraph = (runs) => {
-    console.log(runs)
+    console.log("Runs", runs)
     const element = createChartContainer("#chart-container", "run-energy");
     var options = getEChartsOptions();
     var run_notes = {}
 
     options.title.text = `Workflow energy cost per run`;
-    runs.forEach(run => {
-        if (run[2] in run_notes) {
-            run_notes[run[2]].push(run[0])
-            options.dataset.source.forEach( series => {
-                if (series[0] == run[2]) {
-                    series.push(run[0])
-                    return
-                }
-            })
+
+    const VALUE = 0;
+    const UNIT = 1
+
+    var tooltip =  [
+    ]
+
+
+
+/*
+    options.dataset.source = [
+        ["24.06", 1,2,3,4],
+        ["25.06",  1,2,],
+        ["26.06", 1,2,3,4],
+        ["27.06", 1,2,3,4],
+    ]
+*/
+    idx = -1; // since we force an ordering from the API, we can safely assume increasing run_ids
+    runs.forEach(run => { // iterate over all runs, which are in row order
+        let [label, value, unit, run_id, timestamp] = run;
+
+        if (run_id in run_notes) { // if run_id in notes
+            run_notes[run_id].values.push(value)
+            tooltip[idx].labels.push(label)
         }
         else {
-            run_notes[run[2]] = [run[0]]
-            options.dataset.source.push([run[2], run[0]])
+            run_notes[run_id] = {
+                timestamp: formatDateTime(new Date(timestamp)),
+                values: [value]
+            }
+            tooltip.push({run_id: run_id, labels: [label]})
+            idx++;
+            options.series.push({
+                type: 'bar',
+                smooth: true,
+                seriesLayoutBy: 'column',
+                stack: 'test', // does not matter what you call it actually
+            })
         }
     });
-    console.log(run_notes)
-    console.log(options.dataset)
 
-    options.dataset.source.forEach(run => {
-        options.series.push({
-            type: 'bar',
-            smooth: true,
-            seriesLayoutBy: 'column',
-            stack: 'test'
-        })
-    })
+    for (entry in run_notes) {
+        options.dataset.source.push([run_notes[entry].timestamp].concat(run_notes[entry].values))
+    }
 
     options.tooltip = {
         trigger: 'item',
         formatter: function(params, ticket, callback) {
-          return `${run_notes[params.data[0]]}`;
+          return `${tooltip[params.dataIndex].run_id} ${tooltip[params.dataIndex].labels[params.componentIndex]}`;
         }
     }
 
 
     const chart_instance = echarts.init(element);
     chart_instance.setOption(options);
+
+    // we want to listen for the zoom event to display a line or a icon with the grand total in the chart
+    // => Look at what cool stuff can be display!
+
+    // trigger the dataZoom event manually when this function. Similar how we do resize
+
+    // the dataZoom callback needs to walk the dataset.source everytime on zoom and only add up all values that
+    // are >= startValue <=  endValue
+    // either copying element or reducing it by checking if int or not
+
+    chart_instance.on('dataZoom', function (evt) {
+      console.log('zoom', evt.batch[0].startValue);
+      for (var i = evt.batch[0].startValue ; i <= evt.batch[0].endValue; i++) {
+          const sum = [1, 2, 3].reduce((partialSum, a) => partialSum + a, 0);
+          array.slice!
+      }
+    })
 
     window.onresize = function() { // set callback when ever the user changes the viewport
         chart_instance.resize();
@@ -183,7 +218,7 @@ $(document).ready( (e) => {
             document.querySelector("#badges-table").appendChild(li_node);
         });
        $('table').tablesort();
-       displayGraph(badges_data.data.reverse())
+       displayGraph(badges_data.data)
        
     })();
 });
