@@ -400,7 +400,7 @@ async def get_ci_measurements(repo: str, branch: str, workflow:str):
         SELECT value, unit, run_id, created_at, label
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s
-        ORDER BY created_at DESC
+        ORDER BY run_id ASC, created_at ASC
     """
     params = (repo, branch, workflow)
     data = DB().fetch_all(query, params=params)
