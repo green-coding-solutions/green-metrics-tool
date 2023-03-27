@@ -10,25 +10,27 @@ const rescaleCO2Value = (total_CO2_in_kg) => {
     return co2_display;
 }
 
-const getEChartsOptions = () => {
+const getLineChartOptions = (title, legend, series) => {
     return {
         tooltip: {
             trigger: 'axis'
         },
-        xAxis: {
-           type: 'time',
-           splitLine: {show: true}
+        title: {
+            text:title
         },
-
+        xAxis: {
+            type: 'time',
+            splitLine: {show: true}
+        },
         yAxis: {
             type: 'value',
-           splitLine: {show: true}
+            splitLine: {show: true}
         },
-        series: [],
+        series: series,
         title: {text: null},
         animation: false,
         legend: {
-            data: [],
+            data: legend,
             bottom: 0,
             // type: 'scroll' // maybe active this if legends gets too long
         },
@@ -36,15 +38,67 @@ const getEChartsOptions = () => {
             itemSize: 25,
             top: 55,
             feature: {
-              dataZoom: {
-                yAxisIndex: 'none'
-              },
-              restore: {}
+                dataZoom: {
+                    yAxisIndex: 'none'
+                },
+                restore: {}
             }
-          },
+        },
 
     };
 }
+
+const getPieChartOptions = (name, data) => {
+    return {
+        tooltip: {
+            trigger: 'item'
+        },
+        toolbox: {
+            show: false,
+        },
+        series: [
+            {
+                name: name,
+                type: 'pie',
+                radius: [30, 100],
+                center: ['50%', '50%'],
+                roseType: 'radius',
+                itemStyle: {
+                    borderRadius: 2
+                },
+                data: data
+            }
+        ]
+    };
+}
+
+const getBarChartOptions = (title, legend, series) => {
+    return {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+              type: 'shadow' // 'shadow' as default; can also be 'line' or 'shadow'
+          }
+      },
+      title: {
+          left: 'center',
+          text: title
+      },
+      legend: {
+          top: "bottom",
+      },
+
+      yAxis: {
+          type: 'value'
+      },
+      xAxis: {
+          type: 'category',
+          data: legend,
+      },
+      series: series
+  };
+}
+
 
 const fillProjectData = (project_data, key = null) => {
     for (item in project_data) {
@@ -90,29 +144,29 @@ const fillProjectTab = (selector, data, parent = '') => {
 
 const convertValue = (value, unit) => {
     switch (unit) {
-      case 'mJ':
+    case 'mJ':
         return [value / 1000, 'J'];
         break;
-      case 'mW':
+    case 'mW':
         return [value / 1000, 'W'];
         break;
-      case 'Ratio':
+    case 'Ratio':
         return [value / 100, '%'];
         break;
-      case 'centi°C':
+    case 'centi°C':
         return [value / 100, '°C'];
         break;
-      case 'Hz':
+    case 'Hz':
         return [value / 1000000, 'GHz'];
         break;
-      case 'ns':
+    case 'ns':
         return [value / 1000000000, 's'];
         break;
 
-      case 'Bytes':
+    case 'Bytes':
         return [value / 1000000, 'MB'];
         break;
-      default:
+    default:
         return [value, unit];        // no conversion in default calse
     }
 
@@ -122,7 +176,7 @@ const getMetrics = (stats_data, start_measurement, end_measurement) => {
     const metrics = {}
     const t0 = performance.now();
 
-   try {
+    try {
          // define here as var (not let!), so we can alert it later in error case.
          // this was done, because we apparently often forget to add new metrics here and this helps debugging quickly with the alert later :)
         var metric_name = null
@@ -189,9 +243,9 @@ const displayTimelineCharts = (metrics, notes) => {
 
     let counter = 0; // for automatically creating pair of <div>s
     const note_positions = [
-      'insideStartTop',
-      'insideEndBottom'
-    ];
+        'insideStartTop',
+        'insideEndBottom'
+        ];
     const chart_instances = [];
     const t0 = performance.now();
 
@@ -199,11 +253,12 @@ const displayTimelineCharts = (metrics, notes) => {
 
         const element = createChartContainer("#chart-container", metric_name, counter);
 
-        var options = getEChartsOptions();
-        options.title.text = `${metric_name} [${metrics[metric_name].converted_unit}]`;
+        let legend = [];
+        let series = [];
+
         for (detail_name in metrics[metric_name].series) {
-            options.legend.data.push(detail_name)
-            options.series.push({
+            legend.push(detail_name)
+            series.push({
                 name: detail_name,
                 type: 'line',
                 smooth: true,
@@ -214,14 +269,15 @@ const displayTimelineCharts = (metrics, notes) => {
             });
         }
         // now we add all notes to every chart
-        options.legend.data.push('Notes')
+        legend.push('Notes')
         let notes_labels = [];
         let inner_counter = 0;
         notes.forEach(note => {
             notes_labels.push({xAxis: note[3]/1000, label: {formatter: note[2], position: note_positions[inner_counter%2]}})
             inner_counter++;
-        })
-        options.series.push({
+        });
+
+        series.push({
             name: "Notes",
             type: 'line',
             smooth: true,
@@ -230,7 +286,9 @@ const displayTimelineCharts = (metrics, notes) => {
             data: [],
             markLine: { data: notes_labels}
         });
+
         const chart_instance = echarts.init(element);
+        let options = getLineChartOptions(`${metric_name} [${metrics[metric_name].converted_unit}]`, legend, series);
         chart_instance.setOption(options);
         chart_instances.push(chart_instance);
 
@@ -311,23 +369,23 @@ const createChartContainer = (container, el, counter) => {
     chart_node.classList.add('ui')
 
     chart_node.innerHTML = `
-    <div class="content">
-        <div class="ui right floated icon buttons">
-            <button class="ui button toggle-width"><i class="expand icon toggle-icon"></i></button>
-        </div>
-        <div class="ui right floated icon buttons">
-            <button class="ui button movers"><i class="arrows alternate icon"></i></button>
-        </div>
-        <div class="ui right floated icon buttons chart-navigation-icon hide">
-            <button class="ui button move-first"><i class="angle double left icon"></i></button>
-            <button class="ui button move-left"><i class="angle left icon"></i></button>
-            <button class="ui button move-right"><i class="angle right icon"></i></button>
-            <button class="ui button move-last"><i class="angle double right icon"></i></button>
-        </div>
-        <div class="description">
-            <div class="statistics-chart" id=${el}-chart></div>
-        </div>
-    </div>`
+        <div class="content">
+            <div class="ui right floated icon buttons">
+                <button class="ui button toggle-width"><i class="expand icon toggle-icon"></i></button>
+            </div>
+            <div class="ui right floated icon buttons">
+                <button class="ui button movers"><i class="arrows alternate icon"></i></button>
+            </div>
+            <div class="ui right floated icon buttons chart-navigation-icon hide">
+                <button class="ui button move-first"><i class="angle double left icon"></i></button>
+                <button class="ui button move-left"><i class="angle left icon"></i></button>
+                <button class="ui button move-right"><i class="angle right icon"></i></button>
+                <button class="ui button move-last"><i class="angle double right icon"></i></button>
+            </div>
+            <div class="description">
+                <div class="statistics-chart" id=${el}-chart></div>
+            </div>
+        </div>`;
     document.querySelector(container).appendChild(chart_node)
 
     chart_node.querySelector('.toggle-width').addEventListener("click", toggleWidth, false);
@@ -369,8 +427,8 @@ const createDetailMetricBoxes = (metric, phase) => {
     let max_label = ''
     if (metric.max != null) {
         max_label = `<div class="ui bottom left attached label">
-                        ${metric.max} ${metric.unit} (MAX)
-                    </div>`
+        ${metric.max} ${metric.unit} (MAX)
+        </div>`
     }
 
     node.innerHTML = `
@@ -387,7 +445,6 @@ const createDetailMetricBoxes = (metric, phase) => {
                     ${explanation}
                     <i class="question circle icon"></i>
                 </div>
-
             </div>
         </div>`;
 
@@ -421,67 +478,67 @@ const createKeyMetricBoxes = (energy, power, network_io, phase) => {
     }
 
     // co2 calculations
-    const network_io_co2_in_kg = ( (network_io_in_mWh / 1000000) * 519) / 1000;
-    const [network_co2_value, network_co2_unit] = rescaleCO2Value(network_io_co2_in_kg)
-    if (network_co2_value) document.querySelector(`div.tab[data-tab='${phase}'] .network-co2`).innerHTML = `${(network_co2_value).toFixed(2)} <span class="si-unit">${network_co2_unit}</span>`
+const network_io_co2_in_kg = ( (network_io_in_mWh / 1000000) * 519) / 1000;
+const [network_co2_value, network_co2_unit] = rescaleCO2Value(network_io_co2_in_kg)
+if (network_co2_value) document.querySelector(`div.tab[data-tab='${phase}'] .network-co2`).innerHTML = `${(network_co2_value).toFixed(2)} <span class="si-unit">${network_co2_unit}</span>`
 
     const total_CO2_in_kg = ( ((energy_in_mWh + network_io_in_mWh) / 1000000) * 519) / 1000;
-    const [component_co2_value, component_co2_unit] = rescaleCO2Value(total_CO2_in_kg)
-    if (component_co2_value) document.querySelector(`div.tab[data-tab='${phase}'] .machine-co2`).innerHTML = `${(component_co2_value).toFixed(2)} <span class="si-unit">${component_co2_unit}</span>`
+const [component_co2_value, component_co2_unit] = rescaleCO2Value(total_CO2_in_kg)
+if (component_co2_value) document.querySelector(`div.tab[data-tab='${phase}'] .machine-co2`).innerHTML = `${(component_co2_value).toFixed(2)} <span class="si-unit">${component_co2_unit}</span>`
 
     const daily_co2_budget_in_kg_per_day = 1.739; // (12.7 * 1000 * 0.05) / 365 from https://www.pawprint.eco/eco-blog/average-carbon-footprint-uk and https://www.pawprint.eco/eco-blog/average-carbon-footprint-globally
-    const co2_budget_utilization = total_CO2_in_kg*100 / daily_co2_budget_in_kg_per_day;
-    if (co2_budget_utilization) document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + ' <span class="si-unit">%</span>'
+const co2_budget_utilization = total_CO2_in_kg*100 / daily_co2_budget_in_kg_per_day;
+if (co2_budget_utilization) document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + ' <span class="si-unit">%</span>'
 
     upscaled_CO2_in_kg = total_CO2_in_kg * 1000 * 365 ; // upscaled to 365 days for 1000 runs per day
 
-    if(upscaled_CO2_in_kg) {
-        document.querySelector("#trees").innerText = (upscaled_CO2_in_kg / 0.06 / 1000).toFixed(2);
-        document.querySelector("#miles-driven").innerText = (upscaled_CO2_in_kg / 0.000403 / 1000).toFixed(2);
-        document.querySelector("#gasoline").innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
+if(upscaled_CO2_in_kg) {
+    document.querySelector("#trees").innerText = (upscaled_CO2_in_kg / 0.06 / 1000).toFixed(2);
+    document.querySelector("#miles-driven").innerText = (upscaled_CO2_in_kg / 0.000403 / 1000).toFixed(2);
+    document.querySelector("#gasoline").innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
         // document.querySelector("#smartphones-charged").innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
-        document.querySelector("#flights").innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
-    }
+    document.querySelector("#flights").innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
+}
 }
 
 const createGraph = (element, data, labels, title) => {
   // console.log('labels', labels)
-  return new Dygraph(element, data, {
-      labels,
-      fillGraph: true,
-      rollPeriod: 10,
-      showRoller: true,
-      title,
-      legend: "always",
-      labelsSeparateLines: true,
-      highlightSeriesOpts: { strokeWidth: 2 },
+    return new Dygraph(element, data, {
+        labels,
+        fillGraph: true,
+        rollPeriod: 10,
+        showRoller: true,
+        title,
+        legend: "always",
+        labelsSeparateLines: true,
+        highlightSeriesOpts: { strokeWidth: 2 },
     // showLabelsOnHighlight: false,
-    axes: {
-        x: {
-            axisLabelFormatter: Dygraph.dateAxisLabelFormatter,
-            ticker: Dygraph.dateTicker,
+        axes: {
+            x: {
+                axisLabelFormatter: Dygraph.dateAxisLabelFormatter,
+                ticker: Dygraph.dateTicker,
+            },
         },
-    },
-    drawCallback: function (g) {
-        const notes = document.getElementsByClassName('dygraph-annotation');
-        for (let i = 0; i < notes.length; i++) {
-            if (notes[i].style.top === "") notes[i].style.display = "none";
-        }
-    },
-    annotationMouseOverHandler: function (ann, point, dg, event) {
-        $(ann.div)
-        .popup({
-            title   : 'Note',
-            content : ann.text,
-            variation: 'mini',
-            inline: true
-        }).popup("show")
-    },
-    annotationMouseOutHandler: function (ann, point, dg, event) {
-        $(ann.div)
-        .popup("hide")
-    },
-});
+        drawCallback: function (g) {
+            const notes = document.getElementsByClassName('dygraph-annotation');
+            for (let i = 0; i < notes.length; i++) {
+                if (notes[i].style.top === "") notes[i].style.display = "none";
+            }
+        },
+        annotationMouseOverHandler: function (ann, point, dg, event) {
+            $(ann.div)
+            .popup({
+                title   : 'Note',
+                content : ann.text,
+                variation: 'mini',
+                inline: true
+            }).popup("show")
+        },
+        annotationMouseOutHandler: function (ann, point, dg, event) {
+            $(ann.div)
+            .popup("hide")
+        },
+    });
 };
 
 const createMetricBoxes = (phase_stats_object) => {
@@ -500,25 +557,25 @@ const createMetricBoxes = (phase_stats_object) => {
                 || metric_name == 'gpu_energy_powermetrics_system'
                 || metric_name == 'cores_energy_powermetrics_system' ) {
                 energy += phase_stats_object[phase][metric_name].value;
-            } else if (metric_name == 'ane_power_powermetrics_system'
-                || metric_name == 'gpu_power_powermetrics_system'
-                || metric_name == 'cores_power_powermetrics_system' ) {
-                power += phase_stats_object[phase][metric_name].value;
-            } else if(metric_name == 'network_io_cgroup_container') {
-                network_io += phase_stats_object[phase][metric_name].value;
-            }
+        } else if (metric_name == 'ane_power_powermetrics_system'
+            || metric_name == 'gpu_power_powermetrics_system'
+            || metric_name == 'cores_power_powermetrics_system' ) {
+            power += phase_stats_object[phase][metric_name].value;
+        } else if(metric_name == 'network_io_cgroup_container') {
+            network_io += phase_stats_object[phase][metric_name].value;
         }
-        createKeyMetricBoxes(energy, power, network_io, phase);
     }
+    createKeyMetricBoxes(energy, power, network_io, phase);
+}
 
 
 
-    $('.ui.steps.phases .step').tab();
-    $('.ui.accordion').accordion();
+$('.ui.steps.phases .step').tab();
+$('.ui.accordion').accordion();
 
     // although there are multiple .step.runtime-step containers the first one
     // marks the first runtime step and is shown by default
-    document.querySelector('.step.runtime-step').dispatchEvent(new Event('click'));
+document.querySelector('.step.runtime-step').dispatchEvent(new Event('click'));
 }
 
 const walkPhaseStats = (phase_stats_data) => {
@@ -577,7 +634,7 @@ const displayKeyMetricCharts = (phase_stats_object) => {
         'cpu_energy_rapl_msr_system',
         'memory_energy_rapl_msr_system',
         'network_io_cgroup_container'
-    ]
+        ]
 
     for (phase in phase_stats_object) {
         let data = []
@@ -590,35 +647,115 @@ const displayKeyMetricCharts = (phase_stats_object) => {
             })
         })
 
-        var chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .phases-piechart`);
+        var chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .pie-chart`);
         var myChart = echarts.init(chartDom);
-        var option;
+        var option = getPieChartOptions('Component energy distribution', data);
+        myChart.setOption(option);
 
-        option = {
-          tooltip: {
-            trigger: 'item'
-          },
-          toolbox: {
-            show: false,
-          },
-          series: [
-            {
-              name: 'Component energy distribution',
-              type: 'pie',
-               radius: [30, 100],
-              center: ['50%', '50%'],
-              roseType: 'radius',
-              itemStyle: {
-                borderRadius: 2
+        var chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .embodied-chart`);
+        var myChart = echarts.init(chartDom);
+        let series = [
+              {
+                  name: 'Embodied carbon',
+                  type: 'bar',
+                  emphasis: {
+                      focus: 'series'
+                  },
+                  data: [220]
               },
-              data: data
-            }
-          ]
-        };
-
-        option && myChart.setOption(option);
+              {
+                  name: 'Usage Phase',
+                  type: 'bar',
+                  stack: 'total',
+                  emphasis: {
+                      focus: 'series'
+                  },
+                  data: [15]
+              }
+          ];
+        var option = getBarChartOptions('Embodied carbon vs. Usage Phase', ['Phases'], series);
+        myChart.setOption(option);
 
     }
+    // after phase charts render total charts
+    var chartDom = document.querySelector(`#total-phases-data .embodied-chart`);
+    var myChart = echarts.init(chartDom);
+    var series = [
+              {
+                  name: 'Embodied carbon',
+                  type: 'bar',
+                  emphasis: {
+                      focus: 'series'
+                  },
+                  data: [4420]
+              },
+              {
+                  name: 'Usage Phase',
+                  type: 'bar',
+                  stack: 'total',
+                  emphasis: {
+                      focus: 'series'
+                  },
+                  data: [225]
+              }
+          ];
+    var option = getBarChartOptions('Embodied carbon vs. Usage Phase', ['Phases'], series);
+    myChart.setOption(option);
+
+
+    // after phase charts render total charts
+    var chartDom = document.querySelector(`#total-phases-data .phases-chart`);
+    var myChart = echarts.init(chartDom);
+    var series = [
+            {
+              name: 'CPU',
+              type: 'bar',
+              stack: 'total',
+              emphasis: {
+                focus: 'series'
+              },
+              data: [10, 120, 30, 10, 200, 2]
+            },
+            {
+              name: 'HDDs+Overhead',
+              type: 'bar',
+              stack: 'total',
+              emphasis: {
+                focus: 'series'
+              },
+              data: [15, 100, 50, 15, 50, 2]
+            },
+            {
+              name: 'DRAM',
+              type: 'bar',
+              stack: 'total',
+              emphasis: {
+                focus: 'series'
+              },
+              data: [2, 20, 20, 2, 10, 2]
+            },
+            {
+              name: 'PSU',
+              type: 'bar',
+              stack: 'total',
+              emphasis: {
+                focus: 'series'
+              },
+              data: [6, 6, 6, 6, 6, 6]
+            },
+            {
+              name: 'Network',
+              type: 'bar',
+              stack: 'total',
+              emphasis: {
+                focus: 'series'
+              },
+              data: [0, 800, 100, 0, 400, 5]
+            }
+          ];
+    var legend = ['Baseline', 'Installation', 'Boot', 'Idle', 'Runtime', 'Remove'];
+    var option = getBarChartOptions('Total Phases consumption', legend, series);
+    myChart.setOption(option);
 
 
 }

@@ -189,9 +189,18 @@ a,
     font-size:10px !important;
 }
 
-.phases-piechart {
+
+.bar-chart, .pie-chart, .embodied-chart, .phases-chart {
     width: 500px;
     height: 300px;
     display: block;
     margin:auto;
+}
+
+.chart-container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 40px;
 }
