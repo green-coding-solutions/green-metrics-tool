@@ -3,23 +3,23 @@ const addZed = (num) => {
 }
 
 const formatDateTime = (date) => {
-        var h = date.getHours();
-        var m = date.getMinutes();
-        var s = date.getSeconds();
+    var h = date.getHours();
+    var m = date.getMinutes();
+    var s = date.getSeconds();
 
-        var timeString = '' + addZed(h) + ':' + addZed(m) + ':' + addZed(s) 
-        var dateString = date.toDateString();
+    var timeString = '' + addZed(h) + ':' + addZed(m) + ':' + addZed(s)
+    var dateString = date.toDateString();
 
-        return '' + dateString + ' | ' + timeString
-    }
+    return '' + dateString + ' | ' + timeString
+}
 
 const convertValue = (value, unit) => {
     switch (unit) {
-      case 'mJ':
-        return [value / 1000, 'Joules'];
-        break;
-      default:
-        return [value, unit];        // no conversion in default calse
+        case 'mJ':
+            return [value / 1000, 'Joules'];
+            break;
+        default:
+            return [value, unit];        // no conversion in default calse
     }
 
 }
@@ -47,9 +47,9 @@ const getEChartsOptions = () => {
         yAxis: { type: 'value', gridIndex: 0, name: "Run Energy" },
 
         xAxis: { type: 'category' },
-        dataset: {source:[]},
+        dataset: { source: [] },
         series: [],
-        title: {text: null},
+        title: { text: null },
         animation: false,
         legend: {
             data: [],
@@ -61,11 +61,11 @@ const getEChartsOptions = () => {
             top: 55,
             feature: {
                 dataZoom: {
-                yAxisIndex: 'none'
+                    yAxisIndex: 'none'
                 },
                 restore: {}
             }
-            },
+        },
 
     };
 }
@@ -81,19 +81,19 @@ const displayGraph = (runs) => {
     const VALUE = 0;
     const UNIT = 1
 
-    var tooltip =  [
+    var tooltip = [
     ]
 
 
 
-/*
-    options.dataset.source = [
-        ["24.06", 1,2,3,4],
-        ["25.06",  1,2,],
-        ["26.06", 1,2,3,4],
-        ["27.06", 1,2,3,4],
-    ]
-*/
+    /*
+        options.dataset.source = [
+            ["24.06", 1,2,3,4],
+            ["25.06",  1,2,],
+            ["26.06", 1,2,3,4],
+            ["27.06", 1,2,3,4],
+        ]
+    */
     idx = -1; // since we force an ordering from the API, we can safely assume increasing run_ids
     runs.forEach(run => { // iterate over all runs, which are in row order
         let [label, value, unit, run_id, timestamp] = run;
@@ -117,6 +117,7 @@ const displayGraph = (runs) => {
             })
         }
     });
+    console.log("run_notes", run_notes)
 
     for (entry in run_notes) {
         options.dataset.source.push([run_notes[entry].timestamp].concat(run_notes[entry].values))
@@ -124,13 +125,14 @@ const displayGraph = (runs) => {
 
     options.tooltip = {
         trigger: 'item',
-        formatter: function(params, ticket, callback) {
-          return `${tooltip[params.dataIndex].run_id} ${tooltip[params.dataIndex].labels[params.componentIndex]}`;
+        formatter: function (params, ticket, callback) {
+            return `${tooltip[params.dataIndex].run_id} ${tooltip[params.dataIndex].labels[params.componentIndex]}`;
         }
     }
 
 
     const chart_instance = echarts.init(element);
+    console.log("options.dataset.source", options.dataset.source)
     chart_instance.setOption(options);
 
     // we want to listen for the zoom event to display a line or a icon with the grand total in the chart
@@ -143,34 +145,35 @@ const displayGraph = (runs) => {
     // either copying element or reducing it by checking if int or not
 
     chart_instance.on('dataZoom', function (evt) {
-      console.log('zoom', evt.batch[0].startValue);
-      for (var i = evt.batch[0].startValue ; i <= evt.batch[0].endValue; i++) {
-          const sum = [1, 2, 3].reduce((partialSum, a) => partialSum + a, 0);
-          array.slice!
-      }
+        let sum = 0;
+        if (!('startValue' in evt.batch[0])) return
+        for (var i = evt.batch[0].startValue; i <= evt.batch[0].endValue; i++) {
+            sum = sum + options.dataset.source[i].slice(1).reduce((partialSum, a) => partialSum + a, 0);
+        }
+        console.log('sum:', sum)
     })
 
-    window.onresize = function() { // set callback when ever the user changes the viewport
+    window.onresize = function () { // set callback when ever the user changes the viewport
         chart_instance.resize();
     }
 }
 
 
 
-$(document).ready( (e) => {
+$(document).ready((e) => {
     (async () => {
         const query_string = window.location.search;
         const url_params = (new URLSearchParams(query_string))
 
-        if(url_params.get('repo') == null || url_params.get('repo') == '' || url_params.get('repo') == 'null') {
+        if (url_params.get('repo') == null || url_params.get('repo') == '' || url_params.get('repo') == 'null') {
             showNotification('No Repo', 'Repo parameter in URL is empty or not present. Did you follow a correct URL?');
             return;
-        }        
-        if(url_params.get('branch') == null || url_params.get('branch') == '' || url_params.get('branch') == 'null') {
+        }
+        if (url_params.get('branch') == null || url_params.get('branch') == '' || url_params.get('branch') == 'null') {
             showNotification('No Branch', 'Branch parameter in URL is empty or not present. Did you follow a correct URL?');
             return;
         }
-        if(url_params.get('workflow') == null || url_params.get('workflow') == '' || url_params.get('workflow') == 'null') {
+        if (url_params.get('workflow') == null || url_params.get('workflow') == '' || url_params.get('workflow') == 'null') {
             showNotification('No Workflow', 'Workflow parameter in URL is empty or not present. Did you follow a correct URL?');
             return;
         }
@@ -202,23 +205,23 @@ $(document).ready( (e) => {
 
         badges_data.data.forEach(el => {
             const li_node = document.createElement("tr");
-            
-            [badge_value, badge_unit] = convertValue(el[0], el[1])
+
+            [badge_value, badge_unit] = convertValue(el[1], el[2])
             const value = badge_value + ' ' + badge_unit;
-            
-            const run_id = el[2];
+
+            const run_id = el[3];
             const run_link = `https://github.com/${url_params.get('repo')}/actions/runs/${run_id}`;
             const run_link_node = `<a href="${run_link}">${run_id}</a>`
-            
-            const created_at = el[3]
+
+            const created_at = el[4]
 
             li_node.innerHTML = `<td class="td-index">${value}</td>\
                                 <td class="td-index">${run_link_node}</td>\
                                 <td class="td-index"><span title="${created_at}">${formatDateTime(new Date(created_at))}</span></td>`;
             document.querySelector("#badges-table").appendChild(li_node);
         });
-       $('table').tablesort();
-       displayGraph(badges_data.data)
-       
+        $('table').tablesort();
+        displayGraph(badges_data.data)
+
     })();
 });
