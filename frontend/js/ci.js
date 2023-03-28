@@ -71,29 +71,14 @@ const getEChartsOptions = () => {
 }
 
 const displayGraph = (runs) => {
-    console.log("Runs", runs)
     const element = createChartContainer("#chart-container", "run-energy");
     var options = getEChartsOptions();
     var run_notes = {}
 
     options.title.text = `Workflow energy cost per run`;
 
-    const VALUE = 0;
-    const UNIT = 1
+    var tooltip = []
 
-    var tooltip = [
-    ]
-
-
-
-    /*
-        options.dataset.source = [
-            ["24.06", 1,2,3,4],
-            ["25.06",  1,2,],
-            ["26.06", 1,2,3,4],
-            ["27.06", 1,2,3,4],
-        ]
-    */
     idx = -1; // since we force an ordering from the API, we can safely assume increasing run_ids
     runs.forEach(run => { // iterate over all runs, which are in row order
         let [value, unit, run_id, timestamp, label] = run;
@@ -109,30 +94,35 @@ const displayGraph = (runs) => {
             }
             tooltip.push({run_id: run_id, labels: [label]})
             idx++;
-            options.series.push({
-                type: 'bar',
-                smooth: true,
-                seriesLayoutBy: 'column',
-                stack: 'test', // does not matter what you call it actually
-            })
         }
     });
-    console.log("run_notes", run_notes)
 
+    let max_len = 0
     for (entry in run_notes) {
         options.dataset.source.push([run_notes[entry].timestamp].concat(run_notes[entry].values))
+        if (run_notes[entry].values.length > max_len) {
+            max_len = run_notes[entry].values.length
+        }
+    }
+
+    for (let index = 0; index < max_len; index++) {
+        options.series.push({
+            type: 'bar',
+            smooth: true,
+            seriesLayoutBy: 'column',
+            stack: 'test', // does not matter what you call it actually
+        })
+        
     }
 
     options.tooltip = {
         trigger: 'item',
         formatter: function (params, ticket, callback) {
-            return `${tooltip[params.dataIndex].run_id} ${tooltip[params.dataIndex].labels[params.componentIndex]}`;
+            return `value: ${params.data[params.componentIndex + 1]}; run: ${tooltip[params.dataIndex].run_id}; label: ${tooltip[params.dataIndex].labels[params.componentIndex]}`;
         }
     }
 
-
     const chart_instance = echarts.init(element);
-    console.log("options.dataset.source", options.dataset.source)
     chart_instance.setOption(options);
 
     // we want to listen for the zoom event to display a line or a icon with the grand total in the chart
