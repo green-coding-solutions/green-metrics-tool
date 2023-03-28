@@ -96,7 +96,7 @@ const displayGraph = (runs) => {
     */
     idx = -1; // since we force an ordering from the API, we can safely assume increasing run_ids
     runs.forEach(run => { // iterate over all runs, which are in row order
-        let [label, value, unit, run_id, timestamp] = run;
+        let [value, unit, run_id, timestamp, label] = run;
 
         if (run_id in run_notes) { // if run_id in notes
             run_notes[run_id].values.push(value)
@@ -206,16 +206,19 @@ $(document).ready((e) => {
         badges_data.data.forEach(el => {
             const li_node = document.createElement("tr");
 
-            [badge_value, badge_unit] = convertValue(el[1], el[2])
+            [badge_value, badge_unit] = convertValue(el[0], el[1])
             const value = badge_value + ' ' + badge_unit;
 
-            const run_id = el[3];
+            const run_id = el[2];
             const run_link = `https://github.com/${url_params.get('repo')}/actions/runs/${run_id}`;
             const run_link_node = `<a href="${run_link}">${run_id}</a>`
 
-            const created_at = el[4]
+            const created_at = el[3]
+
+            const label = el[4]
 
             li_node.innerHTML = `<td class="td-index">${value}</td>\
+                                <td class="td-index">${label}</td>\
                                 <td class="td-index">${run_link_node}</td>\
                                 <td class="td-index"><span title="${created_at}">${formatDateTime(new Date(created_at))}</span></td>`;
             document.querySelector("#badges-table").appendChild(li_node);
