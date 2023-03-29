@@ -90,10 +90,32 @@ const fillProjectData = (project, key = null) => {
         if (item == 'machine_specs') {
             fillProjectTab('#machine-specs', project[item])
         } else if(item == 'usage_scenario') {
-            document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><pre>${JSON.stringify(project?.[item], null, 2)}</pre></td>`)
+            document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<pre class="usage-scenario">${json2yaml(project?.[item])}</pre>`)
 
         } else if(item == 'measurement_config') {
             fillProjectTab('#measurement-config', project[item])
+        }  else if(item == 'commit_hash') {
+            if (project?.[item] == null) {
+                document.querySelector('#project-data').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project?.[item]}</td></tr>`)
+            }
+            else {
+                let commit_link;
+                commit_link = project['uri'].endsWith('.git') ? project['uri'].slice(0, -4) : project['uri']
+                if (project['uri'].includes('github')) {
+                    commit_link = commit_link + '/tree/' + project['commit_hash']
+                }
+                else if (project['uri'].includes('gitlab')) {
+                    commit_link = commit_link + '/-/tree/' + project['commit_hash']
+                }
+                document.querySelector('#project-data').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${commit_link}" target="_blank">${commit_link}</a></td></tr>`)
+            }
+        }  else if(item == 'uri') {
+            if (project?.[item].startsWith('http')) {
+                document.querySelector('#project-data').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${project?.[item]}" target="_blank">${project?.[item]}</a></td></tr>`)
+            }
+            else {
+                document.querySelector('#project-data').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project?.[item]}</td></tr>`)
+            }
         }  else {
 
             document.querySelector('#project-data').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project?.[item]}</td></tr>`)

@@ -41,7 +41,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
-        ./install_linux.sh -p testpw -a http://api.green-coding.example:9142 -m http://metrics.green-coding.example:9142 -n
+        ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n
         ./disable-metric-providers.sh ${{ inputs.metrics-to-turn-off }}
         cd test && python3 setup-test-env.py --no-docker-build
 
