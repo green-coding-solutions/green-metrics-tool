@@ -72,13 +72,13 @@ const getPieChartOptions = (name, data) => {
     };
 }
 
-const getBarChartOptions = (title, legend, series) => {
+const getBarChartOptions = (title, legend, series, dataset = null) => {
     return {
-        tooltip: {
-            trigger: 'axis',
-            axisPointer: {
-              type: 'shadow' // 'shadow' as default; can also be 'line' or 'shadow'
-          }
+      tooltip: {
+          trigger: 'item',
+          formatter: function (params) {
+              return `${params.seriesName}: ${params.data[params.componentIndex+1]}`;
+            }
       },
       title: {
           left: 'center',
@@ -87,7 +87,7 @@ const getBarChartOptions = (title, legend, series) => {
       legend: {
           top: "bottom",
       },
-
+      dataset: dataset,
       yAxis: {
           type: 'value'
       },
@@ -172,7 +172,7 @@ const convertValue = (value, unit) => {
 
 }
 
-const getMetrics = (stats_data, start_measurement, end_measurement) => {
+const getTimelineMetrics = (stats_data, start_measurement, end_measurement) => {
     const metrics = {}
     const t0 = performance.now();
 
@@ -235,7 +235,7 @@ const getMetrics = (stats_data, start_measurement, end_measurement) => {
     }
 
     const t1 = performance.now();
-    console.log(`getMetrics Took ${t1 - t0} milliseconds.`);
+    console.log(`getTimelineMetrics Took ${t1 - t0} milliseconds.`);
     return metrics;
 }
 
@@ -430,7 +430,6 @@ const createDetailMetricBoxes = (metric, phase) => {
         ${metric.max} ${metric.unit} (MAX)
         </div>`
     }
-
     node.innerHTML = `
         <div class="ui content">
             <div class="ui top attached ${metric.color} label overflow-ellipsis">${metric.clean_name}</div>
@@ -458,7 +457,6 @@ const createDetailMetricBoxes = (metric, phase) => {
 
 
 const createKeyMetricBoxes = (energy, power, network_io, phase) => {
-
     const energy_in_mWh = energy / 3.6;
     if(display_in_watts) {
         document.querySelector(`div.tab[data-tab='${phase}'] .machine-energy`).innerHTML = `${energy_in_mWh.toFixed(2)} <span class="si-unit">mWh</span>`
@@ -544,38 +542,24 @@ const createGraph = (element, data, labels, title) => {
 const createMetricBoxes = (phase_stats_object) => {
 
     for (phase in phase_stats_object) {
-        let energy = 0;
-        let power = 0;
-        let network_io = 0;
-
         for (metric_name in phase_stats_object[phase]) {
+            if(metric_name == 'totals') continue;
             createDetailMetricBoxes(phase_stats_object[phase][metric_name], phase);
-            // accumulate for key metrics
-            if(metric_name == 'cpu_energy_rapl_msr_system'
-                || metric_name == 'memory_energy_rapl_msr_system'
-                || metric_name == 'ane_energy_powermetrics_system'
-                || metric_name == 'gpu_energy_powermetrics_system'
-                || metric_name == 'cores_energy_powermetrics_system' ) {
-                energy += phase_stats_object[phase][metric_name].value;
-        } else if (metric_name == 'ane_power_powermetrics_system'
-            || metric_name == 'gpu_power_powermetrics_system'
-            || metric_name == 'cores_power_powermetrics_system' ) {
-            power += phase_stats_object[phase][metric_name].value;
-        } else if(metric_name == 'network_io_cgroup_container') {
-            network_io += phase_stats_object[phase][metric_name].value;
         }
+        createKeyMetricBoxes(
+            phase_stats_object[phase].totals.energy,
+            phase_stats_object[phase].totals.power,
+            phase_stats_object[phase].totals.network_io,
+            phase
+        );
     }
-    createKeyMetricBoxes(energy, power, network_io, phase);
-}
 
-
-
-$('.ui.steps.phases .step').tab();
-$('.ui.accordion').accordion();
+    $('.ui.steps.phases .step').tab();
+    $('.ui.accordion').accordion();
 
     // although there are multiple .step.runtime-step containers the first one
     // marks the first runtime step and is shown by default
-document.querySelector('.step.runtime-step').dispatchEvent(new Event('click'));
+    document.querySelector('.step.runtime-step').dispatchEvent(new Event('click'));
 }
 
 const walkPhaseStats = (phase_stats_data) => {
@@ -598,7 +582,14 @@ const walkPhaseStats = (phase_stats_data) => {
             icon = METRIC_MAPPINGS[metric_key]['icon'];
         }
         if (phase_stats_object[phase] == undefined) {
-            phase_stats_object[phase] = {}
+            phase_stats_object[phase] = {
+                totals: {
+                    energy: 0,
+                    network_io: 0,
+                    power: 0,
+                    include_chart: false
+                }
+            }
         }
         if (phase_stats_object[phase][metric_key] == undefined) {
 
@@ -615,37 +606,47 @@ const walkPhaseStats = (phase_stats_data) => {
             }
         }
 
+        // separately list the max value
         if(metric_type == 'MAX') {
             phase_stats_object[phase][metric_key]['max'] = value
         } else {
             phase_stats_object[phase][metric_key]['value'] = value
         }
+
+        // accumulate for key metrics for later access
+        if(metric_key == 'cpu_energy_rapl_msr_system'
+            || metric_key == 'memory_energy_rapl_msr_system'
+            || metric_key == 'ane_energy_powermetrics_system'
+            || metric_key == 'gpu_energy_powermetrics_system'
+            || metric_key == 'cores_energy_powermetrics_system' ) {
+            phase_stats_object[phase]['totals']['energy'] += phase_stats_object[phase][metric_key].value;
+            phase_stats_object[phase][metric_key]['include_chart'] = true;
+        } else if (metric_key == 'ane_power_powermetrics_system'
+            || metric_key == 'gpu_power_powermetrics_system'
+            || metric_key == 'cores_power_powermetrics_system' ) {
+            phase_stats_object[phase]['totals']['power'] += phase_stats_object[phase][metric_key].value;
+        } else if(metric_key == 'network_io_cgroup_container') {
+            phase_stats_object[phase]['totals']['network_io'] += phase_stats_object[phase][metric_key].value
+            phase_stats_object[phase][metric_key]['include_chart'] = true;
+        }
+
     });
     return phase_stats_object;
 }
 
 const displayKeyMetricCharts = (phase_stats_object) => {
 
-    const pie_chart_metrics = [
-        'gpu_energy_powermetrics_system',
-        'ane_energy_powermetrics_system',
-        'cores_energy_powermetrics_system',
-        'network_io_energy_powermetrics_system',
-        'cpu_energy_rapl_msr_system',
-        'memory_energy_rapl_msr_system',
-        'network_io_cgroup_container'
-        ]
-
     for (phase in phase_stats_object) {
         let data = []
 
-        pie_chart_metrics.forEach(metric => {
-            if (phase_stats_object[phase]?.[metric]?.value == undefined) return;
-            data.push({
-                value: phase_stats_object[phase][metric].value,
-                name: `${phase_stats_object[phase][metric].clean_name} [${phase_stats_object[phase][metric].unit}]`
-            })
-        })
+        for (metric_name in phase_stats_object[phase]) {
+            if (phase_stats_object[phase][metric_name].include_chart == true) {
+                data.push({
+                    value: phase_stats_object[phase][metric_name].value,
+                    name: `${phase_stats_object[phase][metric_name].clean_name} [${phase_stats_object[phase][metric_name].unit}]`
+                })
+            }
+        }
 
         var chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .pie-chart`);
         var myChart = echarts.init(chartDom);
@@ -661,7 +662,7 @@ const displayKeyMetricCharts = (phase_stats_object) => {
                   emphasis: {
                       focus: 'series'
                   },
-                  data: [220]
+                  data: ['N/A']
               },
               {
                   name: 'Usage Phase',
@@ -670,14 +671,41 @@ const displayKeyMetricCharts = (phase_stats_object) => {
                   emphasis: {
                       focus: 'series'
                   },
-                  data: [15]
+                  data: [phase_stats_object[phase].totals.energy]
               }
           ];
         var option = getBarChartOptions('Embodied carbon vs. Usage Phase', ['Phases'], series);
         myChart.setOption(option);
 
     }
-    // after phase charts render total charts
+}
+
+const displayTotalCharts = (phase_stats_object) => {
+
+    let total_embodied_carbon = 0;
+    let total_usage_phase = 0
+    let dataset_total_phase_consumption = {source: []}
+    let series_total_phase_consumption = []
+
+    const metric_set = new Set();
+
+
+    for (phase in phase_stats_object) {
+        total_usage_phase += phase_stats_object[phase].totals.energy;
+        let phase_consumption_entry = [phase];
+
+        for (metric_name in phase_stats_object[phase]) {
+            if(metric_name == 'totals') continue;
+
+            if (phase_stats_object[phase][metric_name].include_chart == true) {
+                metric_set.add(phase_stats_object[phase][metric_name].clean_name)
+                phase_consumption_entry.push(phase_stats_object[phase][metric_name].value)
+            }
+        }
+        dataset_total_phase_consumption.source.push(phase_consumption_entry)
+    }
+
+   // after phase charts render total charts
     var chartDom = document.querySelector(`#total-phases-data .embodied-chart`);
     var myChart = echarts.init(chartDom);
     var series = [
@@ -687,7 +715,7 @@ const displayKeyMetricCharts = (phase_stats_object) => {
                   emphasis: {
                       focus: 'series'
                   },
-                  data: [4420]
+                  data: ['N/A']
               },
               {
                   name: 'Usage Phase',
@@ -696,67 +724,26 @@ const displayKeyMetricCharts = (phase_stats_object) => {
                   emphasis: {
                       focus: 'series'
                   },
-                  data: [225]
+                  data: [total_usage_phase]
               }
           ];
-    var option = getBarChartOptions('Embodied carbon vs. Usage Phase', ['Phases'], series);
+
+    var option = getBarChartOptions('Embodied carbon Total vs. Usage Phase', ['Phases'], series);
     myChart.setOption(option);
 
 
     // after phase charts render total charts
     var chartDom = document.querySelector(`#total-phases-data .phases-chart`);
     var myChart = echarts.init(chartDom);
-    var series = [
-            {
-              name: 'CPU',
-              type: 'bar',
-              stack: 'total',
-              emphasis: {
-                focus: 'series'
-              },
-              data: [10, 120, 30, 10, 200, 2]
-            },
-            {
-              name: 'HDDs+Overhead',
-              type: 'bar',
-              stack: 'total',
-              emphasis: {
-                focus: 'series'
-              },
-              data: [15, 100, 50, 15, 50, 2]
-            },
-            {
-              name: 'DRAM',
-              type: 'bar',
-              stack: 'total',
-              emphasis: {
-                focus: 'series'
-              },
-              data: [2, 20, 20, 2, 10, 2]
-            },
-            {
-              name: 'PSU',
-              type: 'bar',
-              stack: 'total',
-              emphasis: {
-                focus: 'series'
-              },
-              data: [6, 6, 6, 6, 6, 6]
-            },
-            {
-              name: 'Network',
-              type: 'bar',
-              stack: 'total',
-              emphasis: {
-                focus: 'series'
-              },
-              data: [0, 800, 100, 0, 400, 5]
-            }
-          ];
-    var legend = ['Baseline', 'Installation', 'Boot', 'Idle', 'Runtime', 'Remove'];
-    var option = getBarChartOptions('Total Phases consumption', legend, series);
+    var series = []
+    metric_set.forEach((name) => {
+        series.push(
+            { type: 'bar', seriesLayoutBy: 'column', stack: "stack", name:name, emphasis: {focus: "series"}}
+          )
+    });
+    console.log(dataset_total_phase_consumption);
+    var option = getBarChartOptions('Total Phases consumption', null, series, dataset_total_phase_consumption);
     myChart.setOption(option);
-
 
 }
 
@@ -823,9 +810,7 @@ $(document).ready( (e) => {
 
         let [project_data, stats_data, notes_data, phase_stats_data] = await makeAPICalls(url_params);
 
-        if (project_data == undefined) {
-            return;
-        }
+        if (project_data == undefined) return;
 
         renderBadges(url_params);
 
@@ -840,17 +825,15 @@ $(document).ready( (e) => {
 
         createMetricBoxes(phase_stats_object);
 
-        if (stats_data == undefined) {
-            return;
-        }
+        if (stats_data == undefined) return;
 
         displayKeyMetricCharts(phase_stats_object);
 
-        const metrics = getMetrics(stats_data, project_data.start_measurement, project_data.end_measurement);
+        displayTotalCharts(phase_stats_object);
 
-        if (notes_data == undefined) {
-            return;
-        }
+        const metrics = getTimelineMetrics(stats_data, project_data.start_measurement, project_data.end_measurement);
+
+        if (notes_data == undefined) return;
 
         displayTimelineCharts(metrics, notes_data);
 

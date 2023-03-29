@@ -29,6 +29,7 @@ if __name__ == '__main__':
             FROM stats
             WHERE project_id = %s
             GROUP BY metric, unit, detail_name
+            ORDER BY metric ASC -- we need this ordering for later, when we read again
             """
     metrics = DB().fetch_all(query, (project_id, ))
 
@@ -39,6 +40,8 @@ if __name__ == '__main__':
         """
     phases = DB().fetch_one(query, (project_id, ))
 
+    # phases are inherently ordered in the JSON object. Thus when reading ordered by id
+    # we will get the correct phase ordering out again
     for phase in phases[0]:
         # we do not want to overwrite already set phases. This will only happen in an error case
         # or manual workings on the DB. But we still need to check.
