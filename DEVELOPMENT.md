@@ -17,7 +17,7 @@ We recommend the following local development URLs and their mapping in `/etc/hos
 
 ```
 127.0.0.1 green-coding-postgres-container
-127.0.0.1 api.green-coding.example metrics.green-coding.example
+127.0.0.1 api.green-coding.internal metrics.green-coding.internal
 ```
 
 

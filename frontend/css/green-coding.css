@@ -204,3 +204,8 @@ a,
     gap: 20px;
     margin-bottom: 40px;
 }
+
+.usage-scenario {
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}

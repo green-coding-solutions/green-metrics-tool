@@ -14,6 +14,7 @@
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <meta name="description" content="Detailed energy statistics for software measurement" />
     <script src="/dist/js/jquery.min.js" defer></script>
+    <script src="/dist/js/json2yaml.js" defer></script>
     <script src="/js/config.js" defer></script>
     <script src="/js/main.js" defer></script>
     <script src="/js/stats.js" defer></script>
@@ -32,7 +33,7 @@
             <img class="ui fluid image menu-logo" src="/images/logo.png">
         </div>
         <div class="item">
-            <p>Demo user</p>
+            <i>&lt;Green Metrics Tool&gt;</i>
         </div>
         <a class="item" href="/index.html">
             <b><i class="home icon"></i>Home</b>
@@ -60,7 +61,7 @@
                         <a class="item" data-tab="two">Measurement</a>
                         <a class="item" data-tab="three">Badges</a>
                         <a class="item" data-tab="four">Machine</a>
-                        <a class="item" data-tab="five">usage_scenario</a>
+                        <a class="item" data-tab="five">Usage Scenario</a>
                     </div>
                     <div class="ui tab segment" data-tab="one">
                         <table class="table-hover" id="project-data-top"></table>
@@ -118,8 +119,7 @@
                         <table class="table-hover" id="machine-specs"></table>
                     </div>
                     <div class="ui active tab segment" data-tab="five">
-                        <a href="https://onlineyamltools.com/convert-yaml-to-json" target='_blank' rel="noopener">Convert to YAML</a>
-                        <table class="table-hover" id="usage-scenario"></table>
+                        <span id="usage-scenario"></span>
                     </div>
                 </div>
             </div>

@@ -103,15 +103,18 @@ const getBarChartOptions = (title, legend, series, dataset = null) => {
 const fillProjectData = (project_data, key = null) => {
     for (item in project_data) {
         if (item == 'machine_specs') {
-            fillProjectTab('#machine-specs', project_data[item])
+            fillProjectTab('#machine-specs', project_data[item]); // recurse
         } else if(item == 'usage_scenario') {
-            document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><pre>${JSON.stringify(project_data?.[item], null, 2)}</pre></td>`)
-
+            document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<pre class="usage-scenario">${json2yaml(project_data?.[item])}</pre>`)
         } else if(item == 'measurement_config') {
-            fillProjectTab('#measurement-config', project_data[item])
-        } else if(item == 'phases') {
+            fillProjectTab('#measurement-config', project_data[item]); // recurse
+        } else if(item == 'phases' || item == 'id') {
             // skip
-        } else if(item == 'id' || item == 'name') {
+        }  else if(item == 'commit_hash') {
+            if (project_data?.[item] == null) continue; // some old projects did not save it
+            let commit_link = buildCommitLink(project_data);
+            document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${commit_link}" target="_blank">${commit_link}</a></td></tr>`)
+        } else if(item == 'name') {
             document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project_data?.[item]}</td></tr>`)
         } else if(item == 'uri') {
             let entry = project_data?.[item];
@@ -120,7 +123,6 @@ const fillProjectData = (project_data, key = null) => {
         } else {
             document.querySelector('#project-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project_data?.[item]}</td></tr>`)
         }
-
     }
 
     $('.ui.secondary.menu .item').tab(); // activate tabs for project data
@@ -130,6 +132,18 @@ const fillProjectData = (project_data, key = null) => {
         document.body.classList.add("invalidated-measurement")
     }
 
+}
+
+const buildCommitLink = (project_data) => {
+    let commit_link;
+    commit_link = project_data['uri'].endsWith('.git') ? project_data['uri'].slice(0, -4) : project_data['uri']
+    if (project_data['uri'].includes('github')) {
+        commit_link = commit_link + '/tree/' + project_data['commit_hash']
+    }
+    else if (project_data['uri'].includes('gitlab')) {
+        commit_link = commit_link + '/-/tree/' + project_data ['commit_hash']
+    }
+    return commit_link;
 }
 
 const fillProjectTab = (selector, data, parent = '') => {
@@ -438,12 +452,12 @@ const createDetailMetricBoxes = (metric, phase) => {
                     <div class="value">
                         <i class="${metric.icon} icon"></i> ${metric.value.toFixed(2)} <span class="si-unit">${metric.unit}</span>
                     </div>
-                </div> 
+                </div>
                 ${max_label}
                 <div class="ui bottom right attached label icon rounded" data-position="bottom right" data-inverted="" data-tooltip="${metric.explanation}">
                     ${metric.detail_name}
                     <i class="question circle icon"></i>
-                </div>              
+                </div>
             </div>
 
         </div>`;
@@ -477,68 +491,30 @@ const createKeyMetricBoxes = (energy, power, network_io, phase) => {
     }
 
     // co2 calculations
-const network_io_co2_in_kg = ( (network_io_in_mWh / 1000000) * 519) / 1000;
-const [network_co2_value, network_co2_unit] = rescaleCO2Value(network_io_co2_in_kg)
-if (network_co2_value) document.querySelector(`div.tab[data-tab='${phase}'] .network-co2`).innerHTML = `${(network_co2_value).toFixed(2)} <span class="si-unit">${network_co2_unit}</span>`
+    const network_io_co2_in_kg = ( (network_io_in_mWh / 1000000) * 519) / 1000;
+    const [network_co2_value, network_co2_unit] = rescaleCO2Value(network_io_co2_in_kg)
+    if (network_co2_value) document.querySelector(`div.tab[data-tab='${phase}'] .network-co2`).innerHTML = `${(network_co2_value).toFixed(2)} <span class="si-unit">${network_co2_unit}</span>`
 
     const total_CO2_in_kg = ( ((energy_in_mWh + network_io_in_mWh) / 1000000) * 519) / 1000;
-const [component_co2_value, component_co2_unit] = rescaleCO2Value(total_CO2_in_kg)
-if (component_co2_value) document.querySelector(`div.tab[data-tab='${phase}'] .machine-co2`).innerHTML = `${(component_co2_value).toFixed(2)} <span class="si-unit">${component_co2_unit}</span>`
+    const [component_co2_value, component_co2_unit] = rescaleCO2Value(total_CO2_in_kg)
+    if (component_co2_value) document.querySelector(`div.tab[data-tab='${phase}'] .machine-co2`).innerHTML = `${(component_co2_value).toFixed(2)} <span class="si-unit">${component_co2_unit}</span>`
 
     const daily_co2_budget_in_kg_per_day = 1.739; // (12.7 * 1000 * 0.05) / 365 from https://www.pawprint.eco/eco-blog/average-carbon-footprint-uk and https://www.pawprint.eco/eco-blog/average-carbon-footprint-globally
-const co2_budget_utilization = total_CO2_in_kg*100 / daily_co2_budget_in_kg_per_day;
-if (co2_budget_utilization) document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + ' <span class="si-unit">%</span>'
+    const co2_budget_utilization = total_CO2_in_kg*100 / daily_co2_budget_in_kg_per_day;
+
+    if (co2_budget_utilization) document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + ' <span class="si-unit">%</span>'
 
     upscaled_CO2_in_kg = total_CO2_in_kg * 1000 * 365 ; // upscaled to 365 days for 1000 runs per day
 
-if(upscaled_CO2_in_kg) {
-    document.querySelector("#trees").innerText = (upscaled_CO2_in_kg / 0.06 / 1000).toFixed(2);
-    document.querySelector("#miles-driven").innerText = (upscaled_CO2_in_kg / 0.000403 / 1000).toFixed(2);
-    document.querySelector("#gasoline").innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
-        // document.querySelector("#smartphones-charged").innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
-    document.querySelector("#flights").innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
-}
+    if(upscaled_CO2_in_kg) {
+        document.querySelector("#trees").innerText = (upscaled_CO2_in_kg / 0.06 / 1000).toFixed(2);
+        document.querySelector("#miles-driven").innerText = (upscaled_CO2_in_kg / 0.000403 / 1000).toFixed(2);
+        document.querySelector("#gasoline").innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
+            // document.querySelector("#smartphones-charged").innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
+        document.querySelector("#flights").innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
+    }
 }
 
-const createGraph = (element, data, labels, title) => {
-  // console.log('labels', labels)
-    return new Dygraph(element, data, {
-        labels,
-        fillGraph: true,
-        rollPeriod: 10,
-        showRoller: true,
-        title,
-        legend: "always",
-        labelsSeparateLines: true,
-        highlightSeriesOpts: { strokeWidth: 2 },
-    // showLabelsOnHighlight: false,
-        axes: {
-            x: {
-                axisLabelFormatter: Dygraph.dateAxisLabelFormatter,
-                ticker: Dygraph.dateTicker,
-            },
-        },
-        drawCallback: function (g) {
-            const notes = document.getElementsByClassName('dygraph-annotation');
-            for (let i = 0; i < notes.length; i++) {
-                if (notes[i].style.top === "") notes[i].style.display = "none";
-            }
-        },
-        annotationMouseOverHandler: function (ann, point, dg, event) {
-            $(ann.div)
-            .popup({
-                title   : 'Note',
-                content : ann.text,
-                variation: 'mini',
-                inline: true
-            }).popup("show")
-        },
-        annotationMouseOutHandler: function (ann, point, dg, event) {
-            $(ann.div)
-            .popup("hide")
-        },
-    });
-};
 
 const createMetricBoxes = (phase_stats_object) => {
 
@@ -745,7 +721,7 @@ const displayTotalCharts = (phase_stats_object) => {
             { type: 'bar', seriesLayoutBy: 'column', stack: "stack", name:name, emphasis: {focus: "series"}}
           )
     });
-    
+
     var option = getBarChartOptions('Total Phases consumption', null, series, dataset_total_phase_consumption);
     myChart.setOption(option);
 
