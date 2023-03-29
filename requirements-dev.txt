@@ -1,4 +1,4 @@
-pydantic==1.10.2
+pydantic==1.10.7
 pytest==7.2.0
 requests==2.25.1
 pylint==2.15.10
