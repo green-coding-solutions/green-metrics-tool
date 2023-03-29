@@ -83,6 +83,7 @@ if __name__ == '__main__':
             value_avg = 0
             value_count = 0
 
+
             if results[0] is not None:
                 (value_sum, value_max, value_avg, value_count) = results
 
@@ -93,7 +94,13 @@ if __name__ == '__main__':
                     (%s, %s, %s, %s, %s, %s, NOW())
             """
 
-            if metric in ('lm_sensors_temp', 'lm_sensors_fan'):
+            if metric in (
+                'lm_sensors_temp',
+                'lm_sensors_fan',
+                'cpu_utilization_procfs_system',
+                'cpu_utilization_cgroup_container',
+                'memory_total_cgroup_container'
+            ):
                 DB().query(insert_query,
                         (project_id, f"{metric}_AVG", detail_name, phase['name'],
                             value_avg,

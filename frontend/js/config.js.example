@@ -2,29 +2,6 @@ API_URL = "__API_URL__"
 METRICS_URL = "__METRICS_URL__"
 
 
-/*
-
-    if(metric_name.indexOf('_container') !== -1) explaination = 'all containers';
-
-    if(metric_name.indexOf('_energy_') !== -1) {
-        color = 'blue';
-        icon = 'batter three quarters';
-    } else if(metric_name.indexOf('_power_') !== -1) {
-        color = 'orange';
-        icon = 'power off';
-    } else if(metric_name.indexOf('memory_total_') !== -1) {
-        color = 'purple';
-        icon = 'memory';
-    } else if(metric_name.indexOf('network_io') !== -1) {
-        color = 'olive';
-        icon = 'exchange alternate';
-        explaination = '<a href="https://docs.green-coding.berlin/docs/measuring/metric-providers/network-io-cgroup-container/"><i class="question circle icon"></i></a>'
-    } else if(metric_name.indexOf('cpu_utilization') !== -1) {
-        color = 'yellow';
-        icon = 'memory';
-    }
-*/
-
 METRIC_MAPPINGS = {
     ane_power_powermetrics_system: {
         clean_name: "ANE Power",
@@ -86,5 +63,53 @@ METRIC_MAPPINGS = {
         explanation: "macOS proprietary value for relative energy impact on device",
         color: "red",
         icon: "cat"
-    }
+    },
+    cpu_utilization_cgroup_container: {
+        clean_name: "CPU %",
+        explanation: "CPU Utilization per container",
+        color: "yellow",
+        icon: "microchip"
+    },
+    memory_total_cgroup_container: {
+        clean_name: "Memory Usage",
+        explanation: "Memory Usage per container",
+        color: "purple",
+        icon: "memory"
+    },
+    network_io_cgroup_container: {
+        clean_name: "Network I/O",
+        explanation: "Network I/O. Details on docs.green-coding.berlin/docs/measuring/metric-providers/network-io-cgroup-container",
+        color: "olive",
+        icon: "exchange alternate"
+    },
+    cpu_energy_rapl_msr_system: {
+        clean_name: "CPU Energy (Package)",
+        explanation: "RAPL based CPU energy of package domain",
+        color: "blue",
+        icon: "batter three quarters"
+    },
+    cpu_power_rapl_msr_system: {
+        clean_name: "CPU Power (Package)",
+        explanation: "Derived RAPL based CPU energy of package domain",
+        color: "orange",
+        icon: "power off"
+    },
+    cpu_utilization_procfs_system: {
+        clean_name: "CPU %",
+        explanation: "CPU Utilization of total system",
+        color: "purple",
+        icon: "power off"
+    },
+    memory_energy_rapl_msr_system: {
+        clean_name: "Memory Energy (DRAM)",
+        explanation: "RAPL based memory energy of DRAM domain",
+        color: "blue",
+        icon: "batter three quarters"
+    },
+    memory_power_rapl_msr_system: {
+        clean_name: "Memory Power (DRAM)",
+        explanation: "Derived RAPL based memory energy of DRAM domain",
+        color: "orange",
+        icon: "power off"
+    },
 }

@@ -438,13 +438,14 @@ const createDetailMetricBoxes = (metric, phase) => {
                     <div class="value">
                         <i class="${metric.icon} icon"></i> ${metric.value.toFixed(2)} <span class="si-unit">${metric.unit}</span>
                     </div>
-                </div>
+                </div> 
                 ${max_label}
-                <div class="ui bottom right attached label icon rounded" data-position="bottom left" data-inverted="" data-tooltip="Detail of what this is">
-                    ${explanation}
+                <div class="ui bottom right attached label icon rounded" data-position="bottom right" data-inverted="" data-tooltip="${metric.explanation}">
+                    ${metric.detail_name}
                     <i class="question circle icon"></i>
-                </div>
+                </div>              
             </div>
+
         </div>`;
 
     if(metric.name.indexOf('_container') !== -1 || metric.name.indexOf('_vm') !== -1)
@@ -571,6 +572,7 @@ const walkPhaseStats = (phase_stats_data) => {
 
         let icon = 'circle'; // default
         let color = 'grey'; // default
+        let explanation = ''; // default
 
         let metric_classifier_position = metric_name.lastIndexOf("_")
         let metric_type = metric_name.substr(metric_classifier_position+1)
@@ -580,6 +582,7 @@ const walkPhaseStats = (phase_stats_data) => {
             metric_clean_name = METRIC_MAPPINGS[metric_key]['clean_name'];
             color = METRIC_MAPPINGS[metric_key]['color'];
             icon = METRIC_MAPPINGS[metric_key]['icon'];
+            explanation = METRIC_MAPPINGS[metric_key]['explanation'];
         }
         if (phase_stats_object[phase] == undefined) {
             phase_stats_object[phase] = {
@@ -596,6 +599,7 @@ const walkPhaseStats = (phase_stats_data) => {
             phase_stats_object[phase][metric_key] = {
                 clean_name: metric_clean_name,
                 name: metric_name,
+                explanation: explanation,
                 type: metric_type,
                 value: value,
                 unit: unit,
@@ -741,7 +745,7 @@ const displayTotalCharts = (phase_stats_object) => {
             { type: 'bar', seriesLayoutBy: 'column', stack: "stack", name:name, emphasis: {focus: "series"}}
           )
     });
-    console.log(dataset_total_phase_consumption);
+    
     var option = getBarChartOptions('Total Phases consumption', null, series, dataset_total_phase_consumption);
     myChart.setOption(option);
 
