@@ -113,6 +113,19 @@ const displayGraph = (runs) => {
             stack: 'test', // does not matter what you call it actually
         })
     }
+    
+    options.series.at(-1)["label"] = {
+        normal: {
+            show: true,
+            distance: 5,
+            position: 'top',
+            formatter: (params) => {
+                let total = 0;
+                params.data.slice(1).forEach(value => total += value)
+                return total;
+            }
+        }
+    }
 
     // pad the values with zeroes so the graph doesn't add 'undefined' entries to the stacks
     for (let index = 0; index < options.dataset.source.length; index++) {
