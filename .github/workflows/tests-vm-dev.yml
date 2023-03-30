@@ -24,12 +24,7 @@ jobs:
           ref: 'dev'
           submodules: 'true'
 
-      - name: Eco CI Energy Estimation
-        uses: green-coding-berlin/eco-ci-energy-estimation@main
-        with:
-          task: initialize
-
-      - name: Eco CI Energy Estimation
+      - name: Eco CI Energy Estimation - Initialize
         uses: green-coding-berlin/eco-ci-energy-estimation@main
         with:
           task: start-measurement
@@ -41,9 +36,17 @@ jobs:
          metrics-to-turn-off: 'RAPL System Sensors Debug CGroupV2 MacOS'
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Eco CI Energy Estimation
+      - name: Eco CI Energy Estimation - Get Measurement
         uses: green-coding-berlin/eco-ci-energy-estimation@main
         with:
           task: get-measurement
           branch: dev
+
+      - name: Eco CI Energy Estimation - End Measurement
+        uses: green-coding-berlin/eco-ci-energy-estimation@main
+        with:
+          task: end-measurement
+          branch: dev
+        
+
 
