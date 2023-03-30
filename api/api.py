@@ -326,7 +326,7 @@ async def post_project_add(project: Project):
 async def get_project(project_id: str):
     query = """
             SELECT
-                id, name, uri, branch, (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements \
+                id, name, uri, branch, commit_hash, (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements \
                     LEFT JOIN categories as t on t.id = elements) as categories, start_measurement, end_measurement, \
                     measurement_config, machine_specs, usage_scenario, last_run, created_at, invalid_project
             FROM
