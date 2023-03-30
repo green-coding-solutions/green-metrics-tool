@@ -112,7 +112,14 @@ const displayGraph = (runs) => {
             seriesLayoutBy: 'column',
             stack: 'test', // does not matter what you call it actually
         })
-        
+    }
+
+    // pad the values with zeroes so the graph doesn't add 'undefined' entries to the stacks
+    for (let index = 0; index < options.dataset.source.length; index++) {
+        // +1 because of the timestamp on position 0
+        while (options.dataset.source[index].length < max_len + 1) {
+            options.dataset.source[index].push(0)
+        }
     }
 
     options.tooltip = {
