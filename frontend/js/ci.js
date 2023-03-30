@@ -44,7 +44,7 @@ const createChartContainer = (container, el) => {
 
 const getEChartsOptions = () => {
     return {
-        yAxis: { type: 'value', gridIndex: 0, name: "Run Energy" },
+        yAxis: { type: 'value', gridIndex: 0, name: "Run Energy [mJ]" },
 
         xAxis: { type: 'category' },
         dataset: { source: [] },
