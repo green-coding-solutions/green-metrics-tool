@@ -189,7 +189,7 @@ $(document).ready((e) => {
         }
 
         const repo_link = `https://github.com/${url_params.get('repo')}`;
-        const repo_link_node = `<a href="${repo_link}">${url_params.get('repo')}</a>`
+        const repo_link_node = `<a href="${repo_link}" target="_blank">${url_params.get('repo')}</a>`
         document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Repository:</strong></td><td>${repo_link_node}</td></tr>`)
         document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${url_params.get('branch')}</td></tr>`)
         document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${url_params.get('workflow')}</td></tr>`)
@@ -221,7 +221,7 @@ $(document).ready((e) => {
 
             const run_id = el[2];
             const run_link = `https://github.com/${url_params.get('repo')}/actions/runs/${run_id}`;
-            const run_link_node = `<a href="${run_link}">${run_id}</a>`
+            const run_link_node = `<a href="${run_link}" target="_blank">${run_id}</a>`
 
             const created_at = el[3]
 
