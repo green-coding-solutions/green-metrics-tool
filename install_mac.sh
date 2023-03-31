@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
 function print_message {
     echo ""
     echo "$1"
@@ -25,13 +28,13 @@ while getopts "p:a:m:" o; do
 done
 
 if [[ -z $api_url ]] ; then
-    read -p "Please enter the desired API endpoint URL: (default: http://api.green-coding.example:9142): " api_url
-    api_url=${api_url:-"http://api.green-coding.example:9142"}
+    read -p "Please enter the desired API endpoint URL: (default: http://api.green-coding.internal:9142): " api_url
+    api_url=${api_url:-"http://api.green-coding.internal:9142"}
 fi
 
 if [[ -z $metrics_url ]] ; then
-    read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.example:9142): " metrics_url
-    metrics_url=${metrics_url:-"http://metrics.green-coding.example:9142"}
+    read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.internal:9142): " metrics_url
+    metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
 fi 
 
 if [[ -z "$db_pw" ]] ; then
@@ -39,12 +42,12 @@ if [[ -z "$db_pw" ]] ; then
 fi
 
 
-echo "Updating compose.yml with current path ..."
+print_message "Updating compose.yml with current path ..."
 cp docker/compose.yml.example docker/compose.yml
 sed -i '' -e "s|PATH_TO_GREEN_METRICS_TOOL_REPO|$PWD|" docker/compose.yml
 sed -i '' -e "s|PLEASE_CHANGE_THIS|$db_pw|" docker/compose.yml
 
-echo "Updating config.yml with new password ..."
+print_message "Updating config.yml with new password ..."
 cp config.yml.example config.yml
 sed -i '' -e "s|PLEASE_CHANGE_THIS|$db_pw|" config.yml
 
@@ -63,7 +66,7 @@ cp frontend/js/config.js.example frontend/js/config.js
 sed -i '' -e "s|__API_URL__|$api_url|" frontend/js/config.js
 sed -i '' -e "s|__METRICS_URL__|$metrics_url|" frontend/js/config.js
 
-echo "Adding hardware_info_root.py to sudoers file"
+print_message "Adding hardware_info_root.py to sudoers file"
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/powermetrics" | sudo tee /etc/sudoers.d/green_coding_powermetrics
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics
 
@@ -81,7 +84,7 @@ else
 fi
 
 # Entry 2 can be external URLs. These should not resolve to localhost if not explcitely wanted
-if [[ ${host_metrics_url} == *".green-coding.example"* ]];then
+if [[ ${host_metrics_url} == *".green-coding.internal"* ]];then
     if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
         echo -e "\n$etc_hosts_line_2" | sudo tee -a /etc/hosts
     else
@@ -89,6 +92,9 @@ if [[ ${host_metrics_url} == *".green-coding.example"* ]];then
     fi
 fi
 
-echo "Building / Updating docker containers"
+print_message "Building / Updating docker containers"
 docker compose -f docker/compose.yml down
 docker compose -f docker/compose.yml build
+
+echo ""
+echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"

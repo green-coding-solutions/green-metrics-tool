@@ -535,8 +535,8 @@ def test_verbose_provider_boot():
                 time, note
             FROM
                 notes
-            WHERE 
-                project_id = %s 
+            WHERE
+                project_id = %s
                 AND note LIKE %s
             ORDER BY
                 time
@@ -550,8 +550,8 @@ def test_verbose_provider_boot():
         assert any(provider in note for _, note in notes), \
             Tests.assertion_info(f"note: 'Booting {provider}'", f"notes: {notes}")
 
-    #check that each timestamp in notes is no longer than 2 seconds apart
+    #check that each timestamp in notes roughlly 10 seconds apart
     for i in range(len(notes)-1):
-        diff = notes[i+1][0] - notes[i][0]
-        assert 9900000 <= diff <= 10100000, \
-            Tests.assertion_info('2s apart', f"time difference of notes: {diff}")
+        diff = (notes[i+1][0] - notes[i][0])/1000000
+        assert 9.9 <= diff <= 10.1, \
+            Tests.assertion_info('10s apart', f"time difference of notes: {diff}s")
