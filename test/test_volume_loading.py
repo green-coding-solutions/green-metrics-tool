@@ -140,3 +140,28 @@ def test_non_bind_mounts_should_fail():
     expected_error = 'Volume path does not exist'
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
+
+def test_load_volume_references():
+    tmp_dir, tmp_dir_name = create_tmp_dir()
+    Tests.create_test_file(tmp_dir)
+
+    copy_compose_and_edit_directory('volume_load_references.yml', tmp_dir)
+
+    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name)
+    Tests.replace_include_in_usage_scenario(os.path.join(tmp_dir, 'basic_stress_w_import.yml'), 'docker-compose.yml')
+
+    try:
+        Tests.run_until(runner, 'setup_services')
+        # check that the volume was loaded
+        ps = subprocess.run(
+            ['docker', 'exec', 'test-container-2', '/bin/sh',
+            '-c', 'test -f /tmp/test-file && echo "File mounted"'],
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+        out = ps.stdout
+        err = ps.stderr
+    finally:
+        runner.cleanup()
+    assert "File mounted" in out, Tests.assertion_info('/tmp/test-file mounted', f"out: {out} | err: {err}")
