@@ -6,7 +6,7 @@ services:
     container_name: test-container
     restart: always
     volumes:
-      - test-volume:/tmp/passwd
+      - test-volume:/tmp/test-volume
 
 volumes:
-  test-volume: /etc/passwd
+  test-volume:
