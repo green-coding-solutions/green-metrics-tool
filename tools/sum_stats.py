@@ -40,9 +40,7 @@ if __name__ == '__main__':
         """
     phases = DB().fetch_one(query, (project_id, ))
 
-    # phases are inherently ordered in the JSON object. Thus when reading ordered by id
-    # we will get the correct phase ordering out again
-    for phase in phases[0]:
+    for idx, phase in enumerate(phases[0]):
         # we do not want to overwrite already set phases. This will only happen in an error case
         # or manual workings on the DB. But we still need to check.
         query = """
@@ -51,8 +49,9 @@ if __name__ == '__main__':
             WHERE phase IS NOT NULL AND time > %s AND time < %s AND project_id = %s
             """
         results = DB().fetch_one(query, (phase['start'], phase['end'], project_id, ))
-        if results[0] != 0:
-            raise RuntimeError(f"Non-zero results for {phase}, were {results[0]} results")
+        # TODO
+        #if results[0] != 0:
+        #    raise RuntimeError(f"Non-zero results for {phase}, were {results[0]} results")
 
         query = """
             UPDATE stats
@@ -61,8 +60,9 @@ if __name__ == '__main__':
             """
         DB().query(query, (phase['name'], phase['start'], phase['end'], project_id, ))
 
-        # now we go through all metrics in the project and aggregate them by lagging the table
+        # now we go through all metrics in the project and aggregate them
         for (metric, unit, detail_name) in metrics: # unpack
+            # -- saved for future if I need lag time query
             #    WITH times as (
             #        SELECT id, value, time, (time - LAG(time) OVER (ORDER BY detail_name ASC, time ASC)) AS diff, unit
             #        FROM stats
@@ -89,9 +89,9 @@ if __name__ == '__main__':
 
             insert_query = """
                 INSERT INTO phase_stats
-                    (project_id, metric, detail_name, phase, value, unit, created_at)
+                    (project_id, metric, detail_name, phase, value, type, max_value, unit, created_at)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, NOW())
+                    (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
             """
 
             if metric in (
@@ -102,64 +102,51 @@ if __name__ == '__main__':
                 'memory_total_cgroup_container'
             ):
                 DB().query(insert_query,
-                        (project_id, f"{metric}_AVG", detail_name, phase['name'],
-                            value_avg,
-                        unit)
-                )
-                DB().query(insert_query,
-                        (project_id, f"{metric}_MAX", detail_name, phase['name'],
-                            value_max,
+                        (project_id, metric, detail_name, f"{idx:03}_{phase['name']}", # phase name mod. for order
+                            value_avg, 'MEAN', value_max,
                         unit)
                 )
 
             elif metric == 'network_io_cgroup_container':
                 # These metrics are accumulating already. We only need the max here and deliver it as total
                 DB().query(insert_query,
-                        (project_id, f"{metric}_TOTAL", detail_name, phase['name'],
-                            value_max,
+                        (project_id, metric, detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
+                            value_max, 'TOTAL', None,
                         unit)
                 )
                 # No max here
             elif metric == 'energy_impact_powermetrics_vm':
                 DB().query(insert_query,
-                        (project_id, f"{metric}_AVG", detail_name, phase['name'],
-                            value_avg,
-                        unit)
-                )
-                DB().query(insert_query,
-                        (project_id, f"{metric}_MAX", detail_name, phase['name'],
-                            value_max,
+                        (project_id, metric, detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
+                            value_avg, 'MEAN', value_max,
                         unit)
                 )
 
             elif "_energy_" in metric and unit == 'mJ':
                 DB().query(insert_query,
-                        (project_id, f"{metric}_TOTAL", detail_name, phase['name'],
-                            value_sum ,
+                        (project_id, metric, detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
+                            value_sum, 'TOTAL', None,
                         unit)
                 )
 
                 # for energy we want to deliver an extra value, the watts.
                 # Here we need to calculate the average differently
                 DB().query(insert_query,
-                        (project_id, f"{metric.replace('_energy_', '_power_')}_AVG", detail_name, phase['name'],
-                            (value_sum  * 10**6) / (phase['end'] - phase['start']), # sum of mJ / s => mW
-                        'mW')
-                )
-                DB().query(insert_query,
-                        (project_id, f"{metric.replace('_energy_', '_power_')}_MAX", detail_name, phase['name'],
-                            (value_max * 10**6) / ((phase['end'] - phase['start']) / value_count), # max_value / avg_measurement_interval
+                        (project_id,
+                        f"{metric.replace('_energy_', '_power_')}",
+                        detail_name,
+                        f"{idx:03}_{phase['name']}", # phase name mod. for order
+                            # sum of mJ / s => mW
+                            (value_sum  * 10**6) / (phase['end'] - phase['start']),
+                            'MEAN',
+                            # max_value / avg_measurement_interval
+                            (value_max * 10**6) / ((phase['end'] - phase['start']) / value_count),
                         'mW')
                 )
 
             else:
                 DB().query(insert_query,
-                        (project_id, f"{metric}_TOTAL", detail_name, phase['name'],
-                            value_sum,
-                        unit)
-                )
-                DB().query(insert_query,
-                        (project_id, f"{metric}_MAX", detail_name, phase['name'],
-                            value_max,
+                        (project_id, metric, detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
+                            value_sum, 'TOTAL', value_max,
                         unit)
                 )

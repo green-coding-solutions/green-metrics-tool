@@ -21,7 +21,7 @@
     <script src="/js/helpers/metric-boxes.js" defer></script>
     <script src="/js/helpers/converters.js" defer></script>
     <script src="/js/helpers/charts.js" defer></script>
-    <script src="/js/stats.js" defer></script>
+    <script src="/js/compare-in-repo.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/accordion.min.js" defer></script>
@@ -34,75 +34,14 @@
 <body class="preload">
     <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
-        <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Detailed Metrics</h1>
+        <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Comparison of runs in repo</h1>
         <div class="ui horizontal card" id="horizontal-card">
             <div class="content">
                 <div class="header"><a class="ui red ribbon label" href="#">
                     <h3>Project Data</h3>
                 </a></div>
                 <div class="description">
-                    <div class="ui secondary menu">
-                        <a class="item active" data-tab="one">General</a>
-                        <a class="item" data-tab="two">Measurement</a>
-                        <a class="item" data-tab="three">Badges</a>
-                        <a class="item" data-tab="four">Machine</a>
-                        <a class="item" data-tab="five">Usage Scenario</a>
-                    </div>
-                    <div class="ui tab segment" data-tab="one">
-                        <table class="table-hover" id="project-data-top"></table>
-                        <div class="ui accordion">
-                            <div class="title ui header">
-                                <i class="dropdown icon"></i> <u>Click here for more data ...</u>
-                            </div>
-                            <div class="content">
-                                <table class="table-hover" id="project-data-accordion"></table>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="ui active tab segment" data-tab="two">
-                        <table class="table-hover" id="measurement-config"></table>
-                    </div>
-                    <div class="ui active tab segment" data-tab="three">
-                        <div id="badges">
-                            <div class="inline field">
-                                <span class="energy-badge-container" data-metric="ml-estimated"></span>
-                                <div class="ui left pointing blue basic label">
-                                    XGBoost estimated AC energy
-                                </div>
-                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
-                            </div>
-                            <div class="ui divider"></div>
-                            <div class="inline field">
-                                <span class="energy-badge-container" data-metric="RAPL"></span>
-                                <div class="ui left pointing blue basic label">
-                                    RAPL component energy
-                                </div>
-                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
-                            </div>
-                            <div class="ui divider"></div>
-                            <div class="inline field">
-                                <span class="energy-badge-container" data-metric="DC"></span>
-                                <div class="ui left pointing blue basic label">
-                                    Measured DC energy
-                                </div>
-                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
-                            </div>
-                            <div class="ui divider"></div>
-                            <div class="inline field">
-                                <span class="energy-badge-container" data-metric="AC"></span>
-                                <div class="ui left pointing blue basic label">
-                                    Measured AC energy
-                                </div>
-                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="ui tab segment" data-tab="four">
-                        <table class="table-hover" id="machine-specs"></table>
-                    </div>
-                    <div class="ui active tab segment" data-tab="five">
-                        <span id="usage-scenario"></span>
-                    </div>
+                    <table class="table-hover" id="project-data-top"></table>
                 </div>
             </div>
         </div><!-- end ui horizontal card -->
@@ -154,12 +93,24 @@
                 </a></div>
             </div>
             <h3 class="ui dividing header">key metrics</h3>
-            <div class="chart-container">
-                <div class="pie-chart"></div>
-                <div class="embodied-chart"></div>
-            </div>
-            <br>
             <metric-boxes></metric-boxes>
+            <h3 class="ui dividing header">Detailed Charts</h3>
+
+            <div class="ui two cards api-loader">
+                <div class="card" style="min-height: 300px">
+                    <div class="ui active dimmer">
+                        <div class="ui indeterminate text loader">Waiting for API data</div>
+                    </div>
+                    <p></p>
+                </div>
+                <div class="card" style="min-height: 300px">
+                    <div class="ui active dimmer">
+                        <div class="ui indeterminate text loader">Waiting for API data</div>
+                    </div>
+                    <p></p>
+                </div>
+            </div>
+            <div class="chart-container"></div>
         </div>
         <div class="ui tab attached segment secondary" data-tab="[INSTALLATION]">
             <div class="content">
@@ -169,12 +120,24 @@
             </div>
 
             <h3 class="ui dividing header">key metrics</h3>
-            <div class="chart-container">
-                <div class="pie-chart"></div>
-                <div class="embodied-chart"></div>
-            </div>
-            <br>
             <metric-boxes></metric-boxes>
+            <h3 class="ui dividing header">Detailed Charts</h3>
+
+            <div class="ui two cards api-loader">
+                <div class="card" style="min-height: 300px">
+                    <div class="ui active dimmer">
+                        <div class="ui indeterminate text loader">Waiting for API data</div>
+                    </div>
+                    <p></p>
+                </div>
+                <div class="card" style="min-height: 300px">
+                    <div class="ui active dimmer">
+                        <div class="ui indeterminate text loader">Waiting for API data</div>
+                    </div>
+                    <p></p>
+                </div>
+            </div>
+            <div class="chart-container"></div>
         </div>
         <div class="ui tab attached segment secondary" data-tab="[BOOT]">
             <div class="content">
@@ -184,12 +147,24 @@
             </div>
 
             <h3 class="ui dividing header">key metrics</h3>
-            <div class="chart-container">
-                <div class="pie-chart"></div>
-                <div class="embodied-chart"></div>
-            </div>
-            <br>
             <metric-boxes></metric-boxes>
+            <h3 class="ui dividing header">Detailed Charts</h3>
+
+            <div class="ui two cards api-loader">
+                <div class="card" style="min-height: 300px">
+                    <div class="ui active dimmer">
+                        <div class="ui indeterminate text loader">Waiting for API data</div>
+                    </div>
+                    <p></p>
+                </div>
+                <div class="card" style="min-height: 300px">
+                    <div class="ui active dimmer">
+                        <div class="ui indeterminate text loader">Waiting for API data</div>
+                    </div>
+                    <p></p>
+                </div>
+            </div>
+            <div class="chart-container"></div>
         </div>
         <div class="ui tab attached segment secondary" data-tab="[IDLE]">
             <div class="content">
@@ -198,12 +173,24 @@
                 </a></div>
             </div>
             <h3 class="ui dividing header">key metrics</h3>
-            <div class="chart-container">
-                <div class="pie-chart"></div>
-                <div class="embodied-chart"></div>
-            </div>
-            <br>
             <metric-boxes></metric-boxes>
+            <h3 class="ui dividing header">Detailed Charts</h3>
+
+            <div class="ui two cards api-loader">
+                <div class="card" style="min-height: 300px">
+                    <div class="ui active dimmer">
+                        <div class="ui indeterminate text loader">Waiting for API data</div>
+                    </div>
+                    <p></p>
+                </div>
+                <div class="card" style="min-height: 300px">
+                    <div class="ui active dimmer">
+                        <div class="ui indeterminate text loader">Waiting for API data</div>
+                    </div>
+                    <p></p>
+                </div>
+            </div>
+            <div class="chart-container"></div>
         </div>
         <div class="ui tab attached segment secondary runtime-tab" data-tab="" style="display:none;">
             <div class="content">
@@ -212,12 +199,24 @@
                 </a></div>
             </div>
             <h3 class="ui dividing header">key metrics</h3>
-            <div class="chart-container">
-                <div class="pie-chart"></div>
-                <div class="embodied-chart"></div>
-            </div>
-            <br>
             <metric-boxes></metric-boxes>
+            <h3 class="ui dividing header">Detailed Charts</h3>
+
+            <div class="ui two cards api-loader">
+                <div class="card" style="min-height: 300px">
+                    <div class="ui active dimmer">
+                        <div class="ui indeterminate text loader">Waiting for API data</div>
+                    </div>
+                    <p></p>
+                </div>
+                <div class="card" style="min-height: 300px">
+                    <div class="ui active dimmer">
+                        <div class="ui indeterminate text loader">Waiting for API data</div>
+                    </div>
+                    <p></p>
+                </div>
+            </div>
+            <div class="chart-container"></div>
         </div>
         <div class="ui tab attached segment secondary" data-tab="[REMOVE]">
             <div class="content">
@@ -226,12 +225,25 @@
                 </a></div>
             </div>
             <h3 class="ui dividing header">key metrics</h3>
-            <div class="chart-container">
-                <div class="pie-chart"></div>
-                <div class="embodied-chart"></div>
-            </div>
-            <br>
             <metric-boxes></metric-boxes>
+            <h3 class="ui dividing header">Detailed Charts</h3>
+
+            <div class="ui two cards api-loader">
+                <div class="card" style="min-height: 300px">
+                    <div class="ui active dimmer">
+                        <div class="ui indeterminate text loader">Waiting for API data</div>
+                    </div>
+                    <p></p>
+                </div>
+                <div class="card" style="min-height: 300px">
+                    <div class="ui active dimmer">
+                        <div class="ui indeterminate text loader">Waiting for API data</div>
+                    </div>
+                    <p></p>
+                </div>
+            </div>
+            <div class="chart-container"></div>
+
         </div>
 
         <div class="ui segment" id="total-phases-data">
@@ -314,36 +326,6 @@
                 </div><!-- end ui five cards stackable -->
             </div>
         </div>
-
-
-
-        <div class="ui horizontal card" id="horizontal-card">
-            <div class="content">
-                <div class="header"><a class="ui teal ribbon label" href="#">
-                    <h3>Metric Charts</h3>
-                </a></div>
-                <div class="description">
-                    The following charts display the metrics as time series in detail.
-                </div>
-            </div>
-        </div>
-
-        <div class="ui two cards" id="api-loader">
-            <div class="card" style="min-height: 300px">
-                <div class="ui active dimmer">
-                    <div class="ui indeterminate text loader">Waiting for API data</div>
-                </div>
-                <p></p>
-            </div>
-            <div class="card" style="min-height: 300px">
-                <div class="ui active dimmer">
-                    <div class="ui indeterminate text loader">Waiting for API data</div>
-                </div>
-                <p></p>
-            </div>
-        </div>
-        <div id="chart-container"></div>
-        <div class="clearing" style="display:block; height: 10px;"></div>
     </div>
 </body>
 </html>

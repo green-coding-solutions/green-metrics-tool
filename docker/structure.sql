@@ -13,6 +13,7 @@ CREATE TABLE projects (
     categories int[],
     usage_scenario json,
     machine_specs jsonb,
+    machine_id int DEFAULT 1,
     measurement_config jsonb,
     start_measurement bigint,
     end_measurement bigint,
@@ -44,7 +45,8 @@ CREATE TABLE categories (
 CREATE TABLE machines (
     id SERIAL PRIMARY KEY,
     description text,
-    created_at timestamp with time zone DEFAULT now()
+    available boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now(),
 );
 
 CREATE TABLE phase_stats (

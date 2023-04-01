@@ -11,12 +11,12 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
 
 import uuid
+#import scipy.stats
 from pydantic import BaseModel
 from starlette.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi import Response
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response, Query
 from global_config import GlobalConfig
 from db import DB
 import jobs
@@ -24,6 +24,8 @@ import email_helpers
 import error_helpers
 import psycopg2.extras
 import anybadge
+from api_helpers import rescale_energy_value, is_valid_uuid, convertValue, determineComparisonCase, getPhaseStats, getPhaseStatsObject
+
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic
@@ -95,13 +97,10 @@ async def home():
 @app.get('/v1/notes/{project_id}')
 async def get_notes(project_id):
     query = """
-            SELECT
-                project_id, detail_name, note, time
-            FROM
-                notes
+            SELECT project_id, detail_name, note, time
+            FROM notes
             WHERE project_id = %s
-            ORDER BY
-                created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
+            ORDER BY created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
             """
     data = DB().fetch_all(query, (project_id,))
     if data is None or data == []:
@@ -113,12 +112,9 @@ async def get_notes(project_id):
 @app.get('/v1/machines/')
 async def get_machines():
     query = """
-            SELECT
-                id, description
-            FROM
-                machines
-            ORDER BY
-                description ASC
+            SELECT id, description
+            FROM machines
+            ORDER BY description ASC
             """
     data = DB().fetch_all(query)
     if data is None or data == []:
@@ -126,17 +122,29 @@ async def get_machines():
 
     return {'success': True, 'data': data}
 
+@app.get('/v1/compare')
+async def compare_in_repo(ids: str):
+    if(ids is None or ids.strip() == ''):
+            return {'success': False, 'err': 'Project_id is empty'}
+    ids = ids.split(',')
+
+    try:
+        case = determineComparisonCase(ids)
+        phase_stats = getPhaseStats(ids)
+        phase_stats_object = getPhaseStatsObject(phase_stats, case)
+    except RuntimeError as err:
+        return {'success': False, 'err': str(err)}
+
+    return {'success': True, 'data': phase_stats_object}
+
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/projects')
 async def get_projects():
     query = """
-            SELECT
-                id, name, uri, branch, end_measurement, last_run, invalid_project
-            FROM
-                projects
-            ORDER BY
-                created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
+            SELECT id, name, uri, branch, end_measurement, last_run, invalid_project
+            FROM projects
+            ORDER BY created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
             """
     data = DB().fetch_all(query)
     if data is None or data == []:
@@ -150,62 +158,23 @@ async def get_projects():
 # later if supplied. Also deprecation shall be used once we move to v2 for all v1 routesthrough
 
 
-# A route to return all of the available entries in our catalog.
+# This route is primarily used to load phase stats it into a pandas data frame
 @app.get('/v1/phase_stats/single/{project_id}')
 async def get_phase_stats(project_id: str):
     if project_id is None or project_id.strip() == '':
         return {'success': False, 'err': 'Project ID is empty'}
 
-    query = """
-            SELECT metric, detail_name, phase, value, unit
-            FROM phase_stats
-            WHERE project_id = %s
-            ORDER BY id ASC -- this guarantees that phases will follow in order, as the are stored in ASC order by sum_stats
-            """
-    data = DB().fetch_all(query, (project_id, ))
-    if data is None or data == []:
-        return {'success': False, 'err': 'Data is empty'}
+    try:
+        phase_stats = getPhaseStats([project_id])
+        phase_stats_object = getPhaseStatsObject(phase_stats, None)
+    except RuntimeError as err:
 
-    return {'success': True, 'data': data}
+        return {'success': False, 'err': str(err)}
 
-# A route to return all of the available entries in our catalog.
-@app.get('/v1/stats/uri')
-async def get_stats_by_uri(uri: str, remove_idle: bool = False):
-    if uri is None or uri.strip() == '':
-        return {'success': False, 'err': 'URI is empty'}
-
-    query = """
-            WITH times AS (
-                SELECT id, start_measurement, end_measurement FROM projects WHERE uri = %s
-            ) SELECT
-                projects.id as project_id, stats.detail_name, stats.time, stats.metric, stats.value, stats.unit
-            FROM stats
-            LEFT JOIN projects ON projects.id = stats.project_id
-            WHERE projects.uri = %s
-    """
-    if remove_idle:
-        query = f""" {query}
-                AND
-                stats.time > (SELECT times.start_measurement FROM times WHERE times.id = projects.id)
-                AND
-                stats.time < (SELECT times.end_measurement FROM times WHERE times.id = projects.id)
-        """
-
-    # extremly important to order here, cause the charting library in JS cannot do that automatically!
-    query = f""" {query} ORDER BY
-                stats.metric ASC, stats.detail_name ASC, stats.time ASC
-            """
-
-    params = (uri, uri)
-    data = DB().fetch_all(query, params)
-
-    if data is None or data == []:
-        return {'success': False, 'err': 'Data is empty'}
-
-    return {'success': True, 'data': data}
+    return {'success': True, 'data': phase_stats_object}
 
 
-# A route to return all of the available entries in our catalog.
+# This route gets the stats to be displayed in a timeline chart
 @app.get('/v1/stats/single/{project_id}')
 async def get_stats_single(project_id: str, remove_idle: bool = False):
     if project_id is None or project_id.strip() == '':
@@ -214,12 +183,10 @@ async def get_stats_single(project_id: str, remove_idle: bool = False):
     query = """
             WITH times AS (
                 SELECT start_measurement, end_measurement FROM projects WHERE id = %s
-            ) SELECT
-                stats.detail_name, stats.time, stats.metric, stats.value, stats.unit
-            FROM
-                stats
-            WHERE
-                stats.project_id = %s
+            )
+            SELECT stats.detail_name, stats.time, stats.metric, stats.value, stats.unit, stats.phase
+            FROM stats
+            WHERE stats.project_id = %s
             """
     if remove_idle:
         query = f""" {query}
@@ -252,14 +219,13 @@ async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
             SELECT start_measurement, end_measurement FROM projects WHERE id = %s
         ) SELECT
             (SELECT start_measurement FROM times), (SELECT end_measurement FROM times), SUM(stats.value), stats.unit
-        FROM
-            stats
+        FROM stats
         WHERE
             stats.project_id = %s
             AND stats.time >= (SELECT start_measurement FROM times)
             AND stats.time <= (SELECT end_measurement FROM times)
             AND stats.metric LIKE %s
-            GROUP BY stats.unit
+        GROUP BY stats.unit
     '''
 
     value = None
@@ -318,8 +284,7 @@ async def post_project_add(project: Project):
 
     # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
     query = """
-        INSERT INTO
-            projects (uri,name,email, branch)
+        INSERT INTO projects (uri,name,email, branch)
         VALUES (%s, %s, %s, %s)
         RETURNING id
         """
@@ -339,14 +304,14 @@ async def post_project_add(project: Project):
 async def get_project(project_id: str):
     query = """
             SELECT
-                id, name, uri, branch, commit_hash, (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements
-                    LEFT JOIN categories as t on t.id = elements) as categories, start_measurement, end_measurement,
-                    measurement_config, machine_specs, usage_scenario,
-                    last_run, created_at, invalid_project, phases
-            FROM
-                projects
-            WHERE
-                id = %s
+                id, name, uri, branch, commit_hash,
+                (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements
+                    LEFT JOIN categories as t on t.id = elements) as categories,
+                start_measurement, end_measurement,
+                measurement_config, machine_specs, usage_scenario,
+                last_run, created_at, invalid_project, phases
+            FROM projects
+            WHERE id = %s
             """
     params = (project_id,)
     data = DB().fetch_one(query, params=params, cursor_factory=psycopg2.extras.RealDictCursor)
@@ -437,31 +402,6 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
         num_value_padding_chars=1,
         default_color='green')
     return Response(content=str(badge), media_type="image/svg+xml")
-
-# Helper functions, not directly callable through routes
-
-def rescale_energy_value(value, unit):
-    # We only expect values to be mJ for energy!
-    if unit != 'mJ':
-        raise RuntimeError('Unexpected unit occured for energy rescaling: ', unit)
-
-    energy_rescaled = [value, unit]
-
-    # pylint: disable=multiple-statements
-    if value > 1_000_000_000: energy_rescaled = [value/(10**12), 'GJ']
-    elif value > 1_000_000_000: energy_rescaled = [value/(10**9), 'MJ']
-    elif value > 1_000_000: energy_rescaled = [value/(10**6), 'kJ']
-    elif value > 1_000: energy_rescaled = [value/(10**3), 'J']
-    elif value < 0.001: energy_rescaled = [value*(10**3), 'nJ']
-
-    return energy_rescaled
-
-def is_valid_uuid(val):
-    try:
-        uuid.UUID(str(val))
-        return True
-    except ValueError:
-        return False
 
 if __name__ == '__main__':
     app.run()

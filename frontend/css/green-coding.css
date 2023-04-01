@@ -209,3 +209,8 @@ a,
     word-wrap: break-word;
     white-space: pre-wrap;
 }
+
+.break {
+  flex-basis: 100%;
+  height: 0;
+}

@@ -1,3 +1,32 @@
+class GMTMenu extends HTMLElement {
+   connectedCallback() {
+        this.innerHTML = `
+        <div id="menu" class="ui inverted vertical menu">
+            <div>
+                <img class="ui fluid image menu-logo" src="/images/logo.png">
+            </div>
+            <div class="item">
+                <i>&lt;Green Metrics Tool&gt;</i>
+            </div>
+            <a class="item" href="/index.html">
+                <b><i class="home icon"></i>Home</b>
+            </a>
+            <a class="item" href="/request.html">
+                <b><i class="bullseye icon"></i>Certify new software</b>
+            </a>
+            <a class="item" href="/data-analysis.html">
+                <b><i class="chartline icon"></i>Data Analysis</b>
+            </a>
+            <a class="item" href="/settings.html">
+                <b><i class="cogs icon"></i>Settings</b>
+            </a>
+        </div> <!-- end menu -->`;
+    }
+}
+
+customElements.define('gmt-menu', GMTMenu);
+
+
 let showNotification = (message_title, message_text, type='warning') => {
     $('body')
       .toast({

@@ -16,7 +16,8 @@ project:
 config:
   api_url: __API_URL__
   metrics_url: __METRICS_URL__
-  machine_id:
+  machine_id: 1
+  machine_description: "Development machine for testing"
 
 measurement:
   idle-time-start: 10
