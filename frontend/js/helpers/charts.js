@@ -1,4 +1,4 @@
-const getLineChartOptions = (title, legend, series, type='time') => {
+const getLineChartOptions = (title, legend, series, type='time', graphic=null) => {
     return {
         tooltip: {
             trigger: 'axis'
@@ -16,6 +16,7 @@ const getLineChartOptions = (title, legend, series, type='time') => {
         },
         series: series,
         animation: false,
+        graphic: graphic,
         legend: {
             data: legend,
             bottom: 0,
@@ -181,55 +182,78 @@ const createChartContainer = (container, el) => {
     return chart_node.querySelector('.statistics-chart');
 }
 
-
-const displayKeyMetricCharts = (phase_stats_object) => {
-
-    for (phase in phase_stats_object) {
-        let data = []
-
-        for (metric_name in phase_stats_object[phase].metrics) {
-            for (detail_name in phase_stats_object[phase].metrics[metric_name]) {
-                phase_stats_object[phase].metrics[metric_name][detail_name].forEach((metric) => {
-                    if (metric.include_chart == true) {
-                        data.push({
-                            value: metric.value,
-                            name: `${metric.clean_name} [${metric.unit}]`
-                        })
-                    }
-                })
-            }
+const displayKeyMetricsRadarChart = (total_chart_labels, total_chart_data, phase) => {
+    var chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart`);
+    var myChart = echarts.init(chartDom);
+    var option;
+    option = {
+        tooltip: {
+            trigger: 'item'
+        },
+      title: {
+        text: 'Component distribution'
+      },
+      legend: {
+        data: ['Allocated Budget', 'Actual Spending']
+      },
+      radar: {
+        shape: 'circle',
+        indicator: Array.from(total_chart_labels)
+      },
+      series: [
+        {
+          name: 'Budget vs spending',
+          type: 'radar',
+          areaStyle: {},
+          data: total_chart_data
         }
+      ]
+    };
 
-        var chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .pie-chart`);
-        var myChart = echarts.init(chartDom);
-        var option = getPieChartOptions('Energy distribution of measured metrics', data);
-        myChart.setOption(option);
+    option && myChart.setOption(option);
 
-        var chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .embodied-chart`);
-        var myChart = echarts.init(chartDom);
-        let series = [
-              {
-                  name: 'Embodied carbon',
-                  type: 'bar',
-                  emphasis: {
-                      focus: 'series'
-                  },
-                  data: ['N/A']
+    return myChart;
+}
+
+/*
+    Currently broken and unused, cause pie chart is misleading in suggesting a hidden "total"
+*/
+const displayKeyMetricsPieChart = () => {
+    var chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .pie-chart`);
+    var myChart = echarts.init(chartDom);
+    var option = getPieChartOptions('Energy distribution of measured metrics', data);
+    myChart.setOption(option);
+    return displayKeyMetricsPieChart;
+}
+
+
+// TODO
+const displayKeyMetricsEmbodiedCarbonChart = (phase) => {
+    var chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .embodied-chart`);
+    var myChart = echarts.init(chartDom);
+    let series = [
+          {
+              name: 'Embodied carbon',
+              type: 'bar',
+              emphasis: {
+                  focus: 'series'
               },
-              {
-                  name: 'Usage Phase',
-                  type: 'bar',
-                  stack: 'total',
-                  emphasis: {
-                      focus: 'series'
-                  },
-                  data: ['N/A']
-              }
-          ];
-        var option = getBarChartOptions('Embodied carbon vs. Usage Phase', ['Phases'], series);
-        myChart.setOption(option);
+              data: ['N/A']
+          },
+          {
+              name: 'Usage Phase',
+              type: 'bar',
+              stack: 'total',
+              emphasis: {
+                  focus: 'series'
+              },
+              data: ['N/A']
+          }
+      ];
+    var option = getBarChartOptions('Embodied carbon vs. Usage Phase', ['Phases'], series);
+    myChart.setOption(option);
 
-    }
+    return myChart;
 }
 
 const displayTotalCharts = (phase_stats_object) => {
@@ -297,4 +321,65 @@ const displayTotalCharts = (phase_stats_object) => {
     var option = getBarChartOptions('Total Phases consumption', null, series, dataset_total_phase_consumption);
     myChart.setOption(option);
 
+}
+
+
+const displayCompareChart = (title, legend, series, graphic, phase) => {
+
+    const element = createChartContainer(`.ui.tab[data-tab='${phase}'] .compare-chart-container`, "");
+    const chart_instance = echarts.init(element);
+    let options = getLineChartOptions(title, legend, series, 'category', graphic);
+    chart_instance.setOption(options);
+    document.querySelector(`.ui.tab[data-tab='${phase}'] .api-loader`)?.remove();
+
+    return chart_instance;
+
+}
+
+const getChartGraphic = (text) => {
+    return graphic = {
+        type: 'group',
+        top: 10,
+        left: 'right',
+        draggable: true,
+        children: [
+          {
+            type: 'rect',
+            top: 'center',
+            left: 'center',
+            z: 100,
+            shape: {
+              height: 20,
+              width: 150,
+
+            },
+            style: {
+                fill: 'white',
+                stroke: '#999',
+                lineWidth: 2,
+                shadowBlur: 8,
+                shadowOffsetX: 3,
+                shadowOffsetY: 3,
+                shadowColor: 'rgba(0,0,0,0.3)',
+
+              },
+          },
+          {
+            type: 'text',
+            top: 'center',
+            left: 'center',
+            z: 101,
+            style: {
+                  text: text,
+                  fontSize: 14,
+                  fontWeight: 'bold',
+                  lineDash: [0, 200],
+                  lineDashOffset: 0,
+                  fill: 'black',
+                  stroke: '#000',
+                  lineWidth: 1
+            }
+          }
+        ]
+      }
 }

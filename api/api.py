@@ -11,7 +11,6 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
 
 import uuid
-#import scipy.stats
 from pydantic import BaseModel
 from starlette.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware

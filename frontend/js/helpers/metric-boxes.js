@@ -1,4 +1,7 @@
-/* Expand the template */
+/*
+    WebComponent function without ShadowDOM
+    to expand the template in the HTML pages
+*/
 class MetricBoxes extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
@@ -115,48 +118,55 @@ class MetricBoxes extends HTMLElement {
 
 customElements.define('metric-boxes', MetricBoxes);
 
-/*  Object structure
-    {
-        [BASELINE]: {
-            metrics: {
-                ane_energy_powermetrics_system: {
-                    [SYSTEM]: [...],
-                    container_1: [...]
-                    container_2 [...]
-                },
-                ane_power_powermetrics_system: {...},
-                ...
-            }
-            totals: {...}
-        }
-    }
-*/
-const displayMetricBoxes = (phase_stats_object, comparison_type) => {
-
-    for (phase in phase_stats_object) {
-        createPhaseTab(phase);
-        for (metric_name in phase_stats_object[phase]) {
-            for (detail_name in phase_stats_object[phase][metric_name].data) {
-                displayDetailMetricBoxes(phase_stats_object[phase][metric_name], phase, comparison_type);
-            }
-        }
 /*
-        createKeyMetricBox(
-            phase_stats_object[phase].totals.energy,
-            phase_stats_object[phase].totals.power,
-            phase_stats_object[phase].totals.network_io,
-            phase
-        );
-        */
+    This function behaves differentrly if it gets passed an element of detail metrics or a list of.
+
+    When a list it passed it will calculate a std.dev. and instruct the createMetricBox to display the +/-
+*/
+const displayDetailMetricBox = (metric, metric_data, compare_key, phase, comparison_type) => {
+
+    // the metric might contain multiple details and multiple to compare
+    // this we iterate over it here
+    // what we wanna show is the detailed metric itself with its max
+    // and if it has a stddev we also want to show that
+    // if there is even a metric to compare to, then we also want to show that
+
+    let location = 'div.extra-metrics'
+    if(metric.name.indexOf('_container') !== -1 || metric.name.indexOf('_vm') !== -1)
+        location = 'div.container-level-metrics';
+    else if(metric.name.indexOf('_system') !== -1)
+         location = 'div.system-level-metrics';
+
+    let max_label = ''
+    if (metric_data.max != null) {
+        max_label = `<div class="ui bottom left attached label">
+        ${metric_data.max.toFixed(2)} ${metric.unit} (MAX)
+        </div>`
+    }
+    let std_dev_text = '';
+
+    if(metric_data.stddev == 0) std_dev_text = `± 0.00%`
+    else if(metric_data.stddev != null) {
+        std_dev_text = `± ${(metric_data.stddev/metric_data.mean).toFixed(2)}%`
     }
 
-    $('.ui.steps.phases .step').tab();
-    $('.ui.accordion').accordion();
-
-    // although there are multiple .step.runtime-step containers the first one
-    // marks the first runtime step and is shown by default
-    document.querySelector('.step.runtime-step').dispatchEvent(new Event('click'));
+    let metric_name = metric.clean_name;
+    if(comparison_type != null && comparison_type != 'Repeated Runs')
+        metric_name = `${metric_name} [${compare_key}]`
+    let node = createMetricBox(
+        metric,
+        metric_name,
+        metric_data.mean,
+        std_dev_text,
+        max_label
+    );
+    document.querySelector(`div.tab[data-tab='${phase}'] ${location}`).appendChild(node)
 }
+/*
+        if(comparison_type != null && comparison_type != 'Repeated Runs') {
+            document.querySelector(`div.tab[data-tab='${phase}'] ${location}`).insertAdjacentHTML('beforeend', '<div class="break"></div>')
+        }
+*/
 
 const createKeyMetricBox = (energy, power, network_io, phase) => {
     const energy_in_mWh = energy / 3.6;
@@ -203,60 +213,6 @@ const createKeyMetricBox = (energy, power, network_io, phase) => {
         document.querySelector("#gasoline").innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
             // document.querySelector("#smartphones-charged").innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
         document.querySelector("#flights").innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
-    }
-}
-
-/*
-    This function behaves differentrly if it gets passed an element of detail metrics or a list of.
-
-    When a list it passed it will calculate a std.dev. and instruct the createMetricBox to display the +/-
-*/
-const displayDetailMetricBoxes = (metric, phase, comparison_type) => {
-
-    // the metric might contain multiple details and multiple to compare
-    // this we iterate over it here
-    // what we wanna show is the detailed metric itself with its max
-    // and if it has a stddev we also want to show that
-    // if there is even a metric to compare to, then we also want to show that
-
-    let location = 'div.extra-metrics'
-    if(metric.name.indexOf('_container') !== -1 || metric.name.indexOf('_vm') !== -1)
-        location = 'div.container-level-metrics';
-    else if(metric.name.indexOf('_system') !== -1)
-         location = 'div.system-level-metrics';
-
-    for (detail_name in metric.data) {
-        for (compare_key in metric.data[detail_name].data) {
-            let max_label = ''
-            if (metric.max != null) {
-                max_label = `<div class="ui bottom left attached label">
-                ${metric.max.toFixed(2)} ${metric.unit} (MAX)
-                </div>`
-            }
-            let std_dev_text = '';
-
-            if(metric.data[detail_name].data[compare_key].stddev == 0) std_dev_text = `± 0.00%`
-            else if(metric.data[detail_name].data[compare_key].stddev != null) {
-                std_dev_text = `± ${(metric.data[detail_name].data[compare_key].stddev/metric.data[detail_name].data[compare_key].mean).toFixed(2)}%`
-            }
-
-            let metric_name = metric.clean_name;
-            if(comparison_type != null && comparison_type != 'repetition_comparison')
-                metric_name = `${metric_name} [${compare_key}]`
-            let node = createMetricBox(
-                metric,
-                metric_name,
-                metric.data[detail_name].data[compare_key].mean,
-                std_dev_text,
-                max_label
-            );
-            document.querySelector(`div.tab[data-tab='${phase}'] ${location}`).appendChild(node)
-        }
-
-        if(comparison_type != null && comparison_type != 'repetition_comparison') {
-            document.querySelector(`div.tab[data-tab='${phase}'] ${location}`).insertAdjacentHTML('beforeend', '<div class="break"></div>')
-        }
-
     }
 }
 

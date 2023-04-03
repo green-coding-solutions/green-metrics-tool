@@ -1,4 +1,6 @@
 const fillProjectData = (project_data, key = null) => {
+
+
     for (item in project_data) {
         if (item == 'machine_specs') {
             fillProjectTab('#machine-specs', project_data[item]); // recurse
@@ -22,6 +24,12 @@ const fillProjectData = (project_data, key = null) => {
             document.querySelector('#project-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project_data?.[item]}</td></tr>`)
         }
     }
+
+    // create new custom field
+    // timestamp is in microseconds, therefore divide by 10**6
+    const measurement_duration_in_s = (project_data.end_measurement - project_data.start_measurement) / 1000000
+    document.querySelector('#project-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${measurement_duration_in_s} s</td></tr>`)
+
 
     $('.ui.secondary.menu .item').tab(); // activate tabs for project data
     $('.ui.accordion').accordion();
@@ -261,30 +269,19 @@ $(document).ready( (e) => {
 
         renderBadges(url_params);
 
-        // create new custom field
-        // timestamp is in microseconds, therefore divide by 10**6
-        const measurement_duration_in_s = (project_data.end_measurement - project_data.start_measurement) / 1000000
-        project_data['duration'] = `${measurement_duration_in_s} s`
-
         fillProjectData(project_data);
 
-        displayMetricBoxes(phase_stats_data.data, phase_stats_data.comparison_type);
+        displayComparisonMetrics(phase_stats_data.comparison_type, phase_stats_data.data)
 
         if (stats_data == undefined) return;
-
-        displayKeyMetricCharts(phase_stats_data.data);
-
-        displayTotalCharts(phase_stats_data.data);
-
-        const metrics = getTimelineMetrics(stats_data, project_data.start_measurement, project_data.end_measurement);
+        const metrics = getTimelineMetrics(stats_data);
 
         if (notes_data == undefined) return;
-
         displayTimelineCharts(metrics, notes_data);
 
-        // after all instances have been placed the flexboxes might have rearranged. We need to trigger resize
-        setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500); // needed for the graphs to resize
-
+        // after all charts instances have been placed
+        // the flexboxes might have rearranged. We need to trigger resize
+        setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);
     })();
 });
 

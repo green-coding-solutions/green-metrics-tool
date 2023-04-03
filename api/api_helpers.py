@@ -3,6 +3,8 @@ import sys
 import os
 import uuid
 import numpy as np
+import scipy.stats
+from functools import cache
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
@@ -187,11 +189,11 @@ def determineComparisonCase(ids):
     # For the moment I think it makes sense to restrict to two repositories. Comparing three is too much to handle I believe if we do not want to drill down to one specific metric
 
     # Currently we support five cases:
-    # case = 'repo_comparison' # Case D : RequirementsEngineering Case
-    # case = 'usage_scenario_comparison' # Case C_2 : SoftwareDeveloper Case
-    # case = 'machine_comparison' # Case C_1 : DataCenter Case
-    # case = 'change_over_commits_comparison' # Case B: DevOps Case
-    # case = 'repetition_comparison' # Case A: Blue Angel
+    # case = 'Repositories' # Case D : RequirementsEngineering Case
+    # case = 'Usage Scenarios' # Case C_2 : SoftwareDeveloper Case
+    # case = 'Machines' # Case C_1 : DataCenter Case
+    # case = 'Commits' # Case B: DevOps Case
+    # case = 'Repeated Runs' # Case A: Blue Angel
 
 
     if repos == 2: # diff repos
@@ -201,7 +203,7 @@ def determineComparisonCase(ids):
             elif machine_ids == 1: # diff repo, diff usage scenarios, same machine_ids
                 if commit_hashes == 2: # diff repo, diff usage scenarios, same machine_ids, diff commits_hashes
                     # for two repos we expect two different hashes, so this is actually a normal case
-                    case = 'repo_comparison' # Case D
+                    case = 'Repositories' # Case D
                 elif commit_hashes == 1: # diff repo, diff usage scenarios, same machine_ids, same commit_hashes
                     raise RuntimeError('Same commit hash for different repos?!?!')
                 else:
@@ -218,18 +220,18 @@ def determineComparisonCase(ids):
                 if commit_hashes > 1: # same repo, diff usage scenarios, same machines, diff commit hashes
                     raise RuntimeError('Different usage scenarios & commits not supported')
                 else: # same repo, diff usage scenarios, same machines, same commit hashes
-                    case = 'usage_scenario_comparison' # Case C_2
+                    case = 'Usage Scenarios' # Case C_2
         elif usage_scenarios == 1: # same repo, same usage scenario
             if machine_ids == 2: # same repo, same usage scenarios, diff machines
                 if commit_hashes > 1: # same repo, same usage scenarios, diff machines, diff commit hashes
                     raise RuntimeError('Different machines & commits not supported')
                 else: # same repo, same usage scenarios, diff machines, same commit hashes
-                    case = 'machine_comparison' # Case C_1
+                    case = 'Machines' # Case C_1
             elif machine_ids == 1: # same repo, same usage scenarios, same machines
                 if commit_hashes > 1: # same repo, same usage scenarios, same machines, diff commit hashes
-                    case = 'change_over_commits_comparison' # Case B
+                    case = 'Commits' # Case B
                 else: # same repo, same usage scenarios, same machines, same commit hashes
-                    case = 'repetition_comparison' # Case A
+                    case = 'Repeated Runs' # Case A
             else:
                 raise RuntimeError('3+ Machines per repo not supported.')
         else:
@@ -268,6 +270,9 @@ def getPhaseStats(ids):
         raise RuntimeError('Data is empty')
     return data
 
+# TODO: This method needs proper database caching
+# Would be interesting to know if in an application server like gunicor @cache
+# Will also work for subsequent requests ...?
 def getPhaseStatsObject(phase_stats, case):
     '''  Object structure
     comparison_type: STRING
@@ -379,10 +384,11 @@ def getPhaseStatsObject(phase_stats, case):
                 'color': METRIC_MAPPINGS[metric_name]['color'],
                 'icon': METRIC_MAPPINGS[metric_name]['icon'],
                 'system_energy': system_energy,
-                'mean': None,
-                'stddev': None,
-                'ci': None,
-                'p_value': None,
+                #'mean': None, # currently no use for that
+                #'stddev': None,  # currently no use for that
+                #'ci': None,  # currently no use for that
+                #'p_value': None,  # currently no use for that
+                #'significant': None,  # currently no use for that
                 'data': {},
             }
 
@@ -392,14 +398,15 @@ def getPhaseStatsObject(phase_stats, case):
                 'stddev': None,
                 'ci': None,
                 'p_value': None,
+                'significant': None,
                 'data': {}
             }
 
-        if case == 'repo_comparison':
+        if case == 'Repositories':
             key = repo # Case D : RequirementsEngineering Case
-        elif case == 'usage_scenario_comparison':
+        elif case == 'Usage Scenarios':
             key = usage_scenario_file # Case C_2 : SoftwareDeveloper Case
-        elif case == 'machine_comparison':
+        elif case == 'Machines':
             key = machine_id # Case C_1 : DataCenter Case
         else:
             key = commit_hash # No comparison case / Case A: Blue Angel / Case B: DevOps Case
@@ -420,11 +427,11 @@ def getPhaseStatsObject(phase_stats, case):
         phase_stats_object['data'][phase][metric_name]['data'][detail_name]['data'][key]['values'].append(value)
         phase_stats_object['data'][phase][metric_name]['data'][detail_name]['data'][key]['max_values'].append(max_value)
 
+    phase_stats_object['comparison_details'] = list(phase_stats_object['comparison_details'])
+
     # now we need to traverse the object again and calculate all the averages we need
     # This could have also been done while constructing the object through checking when a change
     # in phase / detail_name etc. occurs. But we choose
-    alpha = .05
-    confidence = 1- alpha
 
     for phase, phase_data in phase_stats_object['data'].items():
         for metric_name, metric in phase_data.items():
@@ -432,24 +439,51 @@ def getPhaseStatsObject(phase_stats, case):
                 data_list = []
                 for comparison_key, data in detail['data'].items():
                     data_list.append(data['values'])
-                    length = len(data['values'])
-                    if length > 1:
+                    t_stat = get_t_stat(len(data['values']))
+                    if t_stat is None:
+                        data['mean'] = data['values'][0]
+                    else:
                         data['mean'] = np.mean(data['values'])
                         data['stddev'] = np.std(data['values'])
-                        dof = length-1
-                        #t_crit = np.abs(scipy.stats.t.ppf((1-confidence)/2,dof)) # for two sided!
-                        #data['ci'] = data['mean']-data['stddev']*t_crit/np.sqrt(len(data['values']))
-                        # data['max'] = np.max(data['max_values'])
-                        # TODO: One-sided t-test for the last value
-                    else:
-                        data['mean'] = data['values'][0]
-                # now we are back on the detail name level. We can now make a t-test
-                #value, pvalue = scipy.stats.ttest_ind(data_list[0], data_list[0], equal_var=False) # done as Welch-Test through equal_var = False
-                #detail['p_value'] = pvalue
-                #if pvalue > 0.05:
-                #    detail['significant'] = False
-                #else:
-                #    detail['significant'] = True
-                detail['p_value'] = 300
+                        data['ci'] = data['stddev']*t_stat
+                        if len(data['values']) > 2:
+                            data_c = data['values'].copy()
+                            pop_mean = data_c.pop()
+                            _, p_value = scipy.stats.ttest_1samp(data_c, pop_mean)
+                            if not np.isnan(p_value):
+                                data['p_value'] = p_value
+                                if data['p_value'] > 0.05:
+                                    data['significant'] = False
+                                else:
+                                    data['significant'] = True
 
+                        # TODO: data['max'] = np.max(data['max_values'])
+                        # TODO: One-sided t-test for the last value
+
+                # detail loop level
+                # We can now make a t-test between comparsion_keys on detail level, if we have at least 2 values
+                if len(data_list) == 2:
+                    # Welch-Test because we cannot assume equal variances
+                    _, p_value = scipy.stats.ttest_ind(data_list[0], data_list[1], equal_var=False) #
+                    if not np.isnan(p_value):
+                        detail['p_value'] = p_value
+                        if detail['p_value'] > 0.05:
+                            detail['significant'] = False
+                        else:
+                            detail['significant'] = True
+            # metric loop level
+            # here we have t-tests between the different metrics between the two compare keys
+            # does that make sense though? what would be the average over all details if there are more than one?
+            # This makes sense only if we have multiple containers for a metric
+            # But these containers could actually measure totally different stuff, like Redis and NGINX
+            # What good is a mean here?
+        # phase loop level
     return phase_stats_object
+
+@cache
+def get_t_stat(length):
+    #alpha = .05
+    if length <= 1: return None
+    dof = length-1
+    t_crit = np.abs(scipy.stats.t.ppf((.05)/2,dof)) # for two sided!
+    return t_crit/np.sqrt(length)

@@ -1,3 +1,7 @@
+/*
+    WebComponent function without ShadowDOM
+    to expand the menu in the HTML pages
+*/
 class GMTMenu extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
@@ -23,11 +27,10 @@ class GMTMenu extends HTMLElement {
         </div> <!-- end menu -->`;
     }
 }
-
 customElements.define('gmt-menu', GMTMenu);
 
 
-let showNotification = (message_title, message_text, type='warning') => {
+const showNotification = (message_title, message_text, type='warning') => {
     $('body')
       .toast({
         class: type,

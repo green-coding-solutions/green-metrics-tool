@@ -190,14 +190,14 @@ a,
 }
 
 
-.bar-chart, .pie-chart, .embodied-chart, .phases-chart {
+.radar-chart, .bar-chart, .pie-chart, .embodied-chart, .phases-chart {
     width: 500px;
     height: 300px;
     display: block;
     margin:auto;
 }
 
-.chart-container {
+.compare-chart-container, .key-metrics-chart-container {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
