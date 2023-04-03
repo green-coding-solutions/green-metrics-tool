@@ -40,9 +40,9 @@ if __name__ == '__main__':
         for category in args.categories:
             for i, line in enumerate(data):
                 line_stripped = line.strip()
-                if line_stripped.startswith('#--') and category in line:
+                if line_stripped.startswith('#---') and category in line:
                     CATEGORY_FOUND = True
-                elif line_stripped.startswith('#--'):
+                elif line_stripped.startswith('#---'):
                     CATEGORY_FOUND = False
                 if CATEGORY_FOUND and not line_stripped.startswith('#'):
                     data[i] = '# ' + line
