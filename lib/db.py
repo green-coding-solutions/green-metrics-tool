@@ -1,5 +1,4 @@
-import psycopg2.extras
-import psycopg2
+import psycopg
 from global_config import GlobalConfig
 
 class DB:
@@ -21,21 +20,21 @@ class DB:
             # force domain socket connection by not supplying host
             # pylint: disable=consider-using-f-string
             if config['postgresql']['host'] is None:
-                self._conn = psycopg2.connect("user=%s dbname=%s password=%s" % (
+                self._conn = psycopg.connect("user=%s dbname=%s password=%s" % (
                     config['postgresql']['user'],
                     config['postgresql']['dbname'],
                     config['postgresql']['password']))
             else:
-                self._conn = psycopg2.connect("host=%s user=%s dbname=%s password=%s" % (
+                self._conn = psycopg.connect("host=%s user=%s dbname=%s password=%s" % (
                     config['postgresql']['host'],
                     config['postgresql']['user'],
                     config['postgresql']['dbname'],
                     config['postgresql']['password']))
 
-    def __query(self, query, params=None, return_type=None, cursor_factory=None):
+    def __query(self, query, params=None, return_type=None, row_factory=None):
 
         # None is actually the default cursor factory
-        cur = self._conn.cursor(cursor_factory=cursor_factory)
+        cur = self._conn.cursor(row_factory=row_factory)
         try:
             cur.execute(query, params)
             self._conn.commit()
@@ -46,7 +45,7 @@ class DB:
             else:
                 ret = True
 
-        except psycopg2.Error as exception:
+        except psycopg.Error as exception:
             self._conn.rollback()
             cur.close()
             raise exception
@@ -54,21 +53,23 @@ class DB:
         cur.close()
         return ret
 
-    def query(self, query, params=None, cursor_factory=None):
-        return self.__query(query, params=params, return_type=None, cursor_factory=cursor_factory)
+    def query(self, query, params=None, row_factory=None):
+        return self.__query(query, params=params, return_type=None, row_factory=row_factory)
 
-    def fetch_one(self, query, params=None, cursor_factory=None):
-        return self.__query(query, params=params, return_type='one', cursor_factory=cursor_factory)
+    def fetch_one(self, query, params=None, row_factory=None):
+        return self.__query(query, params=params, return_type='one', row_factory=row_factory)
 
-    def fetch_all(self, query, params=None, cursor_factory=None):
-        return self.__query(query, params=params, return_type='all', cursor_factory=cursor_factory)
+    def fetch_all(self, query, params=None, row_factory=None):
+        return self.__query(query, params=params, return_type='all', row_factory=row_factory)
 
     def copy_from(self, file, table, columns, sep=','):
         try:
             cur = self._conn.cursor()
-            cur.copy_from(file, table, columns=columns, sep=sep)
+            statement = f"COPY {table}({','.join(list(columns))}) FROM stdin (format csv, delimiter '{sep}')"
+            with cur.copy(statement) as copy:
+                copy.write(file.read())
             self._conn.commit()
-        except psycopg2.Error as exception:
+        except psycopg.Error as exception:
             self._conn.rollback()
             cur.close()
             raise exception

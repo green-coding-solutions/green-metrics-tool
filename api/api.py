@@ -22,7 +22,7 @@ from db import DB
 import jobs
 import email_helpers
 import error_helpers
-import psycopg2.extras
+import psycopg
 import anybadge
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
@@ -335,7 +335,7 @@ async def get_project(project_id: str):
                 id = %s
             """
     params = (project_id,)
-    data = DB().fetch_one(query, params=params, cursor_factory=psycopg2.extras.RealDictCursor)
+    data = DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
     return {'success': True, 'data': data}

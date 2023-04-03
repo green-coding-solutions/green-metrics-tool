@@ -3,7 +3,7 @@
 import random
 import string
 import subprocess
-import psycopg2.extras
+import psycopg
 
 from db import DB
 
@@ -19,7 +19,7 @@ def get_project_data(project_name):
                 projects
             WHERE name = %s
             """
-    data = DB().fetch_one(query, (project_name, ), cursor_factory=psycopg2.extras.RealDictCursor)
+    data = DB().fetch_one(query, (project_name, ), row_factory=psycopg.rows.dict_row)
     if (data is None or data == []):
         return None
     return data
