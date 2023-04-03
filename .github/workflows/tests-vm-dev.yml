@@ -45,7 +45,7 @@ jobs:
       - name: Eco CI Energy Estimation - End Measurement
         uses: green-coding-berlin/eco-ci-energy-estimation@main
         with:
-          task: end-measurement
+          task: final-measurement
           branch: dev
         
 
