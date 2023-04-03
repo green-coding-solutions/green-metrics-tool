@@ -2,6 +2,8 @@
 
 [![Tests Status - Dev](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-dev.yml/badge.svg)](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-dev.yml)
 
+[![Energy Used](https://api.green-coding.berlin/v1/ci/badge/get/?repo=green-coding-berlin%2Fgreen-metrics-tool&branch=dev&workflow=Daily%20Test%20Run%20-%20Virtual%20Machine%20-%20Dev%20Branch)](https://metrics.green-coding.berlin/ci.html?repo=green-coding-berlin%2Fgreen-metrics-tool&branch=dev&workflow=Daily%20Test%20Run%20-%20Virtual%20Machine%20-%20Dev%20Branch) (This is the energy cost of running our CI-Pipelines on Github. [Find out more about Eco-CI](https://www.green-coding.berlin/projects/eco-ci/))
+
 # Introduction
 
 The Green Metrics Tool is a developer tool is indented for measuring the energy consumption of software and doing life-cycle-analysis.
