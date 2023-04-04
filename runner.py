@@ -24,6 +24,8 @@ import faulthandler
 import re
 from io import StringIO
 import yaml
+import shutil
+from pathlib import Path
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
@@ -44,6 +46,35 @@ from tools.save_notes import save_notes  # local file import
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
+
+# This function takes a path and a file and joins them while making sure that no one is trying to escape the
+# path with `..`, symbolic links or similar.
+# We always return the same error message including the path and file parameter, never `filename` as
+# otherwise we might disclose if certain files exist or not.
+def join_path_and_file(path, file):
+    filename = os.path.realpath(os.path.join(path, file))
+
+    # This is a special case in which the file is '.'
+    if filename == path:
+        return filename
+
+    if not filename.startswith(path):
+        raise ValueError(f"{file} not in {path}")
+
+    # To double check we also check if it is in the files allow list
+    if filename not in [os.path.join(path, item) for item in os.listdir(path)]:
+        raise ValueError(f"{file} not in {path}")
+
+    # Another way to implement this. This is checking the third time but we want to be extra secure 👾
+    if Path(path).resolve(strict=True) not in Path(path, file).resolve(strict=True).parents:
+        raise ValueError(f"{file} not in {path}")
+
+    if os.path.exists(filename):
+        return filename
+    else:
+        raise FileNotFoundError(f"{file} in {path} not found")
+
+
 
 class Runner:
     def __init__(self,
@@ -66,7 +97,8 @@ class Runner:
         self._project_id = pid
         self._filename = filename
         self._branch = branch
-        self._folder = '/tmp/green-metrics-tool/repo' # default if not changed in checkout_repository
+        self._tmp_folder = '/tmp/green-metrics-tool'
+        self._folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
 
@@ -82,11 +114,24 @@ class Runner:
         self.__phases = {}
         self.__start_measurement = None
         self.__end_measurement = None
+        self._docker_images_build = []
+        self._pre_running_containers = []
 
     def prepare_filesystem_location(self):
-        subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], check=True, stderr=subprocess.DEVNULL)
-        subprocess.run(['mkdir', '/tmp/green-metrics-tool'], check=True)
+        subprocess.run(['rm', '-Rf', self._tmp_folder], check=True, stderr=subprocess.DEVNULL)
+        subprocess.run(['mkdir', self._tmp_folder], check=True)
 
+    def get_running_containers(self):
+        result = subprocess.run(['docker', 'ps' ,'--format', 'json'],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                check=True, encoding='UTF-8')
+        for line in result.stdout.splitlines():
+            docker_ps_output = json.loads(line)
+            self._pre_running_containers.append({
+                'image': docker_ps_output['Image'],
+                'name': docker_ps_output['Names']
+            })
 
     def checkout_repository(self):
 
@@ -174,16 +219,7 @@ class Runner:
                 else:
                     raise ValueError("We don't support Mapping Nodes to date")
 
-                filename = os.path.realpath(os.path.join(self._root, nodes[0]))
-
-                if not filename.startswith(self._root):
-                    raise ImportError(f"Import tries to escape root! ({filename})")
-
-                # To double check we also check if it is in the files allow list
-                if filename not in [os.path.join(self._root, item) for item in os.listdir(self._root)]:
-                    print(os.listdir(self._root))
-                    raise RuntimeError(f"{filename} not in allowed file list")
-
+                filename = join_path_and_file(self._root, nodes[0])
 
                 with open(filename, 'r', encoding='utf-8') as f:
                     # We want to enable a deep search for keys
@@ -307,6 +343,78 @@ class Runner:
 
         self.__metric_providers.sort(key=lambda item: 'rapl' not in item.__class__.__name__.lower())
 
+    def find_build_files(self):
+        for _, service in self._usage_scenario.get('services', []).items():
+            if 'build' in service:
+                if isinstance(service['build'], str):
+                    # If build is a string we can assume the short form
+                    context = service['build']
+                    dockerfile = 'Dockerfile'
+                else:
+                    context =  service['build'].get('context', '.')
+                    dockerfile = service['build'].get('dockerfile', 'Dockerfile')
+
+                if match := re.match(r'^([a-zA-Z0-9_]*)(:([a-zA-Z0-9_]*))?$',  service['image']):
+                    img_name = match.group(1)
+                    img_tag = match.group(3) or "latest"
+                else:
+                    raise ValueError(f"In scenario file the builds contains an invalid image name: {img_name}")
+
+
+                self._docker_images_build.append([img_name, img_tag, context, dockerfile])
+
+    def build_docker_images(self):
+
+        print(TerminalColors.HEADER, '\nBuilding Docker containers', TerminalColors.ENDC)
+
+        # Create directory /tmp/green-metrics-tool/docker_images
+        temp_dir = f"{self._tmp_folder}/docker_images"
+        os.makedirs(temp_dir, exist_ok=True)
+
+        for img_name, img_tag, context, dockerfile in self._docker_images_build:
+            self.__notes.append({'note':f"Building {img_name}" , 'detail_name': '[SYSTEM]', 'timestamp':
+                                 int(time.time_ns() / 1_000)})
+
+
+            # Make sure the docker file exists and is not trying to escape some root. We don't need the returns
+            # but it will throw errors if something is wrong
+            context_path = join_path_and_file(self._folder, context) #If this is safe we can append the docker file
+            join_path_and_file(context_path, dockerfile)
+
+            docker_build_command = ['docker', 'run','--rm',
+                '-v', f"{self._folder}:/workspace:ro",
+                '-v', f"{temp_dir}:/output",
+                'gcr.io/kaniko-project/executor:latest',
+                f"--dockerfile=/workspace/{context}/{dockerfile}",
+                '--context','dir:///workspace/',
+                f"--destination={img_name}:{img_tag}",
+                f"--tar-path=/output/{img_name}.tar",
+                '--no-push']
+
+            print(" ".join(docker_build_command))
+
+            ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8')
+
+            if ps.returncode != 0:
+                print(f"Error: {ps.stderr} \n {ps.stdout}")
+                raise OSError("Docker build failed")
+
+            # import the docker image locally
+            image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{img_name}.tar"]
+            print(" ".join(image_import_command))
+            ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8')
+
+            if ps.returncode != 0 or ps.stderr != "":
+                print(f"Error: {ps.stderr} \n {ps.stdout}")
+                raise OSError("Docker image import failed")
+
+            self.__notes.append({'note':f"Finished building {img_name}" , 'detail_name': '[SYSTEM]', 'timestamp':
+                                 int(time.time_ns() / 1_000)})
+
+        # Delete the directory /tmp/gmt_docker_images
+        shutil.rmtree(temp_dir)
+
+
     def setup_networks(self):
         # for some rare containers there is no network, like machine learning for example
         if 'networks' in self._usage_scenario:
@@ -324,8 +432,15 @@ class Runner:
 
             service = self._usage_scenario['services'][container_name]
 
+            # We do not allow modification of running containers. For example someone could create their own postgres
+            # container and replace the running one with their own that might leak data. At least for the time the
+            # benchmark is running
+            for c in self._pre_running_containers:
+                if c['name'] == container_name:
+                    raise PermissionError(f"You can use {container_name} as it already exists!")
+
             print('Resetting container')
-            # often not running. so no check=true
+            # By using the -f we return with 0 if no container is found
             subprocess.run(['docker', 'rm', '-f', container_name], stderr=subprocess.DEVNULL, check=True)
 
             print('Creating container')
@@ -347,7 +462,7 @@ class Runner:
             if 'volumes' in service:
                 if self._allow_unsafe:
                     # On old docker clients we experience some weird error, that we deem legacy
-                    # If a volum is supplied in the compose.yml file in this form: ./file.txt:/tmp/file.txt
+                    # If a volume is supplied in the compose.yml file in this form: ./file.txt:/tmp/file.txt
                     # and the file does NOT exist, then docker will create the folder in the current running dir
                     # This is however not enabled anymore and hard to circumvent. We keep this as unfixed for now.
                     if not isinstance(service['volumes'], list):
@@ -490,8 +605,7 @@ class Runner:
             if not metric_provider._metric_name.endswith('_container') and not allow_other:
                 continue
 
-            message = f"Booting {metric_provider.__class__.__name__}"
-            print(message)
+            print(f"Booting {metric_provider.__class__.__name__}")
             metric_provider.start_profiling(self.__containers)
             if self._verbose_provider_boot:
                 self.__notes.append({'note': message, 'detail_name': '[SYSTEM]', 'timestamp': int(
@@ -667,6 +781,18 @@ class Runner:
             WHERE id = %s
             """, params=(json.dumps(self.__phases), self._project_id))
 
+
+    def remove_docker_images(self):
+        for img_name, _, _, _ in self._docker_images_build:
+
+            for c in self._pre_running_containers:
+                if c['image'] == img_name:
+                    raise PermissionError(f"You can not remove {img_name} as it already exists")
+
+            print(f"Trying to remove docker image {img_name}")
+            # We need the -f here as return code becomes 0 if the image doesn't exits
+            subprocess.run(['docker', 'rmi', '-f', img_name], stderr=subprocess.DEVNULL, check=True)
+
     def cleanup(self):
         #https://github.com/green-coding-berlin/green-metrics-tool/issues/97
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
@@ -686,7 +812,9 @@ class Runner:
 
         if not self._no_file_cleanup:
             print('Removing files')
-            subprocess.run(['rm', '-Rf', '/tmp/green-metrics-tool'], stderr=subprocess.DEVNULL, check=True)
+            subprocess.run(['rm', '-Rf', self._tmp_folder], stderr=subprocess.DEVNULL, check=True)
+
+        self.remove_docker_images()
 
         process_helpers.kill_ps(self.__ps_to_kill)
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
@@ -714,7 +842,7 @@ class Runner:
         '''
         try:
             config = GlobalConfig().config
-
+            self.get_running_containers()
             self.prepare_filesystem_location()
             self.checkout_repository()
             self.initial_parse()
@@ -739,10 +867,11 @@ class Runner:
                 self._debugger.pause('Network setup complete. Waiting to start container build')
 
             self.start_phase('[INSTALLATION]')
-            # TODO
-            # Here the docker containers have to be first resetted with docker rmi
-            # then they have to be built / pulled
-            time.sleep(1)
+            self.find_build_files()
+            # If we want to be 100% this shouldn't be benchmarked here as it is not really part of the install phase
+            # We are leaving it here as it is a tiny overhead and makes the code a lot more maintainable.
+            self.remove_docker_images()
+            self.build_docker_images()
             self.end_phase('[INSTALLATION]')
 
             if self._debugger.active:

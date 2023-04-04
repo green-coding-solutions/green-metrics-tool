@@ -12,6 +12,10 @@ services:
     image: gcb_stress
     networks:
       - network-for-pytests
+    build:
+      context: .
+      dockerfile: Dockerfile
+
   ubuntu-stress-2:
     type: container
     image: gcb_stress
