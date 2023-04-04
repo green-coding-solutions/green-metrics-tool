@@ -109,6 +109,10 @@ class PhaseMetrics extends HTMLElement {
                 <div class="ui three cards stackable no-transform-statistics container-level-metrics"></div>
                 <h3 class="ui dividing header">system level metrics</h3>
                 <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
+                <h3 class="ui dividing header">component level metrics</h3>
+                <div class="ui three cards stackable no-transform-statistics component-level-metrics"></div>
+                <h3 class="ui dividing header">machine level metrics</h3>
+                <div class="ui three cards stackable no-transform-statistics machine-level-metrics"></div>
                 <h3 class="ui dividing header">extra metrics</h3>
                 <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
                 <h3 class="ui dividing header">Detailed Charts</h3>
@@ -138,6 +142,10 @@ const displayDetailMetricBox = (metric, metric_data, compare_key, phase, compari
         location = 'div.container-level-metrics';
     else if(metric.name.indexOf('_system') !== -1)
          location = 'div.system-level-metrics';
+    else if(metric.name.indexOf('_component') !== -1)
+         location = 'div.component-level-metrics';
+    else if(metric.name.indexOf('_machine') !== -1)
+         location = 'div.machine-level-metrics';
 
     let max_label = ''
     if (metric_data.max != null) {

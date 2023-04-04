@@ -3,14 +3,14 @@ import os
 #pylint: disable=import-error
 from metric_providers.base import BaseMetricProvider
 
-class PsuEnergyAcPowerspy2SystemProvider(BaseMetricProvider):
+
+class MemoryEnergyRaplMsrComponentProvider(BaseMetricProvider):
     def __init__(self, resolution):
         super().__init__(
-            metric_name="psu_energy_ac_powerspy2_system",
-            metrics={"time": int, "value": int},
+            metric_name="memory_energy_rapl_msr_component",
+            metrics={'time': int, 'value': int, 'package_id': str},
             resolution=resolution,
             unit="mJ",
             current_dir=os.path.dirname(os.path.abspath(__file__)),
-            metric_provider_executable="metric-provider.py",
         )
-        self._extra_switches = ['-u','mJ']
+        self._extra_switches = ['-d']

@@ -46,18 +46,21 @@ const displayComparisonMetrics = (phase_stats_object, comparison_type) => {
         phases.push(phase);
         createPhaseTab(phase);
         for (metric_key in phase_stats_object[phase]) {
-            if (phase_stats_object[phase][metric_key].is_component_energy == true) {
-                if (component_energies[metric_key] == undefined)  component_energies[metric_key] = [];
-                component_energies[metric_key].push(phase_stats_object[phase][metric_key].mean)
-            }
-            else if (phase_stats_object[phase][metric_key].is_machine_energy == true) {
-                if (machine_energies[metric_key] == undefined)  machine_energies[metric_key] = [];
-                machine_energies[metric_key].push(phase_stats_object[phase][metric_key].mean)
-            }
+
 
             for (detail_key in phase_stats_object[phase][metric_key].data) {
                 let detail_chart_data = [];
                 let detail_chart_mark = [];
+                if (phase_stats_object[phase][metric_key].is_component_energy == true) {
+                    if (component_energies[metric_key] == undefined)  {
+                        component_energies[`${phase_stats_object[phase][metric_key].clean_name} [${detail_key}]`] = [];
+                    }
+                    component_energies[`${phase_stats_object[phase][metric_key].clean_name} [${detail_key}]`].push(10)
+                }
+                else if (phase_stats_object[phase][metric_key].is_machine_energy == true) {
+                    if (machine_energies[metric_key] == undefined)  machine_energies[metric_key] = [];
+                    machine_energies[metric_key].push(phase_stats_object[phase][metric_key].mean)
+                }
 
                 if (detail_key == '[SYSTEM]') {
                     var label_name = `${phase_stats_object[phase][metric_key].clean_name} [${phase_stats_object[phase][metric_key].unit}]`
@@ -86,8 +89,8 @@ const displayComparisonMetrics = (phase_stats_object, comparison_type) => {
                     idx++;
                 }
                 let graphic = null;
-                if(phase_stats_object[phase][metric_key].data[detail_key].significant != null) {
-                    if(phase_stats_object[phase][metric_key].data[detail_key].significant) {
+                if(phase_stats_object[phase][metric_key].data[detail_key].is_significant != null) {
+                    if(phase_stats_object[phase][metric_key].data[detail_key].is_significant) {
                         graphic = getChartGraphic('T-Test: Significant')
                     } else {
                         graphic = getChartGraphic('T-Test: Not Significant')

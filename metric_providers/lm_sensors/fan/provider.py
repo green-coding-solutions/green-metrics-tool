@@ -1,11 +1,11 @@
 #pylint: disable=import-error
 from metric_providers.lm_sensors.abstract_provider import LmSensorsProvider
 
-class LmSensorsFanProvider(LmSensorsProvider):
+class LmSensorsFanComponentProvider(LmSensorsProvider):
     def __init__(self, resolution):
-        self._provider_config_path = 'lm_sensors.fan.provider.LmSensorsFanProvider'
+        self._provider_config_path = 'lm_sensors.fan.provider.LmSensorsFanComponentProvider'
         super().__init__(
-            metric_name="lm_sensors_fan",
+            metric_name="lm_sensors_fan_component",
             resolution=resolution,
             unit="RPM",
         )

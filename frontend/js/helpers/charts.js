@@ -171,16 +171,14 @@ const getLineChartOptions = (title, legend, series, mark_area=null, x_axis='time
         },
         xAxis: {
             type: x_axis,
-            splitLine: {show: true}
+            splitLine: {show: true},
+            data: legend,
         },
         yAxis: {
             type: 'value',
             splitLine: {show: true}
         },
-        series: {
-            data:series,
-            markLine: { data: [ {type: "average",label: {formatter: "Mean:\n{c}"}}]}
-        },
+        series: series,
         animation: false,
         graphic: graphic,
         legend: {
@@ -496,8 +494,9 @@ const displayTotalCharts = (machine_energies, component_energies, phases) => {
         })
     }
 
-    console.log(component_energies);
+
     let option = getLineChartOptions('Total Phases consumption', phases, series, null, 'category', 'bar')
+    console.log(option);
 
     myChart.setOption(option);
         // set callback when ever the user changes the viewport

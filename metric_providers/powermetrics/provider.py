@@ -103,21 +103,21 @@ class PowermetricsProvider(BaseMetricProvider):
             if 'cpu_power' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['cpu_power']) * conversion_factor),
-                           'cores_energy_powermetrics_system',
+                           'cores_energy_powermetrics_component',
                            '[SYSTEM]',
                            'mJ'])
 
             if 'package_joules' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['package_joules']) * 1000),
-                           'cpu_energy_powermetrics_system',
+                           'cpu_energy_powermetrics_component',
                            '[SYSTEM]',
                            'mJ'])
 
             if 'gpu_power' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['gpu_power']) * conversion_factor),
-                            'gpu_energy_powermetrics_system',
+                            'gpu_energy_powermetrics_component',
                             '[SYSTEM]',
                             'mJ'])
 
@@ -131,7 +131,7 @@ class PowermetricsProvider(BaseMetricProvider):
             if 'ane_power' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['ane_power']) * conversion_factor),
-                            'ane_energy_powermetrics_system',
+                            'ane_energy_powermetrics_component',
                             '[SYSTEM]',
                             'mJ'])
 

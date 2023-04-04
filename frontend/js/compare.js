@@ -29,9 +29,6 @@ $(document).ready( (e) => {
 
         if (phase_stats_data == undefined) return;
 
-        document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>URI</strong></td><td><a href="${url_params.get('uri')}" target="_blank">${url_params.get('uri')}</a></td></tr>`)
-        document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Machine-ID</strong></td><td>${url_params.get('machine_id')}</td></tr>`)
-
         document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${phase_stats_data.comparison_type}</a></td></tr>`)
         document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_type}</strong></td><td>${phase_stats_data.comparison_details.join(' vs. ')}</a></td></tr>`)
 

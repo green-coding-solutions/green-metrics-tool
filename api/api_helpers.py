@@ -13,38 +13,38 @@ from db import DB
 
 
 METRIC_MAPPINGS = {
-    'ane_power_powermetrics_system': {
+    'ane_power_powermetrics_component': {
         'clean_name': 'ANE Power',
         'explanation': 'Apple Neural Engine',
         'color': 'orange',
         'icon': 'power off'
     },
-    'ane_energy_powermetrics_system': {
+    'ane_energy_powermetrics_component': {
         'clean_name': 'ANE Energy',
         'explanation': 'Apple Neural Engine',
         'color': 'blue',
         'icon': 'battery three quarters'
     },
-    'gpu_power_powermetrics_system': {
+    'gpu_power_powermetrics_component': {
         'clean_name': 'GPU Power',
         'explanation': 'Apple M1 GPU / Intel GPU',
         'color': 'orange',
         'icon': 'power off'
     },
-    'gpu_energy_powermetrics_system': {
+    'gpu_energy_powermetrics_component': {
         'clean_name': 'GPU Energy',
         'explanation': 'Apple M1 GPU / Intel GPU',
         'color': 'blue',
         'icon': 'battery three quarters'
     },
 
-    'cores_power_powermetrics_system': {
+    'cores_power_powermetrics_component': {
         'clean_name': 'CPU Power (Cores)',
         'explanation': 'Power of the cores only without GPU, ANE, GPU, DRAM etc.',
         'color': 'orange',
         'icon': 'power off'
     },
-    'cores_energy_powermetrics_system': {
+    'cores_energy_powermetrics_component': {
         'clean_name': 'CPU Energy (Cores)',
         'explanation': 'Energy of the cores only without GPU, ANE, GPU, DRAM etc.',
         'color': 'blue',
@@ -92,13 +92,13 @@ METRIC_MAPPINGS = {
         'color': 'olive',
         'icon': 'exchange alternate'
     },
-    'cpu_energy_rapl_msr_system': {
+    'cpu_energy_rapl_msr_component': {
         'clean_name': 'CPU Energy (Package)',
         'explanation': 'RAPL based CPU energy of package domain',
         'color': 'blue',
         'icon': 'batter three quarters'
     },
-    'cpu_power_rapl_msr_system': {
+    'cpu_power_rapl_msr_component': {
         'clean_name': 'CPU Power (Package)',
         'explanation': 'Derived RAPL based CPU energy of package domain',
         'color': 'orange',
@@ -110,13 +110,13 @@ METRIC_MAPPINGS = {
         'color': 'purple',
         'icon': 'power off'
     },
-    'memory_energy_rapl_msr_system': {
+    'memory_energy_rapl_msr_component': {
         'clean_name': 'Memory Energy (DRAM)',
         'explanation': 'RAPL based memory energy of DRAM domain',
         'color': 'blue',
         'icon': 'batter three quarters'
     },
-    'memory_power_rapl_msr_system': {
+    'memory_power_rapl_msr_component': {
         'clean_name': 'Memory Power (DRAM)',
         'explanation': 'Derived RAPL based memory energy of DRAM domain',
         'color': 'orange',
@@ -282,7 +282,7 @@ def getPhaseStatsObject(phase_stats, case):
                 // this really only makes sense for all the energy values, and then only for selected ones ...
                 // actually only really helpful if we have multiple metrics that report the same value
                 // this shall NOT be supported
-            ane_energy_powermetrics_system:
+            ane_energy_powermetrics_component:
                 clean_name:
                 icon:
                 ....
@@ -307,7 +307,7 @@ def getPhaseStatsObject(phase_stats, case):
                             p-value:
                                 // p-value for detailed-metric between repos / usage_scenarios etc.
                                 // p-value in case A and B non existent
-                            significant
+                            is_significant
 
                             data:
                                 // Case A: No T-Test necessary, as only repetition. STDDEV only important
@@ -336,7 +336,7 @@ def getPhaseStatsObject(phase_stats, case):
                                     stddev:
                                     ci:
                                     p_value: // Only case A for last key vs compare to the rest. one-sided t-test
-                                    significant: // Only case A .... one-sided t-test
+                                    is_significant: // Only case A .... one-sided t-test
                                     values: [] // 1 for stats.html. 1+ for cases
                                     max_values: []
                                 repo/usage_scenarios/machine/commit/:
@@ -344,7 +344,7 @@ def getPhaseStatsObject(phase_stats, case):
                                     ...
                         container_1: {...},
                         ...
-            ane_power_powermetrics_system: {...},
+            ane_power_powermetrics_component: {...},
             ...
     '''
 
@@ -383,14 +383,21 @@ def getPhaseStatsObject(phase_stats, case):
                 'detail_name': detail_name,
                 'color': METRIC_MAPPINGS[metric_name]['color'],
                 'icon': METRIC_MAPPINGS[metric_name]['icon'],
-                'system_energy': system_energy,
                 #'mean': None, # currently no use for that
                 #'stddev': None,  # currently no use for that
                 #'ci': None,  # currently no use for that
                 #'p_value': None,  # currently no use for that
-                #'significant': None,  # currently no use for that
+                #'is_significant': None,  # currently no use for that
                 'data': {},
             }
+            if metric_name == 'psu_power_ac_ipmi_machine' or metric_name == 'psu_power_ac_powerspy2_machine' :
+                phase_stats_object['data'][phase][metric_name]['is_machine_power'] = True
+            elif metric_name == 'psu_energy_ac_ipmi_machine' or metric_name == 'psu_energy_ac_powerspy2_machine' :
+                phase_stats_object['data'][phase][metric_name]['is_machine_energy'] = True
+            elif metric_name == 'network_io_cgroup_container':
+                phase_stats_object['data'][phase][metric_name]['is_network_io'] = True
+            elif '_energy_' in metric_name and metric_name.endswith('_component'):
+                phase_stats_object['data'][phase][metric_name]['is_component_energy'] = True
 
         if detail_name not in phase_stats_object['data'][phase][metric_name]['data']:
             phase_stats_object['data'][phase][metric_name]['data'][detail_name] = {
@@ -398,7 +405,7 @@ def getPhaseStatsObject(phase_stats, case):
                 'stddev': None,
                 'ci': None,
                 'p_value': None,
-                'significant': None,
+                'is_significant': None,
                 'data': {},
             }
 
@@ -418,7 +425,7 @@ def getPhaseStatsObject(phase_stats, case):
                 'stddev': None,
                 'ci': None,
                 'p_value': None, # only for the last key the list compare to the rest. one-sided t-test
-                'significant': None, # only for the last key the list compare to the rest. one-sided t-test
+                'is_significant': None, # only for the last key the list compare to the rest. one-sided t-test
                 'values': [],
                 'max_values': [],
 
@@ -433,16 +440,7 @@ def getPhaseStatsObject(phase_stats, case):
     # This could have also been done while constructing the object through checking when a change
     # in phase / detail_name etc. occurs. But we choose
 
-    if (metric_name == 'psu_power_ac_ipmi_system' and power == 0)\
-                or metric_name == 'psu_power_ac_powerspy2_system' :
-                system_power = value
-    elif (metric_name == 'psu_energy_ac_ipmi_system' and energy == 0)\
-                or metric_name == 'psu_energy_ac_powerspy2_system' :
-                system_energy = value
-    elif metric_name == 'network_io_cgroup_container':
-        phase.network_io += value
-    elif '_energy_' in metric_name and metric_name.endswith('_component'):
-    elif '_energy_' in metric_name and metric_name.endswith('_machine'):
+
 
     for phase, phase_data in phase_stats_object['data'].items():
         for metric_name, metric in phase_data.items():
@@ -464,9 +462,9 @@ def getPhaseStatsObject(phase_stats, case):
                             if not np.isnan(p_value):
                                 data['p_value'] = p_value
                                 if data['p_value'] > 0.05:
-                                    data['significant'] = False
+                                    data['is_significant'] = False
                                 else:
-                                    data['significant'] = True
+                                    data['is_significant'] = True
 
                         # TODO: data['max'] = np.max(data['max_values'])
                         # TODO: One-sided t-test for the last value
@@ -479,9 +477,9 @@ def getPhaseStatsObject(phase_stats, case):
                     if not np.isnan(p_value):
                         detail['p_value'] = p_value
                         if detail['p_value'] > 0.05:
-                            detail['significant'] = False
+                            detail['is_significant'] = False
                         else:
-                            detail['significant'] = True
+                            detail['is_significant'] = True
             # metric loop level
             # here we have t-tests between the different metrics between the two compare keys
             # does that make sense though? what would be the average over all details if there are more than one?

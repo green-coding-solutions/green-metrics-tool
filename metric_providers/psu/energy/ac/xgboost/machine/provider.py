@@ -12,10 +12,10 @@ import model.xgb as mlmodel
 from global_config import GlobalConfig
 from metric_providers.base import BaseMetricProvider
 
-class PsuEnergyAcXgboostSystemProvider(BaseMetricProvider):
+class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
     def __init__(self, resolution):
         super().__init__(
-            metric_name="psu_energy_ac_xgboost_system",
+            metric_name="psu_energy_ac_xgboost_machine",
             metrics={"time": int, "value": int},
             resolution=resolution,
             unit="mJ",
@@ -35,7 +35,7 @@ class PsuEnergyAcXgboostSystemProvider(BaseMetricProvider):
         if not os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'):
             raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log file. \
                 Did you activate the CpuUtilizationProcfsSystemProvider in the config.yml too? \
-                This is required to run PsuEnergyAcXgboostSystemProvider')
+                This is required to run PsuEnergyAcXgboostMachineProvider')
 
         with open('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log', 'r', encoding='utf-8') as file:
             csv_data = file.read()
@@ -49,30 +49,30 @@ class PsuEnergyAcXgboostSystemProvider(BaseMetricProvider):
                               dtype={'time': int, 'value': int}
                               )
 
-        df['detail_name'] = '[SYSTEM]'  # standard container name when only system was measured
+        df['detail_name'] = '[SYSTEM]'  # standard container name when no further granularity was measured
         df['metric'] = self._metric_name
         df['project_id'] = project_id
 
         Z = df.loc[:, ['value']]
 
         provider_config = GlobalConfig().config['measurement']['metric-providers']['common']\
-        ['psu.energy.ac.xgboost.system.provider.PsuEnergyAcXgboostSystemProvider']
+        ['psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider']
 
         if 'HW_CPUFreq' not in provider_config:
             raise RuntimeError(
-                'Please set the HW_CPUFreq config option for PsuEnergyAcXgboostSystemProvider in the config.yml')
+                'Please set the HW_CPUFreq config option for PsuEnergyAcXgboostMachineProvider in the config.yml')
         if 'CPUChips' not in provider_config:
             raise RuntimeError(
-                'Please set the CPUChips config option for PsuEnergyAcXgboostSystemProvider in the config.yml')
+                'Please set the CPUChips config option for PsuEnergyAcXgboostMachineProvider in the config.yml')
         if 'CPUThreads' not in provider_config:
             raise RuntimeError(
-                'Please set the CPUThreads config option for PsuEnergyAcXgboostSystemProvider in the config.yml')
+                'Please set the CPUThreads config option for PsuEnergyAcXgboostMachineProvider in the config.yml')
         if 'TDP' not in provider_config:
             raise RuntimeError('Please set the TDP config option for \
-                PsuEnergyAcXgboostSystemProvider in the config.yml')
+                PsuEnergyAcXgboostMachineProvider in the config.yml')
         if 'HW_MemAmountGB' not in provider_config:
             raise RuntimeError(
-                'Please set the HW_MemAmountGB config option for PsuEnergyAcXgboostSystemProvider in the config.yml')
+                'Please set the HW_MemAmountGB config option for PsuEnergyAcXgboostMachineProvider in the config.yml')
 
         Z['HW_CPUFreq'] = provider_config['HW_CPUFreq']
         Z['CPUThreads'] = provider_config['CPUThreads']

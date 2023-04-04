@@ -12,10 +12,10 @@ sys.path.append(CURRENT_DIR)
 from global_config import GlobalConfig
 from metric_providers.base import BaseMetricProvider
 
-class PsuEnergyAcSdiaSystemProvider(BaseMetricProvider):
+class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
     def __init__(self, resolution):
         super().__init__(
-            metric_name="psu_energy_ac_sdia_system",
+            metric_name="psu_energy_ac_sdia_machine",
             metrics={"time": int, "value": int},
             resolution=resolution,
             unit="mJ",
@@ -35,7 +35,7 @@ class PsuEnergyAcSdiaSystemProvider(BaseMetricProvider):
         if not os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'):
             raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log file.\
                 Did you activate the CpuUtilizationProcfsSystemProvider in the config.yml too? \
-                This is required to run PsuEnergyAcSdiaSystemProvider')
+                This is required to run PsuEnergyAcSdiaMachineProvider')
 
         with open('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log', 'r', encoding='utf-8') as file:
             csv_data = file.read()
@@ -49,7 +49,7 @@ class PsuEnergyAcSdiaSystemProvider(BaseMetricProvider):
                              dtype={'time': int, 'value': int}
                              )
 
-        df['detail_name'] = '[SYSTEM]'  # standard container name when only system was measured
+        df['detail_name'] = '[SYSTEM]'  # standard container name when no further granularity was measured
         df['metric'] = self._metric_name
         df['project_id'] = project_id
 
@@ -57,13 +57,13 @@ class PsuEnergyAcSdiaSystemProvider(BaseMetricProvider):
 
         provider_config = GlobalConfig(
         ).config['measurement']['metric-providers']['common']\
-        ['psu.energy.ac.sdia.system.provider.PsuEnergyAcSdiaSystemProvider']
+        ['psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaSMachineProvider']
 
         if 'CPUChips' not in provider_config:
             raise RuntimeError(
-                'Please set the CPUChips config option for PsuEnergyAcSdiaSystemProvider in the config.yml')
+                'Please set the CPUChips config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
         if 'TDP' not in provider_config:
-            raise RuntimeError('Please set the TDP config option for PsuEnergyAcSdiaSystemProvider in the config.yml')
+            raise RuntimeError('Please set the TDP config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
 
         # since the CPU-Utilization is a ratio, we technically have to divide by 10,000 to get a 0...1 range.
         # And then again at the end multiply with 1000 to get mW. We take the

@@ -20,4 +20,4 @@ to set up the streaming channel for this resolution.
 This metric provider has high overhead when used as it draws significant energy
 through the USB port.
 
-Please check [the documentation](https://docs.green-coding.org/docs/measuring/metric-providers/psu-energy-dc-system/) for details.
+Please check [the documentation](https://docs.green-coding.org/docs/measuring/metric-providers/psu-energy-dc-machine/) for details.
