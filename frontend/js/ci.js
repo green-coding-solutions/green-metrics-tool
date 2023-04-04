@@ -141,7 +141,7 @@ $(document).ready( (e) => {
         }
 
         try {
-            api_string=`/v1/ci/measurements/?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`;
+            api_string=`/v1/ci/measurements?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`;
             var badges_data = await makeAPICall(api_string);
         } catch (err) {
             showNotification('Could not get data from API', err);
