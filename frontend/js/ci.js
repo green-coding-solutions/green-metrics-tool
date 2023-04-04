@@ -80,7 +80,7 @@ const getEChartsOptions = () => {
 const displayGraph = (runs) => {
     const element = createChartContainer("#chart-container", "run-energy");
     var options = getEChartsOptions();
-    options.title.text = `Workflow energy cost per run`;
+    options.title.text = `Workflow energy cost per run [Joules]`;
 
     var run_ids = runs.map(function(value,index) { return value[2]; });
     var values = runs.map(function(value,index) { return value[0]; });
