@@ -394,12 +394,12 @@ def getPhaseStatsObject(phase_stats, case):
 
         if detail_name not in phase_stats_object['data'][phase][metric_name]['data']:
             phase_stats_object['data'][phase][metric_name]['data'][detail_name] = {
-                'mean': None,
+                'mean': None, # this is the mean over all comparison keys and their repetitions
                 'stddev': None,
                 'ci': None,
                 'p_value': None,
                 'significant': None,
-                'data': {}
+                'data': {},
             }
 
         if case == 'Repositories':
@@ -414,7 +414,7 @@ def getPhaseStatsObject(phase_stats, case):
         if key not in phase_stats_object['data'][phase][metric_name]['data'][detail_name]['data']:
             phase_stats_object['comparison_details'].add(key)
             phase_stats_object['data'][phase][metric_name]['data'][detail_name]['data'][key] = {
-                'mean': None,
+                'mean': None, # this is the mean over the repetitions of the comparison key
                 'stddev': None,
                 'ci': None,
                 'p_value': None, # only for the last key the list compare to the rest. one-sided t-test
@@ -432,6 +432,17 @@ def getPhaseStatsObject(phase_stats, case):
     # now we need to traverse the object again and calculate all the averages we need
     # This could have also been done while constructing the object through checking when a change
     # in phase / detail_name etc. occurs. But we choose
+
+    if (metric_name == 'psu_power_ac_ipmi_system' and power == 0)\
+                or metric_name == 'psu_power_ac_powerspy2_system' :
+                system_power = value
+    elif (metric_name == 'psu_energy_ac_ipmi_system' and energy == 0)\
+                or metric_name == 'psu_energy_ac_powerspy2_system' :
+                system_energy = value
+    elif metric_name == 'network_io_cgroup_container':
+        phase.network_io += value
+    elif '_energy_' in metric_name and metric_name.endswith('_component'):
+    elif '_energy_' in metric_name and metric_name.endswith('_machine'):
 
     for phase, phase_data in phase_stats_object['data'].items():
         for metric_name, metric in phase_data.items():

@@ -156,7 +156,10 @@ const displayTimelineCharts = (metrics, notes) => {
                 symbol: 'none',
                 areaStyle: {},
                 data: metrics[metric_name].series[detail_name].data,
-                markLine: { data: [ {type: "average",label: {formatter: "AVG_ii:\n{c}"}}]}
+                markLine: {
+                    precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
+                    data: [ {type: "average",label: {formatter: "AVG_ii:\n{c}"}}]
+                }
             });
         }
         // now we add all notes to every chart

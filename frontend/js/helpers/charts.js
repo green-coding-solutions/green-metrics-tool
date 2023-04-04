@@ -1,5 +1,168 @@
-const getLineChartOptions = (title, legend, series, type='time', graphic=null) => {
-    return {
+const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='time', chart_type='line', graphic=null) => {
+    if (series.length > 1) {
+       let max = Math.max(...series[0],...series[1])*1.2
+       let options =  {
+            tooltip: {
+                trigger: 'axis'
+            },
+            title: {
+                text:title
+            },
+            xAxis: [
+                {
+                    gridIndex: 0,
+                    type: x_axis,
+                },
+                {
+                    gridIndex: 1,
+                    type: x_axis,
+                }
+              ],
+            yAxis: [
+                {
+                  gridIndex: 0,
+                  splitLine: {show: true},
+                  max: max
+                },
+                {
+                  gridIndex: 1,
+                  splitLine: {show: true},
+                  max: max
+                },
+            ],
+            areaStyle: {},
+            grid: [
+                {
+                  left: '60%',
+                  type: 'value',
+                  splitLine: {show: true}
+                },
+                {
+                  right: '60%',
+                  type: 'value',
+                  splitLine: {show: true}
+                }
+            ],
+            series: [
+                {
+                    type: chart_type,
+                    data: series[0],
+                    xAxisIndex: 0,
+                    yAxisIndex:0,
+                    markLine: {
+                        precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
+                        data: [ {type: "average",label: {formatter: "Mean:\n{c}"}}]
+                    }
+
+                },
+                {
+                    type: chart_type,
+                    data: series[1],
+                    xAxisIndex: 1,
+                    yAxisIndex:1,
+                    markLine: {
+                        precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
+                        data: [ {type: "average",label: {formatter: "Mean:\n{c}"}}]
+                    }
+                }
+            ],
+            animation: false,
+            graphic: graphic,
+            legend: [
+              {
+                  data: legend[0],
+                  bottom: 0,
+              },
+              {
+                  data: legend[0],
+                  bottom: 0,
+              }
+            ],
+            toolbox: {
+                itemSize: 25,
+                top: 55,
+                feature: {
+                    dataZoom: {
+                        yAxisIndex: 'none'
+                    },
+                    restore: {}
+                }
+            },
+        };
+        if (mark_area != null) {
+            options['series'][0]['markArea'] = {
+                data: [
+                    [
+                        { name: mark_area[0].name, yAxis: mark_area[0].top }, // a name in one item is apprently enough ...
+                        { yAxis: mark_area[0].bottom }
+                    ]
+                ]
+            };
+            options['series'][1]['markArea'] = {
+                data: [
+                    [
+                        { name: mark_area[1].name, yAxis: mark_area[1].top }, // a name in one item is apprently enough ...
+                        { yAxis: mark_area[1].bottom }
+                    ]
+                ]
+            };
+        }
+        return options;
+    } else {
+       let max = Math.max(...series[0],...series[1])*1.2
+       let options =  {
+            tooltip: {
+                trigger: 'axis'
+            },
+            title: {
+                text:title
+            },
+            xAxis: {
+                type: x_axis,
+                splitLine: {show: true}
+            },
+            yAxis: {
+                type: 'value',
+                splitLine: {show: true}
+            },
+            series: {
+                data:series,
+                markLine: { data: [ {type: "average",label: {formatter: "Mean:\n{c}"}}]}
+            },
+            animation: false,
+            graphic: graphic,
+            legend: {
+                data: legend,
+                bottom: 0,
+                // type: 'scroll' // maybe active this if legends gets too long
+            },
+            toolbox: {
+                itemSize: 25,
+                top: 55,
+                feature: {
+                    dataZoom: {
+                        yAxisIndex: 'none'
+                    },
+                    restore: {}
+                }
+            },
+        };
+        if (mark_area != null) {
+            options['series'][0]['markArea'] = {
+                data: [
+                    [
+                        { name: mark_area[0].name, yAxis: mark_area[0].top }, // a name in one item is apprently enough ...
+                        { yAxis: mark_area[0].bottom }
+                    ]
+                ]
+            }
+        }
+        return options;
+    }
+}
+
+const getLineChartOptions = (title, legend, series, mark_area=null, x_axis='time', chart_type='line', graphic=null) => {
+   let options =  {
         tooltip: {
             trigger: 'axis'
         },
@@ -7,14 +170,17 @@ const getLineChartOptions = (title, legend, series, type='time', graphic=null) =
             text:title
         },
         xAxis: {
-            type: type,
+            type: x_axis,
             splitLine: {show: true}
         },
         yAxis: {
             type: 'value',
             splitLine: {show: true}
         },
-        series: series,
+        series: {
+            data:series,
+            markLine: { data: [ {type: "average",label: {formatter: "Mean:\n{c}"}}]}
+        },
         animation: false,
         graphic: graphic,
         legend: {
@@ -32,8 +198,18 @@ const getLineChartOptions = (title, legend, series, type='time', graphic=null) =
                 restore: {}
             }
         },
-
     };
+    if (mark_area != null) {
+        options['series']['markArea'] = {
+            data: [
+                [
+                    { name: mark_area[0].name, yAxis: mark_area[0].top }, // a name in one item is apprently enough ...
+                    { yAxis: mark_area[0].bottom }
+                ]
+            ]
+        }
+    }
+    return options;
 }
 
 const getPieChartOptions = (title, data) => {
@@ -64,31 +240,52 @@ const getPieChartOptions = (title, data) => {
     };
 }
 
-const getBarChartOptions = (title, legend, series, dataset = null) => {
-    return {
-      tooltip: {
-          trigger: 'item',
-          formatter: function (params) {
-              return `${params.seriesName}: ${params.data[params.componentIndex+1]}`;
+const getChartGraphic = (text) => {
+    return graphic = {
+        type: 'group',
+        top: 10,
+        left: 'right',
+        draggable: true,
+        children: [
+          {
+            type: 'rect',
+            top: 'center',
+            left: 'center',
+            z: 100,
+            shape: {
+              height: 20,
+              width: 150,
+
+            },
+            style: {
+                fill: 'white',
+                stroke: '#999',
+                lineWidth: 2,
+                shadowBlur: 8,
+                shadowOffsetX: 3,
+                shadowOffsetY: 3,
+                shadowColor: 'rgba(0,0,0,0.3)',
+
+              },
+          },
+          {
+            type: 'text',
+            top: 'center',
+            left: 'center',
+            z: 101,
+            style: {
+                  text: text,
+                  fontSize: 14,
+                  fontWeight: 'bold',
+                  lineDash: [0, 200],
+                  lineDashOffset: 0,
+                  fill: 'black',
+                  stroke: '#000',
+                  lineWidth: 1
             }
-      },
-      title: {
-          left: 'center',
-          text: title
-      },
-      legend: {
-          top: "bottom",
-      },
-      dataset: dataset,
-      yAxis: {
-          type: 'value'
-      },
-      xAxis: {
-          type: 'category',
-          data: legend,
-      },
-      series: series
-  };
+          }
+        ]
+      }
 }
 
 function moveRight(e) {
@@ -182,7 +379,7 @@ const createChartContainer = (container, el) => {
     return chart_node.querySelector('.statistics-chart');
 }
 
-const displayKeyMetricsRadarChart = (total_chart_labels, total_chart_data, phase) => {
+const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
     var chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart`);
     var myChart = echarts.init(chartDom);
     var option;
@@ -194,25 +391,30 @@ const displayKeyMetricsRadarChart = (total_chart_labels, total_chart_data, phase
         text: 'Component distribution'
       },
       legend: {
-        data: ['Allocated Budget', 'Actual Spending']
+        data: legend,
+        bottom: 0
       },
       radar: {
         shape: 'circle',
-        indicator: Array.from(total_chart_labels)
+        indicator: labels
       },
       series: [
         {
           name: 'Budget vs spending',
           type: 'radar',
           areaStyle: {},
-          data: total_chart_data
+          data: data
         }
       ]
     };
 
     option && myChart.setOption(option);
 
-    return myChart;
+    // set callback when ever the user changes the viewport
+    // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks
+    $(window).on('resize', () =>  {
+        myChart.resize();
+    });
 }
 
 /*
@@ -223,7 +425,12 @@ const displayKeyMetricsPieChart = () => {
     var myChart = echarts.init(chartDom);
     var option = getPieChartOptions('Energy distribution of measured metrics', data);
     myChart.setOption(option);
-    return displayKeyMetricsPieChart;
+
+    // set callback when ever the user changes the viewport
+    // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks
+    $(window).on('resize', () =>  {
+        myChart.resize();
+    });
 }
 
 
@@ -250,136 +457,71 @@ const displayKeyMetricsEmbodiedCarbonChart = (phase) => {
               data: ['N/A']
           }
       ];
-    var option = getBarChartOptions('Embodied carbon vs. Usage Phase', ['Phases'], series);
+    var option = getLineChartOptions('Embodied carbon vs. Usage Phase', ['Phases'], series);
     myChart.setOption(option);
 
-    return myChart;
-}
-
-const displayTotalCharts = (phase_stats_object) => {
-
-    let total_embodied_carbon = 0;
-    let total_usage_phase = 0
-    let dataset_total_phase_consumption = {source: []}
-    let series_total_phase_consumption = []
-
-    const metric_set = new Set();
-
-    for (phase in phase_stats_object) {
-        // total_usage_phase += phase_stats_object[phase].totals.energy;
-        let phase_consumption_entry = [phase];
-        for (metric_name in phase_stats_object[phase].metrics) {
-            for (detail_name in phase_stats_object[phase].metrics[metric_name]) {
-                phase_stats_object[phase].metrics[metric_name][detail_name].forEach((metric) => {
-                    if (metric.include_chart == true) {
-                        metric_set.add(metric.clean_name)
-                        phase_consumption_entry.push(metric.value)
-                    }
-                });
-            }
-        }
-        dataset_total_phase_consumption.source.push(phase_consumption_entry)
-    }
-
-   // after phase charts render total charts
-    var chartDom = document.querySelector(`#total-phases-data .embodied-chart`);
-    var myChart = echarts.init(chartDom);
-    var series = [
-              {
-                  name: 'Embodied carbon',
-                  type: 'bar',
-                  emphasis: {
-                      focus: 'series'
-                  },
-                  data: ['N/A']
-              },
-              {
-                  name: 'Usage Phase',
-                  type: 'bar',
-                  stack: 'total',
-                  emphasis: {
-                      focus: 'series'
-                  },
-                  data: [total_usage_phase]
-              }
-          ];
-
-    var option = getBarChartOptions('Embodied carbon Total vs. Usage Phase', ['Phases'], series);
-    myChart.setOption(option);
-
-
-    // after phase charts render total charts
-    var chartDom = document.querySelector(`#total-phases-data .phases-chart`);
-    var myChart = echarts.init(chartDom);
-    var series = []
-    metric_set.forEach((name) => {
-        series.push(
-            { type: 'bar', seriesLayoutBy: 'column',  name:name, emphasis: {focus: "series"}}
-          )
+    // set callback when ever the user changes the viewport
+    // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks
+    $(window).on('resize', () =>  {
+        myChart.resize();
     });
 
-    var option = getBarChartOptions('Total Phases consumption', null, series, dataset_total_phase_consumption);
+}
+
+const displayTotalCharts = (machine_energies, component_energies, phases) => {
+
+    var chartDom = document.querySelector(`#total-phases-data .phases-chart`);
+    var myChart = echarts.init(chartDom);
+
+    let series = [];
+    for (metric in component_energies) {
+        series.push({
+            name: metric,
+              type: 'bar',
+              stack: 'component',
+              emphasis: {
+                focus: 'series'
+              },
+              data: component_energies[metric]
+        })
+    }
+    for (metric in machine_energies) {
+        series.push({
+            name: metric,
+              type: 'bar',
+              emphasis: {
+                focus: 'series'
+              },
+              data: machine_energies[metric]
+        })
+    }
+
+    console.log(component_energies);
+    let option = getLineChartOptions('Total Phases consumption', phases, series, null, 'category', 'bar')
+
     myChart.setOption(option);
+        // set callback when ever the user changes the viewport
+    // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks
+    $(window).on('resize', () =>  {
+        myChart.resize();
+    });
+
 
 }
 
 
-const displayCompareChart = (title, legend, series, graphic, phase) => {
+const displayCompareChart = (title, legend, series, mark_area, graphic, phase) => {
 
     const element = createChartContainer(`.ui.tab[data-tab='${phase}'] .compare-chart-container`, "");
-    const chart_instance = echarts.init(element);
-    let options = getLineChartOptions(title, legend, series, 'category', graphic);
-    chart_instance.setOption(options);
-    document.querySelector(`.ui.tab[data-tab='${phase}'] .api-loader`)?.remove();
+    const myChart = echarts.init(element);
+    let options = getLineChartOptions(title, Array.from(legend), series, mark_area, 'category', 'bar', graphic);
+    myChart.setOption(options);
 
-    return chart_instance;
+        // set callback when ever the user changes the viewport
+    // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks
+    $(window).on('resize', () =>  {
+        myChart.resize();
+    });
 
 }
 
-const getChartGraphic = (text) => {
-    return graphic = {
-        type: 'group',
-        top: 10,
-        left: 'right',
-        draggable: true,
-        children: [
-          {
-            type: 'rect',
-            top: 'center',
-            left: 'center',
-            z: 100,
-            shape: {
-              height: 20,
-              width: 150,
-
-            },
-            style: {
-                fill: 'white',
-                stroke: '#999',
-                lineWidth: 2,
-                shadowBlur: 8,
-                shadowOffsetX: 3,
-                shadowOffsetY: 3,
-                shadowColor: 'rgba(0,0,0,0.3)',
-
-              },
-          },
-          {
-            type: 'text',
-            top: 'center',
-            left: 'center',
-            z: 101,
-            style: {
-                  text: text,
-                  fontSize: 14,
-                  fontWeight: 'bold',
-                  lineDash: [0, 200],
-                  lineDashOffset: 0,
-                  fill: 'black',
-                  stroke: '#000',
-                  lineWidth: 1
-            }
-          }
-        ]
-      }
-}

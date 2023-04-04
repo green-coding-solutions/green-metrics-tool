@@ -2,7 +2,7 @@
     WebComponent function without ShadowDOM
     to expand the template in the HTML pages
 */
-class MetricBoxes extends HTMLElement {
+class PhaseMetrics extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
         <div class="ui three cards stackable no-transform-statistics">
@@ -111,12 +111,14 @@ class MetricBoxes extends HTMLElement {
                 <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
                 <h3 class="ui dividing header">extra metrics</h3>
                 <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
+                <h3 class="ui dividing header">Detailed Charts</h3>
+                <div class="compare-chart-container"></div>
             </div>
         </div>`;
     }
 }
 
-customElements.define('metric-boxes', MetricBoxes);
+customElements.define('phase-metrics', PhaseMetrics);
 
 /*
     This function behaves differentrly if it gets passed an element of detail metrics or a list of.
@@ -163,7 +165,7 @@ const displayDetailMetricBox = (metric, metric_data, compare_key, phase, compari
     document.querySelector(`div.tab[data-tab='${phase}'] ${location}`).appendChild(node)
 }
 /*
-        if(comparison_type != null && comparison_type != 'Repeated Runs') {
+        if(comparison_type != null && comparison_type != 'repetition_comparison') {
             document.querySelector(`div.tab[data-tab='${phase}'] ${location}`).insertAdjacentHTML('beforeend', '<div class="break"></div>')
         }
 */

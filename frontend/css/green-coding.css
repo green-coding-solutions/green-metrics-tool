@@ -191,11 +191,25 @@ a,
 
 
 .radar-chart, .bar-chart, .pie-chart, .embodied-chart, .phases-chart {
-    width: 500px;
+    min-width: 300px;
     height: 300px;
     display: block;
     margin:auto;
 }
+
+.radar-chart, .pie-chart, .embodied-chart {
+    width: 45%;
+}
+
+.bar-chart, .phases-chart {
+    width: 100%;
+    min-width: 300px;
+    height: 300px;
+    display: block;
+    margin:auto;
+}
+
+
 
 .compare-chart-container, .key-metrics-chart-container {
     display: flex;

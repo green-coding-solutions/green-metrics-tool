@@ -24,9 +24,14 @@ const createPhaseTab = (phase) => {
 */
 const displayComparisonMetrics = (phase_stats_object, comparison_type) => {
 
-    let chart_instances = []
+    const metric_set = new Set();
+    const phases = []
+    let component_energies = {}
+    let machine_energies = {}
+
     for (phase in phase_stats_object) {
-        let phase_chart_labels = new Set();
+        let radar_chart_labels = new Set();
+        let radar_chart_legend = new Set();
         let phase_chart_data =
             [
                 {
@@ -38,12 +43,21 @@ const displayComparisonMetrics = (phase_stats_object, comparison_type) => {
                   name: null
                 }
           ];
-
-
+        phases.push(phase);
         createPhaseTab(phase);
         for (metric_key in phase_stats_object[phase]) {
+            if (phase_stats_object[phase][metric_key].is_component_energy == true) {
+                if (component_energies[metric_key] == undefined)  component_energies[metric_key] = [];
+                component_energies[metric_key].push(phase_stats_object[phase][metric_key].mean)
+            }
+            else if (phase_stats_object[phase][metric_key].is_machine_energy == true) {
+                if (machine_energies[metric_key] == undefined)  machine_energies[metric_key] = [];
+                machine_energies[metric_key].push(phase_stats_object[phase][metric_key].mean)
+            }
+
             for (detail_key in phase_stats_object[phase][metric_key].data) {
                 let detail_chart_data = [];
+                let detail_chart_mark = [];
 
                 if (detail_key == '[SYSTEM]') {
                     var label_name = `${phase_stats_object[phase][metric_key].clean_name} [${phase_stats_object[phase][metric_key].unit}]`
@@ -53,6 +67,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_type) => {
 
                 let idx = 0;
                 for (compare_key in phase_stats_object[phase][metric_key].data[detail_key].data) {
+                    radar_chart_legend.add(compare_key)
                     displayDetailMetricBox(
                         phase_stats_object[phase][metric_key],
                         phase_stats_object[phase][metric_key].data[detail_key].data[compare_key],
@@ -61,29 +76,16 @@ const displayComparisonMetrics = (phase_stats_object, comparison_type) => {
                         comparison_type
                     );
                     // since we use a set, values will be unique
-                    phase_chart_data[idx].value.push(phase_stats_object[phase][metric_key].data[detail_key].data[compare_key].mean);
-                    phase_chart_data[idx].name = compare_key;
                     let mean = phase_stats_object[phase][metric_key].data[detail_key].data[compare_key].mean;
                     let ci = phase_stats_object[phase][metric_key].data[detail_key].data[compare_key].ci;
-                    detail_chart_data.push(
-                        {
-                            type: 'bar',
-                            smooth: true,
-                            symbol: 'none',
-                            areaStyle: {},
-                            data: phase_stats_object[phase][metric_key].data[detail_key].data[compare_key].values,
-                            markArea: { data: [
-                                [
-                                    { name: 'Confidence Interval', yAxis: mean-ci }, // a name in one item is apprently enough ...
-                                    { yAxis: mean+ci }
-                                ]
-                            ]},
-                        }
-                    )
+
+                    phase_chart_data[idx].value.push(mean);
+                    phase_chart_data[idx].name = compare_key;
+                    detail_chart_data.push(phase_stats_object[phase][metric_key].data[detail_key].data[compare_key].values)
+                    detail_chart_mark.push({name:'Confidence Interval', bottom: mean-ci, top: mean+ci})
                     idx++;
                 }
                 let graphic = null;
-                console.log(phase_stats_object[phase][metric_key].data[detail_key]);
                 if(phase_stats_object[phase][metric_key].data[detail_key].significant != null) {
                     if(phase_stats_object[phase][metric_key].data[detail_key].significant) {
                         graphic = getChartGraphic('T-Test: Significant')
@@ -91,30 +93,32 @@ const displayComparisonMetrics = (phase_stats_object, comparison_type) => {
                         graphic = getChartGraphic('T-Test: Not Significant')
                     }
                 }
-                phase_chart_labels.add({'name': label_name});
+                radar_chart_labels.add({'name': label_name});
+
                 var chart = displayCompareChart(
                     label_name,
-                    phase_chart_labels,
+                    Array.from(radar_chart_legend),
                     detail_chart_data,
+                    detail_chart_mark,
                     graphic,
                     phase
                 );
-                chart_instances.push(chart);
-
             }
         }
         // phase ended. Render out the chart
 
-        var chart = displayKeyMetricsRadarChart(phase_chart_labels, phase_chart_data, phase);
-        chart_instances.push(chart);
-        var chart = displayKeyMetricsEmbodiedCarbonChart(phase);
-        chart_instances.push(chart);
+        displayKeyMetricsRadarChart(
+            Array.from(radar_chart_legend),
+            Array.from(radar_chart_labels),
+            phase_chart_data,
+            phase
+        );
+
+        displayKeyMetricsEmbodiedCarbonChart(phase);
 
     }
 
-
-
-    // displayTotalCharts(phase_stats_object);
+    displayTotalCharts(machine_energies, component_energies, phases);
 
 
     /* TODO
@@ -126,14 +130,6 @@ const displayComparisonMetrics = (phase_stats_object, comparison_type) => {
             phase
         );
         */
-
-    window.onresize = function() { // set callback when ever the user changes the viewport
-        chart_instances.forEach(chart_instance => {
-            chart_instance.resize();
-        })
-    }
-
-
 
     /*
         Display all boxes and charts
