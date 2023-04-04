@@ -42,7 +42,7 @@ runs:
       working-directory: ${{ inputs.gmt-directory }}
       run: |
         ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n
-        ./disable-metric-providers.sh ${{ inputs.metrics-to-turn-off }}
+        python3 disable_metric_providers.py ${{ inputs.metrics-to-turn-off }}
         cd test && python3 setup-test-env.py --no-docker-build
 
     - name: Set up Docker Buildx

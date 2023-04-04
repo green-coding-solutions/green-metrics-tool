@@ -81,7 +81,7 @@ CREATE TABLE notes (
     created_at timestamp with time zone DEFAULT now()
 );
 
-CREATE TABLE badges (
+CREATE TABLE ci_measurements (
     id SERIAL PRIMARY KEY,
     value bigint,
     unit text,
@@ -89,6 +89,8 @@ CREATE TABLE badges (
     branch text,
     workflow text,
     run_id text,
+    label text,
+    source text,
     project_id uuid REFERENCES projects(id) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT null,
     created_at timestamp with time zone DEFAULT now()
 );
