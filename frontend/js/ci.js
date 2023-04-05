@@ -80,7 +80,7 @@ const getEChartsOptions = () => {
 const displayGraph = (runs) => {
     const element = createChartContainer("#chart-container", "run-energy");
     var options = getEChartsOptions();
-    options.title.text = `Workflow energy cost per run`;
+    options.title.text = `Workflow energy cost per run [Joules]`;
 
     var run_ids = runs.map(function(value,index) { return value[2]; });
     var values = runs.map(function(value,index) { return value[0]; });
@@ -132,7 +132,7 @@ $(document).ready( (e) => {
         try {
             const link_node = document.createElement("a")
             const img_node = document.createElement("img")
-            img_node.src = `${API_URL}/v1/ci/badge/get/?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`
+            img_node.src = `${API_URL}/v1/ci/badge/get?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`
             link_node.appendChild(img_node)
             document.querySelector("span.energy-badge-container").appendChild(link_node)
             document.querySelector(".copy-badge").addEventListener('click', copyToClipboard)
@@ -141,7 +141,7 @@ $(document).ready( (e) => {
         }
 
         try {
-            api_string=`/v1/ci/badges/?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`;
+            api_string=`/v1/ci/measurements?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`;
             var badges_data = await makeAPICall(api_string);
         } catch (err) {
             showNotification('Could not get data from API', err);

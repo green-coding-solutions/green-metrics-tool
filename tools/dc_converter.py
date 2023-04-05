@@ -3,11 +3,11 @@
 import sys
 import argparse
 from io import StringIO
-import psycopg2
+import psycopg
 import pandas as pd
 
 def main(args):
-    conn = psycopg2.connect(f"host={args.db_host} user=postgres dbname=green-coding password={args.db_pw}")
+    conn = psycopg.connect(f"host={args.db_host} user=postgres dbname=green-coding password={args.db_pw}")
 
     df = pd.read_csv(args.filename)
 

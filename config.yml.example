@@ -36,7 +36,7 @@ measurement:
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
         resolution: 100
       cpu.frequency.sysfs.core.provider.CpuFrequencySysfsCoreProvider:
-          resolution: 100
+        resolution: 100
     #--- CGroupV2 - Turn these on if you have CGroupsV2 working on your machine
       cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
         resolution: 100
@@ -61,7 +61,7 @@ measurement:
     #--- Sensors
 #      lm_sensors.temperature.provider.LmSensorsTempProvider:
 #        resolution: 100
-      #-- Please change these values according to the names in '$ sensors'
+      # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000', 'coretemp-isa-0000']
 #        features: ['CPU', 'Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
 #      lm_sensors.fan.provider.LmSensorsFanProvider:
