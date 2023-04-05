@@ -21,7 +21,7 @@ from db import DB
 import jobs
 import email_helpers
 import error_helpers
-import psycopg2.extras
+import psycopg
 import anybadge
 from api_helpers import rescale_energy_value, is_valid_uuid, convertValue, determineComparisonCase, getPhaseStats, getPhaseStatsObject
 
@@ -288,7 +288,7 @@ async def post_project_add(project: Project):
         RETURNING id
         """
     params = (project.url, project.name, project.email, project.branch)
-    project_id = DB().fetch_one(query, params=params)
+    project_id = DB().fetch_one(query, params=params)[0]
     # This order as selected on purpose. If the admin mail fails, we currently do
     # not want the job to be queued, as we want to monitor every project execution manually
     email_helpers.send_admin_email(
@@ -313,7 +313,7 @@ async def get_project(project_id: str):
             WHERE id = %s
             """
     params = (project_id,)
-    data = DB().fetch_one(query, params=params, cursor_factory=psycopg2.extras.RealDictCursor)
+    data = DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
     return {'success': True, 'data': data}
@@ -393,8 +393,8 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
         SELECT value, unit
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s 
-        AND run_id = (SELECT run_id from ci_measurements 
-                      WHERE created_at = (SELECT MAX(created_at) from ci_measurements))
+        ORDER BY created_at DESC
+        LIMIT 1
     """
 
     params = (repo, branch, workflow)
