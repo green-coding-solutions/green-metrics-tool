@@ -1,19 +1,20 @@
 #pylint: disable=import-error,wrong-import-position
 import sys
 import os
+import faulthandler
+
+faulthandler.enable()  # will catch segfaults and write to STDERR
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/..")
 sys.path.append(f"{CURRENT_DIR}/../lib")
 
-import faulthandler
 import email_helpers
 import error_helpers
 from db import DB
 from global_config import GlobalConfig
 from runner import Runner
 
-faulthandler.enable()  # will catch segfaults and write to STDERR
 
 def insert_job(job_type, project_id=None, machine_id=None):
     query = """
