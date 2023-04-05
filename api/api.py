@@ -311,7 +311,7 @@ async def post_project_add(project: Project):
         RETURNING id
         """
     params = (project.url, project.name, project.email, project.branch)
-    project_id = DB().fetch_one(query, params=params)
+    project_id = DB().fetch_one(query, params=params)[0]
     # This order as selected on purpose. If the admin mail fails, we currently do
     # not want the job to be queued, as we want to monitor every project execution manually
     email_helpers.send_admin_email(
