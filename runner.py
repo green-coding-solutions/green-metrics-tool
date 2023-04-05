@@ -398,7 +398,14 @@ class Runner:
 
             if 'environment' in service:
                 for docker_env_var in service['environment']:
-                    # In a compose file env vars can be defined with a "=" not as a dict.
+                    # In a compose file env vars can be defined with a "=" and as a dict.
+                    # We make sure that:
+                    # environment:
+                    #   - DEBUG
+                    # or
+                    # environment:
+                    #   - image: "postgres: ${POSTGRES_VERSION}"
+                    # will fail as this could expose env vars from the host system.
                     if '=' in docker_env_var:
                         env_key, env_value = docker_env_var.split('=')
                     else:
