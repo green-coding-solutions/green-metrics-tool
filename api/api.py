@@ -415,8 +415,8 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
         SELECT value, unit
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s 
-        AND run_id = (SELECT run_id from ci_measurements 
-                      WHERE created_at = (SELECT MAX(created_at) from ci_measurements))
+        ORDER BY created_at DESC
+        LIMIT 1
     """
 
     params = (repo, branch, workflow)
