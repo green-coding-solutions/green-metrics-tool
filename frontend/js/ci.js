@@ -132,7 +132,7 @@ $(document).ready( (e) => {
         try {
             const link_node = document.createElement("a")
             const img_node = document.createElement("img")
-            img_node.src = `${API_URL}/v1/ci/badge/get/?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`
+            img_node.src = `${API_URL}/v1/ci/badge/get?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`
             link_node.appendChild(img_node)
             document.querySelector("span.energy-badge-container").appendChild(link_node)
             document.querySelector(".copy-badge").addEventListener('click', copyToClipboard)
