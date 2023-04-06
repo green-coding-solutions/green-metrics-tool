@@ -3,10 +3,7 @@ name: Test Stress
 author: Dan Mateas
 version: 1
 
-services:
-  test-container:
-    type: container
-    image: gcb_stress
+compose-file: !include docker-compose-file
 
 flow:
   - name: Stress

@@ -11,7 +11,7 @@ sys.path.append(f"{CURRENT_DIR}/../../lib")
 # pylint: disable=import-error,wrong-import-position
 from save_notes import save_notes
 from db import DB
-import utils
+import test_functions as Tests
 
 invalid_test_data = [
     ("e55675c5-8f7b-4d21-a4f7-d2417e23a44b", "This is a note", "test", "string_instead_of_time"),
@@ -38,7 +38,7 @@ def test_invalid_timestamp(project_id, note, detail, timestamp):
         )
     expected_exception = "Note timestamp did not match expected format"
     assert expected_exception in str(err.value), \
-        utils.assertion_info(f"Exception: {expected_exception}", str(err.value))
+        Tests.assertion_info(f"Exception: {expected_exception}", str(err.value))
 
 @pytest.mark.parametrize("project_id,note,detail,timestamp", valid_test_data)
 def test_valid_timestamp(project_id, note, detail, timestamp):

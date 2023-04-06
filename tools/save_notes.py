@@ -15,10 +15,10 @@ def save_notes(project_id, notes):
                 raise ValueError
             if not isinstance(note['timestamp'], int):
                 note['timestamp'] = int(note['timestamp'])
-        except ValueError as e:
+        except ValueError as err:
             raise ValueError(
                 f"Note timestamp did not match expected format: {note['timestamp']}"
-            ) from e
+            ) from err
 
         DB().query("""
                 INSERT INTO notes
