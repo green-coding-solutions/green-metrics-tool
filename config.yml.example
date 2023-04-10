@@ -13,9 +13,12 @@ smtp:
 project:
   name: My test project
   url: https://metrics.green-coding.berlin/
-config:
+
+cluster:
   api_url: __API_URL__
   metrics_url: __METRICS_URL__
+
+machine:
   machine_id: 1
   machine_description: "Development machine for testing"
 
