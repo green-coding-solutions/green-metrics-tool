@@ -132,7 +132,13 @@
                     <div class="description" style="display:none">resource consumption while running idle containers</div>
                 </div>
             </a>
-            <a class="step runtime-step" data-tab="" style="display:none;"> <!-- empty element for copying. Usage phases will be inserted before -->
+            <a class="step runtime-step" data-tab="[RUNTIME]">
+                <div class="content">
+                    <div class="title">Runtime<span class="ui icon" data-position="top center" data-inverted="" data-tooltip="Contains cumulated runtime metrics." style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
+                    <div class="description" style="display:none">resource consumption while running idle containers</div>
+                </div>
+            </a>
+            <a class="step" data-tab="" style="display:none;"> <!-- empty element for copying. Usage phases will be inserted before -->
                 <div class="content">
                     <div class="title"><span class="ui icon" data-inverted="" data-position="top right" data-tooltip="This is a user defined custom phase" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
                     <div class="description" style="display:none">resource consumption while usage phase and executing usage scenario</div>
@@ -159,7 +165,7 @@
                 <div class="embodied-chart"></div>
             </div>
             <br>
-            <metric-boxes></metric-boxes>
+            <phase-metrics></phase-metrics>
         </div>
         <div class="ui tab attached segment secondary" data-tab="[INSTALLATION]">
             <div class="content">
@@ -174,7 +180,7 @@
                 <div class="embodied-chart"></div>
             </div>
             <br>
-            <metric-boxes></metric-boxes>
+            <phase-metrics></phase-metrics>
         </div>
         <div class="ui tab attached segment secondary" data-tab="[BOOT]">
             <div class="content">
@@ -189,7 +195,7 @@
                 <div class="embodied-chart"></div>
             </div>
             <br>
-            <metric-boxes></metric-boxes>
+            <phase-metrics></phase-metrics>
         </div>
         <div class="ui tab attached segment secondary" data-tab="[IDLE]">
             <div class="content">
@@ -203,7 +209,21 @@
                 <div class="embodied-chart"></div>
             </div>
             <br>
-            <metric-boxes></metric-boxes>
+            <phase-metrics></phase-metrics>
+        </div>
+        <div class="ui tab attached segment secondary" data-tab="[RUNTIME]">
+            <div class="content">
+                <div class="header"><a class="ui blue ribbon label" href="#">
+                    <h3>Single Phase Data</h3>
+                </a></div>
+            </div>
+            <h3 class="ui dividing header">key metrics</h3>
+            <div class="chart-container">
+                <div class="pie-chart"></div>
+                <div class="embodied-chart"></div>
+            </div>
+            <br>
+            <phase-metrics></phase-metrics>
         </div>
         <div class="ui tab attached segment secondary runtime-tab" data-tab="" style="display:none;">
             <div class="content">
@@ -217,7 +237,7 @@
                 <div class="embodied-chart"></div>
             </div>
             <br>
-            <metric-boxes></metric-boxes>
+            <phase-metrics></phase-metrics>
         </div>
         <div class="ui tab attached segment secondary" data-tab="[REMOVE]">
             <div class="content">
@@ -231,7 +251,7 @@
                 <div class="embodied-chart"></div>
             </div>
             <br>
-            <metric-boxes></metric-boxes>
+            <phase-metrics></phase-metrics>
         </div>
 
         <div class="ui segment" id="total-phases-data">

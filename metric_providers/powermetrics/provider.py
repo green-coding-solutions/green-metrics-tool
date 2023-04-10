@@ -104,35 +104,35 @@ class PowermetricsProvider(BaseMetricProvider):
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['cpu_power']) * conversion_factor),
                            'cores_energy_powermetrics_component',
-                           '[SYSTEM]',
+                           '[COMPONENT]',
                            'mJ'])
 
             if 'package_joules' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['package_joules']) * 1000),
                            'cpu_energy_powermetrics_component',
-                           '[SYSTEM]',
+                           '[COMPONENT]',
                            'mJ'])
 
             if 'gpu_power' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['gpu_power']) * conversion_factor),
                             'gpu_energy_powermetrics_component',
-                            '[SYSTEM]',
+                            '[COMPONENT]',
                             'mJ'])
 
             #if 'combined_power' in data['processor']:
             #    dfs.append([cum_time_ms,
             #                int(float(data['processor']['combined_power']) * conversion_factor),
             #                'system_combined_power',
-            #                '[SYSTEM]',
+            #                '[COMPONENT]',
             #                'mJ'])
 
             if 'ane_power' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['ane_power']) * conversion_factor),
                             'ane_energy_powermetrics_component',
-                            '[SYSTEM]',
+                            '[COMPONENT]',
                             'mJ'])
 
         df = pandas.DataFrame.from_records(dfs, columns=['time', 'value', 'metric', 'detail_name', 'unit'])

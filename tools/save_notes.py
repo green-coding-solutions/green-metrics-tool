@@ -35,7 +35,7 @@ if __name__ == '__main__':
     import time
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('project_id', help='Please supply a project_id to attribute the stats to')
+    parser.add_argument('project_id', help='Please supply a project_id to attribute the measurements to')
 
     args = parser.parse_args()  # script will exit if arguments not present
 

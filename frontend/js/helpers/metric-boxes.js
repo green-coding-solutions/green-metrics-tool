@@ -16,7 +16,7 @@ class PhaseMetrics extends HTMLElement {
                             </div>
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Power of all hardware components during current usage phase.">
-                            [SYSTEM]
+                            [MACHINE]
                             <i class="question circle icon"></i>
                         </div>
                     </div>
@@ -32,7 +32,7 @@ class PhaseMetrics extends HTMLElement {
                             </div>
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
-                            [SYSTEM]
+                            [MACHINE]
                             <i class="question circle icon"></i>
                         </div>
                     </div>
@@ -92,7 +92,7 @@ class PhaseMetrics extends HTMLElement {
                             </div>
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="CO2 (manufacturing) attr. to lifetime share of phase duration.">
-                            [SYSTEM]
+                            [MACHINE]
                             <i class="question circle icon"></i>
                         </div>
                     </div>
@@ -124,54 +124,62 @@ class PhaseMetrics extends HTMLElement {
 
 customElements.define('phase-metrics', PhaseMetrics);
 
+
 /*
-    This function behaves differentrly if it gets passed an element of detail metrics or a list of.
-
-    When a list it passed it will calculate a std.dev. and instruct the createMetricBox to display the +/-
+    TODO: Include one sided T-test?
 */
-const displayDetailMetricBox = (metric, metric_data, compare_key, phase, comparison_type) => {
+const displaySimpleDetailMetricBox = (phase, metric_name, metric_data, detail_data, comparison_key)  => {
+    let extra_label = ''
+    if (detail_data.max != null) extra_label = `${detail_data.max.toFixed(2)} ${metric_data.unit} (MAX)`;
 
-    // the metric might contain multiple details and multiple to compare
-    // this we iterate over it here
-    // what we wanna show is the detailed metric itself with its max
-    // and if it has a stddev we also want to show that
-    // if there is even a metric to compare to, then we also want to show that
-
-    let location = 'div.extra-metrics'
-    if(metric.name.indexOf('_container') !== -1 || metric.name.indexOf('_vm') !== -1)
-        location = 'div.container-level-metrics';
-    else if(metric.name.indexOf('_system') !== -1)
-         location = 'div.system-level-metrics';
-    else if(metric.name.indexOf('_component') !== -1)
-         location = 'div.component-level-metrics';
-    else if(metric.name.indexOf('_machine') !== -1)
-         location = 'div.machine-level-metrics';
-
-    let max_label = ''
-    if (metric_data.max != null) {
-        max_label = `<div class="ui bottom left attached label">
-        ${metric_data.max.toFixed(2)} ${metric.unit} (MAX)
-        </div>`
-    }
     let std_dev_text = '';
+    if(detail_data.stddev == 0) std_dev_text = `± 0.00%`
+    else if(detail_data.stddev != null) {
+        std_dev_text = `± ${(detail_data.stddev/detail_data.mean).toFixed(2)}%`
+    }
+    console.log(detail_data);
+    let value = detail_data.mean.toFixed(2);
 
-    if(metric_data.stddev == 0) std_dev_text = `± 0.00%`
-    else if(metric_data.stddev != null) {
-        std_dev_text = `± ${(metric_data.stddev/metric_data.mean).toFixed(2)}%`
+    displayMetricBox(
+        phase, metric_name, metric_data.clean_name, detail_data.name,
+        value , std_dev_text, extra_label, metric_data.unit,
+        metric_data.explanation, metric_data.color, metric_data.icon
+    );
+}
+
+/*
+    This function assumes that detail_data has only two elements. For everything else we would need to
+    calculate a trend / regression and not a simple comparison
+*/
+const displayDiffDetailMetricBox = (phase, metric_name, metric_data, detail_data_array, comparison_key, is_significant)  => {
+    let extra_label = '';
+    if (is_significant == true) extra_label = 'Significant';
+    else extra_label = 'not significant / no-test';
+
+    if (detail_data_array[0].max != null && detail_data_array[1].max != null) {
+        max_label = `${Math.max(detail_data_array[0].max, detail_data_array[1].max).toFixed(2)} ${metric_data.unit} (MAX)`
     }
 
-    let metric_name = metric.clean_name;
-    if(comparison_type != null && comparison_type != 'Repeated Runs')
-        metric_name = `${metric_name} [${compare_key}]`
-    let node = createMetricBox(
-        metric,
-        metric_name,
-        metric_data.mean,
-        std_dev_text,
-        max_label
+    let std_dev_text = '';
+    let value = ((detail_data_array[1].mean - detail_data_array[0].mean)/detail_data_array[0].mean).toFixed(2)
+    let icon_color = 'green';
+
+    if (value > 0) {
+        icon_color = 'red';
+        value = `+ ${value} %`;
+    } else {
+        value = `${value} %`; // minus (-) already present in number
+    }
+
+    displayMetricBox(
+        phase, metric_name, metric_data.clean_name, detail_data_array[0].name,
+        value, std_dev_text, extra_label, metric_data.unit,
+        metric_data.explanation, metric_data.color, metric_data.icon, icon_color
     );
-    document.querySelector(`div.tab[data-tab='${phase}'] ${location}`).appendChild(node)
 }
+
+
+
 /*
         if(comparison_type != null && comparison_type != 'repetition_comparison') {
             document.querySelector(`div.tab[data-tab='${phase}'] ${location}`).insertAdjacentHTML('beforeend', '<div class="break"></div>')
@@ -191,7 +199,10 @@ const createKeyMetricBox = (energy, power, network_io, phase) => {
     if(power) {
         document.querySelector(`div.tab[data-tab='${phase}'] .machine-power`).innerHTML = `${power.toFixed(2)} <span class="si-unit">W</span>`;
     }
+}
 
+// TODO
+const calculateCO2 = () => {
     // network via formula: https://www.green-coding.berlin/co2-formulas/
     const network_io_in_mWh = network_io * 0.00006 * 1000000;
     const network_io_in_J = network_io_in_mWh * 3.6;  //  60 * 60 / 1000 => 3.6
@@ -226,30 +237,43 @@ const createKeyMetricBox = (energy, power, network_io, phase) => {
     }
 }
 
-const createMetricBox = (metric, name, value, std_dev_text, max_label) => {
+const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, std_dev_text, extra_label, unit, explanation, header_color, icon, stat_color = '') => {
+
+    let location = 'div.extra-metrics'
+    if(metric_name.indexOf('_container') !== -1 || metric_name.indexOf('_vm') !== -1)
+        location = 'div.container-level-metrics';
+    else if(metric_name.indexOf('_system') !== -1)
+         location = 'div.system-level-metrics';
+    else if(metric_name.indexOf('_component') !== -1)
+         location = 'div.component-level-metrics';
+    else if(metric_name.indexOf('_machine') !== -1)
+         location = 'div.machine-level-metrics';
+
+     if (extra_label != '') extra_label = `<div class="ui bottom left attached label">${extra_label}</div>`;
+
     const node = document.createElement("div")
     node.classList.add("card");
     node.classList.add('ui')
     node.innerHTML = `
         <div class="content">
-            <div class="ui top attached ${metric.color} label overflow-ellipsis">${name}</div>
+            <div class="ui top attached ${header_color} label overflow-ellipsis">${clean_name}</div>
             <div class="description">
-                <div class="ui fluid tiny statistic">
+                <div class="ui fluid tiny statistic ${stat_color}">
                     <div class="value">
-                        <i class="${metric.icon} icon"></i> ${value.toFixed(2)} <span class="si-unit">${metric.unit}</span>
+                        <i class="${icon} icon"></i> ${value} <span class="si-unit">${unit}</span>
                         ${std_dev_text}
                     </div>
                 </div>
-                ${max_label}
-                <div class="ui bottom right attached label icon rounded" data-position="bottom right" data-inverted="" data-tooltip="${metric.explanation}">
-                    ${metric.detail_name}
+                ${extra_label}
+                <div class="ui bottom right attached label icon rounded" data-position="bottom right" data-inverted="" data-tooltip="${explanation}">
+                    ${detail_name}
                     <i class="question circle icon"></i>
                 </div>
             </div>
         </div>
 
         `;
-    return node;
+    document.querySelector(`div.tab[data-tab='${phase}'] ${location}`).appendChild(node)
 }
 
 

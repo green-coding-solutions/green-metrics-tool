@@ -64,7 +64,7 @@ const fillProjectTab = (selector, data, parent = '') => {
 }
 
 
-const getTimelineMetrics = (stats_data, start_measurement, end_measurement) => {
+const getTimelineMetrics = (measurements_data, start_measurement, end_measurement) => {
     const metrics = {}
     const t0 = performance.now();
 
@@ -77,7 +77,7 @@ const getTimelineMetrics = (stats_data, start_measurement, end_measurement) => {
         let time_before = 0;
         let detail_name = null;
 
-        stats_data.forEach(el => {
+        measurements_data.forEach(el => {
             const time_after = el[1] / 1000000;
             const time_in_ms = el[1] / 1000; // divide microseconds timestamp to ms to be handled by charting lib
             let value = el[3];
@@ -211,7 +211,7 @@ async function makeAPICalls(url_params) {
     }
 
     try {
-        var stats_data = await makeAPICall('/v1/stats/single/' + url_params.get('id'))
+        var measurement_data = await makeAPICall('/v1/measurements/single/' + url_params.get('id'))
     } catch (err) {
         showNotification('Could not get stats data from API', err);
     }
@@ -226,7 +226,7 @@ async function makeAPICalls(url_params) {
         showNotification('Could not get phase_stats data from API', err);
     }
 
-    return [project_data?.data, stats_data?.data, notes_data?.data, phase_stats_data?.data];
+    return [project_data?.data, measurement_data?.data, notes_data?.data, phase_stats_data?.data];
 }
 
 const renderBadges = (url_params) => {
@@ -266,7 +266,7 @@ $(document).ready( (e) => {
             return;
         }
 
-        let [project_data, stats_data, notes_data, phase_stats_data] = await makeAPICalls(url_params);
+        let [project_data, measurements_data, notes_data, phase_stats_data] = await makeAPICalls(url_params);
 
         if (project_data == undefined) return;
 
@@ -274,10 +274,12 @@ $(document).ready( (e) => {
 
         fillProjectData(project_data);
 
-        displayComparisonMetrics(phase_stats_data.comparison_type, phase_stats_data.data)
+        createPhaseTabs(phase_stats_data)
 
-        if (stats_data == undefined) return;
-        const metrics = getTimelineMetrics(stats_data);
+        displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case)
+
+        if (measurements_data == undefined) return;
+        const metrics = getTimelineMetrics(measurements_data);
 
         if (notes_data == undefined) return;
         displayTimelineCharts(metrics, notes_data);

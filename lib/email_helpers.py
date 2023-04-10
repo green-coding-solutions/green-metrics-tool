@@ -71,7 +71,7 @@ https://www.green-coding.berlin
 
 def send_report_email(receiver_email, report_id):
     config = GlobalConfig().config
-    site = config['config']['metrics_url'].split(':')[0]
+    site = config['cluster']['metrics_url'].split(':')[0]
     message = """\
 From: {smtp_sender}
 To: {receiver_email}

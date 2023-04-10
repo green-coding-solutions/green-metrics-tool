@@ -31,6 +31,7 @@ faulthandler.enable()  # will catch segfaults and write to STDERR
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/lib")
+sys.path.append(f"{CURRENT_DIR}/tools")
 
 from debug_helper import DebugHelper
 from terminal_colors import TerminalColors
@@ -80,7 +81,7 @@ class Runner:
     def __init__(self,
         uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False,
-        verbose_provider_boot=False):
+        verbose_provider_boot=False, full_docker_prune=False):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -90,6 +91,7 @@ class Runner:
         self._no_file_cleanup = no_file_cleanup
         self._skip_unsafe = skip_unsafe
         self._verbose_provider_boot = verbose_provider_boot
+        self._full_docker_prune = full_docker_prune
 
         # variables that should not change if you call run multiple times
         self._uri = uri
@@ -114,24 +116,12 @@ class Runner:
         self.__phases = {}
         self.__start_measurement = None
         self.__end_measurement = None
-        self._docker_images_build = []
         self._pre_running_containers = []
 
     def prepare_filesystem_location(self):
         subprocess.run(['rm', '-Rf', self._tmp_folder], check=True, stderr=subprocess.DEVNULL)
         subprocess.run(['mkdir', self._tmp_folder], check=True)
 
-    def get_running_containers(self):
-        result = subprocess.run(['docker', 'ps' ,'--format', 'json'],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                check=True, encoding='UTF-8')
-        for line in result.stdout.splitlines():
-            docker_ps_output = json.loads(line)
-            self._pre_running_containers.append({
-                'image': docker_ps_output['Image'],
-                'name': docker_ps_output['Names']
-            })
 
     def checkout_repository(self):
 
@@ -174,26 +164,27 @@ class Runner:
                     encoding='UTF-8'
                 )  # always name target-dir repo according to spec
 
-            commit_hash = subprocess.run(
-                ['git', 'rev-parse', 'HEAD'],
-                check=True,
-                capture_output=True,
-                encoding='UTF-8',
-                cwd=self._folder
-            )
-            commit_hash = commit_hash.stdout.strip("\n")
-
-            DB().query("""UPDATE projects
-                SET commit_hash=%s
-                WHERE id = %s
-                """,
-                params=(commit_hash, self._project_id))
-
-
         else:
             if self._branch:
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
             self._folder = self._uri
+
+        # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
+        # running in CLI mode
+        commit_hash = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            check=True,
+            capture_output=True,
+            encoding='UTF-8',
+            cwd=self._folder
+        )
+        commit_hash = commit_hash.stdout.strip("\n")
+
+        DB().query("""UPDATE projects
+            SET commit_hash=%s
+            WHERE id = %s
+            """,
+            params=(commit_hash, self._project_id))
 
     # This method loads the yml file and takes care that the includes work and are secure.
     # It uses the tagging infrastructure provided by https://pyyaml.org/wiki/PyYAMLDocumentation
@@ -278,6 +269,7 @@ class Runner:
         print(TerminalColors.HEADER, '\nHaving Usage Scenario ', self._usage_scenario['name'], TerminalColors.ENDC)
         print('From: ', self._usage_scenario['author'])
         print('Version ', self._usage_scenario['version'], '\n')
+        print('Description: ', self._usage_scenario['description'])
 
         if self._allow_unsafe:
             print(TerminalColors.WARNING, arrows('Warning: Runner is running in unsafe mode'), TerminalColors.ENDC)
@@ -286,6 +278,32 @@ class Runner:
             self._architecture != self._usage_scenario['architecture'].lower():
             raise RuntimeError('Specified architecture does not match system architecture:'
                 f"system ({self._architecture}) != specified ({self._usage_scenario.get('architecture')})")
+
+    '''
+        A machine will always register in the database on run.
+        This means that it will write its machine_id and machine_descroption to the machines table
+        and then link itself in the projects table accordingly.
+    '''
+    def register_machine_id(self):
+        config = GlobalConfig().config
+        if config['machine'].get('id') is None \
+            or not (type(config['machine']['id']) is int) \
+            or config['machine'].get('description') is None \
+            or config['machine']['description'] == '':
+            raise RuntimeError('You must set machine id and machine description')
+
+        DB().query("""
+             INSERT INTO machines
+                 ("id", "description", "available", "created_at")
+             VALUES
+                 (%s, %s, TRUE, 'NOW()')
+             ON CONFLICT (id) DO
+                 UPDATE SET description = %s -- no need to make where clause here for correct row
+            """, params=(config['machine']['id'],
+                    config['machine']['description'],
+                    config['machine']['description']
+                )
+        )
 
     def update_and_insert_specs(self):
         config = GlobalConfig().config
@@ -305,12 +323,16 @@ class Runner:
 
         # Insert auxilary info for the run. Not critical.
         DB().query("""UPDATE projects
-            SET machine_specs=%s, measurement_config=%s, usage_scenario = %s, last_run = NOW()
+            SET
+                machine_id=%s, machine_specs=%s, measurement_config=%s,
+                usage_scenario = %s, usage_scenario_file=%s, last_run = NOW()
             WHERE id = %s
             """, params=(
+            config['machine']['id'],
             json.dumps(machine_specs),
             json.dumps(config['measurement']),
             json.dumps(self._usage_scenario),
+            self._filename,
             self._project_id)
         )
 
@@ -343,73 +365,91 @@ class Runner:
 
         self.__metric_providers.sort(key=lambda item: 'rapl' not in item.__class__.__name__.lower())
 
-    def find_build_files(self):
-        for _, service in self._usage_scenario.get('services', []).items():
-            if 'build' in service:
-                if isinstance(service['build'], str):
-                    # If build is a string we can assume the short form
-                    context = service['build']
-                    dockerfile = 'Dockerfile'
-                else:
-                    context =  service['build'].get('context', '.')
-                    dockerfile = service['build'].get('dockerfile', 'Dockerfile')
+    def download_dependencies(self):
+        print(TerminalColors.HEADER, '\nDownloading dependencies', TerminalColors.ENDC)
+        subprocess.run(['docker', 'pull', 'gcr.io/kaniko-project/executor:latest'], check=True)
 
-                if match := re.match(r'^([a-zA-Z0-9_]*)(:([a-zA-Z0-9_]*))?$',  service['image']):
-                    img_name = match.group(1)
-                    img_tag = match.group(3) or "latest"
-                else:
-                    raise ValueError(f"In scenario file the builds contains an invalid image name: {img_name}")
+    def get_build_info(self, service):
+        if isinstance(service['build'], str):
+            # If build is a string we can assume the short form
+            context = service['build']
+            dockerfile = 'Dockerfile'
+        else:
+            context =  service['build'].get('context', '.')
+            dockerfile = service['build'].get('dockerfile', 'Dockerfile')
 
-
-                self._docker_images_build.append([img_name, img_tag, context, dockerfile])
+        return context, dockerfile
 
     def build_docker_images(self):
 
-        print(TerminalColors.HEADER, '\nBuilding Docker containers', TerminalColors.ENDC)
+        print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
         # Create directory /tmp/green-metrics-tool/docker_images
         temp_dir = f"{self._tmp_folder}/docker_images"
         os.makedirs(temp_dir, exist_ok=True)
 
-        for img_name, img_tag, context, dockerfile in self._docker_images_build:
-            self.__notes.append({'note':f"Building {img_name}" , 'detail_name': '[SYSTEM]', 'timestamp':
+        # technically the usage_scenario needs no services and can also operate on
+        for _, service in self._usage_scenario['services'].items():
+            if match := re.match(r'^([a-zA-Z0-9_]+)(:([a-zA-Z0-9_]*))?$',  service['image']):
+                img_name = match.group(1)
+                img_tag = match.group(3) or "latest"
+            else:
+                raise ValueError(f"In scenario file the builds contains an invalid image name: {img_name}")
+            if 'build' in service:
+                context, dockerfile = self.get_build_info(service)
+                print(f"Building {img_name}")
+                self.__notes.append({'note':f"Building {img_name}" , 'detail_name': '[NOTES]', 'timestamp':
                                  int(time.time_ns() / 1_000)})
 
+                # Make sure the docker file exists and is not trying to escape some root. We don't need the returns
+                # but it will throw errors if something is wrong
+                context_path = join_path_and_file(self._folder, context) #If this is safe we can append the docker file
+                join_path_and_file(context_path, dockerfile)
 
-            # Make sure the docker file exists and is not trying to escape some root. We don't need the returns
-            # but it will throw errors if something is wrong
-            context_path = join_path_and_file(self._folder, context) #If this is safe we can append the docker file
-            join_path_and_file(context_path, dockerfile)
+                docker_build_command = ['docker', 'run','--rm',
+                    '-v', f"{self._folder}:/workspace:ro",
+                    '-v', f"{temp_dir}:/output",
+                    'gcr.io/kaniko-project/executor:latest',
+                    f"--dockerfile=/workspace/{context}/{dockerfile}",
+                    '--context','dir:///workspace/',
+                    f"--destination={img_name}:{img_tag}",
+                    f"--tar-path=/output/{img_name}.tar",
+                    '--no-push']
 
-            docker_build_command = ['docker', 'run','--rm',
-                '-v', f"{self._folder}:/workspace:ro",
-                '-v', f"{temp_dir}:/output",
-                'gcr.io/kaniko-project/executor:latest',
-                f"--dockerfile=/workspace/{context}/{dockerfile}",
-                '--context','dir:///workspace/',
-                f"--destination={img_name}:{img_tag}",
-                f"--tar-path=/output/{img_name}.tar",
-                '--no-push']
+                print(" ".join(docker_build_command))
 
-            print(" ".join(docker_build_command))
+                ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
-            ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8')
+                if ps.returncode != 0:
+                    print(f"Error: {ps.stderr} \n {ps.stdout}")
+                    raise OSError("Docker build failed")
 
-            if ps.returncode != 0:
-                print(f"Error: {ps.stderr} \n {ps.stdout}")
-                raise OSError("Docker build failed")
+                # import the docker image locally
+                image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{img_name}.tar"]
+                print(" ".join(image_import_command))
+                ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
-            # import the docker image locally
-            image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{img_name}.tar"]
-            print(" ".join(image_import_command))
-            ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8')
+                if ps.returncode != 0 or ps.stderr != "":
+                    print(f"Error: {ps.stderr} \n {ps.stdout}")
+                    raise OSError("Docker image import failed")
 
-            if ps.returncode != 0 or ps.stderr != "":
-                print(f"Error: {ps.stderr} \n {ps.stdout}")
-                raise OSError("Docker image import failed")
-
-            self.__notes.append({'note':f"Finished building {img_name}" , 'detail_name': '[SYSTEM]', 'timestamp':
+            else:
+                print(f"Pulling {service['image']}")
+                self.__notes.append({'note':f"Pulling {service['image']}" , 'detail_name': '[NOTES]', 'timestamp':
                                  int(time.time_ns() / 1_000)})
+                ps = subprocess.run(['docker', 'pull', f"{img_name}:{img_tag}"],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
+
+                if ps.returncode != 0:
+                    print(f"Error: {ps.stderr} \n {ps.stdout}")
+                    raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {img_name}:{img_tag}")
+
+
+
+            # we omit the tag on purpose. No use for tmp image
+            subprocess.run(['docker', 'tag', img_name, f"{img_name}_gmt_run_tmp"], check=True)
+
+
 
         # Delete the directory /tmp/gmt_docker_images
         shutil.rmtree(temp_dir)
@@ -427,20 +467,20 @@ class Runner:
                 self.__networks.append(network)
 
     def setup_services(self):
-        for container_name in self._usage_scenario['services']:
+        for service_name in self._usage_scenario['services']:
             print(TerminalColors.HEADER, '\nSetting up containers', TerminalColors.ENDC)
 
-            service = self._usage_scenario['services'][container_name]
+            if 'container_name' in self._usage_scenario['services'][service_name]:
+                container_name = self._usage_scenario['services'][service_name]['container_name']
+            else:
+                container_name = service_name
 
-            # We do not allow modification of running containers. For example someone could create their own postgres
-            # container and replace the running one with their own that might leak data. At least for the time the
-            # benchmark is running
-            for c in self._pre_running_containers:
-                if c['name'] == container_name:
-                    raise PermissionError(f"You can use {container_name} as it already exists!")
+            service = self._usage_scenario['services'][service_name]
 
             print('Resetting container')
             # By using the -f we return with 0 if no container is found
+            # we always reset container without checking if something is running, as we expect that a user understands
+            # this mechanic when using docker based tools. A container with the same name may not run twice
             subprocess.run(['docker', 'rm', '-f', container_name], stderr=subprocess.DEVNULL, check=True)
 
             print('Creating container')
@@ -608,12 +648,12 @@ class Runner:
             print(f"Booting {metric_provider.__class__.__name__}")
             metric_provider.start_profiling(self.__containers)
             if self._verbose_provider_boot:
-                self.__notes.append({'note': message, 'detail_name': '[SYSTEM]', 'timestamp': int(
+                self.__notes.append({'note': message, 'detail_name': '[NOTES]', 'timestamp': int(
                     time.time_ns() / 1_000)})
                 time.sleep(10)
 
         print(TerminalColors.HEADER, '\nWaiting for Metric Providers to boot ...', TerminalColors.ENDC)
-        time.sleep(2)
+        # TODO: time.sleep(2)
 
         for metric_provider in self.__metric_providers:
             if metric_provider._metric_name.endswith('_container') and not allow_container:
@@ -639,8 +679,8 @@ class Runner:
 
         # TODO. Check if temperature is back to baseline
         phase_time = int(time.time_ns() / 1_000)
-        self.__notes.append({'note': f"[START {phase}]",
-                     'detail_name': '[SYSTEM]', 'timestamp': phase_time})
+        self.__notes.append({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+
         if phase in self.__phases:
             raise RuntimeError(f"'{phase}' as phase name has already used. Please set unique name for phases.")
 
@@ -648,8 +688,6 @@ class Runner:
 
     def end_phase(self, phase):
         phase_time = int(time.time_ns() / 1_000)
-        self.__notes.append({'note': f"[END {phase}]",
-                     'detail_name': '[SYSTEM]', 'timestamp': phase_time})
 
         if phase not in self.__phases:
             raise RuntimeError('Calling end_phase before start_phase. This is a developer error!')
@@ -720,7 +758,7 @@ class Runner:
             self.end_phase(el['name'].replace('[', '').replace(']',''))
 
     def stop_metric_providers(self):
-        print(TerminalColors.HEADER, 'Stopping metric providers and parsing stats', TerminalColors.ENDC)
+        print(TerminalColors.HEADER, 'Stopping metric providers and parsing measurements', TerminalColors.ENDC)
         for metric_provider in self.__metric_providers:
             stderr_read = metric_provider.get_stderr()
             if stderr_read is not None:
@@ -737,7 +775,7 @@ class Runner:
                     f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
 
             f = StringIO(df.to_csv(index=False, header=False))
-            DB().copy_from(file=f, table='stats', columns=df.columns, sep=',')
+            DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')
 
     def read_and_cleanup_processes(self):
         process_helpers.kill_ps(self.__ps_to_kill)
@@ -756,11 +794,11 @@ class Runner:
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
         self.__notes.append({'note': 'Start of measurement',
-                     'detail_name': '[SYSTEM]', 'timestamp': self.__start_measurement})
+                     'detail_name': '[NOTES]', 'timestamp': self.__start_measurement})
 
     def end_measurement(self):
         self.__end_measurement = int(time.time_ns() / 1_000)
-        self.__notes.append({'note': 'End of measurement', 'detail_name': '[SYSTEM]',
+        self.__notes.append({'note': 'End of measurement', 'detail_name': '[NOTES]',
                                 'timestamp': self.__end_measurement})
 
     def update_start_and_end_times(self):
@@ -783,15 +821,18 @@ class Runner:
 
 
     def remove_docker_images(self):
-        for img_name, _, _, _ in self._docker_images_build:
-
-            for c in self._pre_running_containers:
-                if c['image'] == img_name:
-                    raise PermissionError(f"You can not remove {img_name} as it already exists")
-
-            print(f"Trying to remove docker image {img_name}")
-            # We need the -f here as return code becomes 0 if the image doesn't exits
-            subprocess.run(['docker', 'rmi', '-f', img_name], stderr=subprocess.DEVNULL, check=True)
+        subprocess.run(
+            'docker images --format "{{.Repository}}:{{.Tag}}" | grep "gmt_run_tmp" | xargs docker rmi -f',
+            shell=True,
+            stderr=subprocess.DEVNULL, # to suppress showing of stderr
+            check=False,
+        )
+        if self._full_docker_prune:
+            subprocess.run('docker ps -aq | xargs docker stop', shell=True, check=False)
+            subprocess.run('docker images --format "{{.ID}}" | xargs docker rmi -f', shell=True, check=False)
+            subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
+        else:
+            print(TerminalColors.WARNING, arrows('Warning: GMT is not instructed to prune docker images and build caches. This is most likely what you want for development, but leads to wrong build time measurements in production.'), TerminalColors.ENDC)
 
     def cleanup(self):
         #https://github.com/green-coding-berlin/green-metrics-tool/issues/97
@@ -842,10 +883,11 @@ class Runner:
         '''
         try:
             config = GlobalConfig().config
-            self.get_running_containers()
+            self.download_dependencies()
             self.prepare_filesystem_location()
             self.checkout_repository()
             self.initial_parse()
+            self.register_machine_id()
             self.update_and_insert_specs()
             self.import_metric_providers()
             if self._debugger.active:
@@ -867,7 +909,6 @@ class Runner:
                 self._debugger.pause('Network setup complete. Waiting to start container build')
 
             self.start_phase('[INSTALLATION]')
-            self.find_build_files()
             # If we want to be 100% this shouldn't be benchmarked here as it is not really part of the install phase
             # We are leaving it here as it is a tiny overhead and makes the code a lot more maintainable.
             self.remove_docker_images()
@@ -897,7 +938,9 @@ class Runner:
             if self._debugger.active:
                 self._debugger.pause('Container idle phase complete. Waiting to start flows')
 
-            self.run_flows() # can trigger debug breakpoints; Contains use phase
+            self.start_phase('[RUNTIME]')
+            self.run_flows() # can trigger debug breakpoints;
+            self.end_phase('[RUNTIME]')
 
             if self._debugger.active:
                 self._debugger.pause('Container flows complete. Waiting to start remove phase')
@@ -956,6 +999,8 @@ if __name__ == '__main__':
                         help='Skip unsafe volume bindings, ports and complex environment vars')
     parser.add_argument('--verbose-provider-boot',
                         action='store_true', help='Boot metric providers gradually')
+    parser.add_argument('--full-docker-prune',
+                        action='store_true', help='Prune all images and build caches on the system')
 
     args = parser.parse_args()
 
@@ -1010,7 +1055,7 @@ if __name__ == '__main__':
     runner = Runner(uri=args.uri, uri_type=run_type, pid=project_id, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe,
-                    verbose_provider_boot=args.verbose_provider_boot)
+                    verbose_provider_boot=args.verbose_provider_boot, full_docker_prune=args.full_docker_prune)
     try:
         runner.run()  # Start main code
 
@@ -1019,9 +1064,10 @@ if __name__ == '__main__':
         # In a cloud setup it however makes sense to free the measurement machine as soon as possible
         # So this code should be individually callable, separate from the runner
 
-        # get all the metrics from the stats table grouped by metric
+        # get all the metrics from the measurements table grouped by metric
         # loop over them issueing separate queries to the DB
-
+        from phase_stats import build_and_store_phase_stats
+        build_and_store_phase_stats(project_id)
 
 
         print(TerminalColors.OKGREEN,

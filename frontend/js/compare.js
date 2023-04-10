@@ -21,18 +21,18 @@ $(document).ready( (e) => {
             params.forEach( id => {
                 api_url = `${api_url}${id}`
             });
-            var phase_stats_data = await makeAPICall(api_url)
-            phase_stats_data = phase_stats_data.data;
+            var phase_stats_data = (await makeAPICall(api_url)).data
         } catch (err) {
             showNotification('Could not get compare in-repo data from API', err);
         }
 
         if (phase_stats_data == undefined) return;
 
-        document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${phase_stats_data.comparison_type}</a></td></tr>`)
-        document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_type}</strong></td><td>${phase_stats_data.comparison_details.join(' vs. ')}</a></td></tr>`)
+        document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${phase_stats_data.comparison_case}</a></td></tr>`)
+        document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${phase_stats_data.comparison_details.join(' vs. ')}</a></td></tr>`)
 
-        displayComparisonMetrics(phase_stats_data.data, phase_stats_data.comparison_type);
+        createPhaseTabs(phase_stats_data)
+        displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case)
 
     })();
 });

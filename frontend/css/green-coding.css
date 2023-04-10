@@ -197,7 +197,10 @@ a,
     margin:auto;
 }
 
-.radar-chart, .pie-chart, .embodied-chart {
+.key-metrics-chart-container .radar-chart,
+.key-metrics-chart-container .pie-chart,
+.key-metrics-chart-container .bar-chart,
+.key-metrics-chart-container .embodied-chart {
     width: 45%;
 }
 

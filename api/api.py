@@ -23,7 +23,8 @@ import email_helpers
 import error_helpers
 import psycopg
 import anybadge
-from api_helpers import rescale_energy_value, is_valid_uuid, convertValue, determineComparisonCase, getPhaseStats, getPhaseStatsObject
+from api_helpers import rescale_energy_value, is_valid_uuid, convert_value, \
+                        determine_comparison_case, get_phase_stats, get_phase_stats_object, add_phase_stats_statistics
 
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
@@ -74,8 +75,8 @@ async def catch_exceptions_middleware(request: Request, call_next):
 app.middleware('http')(catch_exceptions_middleware)
 
 origins = [
-    GlobalConfig().config['config']['metrics_url'],
-    GlobalConfig().config['config']['api_url'],
+    GlobalConfig().config['cluster']['metrics_url'],
+    GlobalConfig().config['cluster']['api_url'],
 ]
 
 app.add_middleware(
@@ -95,6 +96,9 @@ async def home():
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/notes/{project_id}')
 async def get_notes(project_id):
+    if project_id is None or not is_valid_uuid(project_id):
+        return {'success': False, 'err': 'Project ID is not a valid UUID or empty'}
+
     query = """
             SELECT project_id, detail_name, note, time
             FROM notes
@@ -121,21 +125,6 @@ async def get_machines():
 
     return {'success': True, 'data': data}
 
-@app.get('/v1/compare')
-async def compare_in_repo(ids: str):
-    if(ids is None or ids.strip() == ''):
-            return {'success': False, 'err': 'Project_id is empty'}
-    ids = ids.split(',')
-
-    try:
-        case = determineComparisonCase(ids)
-        phase_stats = getPhaseStats(ids)
-        phase_stats_object = getPhaseStatsObject(phase_stats, case)
-    except RuntimeError as err:
-        return {'success': False, 'err': str(err)}
-
-    return {'success': True, 'data': phase_stats_object}
-
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/projects')
@@ -153,19 +142,43 @@ async def get_projects():
 
 
 # Just copy and paste if we want to deprecate URLs
-# @app.get('/v1/stats/uri', deprecated=True) # Here you can see, that URL is nevertheless accessible as variable
+# @app.get('/v1/measurements/uri', deprecated=True) # Here you can see, that URL is nevertheless accessible as variable
 # later if supplied. Also deprecation shall be used once we move to v2 for all v1 routesthrough
+
+
+
+@app.get('/v1/compare')
+async def compare_in_repo(ids: str):
+    if(ids is None or ids.strip() == ''):
+            return {'success': False, 'err': 'Project_id is empty'}
+    ids = ids.split(',')
+    if not all([is_valid_uuid(id) for id in ids]):
+        return {'success': False, 'err': 'One of Project IDs is not a valid UUID or empty'}
+
+
+    try:
+        case = determine_comparison_case(ids)
+        phase_stats = get_phase_stats(ids)
+        phase_stats_object = get_phase_stats_object(phase_stats, case)
+        phase_stats_object = add_phase_stats_statistics(phase_stats_object)
+
+    except RuntimeError as err:
+        return {'success': False, 'err': str(err)}
+
+    return {'success': True, 'data': phase_stats_object}
 
 
 # This route is primarily used to load phase stats it into a pandas data frame
 @app.get('/v1/phase_stats/single/{project_id}')
-async def get_phase_stats(project_id: str):
-    if project_id is None or project_id.strip() == '':
-        return {'success': False, 'err': 'Project ID is empty'}
+async def get_phase_stats_single(project_id: str):
+    if project_id is None or not is_valid_uuid(project_id):
+        return {'success': False, 'err': 'Project ID is not a valid UUID or empty'}
 
     try:
-        phase_stats = getPhaseStats([project_id])
-        phase_stats_object = getPhaseStatsObject(phase_stats, None)
+        phase_stats = get_phase_stats([project_id])
+        phase_stats_object = get_phase_stats_object(phase_stats, None)
+        phase_stats_object = add_phase_stats_statistics(phase_stats_object)
+
     except RuntimeError as err:
 
         return {'success': False, 'err': str(err)}
@@ -173,30 +186,31 @@ async def get_phase_stats(project_id: str):
     return {'success': True, 'data': phase_stats_object}
 
 
-# This route gets the stats to be displayed in a timeline chart
-@app.get('/v1/stats/single/{project_id}')
-async def get_stats_single(project_id: str, remove_idle: bool = False):
-    if project_id is None or project_id.strip() == '':
-        return {'success': False, 'err': 'Project_id is empty'}
+# This route gets the measurements to be displayed in a timeline chart
+@app.get('/v1/measurements/single/{project_id}')
+async def get_measurements_single(project_id: str, remove_idle: bool = False):
+    if project_id is None or not is_valid_uuid(project_id):
+        return {'success': False, 'err': 'Project ID is not a valid UUID or empty'}
 
     query = """
             WITH times AS (
                 SELECT start_measurement, end_measurement FROM projects WHERE id = %s
             )
-            SELECT stats.detail_name, stats.time, stats.metric, stats.value, stats.unit, stats.phase
-            FROM stats
-            WHERE stats.project_id = %s
+            SELECT measurements.detail_name, measurements.time, measurements.metric,
+                   measurements.value, measurements.unit, measurements.phase
+            FROM measurements
+            WHERE measurements.project_id = %s
             """
     if remove_idle:
         query = f""" {query}
                 AND
-                stats.time > (SELECT start_measurement FROM times)
+                measurements.time > (SELECT start_measurement FROM times)
                 AND
-                stats.time < (SELECT end_measurement FROM times)
+                measurements.time < (SELECT end_measurement FROM times)
         """
 
     # extremly important to order here, cause the charting library in JS cannot do that automatically!
-    query = f" {query} ORDER BY stats.metric ASC, stats.detail_name ASC, stats.time ASC"
+    query = f" {query} ORDER BY measurements.metric ASC, measurements.detail_name ASC, measurements.time ASC"
 
     params = params = (project_id, project_id)
     data = DB().fetch_all(query, params=params)
@@ -210,32 +224,33 @@ async def get_stats_single(project_id: str, remove_idle: bool = False):
 @app.get('/v1/badge/single/{project_id}')
 async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
 
-    if project_id is None or project_id.strip() == '':
-        return {'success': False, 'err': 'Project_id is empty'}
+    if project_id is None or not is_valid_uuid(project_id):
+        return {'success': False, 'err': 'Project ID is not a valid UUID or empty'}
 
     query = '''
         WITH times AS (
             SELECT start_measurement, end_measurement FROM projects WHERE id = %s
         ) SELECT
-            (SELECT start_measurement FROM times), (SELECT end_measurement FROM times), SUM(stats.value), stats.unit
-        FROM stats
+            (SELECT start_measurement FROM times), (SELECT end_measurement FROM times),
+            SUM(measurements.value), measurements.unit
+        FROM measurements
         WHERE
-            stats.project_id = %s
-            AND stats.time >= (SELECT start_measurement FROM times)
-            AND stats.time <= (SELECT end_measurement FROM times)
-            AND stats.metric LIKE %s
-        GROUP BY stats.unit
+            measurements.project_id = %s
+            AND measurements.time >= (SELECT start_measurement FROM times)
+            AND measurements.time <= (SELECT end_measurement FROM times)
+            AND measurements.metric LIKE %s
+        GROUP BY measurements.unit
     '''
 
     value = None
     if metric == 'ml-estimated':
-        value = 'psu_energy_ac_xgboost_system'
+        value = 'psu_energy_ac_xgboost_machine'
     elif metric == 'RAPL':
         value = '%_rapl_%'
     elif metric == 'DC':
-        value = 'psu_energy_dc_picolog_system'
+        value = 'psu_energy_dc_picolog_machine'
     elif metric == 'AC':
-        value = 'psu_energy_ac_powerspy2_system'
+        value = 'psu_energy_ac_powerspy2_machine'
     else:
         raise RuntimeError('Unknown metric submitted')
 
@@ -243,7 +258,7 @@ async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
     data = DB().fetch_one(query, params=params)
 
     if data is None or data == []:
-        badge_value = 'No energy stats yet'
+        badge_value = 'No energy data yet'
     else:
         [energy_value, energy_unit] = rescale_energy_value(data[2], data[3])
         badge_value= f"{energy_value:.2f} {energy_unit} via {metric}"
@@ -301,6 +316,9 @@ async def post_project_add(project: Project):
 
 @app.get('/v1/project/{project_id}')
 async def get_project(project_id: str):
+    if project_id is None or not is_valid_uuid(project_id):
+        return {'success': False, 'err': 'Project ID is not a valid UUID or empty'}
+
     query = """
             SELECT
                 id, name, uri, branch, commit_hash,

@@ -22,7 +22,7 @@ class Project(BaseModel):
 
 
 config = GlobalConfig(config_name='test-config.yml').config
-API_URL = config['config']['api_url']
+API_URL = config['cluster']['api_url']
 PROJECT_NAME = 'test_' + utils.randomword(12)
 PROJECT = Project(name=PROJECT_NAME, url='testURL', email='testEmail', branch='', machine_id=0)
 

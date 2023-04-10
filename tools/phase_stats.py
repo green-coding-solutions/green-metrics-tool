@@ -1,32 +1,21 @@
 #pylint: disable=import-error,wrong-import-position
 import sys
 import os
+import faulthandler
+
+faulthandler.enable()  # will catch segfaults and write to STDERR
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/..")
 sys.path.append(f"{CURRENT_DIR}/../lib")
 
-import faulthandler
 from db import DB
 
-faulthandler.enable()  # will catch segfaults and write to STDERR
 
-if __name__ == '__main__':
-    #pylint: disable=broad-except,invalid-name
-
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('project_id', help='Project ID', type=str)
-
-
-    args = parser.parse_args()  # script will exit if type is not present
-
-    project_id = args.project_id
-
+def build_and_store_phase_stats(project_id):
     query = """
             SELECT metric, unit, detail_name
-            FROM stats
+            FROM measurements
             WHERE project_id = %s
             GROUP BY metric, unit, detail_name
             ORDER BY metric ASC -- we need this ordering for later, when we read again
@@ -45,7 +34,7 @@ if __name__ == '__main__':
         # or manual workings on the DB. But we still need to check.
         query = """
             SELECT COUNT(id)
-            FROM stats
+            FROM measurements
             WHERE phase IS NOT NULL AND time > %s AND time < %s AND project_id = %s
             """
         results = DB().fetch_one(query, (phase['start'], phase['end'], project_id, ))
@@ -54,7 +43,7 @@ if __name__ == '__main__':
         #    raise RuntimeError(f"Non-zero results for {phase}, were {results[0]} results")
 
         query = """
-            UPDATE stats
+            UPDATE measurements
             SET phase = %s
             WHERE phase IS NULL and time > %s and time < %s AND project_id = %s
             """
@@ -65,14 +54,14 @@ if __name__ == '__main__':
             # -- saved for future if I need lag time query
             #    WITH times as (
             #        SELECT id, value, time, (time - LAG(time) OVER (ORDER BY detail_name ASC, time ASC)) AS diff, unit
-            #        FROM stats
+            #        FROM measurements
             #        WHERE project_id = %s AND metric = %s
             #        ORDER BY detail_name ASC, time ASC
             #    ) -- Backlog: if we need derivatives / integrations in the future
 
             query = """
                 SELECT SUM(value), MAX(value), AVG(value), COUNT(value)
-                FROM stats
+                FROM measurements
                 WHERE project_id = %s AND metric = %s AND detail_name = %s AND time > %s and time < %s
             """
             results = DB().fetch_one(query,
@@ -84,8 +73,11 @@ if __name__ == '__main__':
             value_count = 0
 
 
-            if results[0] is not None:
-                (value_sum, value_max, value_avg, value_count) = results
+            value_sum, value_max, value_avg, value_count = results
+
+            # no need to calculate if we have no results to work on
+            # This can happen if the phase is too short
+            if value_count == 0: break
 
             insert_query = """
                 INSERT INTO phase_stats
@@ -150,3 +142,17 @@ if __name__ == '__main__':
                             value_sum, 'TOTAL', value_max,
                         unit)
                 )
+
+if __name__ == '__main__':
+    #pylint: disable=broad-except,invalid-name
+
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('project_id', help='Project ID', type=str)
+
+    args = parser.parse_args()  # script will exit if type is not present
+
+    project_id = args.project_id
+    build_and_store_phase_stats(project_id)
+

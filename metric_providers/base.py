@@ -17,7 +17,7 @@ class BaseMetricProvider:
         resolution,
         unit,
         current_dir,
-        metric_provider_executable="metric-provider-binary",
+        metric_provider_executable='metric-provider-binary',
         sudo=False,
     ):
         self._metric_name = metric_name
@@ -56,22 +56,16 @@ class BaseMetricProvider:
                              dtype=self._metrics
                              )
 
-        if self._metrics.get('sensor_name') is not None:
-            df['detail_name'] = df.sensor_name
-            df = df.drop('sensor_name', axis=1)
-        elif self._metrics.get('package_id') is not None:
-            df['detail_name'] = df.package_id
-            df = df.drop('package_id', axis=1)
-        elif self._metrics.get('core_id') is not None:
-            df['detail_name'] = df.core_id
-            df = df.drop('core_id', axis=1)
-        elif self._metrics.get('container_id') is not None:
+        if self._metrics['detail_name'] == 'container_id':
             df['detail_name'] = df.container_id
             for container_id in containers:
                 df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]
             df = df.drop('container_id', axis=1)
-        else:
-            df['detail_name'] = '[SYSTEM]'  # standard container name when only system was measured
+        elif self._metrics.get(self._metrics['detail_name']) is not None:
+            df['detail_name'] = df[self._metrics['detail_name']]
+            df = df.drop(self._metrics['detail_name'], axis=1)
+        else: # We use the default granularity from the name of the provider eg. "..._machine"  => [MACHINE]
+            df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]"
 
         df['unit'] = self._unit
         df['metric'] = self._metric_name

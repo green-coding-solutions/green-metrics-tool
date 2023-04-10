@@ -5,10 +5,10 @@ import subprocess
 from metric_providers.base import BaseMetricProvider
 
 
-class PsuEnergyAcGudeSystemProvider(BaseMetricProvider):
+class PsuEnergyAcGudeMachineProvider(BaseMetricProvider):
     def __init__(self, resolution):
         super().__init__(
-            metric_name="psu_energy_ac_gude_system",
+            metric_name="psu_energy_ac_gude_machine",
             metrics={"time": int, "value": int},
             resolution=resolution,
             unit="mJ",

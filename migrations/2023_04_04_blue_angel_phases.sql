@@ -3,6 +3,8 @@ ALTER TABLE "machines" ADD COLUMN "available" boolean DEFAULT false;
 ALTER TABLE "projects" ADD COLUMN "machine_id" int REFERENCES machines(id) ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "projects" ADD COLUMN "usage_scenario_file" text;
 ALTER TABLE "stats" ADD COLUMN "phase" text DEFAULT NULL;
+ALTER TABLE "stats" RENAME TO "measurements";
+ALTER TABLE "machines" ADD COLUMN "updated_at" timestamp with time zone DEFAULT NULL;
 
 CREATE TABLE phase_stats (
     id SERIAL PRIMARY KEY,

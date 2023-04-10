@@ -8,12 +8,12 @@
 
     let content = [];
     try {
-        var stats_data = await makeAPICall('/v1/projects')
+        var api_data = await makeAPICall('/v1/projects')
     } catch (err) {
             showNotification('Could not get data from API', err);
             return;
     }
-    stats_data.data.forEach(el => {
+    api_data.data.forEach(el => {
         const li_node = document.createElement("tr");
         const link_node = document.createElement('a');
         const id = el[0]

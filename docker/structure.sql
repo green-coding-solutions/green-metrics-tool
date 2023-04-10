@@ -12,6 +12,7 @@ CREATE TABLE projects (
     email text,
     categories int[],
     usage_scenario json,
+    usage_scenario_file text,
     machine_specs jsonb,
     machine_id int DEFAULT 1,
     measurement_config jsonb,
@@ -23,7 +24,7 @@ CREATE TABLE projects (
     created_at timestamp with time zone DEFAULT now()
 );
 
-CREATE TABLE stats (
+CREATE TABLE measurements (
     id SERIAL PRIMARY KEY,
     project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
     detail_name text,
@@ -47,6 +48,7 @@ CREATE TABLE machines (
     description text,
     available boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT NULL
 );
 
 CREATE TABLE phase_stats (
@@ -56,9 +58,12 @@ CREATE TABLE phase_stats (
     detail_name text,
     phase text,
     value bigint,
+    type text,
+    max_value bigint DEFAULT NULL,
     unit text,
     created_at timestamp with time zone DEFAULT now()
 );
+
 
 
 CREATE TABLE jobs (
