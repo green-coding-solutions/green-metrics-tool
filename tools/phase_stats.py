@@ -77,11 +77,12 @@ def build_and_store_phase_stats(project_id):
             """
 
             if metric in (
-                'lm_sensors_temp',
-                'lm_sensors_fan',
+                'lm_sensors_temperature_component',
+                'lm_sensors_fan_component',
                 'cpu_utilization_procfs_system',
                 'cpu_utilization_cgroup_container',
-                'memory_total_cgroup_container'
+                'memory_total_cgroup_container',
+                'cpu_frequency_sysfs_core',
             ):
                 DB().query(insert_query,
                         (project_id, metric, detail_name, f"{idx:03}_{phase['name']}", # phase name mod. for order
@@ -131,7 +132,7 @@ def build_and_store_phase_stats(project_id):
                         'mW')
                 )
                 if metric.endswith('_machine'):
-                    machine_co2 = ((value_sum / 3_600_000) * 519) / 1_000_000
+                    machine_co2 = ((value_sum / 3_600) * 519)
                     DB().query(insert_query,
                         (project_id,
                         f"{metric.replace('_energy_', '_co2_')}",
@@ -148,15 +149,15 @@ def build_and_store_phase_stats(project_id):
                 )
         # build the network energy
         # network via formula: https://www.green-coding.berlin/co2-formulas/
-        network_io_in_mWh = network_io_bytes_total * 0.00006 * 1_000_000
-        network_io_in_mJ = network_io_in_mWh * 3.6 * 1_000 #  60 * 60 / 1000 => 3.6
+        network_io_in_kWh = (network_io_bytes_total / 1_000_000_000) * 0.06
+        network_io_in_mJ = network_io_in_kWh * 3_600_000_000
         DB().query(insert_query,
                 (project_id, 'network_energy_formula_global', detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
                     network_io_in_mJ, 'TOTAL', None,
                 'mJ')
         )
         # co2 calculations
-        network_io_co2_in_ug = ( (network_io_in_mWh) * 519)
+        network_io_co2_in_ug = network_io_in_kWh * 519 * 1_000_000
         DB().query(insert_query,
                 (project_id, 'network_co2_formula_global', detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
                     network_io_co2_in_ug, 'TOTAL', None,

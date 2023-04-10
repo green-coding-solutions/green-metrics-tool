@@ -73,8 +73,21 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, include_d
             let metric_data = phase_data[metric]
             for (detail in metric_data['data']) {
                 let detail_data = metric_data['data'][detail]
+
+                // push data to chart that we need in any case
+                radar_chart_labels.push(metric_data.clean_name);
+                radar_chart_data[0].push(detail_data.mean)
+
+                if (metric.match(/^.*_energy.*_machine$/) !== null ||
+                    metric.match(/^.*_energy.*_component$/) !== null) {
+                    energy_chart_labels.push(metric_data.clean_name);
+                    energy_chart_data[0].push(detail_data.mean)
+                }
+
                 if (!multi_comparison) {
-                    displaySimpleDetailMetricBox(phase,metric, metric_data, detail_data, keys[0]);
+                    displaySimpleMetricBox(phase,metric, metric_data, detail_data, keys[0]);
+
+
                 } else {
                     let metric_data2 = phase_stats_object?.['data']?.[keys[1]]?.[phase]?.[metric]
                     let detail_data2 = metric_data2?.['data']?.[detail]
@@ -89,6 +102,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, include_d
                         phase, metric, metric_data, [detail_data, detail_data2],
                         keys[0], phase_stats_object.statistics?.[phase]?.[metric]?.[detail]?.is_significant
                     );
+
                     detail_chart_data = [detail_data.values,detail_data2.values]
                     detail_chart_mark = [
                         {name:'Confidence Interval', bottom: detail_data.mean-detail_data.ci, top: detail_data.mean+detail_data.ci},
@@ -96,29 +110,31 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, include_d
                     ]
                     displayCompareChart(
                         phase,
-                        metric,
+                        `${metric} - [${metric_data.unit}]`,
                         [`${comparison_case}: ${keys[0]}`, `${comparison_case}: ${keys[1]}`],
                         detail_chart_data,
                         detail_chart_mark,
                     );
-                    radar_chart_labels.push(metric_data.clean_name);
-                    radar_chart_data[0].push(detail_data.mean)
+
                     radar_chart_data[1].push(detail_data2.mean)
 
-                    if (metric_data.is_component_energy == true ||
-                        metric_data.is_machine_energy == true) {
-                        energy_chart_labels.push(metric_data.clean_name);
-                        energy_chart_data[0].push(detail_data.mean)
+                    if (metric.match(/^.*_energy.*_machine$/) !== null ||
+                        metric.match(/^.*_energy.*_component$/) !== null) {
                         energy_chart_data[1].push(detail_data2.mean)
                     }
-
                 }
             }
         }
         // phase ended. Render out the chart
 
-        let radar_legend = [`${comparison_case}: ${keys[0]}`]
-        if (multi_comparison) radar_legend.push(`${comparison_case}: ${keys[1]}`)
+
+        let radar_legend = []
+        if (multi_comparison) {
+            radar_legend = [`${comparison_case}: ${keys[0]}`, `${comparison_case}: ${keys[1]}`]
+        } else {
+            radar_legend = [keys[0]]
+        }
+
         displayKeyMetricsRadarChart(
             radar_legend,
             radar_chart_labels,
@@ -139,22 +155,17 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, include_d
 
     // displayTotalCharts(machine_energies, component_energies, phases);
 
-
-    /* TODO
-        In order to properly display this we first need this created in phase_stats.py
-        createKeyMetricBox(
-            phase_stats_object['data'][key][phase].totals.energy,
-            phase_stats_object['data'][key][phase].totals.power,
-            phase_stats_object['data'][key][phase].totals.network_io,
-            phase
-        );
-        */
-
     /*
         Display all boxes and charts
     */
     $('.ui.steps.phases .step').tab();
     $('.ui.accordion').accordion();
+
+    $('.ui.accordion').accordion({ // if the accordion opens the detail charts are resized
+        onOpen: function(value, text) {
+            window.dispatchEvent(new Event('resize'));
+        }
+    })
 
     // although there are multiple .step.runtime-step containers the first one
     // marks the first runtime step and is shown by default

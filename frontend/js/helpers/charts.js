@@ -382,6 +382,7 @@ const createChartContainer = (container, el) => {
 }
 
 const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
+
     let chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart`);
     let myChart = echarts.init(chartDom);
     labels = labels.map((el) => { return {name: el}})
@@ -411,6 +412,9 @@ const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
         }
       ]
     };
+
+    console.log(`.ui.tab[data-tab='${phase}'] .radar-chart`);
+    console.log(options);
 
     options && myChart.setOption(options);
 
