@@ -4,15 +4,19 @@ postgresql:
   user: postgres
   dbname: green-coding
   password: PLEASE_CHANGE_THIS
+
 smtp:
   server: SMTP_SERVER
   sender: SMTP_SENDER
   port: SMTP_PORT
   password: SMTP_AUTH_PW
   user: SMTP_AUTH_USER
-project:
-  name: My test project
-  url: https://metrics.green-coding.berlin/
+
+admin:
+  # This address will get an email, when a new project was added through the frontend
+  email: myemail@dev.local
+  # no_emails: True will suppress all emails. Helpful in development servers
+  no_emails: True
 
 cluster:
   api_url: __API_URL__
@@ -105,10 +109,3 @@ measurement:
 #        HW_MemAmountGB: 16
 #        Hardware_Availability_Year: 2011
   #--- END
-
-
-admin:
-  # This address will get an email, when a new project was added through the frontend
-  email: myemail@dev.local
-  # no_emails: True will suppress all emails. Helpful in development servers
-  no_emails: True

@@ -86,7 +86,7 @@ Your report is now accessible under the URL: {url}stats.html?id={report_id}
     message = message.format(
         receiver_email=receiver_email,
         report_id=report_id,
-        url=config['project']['url'],
+        url=config['cluster']['metrics_url'],
         site=site,
         smtp_sender=config['smtp']['sender'])
     send_email(message, receiver_email)
