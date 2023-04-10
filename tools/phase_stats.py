@@ -30,24 +30,14 @@ def build_and_store_phase_stats(project_id):
     phases = DB().fetch_one(query, (project_id, ))
 
     for idx, phase in enumerate(phases[0]):
-        # we do not want to overwrite already set phases. This will only happen in an error case
-        # or manual workings on the DB. But we still need to check.
-        query = """
-            SELECT COUNT(id)
-            FROM measurements
-            WHERE phase IS NOT NULL AND time > %s AND time < %s AND project_id = %s
-            """
-        results = DB().fetch_one(query, (phase['start'], phase['end'], project_id, ))
-        # TODO
-        #if results[0] != 0:
-        #    raise RuntimeError(f"Non-zero results for {phase}, were {results[0]} results")
-
         query = """
             UPDATE measurements
             SET phase = %s
             WHERE phase IS NULL and time > %s and time < %s AND project_id = %s
             """
         DB().query(query, (phase['name'], phase['start'], phase['end'], project_id, ))
+
+        network_io_bytes_total = 0 # reset
 
         # now we go through all metrics in the project and aggregate them
         for (metric, unit, detail_name) in metrics: # unpack
@@ -107,6 +97,9 @@ def build_and_store_phase_stats(project_id):
                         unit)
                 )
                 # No max here
+                # But we need to build the energy
+                network_io_bytes_total += value_max
+
             elif metric == 'energy_impact_powermetrics_vm':
                 DB().query(insert_query,
                         (project_id, metric, detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
@@ -123,18 +116,29 @@ def build_and_store_phase_stats(project_id):
 
                 # for energy we want to deliver an extra value, the watts.
                 # Here we need to calculate the average differently
+                power_sum = (value_sum  * 10**6) / (phase['end'] - phase['start'])
+                power_max = (value_max * 10**6) / ((phase['end'] - phase['start']) / value_count)
                 DB().query(insert_query,
                         (project_id,
                         f"{metric.replace('_energy_', '_power_')}",
                         detail_name,
                         f"{idx:03}_{phase['name']}", # phase name mod. for order
                             # sum of mJ / s => mW
-                            (value_sum  * 10**6) / (phase['end'] - phase['start']),
+                            power_sum,
                             'MEAN',
                             # max_value / avg_measurement_interval
-                            (value_max * 10**6) / ((phase['end'] - phase['start']) / value_count),
+                            power_max,
                         'mW')
                 )
+                if metric.endswith('_machine'):
+                    machine_co2 = ((value_sum / 3_600_000) * 519) / 1_000_000
+                    DB().query(insert_query,
+                        (project_id,
+                        f"{metric.replace('_energy_', '_co2_')}",
+                        detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
+                            machine_co2, 'TOTAL', None,
+                        'ug')
+                    )
 
             else:
                 DB().query(insert_query,
@@ -142,6 +146,24 @@ def build_and_store_phase_stats(project_id):
                             value_sum, 'TOTAL', value_max,
                         unit)
                 )
+        # build the network energy
+        # network via formula: https://www.green-coding.berlin/co2-formulas/
+        network_io_in_mWh = network_io_bytes_total * 0.00006 * 1_000_000
+        network_io_in_mJ = network_io_in_mWh * 3.6 * 1_000 #  60 * 60 / 1000 => 3.6
+        DB().query(insert_query,
+                (project_id, 'network_energy_formula_global', detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
+                    network_io_in_mJ, 'TOTAL', None,
+                'mJ')
+        )
+        # co2 calculations
+        network_io_co2_in_ug = ( (network_io_in_mWh) * 519)
+        DB().query(insert_query,
+                (project_id, 'network_co2_formula_global', detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
+                    network_io_co2_in_ug, 'TOTAL', None,
+                'ug')
+        )
+
+
 
 if __name__ == '__main__':
     #pylint: disable=broad-except,invalid-name

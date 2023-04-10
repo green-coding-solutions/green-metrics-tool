@@ -1,10 +1,12 @@
-import faulthandler
 import sys
 import os
 import uuid
 import numpy as np
 import scipy.stats
 from functools import cache
+import faulthandler
+
+faulthandler.enable()  # will catch segfaults and write to STDERR
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
@@ -13,6 +15,66 @@ from db import DB
 
 
 METRIC_MAPPINGS = {
+     'lm_sensors_temperature_component': {
+        'clean_name': 'CPU Temperature',
+        'explanation': 'CPU Temperature as reported by lm_sensors',
+        'color': 'grey',
+        'icon': 'microchip'
+    },
+    'lm_sensors_fan_component': {
+        'clean_name': 'Fan Speed',
+        'explanation': 'Fan speed as reported by lm_sensors',
+        'color': 'grey',
+        'icon': 'circle'
+    },'psu_energy_ac_powerspy2_machine': {
+        'clean_name': 'Machine Energy (AC - PowerSpy2)',
+        'explanation': 'Full machine energy (AC) as reported by PowerSpy2',
+        'color': 'blue',
+        'icon': 'battery three quarters'
+    },'psu_power_ac_powerspy2_machine': {
+        'clean_name': 'Machine Power (AC - PowerSpy2)',
+        'explanation': 'Full machine power (AC) as reported by PowerSpy2',
+        'color': 'orange',
+        'icon': 'power off'
+    },'psu_energy_ac_xgboost_machine': {
+        'clean_name': 'Machine Energy (AC - XGBoost)',
+        'explanation': 'Full machine energy (AC) as estimated by XGBoost model',
+        'color': 'blue',
+        'icon': 'battery three quarters'
+    },'psu_power_ac_xgboost_machine': {
+        'clean_name': 'Machine Power (AC - XGBoost)',
+        'explanation': 'Full machine power (AC) as estimated by XGBoost model',
+        'color': 'orange',
+        'icon': 'power off'
+    },'psu_energy_ac_ipmi_machine': {
+        'clean_name': 'Machine Energy (AC -IPMI)',
+        'explanation': 'Full machine energy (AC) as reported by IPMI',
+        'color': 'blue',
+        'icon': 'battery three quarters'
+    },'psu_power_ac_ipmi_machine': {
+        'clean_name': 'Machine Power (AC -IPMI)',
+        'explanation': 'Full machine power (AC) as reported by IPMI',
+        'color': 'orange',
+        'icon': 'power off'
+    },'psu_energy_dc_picolog_machine': {
+        'clean_name': 'Machine Energy (DC - PicoLog)',
+        'explanation': 'Full machine energy (AC) as reported by PicoLog HRDL ADC-24',
+        'color': 'blue',
+        'icon': 'battery three quarters'
+    },'psu_power_dc_picolog_machine': {
+        'clean_name': 'Machine Power (DC - PicoLog)',
+        'explanation': 'Full machine power (AC) as reported by PicoLog HRDL ADC-24',
+        'color': 'orange',
+        'icon': 'power off'
+    },
+
+
+    'cpu_frequency_sysfs_core': {
+        'clean_name': 'CPU Frequency',
+        'explanation': 'CPU Frequency per core as reported by sysfs',
+        'color': 'grey',
+        'icon': 'microchip'
+    },
     'ane_power_powermetrics_component': {
         'clean_name': 'ANE Power',
         'explanation': 'Apple Neural Engine',
@@ -273,7 +335,7 @@ def get_phase_stats(ids):
 # TODO: This method needs proper database caching
 # Would be interesting to know if in an application server like gunicor @cache
 # Will also work for subsequent requests ...?
-    '''  Object structure
+'''  Object structure
     comparison_case: str
     statistics: dict
                                         // MEAN of the detailed-metric over all repos -> non-sense
@@ -353,7 +415,7 @@ def get_phase_stats(ids):
                                 max: float
                                 values: list // the actual values
             ...
-    '''
+'''
 def get_phase_stats_object(phase_stats, case):
 
     phase_stats_object = {
@@ -370,7 +432,6 @@ def get_phase_stats_object(phase_stats, case):
         ] = phase_stat # unpack
 
         phase = phase.split('_', maxsplit=1)[1] # remove the 001_ prepended stuff again, which is only for ordering
-        system_energy = False
 
         # do not set unit, cause otherwise next conversion will fail
         # do not convert if null, cause null/number = number. We want to keep null
@@ -408,16 +469,6 @@ def get_phase_stats_object(phase_stats, case):
                 #'is_significant': None,  # currently no use for that
                 'data': {},
             }
-            if metric_name == 'psu_power_ac_ipmi_machine' or \
-               metric_name == 'psu_power_ac_powerspy2_machine':
-                phase_stats_object['data'][key][phase][metric_name]['is_machine_power'] = True
-            elif metric_name == 'psu_energy_ac_ipmi_machine' or \
-                 metric_name == 'psu_energy_ac_powerspy2_machine':
-                phase_stats_object['data'][key][phase][metric_name]['is_machine_energy'] = True
-            elif metric_name == 'network_io_cgroup_container':
-                phase_stats_object['data'][key][phase][metric_name]['is_network_io'] = True
-            elif '_energy_' in metric_name and metric_name.endswith('_component'):
-                phase_stats_object['data'][key][phase][metric_name]['is_component_energy'] = True
 
         if detail_name not in phase_stats_object['data'][key][phase][metric_name]['data']:
             phase_stats_object['data'][key][phase][metric_name]['data'][detail_name] = {
