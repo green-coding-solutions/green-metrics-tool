@@ -15,6 +15,25 @@ from db import DB
 
 
 METRIC_MAPPINGS = {
+     'psu_co2_ac_xgboost_machine': {
+        'clean_name': 'Machine CO2 (XGBoost)',
+        'explanation': 'Machine CO2 calculated by formula via XGBoost estimation',
+        'color': 'black',
+        'icon': 'exchange alternate'
+    },
+
+     'network_energy_formula_global': {
+        'clean_name': 'Network Energy',
+        'explanation': 'Network Energy calculated by formula',
+        'color': 'orange',
+        'icon': 'exchange alternate'
+    },
+     'network_co2_formula_global': {
+        'clean_name': 'Network CO2',
+        'explanation': 'Network CO2 calculated by formula',
+        'color': 'black',
+        'icon': 'exchange alternate'
+    },
      'lm_sensors_temperature_component': {
         'clean_name': 'CPU Temperature',
         'explanation': 'CPU Temperature as reported by lm_sensors',
@@ -209,23 +228,6 @@ def is_valid_uuid(val):
         return True
     except ValueError:
         return False
-
-def convert_value(value, unit):
-    if unit == 'mJ':
-        return [value / 1000, 'J']
-    if unit == 'mW':
-        return [value / 1000, 'W']
-    if unit == 'Ratio':
-        return [value / 100, '%']
-    if unit == 'centi°C':
-        return [value / 100, '°C']
-    if unit == 'Hz':
-        return [value / 1000000, 'GHz']
-    if unit == 'ns':
-        return [value / 1000000000, 's']
-    if unit == 'Bytes':
-        return [value / 1000000, 'MB']
-    return [value, unit]        # no conversion in default case
 
 def determine_comparison_case(ids):
 
@@ -432,11 +434,6 @@ def get_phase_stats_object(phase_stats, case):
         ] = phase_stat # unpack
 
         phase = phase.split('_', maxsplit=1)[1] # remove the 001_ prepended stuff again, which is only for ordering
-
-        # do not set unit, cause otherwise next conversion will fail
-        # do not convert if null, cause null/number = number. We want to keep null
-        if max_value is not None:  [max_value, _] = convert_value(max_value, unit)
-        [value, unit] = convert_value(value, unit)
 
         if case == 'Repository':
             key = repo # Case D : RequirementsEngineering Case

@@ -23,7 +23,7 @@ import email_helpers
 import error_helpers
 import psycopg
 import anybadge
-from api_helpers import rescale_energy_value, is_valid_uuid, convert_value, \
+from api_helpers import rescale_energy_value, is_valid_uuid, \
                         determine_comparison_case, get_phase_stats, get_phase_stats_object, add_phase_stats_statistics
 
 
