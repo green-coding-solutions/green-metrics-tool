@@ -23,9 +23,9 @@ import importlib
 import faulthandler
 import re
 from io import StringIO
-import yaml
-import shutil
 from pathlib import Path
+import shutil
+import yaml
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
@@ -72,8 +72,8 @@ def join_path_and_file(path, file):
 
     if os.path.exists(filename):
         return filename
-    else:
-        raise FileNotFoundError(f"{file} in {path} not found")
+
+    raise FileNotFoundError(f"{file} in {path} not found")
 
 
 
@@ -287,7 +287,7 @@ class Runner:
     def register_machine_id(self):
         config = GlobalConfig().config
         if config['machine'].get('id') is None \
-            or not (type(config['machine']['id']) is int) \
+            or not isinstance(config['machine']['id'], int) \
             or config['machine'].get('description') is None \
             or config['machine']['description'] == '':
             raise RuntimeError('You must set machine id and machine description')
@@ -645,7 +645,7 @@ class Runner:
             if not metric_provider._metric_name.endswith('_container') and not allow_other:
                 continue
 
-            print(f"Booting {metric_provider.__class__.__name__}")
+            message = f"Booting {metric_provider.__class__.__name__}"
             metric_provider.start_profiling(self.__containers)
             if self._verbose_provider_boot:
                 self.__notes.append({'note': message, 'detail_name': '[NOTES]', 'timestamp': int(
@@ -653,7 +653,7 @@ class Runner:
                 time.sleep(10)
 
         print(TerminalColors.HEADER, '\nWaiting for Metric Providers to boot ...', TerminalColors.ENDC)
-        # TODO: time.sleep(2)
+        time.sleep(2)
 
         for metric_provider in self.__metric_providers:
             if metric_provider._metric_name.endswith('_container') and not allow_container:
@@ -902,7 +902,7 @@ class Runner:
             self.start_measurement()
 
             self.start_phase('[BASELINE]')
-            time.sleep(1)
+            time.sleep(5)
             self.end_phase('[BASELINE]')
 
             if self._debugger.active:
@@ -932,7 +932,7 @@ class Runner:
                 self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')
 
             self.start_phase('[IDLE]')
-            time.sleep(1)
+            time.sleep(5)
             self.end_phase('[IDLE]')
 
             if self._debugger.active:
@@ -971,7 +971,6 @@ class Runner:
 
 if __name__ == '__main__':
     import argparse
-    from pathlib import Path
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
