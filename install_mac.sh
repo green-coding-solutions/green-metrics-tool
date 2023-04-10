@@ -66,6 +66,9 @@ cp frontend/js/helpers/config.js.example frontend/js/helpers/config.js
 sed -i '' -e "s|__API_URL__|$api_url|" frontend/js/helpers/config.js
 sed -i '' -e "s|__METRICS_URL__|$metrics_url|" frontend/js/helpers/config.js
 
+print_message "Checking out further git submodules ..."
+git submodule update --init
+
 print_message "Adding hardware_info_root.py to sudoers file"
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/powermetrics" | sudo tee /etc/sudoers.d/green_coding_powermetrics
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics

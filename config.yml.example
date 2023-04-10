@@ -23,8 +23,8 @@ cluster:
   metrics_url: __METRICS_URL__
 
 machine:
-  machine_id: 1
-  machine_description: "Development machine for testing"
+  id: 1
+  description: "Development machine for testing"
 
 measurement:
   idle-time-start: 10

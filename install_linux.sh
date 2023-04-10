@@ -70,6 +70,9 @@ cp frontend/js/helpers/config.js.example frontend/js/helpers/config.js
 sed -i -e "s|__API_URL__|$api_url|" frontend/js/helpers/config.js
 sed -i -e "s|__METRICS_URL__|$metrics_url|" frontend/js/helpers/config.js
 
+print_message "Checking out further git submodules ..."
+git submodule update --init
+
 print_message "Installing needed binaries for building ..."
 if lsb_release -is | grep -q "Fedora"; then
     sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel
