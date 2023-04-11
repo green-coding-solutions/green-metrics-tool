@@ -298,7 +298,6 @@ const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, st
 }
 
 const updateKeyMetric = (selector, phase, value, unit, std_dev_text, metric_name) => {
-    console.log(selector);
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerHTML = `${(value)} ${std_dev_text} <span class="si-unit">${unit}</span>`
     node = document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .detail-name`)
     if (node !== null) node.innerText = metric_name // not every key metric shall have a custom detail_name

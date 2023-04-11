@@ -413,9 +413,6 @@ const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
       ]
     };
 
-    console.log(`.ui.tab[data-tab='${phase}'] .radar-chart`);
-    console.log(options);
-
     options && myChart.setOption(options);
 
     // set callback when ever the user changes the viewport
