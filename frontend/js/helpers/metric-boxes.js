@@ -143,7 +143,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, co
     let std_dev_text = '';
     if(detail_data.stddev == 0) std_dev_text = `± 0.00%`
     else if(detail_data.stddev != null) {
-        std_dev_text = `± ${(detail_data.stddev/detail_data.mean).toFixed(2)}%`
+        std_dev_text = `± ${((detail_data.stddev/detail_data.mean)*100).toFixed(2)}%`
     }
 
 
