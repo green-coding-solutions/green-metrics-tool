@@ -158,8 +158,11 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, include_d
     /*
         Display all boxes and charts
     */
-    $('.ui.steps.phases .step').tab();
-    $('.ui.accordion').accordion();
+    $('.ui.steps.phases .step').tab({
+        onLoad: function(value, text) {
+            window.dispatchEvent(new Event('resize'));
+        }
+    });
 
     $('.ui.accordion').accordion({ // if the accordion opens the detail charts are resized
         onOpen: function(value, text) {
