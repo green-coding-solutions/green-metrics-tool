@@ -398,29 +398,45 @@ class Runner:
 
             if 'environment' in service:
                 for docker_env_var in service['environment']:
-                    if not self._allow_unsafe and re.search(r'^[A-Z_]+$', str(docker_env_var)) is None:
+                    # In a compose file env vars can be defined with a "=" and as a dict.
+                    # We make sure that:
+                    # environment:
+                    #   - DEBUG
+                    # or
+                    # environment:
+                    #   - image: "postgres: ${POSTGRES_VERSION}"
+                    # will fail as this could expose env vars from the host system.
+                    if isinstance(docker_env_var, str) and '=' in docker_env_var:
+                        env_key, env_value = docker_env_var.split('=')
+                    elif isinstance(service['environment'], dict):
+                        env_key, env_value = str(docker_env_var), str(service['environment'][docker_env_var])
+                    else:
+                        raise RuntimeError(f"Environment variable needs to be a string with = or dict!")
+
+                    True, True
+                    if not self._allow_unsafe and re.search(r'^[A-Z_]+$', env_key) is None:
                         if self._skip_unsafe:
                             warn_message= arrows(f"Found environment var key with wrong format. \
-                                 Only ^[A-Z_]+$ allowed: {docker_env_var} - Skipping")
+                                 Only ^[A-Z_]+$ allowed: {env_key} - Skipping")
                             print(TerminalColors.WARNING, warn_message, TerminalColors.ENDC)
                             continue
                         raise RuntimeError(f"Docker container setup environment var key had wrong format. \
-                            Only ^[A-Z_]+$ allowed: {docker_env_var} - Maybe consider using --allow-unsafe \
+                            Only ^[A-Z_]+$ allowed: {env_key} - Maybe consider using --allow-unsafe \
                                 or --skip-unsafe")
 
                     if not self._allow_unsafe and \
-                        re.search(r'^[a-zA-Z_]+[a-zA-Z0-9_-]*$', str(service['environment'][docker_env_var])) is None:
+                        re.search(r'^[a-zA-Z0-9_]+[a-zA-Z0-9_-]*$', env_value) is None:
                         if self._skip_unsafe:
                             print(TerminalColors.WARNING, arrows(f"Found environment var value with wrong format. \
-                                    Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - \
+                                    Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {env_value} - \
                                     Skipping"), TerminalColors.ENDC)
                             continue
                         raise RuntimeError(f"Docker container setup environment var value had wrong format. \
-                            Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {service['environment'][docker_env_var]} - \
+                            Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {env_value} - \
                             Maybe consider using --allow-unsafe --skip-unsafe")
 
                     docker_run_string.append('-e')
-                    docker_run_string.append(f"{docker_env_var}={service['environment'][docker_env_var]}")
+                    docker_run_string.append(f"{env_key}={env_value}")
 
             if 'networks' in service:
                 for network in service['networks']:
