@@ -10,7 +10,7 @@ class PhaseMetrics extends HTMLElement {
                 <div class="ui content">
                     <div class="ui top attached orange label overflow-ellipsis">Machine Power</div>
                     <div class="description">
-                        <div class="ui fluid tiny statistic">
+                        <div class="ui fluid mini statistic">
                             <div class="value">
                                 <i class="power off icon"></i> <span>N/A</span>
                             </div>
@@ -26,7 +26,7 @@ class PhaseMetrics extends HTMLElement {
                 <div class="ui content">
                     <div class="ui top attached blue label overflow-ellipsis">Machine Energy</div>
                     <div class="description">
-                        <div class="ui fluid tiny statistic">
+                        <div class="ui fluid mini statistic">
                             <div class="value">
                                 <i class="battery three quarters icon"></i> <span>N/A</span>
                             </div>
@@ -42,7 +42,7 @@ class PhaseMetrics extends HTMLElement {
                 <div class="ui content">
                     <div class="ui top blue attached label overflow-ellipsis">Network Energy</div>
                     <div class="description">
-                        <div class="ui fluid tiny statistic">
+                        <div class="ui fluid mini statistic">
                             <div class="value">
                                 <i class="battery three quarters icon"></i> <span>N/A</span>
                             </div>
@@ -59,7 +59,7 @@ class PhaseMetrics extends HTMLElement {
                 <div class="ui content">
                     <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (usage)</div>
                     <div class="description">
-                        <div class="ui fluid tiny statistic">
+                        <div class="ui fluid mini statistic">
                             <div class="value">
                                 <i class="burn icon"></i> <span>N/A</span>
                             </div>
@@ -75,7 +75,7 @@ class PhaseMetrics extends HTMLElement {
                 <div class="ui content">
                     <div class="ui top black attached label overflow-ellipsis">Network CO2</div>
                     <div class="description">
-                        <div class="ui fluid tiny statistic">
+                        <div class="ui fluid mini statistic">
                             <div class="value">
                                 <i class="burn icon"></i> <span>N/A</span>
                             </div>
@@ -91,7 +91,7 @@ class PhaseMetrics extends HTMLElement {
                 <div class="ui content">
                     <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (manufacturing) </div>
                     <div class="description">
-                        <div class="ui fluid tiny statistic">
+                        <div class="ui fluid mini statistic">
                             <div class="value">
                                 <i class="burn icon"></i> <span>N/A</span>
                             </div>
@@ -168,7 +168,7 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array
     // no max, we use significant rather
 
     // no value conversion, cause we just use relatives
-    let value = ((detail_data_array[1].mean - detail_data_array[0].mean)/detail_data_array[0].mean).toFixed(2)
+    let value = (((detail_data_array[1].mean - detail_data_array[0].mean)/detail_data_array[0].mean)*100).toFixed(2)
     let icon_color = 'green';
 
     if (value > 0) {
@@ -256,7 +256,7 @@ const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, st
         <div class="content">
             <div class="ui top attached ${header_color} label overflow-ellipsis">${clean_name}</div>
             <div class="description">
-                <div class="ui fluid tiny statistic ${stat_color}">
+                <div class="ui fluid mini statistic ${stat_color}">
                     <div class="value">
                         <i class="${icon} icon"></i> ${value}
                         ${std_dev_text}
