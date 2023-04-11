@@ -185,29 +185,6 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array
     );
 }
 
-
-
-/*
-        if(comparison_type != null && comparison_type != 'repetition_comparison') {
-            document.querySelector(`div.tab[data-tab='${phase}'] ${location}`).insertAdjacentHTML('beforeend', '<div class="break"></div>')
-        }
-*/
-
-const createKeyMetricBox = (energy, power, network_io, phase) => {
-    const energy_in_mWh = energy / 3.6;
-    if(energy_in_mWh) {
-        if(display_in_watts) {
-            document.querySelector(`div.tab[data-tab='${phase}'] .machine-energy`).innerHTML = `${energy_in_mWh.toFixed(2)} <span class="si-unit">mWh</span>`
-        } else {
-            document.querySelector(`div.tab[data-tab='${phase}'] .machine-energy`).innerHTML = `${energy.toFixed(2)} <span class="si-unit">J</span>`
-        }
-    }
-
-    if(power) {
-        document.querySelector(`div.tab[data-tab='${phase}'] .machine-power`).innerHTML = `${power.toFixed(2)} <span class="si-unit">W</span>`;
-    }
-}
-
 // TODO
 const calculateCO2 = () => {
     // network via formula: https://www.green-coding.berlin/co2-formulas/
@@ -281,8 +258,9 @@ const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, st
             <div class="description">
                 <div class="ui fluid tiny statistic ${stat_color}">
                     <div class="value">
-                        <i class="${icon} icon"></i> ${value} <span class="si-unit">[${unit}]</span>
+                        <i class="${icon} icon"></i> ${value}
                         ${std_dev_text}
+                        <span class="si-unit">[${unit}]</span>
                     </div>
                 </div>
                 ${extra_label}
@@ -298,7 +276,7 @@ const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, st
 }
 
 const updateKeyMetric = (selector, phase, value, unit, std_dev_text, metric_name) => {
-    document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerHTML = `${(value)} ${std_dev_text} <span class="si-unit">${unit}</span>`
+    document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerHTML = `${(value)} ${std_dev_text} <span class="si-unit">[${unit}]</span>`
     node = document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .detail-name`)
     if (node !== null) node.innerText = metric_name // not every key metric shall have a custom detail_name
 
