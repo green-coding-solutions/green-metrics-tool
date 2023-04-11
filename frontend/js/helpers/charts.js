@@ -111,7 +111,6 @@ const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='t
         }
         return options;
     } else {
-       let max = Math.max(...series[0],...series[1])*1.2
        let options =  {
             tooltip: {
                 trigger: 'axis'
@@ -127,10 +126,11 @@ const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='t
                 type: 'value',
                 splitLine: {show: true}
             },
-            series: {
-                data:series,
+            series: [{
+                data: [...series[0]],
+                type: chart_type,
                 markLine: { data: [ {type: "average",label: {formatter: "Mean:\n{c}"}}]}
-            },
+            }],
             animation: false,
             graphic: graphic,
             legend: {
@@ -538,7 +538,6 @@ const displayCompareChart = (phase, title, legend, data, mark_area, graphic) => 
 
     const element = createChartContainer(`.ui.tab[data-tab='${phase}'] .compare-chart-container`, "");
     const myChart = echarts.init(element);
-    let series = []
     let options = getCompareChartOptions(title, legend, data, mark_area, 'category', 'bar');
     myChart.setOption(options);
 
