@@ -268,8 +268,8 @@ class Runner:
 
         print(TerminalColors.HEADER, '\nHaving Usage Scenario ', self._usage_scenario['name'], TerminalColors.ENDC)
         print('From: ', self._usage_scenario['author'])
-        print('Version ', self._usage_scenario['version'], '\n')
-        print('Description: ', self._usage_scenario['description'])
+        print('Version ', self._usage_scenario['version'])
+        print('Description: ', self._usage_scenario['description'], '\n')
 
         if self._allow_unsafe:
             print(TerminalColors.WARNING, arrows('Warning: Runner is running in unsafe mode'), TerminalColors.ENDC)
@@ -390,11 +390,13 @@ class Runner:
 
         # technically the usage_scenario needs no services and can also operate on
         for _, service in self._usage_scenario['services'].items():
-            if match := re.match(r'^([a-zA-Z0-9_]+)(:([a-zA-Z0-9_]*))?$',  service['image']):
+            if match := re.match(r'^([a-zA-Z0-9][a-zA-Z0-9_/-]*)(:([a-zA-Z0-9_-]*))?$', service['image']):
                 img_name = match.group(1)
                 img_tag = match.group(3) or "latest"
             else:
-                raise ValueError(f"In scenario file the builds contains an invalid image name: {img_name}")
+                raise ValueError(
+                    f"In scenario file the builds contains an invalid image name: {service['image']}")
+
             if 'build' in service:
                 context, dockerfile = self.get_build_info(service)
                 print(f"Building {img_name}")
