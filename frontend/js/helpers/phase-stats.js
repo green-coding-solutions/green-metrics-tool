@@ -88,7 +88,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, include_d
                     displaySimpleMetricBox(phase,metric, metric_data, detail_data, keys[0]);
                     displayCompareChart(
                         phase,
-                        `${metric} - [${metric_data.unit}]`,
+                        `${metric_data.clean_name} (${detail}) - [${metric_data.unit}]`,
                         [`${comparison_case}: ${keys[0]}`],
                         [detail_data.values],
                         [{name:'Confidence Interval', bottom: detail_data.mean-detail_data.ci, top: detail_data.mean+detail_data.ci}],
@@ -116,7 +116,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, include_d
                     ]
                     displayCompareChart(
                         phase,
-                        `${metric} - [${metric_data.unit}]`,
+                        `${metric_data.clean_name} (${detail}) - [${metric_data.unit}]`,
                         [`${comparison_case}: ${keys[0]}`, `${comparison_case}: ${keys[1]}`],
                         detail_chart_data,
                         detail_chart_mark,
