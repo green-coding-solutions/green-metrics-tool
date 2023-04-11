@@ -15,11 +15,18 @@ from db import DB
 
 
 METRIC_MAPPINGS = {
+
+     'psu_co2_ac_powerspy2_machine': {
+        'clean_name': 'Machine CO2 (PowerSpy2)',
+        'explanation': 'Machine CO2 calculated by formula via PowerSpy2 estimation',
+        'color': 'black',
+        'icon': 'burn'
+    },
      'psu_co2_ac_xgboost_machine': {
         'clean_name': 'Machine CO2 (XGBoost)',
         'explanation': 'Machine CO2 calculated by formula via XGBoost estimation',
         'color': 'black',
-        'icon': 'exchange alternate'
+        'icon': 'burn'
     },
 
      'network_energy_formula_global': {
@@ -32,7 +39,7 @@ METRIC_MAPPINGS = {
         'clean_name': 'Network CO2',
         'explanation': 'Network CO2 calculated by formula',
         'color': 'black',
-        'icon': 'exchange alternate'
+        'icon': 'burn'
     },
      'lm_sensors_temperature_component': {
         'clean_name': 'CPU Temperature',
