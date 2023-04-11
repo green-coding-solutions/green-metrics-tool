@@ -901,7 +901,6 @@ class Runner:
         '''
         try:
             config = GlobalConfig().config
-            self.download_dependencies()
             self.prepare_filesystem_location()
             self.checkout_repository()
             self.initial_parse()
@@ -926,10 +925,11 @@ class Runner:
             if self._debugger.active:
                 self._debugger.pause('Network setup complete. Waiting to start container build')
 
-            self.start_phase('[INSTALLATION]')
-            # If we want to be 100% this shouldn't be benchmarked here as it is not really part of the install phase
-            # We are leaving it here as it is a tiny overhead and makes the code a lot more maintainable.
+            # outside of any measurement, as this is GMT overhead
             self.remove_docker_images()
+            self.download_dependencies()
+
+            self.start_phase('[INSTALLATION]')
             self.build_docker_images()
             self.end_phase('[INSTALLATION]')
 
