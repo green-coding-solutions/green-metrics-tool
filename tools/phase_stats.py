@@ -37,7 +37,7 @@ def build_and_store_phase_stats(project_id):
             """
         DB().query(query, (phase['name'], phase['start'], phase['end'], project_id, ))
 
-        network_io_bytes_total = [] # reset
+        network_io_bytes_total = [] # reset; # we use array here and sum later, because checking for 0 alone not enough
 
         insert_query = """
             INSERT INTO phase_stats
@@ -45,6 +45,13 @@ def build_and_store_phase_stats(project_id):
             VALUES
                 (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
         """
+
+        select_query = """
+            SELECT SUM(value), MAX(value), AVG(value), COUNT(value)
+            FROM measurements
+            WHERE project_id = %s AND metric = %s AND detail_name = %s AND time > %s and time < %s
+        """
+
 
         # now we go through all metrics in the project and aggregate them
         for (metric, unit, detail_name) in metrics: # unpack
@@ -56,12 +63,7 @@ def build_and_store_phase_stats(project_id):
             #        ORDER BY detail_name ASC, time ASC
             #    ) -- Backlog: if we need derivatives / integrations in the future
 
-            query = """
-                SELECT SUM(value), MAX(value), AVG(value), COUNT(value)
-                FROM measurements
-                WHERE project_id = %s AND metric = %s AND detail_name = %s AND time > %s and time < %s
-            """
-            results = DB().fetch_one(query,
+            results = DB().fetch_one(select_query,
                 (project_id, metric, detail_name, phase['start'], phase['end'], ))
 
             value_sum = 0
@@ -74,7 +76,7 @@ def build_and_store_phase_stats(project_id):
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
-            if value_count == 0: break
+            if value_count == 0: continue
 
             if metric in (
                 'lm_sensors_temperature_component',
@@ -179,4 +181,3 @@ if __name__ == '__main__':
 
     project_id = args.project_id
     build_and_store_phase_stats(project_id)
-
