@@ -390,7 +390,7 @@ class Runner:
 
         # technically the usage_scenario needs no services and can also operate on
         for _, service in self._usage_scenario['services'].items():
-            if match := re.match(r'^([a-zA-Z0-9][a-zA-Z0-9_/-]*)(:([a-zA-Z0-9_-]*))?$', service['image']):
+            if match := re.match(r'^([a-zA-Z0-9][a-zA-Z0-9_/-]*)(:([a-zA-Z0-9_.-]*))?$', service['image']):
                 img_name = match.group(1)
                 img_tag = match.group(3) or "latest"
             else:
@@ -449,7 +449,7 @@ class Runner:
 
 
             # we omit the tag on purpose. No use for tmp image
-            subprocess.run(['docker', 'tag', img_name, f"{img_name}_gmt_run_tmp"], check=True)
+            subprocess.run(['docker', 'tag', f"{img_name}:{img_tag}", f"{img_name}_gmt_run_tmp"], check=True)
 
 
 
