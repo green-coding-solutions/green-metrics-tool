@@ -37,7 +37,14 @@ def build_and_store_phase_stats(project_id):
             """
         DB().query(query, (phase['name'], phase['start'], phase['end'], project_id, ))
 
-        network_io_bytes_total = 0 # reset
+        network_io_bytes_total = [] # reset
+
+        insert_query = """
+            INSERT INTO phase_stats
+                (project_id, metric, detail_name, phase, value, type, max_value, unit, created_at)
+            VALUES
+                (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        """
 
         # now we go through all metrics in the project and aggregate them
         for (metric, unit, detail_name) in metrics: # unpack
@@ -69,13 +76,6 @@ def build_and_store_phase_stats(project_id):
             # This can happen if the phase is too short
             if value_count == 0: break
 
-            insert_query = """
-                INSERT INTO phase_stats
-                    (project_id, metric, detail_name, phase, value, type, max_value, unit, created_at)
-                VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
-            """
-
             if metric in (
                 'lm_sensors_temperature_component',
                 'lm_sensors_fan_component',
@@ -99,7 +99,7 @@ def build_and_store_phase_stats(project_id):
                 )
                 # No max here
                 # But we need to build the energy
-                network_io_bytes_total += value_max
+                network_io_bytes_total.append(value_max)
 
             elif metric == 'energy_impact_powermetrics_vm':
                 DB().query(insert_query,
@@ -147,22 +147,23 @@ def build_and_store_phase_stats(project_id):
                             value_sum, 'TOTAL', value_max,
                         unit)
                 )
-        # build the network energy
-        # network via formula: https://www.green-coding.berlin/co2-formulas/
-        network_io_in_kWh = (network_io_bytes_total / 1_000_000_000) * 0.06
-        network_io_in_mJ = network_io_in_kWh * 3_600_000_000
-        DB().query(insert_query,
-                (project_id, 'network_energy_formula_global', detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
-                    network_io_in_mJ, 'TOTAL', None,
-                'mJ')
-        )
-        # co2 calculations
-        network_io_co2_in_ug = network_io_in_kWh * 519 * 1_000_000
-        DB().query(insert_query,
-                (project_id, 'network_co2_formula_global', detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
-                    network_io_co2_in_ug, 'TOTAL', None,
-                'ug')
-        )
+        if network_io_bytes_total != []:
+            # build the network energy
+            # network via formula: https://www.green-coding.berlin/co2-formulas/
+            network_io_in_kWh = (sum(network_io_bytes_total) / 1_000_000_000) * 0.06
+            network_io_in_mJ = network_io_in_kWh * 3_600_000_000
+            DB().query(insert_query,
+                    (project_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}",# phase name mod. for order
+                        network_io_in_mJ, 'TOTAL', None,
+                    'mJ')
+            )
+            # co2 calculations
+            network_io_co2_in_ug = network_io_in_kWh * 519 * 1_000_000
+            DB().query(insert_query,
+                    (project_id, 'network_co2_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}",# phase name mod. for order
+                        network_io_co2_in_ug, 'TOTAL', None,
+                    'ug')
+            )
 
 
 

@@ -10,7 +10,6 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
 
-import uuid
 from pydantic import BaseModel
 from starlette.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -150,7 +149,7 @@ async def get_projects():
 @app.get('/v1/compare')
 async def compare_in_repo(ids: str):
     if(ids is None or ids.strip() == ''):
-            return {'success': False, 'err': 'Project_id is empty'}
+        return {'success': False, 'err': 'Project_id is empty'}
     ids = ids.split(',')
     if not all([is_valid_uuid(id) for id in ids]):
         return {'success': False, 'err': 'One of Project IDs is not a valid UUID or empty'}
@@ -188,7 +187,7 @@ async def get_phase_stats_single(project_id: str):
 
 # This route gets the measurements to be displayed in a timeline chart
 @app.get('/v1/measurements/single/{project_id}')
-async def get_measurements_single(project_id: str, remove_idle: bool = False):
+async def get_measurements_single(project_id: str):
     if project_id is None or not is_valid_uuid(project_id):
         return {'success': False, 'err': 'Project ID is not a valid UUID or empty'}
 
@@ -201,13 +200,6 @@ async def get_measurements_single(project_id: str, remove_idle: bool = False):
             FROM measurements
             WHERE measurements.project_id = %s
             """
-    if remove_idle:
-        query = f""" {query}
-                AND
-                measurements.time > (SELECT start_measurement FROM times)
-                AND
-                measurements.time < (SELECT end_measurement FROM times)
-        """
 
     # extremly important to order here, cause the charting library in JS cannot do that automatically!
     query = f" {query} ORDER BY measurements.metric ASC, measurements.detail_name ASC, measurements.time ASC"

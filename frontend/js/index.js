@@ -1,8 +1,17 @@
+const compareButton = () => {
+    let checkedBoxes = document.querySelectorAll('input[name=chbx-proj]:checked');
+
+    let link = '/compare.html?ids=';
+    checkedBoxes.forEach(checkbox => {
+        link = `${link}${checkbox.value},`;
+    });
+    window.location = link.substr(0,link.length-1);
+}
 (async () => {
     const dateToYMD = (date) => {
-        var d = date.getDate();
-        var m = date.getMonth() + 1; //Month from 0 to 11
-        var y = date.getFullYear();
+        let d = date.getDate();
+        let m = date.getMonth() + 1; //Month from 0 to 11
+        let y = date.getFullYear();
         return '' + y + '-' + (m<=9 ? '0' + m : m) + '-' + (d <= 9 ? '0' + d : d);
     }
 
@@ -53,7 +62,13 @@
         if (uri.startsWith("http")) uri = `<a href="${uri}">${uri}</a>`
 
 
-        li_node.innerHTML = `<td class="td-index">${li_node.innerHTML}</td><td class="td-index">${uri}</td><td class="td-index">${branch}</td><td class="td-index"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td>`;
+        li_node.innerHTML = `
+            <td class="td-index">${li_node.innerHTML}</td>
+            <td class="td-index">${uri}</td>
+            <td class="td-index">${branch}</td>
+            <td class="td-index"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td>
+            <td><input type="checkbox" value="${id}" name="chbx-proj" />&nbsp;</td>
+        `;
         document.querySelector("#projects-table").appendChild(li_node);
     });
     $('.ui.search').search({ source: content });
