@@ -340,7 +340,8 @@ def get_phase_stats(ids):
                 b.uri ASC,
                 b.machine_id ASC,
                 b.usage_scenario_file ASC,
-                b.commit_hash ASC
+                b.commit_hash ASC,
+                b.created_at ASC
             """
     data = DB().fetch_all(query, (ids, ))
     if data is None or data == []:
