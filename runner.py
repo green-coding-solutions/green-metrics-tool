@@ -569,9 +569,8 @@ class Runner:
                     elif isinstance(service['environment'], dict):
                         env_key, env_value = str(docker_env_var), str(service['environment'][docker_env_var])
                     else:
-                        raise RuntimeError(f"Environment variable needs to be a string with = or dict and non-empty. We do not allow the feature of forwarding variables from the host OS!")
+                        raise RuntimeError('Environment variable needs to be a string with = or dict and non-empty. We do not allow the feature of forwarding variables from the host OS!')
 
-                    True, True
                     if not self._allow_unsafe and re.search(r'^[A-Z_]+$', env_key) is None:
                         if self._skip_unsafe:
                             warn_message= arrows(f"Found environment var key with wrong format. \
