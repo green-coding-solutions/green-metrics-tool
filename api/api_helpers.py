@@ -15,6 +15,12 @@ from db import DB
 
 
 METRIC_MAPPINGS = {
+     'psu_co2_dc_picolog_machine': {
+        'clean_name': 'Machine CO2 (PicoLog)',
+        'explanation': 'Machine CO2 calculated by formula via PicoLog HRDL ADC-24 estimation',
+        'color': 'black',
+        'icon': 'burn'
+    },
 
      'psu_co2_ac_powerspy2_machine': {
         'clean_name': 'Machine CO2 (PowerSpy2)',
