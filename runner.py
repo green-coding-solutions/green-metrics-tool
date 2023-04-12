@@ -116,7 +116,6 @@ class Runner:
         self.__phases = {}
         self.__start_measurement = None
         self.__end_measurement = None
-        self._pre_running_containers = []
 
     def prepare_filesystem_location(self):
         subprocess.run(['rm', '-Rf', self._tmp_folder], check=True, stderr=subprocess.DEVNULL)
@@ -279,6 +278,37 @@ class Runner:
             raise RuntimeError('Specified architecture does not match system architecture:'
                 f"system ({self._architecture}) != specified ({self._usage_scenario.get('architecture')})")
 
+    def check_running_containers(self):
+        result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                check=True, encoding='UTF-8')
+        for line in result.stdout.splitlines():
+            for running_container in line.split(','):
+                 for service_name in self._usage_scenario.get('services', []):
+                    if 'container_name' in self._usage_scenario['services'][service_name]:
+                        container_name = self._usage_scenario['services'][service_name]['container_name']
+                    else:
+                        container_name = service_name
+
+                    if running_container == container_name:
+                        raise PermissionError(f"Container '{container_name}' is already running on system. Please close it before running the tool.")
+
+
+    def remove_docker_images(self):
+        subprocess.run(
+            'docker images --format "{{.Repository}}:{{.Tag}}" | grep "gmt_run_tmp" | xargs docker rmi -f',
+            shell=True,
+            stderr=subprocess.DEVNULL, # to suppress showing of stderr
+            check=False,
+        )
+        if self._full_docker_prune:
+            subprocess.run('docker ps -aq | xargs docker stop', shell=True, check=False)
+            subprocess.run('docker images --format "{{.ID}}" | xargs docker rmi -f', shell=True, check=False)
+            subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
+        else:
+            print(TerminalColors.WARNING, arrows('Warning: GMT is not instructed to prune docker images and build caches. This is most likely what you want for development, but leads to wrong build time measurements in production.'), TerminalColors.ENDC)
+
     '''
         A machine will always register in the database on run.
         This means that it will write its machine_id and machine_descroption to the machines table
@@ -388,8 +418,9 @@ class Runner:
         temp_dir = f"{self._tmp_folder}/docker_images"
         os.makedirs(temp_dir, exist_ok=True)
 
-        # technically the usage_scenario needs no services and can also operate on
-        for _, service in self._usage_scenario['services'].items():
+        # technically the usage_scenario needs no services and can also operate on an empty list
+        # This use case is when you have running containers on your host and want to benchmark some code running in them
+        for _, service in self._usage_scenario.get('services', []).items():
             if match := re.match(r'^([a-zA-Z0-9][a-zA-Z0-9_/-]*)(:([a-zA-Z0-9_.-]*))?$', service['image']):
                 img_name = match.group(1)
                 img_tag = match.group(3) or "latest"
@@ -469,7 +500,9 @@ class Runner:
                 self.__networks.append(network)
 
     def setup_services(self):
-        for service_name in self._usage_scenario['services']:
+        # technically the usage_scenario needs no services and can also operate on an empty list
+        # This use case is when you have running containers on your host and want to benchmark some code running in them
+        for service_name in self._usage_scenario.get('services', []):
             print(TerminalColors.HEADER, '\nSetting up containers', TerminalColors.ENDC)
 
             if 'container_name' in self._usage_scenario['services'][service_name]:
@@ -837,20 +870,6 @@ class Runner:
             """, params=(json.dumps(self.__phases), self._project_id))
 
 
-    def remove_docker_images(self):
-        subprocess.run(
-            'docker images --format "{{.Repository}}:{{.Tag}}" | grep "gmt_run_tmp" | xargs docker rmi -f',
-            shell=True,
-            stderr=subprocess.DEVNULL, # to suppress showing of stderr
-            check=False,
-        )
-        if self._full_docker_prune:
-            subprocess.run('docker ps -aq | xargs docker stop', shell=True, check=False)
-            subprocess.run('docker images --format "{{.ID}}" | xargs docker rmi -f', shell=True, check=False)
-            subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
-        else:
-            print(TerminalColors.WARNING, arrows('Warning: GMT is not instructed to prune docker images and build caches. This is most likely what you want for development, but leads to wrong build time measurements in production.'), TerminalColors.ENDC)
-
     def cleanup(self):
         #https://github.com/green-coding-berlin/green-metrics-tool/issues/97
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
@@ -903,6 +922,9 @@ class Runner:
             self.prepare_filesystem_location()
             self.checkout_repository()
             self.initial_parse()
+            self.check_running_containers()
+            self.remove_docker_images()
+            self.download_dependencies()
             self.register_machine_id()
             self.update_and_insert_specs()
             self.import_metric_providers()
@@ -923,10 +945,6 @@ class Runner:
 
             if self._debugger.active:
                 self._debugger.pause('Network setup complete. Waiting to start container build')
-
-            # outside of any measurement, as this is GMT overhead
-            self.remove_docker_images()
-            self.download_dependencies()
 
             self.start_phase('[INSTALLATION]')
             self.build_docker_images()
