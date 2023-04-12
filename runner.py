@@ -469,12 +469,13 @@ class Runner:
                 continue  # setup commands are optional
             print('Running commands')
             for cmd in service['setup-commands']:
-                print('Running command: docker exec ', cmd)
+                d_command = ['docker', 'exec', container_name, 'sh', '-c', cmd] # This must be a list!
+                print('Running command: ', ' '.join(d_command))
 
                 # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
                 # injection of unwawnted params
                 ps = subprocess.run(
-                    ['docker', 'exec', container_name, 'sh', '-c', cmd],
+                    d_command,
                     check=True,
                     stderr=subprocess.PIPE,
                     stdout=subprocess.PIPE,
