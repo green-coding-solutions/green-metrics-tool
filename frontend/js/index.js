@@ -37,6 +37,7 @@ const compareButton = () => {
         const end_measurement = el[4]
         const last_run = el[5]
         const invalid_project = el[6]
+        const machine = el[7]
 
         let uri_link = '';
         if (uri.startsWith("http")) {
@@ -66,6 +67,7 @@ const compareButton = () => {
                         <tr>
                             <th>Name</th>
                             <th>Branch</th>
+                            <th>Machine</th>
                             <th>Last run</th>
                             <th></th>
                         </tr>
@@ -84,13 +86,12 @@ const compareButton = () => {
         if(end_measurement == null) name = `${name} (no data yet 🔥)`;
         if(invalid_project != null) name = `${name} <span class="ui yellow horizontal label" title="${invalid_project}">invalidated</span>`;
 
-
-
         let inner_row = document.querySelector(`#projects-table td[data-uri='${uri}'] div.content table tbody`).insertRow();
 
         inner_row.innerHTML = `
             <td class="td-index"><a href="/stats.html?id=${id}">${name}</a></td>
             <td class="td-index">${branch}</td>
+            <td class="td-index">${machine}</td>
             <td class="td-index"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td>
             <td><input type="checkbox" value="${id}" name="chbx-proj"/>&nbsp;</td>`;
 

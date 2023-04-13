@@ -129,7 +129,7 @@ async def get_machines():
 @app.get('/v1/projects')
 async def get_projects():
     query = """
-            SELECT id, name, uri, branch, end_measurement, last_run, invalid_project
+            SELECT id, name, uri, branch, end_measurement, last_run, invalid_project, machine_id
             FROM projects
             ORDER BY created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
             """
