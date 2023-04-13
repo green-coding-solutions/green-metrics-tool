@@ -81,19 +81,20 @@ class Runner:
     def __init__(self,
         uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False,
-        verbose_provider_boot=False, full_docker_prune=False):
+        verbose_provider_boot=False, full_docker_prune=False, dry_run=False, skip_build=False):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
 
+        # variables that should not change if you call run multiple times
         self._debugger = DebugHelper(debug_mode)
         self._allow_unsafe = allow_unsafe
         self._no_file_cleanup = no_file_cleanup
         self._skip_unsafe = skip_unsafe
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
-
-        # variables that should not change if you call run multiple times
+        self._dry_run = dry_run
+        self._skip_build = skip_build
         self._uri = uri
         self._uri_type = uri_type
         self._project_id = pid
@@ -116,6 +117,9 @@ class Runner:
         self.__phases = {}
         self.__start_measurement = None
         self.__end_measurement = None
+
+    def custom_sleep(self, sleep_time):
+        if not self._dry_run: time.sleep(sleep_time)
 
     def prepare_filesystem_location(self):
         subprocess.run(['rm', '-Rf', self._tmp_folder], check=True, stderr=subprocess.DEVNULL)
@@ -285,7 +289,7 @@ class Runner:
                                 check=True, encoding='UTF-8')
         for line in result.stdout.splitlines():
             for running_container in line.split(','):
-                 for service_name in self._usage_scenario.get('services', []):
+                for service_name in self._usage_scenario.get('services', []):
                     if 'container_name' in self._usage_scenario['services'][service_name]:
                         container_name = self._usage_scenario['services'][service_name]['container_name']
                     else:
@@ -296,6 +300,8 @@ class Runner:
 
 
     def remove_docker_images(self):
+        if self._skip_build: return
+
         subprocess.run(
             'docker images --format "{{.Repository}}:{{.Tag}}" | grep "gmt_run_tmp" | xargs docker rmi -f',
             shell=True,
@@ -411,7 +417,7 @@ class Runner:
         return context, dockerfile
 
     def build_docker_images(self):
-
+        if self._skip_build: return
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
         # Create directory /tmp/green-metrics-tool/docker_images
@@ -700,10 +706,10 @@ class Runner:
             if self._verbose_provider_boot:
                 self.__notes.append({'note': message, 'detail_name': '[NOTES]', 'timestamp': int(
                     time.time_ns() / 1_000)})
-                time.sleep(10)
+                self.custom_sleep(10)
 
         print(TerminalColors.HEADER, '\nWaiting for Metric Providers to boot ...', TerminalColors.ENDC)
-        time.sleep(2)
+        self.custom_sleep(2)
 
         for metric_provider in self.__metric_providers:
             if metric_provider._metric_name.endswith('_container') and not allow_container:
@@ -722,7 +728,7 @@ class Runner:
         print(TerminalColors.HEADER,
               f"\nStarting phase {phase}. Force-sleeping for {config['measurement']['phase-transition-time']}s", TerminalColors.ENDC)
 
-        time.sleep(config['measurement']['phase-transition-time'])
+        self.custom_sleep(config['measurement']['phase-transition-time'])
 
         print(TerminalColors.HEADER,
               '\nForce-sleep endeded. Checking if temperature is back to baseline ...', TerminalColors.ENDC)
@@ -935,12 +941,12 @@ class Runner:
             if self._debugger.active:
                 self._debugger.pause('metric-providers (system,others) start complete. Waiting to start measurement')
 
-            time.sleep(config['measurement']['idle-time-start'])
+            self.custom_sleep(config['measurement']['idle-time-start'])
 
             self.start_measurement()
 
             self.start_phase('[BASELINE]')
-            time.sleep(5)
+            self.custom_sleep(5)
             self.end_phase('[BASELINE]')
 
             if self._debugger.active:
@@ -967,7 +973,7 @@ class Runner:
                 self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')
 
             self.start_phase('[IDLE]')
-            time.sleep(5)
+            self.custom_sleep(5)
             self.end_phase('[IDLE]')
 
             if self._debugger.active:
@@ -981,14 +987,14 @@ class Runner:
                 self._debugger.pause('Container flows complete. Waiting to start remove phase')
 
             self.start_phase('[REMOVE]')
-            time.sleep(1)
+            self.custom_sleep(1)
             self.end_phase('[REMOVE]')
 
             if self._debugger.active:
                 self._debugger.pause('Remove phase complete. Waiting to stop and cleanup')
 
             self.end_measurement()
-            time.sleep(config['measurement']['idle-time-end'])
+            self.custom_sleep(config['measurement']['idle-time-end'])
             self.stop_metric_providers()
             self.read_and_cleanup_processes()
             self.store_phases()
@@ -1035,6 +1041,10 @@ if __name__ == '__main__':
                         action='store_true', help='Boot metric providers gradually')
     parser.add_argument('--full-docker-prune',
                         action='store_true', help='Prune all images and build caches on the system')
+    parser.add_argument('--dry-run',
+                        action='store_true', help='Dry Run. Remove all sleeps. Resulting measurement data will be skewed.')
+    parser.add_argument('--skip-build',
+                        action='store_true', help='Will skip removing, building and pulling docker images.')
 
     args = parser.parse_args()
 
@@ -1089,7 +1099,8 @@ if __name__ == '__main__':
     runner = Runner(uri=args.uri, uri_type=run_type, pid=project_id, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe,
-                    verbose_provider_boot=args.verbose_provider_boot, full_docker_prune=args.full_docker_prune)
+                    verbose_provider_boot=args.verbose_provider_boot, full_docker_prune=args.full_docker_prune,
+                    dry_run=args.dry_run, skip_build=args.skip_build)
     try:
         runner.run()  # Start main code
 
