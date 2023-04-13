@@ -12,10 +12,12 @@ const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='t
                 {
                     gridIndex: 0,
                     type: x_axis,
+                    splitLine: {show: false},
                     name: [legend[0]],
                 },
                 {
                     gridIndex: 1,
+                    splitLine: {show: false},
                     type: x_axis,
                     name: [legend[1]],
                 }
@@ -37,12 +39,10 @@ const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='t
                 {
                   left: '60%',
                   type: 'value',
-                  splitLine: {show: true}
                 },
                 {
                   right: '60%',
                   type: 'value',
-                  splitLine: {show: true}
                 }
             ],
             series: [
@@ -111,6 +111,7 @@ const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='t
         }
         return options;
     } else {
+       let max = Math.max(...series[0])*1.2
        let options =  {
             tooltip: {
                 trigger: 'axis'
@@ -120,14 +121,14 @@ const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='t
             },
             xAxis: {
                 type: x_axis,
-                splitLine: {show: true}
+                splitLine: {show: false}
             },
             yAxis: {
                 type: 'value',
                 splitLine: {show: true}
             },
             series: [{
-                data: [...series[0]],
+                data:series,
                 type: chart_type,
                 markLine: { data: [ {type: "average",label: {formatter: "Mean:\n{c}"}}]}
             }],
@@ -173,7 +174,7 @@ const getLineChartOptions = (title, legend, series, mark_area=null, x_axis='time
         },
         xAxis: {
             type: x_axis,
-            splitLine: {show: true},
+            splitLine: {show: false},
             data: legend,
         },
         yAxis: {
@@ -412,6 +413,9 @@ const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
         }
       ]
     };
+
+    console.log(`.ui.tab[data-tab='${phase}'] .radar-chart`);
+    console.log(options);
 
     options && myChart.setOption(options);
 
