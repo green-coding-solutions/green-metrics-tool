@@ -125,16 +125,10 @@ class PhaseMetrics extends HTMLElement {
                 <i class="dropdown icon"></i> <a><u>Click here for detailed metrics ...</u></a>
             </div>
             <div class="content">
-                <h3 class="ui dividing header">container / VM level metrics</h3>
-                <div class="ui three cards stackable no-transform-statistics container-level-metrics"></div>
-                <h3 class="ui dividing header">system level metrics</h3>
-                <div class="ui three cards stackable no-transform-statistics system-level-metrics"></div>
-                <h3 class="ui dividing header">component level metrics</h3>
-                <div class="ui three cards stackable no-transform-statistics component-level-metrics"></div>
-                <h3 class="ui dividing header">machine level metrics</h3>
-                <div class="ui three cards stackable no-transform-statistics machine-level-metrics"></div>
-                <h3 class="ui dividing header">extra metrics</h3>
-                <div class="ui three cards stackable no-transform-statistics extra-metrics"></div>
+                <table class="ui celled table compare-metrics-table sortable">
+                  <thead></thead>
+                  <tbody></tbody>
+                </table>
                 <h3 class="ui dividing header">Detailed Charts</h3>
                 <div class="compare-chart-container"></div>
             </div>
@@ -155,14 +149,26 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, co
         extra_label = `${max} ${max_unit} (MAX)`;
 
     }
-    let std_dev_text = '';
+    let std_dev_text = 'N/A';
     if(detail_data.stddev == 0) std_dev_text = `± 0.00%`
     else if(detail_data.stddev != null) {
         std_dev_text = `± ${((detail_data.stddev/detail_data.mean)*100).toFixed(2)}%`
     }
 
+    let scope = metric_name.split('_')
+    scope = scope[scope.length-1]
 
     let [value, unit] = convertValue(detail_data.mean, metric_data.unit);
+
+    let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
+    tr.innerHTML = `
+        <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>
+        <td>${scope}</td>
+        <td>${metric_data.unit}</td>
+        <td>${detail_data.name}</td>
+        <td>${value}</td>
+        <td>${std_dev_text}</td>
+        <td>${extra_label}</td>`;
 
     displayMetricBox(
         phase, metric_name, metric_data.clean_name, detail_data.name,
@@ -183,21 +189,40 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array
     // no max, we use significant rather
 
     // no value conversion, cause we just use relatives
-    let value = (((detail_data_array[1].mean - detail_data_array[0].mean)/detail_data_array[0].mean)*100).toFixed(2)
-    let icon_color = 'green';
+    let value = detail_data_array[0].mean == 0 ? 0: (((detail_data_array[1].mean - detail_data_array[0].mean)/detail_data_array[0].mean)*100).toFixed(2);
+
+    let icon_color = 'positive';
 
     if (value > 0) {
-        icon_color = 'red';
+        icon_color = 'error';
         value = `+ ${value} %`;
     } else {
         value = `${value} %`; // minus (-) already present in number
     }
+
+    let scope = metric_name.split('_')
+    scope = scope[scope.length-1]
+
+    let [value_1, unit] = convertValue(detail_data_array[0].mean, metric_data.unit);
+    let [value_2, _] = convertValue(detail_data_array[1].mean, metric_data.unit);
+
+    let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
+    tr.innerHTML = `
+        <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>
+        <td>${scope}</td>
+        <td>${metric_data.unit}</td>
+        <td>${detail_data_array[0].name}</td>
+        <td>${value_1}</td>
+        <td>${value_2}</td>
+        <td class="${icon_color}">${value}</td>
+        <td>${extra_label}</td>`;
 
     displayMetricBox(
         phase, metric_name, metric_data.clean_name, detail_data_array[0].name,
         value, '', extra_label, metric_data.unit,
         metric_data.explanation, metric_data.color, metric_data.icon, icon_color
     );
+
 }
 
 // TODO
@@ -254,6 +279,8 @@ const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, st
     }
 
 
+
+/*
     let location = 'div.extra-metrics'
     if(metric_name.indexOf('_container') !== -1 || metric_name.indexOf('_vm') !== -1)
         location = 'div.container-level-metrics';
@@ -289,6 +316,7 @@ const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, st
 
         `;
     document.querySelector(`div.tab[data-tab='${phase}'] ${location}`).appendChild(node)
+    */
 }
 
 const updateKeyMetric = (selector, phase, value, unit, std_dev_text, metric_name) => {

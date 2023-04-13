@@ -274,9 +274,10 @@ $(document).ready( (e) => {
 
         fillProjectData(project_data);
 
-        createPhaseTabs(phase_stats_data)
 
-        displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case)
+        let multi_comparison = determineMultiComparison(phase_stats_data.comparison_case)
+        setupPhaseTabs(phase_stats_data, multi_comparison)
+        displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case, multi_comparison)
 
         if (measurements_data == undefined) return;
         const metrics = getTimelineMetrics(measurements_data);

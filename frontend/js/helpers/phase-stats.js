@@ -1,10 +1,48 @@
-const createPhaseTabs = (phase_stats_object, include_detail_phases = false) => {
-    keys = Object.keys(phase_stats_object['data'])
+const setupPhaseTabs = (phase_stats_object, multi_comparison, include_detail_phases = false) => {
+    let keys = Object.keys(phase_stats_object['data'])
     // only need to traverse one branch in case of a comparison
     // no need to display phases that do not exist in both
     for (phase in phase_stats_object['data'][keys[0]]) {
         if (include_detail_phases == false && phase.indexOf('[') == -1) continue;
         createPhaseTab(phase);
+        let tr = document.querySelector(`div.tab[data-tab='${phase}'] .compare-metrics-table thead`).insertRow();
+        if (multi_comparison) {
+            tr.innerHTML = `
+                <th>Metric</th>
+                <th>Scope</th>
+                <th>Type</th>
+                <th>Detail Name</th>
+                <th><span class="overflow-ellipsis" style="width: 100px; display:block;" title="${keys[0]}">${keys[0]}</span></th>
+                <th><span class="overflow-ellipsis" style="width: 100px; display:block;" title="${keys[0]}">${keys[1]}</span></th>
+                <th>Change</th>
+                <th>Significant (T-Test)</th>`;
+        } else {
+            tr.innerHTML = `
+                <th>Metric</th>
+                <th>Scope</th>
+                <th>Type</th>
+                <th>Detail Name</th>
+                <th>Value</th>
+                <th>StdDev</th>
+                <th>MAX</th>`;
+        }
+    }
+}
+
+const determineMultiComparison = (comparison_case) => {
+    switch (comparison_case) {
+        case null: // single value
+        case 'Repeated Run':
+            return false;
+            break;
+        case 'Usage Scenario':
+        case 'Commit':
+        case 'Machine':
+        case 'Repository':
+            return true;
+            break;
+        default:
+            throw `Unknown comparison case: ${comparison_case}`
     }
 }
 
@@ -33,23 +71,9 @@ const createPhaseTab = (phase) => {
     We traverse the multi-dimensional metrics object only once and fill data
     in the appropriate variables for metric-boxes and charts
 */
-const displayComparisonMetrics = (phase_stats_object, comparison_case, include_detail_phases = false) => {
-    let multi_comparison = false;
+const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_comparison, include_detail_phases = false) => {
 
-    switch (comparison_case) {
-        case null: // single value
-        case 'Repeated Run':
-            // currently nothing else to do
-            break;
-        case 'Usage Scenario':
-        case 'Commit':
-        case 'Machine':
-        case 'Repository':
-            multi_comparison = true
-            break;
-        default:
-            throw `Unknown comparison case: ${comparison_case}`
-    }
+    let keys = Object.keys(phase_stats_object['data'])
 
     // we need to traverse only one branch of the tree and copy in all other values if
     // a matching metric exists in the other branch
@@ -175,7 +199,9 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, include_d
         onOpen: function(value, text) {
             window.dispatchEvent(new Event('resize'));
         }
-    })
+    });
+
+    $('table').tablesort();
 
     // although there are multiple .step.runtime-step containers the first one
     // marks the first runtime step and is shown by default

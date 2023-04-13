@@ -31,8 +31,9 @@ $(document).ready( (e) => {
         document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${phase_stats_data.comparison_case}</a></td></tr>`)
         document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${phase_stats_data.comparison_details.join(' vs. ')}</a></td></tr>`)
 
-        createPhaseTabs(phase_stats_data)
-        displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case)
+        let multi_comparison = determineMultiComparison(phase_stats_data.comparison_case)
+        setupPhaseTabs(phase_stats_data, multi_comparison)
+        displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case, multi_comparison)
 
     })();
 });
