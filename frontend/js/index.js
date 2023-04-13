@@ -32,7 +32,7 @@ const compareButton = () => {
 
         const id = el[0]
         let name = el[1]
-        let uri = el[2]
+        const uri = el[2]
         let branch = el[3]
         const end_measurement = el[4]
         const last_run = el[5]
@@ -81,10 +81,6 @@ const compareButton = () => {
         if (branch && uri.startsWith("http")) branch = 'main/master'
         else branch = '-'
 
-        // Modify the branch name if the database returned null
-        if (uri.startsWith("http")) {
-            uri = `<a href="${uri}">${uri}</a>`;
-        }
         if(end_measurement == null) name = `${name} (no data yet 🔥)`;
         if(invalid_project != null) name = `${name} <span class="ui yellow horizontal label" title="${invalid_project}">invalidated</span>`;
 
