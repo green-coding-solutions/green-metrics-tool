@@ -17,6 +17,7 @@
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
     <script src="/js/index.js" defer></script>
+    <script src="/dist/js/accordion.min.js" defer></script>
     <script src="/dist/js/tablesort.min.js" defer></script>
     <script src="/dist/js/search.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
@@ -38,23 +39,18 @@
             </div>
             <div class="results"></div>
         </div>
-        <table class="ui sortable celled striped table" id="table">
+
+        <table id="projects-table" class="ui sortable celled striped table">
             <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>URI</th>
-                    <th>Branch</th>
-                    <th>Last run</th>
-                    <th>
-                        <button onclick="compareButton()" class="mdc-button mdc-button--raised filled-button--success mdc-ripple-upgraded">
-                                Compare
-                        </button>
-                    </th>
-                </tr>
+            <tr>
+                <th><i class="icon code branch"></i> Repositories</th>
+                <th><button onclick="compareButton()" class="ui small button blue">Compare</button></th>
+            </tr>
             </thead>
-            <tbody id="projects-table"></tbody>
+            <tbody></tbody>
         </table>
         <div class="clearing" style="display:block; height: 10px;"></div>
     </div>
+
 </body>
 </html>

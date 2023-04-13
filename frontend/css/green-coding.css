@@ -231,3 +231,8 @@ a,
   flex-basis: 100%;
   height: 0;
 }
+
+
+.ui.steps .step .title {
+    font-size: 1em;
+}
