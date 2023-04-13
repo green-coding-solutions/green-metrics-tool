@@ -58,7 +58,7 @@ const compareButton = () => {
                       </div>
                     </div>
                 </td>
-                <td><input type="checkbox"></td>`;
+                <td><input type="checkbox" class="toggle-checkbox"></td>`;
             let content = document.querySelector(`#projects-table td[data-uri='${uri}'] div.content`);
             content.innerHTML = `
                 <table class="ui table">
@@ -98,13 +98,21 @@ const compareButton = () => {
             <td class="td-index"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td>
             <td><input type="checkbox" value="${id}" name="chbx-proj"/>&nbsp;</td>`;
 
-
     });
 
     $('.ui.search').search({ source: search });
     $('.ui.accordion')
       .accordion()
     ;
+
+    document.querySelectorAll('.toggle-checkbox').forEach((e) => {
+        e.addEventListener('click', (e1) => {
+            e1.currentTarget.closest('tr').querySelectorAll('td:first-child input').forEach((e2) => {
+                e2.checked = e1.currentTarget.checked
+            })
+        })
+    })
+
 
 
 })();
