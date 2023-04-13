@@ -289,7 +289,7 @@ def determine_comparison_case(ids):
                     # for two repos we expect two different hashes, so this is actually a normal case
                     case = 'Repository' # Case D
                 elif commit_hashes == 1: # diff repo, diff usage scenarios, same machine_ids, same commit_hashes
-                    raise RuntimeError('Same commit hash for different repos?!?!')
+                    case = 'Repository' # Case D # commit hashes can be same, but we treat them as different for different repos
                 else:
                     raise RuntimeError('Different repos & multiple commits not supported')
             else:

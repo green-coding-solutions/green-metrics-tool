@@ -42,6 +42,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, include_d
             // currently nothing else to do
             break;
         case 'Usage Scenario':
+        case 'Commit':
         case 'Machine':
         case 'Repository':
             multi_comparison = true
