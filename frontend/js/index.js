@@ -40,7 +40,7 @@ const compareButton = () => {
 
         let uri_link = '';
         if (uri.startsWith("http")) {
-            uri_link = `<a href="${uri}"><i class="icon exchange alternate"></i></a>`;
+            uri_link = `<a href="${uri}"><i class="icon external alternate"></i></a>`;
         }
 
 
