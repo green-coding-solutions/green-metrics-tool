@@ -5,10 +5,10 @@ else display_in_watts = false;
 const convertValue = (value, unit) => {
     switch (unit) {
     case 'mJ':
-        return [(value / 1000).toFixed(2), 'J'];
+        return [(value / 1_000).toFixed(2), 'J'];
         break;
     case 'mW':
-        return [(value / 1000).toFixed(2), 'W'];
+        return [(value / 1_000).toFixed(2), 'W'];
         break;
     case 'Ratio':
         return [(value / 100).toFixed(2), '%'];
@@ -20,7 +20,10 @@ const convertValue = (value, unit) => {
         return [(value / 1000000).toFixed(2), 'GHz'];
         break;
     case 'ns':
-        return [(value / 1000000000).toFixed(2), 's'];
+        return [(value / 1_000_000_000).toFixed(2), 's'];
+        break;
+    case 'us':
+        return [(value / 1_000_000).toFixed(2), 's'];
         break;
     case 'ug':
         if     (value > 1_000_000_000) return [(value/(10**9)).toFixed(2), 'kg'];
@@ -29,7 +32,7 @@ const convertValue = (value, unit) => {
         return [value.toFixed(2) , unit];
         break;
     case 'Bytes':
-        return [(value / 1000000).toFixed(2), 'MB'];
+        return [(value / 1_000_000).toFixed(2), 'MB'];
         break;
     default:
         return [(value).toFixed(2), unit];        // no conversion in default calse

@@ -149,6 +149,7 @@ def build_and_store_phase_stats(project_id):
                             value_sum, 'TOTAL', value_max,
                         unit)
                 )
+        # after going through detail metrics, create cumulated ones
         if network_io_bytes_total != []:
             # build the network energy
             # network via formula: https://www.green-coding.berlin/co2-formulas/
@@ -165,6 +166,13 @@ def build_and_store_phase_stats(project_id):
                     (project_id, 'network_co2_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}",# phase name mod. for order
                         network_io_co2_in_ug, 'TOTAL', None,
                     'ug')
+            )
+
+        # also create the phase time metric
+        DB().query(insert_query,
+                    (project_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}",# phase name mod. for order
+                        phase['end']-phase['start'], 'TOTAL', None,
+                    'us')
             )
 
 

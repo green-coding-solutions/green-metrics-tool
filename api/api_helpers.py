@@ -15,6 +15,13 @@ from db import DB
 
 
 METRIC_MAPPINGS = {
+
+     'phase_time_syscall_system': {
+        'clean_name': 'Phase Duration',
+        'explanation': 'Duration of the phase measured by GMT through a syscall',
+        'color': 'purple',
+        'icon': 'clock'
+    },
      'psu_co2_dc_picolog_machine': {
         'clean_name': 'Machine CO2 (PicoLog)',
         'explanation': 'Machine CO2 calculated by formula via PicoLog HRDL ADC-24 estimation',

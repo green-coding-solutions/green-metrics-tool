@@ -5,10 +5,25 @@
 class PhaseMetrics extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
-        <div class="ui three cards stackable no-transform-statistics">
+        <div class="ui four cards stackable no-transform-statistics">
+            <div class="ui card phase-duration">
+                <div class="ui content">
+                    <div class="ui top attached purple label overflow-ellipsis">Phase Duration <span class="si-unit"></span></div>
+                    <div class="description">
+                        <div class="ui fluid mini statistic">
+                            <div class="value">
+                                <i class="clock icon"></i> <span>N/A</span>
+                            </div>
+                        </div>
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Duration of the phase.">
+                            <i class="question circle icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="ui card machine-power">
                 <div class="ui content">
-                    <div class="ui top attached orange label overflow-ellipsis">Machine Power</div>
+                    <div class="ui top attached orange label overflow-ellipsis">Machine Power <span class="si-unit"></span></div>
                     <div class="description">
                         <div class="ui fluid mini statistic">
                             <div class="value">
@@ -24,7 +39,7 @@ class PhaseMetrics extends HTMLElement {
             </div>
             <div class="ui card machine-energy">
                 <div class="ui content">
-                    <div class="ui top attached blue label overflow-ellipsis">Machine Energy</div>
+                    <div class="ui top attached blue label overflow-ellipsis">Machine Energy <span class="si-unit"></span></div>
                     <div class="description">
                         <div class="ui fluid mini statistic">
                             <div class="value">
@@ -40,7 +55,7 @@ class PhaseMetrics extends HTMLElement {
             </div>
             <div class="ui card network-energy">
                 <div class="ui content">
-                    <div class="ui top blue attached label overflow-ellipsis">Network Energy</div>
+                    <div class="ui top blue attached label overflow-ellipsis">Network Energy <span class="si-unit"></span></div>
                     <div class="description">
                         <div class="ui fluid mini statistic">
                             <div class="value">
@@ -57,7 +72,7 @@ class PhaseMetrics extends HTMLElement {
             </div>
             <div class="ui card machine-co2">
                 <div class="ui content">
-                    <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (usage)</div>
+                    <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (usage) <span class="si-unit"></span></div>
                     <div class="description">
                         <div class="ui fluid mini statistic">
                             <div class="value">
@@ -73,7 +88,7 @@ class PhaseMetrics extends HTMLElement {
             </div>
             <div class="ui card network-co2">
                 <div class="ui content">
-                    <div class="ui top black attached label overflow-ellipsis">Network CO2</div>
+                    <div class="ui top black attached label overflow-ellipsis">Network CO2 <span class="si-unit"></span></div>
                     <div class="description">
                         <div class="ui fluid mini statistic">
                             <div class="value">
@@ -89,7 +104,7 @@ class PhaseMetrics extends HTMLElement {
             </div>
             <div class="ui card embodied-carbon">
                 <div class="ui content">
-                    <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (manufacturing) </div>
+                    <div class="ui top black attached label overflow-ellipsis">Machine CO<sub>2</sub> (manufacturing)  <span class="si-unit"></span></div>
                     <div class="description">
                         <div class="ui fluid mini statistic">
                             <div class="value">
@@ -228,6 +243,8 @@ const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, st
         updateKeyMetric('.machine-energy', phase, value, unit, std_dev_text, clean_name)
     } else if(metric == 'network_energy_formula_global') {
         updateKeyMetric('.network-energy', phase, value, unit, std_dev_text, clean_name)
+    } else if(metric == 'phase_time_syscall_system') {
+        updateKeyMetric('.phase-duration', phase, value, unit, std_dev_text, clean_name)
     } else if(metric == 'network_co2_formula_global') {
         updateKeyMetric('.network-co2', phase, value, unit, std_dev_text, clean_name)
     } else if(metric.match(/^.*_power.*_machine$/) !== null) {
@@ -254,13 +271,12 @@ const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, st
     node.classList.add('ui')
     node.innerHTML = `
         <div class="content">
-            <div class="ui top attached ${header_color} label overflow-ellipsis">${clean_name}</div>
+            <div class="ui top attached ${header_color} label overflow-ellipsis">${clean_name} <span class="si-unit">[${unit}]</span></div>
             <div class="description">
                 <div class="ui fluid mini statistic ${stat_color}">
                     <div class="value">
                         <i class="${icon} icon"></i> ${value}
                         ${std_dev_text}
-                        <span class="si-unit">[${unit}]</span>
                     </div>
                 </div>
                 ${extra_label}
@@ -276,7 +292,8 @@ const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, st
 }
 
 const updateKeyMetric = (selector, phase, value, unit, std_dev_text, metric_name) => {
-    document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerHTML = `${(value)} ${std_dev_text} <span class="si-unit">[${unit}]</span>`
+    document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerText = `${(value)} ${std_dev_text}`
+    document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .si-unit`).innerText = `[${unit}]`
     node = document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .detail-name`)
     if (node !== null) node.innerText = metric_name // not every key metric shall have a custom detail_name
 
