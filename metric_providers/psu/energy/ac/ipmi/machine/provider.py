@@ -11,7 +11,7 @@ class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
             resolution=0.001 * resolution,
             unit='mJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
-            metric_provider_executable='ipmi-get-system-energy-stat.sh',
+            metric_provider_executable='ipmi-get-machine-energy-stat.sh',
         )
 
     def read_metrics(self, project_id, containers):
