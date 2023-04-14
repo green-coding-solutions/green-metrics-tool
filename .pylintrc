@@ -16,7 +16,12 @@ disable=missing-function-docstring,
     too-many-boolean-expressions,
     too-many-nested-blocks,
     line-too-long,
-    protected-access
+    protected-access,
+    too-many-lines,
+    multiple-statements,
+    pointless-string-statement,
+    too-many-locals,
+    too-many-public-methods
 
 #    import-error
 
