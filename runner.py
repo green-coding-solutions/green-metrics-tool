@@ -1044,7 +1044,7 @@ if __name__ == '__main__':
     parser.add_argument('--dry-run',
                         action='store_true', help='Dry Run. Remove all sleeps. Resulting measurement data will be skewed.')
     parser.add_argument('--skip-build',
-                        action='store_true', help='Will skip removing, building and pulling docker images.')
+                        action='store_true', help='Will skip removing and building docker images. Remote image will still be pulled.')
 
     args = parser.parse_args()
 
