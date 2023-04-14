@@ -81,7 +81,7 @@ class Runner:
     def __init__(self,
         uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False,
-        verbose_provider_boot=False, full_docker_prune=False, dry_run=False, skip_build=False):
+        verbose_provider_boot=False, full_docker_prune=False, dry_run=False):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -94,7 +94,6 @@ class Runner:
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
         self._dry_run = dry_run
-        self._skip_build = skip_build
         self._uri = uri
         self._uri_type = uri_type
         self._project_id = pid
@@ -300,8 +299,6 @@ class Runner:
 
 
     def remove_docker_images(self):
-        if self._skip_build: return
-
         subprocess.run(
             'docker images --format "{{.Repository}}:{{.Tag}}" | grep "gmt_run_tmp" | xargs docker rmi -f',
             shell=True,
@@ -416,8 +413,13 @@ class Runner:
 
         return context, dockerfile
 
+    def clean_image_name(self, name):
+        # clean up image name for problematic characters
+        name = re.sub(r'[^A-Za-z0-9_]', '', name)
+        name = f"{name}_gmt_run_tmp"
+        return name
+
     def build_docker_images(self):
-        if self._skip_build: return
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
         # Create directory /tmp/green-metrics-tool/docker_images
@@ -427,18 +429,18 @@ class Runner:
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
         for _, service in self._usage_scenario.get('services', []).items():
-            if match := re.match(r'^([a-zA-Z0-9][a-zA-Z0-9_/-]*)(:([a-zA-Z0-9_.-]*))?$', service['image']):
-                img_name = match.group(1)
-                img_tag = match.group(3) or "latest"
-            else:
+            # minimal protection from possible shell escapes.
+            # since we use subprocess without shell we should be safe though
+            if re.findall(r'(\.\.|\$|\'|"|`)', service['image']):
                 raise ValueError(
                     f"In scenario file the builds contains an invalid image name: {service['image']}")
 
+            tmp_img_name = self.clean_image_name(service['image'])
+
             if 'build' in service:
                 context, dockerfile = self.get_build_info(service)
-                print(f"Building {img_name}")
-                self.__notes.append({'note':f"Building {img_name}" , 'detail_name': '[NOTES]', 'timestamp':
-                                 int(time.time_ns() / 1_000)})
+                print(f"Building {service['image']}")
+                self.__notes.append({'note':f"Building {service['image']}" , 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
                 # Make sure the docker file exists and is not trying to escape some root. We don't need the returns
                 # but it will throw errors if something is wrong
@@ -451,8 +453,8 @@ class Runner:
                     'gcr.io/kaniko-project/executor:latest',
                     f"--dockerfile=/workspace/{context}/{dockerfile}",
                     '--context','dir:///workspace/',
-                    f"--destination={img_name}:{img_tag}",
-                    f"--tar-path=/output/{img_name}.tar",
+                    f"--destination={tmp_img_name}",
+                    f"--tar-path=/output/{tmp_img_name}.tar",
                     '--no-push']
 
                 print(" ".join(docker_build_command))
@@ -464,7 +466,7 @@ class Runner:
                     raise OSError("Docker build failed")
 
                 # import the docker image locally
-                image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{img_name}.tar"]
+                image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{tmp_img_name}.tar"]
                 print(" ".join(image_import_command))
                 ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
@@ -476,18 +478,15 @@ class Runner:
                 print(f"Pulling {service['image']}")
                 self.__notes.append({'note':f"Pulling {service['image']}" , 'detail_name': '[NOTES]', 'timestamp':
                                  int(time.time_ns() / 1_000)})
-                ps = subprocess.run(['docker', 'pull', f"{img_name}:{img_tag}"],
+                ps = subprocess.run(['docker', 'pull', service['image']],
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
-                    raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {img_name}:{img_tag}")
+                    raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
 
-
-
-            # we omit the tag on purpose. No use for tmp image
-            subprocess.run(['docker', 'tag', f"{img_name}:{img_tag}", f"{img_name}_gmt_run_tmp"], check=True)
-
+                # tagging must be done in pull case, so we cann the correct container later
+                subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
 
 
         # Delete the directory /tmp/gmt_docker_images
@@ -639,7 +638,7 @@ class Runner:
                     docker_run_string.append('--net')
                     docker_run_string.append(network)
 
-            docker_run_string.append(service['image'])
+            docker_run_string.append(self.clean_image_name(service['image']))
 
             if 'cmd' in service:  # must come last
                 docker_run_string.append(service['cmd'])
@@ -1044,8 +1043,6 @@ if __name__ == '__main__':
                         action='store_true', help='Prune all images and build caches on the system')
     parser.add_argument('--dry-run',
                         action='store_true', help='Dry Run. Remove all sleeps. Resulting measurement data will be skewed.')
-    parser.add_argument('--skip-build',
-                        action='store_true', help='Will skip removing and building docker images. Remote image will still be pulled.')
 
     args = parser.parse_args()
 
@@ -1101,7 +1098,7 @@ if __name__ == '__main__':
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe,
                     verbose_provider_boot=args.verbose_provider_boot, full_docker_prune=args.full_docker_prune,
-                    dry_run=args.dry_run, skip_build=args.skip_build)
+                    dry_run=args.dry_run)
     try:
         runner.run()  # Start main code
 
