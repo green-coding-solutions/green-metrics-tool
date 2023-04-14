@@ -18,6 +18,9 @@ class PhaseMetrics extends HTMLElement {
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Duration of the phase.">
                             <i class="question circle icon"></i>
                         </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -34,6 +37,9 @@ class PhaseMetrics extends HTMLElement {
                             <span class="detail-name"></span>
                             <i class="question circle icon"></i>
                         </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -49,6 +55,9 @@ class PhaseMetrics extends HTMLElement {
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
                             <span class="detail-name"></span>
                             <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
                         </div>
                     </div>
                 </div>
@@ -67,6 +76,9 @@ class PhaseMetrics extends HTMLElement {
                             <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
                         </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -82,6 +94,9 @@ class PhaseMetrics extends HTMLElement {
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="CO2 cost of usage phase">
                             <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
                         </div>
                     </div>
                 </div>
@@ -99,6 +114,9 @@ class PhaseMetrics extends HTMLElement {
                             <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
                         </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -114,6 +132,9 @@ class PhaseMetrics extends HTMLElement {
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="CO2 (manufacturing) attr. to lifetime share of phase duration.">
                             <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
                         </div>
                     </div>
                 </div>
@@ -324,9 +345,10 @@ const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, st
 const updateKeyMetric = (selector, phase, value, unit, std_dev_text, metric_name) => {
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerText = `${(value)} ${std_dev_text}`
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .si-unit`).innerText = `[${unit}]`
+    if(std_dev_text != '') document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(AVG + STD.DEV)`;
+
     node = document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .detail-name`)
     if (node !== null) node.innerText = metric_name // not every key metric shall have a custom detail_name
-
 }
 
 

@@ -3,7 +3,7 @@ const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='t
        let max = Math.max(...series[0],...series[1])*1.2
        let options =  {
             tooltip: {
-                trigger: 'axis'
+                trigger: 'item'
             },
             title: {
                 text:title
@@ -14,12 +14,22 @@ const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='t
                     type: x_axis,
                     splitLine: {show: false},
                     name: [legend[0]],
+                    axisLabel: {
+                        show: true,
+                        interval: 0,
+                        rotate: 45,
+                   },
                 },
                 {
                     gridIndex: 1,
                     splitLine: {show: false},
                     type: x_axis,
                     name: [legend[1]],
+                    axisLabel: {
+                        show: true,
+                        interval: 0,
+                        rotate: 45,
+                   },
                 }
               ],
             yAxis: [
@@ -39,10 +49,12 @@ const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='t
                 {
                   left: '60%',
                   type: 'value',
+                  containLabel: false,
                 },
                 {
                   right: '60%',
                   type: 'value',
+                  containLabel: false,
                 }
             ],
             series: [
@@ -114,21 +126,29 @@ const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='t
        let max = Math.max(...series[0])*1.2
        let options =  {
             tooltip: {
-                trigger: 'axis'
+                trigger: 'item'
             },
             title: {
                 text:title
             },
+            grid: {
+                containLabel: false
+            },
             xAxis: {
                 type: x_axis,
-                splitLine: {show: false}
+                splitLine: {show: false},
+                axisLabel: {
+                        show: true,
+                        interval: 0,
+                        rotate: 45,
+                   },
             },
             yAxis: {
                 type: 'value',
                 splitLine: {show: true}
             },
             series: [{
-                data:series,
+                data:series[0],
                 type: chart_type,
                 markLine: { data: [ {type: "average",label: {formatter: "Mean:\n{c}"}}]}
             }],
@@ -167,15 +187,23 @@ const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='t
 const getLineChartOptions = (title, legend, series, mark_area=null, x_axis='time', no_toolbox = false, graphic=null) => {
    let options =  {
         tooltip: {
-            trigger: 'axis'
+            trigger: 'item'
         },
         title: {
             text:title
+        },
+        grid: {
+            containLabel: false,
         },
         xAxis: {
             type: x_axis,
             splitLine: {show: false},
             data: legend,
+            axisLabel: {
+                show: true,
+                interval: 0,
+                rotate: -15,
+            },
         },
         yAxis: {
             type: 'value',
@@ -538,7 +566,6 @@ const displayCompareChart = (phase, title, legend, data, mark_area, graphic) => 
     const myChart = echarts.init(element);
     let options = getCompareChartOptions(title, legend, data, mark_area, 'category', 'bar');
     myChart.setOption(options);
-
     // set callback when ever the user changes the viewport
     // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks
     $(window).on('resize', () =>  {

@@ -111,13 +111,15 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
 
                 if (!multi_comparison) {
                     displaySimpleMetricBox(phase,metric, metric_data, detail_data, keys[0]);
-                    displayCompareChart(
-                        phase,
-                        `${metric_data.clean_name} (${detail}) - [${metric_data.unit}]`,
-                        [`${comparison_case}: ${keys[0]}`],
-                        [detail_data.values],
-                        [{name:'Confidence Interval', bottom: detail_data.mean-detail_data.ci, top: detail_data.mean+detail_data.ci}],
-                    );
+                    if(detail_data.values.length > 1) {
+                        displayCompareChart(
+                            phase,
+                            `${metric_data.clean_name} (${detail}) - [${metric_data.unit}]`,
+                            [`${comparison_case}: ${keys[0]}`],
+                            [detail_data.values],
+                            [{name:'Confidence Interval', bottom: detail_data.mean-detail_data.ci, top: detail_data.mean+detail_data.ci}],
+                        );
+                    }
 
                 } else {
                     let metric_data2 = phase_stats_object?.['data']?.[keys[1]]?.[phase]?.[metric]
