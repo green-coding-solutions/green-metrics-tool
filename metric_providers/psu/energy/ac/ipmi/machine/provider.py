@@ -22,6 +22,9 @@ class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
         intervals[0] = intervals.mean()  # approximate first interval
         df['interval'] = intervals  # in microseconds
         df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_000, axis=1)
+        df['value'] = df.value.fillna(0) # maybe not needed
+        df['value'] = df.value.astype(int)
+
         df = df.drop(columns='interval')  # clean up
 
         return df
