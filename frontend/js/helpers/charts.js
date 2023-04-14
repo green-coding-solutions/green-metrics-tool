@@ -428,7 +428,7 @@ const displayKeyMetricsBarChart = (legend, labels, data, phase) => {
     let series = data.map((el, idx) => { return {type: "bar", name: legend[idx], data: el}})
     let chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart`);
     let myChart = echarts.init(chartDom);
-    let options = getLineChartOptions('Key energy metrics', labels, series, null, 'category', true);
+    let options = getLineChartOptions('Energy metrics', labels, series, null, 'category', true);
     myChart.setOption(options);
 
     // set callback when ever the user changes the viewport
