@@ -395,12 +395,12 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
     return {'success': True}
 
 @app.get('/v1/ci/measurements')
-async def get_ci_measurements(repo: str, branch: str, workflow:str):
+async def get_ci_measurements(repo: str, branch: str, workflow: str):
     query = """
         SELECT value, unit, run_id, created_at, label
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s
-        ORDER BY created_at DESC
+        ORDER BY run_id ASC, created_at ASC
     """
     params = (repo, branch, workflow)
     data = DB().fetch_all(query, params=params)
@@ -414,7 +414,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
         SELECT value, unit
         FROM ci_measurements
-        WHERE repo = %s AND branch = %s AND workflow = %s 
+        WHERE repo = %s AND branch = %s AND workflow = %s
         ORDER BY created_at DESC
         LIMIT 1
     """
