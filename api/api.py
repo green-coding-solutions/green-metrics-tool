@@ -384,12 +384,12 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
     return {'success': True}
 
 @app.get('/v1/ci/measurements')
-async def get_ci_measurements(repo: str, branch: str, workflow:str):
+async def get_ci_measurements(repo: str, branch: str, workflow: str):
     query = """
         SELECT value, unit, run_id, created_at, label
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s
-        ORDER BY created_at DESC
+        ORDER BY run_id ASC, created_at ASC
     """
     params = (repo, branch, workflow)
     data = DB().fetch_all(query, params=params)
@@ -401,22 +401,22 @@ async def get_ci_measurements(repo: str, branch: str, workflow:str):
 @app.get('/v1/ci/badge/get')
 async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
-        SELECT value, unit
+        SELECT SUM(value), MAX(unit), MAX(run_id)
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s 
-        ORDER BY created_at DESC
+        GROUP BY run_id
+        ORDER BY MAX(created_at) DESC
         LIMIT 1
     """
 
     params = (repo, branch, workflow)
-    data = DB().fetch_all(query, params=params)
+    data = DB().fetch_one(query, params=params)
+
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
 
-    energy_unit = data[0][1]
-    energy_value = 0
-    for x in data:
-        energy_value += x[0]
+    energy_unit = data[1]
+    energy_value = data[0]
 
     [energy_value, energy_unit] = rescale_energy_value(energy_value, energy_unit)
     badge_value= f"{energy_value:.2f} {energy_unit}"
