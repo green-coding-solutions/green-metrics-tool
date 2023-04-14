@@ -22,16 +22,24 @@ METRIC_MAPPINGS = {
         'color': 'purple',
         'icon': 'clock'
     },
+
+     'psu_co2_ac_ipmi_machine': {
+        'clean_name': 'Machine CO2 (IPMI)',
+        'explanation': 'Machine CO2 calculated by formula via IPMI measurement',
+        'color': 'black',
+        'icon': 'burn'
+    },
+
      'psu_co2_dc_picolog_machine': {
         'clean_name': 'Machine CO2 (PicoLog)',
-        'explanation': 'Machine CO2 calculated by formula via PicoLog HRDL ADC-24 estimation',
+        'explanation': 'Machine CO2 calculated by formula via PicoLog HRDL ADC-24 measurement',
         'color': 'black',
         'icon': 'burn'
     },
 
      'psu_co2_ac_powerspy2_machine': {
         'clean_name': 'Machine CO2 (PowerSpy2)',
-        'explanation': 'Machine CO2 calculated by formula via PowerSpy2 estimation',
+        'explanation': 'Machine CO2 calculated by formula via PowerSpy2 measurement',
         'color': 'black',
         'icon': 'burn'
     },
