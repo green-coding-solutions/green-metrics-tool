@@ -129,9 +129,10 @@ async def get_machines():
 @app.get('/v1/projects')
 async def get_projects():
     query = """
-            SELECT id, name, uri, branch, end_measurement, last_run, invalid_project, machine_id
-            FROM projects
-            ORDER BY created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
+            SELECT a.id, a.name, a.uri, a.branch, a.end_measurement, a.last_run, a.invalid_project, b.description
+            FROM projects as a
+            LEFT JOIN machines as b on a.machine_id = b.id
+            ORDER BY a.created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
             """
     data = DB().fetch_all(query)
     if data is None or data == []:

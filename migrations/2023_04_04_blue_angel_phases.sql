@@ -5,6 +5,7 @@ ALTER TABLE "projects" ADD COLUMN "usage_scenario_file" text;
 ALTER TABLE "stats" ADD COLUMN "phase" text DEFAULT NULL;
 ALTER TABLE "stats" RENAME TO "measurements";
 ALTER TABLE "machines" ADD COLUMN "updated_at" timestamp with time zone DEFAULT NULL;
+CREATE UNIQUE INDEX description_unique ON machines(description text_ops);
 
 CREATE TABLE phase_stats (
     id SERIAL PRIMARY KEY,

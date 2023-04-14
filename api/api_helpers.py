@@ -333,9 +333,11 @@ def get_phase_stats(ids):
     query = """
             SELECT
                 a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.unit,
-                b.uri, b.machine_id, b.usage_scenario_file, b.commit_hash
+                b.uri, c.description, b.usage_scenario_file, b.commit_hash
             FROM phase_stats as a
             LEFT JOIN projects as b on b.id = a.project_id
+            LEFT JOIN machines as c on c.id = b.machine_id
+
             WHERE
                 a.project_id = ANY(%s::uuid[])
                 AND
@@ -451,7 +453,7 @@ def get_phase_stats_object(phase_stats, case):
     for phase_stat in phase_stats:
         [
             phase, metric_name, detail_name, value, metric_type, max_value, unit,
-            repo, machine_id, usage_scenario_file, commit_hash
+            repo, machine_description, usage_scenario_file, commit_hash
         ] = phase_stat # unpack
 
         phase = phase.split('_', maxsplit=1)[1] # remove the 001_ prepended stuff again, which is only for ordering
@@ -461,7 +463,7 @@ def get_phase_stats_object(phase_stats, case):
         elif case == 'Usage Scenario':
             key = usage_scenario_file # Case C_2 : SoftwareDeveloper Case
         elif case == 'Machine':
-            key = machine_id # Case C_1 : DataCenter Case
+            key = machine_description # Case C_1 : DataCenter Case
         else:
             key = commit_hash # No comparison case / Case A: Blue Angel / Case B: DevOps Case
 
