@@ -71,13 +71,11 @@ const getEChartsOptions = () => {
 }
 
 const displayGraph = (runs) => {
-    console.log("Runs", runs)
     const element = createChartContainer("#chart-container", "run-energy");
     let options = getEChartsOptions();
     let run_notes = {}
 
-    options.title.text = `Workflow energy cost per run [Joules]`;
-
+    options.title.text = `Workflow energy cost per run [mJ]`;
 
     let tooltip = []
 
