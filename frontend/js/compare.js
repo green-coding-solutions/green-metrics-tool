@@ -28,8 +28,10 @@ $(document).ready( (e) => {
 
         if (phase_stats_data == undefined) return;
 
-        document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${phase_stats_data.comparison_case}</a></td></tr>`)
-        document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${phase_stats_data.comparison_details.join(' vs. ')}</a></td></tr>`)
+        let comparison_details = phase_stats_data.comparison_details.map((el) => replaceRepoIcon(el));
+        comparison_details = comparison_details.join(' vs. ')
+        document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${phase_stats_data.comparison_case}</td></tr>`)
+        document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${comparison_details}</td></tr>`)
 
         let multi_comparison = determineMultiComparison(phase_stats_data.comparison_case)
         setupPhaseTabs(phase_stats_data, multi_comparison)

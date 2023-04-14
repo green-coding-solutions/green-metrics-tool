@@ -39,9 +39,10 @@ const compareButton = () => {
         const invalid_project = el[6]
         const machine = el[7]
 
-        let uri_link = '';
+        let uri_link = replaceRepoIcon(uri);
+
         if (uri.startsWith("http")) {
-            uri_link = `<a href="${uri}"><i class="icon external alternate"></i></a>`;
+            uri_link = `${uri_link} <a href="${uri}"><i class="icon external alternate"></i></a>`;
         }
 
 
@@ -53,7 +54,7 @@ const compareButton = () => {
                 <td data-uri="${uri}">
                     <div class="ui accordion" style="width: 100%;">
                       <div class="title">
-                        <i class="dropdown icon"></i> ${uri} ${uri_link}
+                        <i class="dropdown icon"></i> ${uri_link}
                       </div>
                       <div class="content">
                       </div>

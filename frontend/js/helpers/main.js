@@ -29,6 +29,20 @@ class GMTMenu extends HTMLElement {
 }
 customElements.define('gmt-menu', GMTMenu);
 
+const replaceRepoIcon = (uri) => {
+    if (uri.startsWith("https://www.github.com") || uri.startsWith("https://github.com")) {
+        uri = uri.replace("https://www.github.com", '<i class="icon github"></i>');
+        uri = uri.replace("https://github.com", '<i class="icon github"></i>');
+    } else if (uri.startsWith("https://www.bitbucket.com") || uri.startsWith("https://bitbucket.com")) {
+        uri = uri.replace("https://www.bitbucket.com", '<i class="icon bitbucket"></i>');
+        uri = uri.replace("https://bitbucket.com", '<i class="icon bitbucket"></i>');
+    } else if (uri.startsWith("https://www.gitlab.com") || uri.startsWith("https://gitlab.com")) {
+        uri = uri.replace("https://www.gitlab.com", '<i class="icon gitlab"></i>');
+        uri = uri.replace("https://gitlab.com", '<i class="icon gitlab"></i>');
+    }
+    return uri;
+}
+
 
 const showNotification = (message_title, message_text, type='warning') => {
     $('body')
