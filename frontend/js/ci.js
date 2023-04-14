@@ -73,13 +73,13 @@ const getEChartsOptions = () => {
 const displayGraph = (runs) => {
     console.log("Runs", runs)
     const element = createChartContainer("#chart-container", "run-energy");
-    var options = getEChartsOptions();
-    var run_notes = {}
+    let options = getEChartsOptions();
+    let run_notes = {}
 
-    options.title.text = `Workflow energy cost per run`;
+    options.title.text = `Workflow energy cost per run [Joules]`;
 
 
-    var tooltip = []
+    let tooltip = []
 
     idx = -1; // since we force an ordering from the API, we can safely assume increasing run_ids
     runs.forEach(run => { // iterate over all runs, which are in row order
@@ -198,7 +198,7 @@ $(document).ready((e) => {
         try {
             const link_node = document.createElement("a")
             const img_node = document.createElement("img")
-            img_node.src = `${API_URL}/v1/ci/badge/get/?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`
+            img_node.src = `${API_URL}/v1/ci/badge/get?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`
             link_node.appendChild(img_node)
             document.querySelector("span.energy-badge-container").appendChild(link_node)
             document.querySelector(".copy-badge").addEventListener('click', copyToClipboard)
@@ -207,7 +207,7 @@ $(document).ready((e) => {
         }
 
         try {
-            api_string=`/v1/ci/measurements/?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`;
+            api_string=`/v1/ci/measurements?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`;
             var badges_data = await makeAPICall(api_string);
         } catch (err) {
             showNotification('Could not get data from API', err);

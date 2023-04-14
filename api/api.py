@@ -22,7 +22,7 @@ from db import DB
 import jobs
 import email_helpers
 import error_helpers
-import psycopg2.extras
+import psycopg
 import anybadge
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
@@ -311,7 +311,7 @@ async def post_project_add(project: Project):
         RETURNING id
         """
     params = (project.url, project.name, project.email, project.branch)
-    project_id = DB().fetch_one(query, params=params)
+    project_id = DB().fetch_one(query, params=params)[0]
     # This order as selected on purpose. If the admin mail fails, we currently do
     # not want the job to be queued, as we want to monitor every project execution manually
     email_helpers.send_admin_email(
@@ -326,7 +326,7 @@ async def post_project_add(project: Project):
 async def get_project(project_id: str):
     query = """
             SELECT
-                id, name, uri, branch, (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements \
+                id, name, uri, branch, commit_hash, (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements \
                     LEFT JOIN categories as t on t.id = elements) as categories, start_measurement, end_measurement, \
                     measurement_config, machine_specs, usage_scenario, last_run, created_at, invalid_project
             FROM
@@ -335,7 +335,7 @@ async def get_project(project_id: str):
                 id = %s
             """
     params = (project_id,)
-    data = DB().fetch_one(query, params=params, cursor_factory=psycopg2.extras.RealDictCursor)
+    data = DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
     return {'success': True, 'data': data}
@@ -410,13 +410,13 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str):
     return {'success': True, 'data': data}
 
 @app.get('/v1/ci/badge/get')
-async def get_ci_badge_get(repo: str, branch: str, workflow: str):
+async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
         SELECT value, unit
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s
-        AND run_id = (SELECT run_id from ci_measurements
-                      WHERE created_at = (SELECT MAX(created_at) from ci_measurements))
+        ORDER BY created_at DESC
+        LIMIT 1
     """
 
     params = (repo, branch, workflow)
