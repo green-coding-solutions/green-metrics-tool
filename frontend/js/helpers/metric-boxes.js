@@ -187,9 +187,9 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, co
     tr.innerHTML = `
         <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>
         <td>${scope}</td>
-        <td>${metric_data.unit}</td>
         <td>${detail_data.name}</td>
         <td>${value}</td>
+        <td>${metric_data.unit}</td>
         <td>${std_dev_text_table}</td>
         <td>${extra_label}</td>`;
 
@@ -233,10 +233,10 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array
     tr.innerHTML = `
         <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>
         <td>${scope}</td>
-        <td>${metric_data.unit}</td>
         <td>${detail_data_array[0].name}</td>
         <td>${value_1}</td>
         <td>${value_2}</td>
+        <td>${metric_data.unit}</td>
         <td class="${icon_color}">${value}</td>
         <td>${extra_label}</td>`;
 
