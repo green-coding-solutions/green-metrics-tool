@@ -153,7 +153,7 @@ def build_and_store_phase_stats(project_id):
         if network_io_bytes_total != []:
             # build the network energy
             # network via formula: https://www.green-coding.berlin/co2-formulas/
-            network_io_in_kWh = (sum(network_io_bytes_total) / 1_000_000_000) * 0.06
+            network_io_in_kWh = (sum(network_io_bytes_total) / 1_000_000_000) * 0.00375
             network_io_in_mJ = network_io_in_kWh * 3_600_000_000
             DB().query(insert_query,
                     (project_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}",# phase name mod. for order
@@ -161,7 +161,7 @@ def build_and_store_phase_stats(project_id):
                     'mJ')
             )
             # co2 calculations
-            network_io_co2_in_ug = network_io_in_kWh * 519 * 1_000_000
+            network_io_co2_in_ug = network_io_in_kWh * 475 * 1_000_000
             DB().query(insert_query,
                     (project_id, 'network_co2_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}",# phase name mod. for order
                         network_io_co2_in_ug, 'TOTAL', None,
