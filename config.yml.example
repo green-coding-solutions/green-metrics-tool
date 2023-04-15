@@ -61,7 +61,7 @@ measurement:
     #--- Machine Energy - These providers need special hardware / lab equipment to work
 #      psu.energy.ac.gude.machine.provider.PsuEnergyAcGudeMachineProvider:
 #        resolution: 100
-#      psu.energy.dc.picolog.machine.provider.PsuEnergyDcPicologMachineProvider:
+#      psu.energy.dc.picolog.mainboard.provider.PsuEnergyDcPicologMainboardProvider:
 #        resolution: 61 # Do not change this. Provider is tailored to work at fixed resolution
 #      psu.energy.ac.powerspy2.machine.provider.PsuEnergyAcPowerspy2MachineProvider:
 #        resolution: 250
@@ -88,8 +88,8 @@ measurement:
     #--- Architecture - MacOS
     macos:
     #--- MacOS: On Mac you only need this provider. Please delete all others!
-#      powermetrics.provider.PowermetricsProvider:
-#        resolution: 100
+      powermetrics.provider.PowermetricsProvider:
+        resolution: 100
     #--- Architecture - Common
     common:
     #--- Model based
