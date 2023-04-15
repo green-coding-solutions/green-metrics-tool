@@ -122,7 +122,12 @@ const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', c
        let max = Math.max(...series[0])*1.2
        let options =  {
             tooltip: {trigger: tooltip_trigger},
-            grid: {containLabel: false},
+            grid: {
+                left: '0%',
+                right: '0%',
+                bottom: '0%',
+                containLabel: true
+            },
             xAxis: {
                 type: x_axis,
                 splitLine: {show: false},
@@ -179,7 +184,10 @@ const getLineBarChartOptions = (legend, series, mark_area=null, x_axis='time', n
    let options =  {
         tooltip: { trigger: tooltip_trigger },
         grid: {
-            containLabel: false,
+                left: '0%',
+                right: '0%',
+                bottom: '0%',
+                containLabel: true
         },
         xAxis: {
             type: x_axis,
@@ -409,7 +417,10 @@ const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
 
     let options = {
       grid: {
-        top: 100,
+        left: '0%',
+        right: '0%',
+        bottom: '0%',
+        containLabel: true
       },
       legend: {
         data: legend,
@@ -509,39 +520,31 @@ const displayKeyMetricsEmbodiedCarbonChart = (phase) => {
 
 }
 
-const displayTotalChart = (labels, data) => {
+const displayTotalChart = (legend, labels, data) => {
 
     let chartDom = document.querySelector(`#total-phases-data .bar-chart .statistics-chart`);
-    document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .chart-title`).innerText = 'Total Phases consumption';
+    document.querySelector(`#total-phases-data .bar-chart .chart-title`).innerText = 'Total Phases consumption [J]';
 
+    console.log(legend);
+    console.log("labels", labels);
+    console.log(data);
     let myChart = echarts.init(chartDom);
 
     let series = [];
-    for (phase in data) {
+    for (key in data) {
         series.push({
-            name: metric,
-              type: 'bar',
-              stack: 'component',
-              emphasis: {
-                focus: 'series'
-              },
-              data: component_energies[metric]
-        })
-    }
-    for (metric in machine_energies) {
-        series.push({
-            name: metric,
+              name: key,
               type: 'bar',
               emphasis: {
                 focus: 'series'
               },
-              data: machine_energies[metric]
+              data: data[key]
         })
     }
 
 
-    let options = getLineBarChartOptions(phases, series, null, 'category')
-
+    let options = getLineBarChartOptions(labels, series, null, 'category')
+    console.log(options);
     myChart.setOption(options);
         // set callback when ever the user changes the viewport
     // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks
