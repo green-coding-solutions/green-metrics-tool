@@ -149,6 +149,7 @@ class PhaseMetrics extends HTMLElement {
                   <thead></thead>
                   <tbody></tbody>
                 </table>
+                <co2-tangible></co2-tangible>
                 <h3 class="ui dividing header">Detailed Charts</h3>
                 <div class="compare-chart-container"></div>
             </div>
@@ -249,39 +250,24 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array
 
 }
 
-// TODO
-const calculateCO2 = () => {
+const calculateCO2 = (phase, total_CO2_in_ug) => {
     // network via formula: https://www.green-coding.berlin/co2-formulas/
-    const network_io_in_mWh = network_io * 0.00006 * 1000000;
-    const network_io_in_J = network_io_in_mWh * 3.6;  //  60 * 60 / 1000 => 3.6
-    if(display_in_watts) {
-        if(network_io_in_mWh) document.querySelector(`div.tab[data-tab='${phase}'] .network-energy`).innerHTML = `${network_io_in_mWh.toFixed(2)} <span class="si-unit">mWh</span>`
-    } else {
-        if(network_io_in_J) document.querySelector(`div.tab[data-tab='${phase}'] .network-energy`).innerHTML = `${network_io_in_J.toFixed(2)} <span class="si-unit">J</span>`
-    }
-
-    // co2 calculations
-    const network_io_co2_in_kg = ( (network_io_in_mWh / 1000000) * 519) / 1000;
-    const [network_co2_value, network_co2_unit] = rescaleCO2Value(network_io_co2_in_kg)
-    if (network_co2_value) document.querySelector(`div.tab[data-tab='${phase}'] .network-co2`).innerHTML = `${(network_co2_value).toFixed(2)} <span class="si-unit">${network_co2_unit}</span>`
-
-    const total_CO2_in_kg = ( ((energy_in_mWh + network_io_in_mWh) / 1000000) * 519) / 1000;
+    let total_CO2_in_kg = total_CO2_in_ug / 1_000_000_000;
     const [component_co2_value, component_co2_unit] = rescaleCO2Value(total_CO2_in_kg)
-    if (component_co2_value) document.querySelector(`div.tab[data-tab='${phase}'] .machine-co2`).innerHTML = `${(component_co2_value).toFixed(2)} <span class="si-unit">${component_co2_unit}</span>`
 
     const daily_co2_budget_in_kg_per_day = 1.739; // (12.7 * 1000 * 0.05) / 365 from https://www.pawprint.eco/eco-blog/average-carbon-footprint-uk and https://www.pawprint.eco/eco-blog/average-carbon-footprint-globally
     const co2_budget_utilization = total_CO2_in_kg*100 / daily_co2_budget_in_kg_per_day;
 
-    if (co2_budget_utilization) document.querySelector("#co2-budget-utilization").innerHTML = (co2_budget_utilization).toFixed(2) + ' <span class="si-unit">%</span>'
+    if (co2_budget_utilization) document.querySelector(`div.tab[data-tab='${phase}'] .co2-budget-utilization`).innerHTML = (co2_budget_utilization).toFixed(2) + ' <span class="si-unit">%</span>'
 
     upscaled_CO2_in_kg = total_CO2_in_kg * 1000 * 365 ; // upscaled to 365 days for 1000 runs per day
 
     if(upscaled_CO2_in_kg) {
-        document.querySelector("#trees").innerText = (upscaled_CO2_in_kg / 0.06 / 1000).toFixed(2);
-        document.querySelector("#miles-driven").innerText = (upscaled_CO2_in_kg / 0.000403 / 1000).toFixed(2);
-        document.querySelector("#gasoline").innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
-            // document.querySelector("#smartphones-charged").innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
-        document.querySelector("#flights").innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
+        document.querySelector(`div.tab[data-tab='${phase}'] .co2-trees`).innerText = (upscaled_CO2_in_kg / 0.06 / 1000).toFixed(2);
+        document.querySelector(`div.tab[data-tab='${phase}'] .co2-miles-driven`).innerText = (upscaled_CO2_in_kg / 0.000403 / 1000).toFixed(2);
+        document.querySelector(`div.tab[data-tab='${phase}'] .co2-gasoline`).innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
+        // document.querySelector(`.co2-smartphones-charged`).innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
+        document.querySelector(`div.tab[data-tab='${phase}'] .co2-flights`).innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
     }
 }
 

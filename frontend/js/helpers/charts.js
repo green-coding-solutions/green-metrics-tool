@@ -509,15 +509,15 @@ const displayKeyMetricsEmbodiedCarbonChart = (phase) => {
 
 }
 
-const displayTotalCharts = (machine_energies, component_energies, phases) => {
+const displayTotalChart = (labels, data) => {
 
-    let chartDom = document.querySelector(`#total-phases-data .phases-chart .statistics-chart`);
-    document.querySelector(`.ui.tab[data-tab='${phase}'] .phases-chart .chart-title`).innerText = 'Total Phases consumption';
+    let chartDom = document.querySelector(`#total-phases-data .bar-chart .statistics-chart`);
+    document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .chart-title`).innerText = 'Total Phases consumption';
 
     let myChart = echarts.init(chartDom);
 
     let series = [];
-    for (metric in component_energies) {
+    for (phase in data) {
         series.push({
             name: metric,
               type: 'bar',

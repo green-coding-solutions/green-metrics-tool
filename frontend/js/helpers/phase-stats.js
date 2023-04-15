@@ -86,6 +86,8 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
     // if we have a repetition case we display the STDDEV
     // otherwise we just display the value
 
+    let machine_energy_chart_data =  {};
+    let machine_energy_chart_labels = {};
     for (phase in phase_stats_object['data'][keys[0]]) {
         if (include_detail_phases == false && phase.indexOf('[') == -1) continue;
         let phase_data = phase_stats_object['data'][keys[0]][phase];
@@ -95,6 +97,8 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
 
         let energy_chart_labels = [];
         let energy_chart_data =  [[],[]];
+        machine_energy_chart_labels[phase]  = [];
+        machine_energy_chart_data[phase] = [[],[]];
 
         for (metric in phase_data) {
             let metric_data = phase_data[metric]
@@ -109,6 +113,15 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                     energy_chart_labels.push(metric_data.clean_name);
                     energy_chart_data[0].push(detail_data.mean)
                 }
+                if (metric.match(/^.*_energy_.*_machine$/) !== null) {
+                    machine_energy_chart_labels[phase].push(metric_data.clean_name);
+                    machine_energy_chart_data[phase][0].push(detail_data.mean)
+                }
+                if (detail_data.values.length == 1 && metric.match(/^.*_co2_.*_machine$/) !== null) {
+                    calculateCO2(phase, detail_data.mean);
+                }
+
+
 
 
                 if (!multi_comparison) {
@@ -156,6 +169,9 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                     if (metric.indexOf('_energy_') !== -1) {
                         energy_chart_data[1].push(detail_data2.mean)
                     }
+                    if (metric.match(/^.*_energy.*_machine$/) !== null) {
+                        machine_energy_chart_data[phase][1].push(detail_data.mean)
+                    }
                 }
             }
         }
@@ -187,8 +203,15 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
 
     }
 
-    // displayTotalCharts(machine_energies, component_energies, phases);
-
+    console.log(machine_energy_chart_data);
+    console.log(machine_energy_chart_labels);
+/*
+    displayTotalChart(
+        machine_energy_chart_labels,
+        machine_energy_chart_labels,
+        machine_energy_chart_data
+    )
+*/
     /*
         Display all boxes and charts
     */

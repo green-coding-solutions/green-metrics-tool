@@ -1,3 +1,77 @@
+class CO2Tangible extends HTMLElement {
+   connectedCallback() {
+        this.innerHTML = `
+                <div class="ui blue icon message">
+                    <i class="question circle icon"></i>
+                    <div class="content">
+                        <div class="header">
+                            How much is this value of CO2 to something tangible?
+                        </div>
+                        <p>CO2 of software per run is relatively small. The values get big though cause software is repeatedly run.<br>Therefore the following numbers reflect the CO2 value of the software as if it was run for 1,000 times a day over the course of a year (365 days).</p>
+                        <p>Source of CO2 to Tree etc. conversion: <a href="https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator">EPA</a></p>
+                    </div>
+                </div>
+                <div class="ui five cards stackable">
+                    <div class="card">
+                        <div class="content">
+                            <div class="ui header">Trees</div>
+                            <div class="ui small statistic">
+                                <div class="value">
+                                    <i class="tree icon"></i> <span class="co2-trees">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="content">
+                            <div class="ui header">Miles driven</div>
+                            <div class="ui small statistic">
+                                <div class="value">
+                                    <i class="truck pickup icon"></i> <span class="co2-miles-driven">-</span>
+                                </div>
+                            </div>
+                            <div class="ui bottom right attached label">by car</div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="content">
+                            <div class="ui header">Gasoline</div>
+                            <div class="ui small statistic">
+                                <div class="value">
+                                    <i class="gas pump icon"></i> <span class="co2-gasoline">-</span>
+                                </div>
+                            </div>
+                            <div class="ui bottom right attached label">in gallons</div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="content">
+                            <div class="ui header">Flights</div>
+                            <div class="ui small statistic">
+                                <div class="value">
+                                    <i class="plane departure icon"></i> <span class="co2-flights">-</span>
+                                </div>
+                            </div>
+                            <div class="ui bottom right attached label">Berlin &raquo; NYC</div>
+                        </div>
+                    </div>
+                    <div class="ui card">
+                        <div class="ui content">
+                            <div class="ui header">co2 budget / day</div>
+                            <div class="ui small statistic">
+                                <div class="value">
+                                    <i class="user icon"></i> <span class="co2-budget-utilization"> - %</span>
+                                </div>
+                            </div>
+                            <div class="ui bottom right attached label">for CPU + Memory + Network</div>
+                        </div>
+                    </div>
+                </div><!-- end ui five cards stackable -->`;
+    }
+}
+
+customElements.define('co2-tangible', CO2Tangible);
+
 const fillProjectData = (project_data, key = null) => {
 
 
