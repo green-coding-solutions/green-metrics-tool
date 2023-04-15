@@ -38,6 +38,9 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
 .statistics-chart {
     width: 100%;
     height: 100%;
+}
+
+.statistics-chart-card .statistics-chart {
     min-height: 600px;
 }
 
@@ -235,4 +238,9 @@ a,
 
 .ui.steps .step .title {
     font-size: 1em;
+}
+
+.chart-title {
+    font-weight: bold;
+    font-size: 1.2em;
 }

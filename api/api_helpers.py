@@ -16,220 +16,185 @@ from db import DB
 
 METRIC_MAPPINGS = {
 
-     'phase_time_syscall_system': {
+    'phase_time_syscall_system': {
         'clean_name': 'Phase Duration',
+        'source': 'Syscall',
         'explanation': 'Duration of the phase measured by GMT through a syscall',
-        'color': 'purple',
-        'icon': 'clock'
     },
-
-     'psu_co2_ac_ipmi_machine': {
-        'clean_name': 'Machine CO2 (IPMI)',
+    'psu_co2_ac_ipmi_machine': {
+        'clean_name': 'Machine CO2',
+        'source': 'Formula (IPMI)',
         'explanation': 'Machine CO2 calculated by formula via IPMI measurement',
-        'color': 'black',
-        'icon': 'burn'
     },
-
-     'psu_co2_dc_picolog_machine': {
-        'clean_name': 'Machine CO2 (PicoLog)',
+    'psu_co2_dc_picolog_mainboard': {
+        'clean_name': 'Machine CO2',
+        'source': 'Formula (PicoLog)',
         'explanation': 'Machine CO2 calculated by formula via PicoLog HRDL ADC-24 measurement',
-        'color': 'black',
-        'icon': 'burn'
     },
-
-     'psu_co2_ac_powerspy2_machine': {
-        'clean_name': 'Machine CO2 (PowerSpy2)',
+    'psu_co2_ac_powerspy2_machine': {
+        'clean_name': 'Machine CO2',
+        'source': 'PowerSpy2',
         'explanation': 'Machine CO2 calculated by formula via PowerSpy2 measurement',
-        'color': 'black',
-        'icon': 'burn'
     },
-     'psu_co2_ac_xgboost_machine': {
-        'clean_name': 'Machine CO2 (XGBoost)',
+    'psu_co2_ac_xgboost_machine': {
+        'clean_name': 'Machine CO2',
+        'source': 'Formula (XGBoost)',
         'explanation': 'Machine CO2 calculated by formula via XGBoost estimation',
-        'color': 'black',
-        'icon': 'burn'
     },
-
-     'network_energy_formula_global': {
+    'network_energy_formula_global': {
         'clean_name': 'Network Energy',
+        'source': 'Formula',
         'explanation': 'Network Energy calculated by formula',
-        'color': 'orange',
-        'icon': 'exchange alternate'
     },
-     'network_co2_formula_global': {
+    'network_co2_formula_global': {
         'clean_name': 'Network CO2',
+        'source': 'Formula',
         'explanation': 'Network CO2 calculated by formula',
-        'color': 'black',
-        'icon': 'burn'
     },
      'lm_sensors_temperature_component': {
         'clean_name': 'CPU Temperature',
+        'source': 'lm_sensors',
         'explanation': 'CPU Temperature as reported by lm_sensors',
-        'color': 'grey',
-        'icon': 'microchip'
     },
     'lm_sensors_fan_component': {
         'clean_name': 'Fan Speed',
+        'source': 'lm_sensors',
         'explanation': 'Fan speed as reported by lm_sensors',
-        'color': 'grey',
-        'icon': 'circle'
-    },'psu_energy_ac_powerspy2_machine': {
-        'clean_name': 'Machine Energy (AC - PowerSpy2)',
-        'explanation': 'Full machine energy (AC) as reported by PowerSpy2',
-        'color': 'blue',
-        'icon': 'battery three quarters'
-    },'psu_power_ac_powerspy2_machine': {
-        'clean_name': 'Machine Power (AC - PowerSpy2)',
-        'explanation': 'Full machine power (AC) as reported by PowerSpy2',
-        'color': 'orange',
-        'icon': 'power off'
-    },'psu_energy_ac_xgboost_machine': {
-        'clean_name': 'Machine Energy (AC - XGBoost)',
-        'explanation': 'Full machine energy (AC) as estimated by XGBoost model',
-        'color': 'blue',
-        'icon': 'battery three quarters'
-    },'psu_power_ac_xgboost_machine': {
-        'clean_name': 'Machine Power (AC - XGBoost)',
-        'explanation': 'Full machine power (AC) as estimated by XGBoost model',
-        'color': 'orange',
-        'icon': 'power off'
-    },'psu_energy_ac_ipmi_machine': {
-        'clean_name': 'Machine Energy (AC -IPMI)',
-        'explanation': 'Full machine energy (AC) as reported by IPMI',
-        'color': 'blue',
-        'icon': 'battery three quarters'
-    },'psu_power_ac_ipmi_machine': {
-        'clean_name': 'Machine Power (AC -IPMI)',
-        'explanation': 'Full machine power (AC) as reported by IPMI',
-        'color': 'orange',
-        'icon': 'power off'
-    },'psu_energy_dc_picolog_machine': {
-        'clean_name': 'Machine Energy (DC - PicoLog)',
-        'explanation': 'Full machine energy (AC) as reported by PicoLog HRDL ADC-24',
-        'color': 'blue',
-        'icon': 'battery three quarters'
-    },'psu_power_dc_picolog_machine': {
-        'clean_name': 'Machine Power (DC - PicoLog)',
-        'explanation': 'Full machine power (AC) as reported by PicoLog HRDL ADC-24',
-        'color': 'orange',
-        'icon': 'power off'
     },
-
-
+    'psu_energy_ac_powerspy2_machine': {
+        'clean_name': 'Machine Energy',
+        'source': 'PowerSpy2',
+        'explanation': 'Full machine energy (AC) as reported by PowerSpy2',
+    },
+    'psu_power_ac_powerspy2_machine': {
+        'clean_name': 'Machine Power',
+        'source': 'PowerSpy2',
+        'explanation': 'Full machine power (AC) as reported by PowerSpy2',
+    },
+    'psu_energy_ac_xgboost_machine': {
+        'clean_name': 'Machine Energy',
+        'source': 'XGBoost',
+        'explanation': 'Full machine energy (AC) as estimated by XGBoost model',
+    },
+    'psu_power_ac_xgboost_machine': {
+        'clean_name': 'Machine Power',
+        'source': 'XGBoost',
+        'explanation': 'Full machine power (AC) as estimated by XGBoost model',
+    },
+    'psu_energy_ac_ipmi_machine': {
+        'clean_name': 'Machine Energy',
+        'source': 'IPMI',
+        'explanation': 'Full machine energy (AC) as reported by IPMI',
+    },
+    'psu_power_ac_ipmi_machine': {
+        'clean_name': 'Machine Power',
+        'source': 'IPMI',
+        'explanation': 'Full machine power (AC) as reported by IPMI',
+    },
+    'psu_energy_dc_picolog_mainboard': {
+        'clean_name': 'Machine Energy',
+        'source': 'PicoLog',
+        'explanation': 'Full machine energy (DC) as reported by PicoLog HRDL ADC-24',
+    },
+    'psu_power_dc_picolog_mainboard': {
+        'clean_name': 'Machine Power',
+        'source': 'Picolog',
+        'explanation': 'Full machine power (DC) as reported by PicoLog HRDL ADC-24',
+    },
     'cpu_frequency_sysfs_core': {
         'clean_name': 'CPU Frequency',
+        'source': 'sysfs',
         'explanation': 'CPU Frequency per core as reported by sysfs',
-        'color': 'grey',
-        'icon': 'microchip'
     },
     'ane_power_powermetrics_component': {
         'clean_name': 'ANE Power',
+        'source': 'powermetrics',
         'explanation': 'Apple Neural Engine',
-        'color': 'orange',
-        'icon': 'power off'
     },
     'ane_energy_powermetrics_component': {
         'clean_name': 'ANE Energy',
+        'source': 'powermetrics',
         'explanation': 'Apple Neural Engine',
-        'color': 'blue',
-        'icon': 'battery three quarters'
     },
     'gpu_power_powermetrics_component': {
         'clean_name': 'GPU Power',
+        'source': 'powermetrics',
         'explanation': 'Apple M1 GPU / Intel GPU',
-        'color': 'orange',
-        'icon': 'power off'
     },
     'gpu_energy_powermetrics_component': {
         'clean_name': 'GPU Energy',
+        'source': 'powermetrics',
         'explanation': 'Apple M1 GPU / Intel GPU',
-        'color': 'blue',
-        'icon': 'battery three quarters'
     },
-
     'cores_power_powermetrics_component': {
         'clean_name': 'CPU Power (Cores)',
+        'source': 'powermetrics',
         'explanation': 'Power of the cores only without GPU, ANE, GPU, DRAM etc.',
-        'color': 'orange',
-        'icon': 'power off'
     },
     'cores_energy_powermetrics_component': {
         'clean_name': 'CPU Energy (Cores)',
+        'source': 'powermetrics',
         'explanation': 'Energy of the cores only without GPU, ANE, GPU, DRAM etc.',
-        'color': 'blue',
-        'icon': 'battery three quarters'
     },
     'cpu_time_powermetrics_vm': {
         'clean_name': 'CPU time',
+        'source': 'powermetrics',
         'explanation': 'Effective execution time of the CPU for all cores combined',
-        'color': 'brown',
-        'icon': 'stopwatch'
     },
     'disk_io_bytesread_powermetrics_vm': {
         'clean_name': 'Bytes read (HDD/SDD)',
+        'source': 'powermetrics',
         'explanation': 'Effective execution time of the CPU for all cores combined',
-        'color': 'violet',
-        'icon': 'upload'
     },
     'disk_io_byteswritten_powermetrics_vm': {
         'clean_name': 'Bytes written (HDD/SDD)',
+        'source': 'powermetrics',
         'explanation': 'Effective execution time of the CPU for all cores combined',
-        'color': 'violet',
-        'icon': 'download'
     },
     'energy_impact_powermetrics_vm': {
         'clean_name': 'Energy impact',
+        'source': 'powermetrics',
         'explanation': 'macOS proprietary value for relative energy impact on device',
-        'color': 'teal',
-        'icon': 'cat'
     },
     'cpu_utilization_cgroup_container': {
         'clean_name': 'CPU %',
+        'source': 'cgroup',
         'explanation': 'CPU Utilization per container',
-        'color': 'yellow',
-        'icon': 'microchip'
     },
     'memory_total_cgroup_container': {
         'clean_name': 'Memory Usage',
+        'source': 'cgroup',
         'explanation': 'Memory Usage per container',
-        'color': 'purple',
-        'icon': 'memory'
     },
     'network_io_cgroup_container': {
         'clean_name': 'Network I/O',
+        'source': 'cgroup',
         'explanation': 'Network I/O. Details on docs.green-coding.berlin/docs/measuring/metric-providers/network-io-cgroup-container',
-        'color': 'olive',
-        'icon': 'exchange alternate'
     },
     'cpu_energy_rapl_msr_component': {
         'clean_name': 'CPU Energy (Package)',
+        'source': 'RAPL',
         'explanation': 'RAPL based CPU energy of package domain',
-        'color': 'blue',
-        'icon': 'batter three quarters'
     },
     'cpu_power_rapl_msr_component': {
         'clean_name': 'CPU Power (Package)',
+        'source': 'RAPL',
         'explanation': 'Derived RAPL based CPU energy of package domain',
-        'color': 'orange',
-        'icon': 'power off'
     },
     'cpu_utilization_procfs_system': {
         'clean_name': 'CPU %',
+        'source': 'procfs',
         'explanation': 'CPU Utilization of total system',
-        'color': 'purple',
-        'icon': 'power off'
     },
     'memory_energy_rapl_msr_component': {
         'clean_name': 'Memory Energy (DRAM)',
+        'source': 'RAPL',
         'explanation': 'RAPL based memory energy of DRAM domain',
-        'color': 'blue',
-        'icon': 'batter three quarters'
     },
     'memory_power_rapl_msr_component': {
         'clean_name': 'Memory Power (DRAM)',
+        'source': 'RAPL',
         'explanation': 'Derived RAPL based memory energy of DRAM domain',
-        'color': 'orange',
-        'icon': 'power off'
     },
 }
 
@@ -426,7 +391,8 @@ def get_phase_stats(ids):
                 ...
                 ane_energy_powermetrics_component: dict
                     clean_name: str
-                    icon: str
+                    explanation: str
+                    source: str
                     ....
                     mean: float
                         // mean of the metric over all details per per repo / usage_scenario etc.
@@ -488,8 +454,7 @@ def get_phase_stats_object(phase_stats, case):
                 'explanation': METRIC_MAPPINGS[metric_name]['explanation'],
                 'type': metric_type,
                 'unit': unit,
-                'color': METRIC_MAPPINGS[metric_name]['color'],
-                'icon': METRIC_MAPPINGS[metric_name]['icon'],
+                'source': METRIC_MAPPINGS[metric_name]['source'],
                 #'mean': None, # currently no use for that
                 #'stddev': None,  # currently no use for that
                 #'ci': None,  # currently no use for that

@@ -9,6 +9,7 @@ const setupPhaseTabs = (phase_stats_object, multi_comparison, include_detail_pha
         if (multi_comparison) {
             tr.innerHTML = `
                 <th>Metric</th>
+                <th>Source</th>
                 <th>Scope</th>
                 <th>Detail Name</th>
                 <th><span class="overflow-ellipsis" style="width: 100px; display:block;" title="${keys[0]}">${replaceRepoIcon(keys[0])}</span></th>
@@ -19,6 +20,7 @@ const setupPhaseTabs = (phase_stats_object, multi_comparison, include_detail_pha
         } else {
             tr.innerHTML = `
                 <th>Metric</th>
+                <th>Source</th>
                 <th>Scope</th>
                 <th>Detail Name</th>
                 <th>Value</th>

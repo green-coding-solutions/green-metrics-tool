@@ -142,7 +142,7 @@ const displayTimelineCharts = (metrics, notes) => {
 
     for ( metric_name in metrics) {
 
-        const element = createChartContainer("#chart-container", metric_name);
+        const element = createChartContainer("#chart-container", `${metric_name} [${metrics[metric_name].converted_unit}]`);
 
         let legend = [];
         let series = [];
@@ -182,7 +182,7 @@ const displayTimelineCharts = (metrics, notes) => {
         });
 
         const chart_instance = echarts.init(element);
-        let options = getLineChartOptions(`${metric_name} [${metrics[metric_name].converted_unit}]`, legend, series);
+        let options = getLineChartOptions(legend, series);
         chart_instance.setOption(options);
         chart_instances.push(chart_instance);
 

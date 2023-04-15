@@ -34,7 +34,7 @@ class PhaseMetrics extends HTMLElement {
                             </div>
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Power of all hardware components during current usage phase.">
-                            <span class="detail-name"></span>
+                            <span class="source"></span>
                             <i class="question circle icon"></i>
                         </div>
                         <div class="ui bottom left attached label">
@@ -53,7 +53,7 @@ class PhaseMetrics extends HTMLElement {
                             </div>
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
-                            <span class="detail-name"></span>
+                            <span class="source"></span>
                             <i class="question circle icon"></i>
                         </div>
                         <div class="ui bottom left attached label">
@@ -72,7 +72,6 @@ class PhaseMetrics extends HTMLElement {
                             </div>
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
-                            <span class="detail-name"></span>
                             <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
                         </div>
@@ -186,6 +185,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, co
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
     tr.innerHTML = `
         <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>
+        <td>${metric_data.source}</td>
         <td>${scope}</td>
         <td>${detail_data.name}</td>
         <td>${value}</td>
@@ -196,7 +196,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, co
     displayMetricBox(
         phase, metric_name, metric_data.clean_name, detail_data.name,
         value , std_dev_text, extra_label, unit,
-        metric_data.explanation, metric_data.color, metric_data.icon
+        metric_data.explanation, metric_data.source
     );
 }
 
@@ -232,6 +232,7 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
     tr.innerHTML = `
         <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>
+        <td>${metric_data.source}</td>
         <td>${scope}</td>
         <td>${detail_data_array[0].name}</td>
         <td>${value_1}</td>
@@ -243,7 +244,7 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array
     displayMetricBox(
         phase, metric_name, metric_data.clean_name, detail_data_array[0].name,
         value, '', extra_label, metric_data.unit,
-        metric_data.explanation, metric_data.color, metric_data.icon, icon_color
+        metric_data.explanation, metric_data.source
     );
 
 }
@@ -284,21 +285,21 @@ const calculateCO2 = () => {
     }
 }
 
-const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, std_dev_text, extra_label, unit, explanation, header_color, icon, stat_color = '') => {
+const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, std_dev_text, extra_label, unit, explanation, source) => {
 
     // key metrics are already there, cause we want a fixed order, so we just replace
     if(metric.match(/^.*_energy.*_machine$/) !== null) {
-        updateKeyMetric('.machine-energy', phase, value, unit, std_dev_text, clean_name)
+        updateKeyMetric('.machine-energy', phase, value, unit, std_dev_text, source)
     } else if(metric == 'network_energy_formula_global') {
-        updateKeyMetric('.network-energy', phase, value, unit, std_dev_text, clean_name)
+        updateKeyMetric('.network-energy', phase, value, unit, std_dev_text, source)
     } else if(metric == 'phase_time_syscall_system') {
-        updateKeyMetric('.phase-duration', phase, value, unit, std_dev_text, clean_name)
+        updateKeyMetric('.phase-duration', phase, value, unit, std_dev_text, source)
     } else if(metric == 'network_co2_formula_global') {
-        updateKeyMetric('.network-co2', phase, value, unit, std_dev_text, clean_name)
+        updateKeyMetric('.network-co2', phase, value, unit, std_dev_text, source)
     } else if(metric.match(/^.*_power.*_machine$/) !== null) {
-        updateKeyMetric('.machine-power', phase, value, unit, std_dev_text, clean_name)
+        updateKeyMetric('.machine-power', phase, value, unit, std_dev_text, source)
     } else if(metric.match(/^.*_co2.*_machine$/) !== null) {
-        updateKeyMetric('.machine-co2', phase, value, unit, std_dev_text, clean_name)
+        updateKeyMetric('.machine-co2', phase, value, unit, std_dev_text, source)
     }
 
 
@@ -342,13 +343,14 @@ const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, st
     */
 }
 
-const updateKeyMetric = (selector, phase, value, unit, std_dev_text, metric_name) => {
+const updateKeyMetric = (selector, phase, value, unit, std_dev_text, source) => {
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerText = `${(value)} ${std_dev_text}`
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .si-unit`).innerText = `[${unit}]`
     if(std_dev_text != '') document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(AVG + STD.DEV)`;
+    else if(value.indexOf('%') !== -1) document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(Diff. in %)`;
 
-    node = document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .detail-name`)
-    if (node !== null) node.innerText = metric_name // not every key metric shall have a custom detail_name
+    node = document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .source`)
+    if (node !== null) node.innerText = source // not every key metric shall have a custom detail_name
 }
 
 

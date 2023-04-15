@@ -1,13 +1,8 @@
-const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='time', chart_type='line', graphic=null) => {
+const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', chart_type='line', graphic=null) => {
     if (series.length > 1) {
        let max = Math.max(...series[0],...series[1])*1.2
        let options =  {
-            tooltip: {
-                trigger: 'item'
-            },
-            title: {
-                text:title
-            },
+            tooltip: {trigger: 'item'},
             xAxis: [
                 {
                     gridIndex: 0,
@@ -125,15 +120,8 @@ const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='t
     } else {
        let max = Math.max(...series[0])*1.2
        let options =  {
-            tooltip: {
-                trigger: 'item'
-            },
-            title: {
-                text:title
-            },
-            grid: {
-                containLabel: false
-            },
+            tooltip: {trigger: 'item'},
+            grid: {containLabel: false},
             xAxis: {
                 type: x_axis,
                 splitLine: {show: false},
@@ -184,13 +172,10 @@ const getCompareChartOptions = (title, legend, series, mark_area=null, x_axis='t
     }
 }
 
-const getLineChartOptions = (title, legend, series, mark_area=null, x_axis='time', no_toolbox = false, graphic=null) => {
+const getLineChartOptions = (legend, series, mark_area=null, x_axis='time', no_toolbox = false, graphic=null) => {
    let options =  {
         tooltip: {
             trigger: 'item'
-        },
-        title: {
-            text:title
         },
         grid: {
             containLabel: false,
@@ -381,6 +366,9 @@ const createChartContainer = (container, el) => {
 
     chart_node.innerHTML = `
         <div class="content">
+            <div class="ui left floated chart-title">
+                ${el}
+            </div>
             <div class="ui right floated icon buttons">
                 <button class="ui button toggle-width"><i class="expand icon toggle-icon"></i></button>
             </div>
@@ -394,7 +382,7 @@ const createChartContainer = (container, el) => {
                 <button class="ui button move-last"><i class="angle double right icon"></i></button>
             </div>
             <div class="description">
-                <div class="statistics-chart" id=${el}-chart></div>
+                <div class="statistics-chart"></div>
             </div>
         </div>`;
     document.querySelector(container).appendChild(chart_node)
@@ -412,7 +400,8 @@ const createChartContainer = (container, el) => {
 
 const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
 
-    let chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart`);
+    let chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart .statistics-chart`);
+    document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart .chart-title`).innerText = 'General component distribution';
     let myChart = echarts.init(chartDom);
     labels = labels.map((el) => { return {name: el}})
     let series = data.map((el, idx) => { return {name: legend[idx], value: el}})
@@ -420,9 +409,6 @@ const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
     let options = {
       grid: {
         top: 100,
-      },
-      title: {
-        text: 'General component distribution'
       },
       legend: {
         data: legend,
@@ -454,9 +440,11 @@ const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
 const displayKeyMetricsBarChart = (legend, labels, data, phase) => {
 
     let series = data.map((el, idx) => { return {type: "bar", name: legend[idx], data: el}})
-    let chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart`);
+    let chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .statistics-chart`);
+    document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .chart-title`).innerText = 'Energy metrics';
+
     let myChart = echarts.init(chartDom);
-    let options = getLineChartOptions('Energy metrics', labels, series, null, 'category', true);
+    let options = getLineChartOptions(labels, series, null, 'category', true);
     myChart.setOption(options);
 
     // set callback when ever the user changes the viewport
@@ -486,7 +474,9 @@ const displayKeyMetricsPieChart = () => {
 
 // TODO
 const displayKeyMetricsEmbodiedCarbonChart = (phase) => {
-    let chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .embodied-chart`);
+    let chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .embodied-chart .statistics-chart`);
+    document.querySelector(`.ui.tab[data-tab='${phase}'] .embodied-chart .chart-title`).innerText = 'Embodied carbon vs. Usage Phase';
+
     let myChart = echarts.init(chartDom);
     let series = [
           {
@@ -507,7 +497,7 @@ const displayKeyMetricsEmbodiedCarbonChart = (phase) => {
               data: ['N/A']
           }
       ];
-    let options = getLineChartOptions('Embodied carbon vs. Usage Phase', ['Phases'], series);
+    let options = getLineChartOptions(['Phases'], series);
     myChart.setOption(options);
 
     // set callback when ever the user changes the viewport
@@ -520,7 +510,9 @@ const displayKeyMetricsEmbodiedCarbonChart = (phase) => {
 
 const displayTotalCharts = (machine_energies, component_energies, phases) => {
 
-    let chartDom = document.querySelector(`#total-phases-data .phases-chart`);
+    let chartDom = document.querySelector(`#total-phases-data .phases-chart .statistics-chart`);
+    document.querySelector(`.ui.tab[data-tab='${phase}'] .phases-chart .chart-title`).innerText = 'Total Phases consumption';
+
     let myChart = echarts.init(chartDom);
 
     let series = [];
@@ -547,7 +539,7 @@ const displayTotalCharts = (machine_energies, component_energies, phases) => {
     }
 
 
-    let options = getLineChartOptions('Total Phases consumption', phases, series, null, 'category')
+    let options = getLineChartOptions(phases, series, null, 'category')
 
     myChart.setOption(options);
         // set callback when ever the user changes the viewport
@@ -562,9 +554,9 @@ const displayTotalCharts = (machine_energies, component_energies, phases) => {
 
 const displayCompareChart = (phase, title, legend, data, mark_area, graphic) => {
 
-    const element = createChartContainer(`.ui.tab[data-tab='${phase}'] .compare-chart-container`, "");
+    const element = createChartContainer(`.ui.tab[data-tab='${phase}'] .compare-chart-container`, title);
     const myChart = echarts.init(element);
-    let options = getCompareChartOptions(title, legend, data, mark_area, 'category', 'bar');
+    let options = getCompareChartOptions(legend, data, mark_area, 'category', 'bar');
     myChart.setOption(options);
     // set callback when ever the user changes the viewport
     // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks
