@@ -193,7 +193,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, co
         <td>${std_dev_text_table}</td>
         <td>${extra_label}</td>`;
 
-    displayMetricBox(
+    updateKeyMetric(
         phase, metric_name, metric_data.clean_name, detail_data.name,
         value , std_dev_text, extra_label, unit,
         metric_data.explanation, metric_data.source
@@ -241,7 +241,7 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array
         <td class="${icon_color}">${value}</td>
         <td>${extra_label}</td>`;
 
-    displayMetricBox(
+    updateKeyMetric(
         phase, metric_name, metric_data.clean_name, detail_data_array[0].name,
         value, '', extra_label, metric_data.unit,
         metric_data.explanation, metric_data.source
@@ -285,65 +285,27 @@ const calculateCO2 = () => {
     }
 }
 
-const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, std_dev_text, extra_label, unit, explanation, source) => {
+const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std_dev_text, extra_label, unit, explanation, source) => {
 
+    let selector = null;
     // key metrics are already there, cause we want a fixed order, so we just replace
     if(metric.match(/^.*_energy_.*_machine$/) !== null) {
-        updateKeyMetric('.machine-energy', phase, value, unit, std_dev_text, source)
+        selector = '.machine-energy';
     } else if(metric == 'network_energy_formula_global') {
-        updateKeyMetric('.network-energy', phase, value, unit, std_dev_text, source)
+        selector = '.network-energy';
     } else if(metric == 'phase_time_syscall_system') {
-        updateKeyMetric('.phase-duration', phase, value, unit, std_dev_text, source)
+        selector = '.phase-duration';
     } else if(metric == 'network_co2_formula_global') {
-        updateKeyMetric('.network-co2', phase, value, unit, std_dev_text, source)
+        selector = '.network-co2';
     } else if(metric.match(/^.*_power_.*_machine$/) !== null) {
-        updateKeyMetric('.machine-power', phase, value, unit, std_dev_text, source)
+        selector = '.machine-power';
     } else if(metric.match(/^.*_co2_.*_machine$/) !== null) {
-        updateKeyMetric('.machine-co2', phase, value, unit, std_dev_text, source)
+        selector = '.machine-co2';
+    } else {
+        return; // could not match key metric
     }
 
 
-
-/*
-    let location = 'div.extra-metrics'
-    if(metric_name.indexOf('_container') !== -1 || metric_name.indexOf('_vm') !== -1)
-        location = 'div.container-level-metrics';
-    else if(metric_name.indexOf('_system') !== -1)
-         location = 'div.system-level-metrics';
-    else if(metric_name.indexOf('_component') !== -1)
-         location = 'div.component-level-metrics';
-    else if(metric_name.indexOf('_machine') !== -1)
-         location = 'div.machine-level-metrics';
-
-     if (extra_label != '') extra_label = `<div class="ui bottom left attached label">${extra_label}</div>`;
-
-    const node = document.createElement("div")
-    node.classList.add("card");
-    node.classList.add('ui')
-    node.innerHTML = `
-        <div class="content">
-            <div class="ui top attached ${header_color} label overflow-ellipsis">${clean_name} <span class="si-unit">[${unit}]</span></div>
-            <div class="description">
-                <div class="ui fluid mini statistic ${stat_color}">
-                    <div class="value">
-                        <i class="${icon} icon"></i> ${value}
-                        ${std_dev_text}
-                    </div>
-                </div>
-                ${extra_label}
-                <div class="ui bottom right attached label icon explanation rounded" data-position="bottom right" data-inverted="" data-tooltip="${explanation}">
-                    ${detail_name}
-                    <i class="question circle icon"></i>
-                </div>
-            </div>
-        </div>
-
-        `;
-    document.querySelector(`div.tab[data-tab='${phase}'] ${location}`).appendChild(node)
-    */
-}
-
-const updateKeyMetric = (selector, phase, value, unit, std_dev_text, source) => {
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerText = `${(value)} ${std_dev_text}`
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .si-unit`).innerText = `[${unit}]`
     if(std_dev_text != '') document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(AVG + STD.DEV)`;
@@ -351,7 +313,9 @@ const updateKeyMetric = (selector, phase, value, unit, std_dev_text, source) => 
 
     node = document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .source`)
     if (node !== null) node.innerText = source // not every key metric shall have a custom detail_name
+
 }
+
 
 
 /* TODO
