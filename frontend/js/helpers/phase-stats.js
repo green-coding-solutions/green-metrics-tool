@@ -105,11 +105,11 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                 radar_chart_labels.push(metric_data.clean_name);
                 radar_chart_data[0].push(detail_data.mean)
 
-                if (metric.match(/^.*_energy.*_machine$/) !== null ||
-                    metric.match(/^.*_energy.*_component$/) !== null) {
+                if (metric.indexOf('_energy_') !== -1) {
                     energy_chart_labels.push(metric_data.clean_name);
                     energy_chart_data[0].push(detail_data.mean)
                 }
+
 
                 if (!multi_comparison) {
                     displaySimpleMetricBox(phase,metric, metric_data, detail_data, keys[0]);
@@ -153,8 +153,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
 
                     radar_chart_data[1].push(detail_data2.mean)
 
-                    if (metric.match(/^.*_energy.*_machine$/) !== null ||
-                        metric.match(/^.*_energy.*_component$/) !== null) {
+                    if (metric.indexOf('_energy_') !== -1) {
                         energy_chart_data[1].push(detail_data2.mean)
                     }
                 }
