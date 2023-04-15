@@ -288,7 +288,7 @@ const calculateCO2 = () => {
 const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, std_dev_text, extra_label, unit, explanation, source) => {
 
     // key metrics are already there, cause we want a fixed order, so we just replace
-    if(metric.match(/^.*_energy.*_machine$/) !== null) {
+    if(metric.match(/^.*_energy_.*_machine$/) !== null) {
         updateKeyMetric('.machine-energy', phase, value, unit, std_dev_text, source)
     } else if(metric == 'network_energy_formula_global') {
         updateKeyMetric('.network-energy', phase, value, unit, std_dev_text, source)
@@ -296,9 +296,9 @@ const displayMetricBox = (phase, metric_name, clean_name, detail_name, value, st
         updateKeyMetric('.phase-duration', phase, value, unit, std_dev_text, source)
     } else if(metric == 'network_co2_formula_global') {
         updateKeyMetric('.network-co2', phase, value, unit, std_dev_text, source)
-    } else if(metric.match(/^.*_power.*_machine$/) !== null) {
+    } else if(metric.match(/^.*_power_.*_machine$/) !== null) {
         updateKeyMetric('.machine-power', phase, value, unit, std_dev_text, source)
-    } else if(metric.match(/^.*_co2.*_machine$/) !== null) {
+    } else if(metric.match(/^.*_co2_.*_machine$/) !== null) {
         updateKeyMetric('.machine-co2', phase, value, unit, std_dev_text, source)
     }
 
