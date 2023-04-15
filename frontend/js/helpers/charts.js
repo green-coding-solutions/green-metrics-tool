@@ -1,8 +1,9 @@
 const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', chart_type='line', graphic=null) => {
+    let tooltip_trigger = (chart_type=='line') ? 'axis' : 'item';
     if (series.length > 1) {
        let max = Math.max(...series[0],...series[1])*1.2
        let options =  {
-            tooltip: {trigger: 'item'},
+            tooltip: {trigger: tooltip_trigger},
             xAxis: [
                 {
                     gridIndex: 0,
@@ -120,7 +121,7 @@ const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', c
     } else {
        let max = Math.max(...series[0])*1.2
        let options =  {
-            tooltip: {trigger: 'item'},
+            tooltip: {trigger: tooltip_trigger},
             grid: {containLabel: false},
             xAxis: {
                 type: x_axis,
@@ -172,11 +173,11 @@ const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', c
     }
 }
 
-const getLineChartOptions = (legend, series, mark_area=null, x_axis='time', no_toolbox = false, graphic=null) => {
+const getLineBarChartOptions = (legend, series, mark_area=null, x_axis='time', no_toolbox = false, graphic=null) => {
+   let tooltip_trigger = (series[0].type=='line') ? 'axis' : 'item';
+
    let options =  {
-        tooltip: {
-            trigger: 'item'
-        },
+        tooltip: { trigger: tooltip_trigger },
         grid: {
             containLabel: false,
         },
@@ -444,7 +445,7 @@ const displayKeyMetricsBarChart = (legend, labels, data, phase) => {
     document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .chart-title`).innerText = 'Energy metrics';
 
     let myChart = echarts.init(chartDom);
-    let options = getLineChartOptions(labels, series, null, 'category', true);
+    let options = getLineBarChartOptions(labels, series, null, 'category', true);
     myChart.setOption(options);
 
     // set callback when ever the user changes the viewport
@@ -497,7 +498,7 @@ const displayKeyMetricsEmbodiedCarbonChart = (phase) => {
               data: ['N/A']
           }
       ];
-    let options = getLineChartOptions(['Phases'], series);
+    let options = getLineBarChartOptions(['Phases'], series);
     myChart.setOption(options);
 
     // set callback when ever the user changes the viewport
@@ -539,7 +540,7 @@ const displayTotalCharts = (machine_energies, component_energies, phases) => {
     }
 
 
-    let options = getLineChartOptions(phases, series, null, 'category')
+    let options = getLineBarChartOptions(phases, series, null, 'category')
 
     myChart.setOption(options);
         // set callback when ever the user changes the viewport
