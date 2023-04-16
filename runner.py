@@ -431,7 +431,7 @@ class Runner:
         for _, service in self._usage_scenario.get('services', []).items():
             # minimal protection from possible shell escapes.
             # since we use subprocess without shell we should be safe though
-            if re.findall(r'(\.\.|\$|\'|"|`)', service['image']):
+            if re.findall(r'(\.\.|\$|\'|"|`|!)', service['image']):
                 raise ValueError(
                     f"In scenario file the builds contains an invalid image name: {service['image']}")
 
