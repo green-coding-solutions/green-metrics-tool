@@ -356,26 +356,6 @@ async def get_project(project_id: str):
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
 
-    def escape_dict(dictionary):
-        for key, value in dictionary.items():
-            if isinstance(value, str):
-                dictionary[key] = escape(value, quote=False)
-                continue
-            if isinstance(value, dict):
-                escape_dict(value)
-                continue
-            if isinstance(value, list):
-                for item in value:
-                    if isinstance(item, str):
-                        dictionary[key] = escape(item, quote=False)
-                        continue
-                    if isinstance(item, dict):
-                        escape_dict(item)
-
-        return dictionary
-
-    data = escape_dict(data)
-
     return {'success': True, 'data': data}
 
 @app.get('/robots.txt')
@@ -401,42 +381,55 @@ class CI_Measurement(BaseModel):
 
 @app.post('/v1/ci/measurement/add')
 async def post_ci_measurement_add(measurement: CI_Measurement):
-    # error_helpers.log_error(error_message)
-    for i in CI_Measurement.schema()['properties'].keys():
-        key_value = getattr(measurement, i)
-        if i == 'project_id':
-            if key_value is None or key_value.strip() == '':
+    for key, value in measurement.dict():
+        if key == 'project_id':
+            if value is None or value.strip() == '':
                 measurement.project_id = None
-            elif not is_valid_uuid(key_value.strip()):
-                return {'success': False, 'err': "project_id is not a valid uuid"}
-        elif i == 'label':
-            if key_value is None or key_value.strip() == '':
+                continue
+            elif not is_valid_uuid(value.strip()):
+                return {'success': False, 'err': f"project_id '{value}' is not a valid uuid"}
+            else:
+                measurement.project_id = escape(value)
+                continue
+        if key == 'label':
+            if value is None or value.strip() == '':
                 measurement.label = None
-        elif i == 'cpu':
-            if key_value is None or key_value.strip() == '':
-                measurement.cpu = None
-        elif i == 'commit_hash':
-            if key_value is None or key_value.strip() == '':
-                measurement.commit_hash = None
-        elif i == 'value':
-            if key_value is None:
-                return {'success': False, 'err': f"{i} is empty"}
-        elif i == 'unit':
-            if key_value is None or key_value.strip() == '':
-                return {'success': False, 'err': f"{i} is empty"}
-            if key_value != 'mJ':
+            else:
+                measurement.label = escape(value)
+            continue
+        if key == 'unit':
+            if value is None or value.strip() == '':
+                return {'success': False, 'err': f"{key} is empty"}
+            if value != 'mJ':
                 return {'success': False, 'err': "Unit is unsupported - only mJ currently accepted"}
-        elif key_value is None or key_value.strip() == '':
-            return {'success': False, 'err': f"{i} is empty"}
+
+        if value is None or value.strip() == '':
+            return {'success': False, 'err': f"{key} is empty"}
+
+        if key == 'repo':
+            measurement.repo = escape(value)
+            continue
+        if key == 'branch':
+            measurement.branch = escape(value)
+            continue
+        if key == 'workflow':
+            measurement.workflow = escape(value)
+            continue
+        if key == 'run_id':
+            measurement.run_id = escape(value)
+            continue
+        if key == 'source':
+            measurement.source = escape(value)
+            continue
 
     query = """
         INSERT INTO
             ci_measurements (value, unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
-    params = (measurement.value, measurement.unit, measurement.repo, measurement.branch,\
-                measurement.workflow, measurement.run_id, measurement.project_id, \
-                measurement.label, measurement.source, measurement.cpu, measurement.commit_hash)
+    params = (measurement.value, measurement.unit, measurement.repo, measurement.branch,
+            measurement.workflow, measurement.run_id, measurement.project_id,
+            measurement.label, measurement.source)
     DB().query(query=query, params=params)
     return {'success': True}
 
@@ -485,5 +478,51 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
         default_color='green')
     return Response(content=str(badge), media_type="image/svg+xml")
 
+<<<<<<< HEAD
+=======
+# Helper functions, not directly callable through routes
+
+def escape_dict(dictionary):
+    for key, value in dictionary.items():
+        if isinstance(value, str):
+            dictionary[key] = escape(value, quote=False)
+            continue
+        if isinstance(value, dict):
+            escape_dict(value)
+            continue
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, str):
+                    dictionary[key] = escape(item, quote=False)
+                    continue
+                if isinstance(item, dict):
+                    escape_dict(item)
+
+    return dictionary
+
+def rescale_energy_value(value, unit):
+    # We only expect values to be mJ for energy!
+    if unit != 'mJ':
+        raise RuntimeError('Unexpected unit occured for energy rescaling: ', unit)
+
+    energy_rescaled = [value, unit]
+
+    # pylint: disable=multiple-statements
+    if value > 1_000_000_000: energy_rescaled = [value/(10**12), 'GJ']
+    elif value > 1_000_000_000: energy_rescaled = [value/(10**9), 'MJ']
+    elif value > 1_000_000: energy_rescaled = [value/(10**6), 'kJ']
+    elif value > 1_000: energy_rescaled = [value/(10**3), 'J']
+    elif value < 0.001: energy_rescaled = [value*(10**3), 'nJ']
+
+    return energy_rescaled
+
+def is_valid_uuid(val):
+    try:
+        uuid.UUID(str(val))
+        return True
+    except ValueError:
+        return False
+
+>>>>>>> 0d9c6cd (Escape CI measurement add)
 if __name__ == '__main__':
     app.run()
