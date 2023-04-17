@@ -356,6 +356,8 @@ async def get_project(project_id: str):
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
 
+    data = escape_dict(data)
+
     return {'success': True, 'data': data}
 
 @app.get('/robots.txt')
