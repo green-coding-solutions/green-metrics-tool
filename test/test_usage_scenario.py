@@ -194,7 +194,7 @@ def test_setup_commands_one_command():
             Tests.run_until(runner, 'setup_services')
         finally:
             runner.cleanup()
-    assert 'Running command: docker exec  ps -a' in out.getvalue(), \
+    assert 'Running command:  docker exec test-container sh -c ps -a' in out.getvalue(), \
         Tests.assertion_info('stdout message: Running command: <command>', 'no/different stdout message')
     assert '1 root      0:00 /bin/sh' in out.getvalue(), \
         Tests.assertion_info('container stdout showing /bin/sh as process 1', 'different message in container stdout')
@@ -210,13 +210,13 @@ def test_setup_commands_multiple_commands():
         finally:
             runner.cleanup()
 
-    expected_pattern = re.compile(r'Running command: docker exec  echo hello world.*\
+    expected_pattern = re.compile(r'Running command:  docker exec test-container sh -c echo hello world.*\
 \s*Stdout: hello world.*\
-\s*Running command: docker exec  ps -a.*\
+\s*Running command:  docker exec test-container sh -c ps -a.*\
 \s*Stdout: PID   USER     TIME  COMMAND.*\
 \s*1 root\s+\d:\d\d /bin/sh.*\
 \s*1\d+ root\s+\d:\d\d ps -a.*\
-\s*Running command: docker exec  echo goodbye world.*\
+\s*Running command:  docker exec test-container sh -c echo goodbye world.*\
 \s*Stdout: goodbye world.*\
 ', re.MULTILINE)
 
