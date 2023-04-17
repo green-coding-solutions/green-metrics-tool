@@ -24,6 +24,7 @@ import faulthandler
 import re
 from io import StringIO
 from pathlib import Path
+import random
 import shutil
 import yaml
 
@@ -296,6 +297,11 @@ class Runner:
 
                     if running_container == container_name:
                         raise PermissionError(f"Container '{container_name}' is already running on system. Please close it before running the tool.")
+
+    def populate_image_names(self):
+        for service_name, service in self._usage_scenario.get('services', []).items():
+            if not service.get('image', None): # image is a non essential field. But we need it, so we tmp it
+                service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
 
 
     def remove_docker_images(self):
@@ -928,6 +934,7 @@ class Runner:
             self.prepare_filesystem_location()
             self.checkout_repository()
             self.initial_parse()
+            self.populate_image_names()
             self.check_running_containers()
             self.remove_docker_images()
             self.download_dependencies()
