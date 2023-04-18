@@ -179,6 +179,11 @@ const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', c
 }
 
 const getLineBarChartOptions = (legend, series, mark_area=null, x_axis='time', no_toolbox = false, graphic=null) => {
+
+    if(Object.keys(series).length == 0) {
+        return {graphic: getChartGraphic("No energy reporter active")};
+    }
+
    let tooltip_trigger = (series[0].type=='line') ? 'axis' : 'item';
 
    let options =  {
@@ -265,11 +270,11 @@ const getPieChartOptions = (title, data) => {
     };
 }
 
-const getChartGraphic = (text) => {
+const getChartGraphic = (text, top = 'center', left= 'center') => {
     return graphic = {
         type: 'group',
-        top: 10,
-        left: 'right',
+        top: top,
+        left: left,
         draggable: true,
         children: [
           {
@@ -279,7 +284,7 @@ const getChartGraphic = (text) => {
             z: 100,
             shape: {
               height: 20,
-              width: 150,
+              width: 250,
 
             },
             style: {
