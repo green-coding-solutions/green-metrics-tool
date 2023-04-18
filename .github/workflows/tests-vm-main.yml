@@ -13,9 +13,7 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: green-coding-berlin/eco-ci-activity-checker@main
         with:
-          repo: 'green-coding-berlin/green-metrics-tool'
           branch: 'main'
-          workflow-id: 45267393
 
       - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
         name: 'Checkout repository'
