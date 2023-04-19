@@ -1,5 +1,6 @@
 __pycache__
 config.yml
+config.js
 docker/nginx/api.conf
 docker/nginx/frontend.conf
 frontend/js/helpers/config.js
