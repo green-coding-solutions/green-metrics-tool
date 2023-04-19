@@ -57,7 +57,7 @@ def join_path_and_file(path, file):
     filename = os.path.realpath(os.path.join(path, file))
 
     # This is a special case in which the file is '.'
-    if filename == path:
+    if filename == path.rstrip('/'):
         return filename
 
     if not filename.startswith(path):
