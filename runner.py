@@ -57,7 +57,7 @@ def join_path_and_file(path, file):
     filename = os.path.realpath(os.path.join(path, file))
 
     # This is a special case in which the file is '.'
-    if filename == path:
+    if filename == path.rstrip('/'):
         return filename
 
     if not filename.startswith(path):
@@ -82,7 +82,7 @@ class Runner:
     def __init__(self,
         uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False,
-        verbose_provider_boot=False, full_docker_prune=False, dry_run=False):
+        verbose_provider_boot=False, full_docker_prune=False, dry_run=False, dev_repeat_run=False):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -95,6 +95,7 @@ class Runner:
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
         self._dry_run = dry_run
+        self.dev_repeat_run = dev_repeat_run
         self._uri = uri
         self._uri_type = uri_type
         self._project_id = pid
@@ -117,6 +118,7 @@ class Runner:
         self.__phases = {}
         self.__start_measurement = None
         self.__end_measurement = None
+        self.__services_to_pause_phase = {}
 
     def custom_sleep(self, sleep_time):
         if not self._dry_run: time.sleep(sleep_time)
@@ -305,6 +307,9 @@ class Runner:
 
 
     def remove_docker_images(self):
+        if self.dev_repeat_run:
+            return
+
         subprocess.run(
             'docker images --format "{{.Repository}}:{{.Tag}}" | grep "gmt_run_tmp" | xargs docker rmi -f',
             shell=True,
@@ -442,6 +447,20 @@ class Runner:
                     f"In scenario file the builds contains an invalid image name: {service['image']}")
 
             tmp_img_name = self.clean_image_name(service['image'])
+
+            if self.dev_repeat_run:
+                #If we are in developer repeat runs check if the docker image has already been built
+                try:
+                    result = subprocess.run(['docker', 'inspect', '--type=image', tmp_img_name],
+                                             stdout=subprocess.PIPE,
+                                             stderr=subprocess.PIPE,
+                                             encoding='UTF-8',
+                                             check=True)
+                    if result.returncode == 0:
+                        # The image exists so exit and don't build
+                        continue
+                except subprocess.CalledProcessError:
+                    pass
 
             if 'build' in service:
                 context, dockerfile = self.get_build_info(service)
@@ -644,6 +663,11 @@ class Runner:
                     docker_run_string.append('--net')
                     docker_run_string.append(network)
 
+            if 'pause-after-phase' in service:
+                self.__services_to_pause_phase[service['pause-after-phase']] = \
+                    (self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name])
+
+
             docker_run_string.append(self.clean_image_name(service['image']))
 
             if 'cmd' in service:  # must come last
@@ -753,6 +777,15 @@ class Runner:
 
         if phase not in self.__phases:
             raise RuntimeError('Calling end_phase before start_phase. This is a developer error!')
+
+        if phase in self.__services_to_pause_phase:
+            for container_to_pause in self.__services_to_pause_phase[phase]:
+                info_text = f"Pausing {container_to_pause} after phase: {phase}."
+                print (info_text)
+                self.__notes.append({'note': info_text, 'detail_name': '[NOTES]', 'timestamp': phase_time})
+
+                subprocess.run(['docker', 'pause', container_to_pause], check=True, stdout=subprocess.DEVNULL)
+
 
         self.__phases[phase]['end'] = phase_time
 
@@ -1049,7 +1082,10 @@ if __name__ == '__main__':
     parser.add_argument('--full-docker-prune',
                         action='store_true', help='Prune all images and build caches on the system')
     parser.add_argument('--dry-run',
-                        action='store_true', help='Dry Run. Remove all sleeps. Resulting measurement data will be skewed.')
+                        action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
+    parser.add_argument('--dev-repeat-run',
+                        action='store_true', help='Checks if a docker image is already in the local cache and \
+                            will then not build it. Also doesn\'t clear the images after a run')
 
     args = parser.parse_args()
 
@@ -1105,7 +1141,7 @@ if __name__ == '__main__':
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe,
                     verbose_provider_boot=args.verbose_provider_boot, full_docker_prune=args.full_docker_prune,
-                    dry_run=args.dry_run)
+                    dry_run=args.dry_run, dev_repeat_run=args.dev_repeat_run)
     try:
         runner.run()  # Start main code
 
