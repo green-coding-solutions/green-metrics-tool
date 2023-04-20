@@ -18,7 +18,7 @@ const compareButton = () => {
         offset = offset < 0 ? `+${-offset/60}` : -offset/60;
 
 
-        return ` ${date.getFullYear()}-${month}-${day} ${date.getHours()}:${date.getMinutes()} UTC${offset}`;
+        return ` ${date.getFullYear()}-${month}-${day} <br> ${date.getHours()}:${date.getMinutes()} UTC${offset}`;
     }
 
     let search = [];
@@ -93,7 +93,7 @@ const compareButton = () => {
             <td class="td-index"><a href="/stats.html?id=${id}">${name}</a></td>
             <td class="td-index" title="${filename}">${filename}</td>
             <td class="td-index">${machine}</td>
-            <td class="td-index" style="width: 220px"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td>
+            <td class="td-index" style="width: 120px"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td>
             <td><input type="checkbox" value="${id}" name="chbx-proj"/>&nbsp;</td>`;
 
     });
