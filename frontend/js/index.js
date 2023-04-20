@@ -92,7 +92,7 @@ const compareButton = () => {
         inner_row.innerHTML = `
             <td class="td-index"><a href="/stats.html?id=${id}">${name}</a></td>
             <td class="td-index" title="${filename}">${filename}</td>
-            <td class="td-index overflow-ellipsis" style="width: 300px">${machine}</td>
+            <td class="td-index">${machine}</td>
             <td class="td-index" style="width: 220px"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td>
             <td><input type="checkbox" value="${id}" name="chbx-proj"/>&nbsp;</td>`;
 
