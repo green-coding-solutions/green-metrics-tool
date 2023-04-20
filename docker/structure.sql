@@ -12,7 +12,7 @@ CREATE TABLE projects (
     email text,
     categories int[],
     usage_scenario json,
-    usage_scenario_file text,
+    filename text,
     machine_specs jsonb,
     machine_id int DEFAULT 1,
     measurement_config jsonb,

@@ -33,11 +33,12 @@ const compareButton = () => {
         const id = el[0]
         let name = el[1]
         const uri = el[2]
-        let branch = el[3]
+        let branch = (el[3] == null) ? 'main/master' : el[3]
         const end_measurement = el[4]
         const last_run = el[5]
         const invalid_project = el[6]
-        const machine = el[7]
+        const filename = el[7]
+        const machine = el[8]
 
         let uri_link = replaceRepoIcon(uri);
 
@@ -47,11 +48,11 @@ const compareButton = () => {
 
 
         // insert new accordion row if repository not known
-        let td_node = document.querySelector(`td[data-uri='${uri}']`)
+        let td_node = document.querySelector(`td[data-uri='${uri}_${branch}']`)
         if (td_node == null || td_node == undefined) {
             let row = document.querySelector('#projects-table tbody').insertRow()
             row.innerHTML = `
-                <td data-uri="${uri}">
+                <td data-uri="${uri}_${branch}">
                     <div class="ui accordion" style="width: 100%;">
                       <div class="title">
                         <i class="dropdown icon"></i> ${uri_link}
@@ -60,14 +61,15 @@ const compareButton = () => {
                       </div>
                     </div>
                 </td>
+                <td>${branch}</td>
                 <td><input type="checkbox" class="toggle-checkbox"></td>`;
-            let content = document.querySelector(`#projects-table td[data-uri='${uri}'] div.content`);
+            let content = document.querySelector(`#projects-table td[data-uri='${uri}_${branch}'] div.content`);
             content.innerHTML = `
                 <table class="ui table">
                     <thead class="full-width">
                         <tr>
                             <th>Name</th>
-                            <th>Branch</th>
+                            <th>Filename</th>
                             <th>Machine</th>
                             <th>Last run</th>
                             <th></th>
@@ -81,27 +83,25 @@ const compareButton = () => {
 
         search.push({ title: name });
 
-        if (branch && uri.startsWith("http")) branch = 'main/master'
-        else branch = '-'
 
         if(end_measurement == null) name = `${name} (no data yet 🔥)`;
         if(invalid_project != null) name = `${name} <span class="ui yellow horizontal label" title="${invalid_project}">invalidated</span>`;
 
-        let inner_row = document.querySelector(`#projects-table td[data-uri='${uri}'] div.content table tbody`).insertRow();
+        let inner_row = document.querySelector(`#projects-table td[data-uri='${uri}_${branch}'] div.content table tbody`).insertRow();
 
         inner_row.innerHTML = `
             <td class="td-index"><a href="/stats.html?id=${id}">${name}</a></td>
-            <td class="td-index">${branch}</td>
-            <td class="td-index">${machine}</td>
-            <td class="td-index"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td>
+            <td class="td-index" title="${filename}">${filename}</td>
+            <td class="td-index overflow-ellipsis" style="width: 300px">${machine}</td>
+            <td class="td-index" style="width: 220px"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td>
             <td><input type="checkbox" value="${id}" name="chbx-proj"/>&nbsp;</td>`;
 
     });
 
     $('.ui.search').search({ source: search });
-    $('.ui.accordion')
-      .accordion()
-    ;
+    $('.ui.accordion').accordion();
+    $('#projects-table table').tablesort();
+
 
     document.querySelectorAll('.toggle-checkbox').forEach((e) => {
         e.addEventListener('click', (e1) => {

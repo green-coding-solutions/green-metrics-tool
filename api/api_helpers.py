@@ -226,12 +226,12 @@ def determine_comparison_case(ids):
 
     query = '''
             WITH uniques as (
-                SELECT b.uri, b.usage_scenario_file, b.machine_id, b.commit_hash FROM phase_stats as a
+                SELECT b.uri, b.filename, b.machine_id, b.commit_hash FROM phase_stats as a
                 LEFT JOIN projects as b ON a.project_id = b.id
                 WHERE project_id = ANY(%s::uuid[])
-                GROUP BY b.uri, b.usage_scenario_file, b.machine_id, b.commit_hash
+                GROUP BY b.uri, b.filename, b.machine_id, b.commit_hash
             )
-            SELECT COUNT(DISTINCT uri ), COUNT(DISTINCT usage_scenario_file), COUNT(DISTINCT machine_id), COUNT(DISTINCT commit_hash ) from uniques
+            SELECT COUNT(DISTINCT uri ), COUNT(DISTINCT filename), COUNT(DISTINCT machine_id), COUNT(DISTINCT commit_hash ) from uniques
     '''
 
     data = DB().fetch_one(query, (ids, ))
@@ -306,7 +306,7 @@ def get_phase_stats(ids):
     query = """
             SELECT
                 a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.unit,
-                b.uri, c.description, b.usage_scenario_file, b.commit_hash
+                b.uri, c.description, b.filename, b.commit_hash
             FROM phase_stats as a
             LEFT JOIN projects as b on b.id = a.project_id
             LEFT JOIN machines as c on c.id = b.machine_id
@@ -321,7 +321,7 @@ def get_phase_stats(ids):
                 a.detail_name ASC,
                 b.uri ASC,
                 b.machine_id ASC,
-                b.usage_scenario_file ASC,
+                b.filename ASC,
                 b.commit_hash ASC,
                 b.created_at ASC
             """
@@ -427,7 +427,7 @@ def get_phase_stats_object(phase_stats, case):
     for phase_stat in phase_stats:
         [
             phase, metric_name, detail_name, value, metric_type, max_value, unit,
-            repo, machine_description, usage_scenario_file, commit_hash
+            repo, machine_description, filename, commit_hash
         ] = phase_stat # unpack
 
         phase = phase.split('_', maxsplit=1)[1] # remove the 001_ prepended stuff again, which is only for ordering
@@ -435,7 +435,7 @@ def get_phase_stats_object(phase_stats, case):
         if case == 'Repository':
             key = repo # Case D : RequirementsEngineering Case
         elif case == 'Usage Scenario':
-            key = usage_scenario_file # Case C_2 : SoftwareDeveloper Case
+            key = filename # Case C_2 : SoftwareDeveloper Case
         elif case == 'Machine':
             key = machine_description # Case C_1 : DataCenter Case
         else:

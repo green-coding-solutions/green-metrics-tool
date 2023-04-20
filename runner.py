@@ -364,7 +364,7 @@ class Runner:
         DB().query("""UPDATE projects
             SET
                 machine_id=%s, machine_specs=%s, measurement_config=%s,
-                usage_scenario = %s, usage_scenario_file=%s, last_run = NOW()
+                usage_scenario = %s, filename=%s, last_run = NOW()
             WHERE id = %s
             """, params=(
             config['machine']['id'],
