@@ -1,6 +1,9 @@
 name: Daily Test Run - Virtual Machine - Dev Branch
 run-name: Scheduled - DEV Branch
 on:
+  pull_request:
+    branches:
+      - dev
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
