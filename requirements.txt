@@ -2,3 +2,4 @@ PyYAML==6.0
 pandas==1.5.3
 psycopg2-binary==2.9.5
 pyserial==3.5
+schema==0.7.5
