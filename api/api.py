@@ -22,7 +22,7 @@ from db import DB
 import jobs
 import email_helpers
 import error_helpers
-import psycopg2.extras
+import psycopg
 import anybadge
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
@@ -311,7 +311,7 @@ async def post_project_add(project: Project):
         RETURNING id
         """
     params = (project.url, project.name, project.email, project.branch)
-    project_id = DB().fetch_one(query, params=params)
+    project_id = DB().fetch_one(query, params=params)[0]
     # This order as selected on purpose. If the admin mail fails, we currently do
     # not want the job to be queued, as we want to monitor every project execution manually
     email_helpers.send_admin_email(
@@ -335,7 +335,7 @@ async def get_project(project_id: str):
                 id = %s
             """
     params = (project_id,)
-    data = DB().fetch_one(query, params=params, cursor_factory=psycopg2.extras.RealDictCursor)
+    data = DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
     return {'success': True, 'data': data}
@@ -347,7 +347,8 @@ async def robots_txt():
 
     return Response(content=data, media_type='text/plain')
 
-class Badge(BaseModel):
+# pylint: disable=invalid-name
+class CI_Measurement(BaseModel):
     value: int
     unit: str
     repo: str
@@ -355,16 +356,22 @@ class Badge(BaseModel):
     workflow: str
     run_id: str
     project_id: str
+    source: str
+    label: str
 
-@app.post('/v1/ci/badge/add/')
-async def post_ci_badge_add(badge: Badge):
-    for i in Badge.schema()['properties'].keys():
-        key_value = getattr(badge, i)
+@app.post('/v1/ci/measurement/add')
+async def post_ci_measurement_add(measurement: CI_Measurement):
+    # error_helpers.log_error(error_message)
+    for i in CI_Measurement.schema()['properties'].keys():
+        key_value = getattr(measurement, i)
         if i == 'project_id':
             if key_value is None or key_value.strip() == '':
-                badge.project_id = None
+                measurement.project_id = None
             elif not is_valid_uuid(key_value.strip()):
                 return {'success': False, 'err': "project_id is not a valid uuid"}
+        elif i == 'label':
+            if key_value is None or key_value.strip() == '':
+                measurement.label = None
         elif i == 'value':
             if key_value is None:
                 return {'success': False, 'err': f"{i} is empty"}
@@ -378,21 +385,22 @@ async def post_ci_badge_add(badge: Badge):
 
     query = """
         INSERT INTO
-            badges (value, unit, repo ,branch, workflow, run_id, project_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ci_measurements (value, unit, repo, branch, workflow, run_id, project_id, label, source)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
-    params = (badge.value, badge.unit, badge.repo, badge.branch, badge.workflow, badge.run_id, badge.project_id)
+    params = (measurement.value, measurement.unit, measurement.repo, measurement.branch,\
+                measurement.workflow, measurement.run_id, measurement.project_id, \
+                measurement.label, measurement.source)
     DB().query(query=query, params=params)
-
     return {'success': True}
 
-@app.get('/v1/ci/badges/')
-async def get_ci_badges(repo: str, branch: str, workflow:str):
+@app.get('/v1/ci/measurements')
+async def get_ci_measurements(repo: str, branch: str, workflow: str):
     query = """
-        SELECT value, unit, run_id, created_at
-        FROM badges
+        SELECT value, unit, run_id, created_at, label
+        FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s
-        ORDER BY created_at DESC
+        ORDER BY run_id ASC, created_at ASC
     """
     params = (repo, branch, workflow)
     data = DB().fetch_all(query, params=params)
@@ -401,20 +409,27 @@ async def get_ci_badges(repo: str, branch: str, workflow:str):
 
     return {'success': True, 'data': data}
 
-@app.get('/v1/ci/badge/get/')
+@app.get('/v1/ci/badge/get')
 async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
-        SELECT value, unit
-        FROM badges
-        WHERE repo = %s AND branch = %s AND workflow = %s
-        ORDER BY created_at DESC
+        SELECT SUM(value), MAX(unit), MAX(run_id)
+        FROM ci_measurements
+        WHERE repo = %s AND branch = %s AND workflow = %s 
+        GROUP BY run_id
+        ORDER BY MAX(created_at) DESC
+        LIMIT 1
     """
+
     params = (repo, branch, workflow)
     data = DB().fetch_one(query, params=params)
+
     if data is None or data == []:
         return {'success': False, 'err': 'Data is empty'}
 
-    [energy_value, energy_unit] = rescale_energy_value(data[0], data[1])
+    energy_unit = data[1]
+    energy_value = data[0]
+
+    [energy_value, energy_unit] = rescale_energy_value(energy_value, energy_unit)
     badge_value= f"{energy_value:.2f} {energy_unit}"
 
     badge = anybadge.Badge(

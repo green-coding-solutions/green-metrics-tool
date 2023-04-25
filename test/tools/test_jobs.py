@@ -6,7 +6,7 @@ import sys
 import subprocess
 from unittest.mock import patch
 import pytest
-import psycopg2.extras
+import psycopg
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/../../tools")
@@ -42,7 +42,7 @@ def get_job(job_id):
                 jobs
             WHERE id = %s
             """
-    data = DB().fetch_one(query, (job_id, ), cursor_factory=psycopg2.extras.RealDictCursor)
+    data = DB().fetch_one(query, (job_id, ), row_factory=psycopg.rows.dict_row)
     if (data is None or data == []):
         return None
 

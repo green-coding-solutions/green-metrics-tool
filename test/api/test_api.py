@@ -48,4 +48,4 @@ def test_get_projects(cleanup_projects):
     response = requests.get(f"{API_URL}/v1/projects", timeout=15)
     res_json = response.json()
     assert response.status_code == 200
-    assert res_json['data'][0][0] == pid
+    assert res_json['data'][0][0] == str(pid)
