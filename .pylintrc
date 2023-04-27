@@ -21,7 +21,10 @@ disable=missing-function-docstring,
     multiple-statements,
     pointless-string-statement,
     too-many-locals,
-    too-many-public-methods
+    too-many-public-methods,
+    too-many-branches,
+    too-many-statements,
+
 
 #    import-error
 
