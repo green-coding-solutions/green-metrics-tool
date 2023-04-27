@@ -123,9 +123,9 @@ class Runner:
     def custom_sleep(self, sleep_time):
         if not self._dry_run: time.sleep(sleep_time)
 
-    def prepare_filesystem_location(self):
-        subprocess.run(['rm', '-Rf', self._tmp_folder], check=True, stderr=subprocess.DEVNULL)
-        subprocess.run(['mkdir', self._tmp_folder], check=True)
+    def initialize_folder(self, path):
+        shutil.rmtree(path, ignore_errors=True)
+        Path(path).mkdir(parents=True, exist_ok=True)
 
 
     def checkout_repository(self):
@@ -435,7 +435,7 @@ class Runner:
 
         # Create directory /tmp/green-metrics-tool/docker_images
         temp_dir = f"{self._tmp_folder}/docker_images"
-        os.makedirs(temp_dir, exist_ok=True)
+        self.initialize_folder(temp_dir)
 
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
@@ -964,7 +964,7 @@ class Runner:
         '''
         try:
             config = GlobalConfig().config
-            self.prepare_filesystem_location()
+            self.initialize_folder(self._tmp_folder)
             self.checkout_repository()
             self.initial_parse()
             self.populate_image_names()

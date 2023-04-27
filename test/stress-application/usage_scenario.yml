@@ -2,6 +2,7 @@
 name: Stress Container One Core 5 Seconds
 author: Arne Tarara
 version: 1
+description: test
 
 networks:
   network-for-pytests:
