@@ -530,9 +530,6 @@ const displayTotalChart = (legend, labels, data) => {
     let chartDom = document.querySelector(`#total-phases-data .bar-chart .statistics-chart`);
     document.querySelector(`#total-phases-data .bar-chart .chart-title`).innerText = 'Total Phases consumption [J]';
 
-    console.log(legend);
-    console.log("labels", labels);
-    console.log(data);
     let myChart = echarts.init(chartDom);
 
     let series = [];
@@ -549,7 +546,6 @@ const displayTotalChart = (legend, labels, data) => {
 
 
     let options = getLineBarChartOptions(labels, series, null, 'category')
-    console.log(options);
     myChart.setOption(options);
         // set callback when ever the user changes the viewport
     // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks
