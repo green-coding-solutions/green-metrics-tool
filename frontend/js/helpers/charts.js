@@ -43,12 +43,12 @@ const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', c
             areaStyle: {},
             grid: [
                 {
-                  left: '60%',
+                  right: '60%',
                   type: 'value',
                   containLabel: false,
                 },
                 {
-                  right: '60%',
+                  left: '60%',
                   type: 'value',
                   containLabel: false,
                 }
