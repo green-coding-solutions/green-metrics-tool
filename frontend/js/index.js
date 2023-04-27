@@ -21,7 +21,6 @@ const compareButton = () => {
         return ` ${date.getFullYear()}-${month}-${day} <br> ${date.getHours()}:${date.getMinutes()} UTC${offset}`;
     }
 
-    let search = [];
     try {
         var api_data = await makeAPICall('/v1/projects')
     } catch (err) {
@@ -80,10 +79,6 @@ const compareButton = () => {
         }
 
 
-
-        search.push({ title: name });
-
-
         if(end_measurement == null) name = `${name} (no data yet 🔥)`;
         if(invalid_project != null) name = `${name} <span class="ui yellow horizontal label" title="${invalid_project}">invalidated</span>`;
 
@@ -98,7 +93,6 @@ const compareButton = () => {
 
     });
 
-    $('.ui.search').search({ source: search });
     $('.ui.accordion').accordion();
     $('#projects-table table').tablesort();
 
