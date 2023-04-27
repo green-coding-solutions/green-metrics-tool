@@ -32,7 +32,7 @@ const compareButton = () => {
         const id = el[0]
         let name = el[1]
         const uri = el[2]
-        let branch = (el[3] == null) ? 'main/master' : el[3]
+        let branch = el[3]
         const end_measurement = el[4]
         const last_run = el[5]
         const invalid_project = el[6]

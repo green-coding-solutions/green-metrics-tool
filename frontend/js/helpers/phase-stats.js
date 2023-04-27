@@ -37,6 +37,7 @@ const determineMultiComparison = (comparison_case) => {
         case 'Repeated Run':
             return false;
             break;
+        case 'Branch':
         case 'Usage Scenario':
         case 'Commit':
         case 'Machine':

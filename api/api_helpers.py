@@ -1,10 +1,10 @@
 import sys
 import os
 import uuid
+import faulthandler
+from functools import cache
 import numpy as np
 import scipy.stats
-from functools import cache
-import faulthandler
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
@@ -226,19 +226,21 @@ def determine_comparison_case(ids):
 
     query = '''
             WITH uniques as (
-                SELECT b.uri, b.filename, b.machine_id, b.commit_hash FROM phase_stats as a
-                LEFT JOIN projects as b ON a.project_id = b.id
-                WHERE project_id = ANY(%s::uuid[])
-                GROUP BY b.uri, b.filename, b.machine_id, b.commit_hash
+                SELECT uri, filename, machine_id, commit_hash, COALESCE(branch, 'main/master') as branch FROM projects
+                WHERE id = ANY(%s::uuid[])
+                GROUP BY uri, filename, machine_id, commit_hash, branch
             )
-            SELECT COUNT(DISTINCT uri ), COUNT(DISTINCT filename), COUNT(DISTINCT machine_id), COUNT(DISTINCT commit_hash ) from uniques
+            SELECT
+                COUNT(DISTINCT uri ), COUNT(DISTINCT filename), COUNT(DISTINCT machine_id),
+                COUNT(DISTINCT commit_hash ), COUNT(DISTINCT branch)
+            FROM uniques
     '''
 
     data = DB().fetch_one(query, (ids, ))
     if data is None or data == []:
         raise RuntimeError('Could not determine compare case')
 
-    [repos, usage_scenarios, machine_ids, commit_hashes] = data
+    [repos, usage_scenarios, machine_ids, commit_hashes, branches] = data
 
     # If we have one or more measurement in a phase_stat it will currently just be averaged
     # however, when we allow comparing projects we will get same phase_stats but with different repo etc.
@@ -247,6 +249,7 @@ def determine_comparison_case(ids):
 
     # Currently we support five cases:
     # case = 'Repository' # Case D : RequirementsEngineering Case
+    # case = 'Branch' # Case C_3 : SoftwareDeveloper Case
     # case = 'Usage Scenario' # Case C_2 : SoftwareDeveloper Case
     # case = 'Machine' # Case C_1 : DataCenter Case
     # case = 'Commit' # Case B: DevOps Case
@@ -257,48 +260,63 @@ def determine_comparison_case(ids):
         if usage_scenarios <= 2: # diff repo, diff usage scenarios. diff usage scenarios are NORMAL for now
             if machine_ids == 2: # diff repo, diff usage scenarios, diff machine_ids
                 raise RuntimeError('Different repos & machines not supported')
-            elif machine_ids == 1: # diff repo, diff usage scenarios, same machine_ids
-                if commit_hashes == 2: # diff repo, diff usage scenarios, same machine_ids, diff commits_hashes
-                    # for two repos we expect two different hashes, so this is actually a normal case
-                    case = 'Repository' # Case D
-                elif commit_hashes == 1: # diff repo, diff usage scenarios, same machine_ids, same commit_hashes
-                    case = 'Repository' # Case D # commit hashes can be same, but we treat them as different for different repos
+            if machine_ids == 1: # diff repo, diff usage scenarios, same machine_ids
+                if branches <= 2:
+                    if commit_hashes <= 2: # diff repo, diff usage scenarios, same machine_ids,  same branches, diff/same commits_hashes
+                        # for two repos we expect two different hashes, so this is actually a normal case
+                        # even if they are identical we do not care, as the repos are different anyway
+                        case = 'Repository' # Case D
+                    else:
+                        raise RuntimeError('Different repos & more than 2 different commits commits not supported')
                 else:
-                    raise RuntimeError('Different repos & multiple commits not supported')
+                    raise RuntimeError('Different repos & more than 2 branches not supported')
             else:
-                raise RuntimeError('3+ Machines and different repos not supported.')
+                raise RuntimeError('Less than 1 or more than 2 Machines and different repos not supported.')
         else:
-            raise RuntimeError('2+ Usage scenarios for different repos not supported.')
+            raise RuntimeError('Only 2 or less usage scenarios for different repos not supported.')
     elif repos == 1: # same repos
         if usage_scenarios == 2: # same repo, diff usage scenarios
             if machine_ids == 2: # same repo, diff usage scenarios, diff machines
                 raise RuntimeError('Different usage scenarios & machines not supported')
-            else: # same repo, diff usage scenarios, same machines
-                if commit_hashes > 1: # same repo, diff usage scenarios, same machines, diff commit hashes
-                    raise RuntimeError('Different usage scenarios & commits not supported')
-                else: # same repo, diff usage scenarios, same machines, same commit hashes
+            if branches <= 1:
+                if commit_hashes == 1: # same repo, diff usage scenarios, same machines, same branches, same commit hashes
                     case = 'Usage Scenario' # Case C_2
+                else: # same repo, diff usage scenarios, same machines, same branches, diff commit hashes
+                    raise RuntimeError('Different usage scenarios & commits not supported')
+            else: # same repo, diff usage scenarios, same machines, diff branches
+                raise RuntimeError('Different usage scenarios & branches not supported')
         elif usage_scenarios == 1: # same repo, same usage scenario
             if machine_ids == 2: # same repo, same usage scenarios, diff machines
-                if commit_hashes > 1: # same repo, same usage scenarios, diff machines, diff commit hashes
-                    raise RuntimeError('Different machines & commits not supported')
-                else: # same repo, same usage scenarios, diff machines, same commit hashes
-                    case = 'Machine' # Case C_1
+                if branches <= 1:
+                    if commit_hashes == 1: # same repo, same usage scenarios, diff machines, same branches, same commit hashes
+                        case = 'Machine' # Case C_1
+                    else: # same repo, same usage scenarios, diff machines, same branches, diff commit hashes
+                        raise RuntimeError('Different machines & commits not supported')
+                else: # same repo, same usage scenarios, diff machines, diff branches
+                    raise RuntimeError('Different machines & branches not supported')
+
             elif machine_ids == 1: # same repo, same usage scenarios, same machines
-                if commit_hashes > 1: # same repo, same usage scenarios, same machines, diff commit hashes
-                    case = 'Commit' # Case B
-                else: # same repo, same usage scenarios, same machines, same commit hashes
-                    case = 'Repeated Run' # Case A
+                if branches <= 1:
+                    if commit_hashes > 1: # same repo, same usage scenarios, same machines, diff commit hashes
+                        case = 'Commit' # Case B
+                    else: # same repo, same usage scenarios, same machines, same branches, same commit hashes
+                        case = 'Repeated Run' # Case A
+                else: # same repo, same usage scenarios, same machines, diff branch
+                    # diff branches will have diff commits in most cases. so we allow 2, but no more
+                    if commit_hashes <= 2:
+                        case = 'Branch' # Case C_3
+                    else:
+                        raise RuntimeError('Different branches and more than 2 commits not supported')
             else:
-                raise RuntimeError('3+ Machines per repo not supported.')
+                raise RuntimeError('Less than 1 or more than 2 Machines per repo not supported.')
         else:
-            raise RuntimeError('3+ Usage scenarios per repo not supported.')
+            raise RuntimeError('Less than 1 or more than 2 Usage scenarios per repo not supported.')
 
     else:
         # TODO: Metric drilldown has to be implemented at some point ...
         # The functionality I imagine here is, because comparing more than two repos is very complex with
         # multiple t-tests / ANOVA etc. and hard to grasp, only a focus on one metric shall be provided.
-        raise RuntimeError('Multiple repos not supported for overview. Please apply metric filter.')
+        raise RuntimeError('Less than 1 or more than 2 repos not supported for overview. Please apply metric filter.')
 
     return case
 
@@ -306,7 +324,7 @@ def get_phase_stats(ids):
     query = """
             SELECT
                 a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.unit,
-                b.uri, c.description, b.filename, b.commit_hash
+                b.uri, c.description, b.filename, b.commit_hash, COALESCE(b.branch, 'main/master') as branch
             FROM phase_stats as a
             LEFT JOIN projects as b on b.id = a.project_id
             LEFT JOIN machines as c on c.id = b.machine_id
@@ -323,6 +341,7 @@ def get_phase_stats(ids):
                 b.machine_id ASC,
                 b.filename ASC,
                 b.commit_hash ASC,
+                branch ASC,
                 b.created_at ASC
             """
     data = DB().fetch_all(query, (ids, ))
@@ -352,6 +371,9 @@ def get_phase_stats(ids):
                                         // Case C_2: comparison as T-test betweeen the two usage scenarios
                                         // => Impossible if we have only one sample
                                         // => Problematic if samples are < 20
+                                        // Case C_3: comparison as T-test betweeen the two usage scenarios
+                                        // => Impossible if we have only one sample
+                                        // => Problematic if samples are < 20
                                         // Case D: comparison as T-test betweeen the two repos
                                         // => Impossible if we have only one sample
                                         // => Problematic if samples are < 20
@@ -371,7 +393,7 @@ def get_phase_stats(ids):
                                             max_values: []
 
 
-    data: dict -> key: repo/usage_scenarios/machine/commit/
+    data: dict -> key: repo/usage_scenarios/machine/commit/branch
         project_1: dict
         project_2: dict
         ...
@@ -427,13 +449,15 @@ def get_phase_stats_object(phase_stats, case):
     for phase_stat in phase_stats:
         [
             phase, metric_name, detail_name, value, metric_type, max_value, unit,
-            repo, machine_description, filename, commit_hash
+            repo, machine_description, filename, commit_hash, branch
         ] = phase_stat # unpack
 
         phase = phase.split('_', maxsplit=1)[1] # remove the 001_ prepended stuff again, which is only for ordering
 
         if case == 'Repository':
             key = repo # Case D : RequirementsEngineering Case
+        elif case == 'Branch':
+            key = branch # Case C_3 : SoftwareDeveloper Case
         elif case == 'Usage Scenario':
             key = filename # Case C_2 : SoftwareDeveloper Case
         elif case == 'Machine':
@@ -444,7 +468,6 @@ def get_phase_stats_object(phase_stats, case):
         if key not in phase_stats_object['data']:
             phase_stats_object['data'][key] = {}
             phase_stats_object['comparison_details'].append(key)
-
 
         if phase not in phase_stats_object['data'][key]: phase_stats_object['data'][key][phase] = {}
 

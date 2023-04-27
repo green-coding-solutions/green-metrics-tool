@@ -7,14 +7,15 @@ import faulthandler
 import sys
 import os
 
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, Response
+from starlette.responses import RedirectResponse
+from pydantic import BaseModel
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
 
-from pydantic import BaseModel
-from starlette.responses import RedirectResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi import FastAPI, Request, Response, Query
 from global_config import GlobalConfig
 from db import DB
 import jobs
@@ -129,7 +130,7 @@ async def get_machines():
 @app.get('/v1/projects')
 async def get_projects():
     query = """
-            SELECT a.id, a.name, a.uri, a.branch, a.end_measurement, a.last_run, a.invalid_project, a.filename, b.description
+            SELECT a.id, a.name, a.uri, COALESCE(a.branch, 'main/master'), a.end_measurement, a.last_run, a.invalid_project, a.filename, b.description
             FROM projects as a
             LEFT JOIN machines as b on a.machine_id = b.id
             ORDER BY a.created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
@@ -152,7 +153,7 @@ async def compare_in_repo(ids: str):
     if(ids is None or ids.strip() == ''):
         return {'success': False, 'err': 'Project_id is empty'}
     ids = ids.split(',')
-    if not all([is_valid_uuid(id) for id in ids]):
+    if not all(is_valid_uuid(id) for id in ids):
         return {'success': False, 'err': 'One of Project IDs is not a valid UUID or empty'}
 
 
