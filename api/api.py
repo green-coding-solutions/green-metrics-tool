@@ -383,46 +383,33 @@ class CI_Measurement(BaseModel):
 
 @app.post('/v1/ci/measurement/add')
 async def post_ci_measurement_add(measurement: CI_Measurement):
-    for key, value in measurement.dict():
-        if key == 'project_id':
-            if value is None or value.strip() == '':
-                measurement.project_id = None
+    for key, value in measurement.dict().items():
+        match key:
+            case 'project_id':
+                if not is_valid_uuid(value.strip()):
+                    return {'success': False, 'err': f"project_id '{value}' is not a valid uuid"}
+                setattr(measurement, key, safe_escape(value))
                 continue
-            elif not is_valid_uuid(value.strip()):
-                return {'success': False, 'err': f"project_id '{value}' is not a valid uuid"}
-            else:
-                measurement.project_id = escape(value)
+
+            case 'unit':
+                if value is None or value.strip() == '':
+                    return {'success': False, 'err': f"{key} is empty"}
+                if value != 'mJ':
+                    return {'success': False, 'err': "Unit is unsupported - only mJ currently accepted"}
+                setattr(measurement, key, safe_escape(value))
                 continue
-        if key == 'label':
-            if value is None or value.strip() == '':
-                measurement.label = None
-            else:
-                measurement.label = escape(value)
-            continue
-        if key == 'unit':
-            if value is None or value.strip() == '':
-                return {'success': False, 'err': f"{key} is empty"}
-            if value != 'mJ':
-                return {'success': False, 'err': "Unit is unsupported - only mJ currently accepted"}
 
-        if value is None or value.strip() == '':
-            return {'success': False, 'err': f"{key} is empty"}
+            case 'label':  # Optional fields
+                setattr(measurement, key, safe_escape(value))
+                continue
 
-        if key == 'repo':
-            measurement.repo = escape(value)
-            continue
-        if key == 'branch':
-            measurement.branch = escape(value)
-            continue
-        if key == 'workflow':
-            measurement.workflow = escape(value)
-            continue
-        if key == 'run_id':
-            measurement.run_id = escape(value)
-            continue
-        if key == 'source':
-            measurement.source = escape(value)
-            continue
+            case _:
+                if value is None:
+                    return {'success': False, 'err': f"{key} is empty"}
+                if isinstance(value, str):
+                    if value.strip() == '':
+                        return {'success': False, 'err': f"{key} is empty"}
+                    setattr(measurement, key, escape(value))
 
     query = """
         INSERT INTO
@@ -488,19 +475,24 @@ def escape_dict(dictionary):
     for key, value in dictionary.items():
         if isinstance(value, str):
             dictionary[key] = escape(value, quote=False)
-            continue
-        if isinstance(value, dict):
-            escape_dict(value)
-            continue
-        if isinstance(value, list):
-            for item in value:
-                if isinstance(item, str):
-                    dictionary[key] = escape(item, quote=False)
-                    continue
-                if isinstance(item, dict):
-                    escape_dict(item)
-
+        elif isinstance(value, dict):
+            dictionary[key] = escape_dict(value)
+        elif isinstance(value, list):
+            dictionary[key] = [
+                escape_dict(item)
+                if isinstance(item, dict)
+                else escape(item, quote=False)
+                if isinstance(item, str)
+                else item
+                for item in value
+            ]
     return dictionary
+
+def safe_escape(item):
+    """Escape the item if not None"""
+    if item is None:
+        return
+    return escape(item, quote=False)
 
 def rescale_energy_value(value, unit):
     # We only expect values to be mJ for energy!
