@@ -353,6 +353,8 @@ class CI_Measurement(BaseModel):
     unit: str
     repo: str
     branch: str
+    cpu: str
+    commit_hash: str
     workflow: str
     run_id: str
     project_id: str
@@ -372,6 +374,12 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
         elif i == 'label':
             if key_value is None or key_value.strip() == '':
                 measurement.label = None
+        elif i == 'cpu':
+            if key_value is None or key_value.strip() == '':
+                measurement.cpu = None
+        elif i == 'commit_hash':
+            if key_value is None or key_value.strip() == '':
+                measurement.commit_hash = None
         elif i == 'value':
             if key_value is None:
                 return {'success': False, 'err': f"{i} is empty"}
@@ -385,19 +393,19 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 
     query = """
         INSERT INTO
-            ci_measurements (value, unit, repo, branch, workflow, run_id, project_id, label, source)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ci_measurements (value, unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
     params = (measurement.value, measurement.unit, measurement.repo, measurement.branch,\
                 measurement.workflow, measurement.run_id, measurement.project_id, \
-                measurement.label, measurement.source)
+                measurement.label, measurement.source, measurement.cpu, measurement.commit_hash)
     DB().query(query=query, params=params)
     return {'success': True}
 
 @app.get('/v1/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str):
     query = """
-        SELECT value, unit, run_id, created_at, label
+        SELECT value, unit, run_id, created_at, label, cpu, commit_hash
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s
         ORDER BY run_id ASC, created_at ASC
