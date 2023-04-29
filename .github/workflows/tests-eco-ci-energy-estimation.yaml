@@ -1,0 +1,46 @@
+name: Testing for @testing eco-ci-energy-estimation. Custom. No cron
+run-name: Testing run for @testing eco-ci-energy-estimation
+on:
+  workflow_dispatch:
+
+jobs:
+  run-tests-dev:
+    runs-on: ubuntu-latest
+    steps:
+        name: 'Checkout repository'
+        uses: actions/checkout@v3
+        with:
+          ref: 'dev'
+          submodules: 'true'
+
+      - name: Eco CI Energy Estimation - Initialize
+        uses: green-coding-berlin/eco-ci-energy-estimation@testing
+        with:
+          task: start-measurement
+
+      - name: Measuring idle cost 10 s
+        shell: bash
+        run: |
+            sleep 10
+
+      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
+        name: 'Setup, Run, and Teardown Tests'
+        uses: ./.github/actions/gmt-pytest
+        with:
+         metrics-to-turn-off: '--categories RAPL System Sensors Debug CGroupV2 MacOS --providers CpuFrequencySysfsCoreProvider'
+         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Eco CI Energy Estimation - Get Measurement
+        uses: green-coding-berlin/eco-ci-energy-estimation@testing
+        with:
+          task: get-measurement
+          branch: dev
+
+      - name: Eco CI Energy Estimation - End Measurement
+        uses: green-coding-berlin/eco-ci-energy-estimation@testing
+        with:
+          task: display-results
+          branch: dev
+        
+
+
