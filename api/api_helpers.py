@@ -226,7 +226,7 @@ def determine_comparison_case(ids):
 
     query = '''
             WITH uniques as (
-                SELECT uri, filename, machine_id, commit_hash, COALESCE(branch, 'main/master') as branch FROM projects
+                SELECT uri, filename, machine_id, commit_hash, COALESCE(branch, 'main / master') as branch FROM projects
                 WHERE id = ANY(%s::uuid[])
                 GROUP BY uri, filename, machine_id, commit_hash, branch
             )
@@ -324,7 +324,7 @@ def get_phase_stats(ids):
     query = """
             SELECT
                 a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.unit,
-                b.uri, c.description, b.filename, b.commit_hash, COALESCE(b.branch, 'main/master') as branch
+                b.uri, c.description, b.filename, b.commit_hash, COALESCE(b.branch, 'main / master') as branch
             FROM phase_stats as a
             LEFT JOIN projects as b on b.id = a.project_id
             LEFT JOIN machines as c on c.id = b.machine_id
