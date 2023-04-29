@@ -74,6 +74,8 @@ CREATE TABLE ci_measurements (
     branch text,
     workflow text,
     run_id text,
+    cpu text DEFAULT NULL,
+    commit_hash text DEFAULT NULL,
     label text,
     source text,
     project_id uuid REFERENCES projects(id) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT null,
