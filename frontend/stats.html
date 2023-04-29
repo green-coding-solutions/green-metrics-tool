@@ -15,11 +15,17 @@
     <meta name="description" content="Detailed energy statistics for software measurement" />
     <script src="/dist/js/jquery.min.js" defer></script>
     <script src="/dist/js/json2yaml.js" defer></script>
-    <script src="/js/config.js" defer></script>
-    <script src="/js/main.js" defer></script>
+    <script src="/js/helpers/config.js" defer></script>
+    <script src="/js/helpers/main.js" defer></script>
+    <script src="/js/helpers/phase-stats.js" defer></script>
+    <script src="/js/helpers/metric-boxes.js" defer></script>
+    <script src="/js/helpers/converters.js" defer></script>
+    <script src="/js/helpers/charts.js" defer></script>
     <script src="/js/stats.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
+    <script src="/dist/js/tablesort.min.js" defer></script>
+    <script src="/dist/js/accordion.min.js" defer></script>
     <script src="/dist/js/echarts.min.js" defer></script>
     <!-- <script src="/dist/js/apexcharts.min.js" defer></script> -->
     <script src="/dist/js/tab.min.js" defer></script>
@@ -27,26 +33,7 @@
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
 <body class="preload">
-    <div id="menu" class="ui inverted vertical menu">
-        <div>
-            <img class="ui fluid image menu-logo" src="/images/logo.png">
-        </div>
-        <div class="item">
-            <i>&lt;Green Metrics Tool&gt;</i>
-        </div>
-        <a class="item" href="/index.html">
-            <b><i class="home icon"></i>Home</b>
-        </a>
-        <a class="item" href="/request.html">
-            <b><i class="bullseye icon"></i>Certify new software</b>
-        </a>
-        <a class="item" href="/data-analysis.html">
-            <b><i class="chartline icon"></i>Data Analysis</b>
-        </a>
-        <a class="item" href="/configuration.html">
-            <b><i class="cogs icon"></i>Configuration</b>
-        </a>
-    </div> <!-- end menu -->
+    <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
         <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Detailed Metrics</h1>
         <div class="ui horizontal card" id="horizontal-card">
@@ -63,7 +50,15 @@
                         <a class="item" data-tab="five">Usage Scenario</a>
                     </div>
                     <div class="ui tab segment" data-tab="one">
-                        <table class="table-hover" id="project-data"></table>
+                        <table class="table-hover" id="project-data-top"></table>
+                        <div class="ui accordion">
+                            <div class="title ui header">
+                                <i class="dropdown icon"></i> <u>Click here for more data ...</u>
+                            </div>
+                            <div class="content">
+                                <table class="table-hover" id="project-data-accordion"></table>
+                            </div>
+                        </div>
                     </div>
                     <div class="ui active tab segment" data-tab="two">
                         <table class="table-hover" id="measurement-config"></table>
@@ -112,150 +107,223 @@
                 </div>
             </div>
         </div><!-- end ui horizontal card -->
-        <h3>container level metrics</h3>
-        <div class="ui five cards stackable no-transform-statistics" id="container-level-metrics">
-        </div><!-- end ui five cards stackable -->
-        <h3>system level metrics</h3>
-        <div class="ui five cards stackable no-transform-statistics" id="system-level-metrics">
-        </div><!-- end ui five cards stackable -->
-        <h3>compound metrics</h3>
-        <div class="ui five cards stackable no-transform-statistics">
-            <div class="ui card">
-                <div class="ui content">
-                    <div class="ui top attached blue label overflow-ellipsis">Component Energy</div>
-                    <div class="ui bottom right attached label">RAPL CPU+Memory</div>
-                    <div class="description">
-                        <div class="ui mini statistic">
-                            <div class="value">
-                                <i class="power off icon"></i> <span id="component-energy">N/A</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="ui card">
-                <div class="ui content">
-                    <div class="ui top attached blue label overflow-ellipsis">Component Power (avg.)</div>
-                    <div class="ui bottom right attached label">RAPL CPU+Memory</div>
-                    <div class="description">
-                        <div class="ui mini statistic">
-                            <div class="value">
-                                <i class="power off icon"></i> <span id="component-power">N/A</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="ui card">
-                <div class="ui content">
-                    <div class="ui top blue attached label overflow-ellipsis">Network Energy </div>
-                    <div class="ui bottom right attached label"><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></div>
-                    <div class="description">
-                        <div class="ui mini statistic">
-                            <div class="value">
-                                <i class="power off icon"></i> <span id="network-energy">N/A</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="ui card">
-                <div class="ui content">
-                    <div class="ui top black attached label overflow-ellipsis">Component CO2 </div>
-                    <div class="ui bottom right attached label">RAPL CPU + Memory</div>
-                    <div class="description">
-                        <div class="ui mini statistic">
-                            <div class="value">
-                                <i class="burn icon"></i> <span id="component-co2">N/A</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="ui card">
-                <div class="ui content">
-                    <div class="ui top black attached label overflow-ellipsis">Network CO2 </div>
-                    <div class="ui bottom right attached label"><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></div>
-                    <div class="description">
-                        <div class="ui mini statistic">
-                            <div class="value">
-                                <i class="burn icon"></i> <span id="network-co2">N/A</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div><!-- end ui five cards stackable -->
-        <h3>extra metrics</h3>
-        <div class="ui five cards stackable no-transform-statistics" id="extra-metrics">
-        </div><!-- end ui five cards stackable -->
 
-        <div class="ui icon message">
-            <i class="question circle icon"></i>
-            <div class="content">
-                <div class="header">
-                    How much is this value of CO2 to something tangible?
+        <div class="ui steps attached phases">
+            <a class="active step" data-tab="[BASELINE]">
+                <div class="content">
+                    <div class="title">Baseline<span class="ui icon" data-position="top left" data-inverted="" data-tooltip="Before container install / build / start and running software" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
+                    <div class="description" style="display:none">Energy consumption before installing application</div>
                 </div>
-                <p>CO2 of software per run is relatively small. The values get big though cause software is repeatedly run.<br>Therefore the following numbers reflect the CO2 value of the software as if it was run for 100 times a day over 30 days.</p>
-                <p>Source of CO2 to Tree etc. conversion: <a href="https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator">EPA</a></p>
+            </a>
+            <a class="step" data-tab="[INSTALLATION]">
+                <div class="content">
+                    <div class="title">Installation<span class="ui icon" data-position="top left" data-inverted="" data-tooltip="Container build / download" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
+                    <div class="description" style="display:none">This is where the containers are built / pulled</div>
+                </div>
+            </a>
+            <a class="step" data-tab="[BOOT]">
+                <div class="content">
+                    <div class="title">Boot<span class="ui icon" data-position="top center" data-inverted="" data-tooltip="Container startup" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
+                    <div class="description" style="display:none">resource consumption while starting containers</div>
+                </div>
+            </a>
+            <a class="step" data-tab="[IDLE]">
+                <div class="content">
+                    <div class="title">Idle<span class="ui icon" data-position="top center" data-inverted="" data-tooltip="After container installation and boot. flow not started. But services, if any, are already running." style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
+                    <div class="description" style="display:none">resource consumption while running idle containers</div>
+                </div>
+            </a>
+            <a class="step runtime-step" data-tab="[RUNTIME]">
+                <div class="content">
+                    <div class="title">Runtime<span class="ui icon" data-position="top center" data-inverted="" data-tooltip="Contains cumulated runtime metrics." style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
+                    <div class="description" style="display:none">resource consumption while running idle containers</div>
+                </div>
+            </a>
+            <a class="step" data-tab="" style="display:none;"> <!-- empty element for copying. Usage phases will be inserted before -->
+                <div class="content">
+                    <div class="title"><span class="ui icon" data-inverted="" data-position="top right" data-tooltip="This is a user defined custom phase" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
+                    <div class="description" style="display:none">resource consumption while usage phase and executing usage scenario</div>
+                </div>
+            </a>
+            <a class="step" data-tab="[REMOVE]">
+                <div class="content">
+                    <div class="title">Remove<span class="ui icon" data-inverted="" data-position="top right" data-tooltip="This is the removal phase, including cache-purging, container stop etc." style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
+                    <div class="description" style="display:none">When software is removed / uninstalled.</div>
+                </div>
+            </a>
+        </div>
+
+
+        <div class="ui tab attached segment secondary" data-tab="[BASELINE]">
+            <div class="content">
+                <div class="header"><a class="ui blue ribbon label" href="#">
+                    <h3>Single Phase Data</h3>
+                </a></div>
+            </div>
+            <h3 class="ui dividing header">key metrics</h3>
+            <div class="key-metrics-chart-container">
+                <div class="bar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
+                <div class="radar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
+            </div>
+            <br>
+            <phase-metrics></phase-metrics>
+        </div>
+        <div class="ui tab attached segment secondary" data-tab="[INSTALLATION]">
+            <div class="content">
+                <div class="header"><a class="ui blue ribbon label" href="#">
+                    <h3>Single Phase Data</h3>
+                </a></div>
+            </div>
+
+            <h3 class="ui dividing header">key metrics</h3>
+            <div class="key-metrics-chart-container">
+                <div class="bar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
+                <div class="radar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
+            </div>
+            <br>
+            <phase-metrics></phase-metrics>
+        </div>
+        <div class="ui tab attached segment secondary" data-tab="[BOOT]">
+            <div class="content">
+                <div class="header"><a class="ui blue ribbon label" href="#">
+                    <h3>Single Phase Data</h3>
+                </a></div>
+            </div>
+
+            <h3 class="ui dividing header">key metrics</h3>
+            <div class="key-metrics-chart-container">
+                <div class="bar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
+                <div class="radar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
+            </div>
+            <br>
+            <phase-metrics></phase-metrics>
+        </div>
+        <div class="ui tab attached segment secondary" data-tab="[IDLE]">
+            <div class="content">
+                <div class="header"><a class="ui blue ribbon label" href="#">
+                    <h3>Single Phase Data</h3>
+                </a></div>
+            </div>
+            <h3 class="ui dividing header">key metrics</h3>
+            <div class="key-metrics-chart-container">
+                <div class="bar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
+                <div class="radar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
+            </div>
+            <br>
+            <phase-metrics></phase-metrics>
+        </div>
+        <div class="ui tab attached segment secondary" data-tab="[RUNTIME]">
+            <div class="content">
+                <div class="header"><a class="ui blue ribbon label" href="#">
+                    <h3>Single Phase Data</h3>
+                </a></div>
+            </div>
+            <h3 class="ui dividing header">key metrics</h3>
+            <div class="key-metrics-chart-container">
+                <div class="bar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
+                <div class="radar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
+            </div>
+            <br>
+            <phase-metrics></phase-metrics>
+        </div>
+        <div class="ui tab attached segment secondary runtime-tab" data-tab="" style="display:none;">
+            <div class="content">
+                <div class="header"><a class="ui blue ribbon label" href="#">
+                    <h3>Single Phase Data</h3>
+                </a></div>
+            </div>
+            <h3 class="ui dividing header">key metrics</h3>
+            <div class="key-metrics-chart-container">
+                <div class="bar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
+                <div class="radar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
+            </div>
+            <br>
+            <phase-metrics></phase-metrics>
+        </div>
+        <div class="ui tab attached segment secondary" data-tab="[REMOVE]">
+            <div class="content">
+                <div class="header"><a class="ui blue ribbon label" href="#">
+                    <h3>Single Phase Data</h3>
+                </a></div>
+            </div>
+            <h3 class="ui dividing header">key metrics</h3>
+            <div class="key-metrics-chart-container">
+                <div class="bar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
+                <div class="radar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
+            </div>
+            <br>
+            <phase-metrics></phase-metrics>
+        </div>
+
+        <div class="ui segment" id="total-phases-data">
+            <div class="content">
+                <div class="header"><a class="ui orange ribbon label" href="#">
+                    <h3>Total Phases Data</h3>
+                </a></div>
+            </div>
+            <div class="description">
+                <div class="bar-chart">
+                    <div class="chart-title"></div>
+                    <div class="statistics-chart"></div>
+                </div>
             </div>
         </div>
-        <div class="ui five cards stackable">
-            <div class="card">
-                <div class="content">
-                    <div class="ui header">Trees</div>
-                    <div class="ui small statistic">
-                        <div class="value">
-                            <i class="tree icon"></i> <span id="trees">-</span>
-                        </div>
-                    </div>
+
+
+
+        <div class="ui horizontal card" id="horizontal-card">
+            <div class="content">
+                <div class="header"><a class="ui teal ribbon label" href="#">
+                    <h3>Metric Charts</h3>
+                </a></div>
+                <div class="description">
+                    The following charts display the metrics as time series in detail.
                 </div>
             </div>
-            <div class="card">
-                <div class="content">
-                    <div class="ui header">Miles driven</div>
-                    <div class="ui small statistic">
-                        <div class="value">
-                            <i class="truck pickup icon"></i> <span id="miles-driven">-</span>
-                        </div>
-                    </div>
-                    <div class="ui top right attached label">by car</div>
-                </div>
-            </div>
-            <div class="card">
-                <div class="content">
-                    <div class="ui header">Gasoline</div>
-                    <div class="ui small statistic">
-                        <div class="value">
-                            <i class="gas pump icon"></i> <span id="gasoline">-</span>
-                        </div>
-                    </div>
-                    <div class="ui top right attached label">in gallons</div>
-                </div>
-            </div>
-            <div class="card">
-                <div class="content">
-                    <div class="ui header">Flights</div>
-                    <div class="ui small statistic">
-                        <div class="value">
-                            <i class="plane departure icon"></i> <span id="flights">-</span>
-                        </div>
-                    </div>
-                    <div class="ui top right attached label">Berlin &raquo; NYC</div>
-                </div>
-            </div>
-            <div class="ui card">
-                <div class="ui content">
-                    <div class="ui header">co2 budget / day</div>
-                    <div class="ui small statistic">
-                        <div class="value">
-                            <i class="user icon"></i> <span id="co2-budget-utilization"> - %</span>
-                        </div>
-                    </div>
-                    <div class="ui bottom right attached label">for CPU + Memory + Network</div>
-                </div>
-            </div>
-        </div><!-- end ui five cards stackable -->
+        </div>
+
         <div class="ui two cards" id="api-loader">
             <div class="card" style="min-height: 300px">
                 <div class="ui active dimmer">

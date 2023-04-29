@@ -4,24 +4,33 @@ postgresql:
   user: postgres
   dbname: green-coding
   password: PLEASE_CHANGE_THIS
+
 smtp:
   server: SMTP_SERVER
   sender: SMTP_SENDER
   port: SMTP_PORT
   password: SMTP_AUTH_PW
   user: SMTP_AUTH_USER
-project:
-  name: My test project
-  url: https://metrics.green-coding.berlin/
-config:
+
+admin:
+  # This address will get an email, when a new project was added through the frontend
+  email: myemail@dev.local
+  # no_emails: True will suppress all emails. Helpful in development servers
+  no_emails: True
+
+cluster:
   api_url: __API_URL__
   metrics_url: __METRICS_URL__
-  machine_id:
+
+machine:
+  id: 1
+  description: "Development machine for testing"
 
 measurement:
   idle-time-start: 10
   idle-time-end: 5
   flow-process-runtime: 1800
+  phase-transition-time: 1
   metric-providers:
 
   # Please select the needed providers according to the working ones on your system
@@ -45,26 +54,26 @@ measurement:
       network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
         resolution: 100
     #--- RAPL - Only enable these if you have RAPL enabled on your machine
-#      cpu.energy.RAPL.MSR.system.provider.CpuEnergyRaplMsrSystemProvider:
+#      cpu.energy.RAPL.MSR.component.provider.CpuEnergyRaplMsrComponentProvider:
 #        resolution: 100
-#      memory.energy.RAPL.MSR.system.provider.MemoryEnergyRaplMsrSystemProvider:
+#      memory.energy.RAPL.MSR.component.provider.MemoryEnergyRaplMsrComponentProvider:
 #        resolution: 100
-    #--- System power - These providers need special hardware / lab equipment to work
-#      psu.energy.ac.gude.system.provider.PsuEnergyAcGudeSystemProvider:
+    #--- Machine Energy - These providers need special hardware / lab equipment to work
+#      psu.energy.ac.gude.machine.provider.PsuEnergyAcGudeMachineProvider:
 #        resolution: 100
-#      psu.energy.dc.picolog.system.provider.PsuEnergyDcPicologSystemProvider:
+#      psu.energy.dc.picolog.mainboard.provider.PsuEnergyDcPicologMainboardProvider:
 #        resolution: 61 # Do not change this. Provider is tailored to work at fixed resolution
-#      psu.energy.ac.powerspy2.system.provider.PsuEnergyAcPowerspy2SystemProvider:
+#      psu.energy.ac.powerspy2.machine.provider.PsuEnergyAcPowerspy2MachineProvider:
 #        resolution: 250
-#      psu.energy.ac.ipmi.system.provider.PsuEnergyAcIpmiSystemProvider:
+#      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
 #        resolution: 100
     #--- Sensors
-#      lm_sensors.temperature.provider.LmSensorsTempProvider:
+#      lm_sensors.temperature.component.provider.LmSensorsTemperatureComponentProvider:
 #        resolution: 100
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000', 'coretemp-isa-0000']
 #        features: ['CPU', 'Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
-#      lm_sensors.fan.provider.LmSensorsFanProvider:
+#      lm_sensors.fan.component.provider.LmSensorsFanComponentProvider:
 #        resolution: 100
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000']
@@ -79,17 +88,17 @@ measurement:
     #--- Architecture - MacOS
     macos:
     #--- MacOS: On Mac you only need this provider. Please delete all others!
-#      powermetrics.provider.PowermetricsProvider:
-#        resolution: 100
+      powermetrics.provider.PowermetricsProvider:
+        resolution: 100
     #--- Architecture - Common
     common:
     #--- Model based
-#      psu.energy.ac.sdia.system.provider.PsuEnergyAcSdiaSystemProvider:
+#      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
 #        resolution: 100
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        TDP: 65
-#      psu.energy.ac.xgboost.system.provider.PsuEnergyAcXgboostSystemProvider:
+#      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
 #        resolution: 100
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
@@ -100,10 +109,3 @@ measurement:
 #        HW_MemAmountGB: 16
 #        Hardware_Availability_Year: 2011
   #--- END
-
-
-admin:
-  # This address will get an email, when a new project was added through the frontend
-  email: myemail@dev.local
-  # no_emails: True will suppress all emails. Helpful in development servers
-  no_emails: True

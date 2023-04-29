@@ -1,12 +1,6 @@
-[submodule "tools/metric_providers/psu/energy/xgboost/system/model"]
-	path = tools/metric_providers/psu/energy/xgboost/system/model
-	url = https://github.com/green-coding-berlin/spec-power-model
 [submodule "lib/sgx-software-enable"]
 	path = lib/sgx-software-enable
 	url = https://github.com/green-coding-berlin/sgx-software-enable
-[submodule "metric_providers/psu/energy/ac/xgboost/system/model"]
-	path = metric_providers/psu/energy/ac/xgboost/system/model
-	url = https://github.com/green-coding-berlin/spec-power-model
-[submodule "metric_providers/metric_providers/psu/energy/ac/xgboost/system/model"]
-	path = metric_providers/metric_providers/psu/energy/ac/xgboost/system/model
+[submodule "metric_providers/psu/energy/ac/xgboost/machine/model"]
+	path = metric_providers/psu/energy/ac/xgboost/machine/model
 	url = https://github.com/green-coding-berlin/spec-power-model

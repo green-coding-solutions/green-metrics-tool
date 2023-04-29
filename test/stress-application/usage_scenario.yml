@@ -2,6 +2,7 @@
 name: Stress Container One Core 5 Seconds
 author: Arne Tarara
 version: 1
+description: test
 
 networks:
   network-for-pytests:
@@ -12,6 +13,10 @@ services:
     image: gcb_stress
     networks:
       - network-for-pytests
+    build:
+      context: .
+      dockerfile: Dockerfile
+
   ubuntu-stress-2:
     type: container
     image: gcb_stress

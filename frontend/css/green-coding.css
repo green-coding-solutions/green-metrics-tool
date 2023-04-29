@@ -27,8 +27,8 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
     margin-top: 14px;
 }
 
-.no-transform-statistics .tiny.statistic .value {
-    text-transform: none;
+.no-transform-statistics .statistic .value {
+    text-transform: none !important;
 }
 
 .statistics-chart-card {
@@ -38,6 +38,9 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
 .statistics-chart {
     width: 100%;
     height: 100%;
+}
+
+.statistics-chart-card .statistics-chart {
     min-height: 600px;
 }
 
@@ -185,8 +188,59 @@ a,
     width: 0 !important;
 }
 
+.ui.card .ui.bottom.attached.label {
+    font-size:10px !important;
+}
+
+
+.radar-chart, .bar-chart, .pie-chart, .embodied-chart, .phases-chart {
+    min-width: 300px;
+    height: 300px;
+    display: block;
+    margin:auto;
+}
+
+.key-metrics-chart-container .radar-chart,
+.key-metrics-chart-container .pie-chart,
+.key-metrics-chart-container .bar-chart,
+.key-metrics-chart-container .embodied-chart {
+    width: 45%;
+}
+
+.bar-chart, .phases-chart {
+    width: 100%;
+    min-width: 300px;
+    height: 300px;
+    display: block;
+    margin:auto;
+}
+
+
+
+.compare-chart-container, .key-metrics-chart-container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
 .usage-scenario {
     word-wrap: break-word;
     white-space: pre-wrap;
 }
 
+.break {
+  flex-basis: 100%;
+  height: 0;
+}
+
+
+.ui.steps .step .title {
+    font-size: 1em;
+}
+
+.chart-title {
+    font-weight: bold;
+    font-size: 1.2em;
+}

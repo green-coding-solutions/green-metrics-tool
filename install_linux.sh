@@ -66,9 +66,12 @@ cp docker/nginx/frontend.conf.example docker/nginx/frontend.conf
 host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
 host_metrics_url=${host_metrics_url%:*}
 sed -i -e "s|__METRICS_URL__|$host_metrics_url|" docker/nginx/frontend.conf
-cp frontend/js/config.js.example frontend/js/config.js
-sed -i -e "s|__API_URL__|$api_url|" frontend/js/config.js
-sed -i -e "s|__METRICS_URL__|$metrics_url|" frontend/js/config.js
+cp frontend/js/helpers/config.js.example frontend/js/helpers/config.js
+sed -i -e "s|__API_URL__|$api_url|" frontend/js/helpers/config.js
+sed -i -e "s|__METRICS_URL__|$metrics_url|" frontend/js/helpers/config.js
+
+print_message "Checking out further git submodules ..."
+git submodule update --init
 
 print_message "Installing needed binaries for building ..."
 if lsb_release -is | grep -q "Fedora"; then
