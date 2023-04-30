@@ -190,7 +190,7 @@ const getLineBarChartOptions = (legend, series, mark_area=null, x_axis='time', n
         tooltip: { trigger: tooltip_trigger },
         grid: {
                 left: '0%',
-                right: '0%',
+                right: 70,
                 bottom: '0%',
                 containLabel: true
         },

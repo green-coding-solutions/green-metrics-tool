@@ -232,7 +232,7 @@ const displayTimelineCharts = (metrics, notes) => {
                 data: metrics[metric_name].series[detail_name].data,
                 markLine: {
                     precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
-                    data: [ {type: "average",label: {formatter: "AVG_ii:\n{c}"}}]
+                    data: [ {type: "average",label: {formatter: "AVG:\n{c}"}}]
                 }
             });
         }
