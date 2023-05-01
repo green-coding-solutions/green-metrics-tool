@@ -194,9 +194,6 @@ async def get_measurements_single(project_id: str):
         return {'success': False, 'err': 'Project ID is not a valid UUID or empty'}
 
     query = """
-            WITH times AS (
-                SELECT start_measurement, end_measurement FROM projects WHERE id = %s
-            )
             SELECT measurements.detail_name, measurements.time, measurements.metric,
                    measurements.value, measurements.unit, measurements.phase
             FROM measurements
