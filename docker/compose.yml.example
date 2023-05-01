@@ -8,6 +8,11 @@ services:
     volumes:
       - green-coding-postgres-data:/var/lib/postgresql/data
       - ./structure.sql:/docker-entrypoint-initdb.d/structure.sql:ro
+  # If you want to use a shared socket between postgres and gunicorn please add
+  #   - ./postgres/socket:/var/run/postgresql
+  # Also add this to the green-coding-gunicorn then
+  # We use container internal networking as it is easier to to setup a test-container-setup
+  # and the performance is identical to socket connections in our internal tests
     ports:
       - 5432:5432
     command: >

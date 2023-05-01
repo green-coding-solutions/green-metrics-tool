@@ -1,5 +1,7 @@
 postgresql:
-# leave the host line empty if you do want to use Unix Domain socket connection
+  # leave the host line empty if you do want to use Unix Domain socket connection
+  # We use container internal networking as it is easier to to setup a test-container-setup
+  # and the performance is identical to socket connections in our internal tests
   host: green-coding-postgres-container
   user: postgres
   dbname: green-coding
