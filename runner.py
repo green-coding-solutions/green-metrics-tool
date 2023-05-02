@@ -81,8 +81,9 @@ def join_path_and_file(path, file):
 class Runner:
     def __init__(self,
         uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
-        debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_unsafe=False,
-        verbose_provider_boot=False, full_docker_prune=False, dry_run=False, dev_repeat_run=False):
+        debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_config_check=False,
+        skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
+        dry_run=False, dev_repeat_run=False):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -92,6 +93,7 @@ class Runner:
         self._allow_unsafe = allow_unsafe
         self._no_file_cleanup = no_file_cleanup
         self._skip_unsafe = skip_unsafe
+        self._skip_config_check = skip_config_check
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
         self._dry_run = dry_run
@@ -127,6 +129,27 @@ class Runner:
         shutil.rmtree(path, ignore_errors=True)
         Path(path).mkdir(parents=True, exist_ok=True)
 
+    def check_configuration(self):
+        if self._skip_config_check:
+            print("Configuration check skipped")
+            return True
+
+        errors = []
+        config = GlobalConfig().config
+        metric_providers = utils.get_metric_providers_names(config)
+
+        if sum(True for provider in metric_providers if provider.startswith('PsuEnergy')) > 1:
+            errors.append("Multiple PSU Energy providers enabled!")
+
+        if not errors:
+            print("Configuration check passed")
+            return True
+
+        print("Configuration check failed:")
+        for error in errors:
+            print(f"\t{error}")
+
+        return False
 
     def checkout_repository(self):
 
@@ -965,6 +988,8 @@ class Runner:
         try:
             config = GlobalConfig().config
             self.initialize_folder(self._tmp_folder)
+            if not self.check_configuration():
+                raise ValueError("Configuration check failed - not running measurement")
             self.checkout_repository()
             self.initial_parse()
             self.populate_image_names()
@@ -1077,6 +1102,8 @@ if __name__ == '__main__':
                         help='Activate unsafe volume bindings, ports and complex environment vars')
     parser.add_argument('--skip-unsafe', action='store_true',
                         help='Skip unsafe volume bindings, ports and complex environment vars')
+    parser.add_argument('--skip-config-check', action='store_true',
+                        help='Skip checking the configuration')
     parser.add_argument('--verbose-provider-boot',
                         action='store_true', help='Boot metric providers gradually')
     parser.add_argument('--full-docker-prune',
@@ -1139,9 +1166,10 @@ if __name__ == '__main__':
 
     runner = Runner(uri=args.uri, uri_type=run_type, pid=project_id, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
-                    no_file_cleanup=args.no_file_cleanup, skip_unsafe=args.skip_unsafe,
-                    verbose_provider_boot=args.verbose_provider_boot, full_docker_prune=args.full_docker_prune,
-                    dry_run=args.dry_run, dev_repeat_run=args.dev_repeat_run)
+                    no_file_cleanup=args.no_file_cleanup, skip_config_check =args.skip_config_check,
+                    skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
+                    full_docker_prune=args.full_docker_prune, dry_run=args.dry_run,
+                    dev_repeat_run=args.dev_repeat_run)
     try:
         runner.run()  # Start main code
 
