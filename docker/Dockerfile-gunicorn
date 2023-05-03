@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN rm -rf /var/lib/apt/lists/*
 RUN apt update && \
-    apt install python3 python3-pip gunicorn libpq-dev -y
+    apt install python3 python3-pip gunicorn -y
 RUN pip3 install "psycopg[binary]" fastapi "uvicorn[standard]" pandas pyyaml anybadge scipy
 RUN rm -rf /var/lib/apt/lists/*
 
