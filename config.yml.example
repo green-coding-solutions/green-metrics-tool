@@ -35,6 +35,9 @@ measurement:
   phase-transition-time: 1
   metric-providers:
 
+error:
+  file: None
+
   # Please select the needed providers according to the working ones on your system
   # More info https://docs.green-coding.berlin/docs/measuring/metric-providers
   # Please activate and deactivate any provider in this list by uncommenting it.
