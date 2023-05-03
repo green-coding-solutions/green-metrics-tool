@@ -1,6 +1,7 @@
 services:
   green-coding-postgres:
     image: postgres
+    shm_size: 256MB
     container_name: green-coding-postgres-container
     restart: always
     environment:
@@ -19,7 +20,8 @@ services:
       -c ssl=on
       -c ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
       -c ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
-#     -c work_mem=16MB # This option can potentially speed up big queries: https://www.twilio.com/blog/sqlite-postgresql-complicated
+      -c work_mem=16MB
+# This option can potentially speed up big queries: https://www.twilio.com/blog/sqlite-postgresql-complicated
   green-coding-nginx:
     image: nginx
     container_name: green-coding-nginx-container
