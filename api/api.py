@@ -8,7 +8,7 @@ import sys
 import os
 
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import ORJSONResponse
 from fastapi import FastAPI, Request, Response
 from starlette.responses import RedirectResponse
 from pydantic import BaseModel
@@ -61,7 +61,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
             error_helpers.format_error(error_message),
             project_id=None,
         )
-        return JSONResponse(
+        return ORJSONResponse(
             content={
                 'success': False,
                 'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.berlin',
@@ -97,7 +97,7 @@ async def home():
 @app.get('/v1/notes/{project_id}')
 async def get_notes(project_id):
     if project_id is None or not is_valid_uuid(project_id):
-        return {'success': False, 'err': 'Project ID is not a valid UUID or empty'}
+        return ORJSONResponse({'success': False, 'err': 'Project ID is not a valid UUID or empty'})
 
     query = """
             SELECT project_id, detail_name, note, time
@@ -107,9 +107,9 @@ async def get_notes(project_id):
             """
     data = DB().fetch_all(query, (project_id,))
     if data is None or data == []:
-        return {'success': False, 'err': 'Data is empty'}
+        return ORJSONResponse({'success': False, 'err': 'Data is empty'})
 
-    return {'success': True, 'data': data}
+    return ORJSONResponse({'success': True, 'data': data})
 
 # return a list of all possible registered machines
 @app.get('/v1/machines/')
@@ -121,9 +121,9 @@ async def get_machines():
             """
     data = DB().fetch_all(query)
     if data is None or data == []:
-        return {'success': False, 'err': 'Data is empty'}
+        return ORJSONResponse({'success': False, 'err': 'Data is empty'})
 
-    return {'success': True, 'data': data}
+    return ORJSONResponse({'success': True, 'data': data})
 
 
 # A route to return all of the available entries in our catalog.
@@ -137,9 +137,9 @@ async def get_projects():
             """
     data = DB().fetch_all(query)
     if data is None or data == []:
-        return {'success': False, 'err': 'Data is empty'}
+        return ORJSONResponse({'success': False, 'err': 'Data is empty'})
 
-    return {'success': True, 'data': data}
+    return ORJSONResponse({'success': True, 'data': data})
 
 
 # Just copy and paste if we want to deprecate URLs
@@ -151,10 +151,10 @@ async def get_projects():
 @app.get('/v1/compare')
 async def compare_in_repo(ids: str):
     if(ids is None or ids.strip() == ''):
-        return {'success': False, 'err': 'Project_id is empty'}
+        return ORJSONResponse({'success': False, 'err': 'Project_id is empty'})
     ids = ids.split(',')
     if not all(is_valid_uuid(id) for id in ids):
-        return {'success': False, 'err': 'One of Project IDs is not a valid UUID or empty'}
+        return ORJSONResponse({'success': False, 'err': 'One of Project IDs is not a valid UUID or empty'})
 
 
     try:
@@ -164,16 +164,16 @@ async def compare_in_repo(ids: str):
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
 
     except RuntimeError as err:
-        return {'success': False, 'err': str(err)}
+        return ORJSONResponse({'success': False, 'err': str(err)})
 
-    return {'success': True, 'data': phase_stats_object}
+    return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
 
 # This route is primarily used to load phase stats it into a pandas data frame
 @app.get('/v1/phase_stats/single/{project_id}')
 async def get_phase_stats_single(project_id: str):
     if project_id is None or not is_valid_uuid(project_id):
-        return {'success': False, 'err': 'Project ID is not a valid UUID or empty'}
+        return ORJSONResponse({'success': False, 'err': 'Project ID is not a valid UUID or empty'})
 
     try:
         phase_stats = get_phase_stats([project_id])
@@ -182,16 +182,16 @@ async def get_phase_stats_single(project_id: str):
 
     except RuntimeError as err:
 
-        return {'success': False, 'err': str(err)}
+        return ORJSONResponse({'success': False, 'err': str(err)})
 
-    return {'success': True, 'data': phase_stats_object}
+    return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
 
 # This route gets the measurements to be displayed in a timeline chart
 @app.get('/v1/measurements/single/{project_id}')
 async def get_measurements_single(project_id: str):
     if project_id is None or not is_valid_uuid(project_id):
-        return {'success': False, 'err': 'Project ID is not a valid UUID or empty'}
+        return ORJSONResponse({'success': False, 'err': 'Project ID is not a valid UUID or empty'})
 
     query = """
             SELECT measurements.detail_name, measurements.time, measurements.metric,
@@ -201,14 +201,17 @@ async def get_measurements_single(project_id: str):
             """
 
     # extremly important to order here, cause the charting library in JS cannot do that automatically!
+
     query = f" {query} ORDER BY measurements.metric ASC, measurements.detail_name ASC, measurements.time ASC"
 
     params = params = (project_id, )
+
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
-        return {'success': False, 'err': 'Data is empty'}
-    return {'success': True, 'data': data}
+        return ORJSONResponse({'success': False, 'err': 'Data is empty'})
+
+    return ORJSONResponse({'success': True, 'data': data})
 
 
 # A route to return all of the available entries in our catalog.
@@ -216,7 +219,7 @@ async def get_measurements_single(project_id: str):
 async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
 
     if project_id is None or not is_valid_uuid(project_id):
-        return {'success': False, 'err': 'Project ID is not a valid UUID or empty'}
+        return ORJSONResponse({'success': False, 'err': 'Project ID is not a valid UUID or empty'})
 
     query = '''
         WITH times AS (
@@ -273,13 +276,13 @@ class Project(BaseModel):
 async def post_project_add(project: Project):
 
     if project.url is None or project.url.strip() == '':
-        return {'success': False, 'err': 'URL is empty'}
+        return ORJSONResponse({'success': False, 'err': 'URL is empty'})
 
     if project.name is None or project.name.strip() == '':
-        return {'success': False, 'err': 'Name is empty'}
+        return ORJSONResponse({'success': False, 'err': 'Name is empty'})
 
     if project.email is None or project.email.strip() == '':
-        return {'success': False, 'err': 'E-mail is empty'}
+        return ORJSONResponse({'success': False, 'err': 'E-mail is empty'})
 
     if project.branch.strip() == '':
         project.branch = None
@@ -302,13 +305,13 @@ async def post_project_add(project: Project):
     )  # notify admin of new project
     jobs.insert_job('project', project_id, project.machine_id)
 
-    return {'success': True}
+    return ORJSONResponse({'success': True})
 
 
 @app.get('/v1/project/{project_id}')
 async def get_project(project_id: str):
     if project_id is None or not is_valid_uuid(project_id):
-        return {'success': False, 'err': 'Project ID is not a valid UUID or empty'}
+        return ORJSONResponse({'success': False, 'err': 'Project ID is not a valid UUID or empty'})
 
     query = """
             SELECT
@@ -324,8 +327,8 @@ async def get_project(project_id: str):
     params = (project_id,)
     data = DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
     if data is None or data == []:
-        return {'success': False, 'err': 'Data is empty'}
-    return {'success': True, 'data': data}
+        return ORJSONResponse({'success': False, 'err': 'Data is empty'})
+    return ORJSONResponse({'success': True, 'data': data})
 
 @app.get('/robots.txt')
 async def robots_txt():
@@ -357,7 +360,7 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
             if key_value is None or key_value.strip() == '':
                 measurement.project_id = None
             elif not is_valid_uuid(key_value.strip()):
-                return {'success': False, 'err': "project_id is not a valid uuid"}
+                return ORJSONResponse({'success': False, 'err': "project_id is not a valid uuid"})
         elif i == 'label':
             if key_value is None or key_value.strip() == '':
                 measurement.label = None
@@ -369,14 +372,14 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                 measurement.commit_hash = None
         elif i == 'value':
             if key_value is None:
-                return {'success': False, 'err': f"{i} is empty"}
+                return ORJSONResponse({'success': False, 'err': f"{i} is empty"})
         elif i == 'unit':
             if key_value is None or key_value.strip() == '':
-                return {'success': False, 'err': f"{i} is empty"}
+                return ORJSONResponse({'success': False, 'err': f"{i} is empty"})
             if key_value != 'mJ':
-                return {'success': False, 'err': "Unit is unsupported - only mJ currently accepted"}
+                return ORJSONResponse({'success': False, 'err': "Unit is unsupported - only mJ currently accepted"})
         elif key_value is None or key_value.strip() == '':
-            return {'success': False, 'err': f"{i} is empty"}
+            return ORJSONResponse({'success': False, 'err': f"{i} is empty"})
 
     query = """
         INSERT INTO
@@ -387,7 +390,7 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                 measurement.workflow, measurement.run_id, measurement.project_id, \
                 measurement.label, measurement.source, measurement.cpu, measurement.commit_hash)
     DB().query(query=query, params=params)
-    return {'success': True}
+    return ORJSONResponse({'success': True})
 
 @app.get('/v1/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str):
@@ -400,9 +403,9 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str):
     params = (repo, branch, workflow)
     data = DB().fetch_all(query, params=params)
     if data is None or data == []:
-        return {'success': False, 'err': 'Data is empty'}
+        return ORJSONResponse({'success': False, 'err': 'Data is empty'})
 
-    return {'success': True, 'data': data}
+    return ORJSONResponse({'success': True, 'data': data})
 
 @app.get('/v1/ci/badge/get')
 async def get_ci_badge_get(repo: str, branch: str, workflow:str):
@@ -419,7 +422,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     data = DB().fetch_one(query, params=params)
 
     if data is None or data == []:
-        return {'success': False, 'err': 'Data is empty'}
+        return ORJSONResponse({'success': False, 'err': 'Data is empty'})
 
     energy_unit = data[1]
     energy_value = data[0]
