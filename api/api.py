@@ -203,7 +203,7 @@ async def get_measurements_single(project_id: str):
     # extremly important to order here, cause the charting library in JS cannot do that automatically!
     query = f" {query} ORDER BY measurements.metric ASC, measurements.detail_name ASC, measurements.time ASC"
 
-    params = params = (project_id, project_id)
+    params = params = (project_id, )
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
