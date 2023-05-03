@@ -348,10 +348,11 @@ $(document).ready( (e) => {
 
         fillProjectData(project_data);
 
-
-        let multi_comparison = determineMultiComparison(phase_stats_data.comparison_case)
-        setupPhaseTabs(phase_stats_data, multi_comparison)
-        displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case, multi_comparison)
+        if(phase_stats_data != null) {
+            let multi_comparison = determineMultiComparison(phase_stats_data.comparison_case)
+            setupPhaseTabs(phase_stats_data, multi_comparison)
+            displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case, multi_comparison)
+        }
 
         if (measurements_data == undefined) return;
         const metrics = getTimelineMetrics(measurements_data);
