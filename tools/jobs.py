@@ -13,6 +13,7 @@ import email_helpers
 import error_helpers
 from db import DB
 from global_config import GlobalConfig
+from phase_stats import build_and_store_phase_stats
 from runner import Runner
 
 
@@ -112,6 +113,7 @@ def _do_project_job(job_id, project_id):
     try:
         # Start main code. Only URL is allowed for cron jobs
         runner.run()
+        build_and_store_phase_stats(project_id)
         insert_job('email', project_id=project_id)
         delete_job(job_id)
     except Exception as exc:
