@@ -38,7 +38,7 @@ def get_job(job_type):
         LIMIT 1
     """
 
-    return DB().fetch_one(query, (job_type, GlobalConfig().config['config']['machine_id']))
+    return DB().fetch_one(query, (job_type, GlobalConfig().config['machine']['id']))
 
 
 def delete_job(job_id):

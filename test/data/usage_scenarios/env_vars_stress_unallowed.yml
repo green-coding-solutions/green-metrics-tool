@@ -9,8 +9,11 @@ services:
     type: container
     image: gcb_stress
     build: .
-    ports:
-      - 9017:9018
+    environment:
+      TESTALLOWED: 'alpha-num123_'
+      TESTBACKTICK: '`'
+      TESTDOLLAR: '$'
+      TESTPARENTHESIS: '()'
 
 flow:
   - name: Stress

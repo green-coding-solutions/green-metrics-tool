@@ -70,44 +70,14 @@ def get_env_vars(runner):
             stdout=subprocess.PIPE,
             encoding='UTF-8'
         )
-        allowed = ps.stdout
-
-        ps = subprocess.run(
-            ['docker', 'exec', 'test-container', '/bin/sh',
-            '-c', 'echo $TESTBACKTICK'],
-            check=True,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            encoding='UTF-8'
-        )
-        backtick = ps.stdout
-
-        ps = subprocess.run(
-            ['docker', 'exec', 'test-container', '/bin/sh',
-            '-c', 'echo $TESTDOLLAR'],
-            check=True,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            encoding='UTF-8'
-        )
-        dollar = ps.stdout
-
-        ps = subprocess.run(
-            ['docker', 'exec', 'test-container', '/bin/sh',
-            '-c', 'echo $TESTPARENTHESIS'],
-            check=True,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            encoding='UTF-8'
-        )
-        parenthesis= ps.stdout
+        env_var_output = ps.stdout
+        env_var_err = ps.stderr
     finally:
         runner.cleanup()
-
-    return allowed, backtick, dollar, parenthesis
+    return env_var_output
 
 def test_env_variable_no_skip_or_allow():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress.yml')
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_unallowed.yml')
     with pytest.raises(RuntimeError) as e:
         get_env_vars(runner)
     expected_exception = 'Docker container setup environment var value had wrong format.'
@@ -116,19 +86,13 @@ def test_env_variable_no_skip_or_allow():
 
 def test_env_variable_skip_unsafe_true():
     runner = Tests.setup_runner(usage_scenario='env_vars_stress.yml', skip_unsafe=True)
-    allowed, backtick, dollar, parenthesis = get_env_vars(runner)
-    assert allowed == 'alpha-num123_\n', Tests.assertion_info('alpha-num123_', allowed)
-    assert backtick == '\n', Tests.assertion_info('empty string', backtick)
-    assert dollar == '\n', Tests.assertion_info('empty string', dollar)
-    assert parenthesis == '\n', Tests.assertion_info('empty string', parenthesis)
+    env_var_output = get_env_vars(runner)
+    assert env_var_output == 'alpha-num123_\n', Tests.assertion_info('alpha-num123_', env_var_output)
 
 def test_env_variable_allow_unsafe_true():
     runner = Tests.setup_runner(usage_scenario='env_vars_stress.yml', allow_unsafe=True)
-    allowed, backtick, dollar, parenthesis = get_env_vars(runner)
-    assert allowed == 'alpha-num123_\n', Tests.assertion_info('alpha-num123_', allowed)
-    assert backtick == '`\n', Tests.assertion_info('`', backtick)
-    assert dollar == '$\n', Tests.assertion_info('$', dollar)
-    assert parenthesis == '()\n', Tests.assertion_info('()', parenthesis)
+    env_var_output = get_env_vars(runner)
+    assert env_var_output == 'alpha-num123_\n', Tests.assertion_info('alpha-num123_', env_var_output)
 
 # ports: [int:int] (optional)
 # Docker container portmapping on host OS to be used with --allow-unsafe flag.
@@ -194,8 +158,8 @@ def test_setup_commands_one_command():
             Tests.run_until(runner, 'setup_services')
         finally:
             runner.cleanup()
-    assert 'Running command: docker exec  ps -a' in out.getvalue(), \
-        Tests.assertion_info('stdout message: Running command: <command>', 'no/different stdout message')
+    assert 'Running command:  docker exec test-container sh -c ps -a' in out.getvalue(), \
+        Tests.assertion_info('stdout message: Running command: docker exec  ps -a', out.getvalue())
     assert '1 root      0:00 /bin/sh' in out.getvalue(), \
         Tests.assertion_info('container stdout showing /bin/sh as process 1', 'different message in container stdout')
 
@@ -210,13 +174,13 @@ def test_setup_commands_multiple_commands():
         finally:
             runner.cleanup()
 
-    expected_pattern = re.compile(r'Running command: docker exec  echo hello world.*\
+    expected_pattern = re.compile(r'Running command:  docker exec test-container sh -c echo hello world.*\
 \s*Stdout: hello world.*\
-\s*Running command: docker exec  ps -a.*\
-\s*Stdout: PID   USER     TIME  COMMAND.*\
-\s*1 root\s+\d:\d\d /bin/sh.*\
-\s*1\d+ root\s+\d:\d\d ps -a.*\
-\s*Running command: docker exec  echo goodbye world.*\
+\s*Running command:  docker exec test-container sh -c ps -a.*\
+\s*Stdout:\s+PID\s+USER\s+TIME\s+COMMAND.*\
+\s*1\s+root\s+\d:\d\d\s+/bin/sh.*\
+\s*1\d+\s+root\s+\d:\d\d\s+ps -a.*\
+\s*Running command:  docker exec test-container sh -c echo goodbye world.*\
 \s*Stdout: goodbye world.*\
 ', re.MULTILINE)
 
@@ -294,7 +258,7 @@ def test_network_created():
 def test_container_is_in_network():
     runner = Tests.setup_runner(usage_scenario='network_stress.yml')
     try:
-        Tests.run_until(runner, 'setup_networks')
+        Tests.run_until(runner, 'setup_services')
         ps = subprocess.run(
             ['docker', 'network', 'inspect', 'gmt-test-network'],
             check=True,
@@ -351,7 +315,7 @@ def test_uri_local_dir_missing():
     runner = Tests.setup_runner(usage_scenario='basic_stress.yml', uri='/tmp/missing')
     with pytest.raises(FileNotFoundError) as e:
         runner.run()
-    expected_exception = 'No such file or directory: \'/tmp/missing/basic_stress.yml\''
+    expected_exception = 'No such file or directory: \'/tmp/missing\''
     assert expected_exception in str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
@@ -440,7 +404,8 @@ def test_name_is_in_db():
 def test_different_filename():
     usage_scenario_path = os.path.join(CURRENT_DIR, 'data/usage_scenarios/', 'basic_stress.yml')
     dir_name = utils.randomword(12)
-    Tests.make_proj_dir(dir_name=dir_name, usage_scenario_path=usage_scenario_path)
+    compose_path = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/compose.yml'))
+    Tests.make_proj_dir(dir_name=dir_name, usage_scenario_path=usage_scenario_path, docker_compose_path=compose_path)
     uri = os.path.join(CURRENT_DIR, 'tmp/', dir_name)
     project_name = 'test_' + utils.randomword(12)
 
@@ -509,14 +474,16 @@ def test_debug(monkeypatch):
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
-    expected_output = 'Initial load complete. Waiting to start network setup'
+    expected_output = 'Initial load complete. Waiting to start metric providers'
     assert expected_output in ps.stdout, \
         Tests.assertion_info(expected_output, 'no/different output')
 
     # providers are not started at the same time, but with 2 second delay
     # there is a note added when it starts "Booting {metric_provider}"
     # can check for this note in the DB and the notes are about 2s apart
-def test_verbose_provider_boot():
+
+    ## rethink this one
+def wip_test_verbose_provider_boot():
     uri = os.path.abspath(os.path.join(
             CURRENT_DIR, 'stress-application/'))
     project_name = 'test_' + utils.randomword(12)

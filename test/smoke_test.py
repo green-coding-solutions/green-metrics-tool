@@ -67,7 +67,7 @@ def test_db_rows_are_written_and_presented():
             SELECT
                 metric, COUNT(*) as count
             FROM
-                stats
+                measurements
             WHERE project_id = %s
             GROUP BY
                 metric

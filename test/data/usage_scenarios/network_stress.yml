@@ -1,6 +1,7 @@
 ---
 name: Test Stress
 author: Dan Mateas
+description: test
 version: 1
 
 networks:
@@ -10,6 +11,7 @@ services:
   test-container:
     type: container
     image: gcb_stress
+    build: .
     networks: 
       - gmt-test-network
 

@@ -15,6 +15,7 @@ sys.path.append(f"{CURRENT_DIR}/../../lib")
 #pylint: disable=import-error,wrong-import-position
 from db import DB
 import jobs
+import test_functions as Tests
 import utils
 from global_config import GlobalConfig
 config = GlobalConfig(config_name='test-config.yml').config
@@ -56,8 +57,9 @@ def test_no_project_job():
             stdout=subprocess.PIPE,
             encoding='UTF-8'
         )
+    print(ps.stderr)
     assert 'No job to process. Exiting' in ps.stdout,\
-        utils.assertion_info('No job to process. Exiting', ps.stdout)
+        Tests.assertion_info('No job to process. Exiting', ps.stdout)
 
 def test_no_email_job():
     ps = subprocess.run(
@@ -68,7 +70,7 @@ def test_no_email_job():
             encoding='UTF-8'
         )
     assert 'No job to process. Exiting' in ps.stdout,\
-        utils.assertion_info('No job to process. Exiting', ps.stdout)
+        Tests.assertion_info('No job to process. Exiting', ps.stdout)
 
 def test_insert_job():
     job_id = jobs.insert_job('test')
@@ -92,13 +94,13 @@ def test_simple_project_job():
             encoding='UTF-8'
         )
 
-    assert ps.stderr == '', utils.assertion_info('No Error', ps.stderr)
+    assert ps.stderr == '', Tests.assertion_info('No Error', ps.stderr)
     assert 'Successfully processed jobs queue item.' in ps.stdout,\
-        utils.assertion_info('Successfully processed jobs queue item.', ps.stdout)
+        Tests.assertion_info('Successfully processed jobs queue item.', ps.stdout)
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
-        utils.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
+        Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
-#pylint: disable=unused-variable # for the time being, until I ge the mocking to work
+#pylint: disable=unused-variable # for the time being, until I get the mocking to work
 def test_simple_email_job():
     name = utils.randomword(12)
     uri='https://github.com/green-coding-berlin/pytest-dummy-repo'
@@ -119,6 +121,6 @@ def test_simple_email_job():
                 encoding='UTF-8'
             )
         #send_email.assert_called_with(email, pid)
-    assert ps.stderr == '', utils.assertion_info('No Error', ps.stderr)
+    assert ps.stderr == '', Tests.assertion_info('No Error', ps.stderr)
     assert ps.stdout == 'Successfully processed jobs queue item.\n',\
-        utils.assertion_info('Successfully processed jobs queue item.', ps.stdout)
+        Tests.assertion_info('Successfully processed jobs queue item.', ps.stdout)
