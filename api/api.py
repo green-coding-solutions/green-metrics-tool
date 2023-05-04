@@ -120,7 +120,7 @@ async def get_notes(project_id):
         ]
         for note in data
     ]
-    return ORJSONResponse({'success': True, 'data': data})
+    return ORJSONResponse({'success': True, 'data': escaped_data})
 
 
 # return a list of all possible registered machines
@@ -164,7 +164,7 @@ async def get_projects():
         for project in data
     ]
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return ORJSONResponse({'success': True, 'data': escaped_data})
 
 
 # Just copy and paste if we want to deprecate URLs
