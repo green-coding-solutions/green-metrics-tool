@@ -2,6 +2,10 @@ var display_in_watts = localStorage.getItem('display_in_watts');
 if(display_in_watts == 'true') display_in_watts = true;
 else display_in_watts = false;
 
+var display_in_metric_units = localStorage.getItem('display_in_metric_units');
+if(display_in_metric_units == 'true') display_in_metric_units = true;
+else display_in_metric_units = false;
+
 const rescaleCO2Value = (total_CO2_in_kg) => {
     if     (total_CO2_in_kg < 0.0000000001) co2_display = [total_CO2_in_kg*(10**12), 'ng'];
     else if(total_CO2_in_kg < 0.0000001) co2_display = [total_CO2_in_kg*(10**9), 'ug'];
@@ -600,13 +604,26 @@ const fillAvgContainers = (measurement_duration_in_s, metrics) => {
 
     upscaled_CO2_in_kg = total_CO2_in_kg * 100 * 30 ; // upscaled by 30 days for 10.000 requests (or runs) per day
 
+    if(display_in_metric_units) {
+        document.querySelector("#distance-units").innerText = "in kms";
+        document.querySelector("#gasoline-units").innerText = "in litres";
+    }else{
+        document.querySelector("#distance-units").innerText = "in miles";
+        document.querySelector("#gasoline-units").innerText = "in gallons";
+    }
+
     if(upscaled_CO2_in_kg) {
         document.querySelector("#trees").innerText = (upscaled_CO2_in_kg / 0.06 / 1000).toFixed(2);
-        document.querySelector("#miles-driven").innerText = (upscaled_CO2_in_kg / 0.000403 / 1000).toFixed(2);
-        document.querySelector("#gasoline").innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
-        // document.querySelector("#smartphones-charged").innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
         document.querySelector("#flights").innerText = (upscaled_CO2_in_kg / 1000).toFixed(2);
-    }
+        if(display_in_metric_units){
+            document.querySelector("#miles-driven").innerText = ((upscaled_CO2_in_kg / 0.000403 / 1000) * 1.60934).toFixed(2);
+            document.querySelector("#gasoline").innerText = ((upscaled_CO2_in_kg / 0.008887 / 1000) * 3.78541).toFixed(2);
+        }else{
+            document.querySelector("#miles-driven").innerText = (upscaled_CO2_in_kg / 0.000403 / 1000).toFixed(2);
+            document.querySelector("#gasoline").innerText = (upscaled_CO2_in_kg / 0.008887 / 1000).toFixed(2);
+            // document.querySelector("#smartphones-charged").innerText = (upscaled_CO2_in_kg / 0.00000822 / 1000).toFixed(2);
+        }
+    } 
 
 
 }
