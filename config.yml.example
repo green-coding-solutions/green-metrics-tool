@@ -28,15 +28,15 @@ machine:
   id: 1
   description: "Development machine for testing"
 
+error:
+  file: None
+
 measurement:
   idle-time-start: 10
   idle-time-end: 5
   flow-process-runtime: 1800
   phase-transition-time: 1
   metric-providers:
-
-error:
-  file: None
 
   # Please select the needed providers according to the working ones on your system
   # More info https://docs.green-coding.berlin/docs/measuring/metric-providers
