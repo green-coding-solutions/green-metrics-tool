@@ -46,8 +46,7 @@ const getEChartsOptions = () => {
     return {
         yAxis: { type: 'value', gridIndex: 0, name: "Run Energy" },
 
-        xAxis: { type: 'category' },
-        dataset: {source:[]},
+        xAxis: {type: "category", data: ["Time"]},
         series: [],
         title: { text: null },
         animation: false,
@@ -73,74 +72,47 @@ const getEChartsOptions = () => {
 const displayGraph = (runs) => {
     const element = createChartContainer("#chart-container", "run-energy");
     let options = getEChartsOptions();
-    let run_notes = {}
 
     options.title.text = `Workflow energy cost per run [mJ]`;
 
-    let tooltip = []
+    let legend = new Set()
+    let labels = []
+
 
     idx = -1; // since we force an ordering from the API, we can safely assume increasing run_ids
     runs.forEach(run => { // iterate over all runs, which are in row order
-        let [value, unit, run_id, timestamp, label] = run;
-
-        if (run_id in run_notes) { // if run_id in notes
-            run_notes[run_id].values.push(value)
-            tooltip[idx].labels.push(label)
-        }
-        else {
-            run_notes[run_id] = {
-                timestamp: formatDateTime(new Date(timestamp)),
-                values: [value]
-            }
-            tooltip.push({run_id: run_id, labels: [label]})
-            idx++;
-        }
-    });
-
-    let max_len = 0
-    for (entry in run_notes) {
-        options.dataset.source.push([run_notes[entry].timestamp].concat(run_notes[entry].values))
-        if (run_notes[entry].values.length > max_len) {
-            max_len = run_notes[entry].values.length
-        }
-    }
-
-    for (let index = 0; index < max_len; index++) {
+        let [value, unit, run_id, timestamp, label, cpu, commit_hash] = run;
         options.series.push({
             type: 'bar',
             smooth: true,
-            seriesLayoutBy: 'column',
-            stack: 'test', // does not matter what you call it actually
+            stack: run_id,
+            name: cpu,
+            data: [value]
         })
-    }
+        legend.add(cpu)
 
-    options.series.at(-1)["label"] = {
-        normal: {
-            show: true,
-            distance: 5,
-            position: 'top',
-            formatter: (params) => {
-                let total = 0;
-                params.data.slice(1).forEach(value => total += value)
-                return total;
-            }
+        if(run_id == idx) {
+            labels.at(-1).labels.push(label)
+        } else {
+            labels.push({value: value, unit: unit, run_id: run_id, labels: [label], commit_hash: commit_hash, timestamp: formatDateTime(new Date(timestamp))})
         }
-    }
+        idx = run_id
+    });
 
-    // pad the values with zeroes so the graph doesn't add 'undefined' entries to the stacks
-    for (let index = 0; index < options.dataset.source.length; index++) {
-        // +1 because of the timestamp on position 0
-        while (options.dataset.source[index].length < max_len + 1) {
-            options.dataset.source[index].push(0)
-        }
-    }
+    options.legend.data = Array.from(legend)
 
     options.tooltip = {
         trigger: 'item',
         formatter: function (params, ticket, callback) {
-            return `value: ${params.data[params.componentIndex + 1]}; run: ${tooltip[params.dataIndex].run_id}; label: ${tooltip[params.dataIndex].labels[params.componentIndex]}`;
+            return `<strong>${labels[params.componentIndex].labels[params.dataIndex]}</strong><br>
+                    run_id: ${labels[params.componentIndex].run_id}<br>
+                    timestamp: ${labels[params.componentIndex].timestamp}<br>
+                    commit_hash: ${labels[params.componentIndex].commit_hash}<br>
+                    value: ${labels[params.componentIndex].value} ${labels[params.componentIndex].unit}<br>
+                    `;
         }
     }
+
 
     const chart_instance = echarts.init(element);
     chart_instance.setOption(options);
@@ -161,7 +133,6 @@ const displayGraph = (runs) => {
             sum = sum + options.dataset.source[i].slice(1).reduce((partialSum, a) => partialSum + a, 0);
         }
     })
-
     window.onresize = function () { // set callback when ever the user changes the viewport
         chart_instance.resize();
     }

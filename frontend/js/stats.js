@@ -232,7 +232,7 @@ const displayTimelineCharts = (metrics, notes) => {
                 data: metrics[metric_name].series[detail_name].data,
                 markLine: {
                     precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
-                    data: [ {type: "average",label: {formatter: "AVG_ii:\n{c}"}}]
+                    data: [ {type: "average",label: {formatter: "AVG:\n{c}"}}]
                 }
             });
         }
@@ -348,10 +348,11 @@ $(document).ready( (e) => {
 
         fillProjectData(project_data);
 
-
-        let multi_comparison = determineMultiComparison(phase_stats_data.comparison_case)
-        setupPhaseTabs(phase_stats_data, multi_comparison)
-        displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case, multi_comparison)
+        if(phase_stats_data != null) {
+            let multi_comparison = determineMultiComparison(phase_stats_data.comparison_case)
+            setupPhaseTabs(phase_stats_data, multi_comparison)
+            displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case, multi_comparison)
+        }
 
         if (measurements_data == undefined) return;
         const metrics = getTimelineMetrics(measurements_data);

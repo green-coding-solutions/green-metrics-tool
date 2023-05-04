@@ -12,11 +12,11 @@ A detailed description can be found under https://invent.kde.org/vkrause/powersp
 
 1) You will need to install `pip install pyserial==3.5` into your environment.
 
-1) You need to connect the powerspy through your operating systems bluetooth framework. For Ubuntu you can either do
+2) You need to connect the powerspy through your operating systems bluetooth framework. For Ubuntu you can either do
 this through `$ blueman-manager` or `bluetoothctl`. See https://simpleit.rocks/linux/shell/connect-to-bluetooth-from-cli/
 for more details.
 
-1) Once you are connected you should be able to connect to the serial console by running
+3) Once you are connected you should be able to connect to the serial console by running
 `# rfcomm connect /dev/rfcomm0 <addr> 1`
 where addr is the mac address of your powerspy2 device. You can query this through `bluetoothctl devices`.
 Please note that you will have to do this as root!
@@ -24,10 +24,16 @@ Please note that you will have to do this as root!
 A one-liner, if your PowerSpy2 is already paired with the OS is:
 `bluetoothctl devices | awk '$0 ~ /PowerSpy/ {print $2}' | xargs -I % sudo rfcomm connect /dev/rfcomm0 % 1`
 
-1) Make the rfcomm device read and writeable by all as root. `sudo chmod 777 /dev/rfcomm0`
+However, if you want to start the bluetooth connection via SSH we recommend you start it in the background and disown it:
+
+`sudo rfcomm connect /dev/rfcomm0 DEVICE_MAC 1 &`
+
+then do: `disown -h`
+
+4) Make the rfcomm device read and writeable by all as root. `sudo chmod 777 /dev/rfcomm0`
 This is potentially a security problem if you are on a shared machine!
 
-1) Please try running the metrics provider first to see if everything works.
+5) Please try running the metrics provider first to see if everything works.
 
 ## Notes
 

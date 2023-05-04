@@ -36,6 +36,10 @@ CREATE TABLE measurements (
     created_at timestamp with time zone DEFAULT now()
 );
 
+CREATE INDEX "stats_project_id" ON "measurements" USING HASH ("project_id");
+CREATE INDEX sorting ON measurements (metric, detail_name, time);
+
+
 CREATE TABLE categories (
     id SERIAL PRIMARY KEY,
     name text,
@@ -94,6 +98,8 @@ CREATE TABLE ci_measurements (
     branch text,
     workflow text,
     run_id text,
+    cpu text DEFAULT NULL,
+    commit_hash text DEFAULT NULL,
     label text,
     source text,
     project_id uuid REFERENCES projects(id) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT null,

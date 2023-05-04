@@ -5,7 +5,7 @@ postgresql:
   host: green-coding-postgres-container
   user: postgres
   dbname: green-coding
-  password: PLEASE_CHANGE_THIS
+  password: some_password
 
 smtp:
   server: SMTP_SERVER
@@ -21,8 +21,8 @@ admin:
   no_emails: True
 
 cluster:
-  api_url: __API_URL__
-  metrics_url: __METRICS_URL__
+  api_url: http://api.green-coding.internal:9142
+  metrics_url: http://metrics.green-coding.internal:9142
 
 machine:
   id: 1
@@ -65,10 +65,10 @@ measurement:
 #        resolution: 100
 #      psu.energy.dc.picolog.mainboard.provider.PsuEnergyDcPicologMainboardProvider:
 #        resolution: 61 # Do not change this. Provider is tailored to work at fixed resolution
-#      psu.energy.ac.powerspy2.machine.provider.PsuEnergyAcPowerspy2MachineProvider:
-#        resolution: 250
-#      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
-#        resolution: 100
+      psu.energy.ac.powerspy2.machine.provider.PsuEnergyAcPowerspy2MachineProvider:
+        resolution: 250
+      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
+        resolution: 100
     #--- Sensors
 #      lm_sensors.temperature.component.provider.LmSensorsTemperatureComponentProvider:
 #        resolution: 100

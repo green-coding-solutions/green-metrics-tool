@@ -43,12 +43,12 @@ const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', c
             areaStyle: {},
             grid: [
                 {
-                  left: '60%',
+                  right: '60%',
                   type: 'value',
                   containLabel: false,
                 },
                 {
-                  right: '60%',
+                  left: '60%',
                   type: 'value',
                   containLabel: false,
                 }
@@ -190,7 +190,7 @@ const getLineBarChartOptions = (legend, series, mark_area=null, x_axis='time', n
         tooltip: { trigger: tooltip_trigger },
         grid: {
                 left: '0%',
-                right: '0%',
+                right: 70,
                 bottom: '0%',
                 containLabel: true
         },
@@ -530,9 +530,6 @@ const displayTotalChart = (legend, labels, data) => {
     let chartDom = document.querySelector(`#total-phases-data .bar-chart .statistics-chart`);
     document.querySelector(`#total-phases-data .bar-chart .chart-title`).innerText = 'Total Phases consumption [J]';
 
-    console.log(legend);
-    console.log("labels", labels);
-    console.log(data);
     let myChart = echarts.init(chartDom);
 
     let series = [];
@@ -549,7 +546,6 @@ const displayTotalChart = (legend, labels, data) => {
 
 
     let options = getLineBarChartOptions(labels, series, null, 'category')
-    console.log(options);
     myChart.setOption(options);
         // set callback when ever the user changes the viewport
     // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks
