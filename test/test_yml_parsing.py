@@ -8,9 +8,9 @@ sys.path.append(f"{current_dir}/../tools")
 sys.path.append(f"{current_dir}/../lib")
 sys.path.append(f"{current_dir}/..")
 
-from runner import Runner
-from global_config import GlobalConfig
 import uuid
+from global_config import GlobalConfig
+from runner import Runner
 config = GlobalConfig(config_name='test-config.yml').config
 
 class TestYML(unittest.TestCase):
@@ -18,7 +18,7 @@ class TestYML(unittest.TestCase):
     def test_includes(self):
         test_dir = os.path.join(current_dir, 'data/usage_scenarios/')
         test_root_file = 'import_one_root.yml'
-        
+
         runner = Runner(uri=test_dir, uri_type='folder', pid=str(uuid.uuid4()), filename=test_root_file)
         runner.checkout_repository() # We need to do this to setup the file paths correctly
 
@@ -43,7 +43,7 @@ class TestYML(unittest.TestCase):
                                    {'some-key': 'something',
                                     'setup-commands':
                                     ['cp /tmp/repo/test_1MB.jpg /usr/local/apache2/htdocs/test_1MB.jpg']}}}
-                                    
+
         self.assertEqual(result_obj, runner._usage_scenario)
 
 

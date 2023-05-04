@@ -71,7 +71,6 @@ def get_env_vars(runner):
             encoding='UTF-8'
         )
         env_var_output = ps.stdout
-        env_var_err = ps.stderr
     finally:
         runner.cleanup()
     return env_var_output

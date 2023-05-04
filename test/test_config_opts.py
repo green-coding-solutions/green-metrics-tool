@@ -51,16 +51,20 @@ def run_runner():
 def wip_test_idle_start_time(reset_config):
     config['measurement']['idle-time-start'] = 2
     pid = run_runner()
-    uri = os.path.abspath(os.path.join(
-            CURRENT_DIR, 'stress-application/'))
-    pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
-                VALUES \
-                (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(PROJECT_NAME, uri))[0]
+    query = """
+            SELECT
+                time, note
+            FROM
+                notes
+            WHERE
+                project_id = %s
+            ORDER BY
+                time
+            """
 
-    # Run the application
-    runner = Runner(uri=uri, uri_type='folder', pid=pid, verbose_provider_boot=True, development=True)
+    notes = DB().fetch_all(query, (pid,))
 
-    timestamp_preidle = [note for note in notes if "Booting" in note[1]][len(metric_providers)-1][0]
+    timestamp_preidle = [note for note in notes if "Booting" in note[1]][0][0]
     timestamp_start = [note for note in notes if note[1] == 'Start of measurement'][0][0]
 
     #assert that the difference between the two timestamps is roughly 2 seconds

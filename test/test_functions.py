@@ -1,4 +1,4 @@
-#pylint: disable=wrong-import-position
+#pylint: disable=wrong-import-position, import-error, no-name-in-module
 import os
 import re
 import shutil
@@ -10,7 +10,6 @@ sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from pathlib import Path
 from global_config import GlobalConfig
-from tools.save_notes import save_notes  # local file import
 from db import DB
 import utils
 
@@ -67,7 +66,7 @@ def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='f
     pid = insert_project(uri)
     return Runner(uri=uri, uri_type=uri_type, pid=pid, filename=usage_scenario, branch=branch,
         debug_mode=debug_mode, allow_unsafe=allow_unsafe, no_file_cleanup=no_file_cleanup,
-        skip_unsafe=skip_unsafe, verbose_provider_boot=verbose_provider_boot, dev_repeat_run=True)
+        skip_unsafe=skip_unsafe, verbose_provider_boot=verbose_provider_boot, dev_repeat_run=dev_repeat_run)
 
 # This function runs the runner up to and *including* the specified step
 # remember to catch in try:finally and do cleanup when calling this!
