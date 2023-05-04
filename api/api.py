@@ -156,10 +156,10 @@ async def get_projects():
             project[0],
             escape(project[1], quote=False),
             escape(project[2], quote=False),
-            project[3] if project[3] is None else escape(project[3], quote=False),
+            safe_escape(project[3]),
             project[4],
             project[5],
-            project[6] if project[6] is None else escape(project[6], quote=False),
+            safe_escape(project[6]),
         ]
         for project in data
     ]
