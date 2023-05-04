@@ -4,9 +4,9 @@
 # pylint: disable=wrong-import-position
 
 import faulthandler
-from html import escape
 import sys
 import os
+from html import escape
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -24,8 +24,9 @@ import email_helpers
 import error_helpers
 import psycopg
 import anybadge
-from api_helpers import rescale_energy_value, is_valid_uuid, \
-                        determine_comparison_case, get_phase_stats, get_phase_stats_object, add_phase_stats_statistics
+from api_helpers import (add_phase_stats_statistics, determine_comparison_case,
+                         escape_dict, get_phase_stats, get_phase_stats_object,
+                         is_valid_uuid, rescale_energy_value, safe_escape)
 
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
@@ -467,56 +468,6 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
         default_color='green')
     return Response(content=str(badge), media_type="image/svg+xml")
 
-<<<<<<< HEAD
-=======
-# Helper functions, not directly callable through routes
 
-def escape_dict(dictionary):
-    for key, value in dictionary.items():
-        if isinstance(value, str):
-            dictionary[key] = escape(value, quote=False)
-        elif isinstance(value, dict):
-            dictionary[key] = escape_dict(value)
-        elif isinstance(value, list):
-            dictionary[key] = [
-                escape_dict(item)
-                if isinstance(item, dict)
-                else escape(item, quote=False)
-                if isinstance(item, str)
-                else item
-                for item in value
-            ]
-    return dictionary
-
-def safe_escape(item):
-    """Escape the item if not None"""
-    if item is None:
-        return
-    return escape(item, quote=False)
-
-def rescale_energy_value(value, unit):
-    # We only expect values to be mJ for energy!
-    if unit != 'mJ':
-        raise RuntimeError('Unexpected unit occured for energy rescaling: ', unit)
-
-    energy_rescaled = [value, unit]
-
-    # pylint: disable=multiple-statements
-    if value > 1_000_000_000: energy_rescaled = [value/(10**12), 'GJ']
-    elif value > 1_000_000_000: energy_rescaled = [value/(10**9), 'MJ']
-    elif value > 1_000_000: energy_rescaled = [value/(10**6), 'kJ']
-    elif value > 1_000: energy_rescaled = [value/(10**3), 'J']
-    elif value < 0.001: energy_rescaled = [value*(10**3), 'nJ']
-
-    return energy_rescaled
-
-def is_valid_uuid(val):
-    try:
-        uuid.UUID(str(val))
-        return True
-    except ValueError:
-        return False
-
->>>>>>> 0d9c6cd (Escape CI measurement add)
 if __name__ == '__main__':
     app.run()

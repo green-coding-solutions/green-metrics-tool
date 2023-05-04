@@ -5,6 +5,7 @@ import faulthandler
 from functools import cache
 import numpy as np
 import scipy.stats
+from html import escape
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
@@ -221,6 +222,29 @@ def is_valid_uuid(val):
         return True
     except ValueError:
         return False
+
+def escape_dict(dictionary):
+    for key, value in dictionary.items():
+        if isinstance(value, str):
+            dictionary[key] = escape(value, quote=False)
+        elif isinstance(value, dict):
+            dictionary[key] = escape_dict(value)
+        elif isinstance(value, list):
+            dictionary[key] = [
+                escape_dict(item)
+                if isinstance(item, dict)
+                else escape(item, quote=False)
+                if isinstance(item, str)
+                else item
+                for item in value
+            ]
+    return dictionary
+
+def safe_escape(item):
+    """Escape the item if not None"""
+    if item is None:
+        return
+    return escape(item, quote=False)
 
 def determine_comparison_case(ids):
 
