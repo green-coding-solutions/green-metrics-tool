@@ -7,7 +7,7 @@ var remove_idle = localStorage.getItem('remove_idle');
 if(remove_idle == 'true') remove_idle = true;
 else remove_idle = false;
 
-var display_in_metric_units = false;
+var display_in_metric_units = localStorage.getItem('display_in_metric_units');
 if(display_in_metric_units == 'true') display_in_metric_units = true;
 else display_in_metric_units = false;
 
