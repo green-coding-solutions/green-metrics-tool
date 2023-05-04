@@ -73,7 +73,7 @@ def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='f
 #pylint: disable=redefined-argument-from-local
 def run_until(runner, step):
     config = GlobalConfig().config
-    runner.prepare_filesystem_location()
+    runner.initialize_folder(runner._tmp_folder)
     runner.checkout_repository()
     runner.initial_parse()
     runner.populate_image_names()

@@ -39,11 +39,15 @@ class TestYML(unittest.TestCase):
         runner.load_yml_file()
         result_obj = {'name': 'my sample flow',
                       'author': 'Arne Tarara',
+                      'version': 1,
+                      'description': 'test',
                       'services': {'my-database':
                                    {'some-key': 'something',
                                     'setup-commands':
                                     ['cp /tmp/repo/test_1MB.jpg /usr/local/apache2/htdocs/test_1MB.jpg']}}}
 
+        print(f"actual: {runner._usage_scenario}")
+        print(f"expect: {result_obj}")
         self.assertEqual(result_obj, runner._usage_scenario)
 
 
