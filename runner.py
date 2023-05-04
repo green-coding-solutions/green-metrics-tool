@@ -1004,7 +1004,7 @@ class Runner:
 
             self.start_metric_providers(allow_other=True, allow_container=False)
             if self._debugger.active:
-                self._debugger.pause('metric-providers (system,others) start complete. Waiting to start measurement')
+                self._debugger.pause('metric-providers (non-container) start complete. Waiting to start measurement')
 
             self.custom_sleep(config['measurement']['idle-time-start'])
 
