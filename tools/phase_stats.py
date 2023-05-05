@@ -1,4 +1,5 @@
 #pylint: disable=import-error,wrong-import-position
+from io import StringIO
 import sys
 import os
 import faulthandler
@@ -11,6 +12,10 @@ sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from db import DB
 
+
+
+def generate_csv_line(project_id, metric, detail_name, phase_name, value, value_type, max_value, unit):
+    return f"{project_id},{metric},{detail_name},{phase_name},{value},{value_type},{max_value or ''},{unit},NOW()\n"
 
 def build_and_store_phase_stats(project_id):
     query = """
@@ -39,19 +44,13 @@ def build_and_store_phase_stats(project_id):
 
         network_io_bytes_total = [] # reset; # we use array here and sum later, because checking for 0 alone not enough
 
-        insert_query = """
-            INSERT INTO phase_stats
-                (project_id, metric, detail_name, phase, value, type, max_value, unit, created_at)
-            VALUES
-                (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
-        """
-
         select_query = """
             SELECT SUM(value), MAX(value), AVG(value), COUNT(value)
             FROM measurements
             WHERE project_id = %s AND metric = %s AND detail_name = %s AND time > %s and time < %s
         """
 
+        csv_buffer = StringIO()
 
         # now we go through all metrics in the project and aggregate them
         for (metric, unit, detail_name) in metrics: # unpack
@@ -86,95 +85,55 @@ def build_and_store_phase_stats(project_id):
                 'memory_total_cgroup_container',
                 'cpu_frequency_sysfs_core',
             ):
-                DB().query(insert_query,
-                        (project_id, metric, detail_name, f"{idx:03}_{phase['name']}", # phase name mod. for order
-                            value_avg, 'MEAN', value_max,
-                        unit)
-                )
+                csv_buffer.write(generate_csv_line(project_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_avg, 'MEAN', value_max, unit))
 
             elif metric == 'network_io_cgroup_container':
                 # These metrics are accumulating already. We only need the max here and deliver it as total
-                DB().query(insert_query,
-                        (project_id, metric, detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
-                            value_max, 'TOTAL', None,
-                        unit)
-                )
+                csv_buffer.write(generate_csv_line(project_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_max, 'TOTAL', None, unit))
                 # No max here
                 # But we need to build the energy
                 network_io_bytes_total.append(value_max)
 
             elif metric == 'energy_impact_powermetrics_vm':
-                DB().query(insert_query,
-                        (project_id, metric, detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
-                            value_avg, 'MEAN', value_max,
-                        unit)
-                )
+                csv_buffer.write(generate_csv_line(project_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_avg, 'MEAN', value_max, unit))
 
             elif "_energy_" in metric and unit == 'mJ':
-                DB().query(insert_query,
-                        (project_id, metric, detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
-                            value_sum, 'TOTAL', None,
-                        unit)
-                )
-
+                csv_buffer.write(generate_csv_line(project_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, unit))
                 # for energy we want to deliver an extra value, the watts.
                 # Here we need to calculate the average differently
-                power_sum = (value_sum  * 10**6) / (phase['end'] - phase['start'])
+                power_sum = (value_sum * 10**6) / (phase['end'] - phase['start'])
                 power_max = (value_max * 10**6) / ((phase['end'] - phase['start']) / value_count)
-                DB().query(insert_query,
-                        (project_id,
-                        f"{metric.replace('_energy_', '_power_')}",
-                        detail_name,
-                        f"{idx:03}_{phase['name']}", # phase name mod. for order
-                            # sum of mJ / s => mW
-                            power_sum,
-                            'MEAN',
-                            # max_value / avg_measurement_interval
-                            power_max,
-                        'mW')
-                )
+                csv_buffer.write(generate_csv_line(project_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_sum, 'MEAN', power_max, 'mW'))
+
                 if metric.endswith('_machine'):
                     machine_co2 = ((value_sum / 3_600) * 519)
-                    DB().query(insert_query,
-                        (project_id,
-                        f"{metric.replace('_energy_', '_co2_')}",
-                        detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
-                            machine_co2, 'TOTAL', None,
-                        'ug')
-                    )
+                    csv_buffer.write(generate_csv_line(project_id, f"{metric.replace('_energy_', '_co2_')}", detail_name, f"{idx:03}_{phase['name']}", machine_co2, 'TOTAL', None, 'ug'))
+
 
             else:
-                DB().query(insert_query,
-                        (project_id, metric, detail_name, f"{idx:03}_{phase['name']}",# phase name mod. for order
-                            value_sum, 'TOTAL', value_max,
-                        unit)
-                )
+                csv_buffer.write(generate_csv_line(project_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', value_max, unit))
         # after going through detail metrics, create cumulated ones
         if network_io_bytes_total != []:
             # build the network energy
             # network via formula: https://www.green-coding.berlin/co2-formulas/
             network_io_in_kWh = (sum(network_io_bytes_total) / 1_000_000_000) * 0.00375
             network_io_in_mJ = network_io_in_kWh * 3_600_000_000
-            DB().query(insert_query,
-                    (project_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}",# phase name mod. for order
-                        network_io_in_mJ, 'TOTAL', None,
-                    'mJ')
-            )
+            csv_buffer.write(generate_csv_line(project_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_mJ, 'TOTAL', None, 'mJ'))
             # co2 calculations
             network_io_co2_in_ug = network_io_in_kWh * 475 * 1_000_000
-            DB().query(insert_query,
-                    (project_id, 'network_co2_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}",# phase name mod. for order
-                        network_io_co2_in_ug, 'TOTAL', None,
-                    'ug')
-            )
+            csv_buffer.write(generate_csv_line(project_id, 'network_co2_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_co2_in_ug, 'TOTAL', None, 'ug'))
 
         # also create the phase time metric
-        DB().query(insert_query,
-                    (project_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}",# phase name mod. for order
-                        phase['end']-phase['start'], 'TOTAL', None,
-                    'us')
-            )
+        csv_buffer.write(generate_csv_line(project_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", phase['end']-phase['start'], 'TOTAL', None, 'us'))
 
+        csv_buffer.seek(0)  # Reset buffer position to the beginning
+        DB().copy_from(
+            csv_buffer,
+            table='phase_stats',
+            sep=',',
+            columns=('project_id', 'metric', 'detail_name', 'phase', 'value', 'type', 'max_value', 'unit', 'created_at')
+        )
+        csv_buffer.close()  # Close the buffer
 
 
 if __name__ == '__main__':

@@ -63,6 +63,8 @@ class DB:
         return self.__query(query, params=params, return_type='all', row_factory=row_factory)
 
     def copy_from(self, file, table, columns, sep=','):
+        from time import time_ns
+        print(f"Copy from start: {time_ns()}")
         try:
             cur = self._conn.cursor()
             statement = f"COPY {table}({','.join(list(columns))}) FROM stdin (format csv, delimiter '{sep}')"
@@ -74,6 +76,7 @@ class DB:
             cur.close()
             raise exception
         cur.close()
+        print(f"Copy from end: {time_ns()}")
 
 
 if __name__ == '__main__':
