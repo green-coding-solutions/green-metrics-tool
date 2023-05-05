@@ -24,13 +24,13 @@ class CO2Tangible extends HTMLElement {
                     </div>
                     <div class="card">
                         <div class="content">
-                            <div class="ui header">Miles driven</div>
+                            <div class="ui header">Distance driven</div>
                             <div class="ui small statistic">
                                 <div class="value">
-                                    <i class="truck pickup icon"></i> <span class="co2-miles-driven">-</span>
+                                    <i class="truck pickup icon"></i> <span class="co2-distance-driven">-</span>
                                 </div>
                             </div>
-                            <div class="ui bottom right attached label">by car</div>
+                            <div class="ui bottom right attached label distance-units">by car</div>
                         </div>
                     </div>
                     <div class="card">
@@ -41,7 +41,7 @@ class CO2Tangible extends HTMLElement {
                                     <i class="gas pump icon"></i> <span class="co2-gasoline">-</span>
                                 </div>
                             </div>
-                            <div class="ui bottom right attached label">in gallons</div>
+                            <div class="ui bottom right attached label gasoline-units">in gallons</div>
                         </div>
                     </div>
                     <div class="card">
@@ -141,6 +141,10 @@ const fillProjectTab = (selector, data, parent = '') => {
 const getTimelineMetrics = (measurements_data, start_measurement, end_measurement) => {
     const metrics = {}
     const t0 = performance.now();
+
+    let display_in_watts = localStorage.getItem('display_in_watts');
+    if(display_in_watts == 'true') display_in_watts = true;
+    else display_in_watts = false;
 
     try {
          // define here as var (not let!), so we can alert it later in error case.
