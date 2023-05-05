@@ -1,9 +1,5 @@
 name: Daily Test Run - Virtual Machine - Main Branch
 run-name: Scheduled - main branch
-on:
-  pull_request:
-    branches:
-      - main
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
