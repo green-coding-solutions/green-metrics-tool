@@ -1,7 +1,3 @@
-var display_in_watts = localStorage.getItem('display_in_watts');
-if(display_in_watts == 'true') display_in_watts = true;
-else display_in_watts = false;
-
 const convertValue = (value, unit) => {
     switch (unit) {
     case 'mJ':
