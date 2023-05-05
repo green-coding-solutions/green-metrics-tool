@@ -267,8 +267,8 @@ const calculateCO2 = (phase, total_CO2_in_ug) => {
     upscaled_CO2_in_kg = total_CO2_in_kg * 1000 * 365 ; // upscaled to 365 days for 1000 runs per day
 
     if(display_in_metric_units) {
-        document.querySelector(".distance-units").innerText = "in kms";
-        document.querySelector(".gasoline-units").innerText = "in litres";
+        document.querySelectorAll(".distance-units").forEach((el) => {el.innerText = "in kms by car"})
+        document.querySelectorAll(".gasoline-units").forEach((el) => {el.innerText = "in litres"})
     }
 
     if(upscaled_CO2_in_kg) {
@@ -276,8 +276,8 @@ const calculateCO2 = (phase, total_CO2_in_ug) => {
         let co2_gasoline = (upscaled_CO2_in_kg / 0.008887 / 1000); // in gallons
 
         if(display_in_metric_units){
-            document.querySelector("#miles-driven").innerText = co2_distance_driven * 1.60934; // to kilometres
-            document.querySelector("#gasoline").innerText = co2_gasoline * 3.78541; // to litres
+            co2_distance_driven = co2_distance_driven * 1.60934; // to kilometres
+            co2_gasoline = co2_gasoline * 3.78541; // to litres
         }
 
         document.querySelector(`div.tab[data-tab='${phase}'] .co2-distance-driven`).innerText = co2_distance_driven.toFixed(2);

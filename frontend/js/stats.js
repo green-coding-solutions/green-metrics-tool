@@ -30,7 +30,7 @@ class CO2Tangible extends HTMLElement {
                                     <i class="truck pickup icon"></i> <span class="co2-distance-driven">-</span>
                                 </div>
                             </div>
-                            <div class="ui bottom right attached label distance-units">by car</div>
+                            <div class="ui bottom right attached label distance-units">in miles by car</div>
                         </div>
                     </div>
                     <div class="card">
