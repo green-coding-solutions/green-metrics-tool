@@ -27,9 +27,7 @@ cluster:
 machine:
   id: 1
   description: "Development machine for testing"
-
-error:
-  file: None
+  error_log_file: None
 
 measurement:
   idle-time-start: 10
