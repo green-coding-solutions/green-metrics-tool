@@ -764,7 +764,8 @@ class Runner:
 
         print(TerminalColors.HEADER, '\nForce-sleep endeded. Checking if temperature is back to baseline ...', TerminalColors.ENDC)
 
-        # TODO. Check if temperature is back to baseline
+        # TODO. Check if temperature is back to baseline and put into best-practices section
+
         phase_time = int(time.time_ns() / 1_000)
         self.__notes.append({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
@@ -789,7 +790,7 @@ class Runner:
 
 
         self.__phases[phase]['end'] = phase_time
-
+        self.__notes.append({'note': f"Ending phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
     def run_flows(self):
         config = GlobalConfig().config
