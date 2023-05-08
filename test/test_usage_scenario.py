@@ -301,7 +301,8 @@ def test_uri_local_dir():
             CURRENT_DIR, 'stress-application/'))
     project_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', project_name, '--uri', uri ,'--config-override', 'test-config.yml'],
+        ['python3', '../runner.py', '--name', project_name, '--uri', uri ,'--config-override', 'test-config.yml',
+        '--skip-config-check'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -325,7 +326,8 @@ def test_uri_github_repo():
     uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
     project_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', project_name, '--uri', uri ,'--config-override', 'test-config.yml'],
+        ['python3', '../runner.py', '--name', project_name, '--uri', uri ,'--config-override', 'test-config.yml',
+        '--skip-config-check'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -357,7 +359,7 @@ def test_uri_github_repo_branch():
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
         '--branch', 'test-branch' , '--filename', 'basic_stress.yml',
-        '--config-override', 'test-config.yml'],
+        '--config-override', 'test-config.yml', '--skip-config-check'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -390,7 +392,8 @@ def test_name_is_in_db():
             CURRENT_DIR, 'stress-application/'))
     project_name = 'test_' + utils.randomword(12)
     subprocess.run(
-        ['python3', '../runner.py', '--name', project_name, '--uri', uri ,'--config-override', 'test-config.yml'],
+        ['python3', '../runner.py', '--name', project_name, '--uri', uri ,'--config-override', 'test-config.yml',
+        '--skip-config-check'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -412,7 +415,8 @@ def test_different_filename():
 
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
-         '--filename', 'basic_stress.yml', '--config-override', 'test-config.yml'],
+         '--filename', 'basic_stress.yml', '--config-override', 'test-config.yml',
+         '--skip-config-check'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -446,7 +450,7 @@ def test_no_file_cleanup():
     project_name = 'test_' + utils.randomword(12)
     subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
-         '--no-file-cleanup', '--config-override', 'test-config.yml'],
+         '--no-file-cleanup', '--config-override', 'test-config.yml', '--skip-config-check'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -469,7 +473,7 @@ def test_debug(monkeypatch):
     project_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
-         '--debug', '--config-override', 'test-config.yml'],
+         '--debug', '--config-override', 'test-config.yml', '--skip-config-check'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
