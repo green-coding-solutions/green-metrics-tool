@@ -77,7 +77,7 @@ From: {smtp_sender}
 To: {receiver_email}
 Subject: Your Green Metric report is ready
 
-Your report is now accessible under the URL: {url}stats.html?id={report_id}
+Your report is now accessible under the URL: {url}/stats.html?id={report_id}
 
 --
 {site}
