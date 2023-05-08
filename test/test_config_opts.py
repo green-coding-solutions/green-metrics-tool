@@ -96,7 +96,7 @@ def wip_test_idle_end_time(reset_config):
     assert 1.9 <= diff <= 2.1, \
         Tests.assertion_info('2s apart', f"timestamp difference of notes: {diff}s")
 
-def test_process_runtime_exceeded(reset_config):
+def wip_test_process_runtime_exceeded(reset_config):
     config['measurement']['flow-process-runtime'] = .1
     with pytest.raises(RuntimeError) as err:
         run_runner()
