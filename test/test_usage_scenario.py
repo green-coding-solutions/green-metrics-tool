@@ -28,7 +28,8 @@ from global_config import GlobalConfig
 import test_functions as Tests
 from runner import Runner
 
-config = GlobalConfig(config_name='test-config.yml').config
+GlobalConfig().override_config(config_name='test-config.yml')
+config = GlobalConfig().config
 
 ## Note:
 # Always do asserts after try:finally: blocks
@@ -40,6 +41,7 @@ def build_image():
     uri = os.path.abspath(os.path.join(
             CURRENT_DIR, 'stress-application/'))
     subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
+    GlobalConfig().override_config(config_name='test-config.yml')
 
 # cleanup test/tmp directory after every test run
 @pytest.fixture(autouse=True)
@@ -428,7 +430,7 @@ def test_different_filename():
 def test_different_filename_missing():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, '..', 'stress-application/'))
     pid = Tests.insert_project(uri)
-    runner = Runner(uri=uri, uri_type='folder', pid=pid, filename='basic_stress.yml')
+    runner = Runner(uri=uri, uri_type='folder', pid=pid, filename='basic_stress.yml', skip_config_check=True)
 
     with pytest.raises(FileNotFoundError) as e:
         runner.run()

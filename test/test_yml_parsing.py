@@ -11,7 +11,7 @@ sys.path.append(f"{current_dir}/..")
 import uuid
 from global_config import GlobalConfig
 from runner import Runner
-config = GlobalConfig(config_name='test-config.yml').config
+GlobalConfig().override_config(config_name='test-config.yml')
 
 class TestYML(unittest.TestCase):
 

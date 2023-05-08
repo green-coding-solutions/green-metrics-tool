@@ -18,7 +18,8 @@ import jobs
 import test_functions as Tests
 import utils
 from global_config import GlobalConfig
-config = GlobalConfig(config_name='test-config.yml').config
+GlobalConfig().override_config(config_name='test-config.yml')
+config = GlobalConfig().config
 
 @pytest.fixture(autouse=True, scope='module')
 def cleanup_jobs():

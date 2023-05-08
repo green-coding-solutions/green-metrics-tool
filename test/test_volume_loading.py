@@ -16,7 +16,7 @@ import utils
 from global_config import GlobalConfig
 import test_functions as Tests
 
-config = GlobalConfig(config_name='test-config.yml').config
+GlobalConfig().override_config(config_name='test-config.yml')
 
 @pytest.fixture(autouse=True)
 def cleanup_tmp_directories():

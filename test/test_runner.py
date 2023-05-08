@@ -25,8 +25,7 @@ def test_check_configuration(config_file, skip_config_check, expected_return):
 
     runner = Runner("foo", "baz", "bar", skip_config_check=skip_config_check)
     copy2(os.path.join(TEST_DATA_CONFIG_DIR, config_file), os.path.join(REPO_ROOT, config_file))
-    GlobalConfig(config_name=config_file)
-
+    GlobalConfig().override_config(config_name=config_file)
     ret = runner.check_configuration()
 
     os.remove(os.path.join(REPO_ROOT, config_file))

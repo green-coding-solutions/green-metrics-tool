@@ -43,7 +43,7 @@ def run_runner():
                 (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(PROJECT_NAME, uri))[0]
 
     # Run the application
-    runner = Runner(uri=uri, uri_type='folder', pid=pid, verbose_provider_boot=True, dev_repeat_run=True)
+    runner = Runner(uri=uri, uri_type='folder', pid=pid, verbose_provider_boot=True, dev_repeat_run=True, skip_config_check=True)
     runner.run()
     return pid
 
