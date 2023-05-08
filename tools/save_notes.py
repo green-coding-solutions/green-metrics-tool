@@ -1,5 +1,6 @@
 #pylint: disable=import-error,wrong-import-position
 
+from html import escape
 import os
 from re import fullmatch
 import sys
@@ -26,7 +27,7 @@ def save_notes(project_id, notes):
                 VALUES
                 (%s, %s, %s, %s, NOW())
                 """,
-                   params=(project_id, note['detail_name'], note['note'], note['timestamp'])
+                   params=(project_id, escape(note['detail_name']), escape(note['note']), note['timestamp'])
                    )
 
 
