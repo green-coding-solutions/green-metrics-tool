@@ -1,7 +1,7 @@
 import os
 import string
+import re
 from schema import Schema, SchemaError, Optional, Or, Use
-
 # https://docs.green-coding.berlin/docs/measuring/usage-scenario/
 # networks documentation is different than what i see in the wild!
     # name: str
@@ -22,6 +22,11 @@ def is_valid_string(value):
     valid_chars = set(string.ascii_letters + string.digits + '_' + '-')
     if not set(value).issubset(valid_chars):
         raise SchemaError(f"{value} does not use valid characters! (a-zA-Z0-9_-)")
+
+def contains_no_invalid_chars(value):
+    bad_values = re.findall(r'(\.\.|\$|\'|"|`|!)', value)
+    if bad_values:
+        raise SchemaError(f"{value} includes disallowed values: {bad_values}")
 
 ## If we ever want smarter validation for ports, here's a list of examples that we need to support:
 # - 3000
@@ -62,14 +67,14 @@ usage_scenario_schema = Schema({
     Optional("version"): Use(int),
 
     Optional("networks"): {
-       Use(is_valid_string): None
+       Use(contains_no_invalid_chars): None
     },
 
     Optional("services"): {
-        Use(is_valid_string): {
+        Use(contains_no_invalid_chars): {
             Optional("type"): Use(valid_service_types),
             "image": str,
-            Optional("networks"): single_or_list(Use(is_valid_string)),
+            Optional("networks"): single_or_list(Use(contains_no_invalid_chars)),
             Optional("environment"): single_or_list(Or(dict,str)),
             Optional("ports"): single_or_list(Or(str, int)),
             Optional("setup-commands"): [str],
@@ -81,7 +86,7 @@ usage_scenario_schema = Schema({
 
     "flow": [{
         "name": str,
-        "container": Use(is_valid_string),
+        "container": Use(contains_no_invalid_chars),
         "commands": [{
             "type":"console",
             "command": str,
