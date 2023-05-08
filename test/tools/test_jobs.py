@@ -88,7 +88,7 @@ def test_simple_project_job():
 
     jobs.insert_job('project', pid)
     ps = subprocess.run(
-            ['python3', '../tools/jobs.py', 'project', '--config-override', 'test-config.yml'],
+            ['python3', '../tools/jobs.py', 'project', '--config-override', 'test-config.yml', '--skip-config-check'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
