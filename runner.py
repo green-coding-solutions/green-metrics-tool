@@ -672,7 +672,7 @@ class Runner:
                     docker_run_string.append(network)
 
             if 'pause-after-phase' in service:
-                self.__services_to_pause_phase[service['pause-after-phase']] = (self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name])
+                self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
 
             docker_run_string.append(self.clean_image_name(service['image']))
 

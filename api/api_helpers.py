@@ -1,18 +1,20 @@
+#pylint: disable=fixme, import-error
+
 import sys
 import os
 import uuid
 import faulthandler
 from functools import cache
+from html import escape
 import numpy as np
 import scipy.stats
-from html import escape
+from db import DB
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
 
-from db import DB
 
 
 METRIC_MAPPINGS = {
@@ -243,7 +245,7 @@ def escape_dict(dictionary):
 def safe_escape(item):
     """Escape the item if not None"""
     if item is None:
-        return
+        return None
     return escape(item, quote=False)
 
 def determine_comparison_case(ids):

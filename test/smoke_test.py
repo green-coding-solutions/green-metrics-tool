@@ -40,7 +40,7 @@ def setup_module(module):
                     (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(project_name, uri))[0]
 
         # Run the application
-        runner = Runner(uri=uri, uri_type='folder', pid=pid)
+        runner = Runner(uri=uri, uri_type='folder', pid=pid, dev_repeat_run=True, skip_config_check=True)
         runner.run()
 
     global run_stderr, run_stdout
@@ -67,7 +67,7 @@ def test_db_rows_are_written_and_presented():
             SELECT
                 metric, COUNT(*) as count
             FROM
-                stats
+                measurements
             WHERE project_id = %s
             GROUP BY
                 metric

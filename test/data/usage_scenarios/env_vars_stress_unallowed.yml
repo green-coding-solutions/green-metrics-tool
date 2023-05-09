@@ -3,15 +3,17 @@ name: Test Stress
 author: Dan Mateas
 description: test
 version: 1
-description: test
 
 services:
   test-container:
     type: container
     image: gcb_stress
     build: .
-    volumes:
-      - /tmp/gmt-test-data/:/tmp/test-data
+    environment:
+      TESTALLOWED: 'alpha-num123_'
+      TESTBACKTICK: '`'
+      TESTDOLLAR: '$'
+      TESTPARENTHESIS: '()'
 
 flow:
   - name: Stress

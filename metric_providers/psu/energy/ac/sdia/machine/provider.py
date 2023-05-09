@@ -8,7 +8,7 @@ sys.path.append(f"{CURRENT_DIR}/../../../../../lib")
 sys.path.append(CURRENT_DIR)
 
 
-#pylint: disable=import-error
+#pylint: disable=import-error, wrong-import-position
 from global_config import GlobalConfig
 from metric_providers.base import BaseMetricProvider
 
@@ -56,7 +56,7 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
 
         provider_config = GlobalConfig(
         ).config['measurement']['metric-providers']['common']\
-        ['psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaSMachineProvider']
+        ['psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider']
 
         if 'CPUChips' not in provider_config:
             raise RuntimeError(

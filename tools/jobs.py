@@ -16,6 +16,7 @@ from global_config import GlobalConfig
 from phase_stats import build_and_store_phase_stats
 from runner import Runner
 
+SKIP_CONFIG_CHECK=False
 
 def insert_job(job_type, project_id=None, machine_id=None):
     query = """
@@ -109,7 +110,8 @@ def _do_project_job(job_id, project_id):
 
     [uri, _, branch] = get_project(project_id)
 
-    runner = Runner(uri=uri, uri_type='URL', pid=project_id, branch=branch, skip_unsafe=True)
+    runner = Runner(uri=uri, uri_type='URL', pid=project_id, branch=branch, skip_unsafe=True,
+        skip_config_check=SKIP_CONFIG_CHECK)
     try:
         # Start main code. Only URL is allowed for cron jobs
         runner.run()
@@ -133,8 +135,13 @@ if __name__ == '__main__':
     parser.add_argument(
         '--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be \
         located in the same directory as the regular configuration file. Pass in only the name.')
+    parser.add_argument('--skip-config-check', action='store_true', help='Skip checking the configuration')
+
 
     args = parser.parse_args()  # script will exit if type is not present
+
+    if args.skip_config_check is not None:
+        SKIP_CONFIG_CHECK=args.skip_config_check
 
     if args.config_override is not None:
         if args.config_override[-4:] != '.yml':
