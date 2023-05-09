@@ -27,7 +27,8 @@ cluster:
 machine:
   id: 1
   description: "Development machine for testing"
-  error_log_file: None
+  # Takes a file path to log all the errors to it. This is disabled if False
+  error_log_file: False
 
 measurement:
   idle-time-start: 10
