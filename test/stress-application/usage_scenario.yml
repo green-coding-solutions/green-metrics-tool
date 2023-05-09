@@ -1,4 +1,10 @@
 ---
+# Important
+# Please remember that anything in this file changes the structural change should
+# also be reflected in the simple example we provide in the documentation:
+# https://docs.green-coding.berlin/docs/measuring/measuring-locally/
+
+
 name: Stress Container One Core 5 Seconds
 author: Arne Tarara
 description: test

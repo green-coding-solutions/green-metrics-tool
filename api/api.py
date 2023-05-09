@@ -6,6 +6,7 @@
 import faulthandler
 import sys
 import os
+from html import escape
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
@@ -23,8 +24,9 @@ import email_helpers
 import error_helpers
 import psycopg
 import anybadge
-from api_helpers import rescale_energy_value, is_valid_uuid, \
-                        determine_comparison_case, get_phase_stats, get_phase_stats_object, add_phase_stats_statistics
+from api_helpers import (add_phase_stats_statistics, determine_comparison_case,
+                         escape_dict, get_phase_stats, get_phase_stats_object,
+                         is_valid_uuid, rescale_energy_value, safe_escape)
 
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
@@ -109,7 +111,17 @@ async def get_notes(project_id):
     if data is None or data == []:
         return ORJSONResponse({'success': False, 'err': 'Data is empty'})
 
-    return ORJSONResponse({'success': True, 'data': data})
+    escaped_data = [
+        [
+            note[0],
+            escape(note[1], quote=False),
+            escape(note[2], quote=False),
+            note[3],
+        ]
+        for note in data
+    ]
+    return ORJSONResponse({'success': True, 'data': escaped_data})
+
 
 # return a list of all possible registered machines
 @app.get('/v1/machines/')
@@ -139,7 +151,20 @@ async def get_projects():
     if data is None or data == []:
         return ORJSONResponse({'success': False, 'err': 'Data is empty'})
 
-    return ORJSONResponse({'success': True, 'data': data})
+    escaped_data = [
+        [
+            project[0],
+            escape(project[1], quote=False),
+            escape(project[2], quote=False),
+            safe_escape(project[3]),
+            project[4],
+            project[5],
+            safe_escape(project[6]),
+        ]
+        for project in data
+    ]
+
+    return ORJSONResponse({'success': True, 'data': escaped_data})
 
 
 # Just copy and paste if we want to deprecate URLs
@@ -278,14 +303,22 @@ async def post_project_add(project: Project):
     if project.url is None or project.url.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'URL is empty'})
 
+    project.url = escape(project.url, quote=False)
+
     if project.name is None or project.name.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'Name is empty'})
+
+    project.name = escape(project.name, quote=False)
 
     if project.email is None or project.email.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'E-mail is empty'})
 
+    project.email = escape(project.email, quote=False)
+
     if project.branch.strip() == '':
         project.branch = None
+    else:
+        project.branch = escape(project.branch, quote=False)
 
     if project.machine_id == 0:
         project.machine_id = None
@@ -328,6 +361,9 @@ async def get_project(project_id: str):
     data = DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
     if data is None or data == []:
         return ORJSONResponse({'success': False, 'err': 'Data is empty'})
+
+    data = escape_dict(data)
+
     return ORJSONResponse({'success': True, 'data': data})
 
 @app.get('/robots.txt')
@@ -353,42 +389,42 @@ class CI_Measurement(BaseModel):
 
 @app.post('/v1/ci/measurement/add')
 async def post_ci_measurement_add(measurement: CI_Measurement):
-    # error_helpers.log_error(error_message)
-    for i in CI_Measurement.schema()['properties'].keys():
-        key_value = getattr(measurement, i)
-        if i == 'project_id':
-            if key_value is None or key_value.strip() == '':
-                measurement.project_id = None
-            elif not is_valid_uuid(key_value.strip()):
-                return ORJSONResponse({'success': False, 'err': "project_id is not a valid uuid"})
-        elif i == 'label':
-            if key_value is None or key_value.strip() == '':
-                measurement.label = None
-        elif i == 'cpu':
-            if key_value is None or key_value.strip() == '':
-                measurement.cpu = None
-        elif i == 'commit_hash':
-            if key_value is None or key_value.strip() == '':
-                measurement.commit_hash = None
-        elif i == 'value':
-            if key_value is None:
-                return ORJSONResponse({'success': False, 'err': f"{i} is empty"})
-        elif i == 'unit':
-            if key_value is None or key_value.strip() == '':
-                return ORJSONResponse({'success': False, 'err': f"{i} is empty"})
-            if key_value != 'mJ':
-                return ORJSONResponse({'success': False, 'err': "Unit is unsupported - only mJ currently accepted"})
-        elif key_value is None or key_value.strip() == '':
-            return ORJSONResponse({'success': False, 'err': f"{i} is empty"})
+    for key, value in measurement.dict().items():
+        match key:
+            case 'project_id':
+                if not is_valid_uuid(value.strip()):
+                    return ORJSONResponse({'success': False, 'err': f"project_id '{value}' is not a valid uuid"})
+                setattr(measurement, key, safe_escape(value))
+                continue
+
+            case 'unit':
+                if value is None or value.strip() == '':
+                    return ORJSONResponse({'success': False, 'err': f"{key} is empty"})
+                if value != 'mJ':
+                    return ORJSONResponse({'success': False, 'err': "Unit is unsupported - only mJ currently accepted"})
+                setattr(measurement, key, safe_escape(value))
+                continue
+
+            case 'label':  # Optional fields
+                setattr(measurement, key, safe_escape(value))
+                continue
+
+            case _:
+                if value is None:
+                    return ORJSONResponse({'success': False, 'err': f"{key} is empty"})
+                if isinstance(value, str):
+                    if value.strip() == '':
+                        return ORJSONResponse({'success': False, 'err': f"{key} is empty"})
+                    setattr(measurement, key, escape(value))
 
     query = """
         INSERT INTO
             ci_measurements (value, unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
-    params = (measurement.value, measurement.unit, measurement.repo, measurement.branch,\
-                measurement.workflow, measurement.run_id, measurement.project_id, \
-                measurement.label, measurement.source, measurement.cpu, measurement.commit_hash)
+    params = (measurement.value, measurement.unit, measurement.repo, measurement.branch,
+            measurement.workflow, measurement.run_id, measurement.project_id,
+            measurement.label, measurement.source)
     DB().query(query=query, params=params)
     return ORJSONResponse({'success': True})
 
@@ -436,6 +472,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
         num_value_padding_chars=1,
         default_color='green')
     return Response(content=str(badge), media_type="image/svg+xml")
+
 
 if __name__ == '__main__':
     app.run()

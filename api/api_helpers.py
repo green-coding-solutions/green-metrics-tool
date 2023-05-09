@@ -5,6 +5,7 @@ import os
 import uuid
 import faulthandler
 from functools import cache
+from html import escape
 import numpy as np
 import scipy.stats
 from db import DB
@@ -223,6 +224,29 @@ def is_valid_uuid(val):
         return True
     except ValueError:
         return False
+
+def escape_dict(dictionary):
+    for key, value in dictionary.items():
+        if isinstance(value, str):
+            dictionary[key] = escape(value, quote=False)
+        elif isinstance(value, dict):
+            dictionary[key] = escape_dict(value)
+        elif isinstance(value, list):
+            dictionary[key] = [
+                escape_dict(item)
+                if isinstance(item, dict)
+                else escape(item, quote=False)
+                if isinstance(item, str)
+                else item
+                for item in value
+            ]
+    return dictionary
+
+def safe_escape(item):
+    """Escape the item if not None"""
+    if item is None:
+        return None
+    return escape(item, quote=False)
 
 def determine_comparison_case(ids):
 

@@ -18,6 +18,7 @@ import subprocess
 import json
 import os
 import time
+from html import escape
 import sys
 import importlib
 import faulthandler
@@ -385,6 +386,7 @@ class Runner:
 
             machine_specs.update(machine_specs_root)
 
+
         # Insert auxilary info for the run. Not critical.
         DB().query("""
             UPDATE projects
@@ -394,9 +396,9 @@ class Runner:
             WHERE id = %s
             """, params=(
             config['machine']['id'],
-            json.dumps(machine_specs),
+            escape(json.dumps(machine_specs), quote=False),
             json.dumps(config['measurement']),
-            json.dumps(self._usage_scenario),
+            escape(json.dumps(self._usage_scenario), quote=False),
             self._filename,
             self._project_id)
         )
@@ -764,7 +766,8 @@ class Runner:
 
         print(TerminalColors.HEADER, '\nForce-sleep endeded. Checking if temperature is back to baseline ...', TerminalColors.ENDC)
 
-        # TODO. Check if temperature is back to baseline
+        # TODO. Check if temperature is back to baseline and put into best-practices section
+
         phase_time = int(time.time_ns() / 1_000)
         self.__notes.append({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
@@ -789,7 +792,7 @@ class Runner:
 
 
         self.__phases[phase]['end'] = phase_time
-
+        self.__notes.append({'note': f"Ending phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
     def run_flows(self):
         config = GlobalConfig().config
