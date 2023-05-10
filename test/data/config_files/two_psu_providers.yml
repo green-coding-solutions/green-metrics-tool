@@ -63,8 +63,6 @@ measurement:
     #--- Machine Energy - These providers need special hardware / lab equipment to work
 #      psu.energy.ac.gude.machine.provider.PsuEnergyAcGudeMachineProvider:
 #        resolution: 100
-#      psu.energy.dc.picolog.mainboard.provider.PsuEnergyDcPicologMainboardProvider:
-#        resolution: 61 # Do not change this. Provider is tailored to work at fixed resolution
       psu.energy.ac.powerspy2.machine.provider.PsuEnergyAcPowerspy2MachineProvider:
         resolution: 250
       psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
