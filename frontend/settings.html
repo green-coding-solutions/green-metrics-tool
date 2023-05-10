@@ -29,27 +29,29 @@
         <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Settings</h1>
         <div class="ui horizontal card" id="horizontal-card">
             <div class="content">
-                <div class="header"><a class="ui red ribbon label" href="#">
-                        <h3>Project Data</h3>
-                    </a></div>
                 <div class="description">
-                    <div class="ui secondary menu">
-                        <a class="item active" data-tab="one">General</a>
-                        <!--<a class="item" data-tab="two">Measurement</a>-->
-                    </div>
-                    <div class="ui tab segment" data-tab="one">
-                        <div class="description">
+                    <table class="ui very basic table">
+                      <thead>
+                        <tr>
+                          <th>Feature</th>
+                          <th>Status</th>
+                          <th>Toggle</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Energy units</td>
+                          <td><span id="energy-display"></span></td>
+                          <td><button class="ui positive small button" onclick="toggleWatts();">Toggle</button></td>
+                        </tr>
+                        <tr>
+                          <td>Distance / volume units</td>
+                          <td><span id="units-display"></span></td>
+                          <td><button class="ui positive ui small button" onclick="toggleUnits();">Toggle</button></td>
+                        </tr>
+                      </tbody>
+                    </table>
 
-                            <div>
-                                <span id="energy-display"></span>
-                                <button class="positive ui button" onclick="toggleWatts();">Toggle</button>
-                            </div>
-                            <div>
-                                <span id="units-display"></span>
-                                <button class="positive ui button" onclick="toggleUnits();">Toggle</button>
-                            </div>
-                        </div>
-                    </div>
                     <!--
                     <div class="ui active tab segment" data-tab="two">
                         <table class="table-hover" id="measurement-config"></table>
