@@ -16,8 +16,6 @@ from global_config import GlobalConfig
 from phase_stats import build_and_store_phase_stats
 from runner import Runner
 
-SKIP_CONFIG_CHECK=False
-
 def insert_job(job_type, project_id=None, machine_id=None):
     query = """
             INSERT INTO
@@ -80,12 +78,12 @@ def get_project(project_id):
     return data
 
 
-def process_job(job_id, job_type, project_id):
+def process_job(job_id, job_type, project_id, skip_config_check=False, full_docker_prune=False):
     try:
         if job_type == 'email':
             _do_email_job(job_id, project_id)
         elif job_type == 'project':
-            _do_project_job(job_id, project_id)
+            _do_project_job(job_id, project_id, skip_config_check, full_docker_prune)
         else:
             raise RuntimeError(
                 f"Job w/ id {job_id} has unkown type: {job_type}.")
@@ -105,13 +103,20 @@ def _do_email_job(job_id, project_id):
 
 
 # should not be called without enclosing try-except block
-def _do_project_job(job_id, project_id):
+def _do_project_job(job_id, project_id, skip_config_check=False, full_docker_prune=False):
     check_job_running('project', job_id)
 
     [uri, _, branch] = get_project(project_id)
 
-    runner = Runner(uri=uri, uri_type='URL', pid=project_id, branch=branch, skip_unsafe=True,
-        skip_config_check=SKIP_CONFIG_CHECK)
+    runner = Runner(
+        uri=uri,
+        uri_type='URL',
+        pid=project_id,
+        branch=branch,
+        skip_unsafe=True,
+        skip_config_check=skip_config_check,
+        full_docker_prune=full_docker_prune,
+    )
     try:
         # Start main code. Only URL is allowed for cron jobs
         runner.run()
@@ -129,19 +134,13 @@ if __name__ == '__main__':
     from pathlib import Path
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('type', help='Select the operation mode.', choices=[
-                        'email', 'project'])
-
-    parser.add_argument(
-        '--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be \
-        located in the same directory as the regular configuration file. Pass in only the name.')
-    parser.add_argument('--skip-config-check', action='store_true', help='Skip checking the configuration')
+    parser.add_argument('type', help='Select the operation mode.', choices=['email', 'project'])
+    parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be located in the same directory as the regular configuration file. Pass in only the name.')
+    parser.add_argument('--skip-config-check', action='store_true', default=False, help='Skip checking the configuration')
+    parser.add_argument('--full-docker-prune', action='store_true', default=False, help='Prune all images and build caches on the system')
 
 
     args = parser.parse_args()  # script will exit if type is not present
-
-    if args.skip_config_check is not None:
-        SKIP_CONFIG_CHECK=args.skip_config_check
 
     if args.config_override is not None:
         if args.config_override[-4:] != '.yml':
@@ -162,7 +161,7 @@ if __name__ == '__main__':
             print('No job to process. Exiting')
             sys.exit(0)
         project = job[2]
-        process_job(*job)
+        process_job(job[0], job[1], job[2], args.skip_config_check, args.full_docker_prune)
         print('Successfully processed jobs queue item.')
     except Exception as exce:
         error_helpers.log_error('Base exception occured in jobs.py: ', exce)
