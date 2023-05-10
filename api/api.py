@@ -266,10 +266,8 @@ async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
         value = 'psu_energy_ac_xgboost_machine'
     elif metric == 'RAPL':
         value = '%_rapl_%'
-    elif metric == 'DC':
-        value = 'psu_energy_dc_picolog_machine'
     elif metric == 'AC':
-        value = 'psu_energy_ac_powerspy2_machine'
+        value = 'psu_energy_ac_%'
     else:
         raise RuntimeError('Unknown metric submitted')
 
