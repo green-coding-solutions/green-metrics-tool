@@ -34,7 +34,7 @@ def cleanup_projects():
 
 def test_post_project_add(cleanup_projects):
     response = requests.post(f"{API_URL}/v1/project/add", json=PROJECT.dict(), timeout=15)
-    assert response.status_code == 200, Tests..assertion_info('success', response.text)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
     pid = utils.get_project_data(PROJECT_NAME)['id']
     assert pid is not None
 
