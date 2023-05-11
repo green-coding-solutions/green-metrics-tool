@@ -71,13 +71,13 @@ https://www.green-coding.berlin
 
 def send_report_email(receiver_email, report_id):
     config = GlobalConfig().config
-    site = config['config']['metrics_url'].split(':')[0]
+    site = config['cluster']['metrics_url'].split(':')[0]
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
 Subject: Your Green Metric report is ready
 
-Your report is now accessible under the URL: {url}stats.html?id={report_id}
+Your report is now accessible under the URL: {url}/stats.html?id={report_id}
 
 --
 {site}
@@ -86,7 +86,7 @@ Your report is now accessible under the URL: {url}stats.html?id={report_id}
     message = message.format(
         receiver_email=receiver_email,
         report_id=report_id,
-        url=config['project']['url'],
+        url=config['cluster']['metrics_url'],
         site=site,
         smtp_sender=config['smtp']['sender'])
     send_email(message, receiver_email)

@@ -38,6 +38,7 @@ if __name__ == '__main__':
     if args.categories:
         CATEGORY_FOUND = False
         for category in args.categories:
+            print("turning off: " + category)
             for i, line in enumerate(data):
                 line_stripped = line.strip()
                 if line_stripped.startswith('#---') and category in line:
@@ -60,6 +61,9 @@ if __name__ == '__main__':
                 for provider in list(data['measurement']['metric-providers'][arch].keys()):
                     if provider_to_turn_off in provider:
                         del data['measurement']['metric-providers'][arch][provider]
+                        print("turning off: " + provider)
 
         with open(config_path, 'w', encoding='utf8') as f:
             yaml.dump(data, f)
+
+    print("disabled metric providers and categories")

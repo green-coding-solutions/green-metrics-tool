@@ -11,6 +11,6 @@ services:
   test-container-2:
     build: .
     image: gcb_stress
-    container_name: test-container
+    container_name: test-container-2
     restart: always
     volumes: *test-volume

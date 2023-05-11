@@ -15,6 +15,12 @@ class GlobalConfig:
             with open(f"{path}/../{config_name}", encoding='utf8') as config_file:
                 self.config = yaml.load(config_file, yaml.FullLoader)
 
+    ## add an override function that will always set the config to a new value
+    def override_config(self, config_name='config.yml'):
+        path = os.path.dirname(os.path.realpath(__file__))
+        with open(f"{path}/../{config_name}", encoding='utf8') as config_file:
+            self.config = yaml.load(config_file, yaml.FullLoader)
+
 
 if __name__ == '__main__':
     print(GlobalConfig().config['measurement'])

@@ -14,42 +14,35 @@
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <meta name="description" content="Measuring the energy of your software" />
     <script src="/dist/js/jquery.min.js" defer></script>
-    <script src="/js/config.js" defer></script>
-    <script src="/js/main.js" defer></script>
-    <script src="/js/index.js" defer></script>
+    <script src="/dist/js/accordion.min.js" defer></script>
     <script src="/dist/js/tablesort.min.js" defer></script>
-    <script src="/dist/js/search.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
+    <script src="/js/helpers/config.js" defer></script>
+    <script src="/js/helpers/main.js" defer></script>
+    <script src="/js/index.js" defer></script>
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
 <body class="preload">
-    <div id="menu" class="ui inverted vertical menu">
-        <div>
-            <img class="ui fluid image menu-logo" src="/images/logo.png">
-        </div>
-        <div class="item">
-            <i>&lt;Green Metrics Tool&gt;</i>
-        </div>
-        <a class="item" href="/index.html">
-            <b><i class="home icon"></i>Home</b>
-        </a>
-        <a class="item" href="/request.html">
-            <b><i class="bullseye icon"></i>Certify new software</b>
-        </a>
-        <a class="item" href="/data-analysis.html">
-            <b><i class="chartline icon"></i>Data Analysis</b>
-        </a>
-        <a class="item" href="/configuration.html">
-            <b><i class="cogs icon"></i>Configuration</b>
-        </a>
-    </div> <!-- end menu -->
+    <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
         <h1 class="ui header float left">
             <a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a>
             Green Metrics Tool Dashboard
         </h1>
+        <div class="ui icon message blue">
+            <i class="info circle icon"></i>
+            <div class="content">
+                <p>
+                    On the overview page you can go into the details for a specific measurement, or compare them.
+                </p>
+                <p>Comparing is possible for different repos, different branches and different runs as long as they are on the same machine. Also different machines are supported if you compare the same repo.
+                </p>
+                <p>Currently we do not support comparing different machines AND different repos at the same time. The tool will notifiy you if you attempt to do so :)</p>
+            </div>
+        </div>
+<!--
         <div class="ui search">
             <div class="ui icon input float right">
                 <input class="prompt" type="text" placeholder="Search tests...">
@@ -57,18 +50,19 @@
             </div>
             <div class="results"></div>
         </div>
-        <table class="ui sortable celled striped table" id="table">
+-->
+        <table id="projects-table" class="ui sortable celled striped table">
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>URI</th>
-                    <th>Branch</th>
-                    <th>Last run</th>
+                    <th>Repositories (<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.)</th>
+                    <th>Branch <i class="icon code branch"></i></th>
+                    <th><button onclick="compareButton()" class="ui small button blue">Compare</button></th>
                 </tr>
             </thead>
-            <tbody id="projects-table"></tbody>
+            <tbody></tbody>
         </table>
         <div class="clearing" style="display:block; height: 10px;"></div>
     </div>
+
 </body>
 </html>

@@ -1,9 +1,6 @@
 name: Daily Test Run - Virtual Machine - Main Branch
 run-name: Scheduled - main branch
 on:
-  pull_request:
-    branches:
-      - main
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
@@ -34,7 +31,7 @@ jobs:
         name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
-         metrics-to-turn-off: '--categories RAPL System Sensors Debug CGroupV2 MacOS --providers CpuFrequencySysfsCoreProvider'
+         metrics-to-turn-off: '--categories RAPL Machine Sensors Debug CGroupV2 MacOS --providers CpuFrequencySysfsCoreProvider'
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Eco CI Energy Estimation - Get Measurement

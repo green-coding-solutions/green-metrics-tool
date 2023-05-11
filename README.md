@@ -18,7 +18,6 @@ run by sending the commands to the containers accordingly.
 During this process the performance metrics of the containers are read through different metric providers like:
 - CPU / DRAM energy (RAPL)
 - System energy (IMPI / PowerSpy2 / Machine-Learning-Model / SDIA Model)
-- DC energy (PicoLog)
 - container CPU utilization
 - container memory utilization
 - etc.

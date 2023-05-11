@@ -1,7 +1,15 @@
 ---
+# Important
+# Please remember that anything in this file changes the structural change should
+# also be reflected in the simple example we provide in the documentation:
+# https://docs.green-coding.berlin/docs/measuring/measuring-locally/
+
+
 name: Stress Container One Core 5 Seconds
 author: Arne Tarara
+description: test
 version: 1
+description: test
 
 networks:
   network-for-pytests:
@@ -12,11 +20,20 @@ services:
     image: gcb_stress
     networks:
       - network-for-pytests
+    build:
+      context: .
+      dockerfile: Dockerfile
+
   ubuntu-stress-2:
     type: container
     image: gcb_stress
     networks:
       - network-for-pytests
+## remove later >> 
+    build:
+      context: .
+      dockerfile: Dockerfile
+### <<
 
 flow:
   - name: Stress
