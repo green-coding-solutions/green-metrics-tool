@@ -61,10 +61,12 @@ def valid_service_types(value):
         raise SchemaError(f"{value} is not 'container'")
     return value
 
+# Anything with Optional() is not needed, but if it exists must conform to the definition specified
 usage_scenario_schema = Schema({
     Optional("name"): str,
     Optional("author"): str,
     Optional("version"): Use(int),
+    "description": str,
 
     Optional("networks"): {
        Use(contains_no_invalid_chars): None
