@@ -1,4 +1,4 @@
-#pylint: disable=import-error
+#pylint: disable=import-error, wrong-import-position
 
 import os
 import sys
