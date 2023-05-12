@@ -390,6 +390,9 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
     for key, value in measurement.dict().items():
         match key:
             case 'project_id':
+                if value is None or value.strip() == '':
+                    measurement.project_id = None
+                    continue
                 if not is_valid_uuid(value.strip()):
                     return ORJSONResponse({'success': False, 'err': f"project_id '{value}' is not a valid uuid"})
                 setattr(measurement, key, safe_escape(value))
