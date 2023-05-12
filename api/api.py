@@ -160,6 +160,8 @@ async def get_projects():
             project[4],
             project[5],
             safe_escape(project[6]),
+            safe_escape(project[7]),
+            safe_escape(project[8]),
         ]
         for project in data
     ]
