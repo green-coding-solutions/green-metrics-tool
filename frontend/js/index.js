@@ -7,6 +7,14 @@ const compareButton = () => {
     });
     window.location = link.substr(0,link.length-1);
 }
+const updateCompareCount = () => {
+    const countButton = document.getElementById('compare-button');
+    const checkedCount = document.querySelectorAll('input#chbx-proj:checked').length;
+    countButton.textContent = checkedCount === 0 ? "Compare" 
+                              : checkedCount === 1 ?`Compare: ${checkedCount} Run` 
+                              : `Compare: ${checkedCount} Runs`;
+}
+
 (async () => {
     const dateToYMD = (date) => {
         let day = date.getDate();
@@ -89,19 +97,23 @@ const compareButton = () => {
             <td class="td-index" title="${filename}">${filename}</td>
             <td class="td-index">${machine}</td>
             <td class="td-index" style="width: 120px"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td>
-            <td><input type="checkbox" value="${id}" name="chbx-proj"/>&nbsp;</td>`;
+            <td><input type="checkbox" value="${id}" name="chbx-proj" id="chbx-proj" />&nbsp;</td>`;
 
     });
 
     $('.ui.accordion').accordion();
     $('#projects-table table').tablesort();
 
+    document.querySelectorAll('#chbx-proj').forEach((e) =>{
+        e.addEventListener('change', updateCompareCount);
+    })
 
     document.querySelectorAll('.toggle-checkbox').forEach((e) => {
         e.addEventListener('click', (e1) => {
             e1.currentTarget.closest('tr').querySelectorAll('td:first-child input').forEach((e2) => {
                 e2.checked = e1.currentTarget.checked
             })
+            updateCompareCount();
         })
     })
 
