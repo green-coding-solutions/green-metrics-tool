@@ -195,6 +195,11 @@ async def compare_in_repo(ids: str):
         project_info_response = await get_project(ids[0])
         project_info = json.loads(project_info_response.body)['data']
 
+        machines_response = await get_machines()
+        machines_info = json.loads(machines_response.body)['data']
+        machines = {machine[0]: machine[1] for machine in machines_info}
+
+        machine = machines[project_info['machine_id']]
         uri = project_info['uri']
         usage_scenario = project_info['usage_scenario']['name']
         branch = project_info['branch'] if project_info['branch'] is not None else 'main / master'
@@ -205,37 +210,36 @@ async def compare_in_repo(ids: str):
                 # same repo, same usage scenarios, same machines, same branches, same commit hashes
                 phase_stats_object['common_info']['Repository'] = uri
                 phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
-                # TODO: Machine
+                phase_stats_object['common_info']['Machine'] = machine
                 phase_stats_object['common_info']['Branch'] = branch
                 phase_stats_object['common_info']['Commit'] = commit
             case 'Usage Scenario':
                 # same repo, diff usage scenarios, same machines, same branches, same commit hashes
                 phase_stats_object['common_info']['Repository'] = uri
-                # TODO: Machine
+                phase_stats_object['common_info']['Machine'] = machine
                 phase_stats_object['common_info']['Branch'] = branch
                 phase_stats_object['common_info']['Commit'] = commit
             case 'Machine':
                 # same repo, same usage scenarios, diff machines, same branches, same commit hashes
                 phase_stats_object['common_info']['Repository'] = uri
                 phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
-                # TODO: Machine
                 phase_stats_object['common_info']['Branch'] = branch
                 phase_stats_object['common_info']['Commit'] = commit
             case 'Commit':
                 # same repo, same usage scenarios, same machines, diff commit hashes
                 phase_stats_object['common_info']['Repository'] = uri
                 phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
-                # TODO: Machine
+                phase_stats_object['common_info']['Machine'] = machine
             case 'Repository':
                 # diff repo, diff usage scenarios, same machine,  same branches, diff/same commits_hashes
-                # TODO: Machine
+                phase_stats_object['common_info']['Machine'] = machine
                 phase_stats_object['common_info']['Branch'] = branch
                 # TODO: diff/same commit?
             case 'Branch':
                 # same repo, same usage scenarios, same machines, diff branch
                 phase_stats_object['common_info']['Repository'] = uri
                 phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
-                # TODO: Machine
+                phase_stats_object['common_info']['Machine'] = machine
 
     except RuntimeError as err:
         return ORJSONResponse({'success': False, 'err': str(err)})
@@ -399,7 +403,7 @@ async def get_project(project_id: str):
                 (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements
                     LEFT JOIN categories as t on t.id = elements) as categories,
                 start_measurement, end_measurement,
-                measurement_config, machine_specs, usage_scenario,
+                measurement_config, machine_specs, machine_id, usage_scenario,
                 last_run, created_at, invalid_project, phases
             FROM projects
             WHERE id = %s
