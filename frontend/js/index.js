@@ -19,7 +19,6 @@ function allow_group_select_checkboxes(checkbox_wrapper_id){
             if (lastChecked && e.shiftKey) {
                 let i = parseInt(lastChecked.getAttribute('data-index'));
                 let j = parseInt(this.getAttribute('data-index'));
-                let check_or_uncheck = this.checked;
 
                 if (i>j) {
                     [i, j] = [j, i]
@@ -27,7 +26,7 @@ function allow_group_select_checkboxes(checkbox_wrapper_id){
 
                 for (let c=0; c<checkboxes.length; c++) {
                     if (i <= c && c <=j) {
-                        checkboxes[c].checked = check_or_uncheck;
+                        checkboxes[c].checked = this.checked;
                     }   
                 }
             } 
