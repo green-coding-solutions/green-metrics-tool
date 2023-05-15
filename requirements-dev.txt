@@ -1,3 +1,4 @@
+-r requirements.txt
 pydantic==1.10.7
 pytest==7.3.1
 requests==2.30.0
