@@ -10,27 +10,23 @@ const compareButton = () => {
 
 function allow_group_select_checkboxes(checkbox_wrapper_id){
     let lastChecked = null;
-    let checkboxes = document.querySelectorAll('#'+checkbox_wrapper_id+' input[type="checkbox"]');
-
+    let checkboxes = document.querySelectorAll(checkbox_wrapper_id);
+    
     for (let i=0;i<checkboxes.length;i++){
         checkboxes[i].setAttribute('data-index',i);
-    }
-
-    for (let i=0;i<checkboxes.length;i++){
         checkboxes[i].addEventListener("click",function(e){
 
-            if(lastChecked && e.shiftKey) {
+            if (lastChecked && e.shiftKey) {
                 let i = parseInt(lastChecked.getAttribute('data-index'));
                 let j = parseInt(this.getAttribute('data-index'));
                 let check_or_uncheck = this.checked;
 
-                let low = i; let high=j;
-                if (i>j){
-                    let [low, high] = [j, i]; 
+                if (i>j) {
+                    [i, j] = [j, i]
                 }
 
-                for(let c=0;c<checkboxes.length;c++){
-                    if (low <= c && c <=high){
+                for (let c=0; c<checkboxes.length; c++) {
+                    if (i <= c && c <=j) {
                         checkboxes[c].checked = check_or_uncheck;
                     }   
                 }
@@ -129,7 +125,7 @@ function allow_group_select_checkboxes(checkbox_wrapper_id){
     $('.ui.accordion').accordion();
     $('#projects-table table').tablesort();
 
-    allow_group_select_checkboxes('projects-table');
+    allow_group_select_checkboxes('#projects-table input[type="checkbox"]');
 
     document.querySelectorAll('.toggle-checkbox').forEach((e) => {
         e.addEventListener('click', (e1) => {
