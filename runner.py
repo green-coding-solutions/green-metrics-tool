@@ -966,7 +966,8 @@ class Runner:
                 raise ValueError("Configuration check failed - not running measurement")
             self.checkout_repository()
             self.initial_parse()
-            self.populate_image_names()
+            if not self.dev_repeat_run:
+                self.populate_image_names()
             self.check_running_containers()
             self.remove_docker_images()
             self.download_dependencies()
