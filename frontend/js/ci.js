@@ -164,7 +164,7 @@ const displayGraph = (runs) => {
                 value: value,
                 unit: run.unit,
                 run_id: run.run_id,
-                labels: [run.labels[index]],
+                labels: createValueArray(run_index, [run.labels[index]]),
                 commit_hash: run.commit_hash,
                 timestamp: formatDateTime(new Date(run.timestamps[index]))
             });
@@ -263,6 +263,31 @@ const displayCITable = (runs, url_params) => {
     $('table').tablesort();
 }
 
+function dateTimePicker() {
+    const datePickerHtml = document.createElement("div");
+  datePickerHtml.innerHTML = `
+    <label for="date">Date:</label>
+    <input type="date" id="date">
+    <label for="time">Time:</label>
+    <input type="time" id="time">
+    <button onclick="getDateTime()">Submit</button>
+  `;
+  document.querySelector("#ci-date-picker").appendChild(datePickerHtml)
+}
+
+function getDateTime() {
+  const dateInput = document.getElementById('date');
+  const timeInput = document.getElementById('time');
+
+  const date = dateInput.value;
+  const time = timeInput.value;
+
+  const dateTime = `${date} ${time}`;
+
+  console.log(dateTime);
+}
+
+
 $(document).ready((e) => {
     (async () => {
         const query_string = window.location.search;
@@ -309,6 +334,6 @@ $(document).ready((e) => {
         displayCITable(badges_data.data, url_params);
         displayGraph(badges_data.data)
         displayAveragesTable(badges_data.data)
-
+        //dateTimePicker();
     })();
 });
