@@ -24,11 +24,34 @@ const convertValue = (value, unit) => {
 
 }
 
-const createChartContainer = (container, el) => {
+const getAverageOfLabel = (runs, label) => {
+    let sum = 0;
+    let count = 0;
+    runs.forEach(run => {
+        if (run[4] == label) {
+            sum += run[0];
+            count++;
+        }
+    });
+    return Math.round(sum / count);
+}
+
+const getTotalAverage = (runs) => {
+    let sum = 0;
+    let count = 0;
+    runs.forEach(run => {
+        sum += run[0];
+        count++;
+    });
+    return Math.round(sum / count);
+}
+
+const createChartContainer = (container, el, runs) => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");
     chart_node.classList.add('statistics-chart-card')
     chart_node.classList.add('ui')
+            /*<table class="ui sortable celled striped table" id="table">*/
 
     chart_node.innerHTML = `
     <div class="content">
@@ -37,7 +60,6 @@ const createChartContainer = (container, el) => {
         </div>
     </div>`
     document.querySelector(container).appendChild(chart_node)
-
 
     return chart_node.querySelector('.statistics-chart');
 }
@@ -68,16 +90,16 @@ const getEChartsOptions = () => {
 
     };
 }
-
+  
 const displayGraph = (runs) => {
-    const element = createChartContainer("#chart-container", "run-energy");
+    const element = createChartContainer("#chart-container", "run-energy", runs);
+
     let options = getEChartsOptions();
 
     options.title.text = `Workflow energy cost per run [mJ]`;
 
     let legend = new Set()
     let labels = []
-
 
     idx = -1; // since we force an ordering from the API, we can safely assume increasing run_ids
     runs.forEach(run => { // iterate over all runs, which are in row order
@@ -91,16 +113,18 @@ const displayGraph = (runs) => {
         })
         legend.add(cpu)
 
-        if(run_id == idx) {
+        console.log(run)
+
+        /*if(run_id == idx) {
             labels.at(-1).labels.push(label)
-        } else {
+        } else {*/
             labels.push({value: value, unit: unit, run_id: run_id, labels: [label], commit_hash: commit_hash, timestamp: formatDateTime(new Date(timestamp))})
-        }
+        //}
         idx = run_id
     });
 
     options.legend.data = Array.from(legend)
-
+    console.log(labels)
     options.tooltip = {
         trigger: 'item',
         formatter: function (params, ticket, callback) {
@@ -190,6 +214,11 @@ $(document).ready((e) => {
             const value = badge_value + ' ' + badge_unit;
 
             const run_id = el[2];
+            const cpu = el[5];
+            const commit_hash = el[6];
+            const short_hash = commit_hash.substring(0, 7);
+            const tooltip = commit_hash.length > 7 ? `title="${commit_hash}"` : '';
+
             const run_link = `https://github.com/${url_params.get('repo')}/actions/runs/${run_id}`;
             const run_link_node = `<a href="${run_link}" target="_blank">${run_id}</a>`
 
@@ -200,11 +229,37 @@ $(document).ready((e) => {
             li_node.innerHTML = `<td class="td-index">${value}</td>\
                                 <td class="td-index">${label}</td>\
                                 <td class="td-index">${run_link_node}</td>\
-                                <td class="td-index"><span title="${created_at}">${formatDateTime(new Date(created_at))}</span></td>`;
+                                <td class="td-index"><span title="${created_at}">${formatDateTime(new Date(created_at))}</span></td>\
+                                <td class="td-index" ${tooltip}>${short_hash}</td>\
+                                <td class="td-index">${cpu}</td>\
+                                <td class="td-index">???</td>`;
             document.querySelector("#badges-table").appendChild(li_node);
         });
         $('table').tablesort();
         displayGraph(badges_data.data)
+
+        let labels = new Set()
+        badges_data.data.forEach(run => {
+            let [value, unit, run_id, timestamp, label, cpu, commit_hash] = run;
+            labels.add(label)
+        });
+
+        const label_total_avg_node = document.createElement("tr")
+        label_total_avg_node.innerHTML += `
+                                <td class="td-index">${getTotalAverage(badges_data.data)}</td>
+                                <td class="td-index">Total</td>`
+        document.querySelector("#label-avg-table").appendChild(label_total_avg_node);
+
+        labels.forEach(label => {
+            const label_avgs_node = document.createElement("tr")
+            let avg = getAverageOfLabel(badges_data.data, label);
+            label_avgs_node.innerHTML += `
+                                            <td class="td-index">${avg}</td>
+                                            <td class="td-index">${label}</td>`
+        document.querySelector("#label-avg-table").appendChild(label_avgs_node);
+        });
+
+
 
     })();
 });

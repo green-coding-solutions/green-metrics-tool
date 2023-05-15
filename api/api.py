@@ -390,6 +390,9 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
     for key, value in measurement.dict().items():
         match key:
             case 'project_id':
+                if value is None or value.strip() == '':
+                    measurement.project_id = None
+                    continue
                 if not is_valid_uuid(value.strip()):
                     return ORJSONResponse({'success': False, 'err': f"project_id '{value}' is not a valid uuid"})
                 setattr(measurement, key, safe_escape(value))
@@ -414,7 +417,6 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                     if value.strip() == '':
                         return ORJSONResponse({'success': False, 'err': f"{key} is empty"})
                     setattr(measurement, key, escape(value))
-
     query = """
         INSERT INTO
             ci_measurements (value, unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash)
@@ -422,7 +424,8 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
         """
     params = (measurement.value, measurement.unit, measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id, measurement.project_id,
-            measurement.label, measurement.source)
+            measurement.label, measurement.source, measurement.cpu, measurement.commit_hash)
+
     DB().query(query=query, params=params)
     return ORJSONResponse({'success': True})
 

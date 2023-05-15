@@ -49,7 +49,19 @@
                 </div>
             </div>
         </div><!-- end ui horizontal card -->
-        <div id="chart-container"></div>
+        <div id="chart-container">
+            <div class="ui right floated icon">
+                <table class="ui sortable celled striped table">
+                    <thead>
+                        <tr>
+                            <th>Average</th>
+                            <th>Label</th>
+                        </tr>
+                    </thead>
+                    <tbody id="label-avg-table"></tbody>
+                </table>
+            </div>
+        </div>
         <div id="badges">
             <table class="ui sortable celled striped table" id="table">
             <thead>
@@ -58,6 +70,9 @@
                     <th>Label</th>
                     <th>Run ID</th>
                     <th>Ran At</th>
+                    <th>Commit Hash</th>
+                    <th>CPU</th>
+                    <th>Duration</th>
                 </tr>
             </thead>
             <tbody id="badges-table"></tbody>
