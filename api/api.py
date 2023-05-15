@@ -8,9 +8,12 @@ import sys
 import os
 from html import escape
 
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import ORJSONResponse
-from fastapi import FastAPI, Request, Response
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+
 from starlette.responses import RedirectResponse
 from pydantic import BaseModel
 
@@ -35,34 +38,46 @@ faulthandler.enable()  # will catch segfaults and write to STDERR
 
 app = FastAPI()
 
+async def log_exception(request: Request, body, exc):
+    error_message = f"""
+        Error in API call
+
+        URL: {request.url}
+
+        Query-Params: {request.query_params}
+
+        Client: {request.client}
+
+        Headers: {str(request.headers)}
+
+        Body: {body}
+
+        Exception: {exc}
+    """
+    error_helpers.log_error(error_message)
+    email_helpers.send_error_email(
+        GlobalConfig().config['admin']['email'],
+        error_helpers.format_error(error_message),
+        project_id=None,
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    await log_exception(request, exc.body, exc)
+    return ORJSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder({"detail": exc.errors(), "body": exc.body}),
+    )
+
 async def catch_exceptions_middleware(request: Request, call_next):
     #pylint: disable=broad-except
     try:
         return await call_next(request)
-    except Exception as exception:
-
-        body = await request.body()
-        error_message = f"""
-            Error in API call
-
-            URL: {request.url}
-
-            Query-Params: {request.query_params}
-
-            Client: {request.client}
-
-            Headers: {str(request.headers)}
-
-            Body: {body}
-
-            Exception: {exception}
-        """
-        error_helpers.log_error(error_message)
-        email_helpers.send_error_email(
-            GlobalConfig().config['admin']['email'],
-            error_helpers.format_error(error_message),
-            project_id=None,
-        )
+    except Exception as exc:
+        # body = await request.body()  # This blocks the application. Unclear atm how to handle it properly
+        # seems like a bug: https://github.com/tiangolo/fastapi/issues/394
+        # Although the issue is closed the "solution" still behaves with same failure
+        await log_exception(request, None, exc)
         return ORJSONResponse(
             content={
                 'success': False,
