@@ -160,6 +160,8 @@ async def get_projects():
             project[4],
             project[5],
             safe_escape(project[6]),
+            safe_escape(project[7]),
+            safe_escape(project[8]),
         ]
         for project in data
     ]
@@ -449,7 +451,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
         SELECT SUM(value), MAX(unit), MAX(run_id)
         FROM ci_measurements
-        WHERE repo = %s AND branch = %s AND workflow = %s 
+        WHERE repo = %s AND branch = %s AND workflow = %s
         GROUP BY run_id
         ORDER BY MAX(created_at) DESC
         LIMIT 1
