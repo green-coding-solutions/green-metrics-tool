@@ -162,7 +162,60 @@ const displayGraph = (runs) => {
     }
 }
 
+const displayAveragesTable = (runs) => {
+    let labels = new Set()
+    runs.forEach(run => {
+        let [value, unit, run_id, timestamp, label, cpu, commit_hash] = run;
+        labels.add(label)
+    });
 
+    const label_total_avg_node = document.createElement("tr")
+    label_total_avg_node.innerHTML += `
+                            <td class="td-index">${getTotalAverage(runs)}</td>
+                            <td class="td-index">Total</td>`
+    document.querySelector("#label-avg-table").appendChild(label_total_avg_node);
+
+    labels.forEach(label => {
+        const label_avgs_node = document.createElement("tr")
+        let avg = getAverageOfLabel(runs, label);
+        label_avgs_node.innerHTML += `
+                                        <td class="td-index">${avg}</td>
+                                        <td class="td-index">${label}</td>`
+    document.querySelector("#label-avg-table").appendChild(label_avgs_node);
+    });
+}
+
+const displayCITable = (runs, url_params) => {
+    runs.forEach(el => {
+        const li_node = document.createElement("tr");
+
+        [badge_value, badge_unit] = convertValue(el[0], el[1])
+        const value = badge_value + ' ' + badge_unit;
+
+        const run_id = el[2];
+        const cpu = el[5];
+        const commit_hash = el[6];
+        const short_hash = commit_hash.substring(0, 7);
+        const tooltip = commit_hash.length > 7 ? `title="${commit_hash}"` : '';
+
+        const run_link = `https://github.com/${url_params.get('repo')}/actions/runs/${run_id}`;
+        const run_link_node = `<a href="${run_link}" target="_blank">${run_id}</a>`
+
+        const created_at = el[3]
+
+        const label = el[4]
+
+        li_node.innerHTML = `<td class="td-index">${value}</td>\
+                            <td class="td-index">${label}</td>\
+                            <td class="td-index">${run_link_node}</td>\
+                            <td class="td-index"><span title="${created_at}">${formatDateTime(new Date(created_at))}</span></td>\
+                            <td class="td-index" ${tooltip}>${short_hash}</td>\
+                            <td class="td-index">${cpu}</td>\
+                            <td class="td-index">???</td>`;
+        document.querySelector("#ci-table").appendChild(li_node);
+    });
+    $('table').tablesort();
+}
 
 $(document).ready((e) => {
     (async () => {
@@ -207,59 +260,9 @@ $(document).ready((e) => {
             return;
         }
 
-        badges_data.data.forEach(el => {
-            const li_node = document.createElement("tr");
-
-            [badge_value, badge_unit] = convertValue(el[0], el[1])
-            const value = badge_value + ' ' + badge_unit;
-
-            const run_id = el[2];
-            const cpu = el[5];
-            const commit_hash = el[6];
-            const short_hash = commit_hash.substring(0, 7);
-            const tooltip = commit_hash.length > 7 ? `title="${commit_hash}"` : '';
-
-            const run_link = `https://github.com/${url_params.get('repo')}/actions/runs/${run_id}`;
-            const run_link_node = `<a href="${run_link}" target="_blank">${run_id}</a>`
-
-            const created_at = el[3]
-
-            const label = el[4]
-
-            li_node.innerHTML = `<td class="td-index">${value}</td>\
-                                <td class="td-index">${label}</td>\
-                                <td class="td-index">${run_link_node}</td>\
-                                <td class="td-index"><span title="${created_at}">${formatDateTime(new Date(created_at))}</span></td>\
-                                <td class="td-index" ${tooltip}>${short_hash}</td>\
-                                <td class="td-index">${cpu}</td>\
-                                <td class="td-index">???</td>`;
-            document.querySelector("#badges-table").appendChild(li_node);
-        });
-        $('table').tablesort();
+        displayCITable(badges_data.data, url_params);
         displayGraph(badges_data.data)
-
-        let labels = new Set()
-        badges_data.data.forEach(run => {
-            let [value, unit, run_id, timestamp, label, cpu, commit_hash] = run;
-            labels.add(label)
-        });
-
-        const label_total_avg_node = document.createElement("tr")
-        label_total_avg_node.innerHTML += `
-                                <td class="td-index">${getTotalAverage(badges_data.data)}</td>
-                                <td class="td-index">Total</td>`
-        document.querySelector("#label-avg-table").appendChild(label_total_avg_node);
-
-        labels.forEach(label => {
-            const label_avgs_node = document.createElement("tr")
-            let avg = getAverageOfLabel(badges_data.data, label);
-            label_avgs_node.innerHTML += `
-                                            <td class="td-index">${avg}</td>
-                                            <td class="td-index">${label}</td>`
-        document.querySelector("#label-avg-table").appendChild(label_avgs_node);
-        });
-
-
+        displayAveragesTable(badges_data.data)
 
     })();
 });
