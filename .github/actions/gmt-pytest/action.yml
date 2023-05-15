@@ -34,7 +34,7 @@ runs:
       working-directory: ${{ inputs.gmt-directory }}
       shell: bash
       run: |
-        pip install -r requirements.txt -r requirements-dev.txt
+        pip install -r requirements-dev.txt
         pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 
     - name: Run Install / Setup scripts
