@@ -427,7 +427,8 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
         """
     params = (measurement.value, measurement.unit, measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id, measurement.project_id,
-            measurement.label, measurement.source)
+            measurement.label, measurement.source, measurement.cpu, measurement.commit_hash)
+
     DB().query(query=query, params=params)
     return ORJSONResponse({'success': True})
 
@@ -451,7 +452,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
         SELECT SUM(value), MAX(unit), MAX(run_id)
         FROM ci_measurements
-        WHERE repo = %s AND branch = %s AND workflow = %s 
+        WHERE repo = %s AND branch = %s AND workflow = %s
         GROUP BY run_id
         ORDER BY MAX(created_at) DESC
         LIMIT 1
