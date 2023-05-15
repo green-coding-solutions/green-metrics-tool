@@ -90,11 +90,57 @@ const getEChartsOptions = () => {
 
     };
 }
-  
+
+function transformRuns(runs) {
+  const transformedRuns = {};
+  for (const run of runs) {
+    const runId = run[2];
+    const unit = run[1];
+    const timestamp = new Date(run[3]).getTime();
+    const value = run[0];
+    const label = run[4];
+    const cpu = run[5];
+    const commitHash = run[6];
+
+    if (!transformedRuns[runId]) {
+      transformedRuns[runId] = {
+        run_id: runId,
+        unit: unit,
+        timestamps: [],
+        values: [],
+        labels: [],
+        cpu: cpu,
+        commit_hash: commitHash,
+        earliest_timestamp: timestamp,
+        earliest_timestamp_readable: formatDateTime(new Date(timestamp))
+      };
+    } else if (timestamp < transformedRuns[runId].earliest_timestamp) {
+      transformedRuns[runId].earliest_timestamp = timestamp;
+      transformedRuns[runId].earliest_timestamp_readable = formatDateTime(new Date(timestamp));
+    }
+
+    transformedRuns[runId].timestamps.push(timestamp);
+    transformedRuns[runId].values.push(value);
+    transformedRuns[runId].labels.push(label);
+  }
+
+  return Object.values(transformedRuns);
+}
+
+const createValueArray = (index, value) => {
+    let array = [];
+    for (let i = 0; i < index; i++) {
+        array.push(0);
+    }
+    array.push(value);
+    return array;
+}
+
 const displayGraph = (runs) => {
     const element = createChartContainer("#chart-container", "run-energy", runs);
-
+    const transformed_runs = transformRuns(runs);
     let options = getEChartsOptions();
+    options.xAxis.data = transformed_runs.map(run => run.earliest_timestamp_readable);
 
     options.title.text = `Workflow energy cost per run [mJ]`;
 
@@ -102,29 +148,31 @@ const displayGraph = (runs) => {
     let labels = []
 
     idx = -1; // since we force an ordering from the API, we can safely assume increasing run_ids
-    runs.forEach(run => { // iterate over all runs, which are in row order
-        let [value, unit, run_id, timestamp, label, cpu, commit_hash] = run;
-        options.series.push({
-            type: 'bar',
-            smooth: true,
-            stack: run_id,
-            name: cpu,
-            data: [value]
-        })
-        legend.add(cpu)
+    transformed_runs.forEach((run, run_index) => {
+        run.values.forEach((value, index) => {
+            options.series.push({
+                type: 'bar',
+                smooth: true,
+                stack: run.earliest_timestamp_readable,
+                name: run.cpu,
+                data: createValueArray(run_index, value)
+            });
 
-        console.log(run)
+            legend.add(run.cpu);
 
-        /*if(run_id == idx) {
-            labels.at(-1).labels.push(label)
-        } else {*/
-            labels.push({value: value, unit: unit, run_id: run_id, labels: [label], commit_hash: commit_hash, timestamp: formatDateTime(new Date(timestamp))})
-        //}
-        idx = run_id
+            labels.push({
+                value: value,
+                unit: run.unit,
+                run_id: run.run_id,
+                labels: [run.labels[index]],
+                commit_hash: run.commit_hash,
+                timestamp: formatDateTime(new Date(run.timestamps[index]))
+            });
+        idx = run.run_id;
+        });
     });
 
     options.legend.data = Array.from(legend)
-    console.log(labels)
     options.tooltip = {
         trigger: 'item',
         formatter: function (params, ticket, callback) {
@@ -135,9 +183,7 @@ const displayGraph = (runs) => {
                     value: ${labels[params.componentIndex].value} ${labels[params.componentIndex].unit}<br>
                     `;
         }
-    }
-
-
+    };
     const chart_instance = echarts.init(element);
     chart_instance.setOption(options);
 
@@ -171,7 +217,7 @@ const displayAveragesTable = (runs) => {
 
     const label_total_avg_node = document.createElement("tr")
     label_total_avg_node.innerHTML += `
-                            <td class="td-index">${getTotalAverage(runs)}</td>
+                            <td class="td-index">${getTotalAverage(runs)} mJ</td>
                             <td class="td-index">Total</td>`
     document.querySelector("#label-avg-table").appendChild(label_total_avg_node);
 
@@ -179,7 +225,7 @@ const displayAveragesTable = (runs) => {
         const label_avgs_node = document.createElement("tr")
         let avg = getAverageOfLabel(runs, label);
         label_avgs_node.innerHTML += `
-                                        <td class="td-index">${avg}</td>
+                                        <td class="td-index">${avg} mJ</td>
                                         <td class="td-index">${label}</td>`
     document.querySelector("#label-avg-table").appendChild(label_avgs_node);
     });
