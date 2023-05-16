@@ -13,6 +13,14 @@ const formatDateTime = (date) => {
     return '' + dateString + ' | ' + timeString
 }
 
+const formatDateTimeShort = (date) => {
+    var d = date.getDate();
+    var m = date.getMonth() + 1;
+    var y = date.getFullYear().toString().substr(-2);
+
+    return '' + addZed(d) + '.' + addZed(m) + '.' + y;
+}
+
 const convertValue = (value, unit) => {
     switch (unit) {
         case 'mJ':
@@ -76,8 +84,8 @@ const getEChartsOptions = () => {
             data: [],
             bottom: 0,
             // type: 'scroll' // maybe active this if legends gets too long
-        },
-        toolbox: {
+        }
+/*        toolbox: {
             itemSize: 25,
             top: 55,
             feature: {
@@ -86,48 +94,69 @@ const getEChartsOptions = () => {
                 },
                 restore: {}
             }
-        },
+        },*/
 
     };
 }
 
+const filterRuns = (runs, start_date, end_date) => {
+    let filtered_runs = [];
+    let discard_runs = [];
+    runs.forEach(run => {
+        let run_id = run[2];
+        let timestamp = new Date(run[3]);
+        if (timestamp >= start_date && timestamp <= end_date) {
+            filtered_runs.push(run);
+        }
+        else
+            discard_runs.push(run_id);
+    });
+    // This was intended to catch the case where a run has dates that start before midnight and end after midngiht
+    // but it is not working correctly at the moment
+    //filtered_runs = filtered_runs.filter(run => !discard_runs.includes(run[2]));
+    return filtered_runs;
+}
+
+// This is not in use at the moment, keeping it as I believe it will be useful in the next iteration of the
+// chart display
 function transformRuns(runs) {
-  const transformedRuns = {};
-  for (const run of runs) {
-    const runId = run[2];
-    const unit = run[1];
-    const timestamp = new Date(run[3]).getTime();
-    const value = run[0];
-    const label = run[4];
-    const cpu = run[5];
-    const commitHash = run[6];
+    const transformedRuns = {};
+    for (const run of runs) {
+        const runId = run[2];
+        const unit = run[1];
+        const timestamp = new Date(run[3]).getTime();
+        const value = run[0];
+        const label = run[4];
+        const cpu = run[5];
+        const commitHash = run[6];
 
-    if (!transformedRuns[runId]) {
-      transformedRuns[runId] = {
-        run_id: runId,
-        unit: unit,
-        timestamps: [],
-        values: [],
-        labels: [],
-        cpu: cpu,
-        commit_hash: commitHash,
-        earliest_timestamp: timestamp,
-        earliest_timestamp_readable: formatDateTime(new Date(timestamp))
-      };
-    } else if (timestamp < transformedRuns[runId].earliest_timestamp) {
-      transformedRuns[runId].earliest_timestamp = timestamp;
-      transformedRuns[runId].earliest_timestamp_readable = formatDateTime(new Date(timestamp));
-    }
+        if (!transformedRuns[runId]) {
+            transformedRuns[runId] = {
+                run_id: runId,
+                unit: unit,
+                timestamps: [],
+                values: [],
+                labels: [],
+                cpu: cpu,
+                commit_hash: commitHash,
+                earliest_timestamp: timestamp,
+                earliest_timestamp_readable: formatDateTimeShort(new Date(timestamp))
+            };
+        } else if (timestamp < transformedRuns[runId].earliest_timestamp) {
+            transformedRuns[runId].earliest_timestamp = timestamp;
+            transformedRuns[runId].earliest_timestamp_readable = formatDateTime(new Date(timestamp));
+        }
 
-    transformedRuns[runId].timestamps.push(timestamp);
-    transformedRuns[runId].values.push(value);
-    transformedRuns[runId].labels.push(label);
+        transformedRuns[runId].timestamps.push(timestamp);
+        transformedRuns[runId].values.push(value);
+        transformedRuns[runId].labels.push(label);
   }
 
   return Object.values(transformedRuns);
 }
 
-const createValueArray = (index, value) => {
+// Also not in use at the moment, keeping it in case we need to pad the array later
+const createPaddedArray = (index, value) => {
     let array = [];
     for (let i = 0; i < index; i++) {
         array.push(0);
@@ -136,40 +165,29 @@ const createValueArray = (index, value) => {
     return array;
 }
 
-const displayGraph = (runs) => {
-    const element = createChartContainer("#chart-container", "run-energy", runs);
-    const transformed_runs = transformRuns(runs);
+const getChartOptions = (runs, chart_element) => {
     let options = getEChartsOptions();
-    options.xAxis.data = transformed_runs.map(run => run.earliest_timestamp_readable);
-
     options.title.text = `Workflow energy cost per run [mJ]`;
 
     let legend = new Set()
     let labels = []
 
-    idx = -1; // since we force an ordering from the API, we can safely assume increasing run_ids
-    transformed_runs.forEach((run, run_index) => {
-        run.values.forEach((value, index) => {
-            options.series.push({
-                type: 'bar',
-                smooth: true,
-                stack: run.earliest_timestamp_readable,
-                name: run.cpu,
-                data: createValueArray(run_index, value)
-            });
+    runs.forEach(run => { // iterate over all runs, which are in row order
+        let [value, unit, run_id, timestamp, label, cpu, commit_hash] = run;
+        options.series.push({
+            type: 'bar',
+            smooth: true,
+            stack: run_id,
+            name: cpu,
+            data: [value],
+            itemStyle: {
+                borderWidth: .5,
+                borderColor: '#000000',
+              },
+        })
+        legend.add(cpu)
 
-            legend.add(run.cpu);
-
-            labels.push({
-                value: value,
-                unit: run.unit,
-                run_id: run.run_id,
-                labels: createValueArray(run_index, [run.labels[index]]),
-                commit_hash: run.commit_hash,
-                timestamp: formatDateTime(new Date(run.timestamps[index]))
-            });
-        idx = run.run_id;
-        });
+        labels.push({value: value, unit: unit, run_id: run_id, labels: [label], commit_hash: commit_hash, timestamp: formatDateTime(new Date(timestamp))})
     });
 
     options.legend.data = Array.from(legend)
@@ -184,6 +202,14 @@ const displayGraph = (runs) => {
                     `;
         }
     };
+    return options
+}
+
+const displayGraph = (runs) => {
+    const element = createChartContainer("#chart-container", "run-energy", runs);
+    
+    const options = getChartOptions(runs, element);
+
     const chart_instance = echarts.init(element);
     chart_instance.setOption(options);
 
@@ -206,6 +232,8 @@ const displayGraph = (runs) => {
     window.onresize = function () { // set callback when ever the user changes the viewport
         chart_instance.resize();
     }
+
+    return chart_instance;
 }
 
 const displayAveragesTable = (runs) => {
@@ -215,11 +243,14 @@ const displayAveragesTable = (runs) => {
         labels.add(label)
     });
 
+    const tableBody = document.querySelector("#label-avg-table");
+    tableBody.innerHTML = "";
+
     const label_total_avg_node = document.createElement("tr")
     label_total_avg_node.innerHTML += `
                             <td class="td-index">${getTotalAverage(runs)} mJ</td>
                             <td class="td-index">Total</td>`
-    document.querySelector("#label-avg-table").appendChild(label_total_avg_node);
+    tableBody.appendChild(label_total_avg_node);
 
     labels.forEach(label => {
         const label_avgs_node = document.createElement("tr")
@@ -256,37 +287,23 @@ const displayCITable = (runs, url_params) => {
                             <td class="td-index">${run_link_node}</td>\
                             <td class="td-index"><span title="${created_at}">${formatDateTime(new Date(created_at))}</span></td>\
                             <td class="td-index" ${tooltip}>${short_hash}</td>\
-                            <td class="td-index">${cpu}</td>\
-                            <td class="td-index">???</td>`;
+                            <td class="td-index">${cpu}</td>`;
+                            /*<td class="td-index">???</td>`;*/
         document.querySelector("#ci-table").appendChild(li_node);
     });
     $('table').tablesort();
 }
 
 function dateTimePicker() {
-    const datePickerHtml = document.createElement("div");
-  datePickerHtml.innerHTML = `
-    <label for="date">Date:</label>
-    <input type="date" id="date">
-    <label for="time">Time:</label>
-    <input type="time" id="time">
-    <button onclick="getDateTime()">Submit</button>
-  `;
-  document.querySelector("#ci-date-picker").appendChild(datePickerHtml)
+    $('#rangestart').calendar({
+        type: 'date',
+        endCalendar: $('#rangeend')
+    });
+    $('#rangeend').calendar({
+        type: 'date',
+        startCalendar: $('#rangestart')
+    });
 }
-
-function getDateTime() {
-  const dateInput = document.getElementById('date');
-  const timeInput = document.getElementById('time');
-
-  const date = dateInput.value;
-  const time = timeInput.value;
-
-  const dateTime = `${date} ${time}`;
-
-  console.log(dateTime);
-}
-
 
 $(document).ready((e) => {
     (async () => {
@@ -332,8 +349,17 @@ $(document).ready((e) => {
         }
 
         displayCITable(badges_data.data, url_params);
-        displayGraph(badges_data.data)
+        chart_instance = displayGraph(badges_data.data)
         displayAveragesTable(badges_data.data)
-        //dateTimePicker();
+        dateTimePicker();
+        $('#submit').on('click', function() {
+            var startDate = new Date($('#rangestart input').val());
+            var endDate = new Date($('#rangeend input').val());
+            new_runs = filterRuns(badges_data.data, startDate, endDate)
+            options = getChartOptions(new_runs)
+            chart_instance.clear()
+            chart_instance.setOption(options);
+            displayAveragesTable(new_runs);
+        });
     })();
 });
