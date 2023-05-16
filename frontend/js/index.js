@@ -9,10 +9,8 @@ const compareButton = () => {
 }
 const updateCompareCount = () => {
     const countButton = document.getElementById('compare-button');
-    const checkedCount = document.querySelectorAll('input#chbx-proj:checked').length;
-    countButton.textContent = checkedCount === 0 ? "Compare" 
-                              : checkedCount === 1 ?`Compare: ${checkedCount} Run` 
-                              : `Compare: ${checkedCount} Runs`;
+    const checkedCount = document.querySelectorAll('input[name=chbx-proj]:checked').length;
+    countButton.textContent = `Compare: ${checkedCount} Run(s)`;
 }
 
 function allow_group_select_checkboxes(checkbox_wrapper_id){
@@ -124,14 +122,14 @@ function allow_group_select_checkboxes(checkbox_wrapper_id){
             <td class="td-index" title="${filename}">${filename}</td>
             <td class="td-index">${machine}</td>
             <td class="td-index" style="width: 120px"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td>
-            <td><input type="checkbox" value="${id}" name="chbx-proj" id="chbx-proj" />&nbsp;</td>`;
+            <td><input type="checkbox" value="${id}" name="chbx-proj"/>&nbsp;</td>`;
 
     });
 
     $('.ui.accordion').accordion();
     $('#projects-table table').tablesort();
 
-    document.querySelectorAll('#chbx-proj').forEach((e) =>{
+    document.querySelectorAll('input[name=chbx-proj]').forEach((e) =>{
         e.addEventListener('change', updateCompareCount);
     })
   
