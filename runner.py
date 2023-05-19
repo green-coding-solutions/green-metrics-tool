@@ -137,9 +137,11 @@ class Runner:
 
         errors = []
         config = GlobalConfig().config
-        metric_providers = utils.get_metric_providers_names(config)
+        metric_providers = list(utils.get_metric_providers(config).keys())
 
-        if sum(True for provider in metric_providers if provider.startswith('PsuEnergy')) > 1:
+        psu_energy_providers = sum(True for provider in metric_providers if ".energy" in provider and ".machine" in provider)
+
+        if psu_energy_providers > 1:
             errors.append("Multiple PSU Energy providers enabled!")
 
         if not errors:
