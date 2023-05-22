@@ -1,16 +1,19 @@
 ---
 name: Test Stress
 author: Dan Mateas
+description: test
 version: 1
+description: test
 
 services:
-  ubuntu-stress:
+  test-container:
     type: container
     image: gcb_stress
+    build: .
 
 flow:
   - name: Stress
-    container: ubuntu-stress
+    container: test-container
     commands:
       - type: console
         command: stress-ng -c 1 -t 1 -q

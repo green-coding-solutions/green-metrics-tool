@@ -1,19 +1,20 @@
 #pylint: disable=import-error,wrong-import-position
 import sys
 import os
+import faulthandler
+
+faulthandler.enable()  # will catch segfaults and write to STDERR
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/..")
 sys.path.append(f"{CURRENT_DIR}/../lib")
 
-import faulthandler
 import email_helpers
 import error_helpers
 from db import DB
 from global_config import GlobalConfig
+from phase_stats import build_and_store_phase_stats
 from runner import Runner
-
-faulthandler.enable()  # will catch segfaults and write to STDERR
 
 def insert_job(job_type, project_id=None, machine_id=None):
     query = """
@@ -37,7 +38,7 @@ def get_job(job_type):
         LIMIT 1
     """
 
-    return DB().fetch_one(query, (job_type, GlobalConfig().config['config']['machine_id']))
+    return DB().fetch_one(query, (job_type, GlobalConfig().config['machine']['id']))
 
 
 def delete_job(job_id):
@@ -69,7 +70,7 @@ def clear_old_jobs():
 
 def get_project(project_id):
     data = DB().fetch_one(
-        "SELECT uri,email FROM projects WHERE id = %s LIMIT 1", (project_id, ))
+        "SELECT uri,email,branch FROM projects WHERE id = %s LIMIT 1", (project_id, ))
 
     if (data is None or data == []):
         raise RuntimeError(f"couldn't find project w/ id: {project_id}")
@@ -77,12 +78,12 @@ def get_project(project_id):
     return data
 
 
-def process_job(job_id, job_type, project_id):
+def process_job(job_id, job_type, project_id, skip_config_check=False, full_docker_prune=False):
     try:
         if job_type == 'email':
             _do_email_job(job_id, project_id)
         elif job_type == 'project':
-            _do_project_job(job_id, project_id)
+            _do_project_job(job_id, project_id, skip_config_check, full_docker_prune)
         else:
             raise RuntimeError(
                 f"Job w/ id {job_id} has unkown type: {job_type}.")
@@ -95,22 +96,31 @@ def process_job(job_id, job_type, project_id):
 def _do_email_job(job_id, project_id):
     check_job_running('email', job_id)
 
-    [_, email] = get_project(project_id)
+    [_, email, _] = get_project(project_id)
 
     email_helpers.send_report_email(email, project_id)
     delete_job(job_id)
 
 
 # should not be called without enclosing try-except block
-def _do_project_job(job_id, project_id):
+def _do_project_job(job_id, project_id, skip_config_check=False, full_docker_prune=False):
     check_job_running('project', job_id)
 
-    [uri, _] = get_project(project_id)
+    [uri, _, branch] = get_project(project_id)
 
-    runner = Runner(uri=uri, uri_type='URL', pid=project_id, skip_unsafe=True)
+    runner = Runner(
+        uri=uri,
+        uri_type='URL',
+        pid=project_id,
+        branch=branch,
+        skip_unsafe=True,
+        skip_config_check=skip_config_check,
+        full_docker_prune=full_docker_prune,
+    )
     try:
         # Start main code. Only URL is allowed for cron jobs
         runner.run()
+        build_and_store_phase_stats(project_id)
         insert_job('email', project_id=project_id)
         delete_job(job_id)
     except Exception as exc:
@@ -124,12 +134,11 @@ if __name__ == '__main__':
     from pathlib import Path
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('type', help='Select the operation mode.', choices=[
-                        'email', 'project'])
+    parser.add_argument('type', help='Select the operation mode.', choices=['email', 'project'])
+    parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be located in the same directory as the regular configuration file. Pass in only the name.')
+    parser.add_argument('--skip-config-check', action='store_true', default=False, help='Skip checking the configuration')
+    parser.add_argument('--full-docker-prune', action='store_true', default=False, help='Prune all images and build caches on the system')
 
-    parser.add_argument(
-        '--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be \
-        located in the same directory as the regular configuration file. Pass in only the name.')
 
     args = parser.parse_args()  # script will exit if type is not present
 
@@ -152,13 +161,13 @@ if __name__ == '__main__':
             print('No job to process. Exiting')
             sys.exit(0)
         project = job[2]
-        process_job(*job)
+        process_job(job[0], job[1], job[2], args.skip_config_check, args.full_docker_prune)
         print('Successfully processed jobs queue item.')
     except Exception as exce:
         error_helpers.log_error('Base exception occured in jobs.py: ', exce)
         email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
             'Base exception occured in jobs.py: ', exce), project_id=project)
         if project is not None:
-            [_, mail] = get_project(project)
+            [_, mail, _] = get_project(project)
             # reduced error message to client
             email_helpers.send_error_email(mail, exce, project_id=project)

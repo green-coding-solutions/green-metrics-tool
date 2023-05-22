@@ -14,8 +14,8 @@
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <meta name="description" content="Submit a software for energy measurement to the Green Metrics Tool" />
     <script src="/dist/js/jquery.min.js" defer></script>
-    <script src="/js/config.js" defer></script>
-    <script src="/js/main.js" defer></script>
+    <script src="/js/helpers/config.js" defer></script>
+    <script src="/js/helpers/main.js" defer></script>
     <script src="/js/request.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
@@ -23,26 +23,7 @@
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
 <body class="preload">
-    <div id="menu" class="ui inverted vertical menu">
-        <div>
-            <img class="ui fluid image menu-logo" src="/images/logo.png">
-        </div>
-        <div class="item">
-            <i>&lt;Green Metrics Tool&gt;</i>
-        </div>
-        <a class="item" href="/index.html">
-            <b><i class="home icon"></i>Home</b>
-        </a>
-        <a class="item" href="/request.html">
-            <b><i class="bullseye icon"></i>Certify new software</b>
-        </a>
-        <a class="item" href="/data-analysis.html">
-            <b><i class="chartline icon"></i>Data Analysis</b>
-        </a>
-        <a class="item" href="/configuration.html">
-            <b><i class="cogs icon"></i>Configuration</b>
-        </a>
-    </div> <!-- end menu -->
+    <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
         <h1 class="ui header float left">
             <a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a>
@@ -66,9 +47,13 @@
                         Minutes (+ the runtime of your usage scenario)</p>
                     <p><strong>Note</strong>: Only open-source software can and will be
                         certified. It does not have to free software though. This means we only process
-                        public github repositories. The certifier expects a schema-correct
-                        usage-scenario.json file in your repository. Please check the <a href="https://github.com/green-coding-berlin/simple-example-application">Demo
-                            Software Repository</a> for example and documentation. If you have any
+                        public github repositories.
+                    </p>
+                    <p>The certifier expects a schema-correct
+                        <a href="https://docs.green-coding.berlin/docs/measuring/usage-scenario/">usage-scenario.yml</a> file in your repository. Please check the <a href="https://github.com/green-coding-berlin/simple-example-application">Demo
+                            Software Repository</a> for example and documentation.
+                    </p>
+                    <p>If you have any
                         questions
                         or issues please email us at <a href="mailto:info@green-coding.berlin">info@green-coding.berlin</a></p>
                 </div>

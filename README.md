@@ -2,6 +2,8 @@
 
 [![Tests Status - Dev](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-dev.yml/badge.svg)](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-dev.yml)
 
+[![Energy Used](https://api.green-coding.berlin/v1/ci/badge/get/?repo=green-coding-berlin/green-metrics-tool&branch=dev&workflow=45267392)](https://metrics.green-coding.berlin/ci.html?repo=green-coding-berlin/green-metrics-tool&branch=dev&workflow=45267392) (This is the energy cost of running our CI-Pipelines on Github. [Find out more about Eco-CI](https://www.green-coding.berlin/projects/eco-ci/))
+
 # Introduction
 
 The Green Metrics Tool is a developer tool is indented for measuring the energy consumption of software and doing life-cycle-analysis.
@@ -16,7 +18,6 @@ run by sending the commands to the containers accordingly.
 During this process the performance metrics of the containers are read through different metric providers like:
 - CPU / DRAM energy (RAPL)
 - System energy (IMPI / PowerSpy2 / Machine-Learning-Model / SDIA Model)
-- DC energy (PicoLog)
 - container CPU utilization
 - container memory utilization
 - etc.

@@ -1,6 +1,7 @@
 import signal
 import os
 import subprocess
+import sys
 
 
 def kill_ps(ps_to_kill):
@@ -42,20 +43,27 @@ def timeout(process, cmd: str, duration: int):
         # This could maybe be optimized with manual code
         # Also if this code is slow on windows it should be reimplemented
         process.wait(duration)
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
         print(f"Process exceeded runtime of {duration}s. Terminating ...")
         process.terminate()
         try:
             process.wait(5)
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as exc2:
             print("Process could not terminate in 5s time. Killing ...")
             process.kill()
             #pylint: disable=raise-missing-from
-            raise RuntimeError(f"Process could not terminate in 5s time and was killed: {cmd}")
+            raise RuntimeError(f"Process could not terminate in 5s time and was killed: {cmd}") from exc2
         # We want to safely kill the process, but still this is considered a critical
         # error condition. Therefore we throw an exception nonetheless to mark it
         #pylint: disable=raise-missing-from
-        raise RuntimeError(f"Process exceeded runtime of {duration}s: {cmd}")
+        finally:
+            stdout, stderr = process.communicate()
+            print("Captured process stdout:\n", file=sys.stderr)
+            print(stdout, file=sys.stderr)
+            print("Captured process stderr:\n", file=sys.stderr)
+            print(stderr, file=sys.stderr)
+
+        raise RuntimeError(f"Process exceeded runtime of {duration}s: {cmd}") from exc
 
 def parse_stream_generator(process, cmd, ignore_errors: False, detach: False):
     stderr_stream = process.stderr.read()

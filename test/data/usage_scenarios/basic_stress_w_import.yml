@@ -1,0 +1,16 @@
+---
+name: Test Stress
+author: Dan Mateas
+description: test
+version: 1
+description: test
+
+compose-file: !include docker-compose-file
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1 -q
+        note: Starting Stress

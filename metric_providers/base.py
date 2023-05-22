@@ -1,6 +1,7 @@
 # pylint: disable=no-member,consider-using-with,subprocess-popen-preexec-fn,import-error,too-many-instance-attributes,too-many-arguments
 
 import os
+from pathlib import Path
 import subprocess
 import signal
 import sys
@@ -17,7 +18,7 @@ class BaseMetricProvider:
         resolution,
         unit,
         current_dir,
-        metric_provider_executable="metric-provider-binary",
+        metric_provider_executable='metric-provider-binary',
         sudo=False,
     ):
         self._metric_name = metric_name
@@ -28,14 +29,13 @@ class BaseMetricProvider:
         self._metric_provider_executable = metric_provider_executable
         self._sudo = sudo
 
-        self._temp_path = '/tmp/green-metrics-tool'
+        self._tmp_folder = '/tmp/green-metrics-tool'
         self._ps = None
         self._extra_switches = []
 
-        if not os.path.exists(self._temp_path):
-            os.mkdir(self._temp_path)
+        Path(self._tmp_folder).mkdir(exist_ok=True)
 
-        self._filename = f"{self._temp_path}/{self._metric_name}.log"
+        self._filename = f"{self._tmp_folder}/{self._metric_name}.log"
 
     # implemented as getter function and not direct access, so it can be overloaded
     # some child classes might not actually have _ps attribute set
@@ -70,8 +70,8 @@ class BaseMetricProvider:
             for container_id in containers:
                 df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]
             df = df.drop('container_id', axis=1)
-        else:
-            df['detail_name'] = '[SYSTEM]'  # standard container name when only system was measured
+        else: # We use the default granularity from the name of the provider eg. "..._machine"  => [MACHINE]
+            df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]"
 
         df['unit'] = self._unit
         df['metric'] = self._metric_name

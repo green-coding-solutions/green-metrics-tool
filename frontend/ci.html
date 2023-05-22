@@ -15,8 +15,8 @@
     <meta name="description" content="Detailed energy statistics for software measurement" />
     <script src="/dist/js/jquery.min.js" defer></script>
     <script src="/dist/js/echarts.min.js" defer></script>
-    <script src="/js/config.js" defer></script>
-    <script src="/js/main.js" defer></script>
+    <script src="/js/helpers/config.js" defer></script>
+    <script src="/js/helpers/main.js" defer></script>
     <script src="/js/ci.js" defer></script>
     <script src="/dist/js/tablesort.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
@@ -27,26 +27,7 @@
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
 <body class="preload">
-    <div id="menu" class="ui inverted vertical menu">
-        <div>
-            <img class="ui fluid image menu-logo" src="/images/logo.png">
-        </div>
-        <div class="item">
-            <i>&lt;Green Metrics Tool&gt;</i>
-        </div>
-        <a class="item" href="/index.html">
-            <b><i class="home icon"></i>Home</b>
-        </a>
-        <a class="item" href="/request.html">
-            <b><i class="bullseye icon"></i>Certify new software</b>
-        </a>
-        <a class="item" href="/data-analysis.html">
-            <b><i class="chartline icon"></i>Data Analysis</b>
-        </a>
-        <a class="item" href="/configuration.html">
-            <b><i class="cogs icon"></i>Configuration</b>
-        </a>
-    </div> <!-- end menu -->
+    <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
         <div class="ui horizontal card" id="horizontal-card">
             <div class="content">
@@ -55,23 +36,26 @@
                 </a></div>
                 <div class="description">
                     <div class="ui segment">
-                        <table class="table-hover" id="ci-data"></table>
-                        <tr>
-                            <td><strong>Last Run Badge:</strong></td>
-                            <td>
-                                <span class="energy-badge-container" data-metric="ml-estimated"></span>
-                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
-                            </td>
-                        </tr>
+                        <table class="table-hover" id="ci-data">
+                            <tr>
+                                <td><strong>Last Run Badge:</strong></td>
+                                <td>
+                                    <span class="energy-badge-container" data-metric="ml-estimated"></span>
+                                    <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                                </td>
+                            </tr>
+                        </table>
                     </div>
                 </div>
             </div>
         </div><!-- end ui horizontal card -->
+        <div id="chart-container"></div>
         <div id="badges">
             <table class="ui sortable celled striped table" id="table">
             <thead>
                 <tr>
                     <th>Value</th>
+                    <th>Label</th>
                     <th>Run ID</th>
                     <th>Ran At</th>
                 </tr>
@@ -79,7 +63,6 @@
             <tbody id="badges-table"></tbody>
         </table>
         </div>
-        <div id="chart-container"></div>
         <div class="clearing" style="display:block; height: 10px;"></div>
     </div>
 </body>

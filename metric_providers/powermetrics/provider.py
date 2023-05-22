@@ -79,22 +79,23 @@ class PowermetricsProvider(BaseMetricProvider):
             if docker_task is not None:
                 dfs.append([cum_time_ms,
                             docker_task['cputime_ns'],
-                            'docker_cpu_time', 'docker',
+                            'cpu_time_powermetrics_vm',
+                            'docker_vm',
                             'ns'])
                 dfs.append([cum_time_ms,
                             docker_task['diskio_bytesread'],
-                            'docker_bytesread',
-                            'docker',
-                            'bytes'])
+                            'disk_io_bytesread_powermetrics_vm',
+                            'docker_vm',
+                            'Bytes'])
                 dfs.append([cum_time_ms,
                             docker_task['diskio_byteswritten'],
-                           'docker_byteswritten',
-                           'docker',
-                           'bytes'])
+                           'disk_io_byteswritten_powermetrics_vm',
+                           'docker_vm',
+                           'Bytes'])
                 dfs.append([cum_time_ms,
                             int(docker_task['energy_impact']),
-                           'docker_energy_impact',
-                           'energy_impact',
+                           'energy_impact_powermetrics_vm',
+                           'docker_vm',
                            # We need to introduce a new unit here as the energy impact on Mac isn't well understood
                            # https://tinyurl.com/2p9c56pz
                            '*'])
@@ -102,36 +103,36 @@ class PowermetricsProvider(BaseMetricProvider):
             if 'cpu_power' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['cpu_power']) * conversion_factor),
-                           'system_cpu_power',
-                           '[SYSTEM]',
+                           'cores_energy_powermetrics_component',
+                           '[COMPONENT]',
                            'mJ'])
 
             if 'package_joules' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['package_joules']) * 1000),
-                           'package_joules',
-                           '[SYSTEM]',
+                           'cpu_energy_powermetrics_component',
+                           '[COMPONENT]',
                            'mJ'])
 
             if 'gpu_power' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['gpu_power']) * conversion_factor),
-                            'system_gpu_power',
-                            '[SYSTEM]',
+                            'gpu_energy_powermetrics_component',
+                            '[COMPONENT]',
                             'mJ'])
 
-            if 'combined_power' in data['processor']:
-                dfs.append([cum_time_ms,
-                            int(float(data['processor']['combined_power']) * conversion_factor),
-                            'system_combined_power',
-                            '[SYSTEM]',
-                            'mJ'])
+            #if 'combined_power' in data['processor']:
+            #    dfs.append([cum_time_ms,
+            #                int(float(data['processor']['combined_power']) * conversion_factor),
+            #                'system_combined_power',
+            #                '[COMPONENT]',
+            #                'mJ'])
 
             if 'ane_power' in data['processor']:
                 dfs.append([cum_time_ms,
                             int(float(data['processor']['ane_power']) * conversion_factor),
-                            'system_ane_power',
-                            '[SYSTEM]',
+                            'ane_energy_powermetrics_component',
+                            '[COMPONENT]',
                             'mJ'])
 
         df = pandas.DataFrame.from_records(dfs, columns=['time', 'value', 'metric', 'detail_name', 'unit'])
@@ -148,7 +149,7 @@ class PowermetricsProvider(BaseMetricProvider):
     def get_stderr(self):
         stderr = super().get_stderr()
 
-        if stderr is not None and str(stderr).find('proc_pidinfo') != -1:
+        if stderr is not None and str(stderr).find('proc_pid') != -1:
             return None
 
         return stderr

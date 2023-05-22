@@ -22,7 +22,7 @@ class Project(BaseModel):
 
 
 config = GlobalConfig(config_name='test-config.yml').config
-API_URL = config['config']['api_url']
+API_URL = config['cluster']['api_url']
 PROJECT_NAME = 'test_' + utils.randomword(12)
 PROJECT = Project(name=PROJECT_NAME, url='testURL', email='testEmail', branch='', machine_id=0)
 
@@ -48,4 +48,4 @@ def test_get_projects(cleanup_projects):
     response = requests.get(f"{API_URL}/v1/projects", timeout=15)
     res_json = response.json()
     assert response.status_code == 200
-    assert res_json['data'][0][0] == pid
+    assert res_json['data'][0][0] == str(pid)

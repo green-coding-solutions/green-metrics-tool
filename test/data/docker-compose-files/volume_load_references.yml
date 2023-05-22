@@ -1,0 +1,16 @@
+version: '2'
+services:
+  test-container:
+    build: .
+    image: gcb_stress
+    container_name: test-container
+    restart: always
+    volumes: &test-volume
+      - CURRENT_DIR/test-file:/tmp/test-file
+
+  test-container-2:
+    build: .
+    image: gcb_stress
+    container_name: test-container-2
+    restart: always
+    volumes: *test-volume
