@@ -29,7 +29,7 @@ def set_status(status_code, data=None, project_id=None):
             client_status (status_code, machine_id, data, project_id)
         VALUES (%s, %s, %s, %s)
     """
-    params = (status_code, GlobalConfig().config['config']['machine_id'], data, project_id)
+    params = (status_code, GlobalConfig().config['machine']['id'], data, project_id)
     DB().query(query=query, params=params)
 
 
