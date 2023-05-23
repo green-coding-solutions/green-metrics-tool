@@ -70,7 +70,7 @@ def clear_old_jobs():
 
 def get_project(project_id):
     data = DB().fetch_one(
-        "SELECT uri,email,branch FROM projects WHERE id = %s LIMIT 1", (project_id, ))
+        "SELECT uri,email,branch,filename FROM projects WHERE id = %s LIMIT 1", (project_id, ))
 
     if (data is None or data == []):
         raise RuntimeError(f"couldn't find project w/ id: {project_id}")
@@ -86,7 +86,7 @@ def process_job(job_id, job_type, project_id, skip_config_check=False, full_dock
             _do_project_job(job_id, project_id, skip_config_check, full_docker_prune)
         else:
             raise RuntimeError(
-                f"Job w/ id {job_id} has unkown type: {job_type}.")
+                f"Job w/ id {job_id} has unknown type: {job_type}.")
     except Exception as exc:
         DB().query("UPDATE jobs SET failed=true, running=false WHERE id=%s", params=(job_id,))
         raise exc
@@ -106,12 +106,13 @@ def _do_email_job(job_id, project_id):
 def _do_project_job(job_id, project_id, skip_config_check=False, full_docker_prune=False):
     check_job_running('project', job_id)
 
-    [uri, _, branch] = get_project(project_id)
+    [uri, _, branch, filename] = get_project(project_id)
 
     runner = Runner(
         uri=uri,
         uri_type='URL',
         pid=project_id,
+        filename=filename,
         branch=branch,
         skip_unsafe=True,
         skip_config_check=skip_config_check,
@@ -164,9 +165,9 @@ if __name__ == '__main__':
         process_job(job[0], job[1], job[2], args.skip_config_check, args.full_docker_prune)
         print('Successfully processed jobs queue item.')
     except Exception as exce:
-        error_helpers.log_error('Base exception occured in jobs.py: ', exce)
+        error_helpers.log_error('Base exception occurred in jobs.py: ', exce)
         email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
-            'Base exception occured in jobs.py: ', exce), project_id=project)
+            'Base exception occurred in jobs.py: ', exce), project_id=project)
         if project is not None:
             [_, mail, _] = get_project(project)
             # reduced error message to client

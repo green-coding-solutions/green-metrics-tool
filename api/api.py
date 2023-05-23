@@ -340,6 +340,7 @@ class Project(BaseModel):
     name: str
     url: str
     email: str
+    filename: str
     branch: str
     machine_id: int
 
@@ -358,6 +359,11 @@ async def post_project_add(project: Project):
     if project.branch.strip() == '':
         project.branch = None
 
+    if project.filename.strip() == '':
+        project.filename = 'usage_scenario.yml'
+    else:
+        project.filename = escape(project.filename, quote=False)
+
     if project.machine_id == 0:
         project.machine_id = None
 
@@ -365,11 +371,11 @@ async def post_project_add(project: Project):
 
     # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
     query = """
-        INSERT INTO projects (uri,name,email, branch)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO projects (uri,name,email,branch,filename)
+        VALUES (%s, %s, %s, %s, %s)
         RETURNING id
         """
-    params = (project.url, project.name, project.email, project.branch)
+    params = (project.url, project.name, project.email, project.branch, project.filename)
     project_id = DB().fetch_one(query, params=params)[0]
     # This order as selected on purpose. If the admin mail fails, we currently do
     # not want the job to be queued, as we want to monitor every project execution manually
