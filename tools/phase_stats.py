@@ -15,7 +15,6 @@ from db import DB
 
 
 def generate_csv_line(project_id, metric, detail_name, phase_name, value, value_type, max_value, unit):
-    print(f"--> {project_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{unit},NOW()\n")
     return f"{project_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{unit},NOW()\n"
 
 def build_and_store_phase_stats(project_id):
