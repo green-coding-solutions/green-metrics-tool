@@ -10,7 +10,7 @@ sys.path.append(f"{CURRENT_DIR}/../..")
 sys.path.append(f"{CURRENT_DIR}/../../lib")
 
 from schema import SchemaError
-from schema_checker import check_usage_scenario
+from schema_checker import SchemaChecker
 import test_functions as Tests
 
 
@@ -19,7 +19,8 @@ def test_schema_checker_valid():
     usage_scenario_path = os.path.join(CURRENT_DIR, '../data/usage_scenarios/', usage_scenario_name)
     with open(usage_scenario_path, encoding='utf8') as file:
         usage_scenario = yaml.safe_load(file)
-    check_usage_scenario(usage_scenario)
+    schema_checker = SchemaChecker(validate_compose_flag=True)
+    schema_checker.check_usage_scenario(usage_scenario)
 
 def test_schema_checker_invalid():
     usage_scenario_name = 'schema_checker_invalid_1.yml'
@@ -27,8 +28,9 @@ def test_schema_checker_invalid():
     with open(usage_scenario_path, encoding='utf8') as file:
         usage_scenario = yaml.safe_load(file)
 
+    schema_checker = SchemaChecker(validate_compose_flag=True)
     with pytest.raises(SchemaError) as error:
-        check_usage_scenario(usage_scenario)
+        schema_checker.check_usage_scenario(usage_scenario)
 
     expected_exception = "Missing key: 'description'"
     assert expected_exception in str(error.value), \
