@@ -8,7 +8,7 @@ sys.path.append(f"{current_dir}/../../api")
 import api_helpers
 
 
-def test_escape_dict():
+def test_sanitize_dict():
     messy_dict = {"link": '<a href="http://www.github.com">Click me</a>'}
-    escaped = api_helpers.escape_dict(messy_dict.copy())
-    assert messy_dict['link'] != escaped['link']
+    sanitized = api_helpers.sanitize(messy_dict.copy())
+    assert messy_dict['link'] != sanitized['link']
