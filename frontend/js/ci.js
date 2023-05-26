@@ -33,25 +33,15 @@ const convertValue = (value, unit) => {
 }
 
 const getAverageOfLabel = (runs, label) => {
-    let sum = 0;
-    let count = 0;
-    runs.forEach(run => {
-        if (run[4] == label) {
-            sum += run[0];
-            count++;
-        }
-    });
-    return Math.round(sum / count);
+    let filteredRuns = runs.filter(run => run[4] == label);
+    let sum = filteredRuns.reduce((acc, run) => acc + run[0], 0);
+    return Math.round(sum / filteredRuns.length);
 }
 
+
 const getTotalAverage = (runs) => {
-    let sum = 0;
-    let count = 0;
-    runs.forEach(run => {
-        sum += run[0];
-        count++;
-    });
-    return Math.round(sum / count);
+    let sum = runs.reduce((acc, run) => acc + run[0], 0);
+    return Math.round(sum / runs.length);
 }
 
 const createChartContainer = (container, el, runs) => {
@@ -59,7 +49,6 @@ const createChartContainer = (container, el, runs) => {
     chart_node.classList.add("card");
     chart_node.classList.add('statistics-chart-card')
     chart_node.classList.add('ui')
-            /*<table class="ui sortable celled striped table" id="table">*/
 
     chart_node.innerHTML = `
     <div class="content">
@@ -157,13 +146,8 @@ function transformRuns(runs) {
 
 // Also not in use at the moment, keeping it in case we need to pad the array later
 const createPaddedArray = (index, value) => {
-    let array = [];
-    for (let i = 0; i < index; i++) {
-        array.push(0);
-    }
-    array.push(value);
-    return array;
-}
+  return [...Array(index).fill(0), value];
+};
 
 const getChartOptions = (runs, chart_element) => {
     let options = getEChartsOptions();
