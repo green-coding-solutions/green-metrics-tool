@@ -7,6 +7,11 @@ const compareButton = () => {
     });
     window.location = link.substr(0,link.length-1);
 }
+const updateCompareCount = () => {
+    const countButton = document.getElementById('compare-button');
+    const checkedCount = document.querySelectorAll('input[name=chbx-proj]:checked').length;
+    countButton.textContent = `Compare: ${checkedCount} Run(s)`;
+}
 
 function allow_group_select_checkboxes(checkbox_wrapper_id){
     let lastChecked = null;
@@ -124,6 +129,10 @@ function allow_group_select_checkboxes(checkbox_wrapper_id){
     $('.ui.accordion').accordion();
     $('#projects-table table').tablesort();
 
+    document.querySelectorAll('input[name=chbx-proj]').forEach((e) =>{
+        e.addEventListener('change', updateCompareCount);
+    })
+  
     allow_group_select_checkboxes('#projects-table input[type="checkbox"]');
 
     document.querySelectorAll('.toggle-checkbox').forEach((e) => {
@@ -131,6 +140,7 @@ function allow_group_select_checkboxes(checkbox_wrapper_id){
             e1.currentTarget.closest('tr').querySelectorAll('td:first-child input').forEach((e2) => {
                 e2.checked = e1.currentTarget.checked
             })
+            updateCompareCount();
         })
     })
 
