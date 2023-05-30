@@ -401,6 +401,7 @@ class CI_Measurement(BaseModel):
     project_id: str
     source: str
     label: str
+    duration: int
 
 @app.post('/v1/ci/measurement/add')
 async def post_ci_measurement_add(measurement: CI_Measurement):
@@ -436,12 +437,12 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                     setattr(measurement, key, escape(value))
     query = """
         INSERT INTO
-            ci_measurements (value, unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ci_measurements (value, unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash, duration)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
     params = (measurement.value, measurement.unit, measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id, measurement.project_id,
-            measurement.label, measurement.source, measurement.cpu, measurement.commit_hash)
+            measurement.label, measurement.source, measurement.cpu, measurement.commit_hash, measurement.duration)
 
     DB().query(query=query, params=params)
     return ORJSONResponse({'success': True})
@@ -449,7 +450,7 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 @app.get('/v1/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str):
     query = """
-        SELECT value, unit, run_id, created_at, label, cpu, commit_hash
+        SELECT value, unit, run_id, created_at, label, cpu, commit_hash, duration
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s
         ORDER BY run_id ASC, created_at ASC

@@ -118,6 +118,7 @@ function transformRuns(runs) {
         const label = run[4];
         const cpu = run[5];
         const commitHash = run[6];
+        const duration = run[7]
 
         if (!transformedRuns[runId]) {
             transformedRuns[runId] = {
@@ -128,6 +129,7 @@ function transformRuns(runs) {
                 labels: [],
                 cpu: cpu,
                 commit_hash: commitHash,
+                duration: duration,
                 earliest_timestamp: timestamp,
                 earliest_timestamp_readable: formatDateTimeShort(new Date(timestamp))
             };
@@ -157,7 +159,7 @@ const getChartOptions = (runs, chart_element) => {
     let labels = []
 
     runs.forEach(run => { // iterate over all runs, which are in row order
-        let [value, unit, run_id, timestamp, label, cpu, commit_hash] = run;
+        let [value, unit, run_id, timestamp, label, cpu, commit_hash, duration] = run;
         options.series.push({
             type: 'bar',
             smooth: true,
@@ -171,7 +173,7 @@ const getChartOptions = (runs, chart_element) => {
         })
         legend.add(cpu)
 
-        labels.push({value: value, unit: unit, run_id: run_id, labels: [label], commit_hash: commit_hash, timestamp: formatDateTime(new Date(timestamp))})
+        labels.push({value: value, unit: unit, run_id: run_id, labels: [label], duration: duration, commit_hash: commit_hash, timestamp: formatDateTime(new Date(timestamp))})
     });
 
     options.legend.data = Array.from(legend)
@@ -183,6 +185,7 @@ const getChartOptions = (runs, chart_element) => {
                     timestamp: ${labels[params.componentIndex].timestamp}<br>
                     commit_hash: ${labels[params.componentIndex].commit_hash}<br>
                     value: ${labels[params.componentIndex].value} ${labels[params.componentIndex].unit}<br>
+                    duration: ${labels[params.componentIndex].duration} seconds<br>
                     `;
         }
     };
@@ -223,7 +226,7 @@ const displayGraph = (runs) => {
 const displayAveragesTable = (runs) => {
     let labels = new Set()
     runs.forEach(run => {
-        let [value, unit, run_id, timestamp, label, cpu, commit_hash] = run;
+        let [value, unit, run_id, timestamp, label, cpu, commit_hash, duration] = run;
         labels.add(label)
     });
 
@@ -265,14 +268,15 @@ const displayCITable = (runs, url_params) => {
         const created_at = el[3]
 
         const label = el[4]
+        const duration = el[7]
 
         li_node.innerHTML = `<td class="td-index">${value}</td>\
                             <td class="td-index">${label}</td>\
                             <td class="td-index">${run_link_node}</td>\
                             <td class="td-index"><span title="${created_at}">${formatDateTime(new Date(created_at))}</span></td>\
                             <td class="td-index" ${tooltip}>${short_hash}</td>\
-                            <td class="td-index">${cpu}</td>`;
-                            /*<td class="td-index">???</td>`;*/
+                            <td class="td-index">${cpu}</td>\
+                            <td class="td-index">${duration} seconds</td>`;
         document.querySelector("#ci-table").appendChild(li_node);
     });
     $('table').tablesort();
