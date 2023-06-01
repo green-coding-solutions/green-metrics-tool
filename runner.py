@@ -98,7 +98,7 @@ class Runner:
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
         self._dry_run = dry_run
-        self.dev_repeat_run = dev_repeat_run
+        self._dev_repeat_run = dev_repeat_run
         self._uri = uri
         self._uri_type = uri_type
         self._project_id = pid
@@ -331,7 +331,7 @@ class Runner:
 
 
     def remove_docker_images(self):
-        if self.dev_repeat_run:
+        if self._dev_repeat_run:
             return
 
         subprocess.run(
@@ -469,7 +469,7 @@ class Runner:
 
             tmp_img_name = self.clean_image_name(service['image'])
 
-            if self.dev_repeat_run:
+            if self._dev_repeat_run:
                 #If we are in developer repeat runs check if the docker image has already been built
                 try:
                     result = subprocess.run(['docker', 'inspect', '--type=image', tmp_img_name],
@@ -968,7 +968,7 @@ class Runner:
                 raise ValueError("Configuration check failed - not running measurement")
             self.checkout_repository()
             self.initial_parse()
-            if not self.dev_repeat_run:
+            if not self._dev_repeat_run:
                 self.populate_image_names()
             self.check_running_containers()
             self.remove_docker_images()
