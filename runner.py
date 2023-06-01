@@ -469,18 +469,17 @@ class Runner:
 
             tmp_img_name = self.clean_image_name(service['image'])
 
-            if self._dev_repeat_run:
-                #If we are in developer repeat runs check if the docker image has already been built
-                try:
-                    subprocess.run(['docker', 'inspect', '--type=image', tmp_img_name],
-                                             stdout=subprocess.PIPE,
-                                             stderr=subprocess.PIPE,
-                                             encoding='UTF-8',
-                                             check=True)
-                    # The image exists so exit and don't build
-                    continue
-                except subprocess.CalledProcessError:
-                    pass
+            #If we are in developer repeat runs check if the docker image has already been built
+            try:
+                subprocess.run(['docker', 'inspect', '--type=image', tmp_img_name],
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE,
+                                         encoding='UTF-8',
+                                         check=True)
+                # The image exists so exit and don't build
+                continue
+            except subprocess.CalledProcessError:
+                pass
 
             if 'build' in service:
                 context, dockerfile = self.get_build_info(service)
