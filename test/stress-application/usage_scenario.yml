@@ -29,8 +29,6 @@ services:
     image: gcb_stress # this will reuse the image earlier built
     networks:
       - network-for-pytests
-## remove later >> 
-### <<
 
 flow:
   - name: Stress
