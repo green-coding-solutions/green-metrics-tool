@@ -472,14 +472,13 @@ class Runner:
             if self._dev_repeat_run:
                 #If we are in developer repeat runs check if the docker image has already been built
                 try:
-                    result = subprocess.run(['docker', 'inspect', '--type=image', tmp_img_name],
+                    subprocess.run(['docker', 'inspect', '--type=image', tmp_img_name],
                                              stdout=subprocess.PIPE,
                                              stderr=subprocess.PIPE,
                                              encoding='UTF-8',
                                              check=True)
-                    if result.returncode == 0:
-                        # The image exists so exit and don't build
-                        continue
+                    # The image exists so exit and don't build
+                    continue
                 except subprocess.CalledProcessError:
                     pass
 
