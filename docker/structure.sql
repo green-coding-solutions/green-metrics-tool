@@ -67,8 +67,6 @@ CREATE TABLE phase_stats (
     unit text,
     created_at timestamp with time zone DEFAULT now()
 );
-CREATE UNIQUE INDEX description_unique ON machines(description text_ops);
-
 
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,

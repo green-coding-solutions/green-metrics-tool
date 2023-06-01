@@ -1,6 +1,8 @@
 import sys
+import os
 import traceback
 from terminal_colors import TerminalColors
+from global_config import GlobalConfig
 
 
 def end_error(*errors):
@@ -26,6 +28,19 @@ def format_error(*errors):
 
 
 def log_error(*errors):
+    error_log_file = GlobalConfig().config['machine']['error_log_file']
+
+    if error_log_file:
+        try:
+            with open(error_log_file, 'a') as file:
+                print('\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n', file=file)
+                print('Error: ', *errors, file=file)
+                print('\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n', file=file)
+                print(traceback.format_exc(), file=file)
+                print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n', file=file)
+        except (IOError ,FileNotFoundError, PermissionError):
+            print(TerminalColors.FAIL, "\nError: Cannot create file in the specified location because file is not found or not writable", TerminalColors.ENDC, file=sys.stderr)
+
     print(TerminalColors.FAIL,
           '\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n', file=sys.stderr)
     print('Error: ', *errors, file=sys.stderr)

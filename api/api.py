@@ -3,14 +3,18 @@
 # pylint: disable=no-name-in-module
 # pylint: disable=wrong-import-position
 
+import json
 import faulthandler
 import sys
 import os
 from html import escape
 
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import ORJSONResponse
-from fastapi import FastAPI, Request, Response
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+
 from starlette.responses import RedirectResponse
 from pydantic import BaseModel
 
@@ -35,34 +39,46 @@ faulthandler.enable()  # will catch segfaults and write to STDERR
 
 app = FastAPI()
 
+async def log_exception(request: Request, body, exc):
+    error_message = f"""
+        Error in API call
+
+        URL: {request.url}
+
+        Query-Params: {request.query_params}
+
+        Client: {request.client}
+
+        Headers: {str(request.headers)}
+
+        Body: {body}
+
+        Exception: {exc}
+    """
+    error_helpers.log_error(error_message)
+    email_helpers.send_error_email(
+        GlobalConfig().config['admin']['email'],
+        error_helpers.format_error(error_message),
+        project_id=None,
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    await log_exception(request, exc.body, exc)
+    return ORJSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder({"detail": exc.errors(), "body": exc.body}),
+    )
+
 async def catch_exceptions_middleware(request: Request, call_next):
     #pylint: disable=broad-except
     try:
         return await call_next(request)
-    except Exception as exception:
-
-        body = await request.body()
-        error_message = f"""
-            Error in API call
-
-            URL: {request.url}
-
-            Query-Params: {request.query_params}
-
-            Client: {request.client}
-
-            Headers: {str(request.headers)}
-
-            Body: {body}
-
-            Exception: {exception}
-        """
-        error_helpers.log_error(error_message)
-        email_helpers.send_error_email(
-            GlobalConfig().config['admin']['email'],
-            error_helpers.format_error(error_message),
-            project_id=None,
-        )
+    except Exception as exc:
+        # body = await request.body()  # This blocks the application. Unclear atm how to handle it properly
+        # seems like a bug: https://github.com/tiangolo/fastapi/issues/394
+        # Although the issue is closed the "solution" still behaves with same failure
+        await log_exception(request, None, exc)
         return ORJSONResponse(
             content={
                 'success': False,
@@ -160,6 +176,8 @@ async def get_projects():
             project[4],
             project[5],
             safe_escape(project[6]),
+            safe_escape(project[7]),
+            safe_escape(project[8]),
         ]
         for project in data
     ]
@@ -187,6 +205,56 @@ async def compare_in_repo(ids: str):
         phase_stats = get_phase_stats(ids)
         phase_stats_object = get_phase_stats_object(phase_stats, case)
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
+        phase_stats_object['common_info'] = {}
+
+        project_info_response = await get_project(ids[0])
+        project_info = json.loads(project_info_response.body)['data']
+
+        machines_response = await get_machines()
+        machines_info = json.loads(machines_response.body)['data']
+        machines = {machine[0]: machine[1] for machine in machines_info}
+
+        machine = machines[project_info['machine_id']]
+        uri = project_info['uri']
+        usage_scenario = project_info['usage_scenario']['name']
+        branch = project_info['branch'] if project_info['branch'] is not None else 'main / master'
+        commit = project_info['commit_hash']
+
+        match case:
+            case 'Repeated Run':
+                # same repo, same usage scenarios, same machines, same branches, same commit hashes
+                phase_stats_object['common_info']['Repository'] = uri
+                phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
+                phase_stats_object['common_info']['Machine'] = machine
+                phase_stats_object['common_info']['Branch'] = branch
+                phase_stats_object['common_info']['Commit'] = commit
+            case 'Usage Scenario':
+                # same repo, diff usage scenarios, same machines, same branches, same commit hashes
+                phase_stats_object['common_info']['Repository'] = uri
+                phase_stats_object['common_info']['Machine'] = machine
+                phase_stats_object['common_info']['Branch'] = branch
+                phase_stats_object['common_info']['Commit'] = commit
+            case 'Machine':
+                # same repo, same usage scenarios, diff machines, same branches, same commit hashes
+                phase_stats_object['common_info']['Repository'] = uri
+                phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
+                phase_stats_object['common_info']['Branch'] = branch
+                phase_stats_object['common_info']['Commit'] = commit
+            case 'Commit':
+                # same repo, same usage scenarios, same machines, diff commit hashes
+                phase_stats_object['common_info']['Repository'] = uri
+                phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
+                phase_stats_object['common_info']['Machine'] = machine
+            case 'Repository':
+                # diff repo, diff usage scenarios, same machine,  same branches, diff/same commits_hashes
+                phase_stats_object['common_info']['Machine'] = machine
+                phase_stats_object['common_info']['Branch'] = branch
+                # TODO: diff/same commit?
+            case 'Branch':
+                # same repo, same usage scenarios, same machines, diff branch
+                phase_stats_object['common_info']['Repository'] = uri
+                phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
+                phase_stats_object['common_info']['Machine'] = machine
 
     except RuntimeError as err:
         return ORJSONResponse({'success': False, 'err': str(err)})
@@ -350,7 +418,7 @@ async def get_project(project_id: str):
                 (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements
                     LEFT JOIN categories as t on t.id = elements) as categories,
                 start_measurement, end_measurement,
-                measurement_config, machine_specs, usage_scenario,
+                measurement_config, machine_specs, machine_id, usage_scenario,
                 last_run, created_at, invalid_project, phases
             FROM projects
             WHERE id = %s
@@ -390,6 +458,9 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
     for key, value in measurement.dict().items():
         match key:
             case 'project_id':
+                if value is None or value.strip() == '':
+                    measurement.project_id = None
+                    continue
                 if not is_valid_uuid(value.strip()):
                     return ORJSONResponse({'success': False, 'err': f"project_id '{value}' is not a valid uuid"})
                 setattr(measurement, key, safe_escape(value))
@@ -422,7 +493,8 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
         """
     params = (measurement.value, measurement.unit, measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id, measurement.project_id,
-            measurement.label, measurement.source)
+            measurement.label, measurement.source, measurement.cpu, measurement.commit_hash)
+
     DB().query(query=query, params=params)
     return ORJSONResponse({'success': True})
 
@@ -446,7 +518,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
         SELECT SUM(value), MAX(unit), MAX(run_id)
         FROM ci_measurements
-        WHERE repo = %s AND branch = %s AND workflow = %s 
+        WHERE repo = %s AND branch = %s AND workflow = %s
         GROUP BY run_id
         ORDER BY MAX(created_at) DESC
         LIMIT 1
