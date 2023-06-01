@@ -34,6 +34,8 @@ def build_and_store_phase_stats(project_id):
         """
     phases = DB().fetch_one(query, (project_id, ))
 
+    csv_buffer = StringIO()
+
     for idx, phase in enumerate(phases[0]):
         query = """
             UPDATE measurements
@@ -49,8 +51,6 @@ def build_and_store_phase_stats(project_id):
             FROM measurements
             WHERE project_id = %s AND metric = %s AND detail_name = %s AND time > %s and time < %s
         """
-
-        csv_buffer = StringIO()
 
         # now we go through all metrics in the project and aggregate them
         for (metric, unit, detail_name) in metrics: # unpack
@@ -126,14 +126,14 @@ def build_and_store_phase_stats(project_id):
         # also create the phase time metric
         csv_buffer.write(generate_csv_line(project_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", phase['end']-phase['start'], 'TOTAL', None, 'us'))
 
-        csv_buffer.seek(0)  # Reset buffer position to the beginning
-        DB().copy_from(
-            csv_buffer,
-            table='phase_stats',
-            sep=',',
-            columns=('project_id', 'metric', 'detail_name', 'phase', 'value', 'type', 'max_value', 'unit', 'created_at')
-        )
-        csv_buffer.close()  # Close the buffer
+    csv_buffer.seek(0)  # Reset buffer position to the beginning
+    DB().copy_from(
+        csv_buffer,
+        table='phase_stats',
+        sep=',',
+        columns=('project_id', 'metric', 'detail_name', 'phase', 'value', 'type', 'max_value', 'unit', 'created_at')
+    )
+    csv_buffer.close()  # Close the buffer
 
 
 if __name__ == '__main__':
