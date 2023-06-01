@@ -1,26 +1,3 @@
-const addZed = (num) => {
-    return (num <= 9 ? '0' + num : num);
-}
-
-const formatDateTime = (date) => {
-    var h = date.getHours();
-    var m = date.getMinutes();
-    var s = date.getSeconds();
-
-    var timeString = '' + addZed(h) + ':' + addZed(m) + ':' + addZed(s)
-    var dateString = date.toDateString();
-
-    return '' + dateString + ' | ' + timeString
-}
-
-const formatDateTimeShort = (date) => {
-    var d = date.getDate();
-    var m = date.getMonth() + 1;
-    var y = date.getFullYear().toString().substr(-2);
-
-    return '' + addZed(d) + '.' + addZed(m) + '.' + y;
-}
-
 const convertValue = (value, unit) => {
     switch (unit) {
         case 'mJ':
@@ -131,11 +108,11 @@ function transformRuns(runs) {
                 commit_hash: commitHash,
                 duration: duration,
                 earliest_timestamp: timestamp,
-                earliest_timestamp_readable: formatDateTimeShort(new Date(timestamp))
+                earliest_timestamp_readable: dateToYMD(new Date(timestamp),short=true)
             };
         } else if (timestamp < transformedRuns[runId].earliest_timestamp) {
             transformedRuns[runId].earliest_timestamp = timestamp;
-            transformedRuns[runId].earliest_timestamp_readable = formatDateTime(new Date(timestamp));
+            transformedRuns[runId].earliest_timestamp_readable = dateToYMD(new Date(timestamp));
         }
 
         transformedRuns[runId].timestamps.push(timestamp);
@@ -173,7 +150,7 @@ const getChartOptions = (runs, chart_element) => {
         })
         legend.add(cpu)
 
-        labels.push({value: value, unit: unit, run_id: run_id, labels: [label], duration: duration, commit_hash: commit_hash, timestamp: formatDateTime(new Date(timestamp))})
+        labels.push({value: value, unit: unit, run_id: run_id, labels: [label], duration: duration, commit_hash: commit_hash, timestamp: dateToYMD(new Date(timestamp))})
     });
 
     options.legend.data = Array.from(legend)
@@ -226,8 +203,7 @@ const displayGraph = (runs) => {
 const displayAveragesTable = (runs) => {
     let labels = new Set()
     runs.forEach(run => {
-        let [value, unit, run_id, timestamp, label, cpu, commit_hash, duration] = run;
-        labels.add(label)
+        labels.add(run[4])
     });
 
     const tableBody = document.querySelector("#label-avg-table");
@@ -254,13 +230,13 @@ const displayCITable = (runs, url_params) => {
         const li_node = document.createElement("tr");
 
         [badge_value, badge_unit] = convertValue(el[0], el[1])
-        const value = badge_value + ' ' + badge_unit;
+        const value = `${badge_value} ${badge_unit}`;
 
         const run_id = el[2];
         const cpu = el[5];
         const commit_hash = el[6];
         const short_hash = commit_hash.substring(0, 7);
-        const tooltip = commit_hash.length > 7 ? `title="${commit_hash}"` : '';
+        const tooltip = `title="${commit_hash}"`;
 
         const run_link = `https://github.com/${url_params.get('repo')}/actions/runs/${run_id}`;
         const run_link_node = `<a href="${run_link}" target="_blank">${run_id}</a>`
@@ -273,7 +249,7 @@ const displayCITable = (runs, url_params) => {
         li_node.innerHTML = `<td class="td-index">${value}</td>\
                             <td class="td-index">${label}</td>\
                             <td class="td-index">${run_link_node}</td>\
-                            <td class="td-index"><span title="${created_at}">${formatDateTime(new Date(created_at))}</span></td>\
+                            <td class="td-index"><span title="${created_at}">${dateToYMD(new Date(created_at))}</span></td>\
                             <td class="td-index" ${tooltip}>${short_hash}</td>\
                             <td class="td-index">${cpu}</td>\
                             <td class="td-index">${duration} seconds</td>`;
