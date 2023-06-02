@@ -41,6 +41,9 @@ if [[ -z "$db_pw" ]] ; then
     read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
 fi
 
+print_message "Clearing old api.conf and frontend.conf files"
+rm -Rf docker/nginx/api.conf
+rm -Rf docker/nginx/frontend.conf
 
 print_message "Updating compose.yml with current path ..."
 cp docker/compose.yml.example docker/compose.yml
