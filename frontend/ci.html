@@ -15,9 +15,11 @@
     <meta name="description" content="Detailed energy statistics for software measurement" />
     <script src="/dist/js/jquery.min.js" defer></script>
     <script src="/dist/js/echarts.min.js" defer></script>
+    <script src="/dist/js/calendar.min.js" defer></script>
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
     <script src="/js/ci.js" defer></script>
+    <script src="/dist/js/popup.min.js" defer></script>
     <script src="/dist/js/tablesort.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
@@ -49,8 +51,47 @@
                 </div>
             </div>
         </div><!-- end ui horizontal card -->
-        <div id="chart-container"></div>
+        <div class="ui form">
+            <div class="three fields">
+                <div class="field">
+                    <label>Start date (inclusive)</label>
+                    <div class="ui calendar" id="rangestart">
+                        <div class="ui input left icon">
+                            <i class="calendar icon"></i>
+                            <input type="text" placeholder="Start">
+                        </div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>End date (exclusive)</label>
+                    <div class="ui calendar" id="rangeend">
+                        <div class="ui input left icon">
+                            <i class="calendar icon"></i>
+                            <input type="text" placeholder="End">
+                        </div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>&nbsp;</label>
+                    <button class="positive ui button" id="submit">Refresh Chart</button>
+                </div>
+            </div>
+        </div>
+        <div id="chart-container">
+            <div class="ui right floated icon">
+                <table class="ui sortable celled striped table">
+                    <thead>
+                        <tr>
+                            <th>Average</th>
+                            <th>Label</th>
+                        </tr>
+                    </thead>
+                    <tbody id="label-avg-table"></tbody>
+                </table>
+            </div>
+        </div>
         <div id="badges">
+            <div id="ci-date-picker"></div>
             <table class="ui sortable celled striped table" id="table">
             <thead>
                 <tr>
@@ -58,9 +99,12 @@
                     <th>Label</th>
                     <th>Run ID</th>
                     <th>Ran At</th>
+                    <th>Commit Hash</th>
+                    <th>CPU</th>
+                    <th>Duration</th>
                 </tr>
             </thead>
-            <tbody id="badges-table"></tbody>
+            <tbody id="ci-table"></tbody>
         </table>
         </div>
         <div class="clearing" style="display:block; height: 10px;"></div>

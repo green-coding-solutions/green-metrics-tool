@@ -99,6 +99,7 @@ CREATE TABLE ci_measurements (
     cpu text DEFAULT NULL,
     commit_hash text DEFAULT NULL,
     label text,
+    duration bigint,
     source text,
     project_id uuid REFERENCES projects(id) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT null,
     created_at timestamp with time zone DEFAULT now()
