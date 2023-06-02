@@ -68,6 +68,19 @@ const copyToClipboard = (e) => {
   return Promise.reject('The Clipboard API is not available.');
 };
 
+const dateToYMD = (date, short=false) => {
+    let day = date.getDate();
+    day = day <= 9 ? '0' + day : day;
+
+    let month = date.getMonth() + 1; //Month from 0 to 11
+    month = month<=9 ? '0' + month : month;
+    let offset = new Date().getTimezoneOffset();
+    offset = offset < 0 ? `+${-offset/60}` : -offset/60;
+
+    if(short) return `${date.getFullYear().toString().substr(-2)}.${month}.${day}`;
+    return ` ${date.getFullYear()}-${month}-${day} <br> ${date.getHours()}:${date.getMinutes()} UTC${offset}`;
+}
+
 async function makeAPICall(path, values=null) {
 
     if(values != null ) {
@@ -85,13 +98,19 @@ async function makeAPICall(path, values=null) {
     let json_response = null;
     if(localStorage.getItem('remove_idle') == 'true') path += "?remove_idle=true"
     await fetch(API_URL + path, options)
-        .then(response => response.json())
-        .then(my_json => {
-            if (my_json.success != true) {
-                throw my_json.err
-            }
-            json_response = my_json
-        })
+    .then(response => {
+        if (response.status == 204) {
+            // 204 responses use no body, so json() call would fail
+            return {success: false, err: "Data is empty"}
+        }
+        return response.json()
+    })
+    .then(my_json => {
+        if (my_json.success != true) {
+            throw my_json.err
+        }
+        json_response = my_json
+    })
     return json_response;
 };
 

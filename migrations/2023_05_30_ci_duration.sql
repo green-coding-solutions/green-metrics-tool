@@ -1,0 +1,1 @@
+ALTER TABLE "ci_measurements" ADD "duration" bigint  NULL;
