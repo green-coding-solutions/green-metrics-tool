@@ -199,7 +199,13 @@ async def compare_in_repo(ids: str):
 
     try:
         case = determine_comparison_case(ids)
+    except RuntimeError as err:
+        return ORJSONResponse({'success': False, 'err': str(err)}, status_code=400)
+    try:
         phase_stats = get_phase_stats(ids)
+    except RuntimeError:
+        return ORJSONResponse(None, status_code=204)
+    try:
         phase_stats_object = get_phase_stats_object(phase_stats, case)
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
         phase_stats_object['common_info'] = {}
@@ -253,8 +259,7 @@ async def compare_in_repo(ids: str):
                 phase_stats_object['common_info']['Machine'] = machine
 
     except RuntimeError as err:
-        # FIXME: 204? 500?
-        return ORJSONResponse({'success': False, 'err': str(err)})
+        return ORJSONResponse({'success': False, 'err': str(err)}, status_code=500)
 
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
@@ -334,8 +339,7 @@ async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
     elif metric == 'AC':
         value = 'psu_energy_ac_%'
     else:
-        # FIXME: 400 response?
-        raise RuntimeError('Unknown metric submitted')
+        return ORJSONResponse({'success': False, 'err': f"Unknown metric '{metric}' submitted"}, status_code=400)
 
     params = (project_id, project_id, value)
     data = DB().fetch_one(query, params=params)
