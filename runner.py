@@ -37,6 +37,7 @@ sys.path.append(f"{CURRENT_DIR}/tools")
 
 from debug_helper import DebugHelper
 from terminal_colors import TerminalColors
+from schema_checker import SchemaChecker
 import process_helpers
 import hardware_info
 import hardware_info_root
@@ -296,6 +297,9 @@ class Runner:
     def initial_parse(self):
 
         self.load_yml_file()
+
+        schema_checker = SchemaChecker(validate_compose_flag=True)
+        schema_checker.check_usage_scenario(self._usage_scenario)
 
         print(TerminalColors.HEADER, '\nHaving Usage Scenario ', self._usage_scenario['name'], TerminalColors.ENDC)
         print('From: ', self._usage_scenario['author'])

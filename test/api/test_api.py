@@ -13,6 +13,7 @@ import utils
 from test_functions import assertion_info
 from pydantic import BaseModel
 from global_config import GlobalConfig
+import test_functions as Tests
 
 class Project(BaseModel):
     name: str
@@ -34,7 +35,7 @@ def cleanup_projects():
 
 def test_post_project_add(cleanup_projects):
     response = requests.post(f"{API_URL}/v1/project/add", json=PROJECT.dict(), timeout=15)
-    assert response.status_code == 202, assertion_info('success', response.text)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
     pid = utils.get_project_data(PROJECT_NAME)['id']
     assert pid is not None
 
