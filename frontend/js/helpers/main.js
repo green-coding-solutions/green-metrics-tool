@@ -85,13 +85,19 @@ async function makeAPICall(path, values=null) {
     let json_response = null;
     if(localStorage.getItem('remove_idle') == 'true') path += "?remove_idle=true"
     await fetch(API_URL + path, options)
-        .then(response => response.json())
-        .then(my_json => {
-            if (my_json.success != true) {
-                throw my_json.err
-            }
-            json_response = my_json
-        })
+    .then(response => {
+        if (response.status == 204) {
+            // 204 responses use no body, so json() call would fail
+            return {success: false, err: "Data is empty"}
+        }
+        return response.json()
+    })
+    .then(my_json => {
+        if (my_json.success != true) {
+            throw my_json.err
+        }
+        json_response = my_json
+    })
     return json_response;
 };
 
