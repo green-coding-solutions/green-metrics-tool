@@ -90,10 +90,6 @@ class Runner:
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
 
-        # This string obj is by design publically accessible and will never get reset
-        # It shall by design persist accross usages ofthe Runner() instance and can be manually reset
-        self.stdout_logs = {}
-
         # variables that should not change if you call run multiple times
         self._debugger = DebugHelper(debug_mode)
         self._allow_unsafe = allow_unsafe
@@ -116,6 +112,7 @@ class Runner:
 
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
+        self.__stdout_logs = {}
         self.__containers = {}
         self.__networks = []
         self.__ps_to_kill = []
@@ -720,11 +717,8 @@ class Runner:
                     encoding='UTF-8'
                 )
                 print('Stdout:', ps.stdout)
-                log_entry_name = f"{container_name}_{d_command}"
                 if ps.stdout:
-                    if log_entry_name not in self.stdout_logs:
-                        self.stdout_logs[log_entry_name] = ''
-                    self.stdout_logs[log_entry_name] = "\n".join((self.stdout_logs[log_entry_name], ps.stdout))
+                    self.add_to_log(container_name, ps.stdout, d_command)
 
             # Obsolete warnings. But left in, cause reasoning for NotImplementedError still holds
             # elif el['type'] == 'Dockerfile':
@@ -738,6 +732,15 @@ class Runner:
             #    raise RuntimeError('Unknown type detected in setup: ', el.get('type', None))
 
         print(TerminalColors.HEADER, '\nCurrent known containers: ', self.__containers, TerminalColors.ENDC)
+
+    def get_logs(self):
+        return self.__stdout_logs
+
+    def add_to_log(self, container_name, message, cmd=''):
+        log_entry_name = f"{container_name}_{cmd}"
+        if log_entry_name not in self.__stdout_logs:
+            self.__stdout_logs[log_entry_name] = ''
+        self.__stdout_logs[log_entry_name] = '\n'.join((self.__stdout_logs[log_entry_name], message))
 
 
     def start_metric_providers(self, allow_container=True, allow_other=True):
@@ -887,25 +890,24 @@ class Runner:
 
         print(TerminalColors.HEADER, '\nSaving processes stdout', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
-            log_entry_name = f"{ps['container_name']}_{ps['cmd']}"
-            if log_entry_name not in self.stdout_logs:
-                self.stdout_logs[log_entry_name] = ''
-
             while (line := ps['ps'].stdout.readline()): # a for loop breaks functionality here suprisingly
                 print('Output from process:', ps['cmd'], line)
-                self.stdout_logs[log_entry_name] = '\n'.join((self.stdout_logs[log_entry_name], line))
+                self.add_to_log(ps['container_name'], line, ps['cmd'])
 
                 if ps['read-notes-stdout']:
                     # Fixed format according to our specification. If unpacking fails this is wanted error
                     timestamp, note = line.split(' ', 1)
                     self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
 
+
+    def check_stderr_processes(self):
         # separate loop here, cause we want to first capture all stdouts without raising RuntimeError
         print(TerminalColors.HEADER, '\nChecking process stderr', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
-            process_helpers.check_stderr(ps['ps'], ps['cmd'], ps['ignore-errors'], ps['detach'])
-
-
+            stderr_content = ps['ps'].stderr.read()
+            if not ps['ignore-errors']:
+                if process_helpers.check_process_failed(ps['ps'], stderr_content, ps['detach']):
+                    raise RuntimeError(f"Returncode was != 0 for process (was {ps['ps'].returncode}) or Stderr of docker exec command '{ps['cmd']}' was not empty: {stderr_content} - detached process: {ps['detach']}")
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
@@ -946,12 +948,10 @@ class Runner:
                 stderr=subprocess.PIPE,
             )
             if log.stdout:
-                if container_name not in self.stdout_logs:
-                    self.stdout_logs[container_name] = ''
-                self.stdout_logs[container_name] = "\n".join((self.stdout_logs[container_name], log.stdout))
+                self.add_to_log(container_name, log.stdout)
 
     def save_stdout_logs(self):
-        logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.stdout_logs.items()])
+        logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.__stdout_logs.items()])
         DB().query("""
             UPDATE projects
             SET logs=%s
@@ -1081,10 +1081,14 @@ class Runner:
                 self._debugger.pause('Remove phase complete. Waiting to stop and cleanup')
 
             self.end_measurement()
+            self.check_stderr_processes()
             self.custom_sleep(config['measurement']['idle-time-end'])
             self.stop_metric_providers()
             self.store_phases()
             self.update_start_and_end_times()
+        except BaseException as exc:
+            self.add_to_log(exc.__class__.__name__, str(exc))
+            raise exc
         finally:
             try:
                 self.read_stdout_logs()
@@ -1203,4 +1207,4 @@ if __name__ == '__main__':
     except BaseException as e:
         error_helpers.log_error('Base exception occured in runner.py: ', e, project_id)
     finally:
-        if args.print_logs: print("Container logs:", runner.stdout_logs)
+        if args.print_logs: print("Container logs:", runner.get_logs())
