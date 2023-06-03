@@ -959,7 +959,7 @@ class Runner:
                 self.stdout_logs[container_name] = "\n".join((self.stdout_logs[container_name], log.stdout))
 
     def save_stdout_logs(self):
-        logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in runner.stdout_logs.items()])
+        logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.stdout_logs.items()])
         DB().query("""
             UPDATE projects
             SET logs=%s
