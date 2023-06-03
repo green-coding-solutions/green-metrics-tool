@@ -90,6 +90,10 @@ class Runner:
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
 
+        # This string obj is by design publically accessible and will never get reset
+        # It shall by design persist accross usages ofthe Runner() instance and can be manually reset
+        self.stdout_logs = {}
+
         # variables that should not change if you call run multiple times
         self._debugger = DebugHelper(debug_mode)
         self._allow_unsafe = allow_unsafe
@@ -109,7 +113,6 @@ class Runner:
         self._folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
-
 
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
@@ -717,6 +720,11 @@ class Runner:
                     encoding='UTF-8'
                 )
                 print('Stdout:', ps.stdout)
+                log_entry_name = f"{container_name}_{d_command}"
+                if ps.stdout:
+                    if log_entry_name not in self.stdout_logs:
+                        self.stdout_logs[log_entry_name] = ''
+                    self.stdout_logs[log_entry_name] = "\n".join((self.stdout_logs[log_entry_name], ps.stdout))
 
             # Obsolete warnings. But left in, cause reasoning for NotImplementedError still holds
             # elif el['type'] == 'Dockerfile':
@@ -836,6 +844,7 @@ class Runner:
                     self.__ps_to_read.append({
                         'cmd': docker_exec_command,
                         'ps': ps,
+                        'container_name': el['container'],
                         'read-notes-stdout': inner_el.get('read-notes-stdout', False),
                         'ignore-errors': inner_el.get('ignore-errors', False),
                         'detail_name': el['container'],
@@ -876,15 +885,26 @@ class Runner:
     def read_and_cleanup_processes(self):
         process_helpers.kill_ps(self.__ps_to_kill)
 
-        # now we have free CPU capacity to parse the stdout / stderr of the processes
-        print(TerminalColors.HEADER, '\nGetting output from processes: ', TerminalColors.ENDC)
+        print(TerminalColors.HEADER, '\nSaving processes stdout', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
-            for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd'], ps['ignore-errors'], ps['detach']):
-                print('Output from process: ', line)
+            log_entry_name = f"{ps['container_name']}_{ps['cmd']}"
+            if log_entry_name not in self.stdout_logs:
+                self.stdout_logs[log_entry_name] = ''
+
+            while (line := ps['ps'].stdout.readline()): # a for loop breaks functionality here suprisingly
+                print('Output from process:', ps['cmd'], line)
+                self.stdout_logs[log_entry_name] = '\n'.join((self.stdout_logs[log_entry_name], line))
+
                 if ps['read-notes-stdout']:
                     # Fixed format according to our specification. If unpacking fails this is wanted error
                     timestamp, note = line.split(' ', 1)
                     self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
+
+        # separate loop here, cause we want to first capture all stdouts without raising RuntimeError
+        print(TerminalColors.HEADER, '\nChecking process stderr', TerminalColors.ENDC)
+        for ps in self.__ps_to_read:
+            process_helpers.check_stderr(ps['ps'], ps['cmd'], ps['ignore-errors'], ps['detach'])
+
 
 
     def start_measurement(self):
@@ -914,6 +934,29 @@ class Runner:
             SET phases=%s
             WHERE id = %s
             """, params=(json.dumps(self.__phases), self._project_id))
+
+    def read_stdout_logs(self):
+        print(TerminalColors.HEADER, '\nSaving container logs', TerminalColors.ENDC)
+        for container_name in self.__containers.values():
+            log = subprocess.run(
+                ['docker', 'logs', '-t', container_name],
+                check=True,
+                encoding='UTF-8',
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            if log.stdout:
+                if container_name not in self.stdout_logs:
+                    self.stdout_logs[container_name] = ''
+                self.stdout_logs[container_name] = "\n".join((self.stdout_logs[container_name], log.stdout))
+
+    def save_stdout_logs(self):
+        logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in runner.stdout_logs.items()])
+        DB().query("""
+            UPDATE projects
+            SET logs=%s
+            WHERE id = %s
+            """, params=(logs_as_str, self._project_id))
 
 
     def cleanup(self):
@@ -1040,14 +1083,15 @@ class Runner:
             self.end_measurement()
             self.custom_sleep(config['measurement']['idle-time-end'])
             self.stop_metric_providers()
-            self.read_and_cleanup_processes()
             self.store_phases()
             self.update_start_and_end_times()
-
         finally:
             try:
+                self.read_stdout_logs()
+                self.read_and_cleanup_processes()
                 print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)
                 save_notes(self._project_id, self.__notes)
+                self.save_stdout_logs()
             finally:
                 self.cleanup()  # always run cleanup automatically after each run
 
@@ -1072,6 +1116,7 @@ if __name__ == '__main__':
     parser.add_argument('--full-docker-prune', action='store_true', help='Prune all images and build caches on the system')
     parser.add_argument('--dry-run', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
     parser.add_argument('--dev-repeat-run', action='store_true', help='Checks if a docker image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run')
+    parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
     args = parser.parse_args()
 
@@ -1157,3 +1202,5 @@ if __name__ == '__main__':
         error_helpers.log_error('RuntimeError occured in runner.py: ', e, project_id)
     except BaseException as e:
         error_helpers.log_error('Base exception occured in runner.py: ', e, project_id)
+    finally:
+        if args.print_logs: print("Container logs:", runner.stdout_logs)
