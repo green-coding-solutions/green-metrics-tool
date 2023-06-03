@@ -129,7 +129,6 @@ async def get_notes(project_id):
     escaped_data = [sanitize(note) for note in data]
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
-
 # return a list of all possible registered machines
 @app.get('/v1/machines/')
 async def get_machines():
@@ -397,7 +396,7 @@ async def get_project(project_id: str):
                     LEFT JOIN categories as t on t.id = elements) as categories,
                 start_measurement, end_measurement,
                 measurement_config, machine_specs, machine_id, usage_scenario,
-                last_run, created_at, invalid_project, phases
+                last_run, created_at, invalid_project, phases, logs
             FROM projects
             WHERE id = %s
             """
