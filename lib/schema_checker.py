@@ -83,7 +83,7 @@ class SchemaChecker():
             Optional("services"): {
                 Use(self.contains_no_invalid_chars): {
                     Optional("type"): Use(self.valid_service_types),
-                    "image": str,
+                    Optional("image"): str,
                     Optional("networks"): self.single_or_list(Use(self.contains_no_invalid_chars)),
                     Optional("environment"): self.single_or_list(Or(dict,str)),
                     Optional("ports"): self.single_or_list(Or(str, int)),
