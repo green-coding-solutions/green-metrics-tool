@@ -54,15 +54,13 @@ def timeout(process, cmd: str, duration: int):
 
         raise RuntimeError(f"Process exceeded runtime of {duration}s: {cmd}") from exc
 
-def check_stderr(process, cmd, ignore_errors: False, detach: False):
-    stderr_stream = process.stderr.read()
+def check_process_failed(process, stderr_content, detach: False):
     # detach allows processes to fail with 255, which means ctrl+C. This is how we kill processes.
-    if not ignore_errors:
-        if stderr_stream != '' or \
-            (detach is False and process.returncode != 0) or \
-            (detach is True and process.returncode != 0 and process.returncode != 255 and process.returncode != -15 and process.returncode != -9):
-            # code 9 is SIGKILL in Linux
-            # code 15 is SIGTERM in Linux
-            # code 255 is Sigtermn in macos
-            raise RuntimeError(
-            f"Returncode was != 0 (was {process.returncode}) or Stderr of docker exec command '{cmd}' was not empty: {stderr_stream} - detached process: {detach}")
+    if stderr_content != '' or \
+        (detach is False and process.returncode != 0) or \
+        (detach is True and process.returncode != 0 and process.returncode != 255 and process.returncode != -15 and process.returncode != -9):
+        # code 9 is SIGKILL in Linux
+        # code 15 is SIGTERM in Linux
+        # code 255 is Sigtermn in macos
+        return True
+    return False
