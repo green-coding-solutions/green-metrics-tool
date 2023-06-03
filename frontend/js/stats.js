@@ -102,7 +102,7 @@ const fillProjectData = (project_data, key = null) => {
     // create new custom field
     // timestamp is in microseconds, therefore divide by 10**6
     const measurement_duration_in_s = (project_data.end_measurement - project_data.start_measurement) / 1000000
-    document.querySelector('#project-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${measurement_duration_in_s} s</td></tr>`)
+    document.querySelector('#project-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td>${measurement_duration_in_s} s</td></tr>`)
 
 
     $('.ui.secondary.menu .item').tab(); // activate tabs for project data
