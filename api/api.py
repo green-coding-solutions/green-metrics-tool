@@ -126,15 +126,7 @@ async def get_notes(project_id):
     if data is None or data == []:
         return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
 
-    escaped_data = [
-        [
-            note[0],
-            sanitize(note[1]),
-            sanitize(note[2]),
-            note[3],
-        ]
-        for note in data
-    ]
+    escaped_data = [sanitize(note) for note in data]
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
 
@@ -166,20 +158,7 @@ async def get_projects():
     if data is None or data == []:
         return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
 
-    escaped_data = [
-        [
-            project[0],
-            sanitize(project[1]),
-            sanitize(project[2]),
-            sanitize(project[3]),
-            project[4],
-            project[5],
-            sanitize(project[6]),
-            sanitize(project[7]),
-            sanitize(project[8]),
-        ]
-        for project in data
-    ]
+    escaped_data = [sanitize(project) for project in data]
 
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
@@ -370,25 +349,19 @@ async def post_project_add(project: Project):
     if project.url is None or project.url.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'URL is empty'}, status_code=400)
 
-    project.url = sanitize(project.url)
-
     if project.name is None or project.name.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'Name is empty'}, status_code=400)
-
-    project.name = sanitize(project.name)
 
     if project.email is None or project.email.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'E-mail is empty'}, status_code=400)
 
-    project.email = sanitize(project.email)
-
     if project.branch.strip() == '':
         project.branch = None
-    else:
-        project.branch = sanitize(project.branch)
 
     if project.machine_id == 0:
         project.machine_id = None
+
+    project = sanitize(project)
 
     # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
     query = """
@@ -465,7 +438,6 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                     continue
                 if not is_valid_uuid(value.strip()):
                     return ORJSONResponse({'success': False, 'err': f"project_id '{value}' is not a valid uuid"}, status_code=400)
-                setattr(measurement, key, sanitize(value))
                 continue
 
             case 'unit':
@@ -473,11 +445,9 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                     return ORJSONResponse({'success': False, 'err': f"{key} is empty"}, status_code=400)
                 if value != 'mJ':
                     return ORJSONResponse({'success': False, 'err': "Unit is unsupported - only mJ currently accepted"}, status_code=400)
-                setattr(measurement, key, sanitize(value))
                 continue
 
             case 'label':  # Optional fields
-                setattr(measurement, key, sanitize(value))
                 continue
 
             case _:
@@ -486,7 +456,9 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                 if isinstance(value, str):
                     if value.strip() == '':
                         return ORJSONResponse({'success': False, 'err': f"{key} is empty"}, status_code=400)
-                    setattr(measurement, key, sanitize(value))
+
+    measurement = sanitize(measurement)
+
     query = """
         INSERT INTO
             ci_measurements (value, unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash, duration)

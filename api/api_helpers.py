@@ -8,13 +8,14 @@ from functools import cache
 from html import escape as html_escape
 import numpy as np
 import scipy.stats
-from db import DB
+from pydantic import BaseModel
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
 
+from db import DB
 
 
 METRIC_MAPPINGS = {
@@ -233,6 +234,9 @@ def sanitize(item):
     if isinstance(item, str):
         return html_escape(item, quote=False)
 
+    if isinstance(item, list):
+        return [sanitize(element) for element in item]
+
     if isinstance(item, dict):
         for key, value in item.items():
             if isinstance(value, str):
@@ -249,6 +253,15 @@ def sanitize(item):
                     for item in value
                 ]
         return item
+
+    if isinstance(item, BaseModel):
+        keys = [key for key in dir(item) if not key.startswith('_') and not callable(getattr(item, key))]
+        for key in keys:
+            print(f'sanitizing {key}')
+            setattr(item, key, sanitize(getattr(item, key)))
+            print(f'sanitized {key} - {getattr(item, key)}')
+
+    return item
 
 def determine_comparison_case(ids):
 
