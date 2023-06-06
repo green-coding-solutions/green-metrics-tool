@@ -255,9 +255,11 @@ def sanitize(item):
         return item
 
     if isinstance(item, BaseModel):
-        keys = [key for key in dir(item) if not key.startswith('_') and not callable(getattr(item, key))]
+        item_copy = item.copy(deep=True)
+        keys = [key for key in dir(item_copy) if not key.startswith('_') and not callable(getattr(item_copy, key))]
         for key in keys:
-            setattr(item, key, sanitize(getattr(item, key)))
+            setattr(item_copy, key, sanitize(getattr(item_copy, key)))
+        return item_copy
 
     return item
 
