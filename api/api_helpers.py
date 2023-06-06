@@ -5,16 +5,17 @@ import os
 import uuid
 import faulthandler
 from functools import cache
-from html import escape
+from html import escape as html_escape
 import numpy as np
 import scipy.stats
-from db import DB
+from pydantic import BaseModel
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
 
+from db import DB
 
 
 METRIC_MAPPINGS = {
@@ -225,28 +226,42 @@ def is_valid_uuid(val):
     except ValueError:
         return False
 
-def escape_dict(dictionary):
-    for key, value in dictionary.items():
-        if isinstance(value, str):
-            dictionary[key] = escape(value, quote=False)
-        elif isinstance(value, dict):
-            dictionary[key] = escape_dict(value)
-        elif isinstance(value, list):
-            dictionary[key] = [
-                escape_dict(item)
-                if isinstance(item, dict)
-                else escape(item, quote=False)
-                if isinstance(item, str)
-                else item
-                for item in value
-            ]
-    return dictionary
-
-def safe_escape(item):
-    """Escape the item if not None"""
+def sanitize(item):
+    """Replace special characters "&", "<" and ">" to HTML-safe sequences."""
     if item is None:
         return None
-    return escape(item, quote=False)
+
+    if isinstance(item, str):
+        return html_escape(item, quote=False)
+
+    if isinstance(item, list):
+        return [sanitize(element) for element in item]
+
+    if isinstance(item, dict):
+        for key, value in item.items():
+            if isinstance(value, str):
+                item[key] = html_escape(value, quote=False)
+            elif isinstance(value, dict):
+                item[key] = sanitize(value)
+            elif isinstance(value, list):
+                item[key] = [
+                    sanitize(item)
+                    if isinstance(item, dict)
+                    else html_escape(item, quote=False)
+                    if isinstance(item, str)
+                    else item
+                    for item in value
+                ]
+        return item
+
+    if isinstance(item, BaseModel):
+        item_copy = item.copy(deep=True)
+        keys = [key for key in dir(item_copy) if not key.startswith('_') and not callable(getattr(item_copy, key))]
+        for key in keys:
+            setattr(item_copy, key, sanitize(getattr(item_copy, key)))
+        return item_copy
+
+    return item
 
 def determine_comparison_case(ids):
 

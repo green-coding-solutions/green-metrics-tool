@@ -10,7 +10,6 @@ sys.path.append(f"{current_dir}/../../lib")
 
 from db import DB
 import utils
-from test_functions import assertion_info
 from pydantic import BaseModel
 from global_config import GlobalConfig
 import test_functions as Tests
@@ -20,7 +19,7 @@ class Project(BaseModel):
     url: str
     email: str
     branch: str
-    machine_id:int
+    machine_id: int
 
 
 config = GlobalConfig(config_name='test-config.yml').config
