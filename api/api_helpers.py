@@ -257,9 +257,7 @@ def sanitize(item):
     if isinstance(item, BaseModel):
         keys = [key for key in dir(item) if not key.startswith('_') and not callable(getattr(item, key))]
         for key in keys:
-            print(f'sanitizing {key}')
             setattr(item, key, sanitize(getattr(item, key)))
-            print(f'sanitized {key} - {getattr(item, key)}')
 
     return item
 
