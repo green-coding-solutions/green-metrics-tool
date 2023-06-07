@@ -150,7 +150,7 @@ class PhaseMetrics extends HTMLElement {
                   <tbody></tbody>
                 </table>
                 <co2-tangible></co2-tangible>
-                <h3 class="ui dividing header">Detailed Charts</h3>
+                <h3 class="ui dividing header hide-for-single-stats">Detailed Charts</h3>
                 <div class="compare-chart-container"></div>
             </div>
         </div>`;
