@@ -5,6 +5,7 @@
 class PhaseMetrics extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
+        <h3 class="ui dividing header">Key metrics</h3>
         <div class="ui four cards stackable no-transform-statistics">
             <div class="ui card phase-duration">
                 <div class="ui content">
@@ -145,6 +146,7 @@ class PhaseMetrics extends HTMLElement {
                 <i class="dropdown icon"></i> <a><u>Click here for detailed metrics ...</u></a>
             </div>
             <div class="content">
+                <h3 class="ui dividing header">Detailed metrics</h3>
                 <table class="ui celled table compare-metrics-table sortable">
                   <thead></thead>
                   <tbody></tbody>
