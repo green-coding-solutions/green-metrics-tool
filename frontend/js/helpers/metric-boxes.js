@@ -191,7 +191,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, co
         <td>${detail_data.name}</td>
         <td>${value}</td>
         <td>${unit}</td>
-        <td>${std_dev_text_table}</td>
+        <td class="hide-for-single-stats">${std_dev_text_table}</td>
         <td>${extra_label}</td>`;
 
     updateKeyMetric(
