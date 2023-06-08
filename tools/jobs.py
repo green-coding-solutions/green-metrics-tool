@@ -96,7 +96,7 @@ def process_job(job_id, job_type, project_id, skip_config_check=False, full_dock
 def _do_email_job(job_id, project_id):
     check_job_running('email', job_id)
 
-    [_, email, _] = get_project(project_id)
+    [_, email, _, _] = get_project(project_id)
 
     email_helpers.send_report_email(email, project_id)
     delete_job(job_id)
@@ -169,6 +169,6 @@ if __name__ == '__main__':
         email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
             'Base exception occurred in jobs.py: ', exce), project_id=project)
         if project is not None:
-            [_, mail, _] = get_project(project)
+            [_, mail, _, _] = get_project(project)
             # reduced error message to client
             email_helpers.send_error_email(mail, exce, project_id=project)

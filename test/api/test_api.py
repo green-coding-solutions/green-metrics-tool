@@ -19,13 +19,14 @@ class Project(BaseModel):
     url: str
     email: str
     branch: str
+    filename: str
     machine_id: int
 
 
 config = GlobalConfig(config_name='test-config.yml').config
 API_URL = config['cluster']['api_url']
 PROJECT_NAME = 'test_' + utils.randomword(12)
-PROJECT = Project(name=PROJECT_NAME, url='testURL', email='testEmail', branch='', machine_id=0)
+PROJECT = Project(name=PROJECT_NAME, url='testURL', email='testEmail', branch='', filename='', machine_id=0)
 
 @pytest.fixture()
 def cleanup_projects():
