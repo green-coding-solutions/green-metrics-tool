@@ -361,8 +361,6 @@ async def post_project_add(project: Project):
 
     if project.filename.strip() == '':
         project.filename = 'usage_scenario.yml'
-    else:
-        project.filename = escape(project.filename, quote=False)
 
     if project.machine_id == 0:
         project.machine_id = None
