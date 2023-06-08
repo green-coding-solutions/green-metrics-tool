@@ -14,7 +14,7 @@ const setupPhaseTabs = (phase_stats_object, multi_comparison, include_detail_pha
                 <th>Detail Name</th>
                 <th><span class="overflow-ellipsis" style="width: 100px; display:block;" title="${keys[0]}">${replaceRepoIcon(keys[0])}</span></th>
                 <th><span class="overflow-ellipsis" style="width: 100px; display:block;" title="${keys[1]}">${replaceRepoIcon(keys[1])}</span></th>
-                <th>Type</th>
+                <th>Unit</th>
                 <th>Change</th>
                 <th>Significant (T-Test)</th>`;
         } else {
@@ -24,8 +24,8 @@ const setupPhaseTabs = (phase_stats_object, multi_comparison, include_detail_pha
                 <th>Scope</th>
                 <th>Detail Name</th>
                 <th>Value</th>
-                <th>StdDev</th>
-                <th>Type</th>
+                <th>Unit</th>
+                <th class="hide-for-single-stats">StdDev</th>
                 <th>MAX</th>`;
         }
     }
