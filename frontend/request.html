@@ -37,7 +37,7 @@
                     <p>In this demo, only the Green-Coding-Berlin schema is implemented. In the future
                         it is
                         planned to support <a href="https://www.blauer-engel.de/en/productworld/resources-and-energy-efficient-software-products">Blue
-                            Angel</a> (in Germany known als Blauer Engel) and also the <a href="https://greensoftware.foundation/projects/software-carbon-intensity-sci-specification">SCI
+                            Angel</a> (in Germany known as Blauer Engel) and also the <a href="https://greensoftware.foundation/projects/software-carbon-intensity-sci-specification">SCI
                             from Green Software Foundation</a>
                     </p>
                     <p>In the box below please put your Github-Repo URL and an E-mail where we send the
@@ -50,8 +50,9 @@
                         public github repositories.
                     </p>
                     <p>The certifier expects a schema-correct
-                        <a href="https://docs.green-coding.berlin/docs/measuring/usage-scenario/">usage-scenario.yml</a> file in your repository. Please check the <a href="https://github.com/green-coding-berlin/simple-example-application">Demo
-                            Software Repository</a> for example and documentation.
+                        <a href="https://docs.green-coding.berlin/docs/measuring/usage-scenario/">usage_scenario.yml</a> file in your repository root. Please check the <a href="https://github.com/green-coding-berlin/simple-example-application">Demo
+                            Software Repository</a> for example and documentation.<br/>
+                        Override the usage scenario file name or provide relative path if it is not in the repository root with the optional filename field.
                     </p>
                     <p>If you have any
                         questions
@@ -74,7 +75,10 @@
                             <input type="text" placeholder="Github-URL" id="text-field-hero-input3" name="url">
                         </div>
                         <div class="ui fluid icon input">
-                            <input type="text" placeholder="Optional: git branch" id="text-field-hero-input4" name="branch">
+                            <input type="text" placeholder="Optional: filename" id="text-field-hero-input4" name="filename">
+                        </div>
+                        <div class="ui fluid icon input">
+                            <input type="text" placeholder="Optional: git branch" id="text-field-hero-input5" name="branch">
                         </div>
                         <select name="machine_id" class="ui fluid dropdown">
                             <option value='0'>-- Select hardware for testing (default: any)--</option>

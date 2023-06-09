@@ -66,7 +66,8 @@ def join_path_and_file(path, file):
         raise ValueError(f"{file} not in {path}")
 
     # To double check we also check if it is in the files allow list
-    if filename not in [os.path.join(path, item) for item in os.listdir(path)]:
+    folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
+    if filename not in folder_content:
         raise ValueError(f"{file} not in {path}")
 
     # Another way to implement this. This is checking the third time but we want to be extra secure 👾
@@ -263,7 +264,9 @@ class Runner:
 
         Loader.add_constructor('!include', Loader.include)
 
-        with open(f"{self._folder}/{self._filename}", 'r', encoding='utf-8') as fp:
+        usage_scenario_file = join_path_and_file(self._folder, self._filename)
+
+        with open(usage_scenario_file, 'r', encoding='utf-8') as fp:
             # We can use load here as the Loader extends SafeLoader
             yml_obj = yaml.load(fp, Loader)
             # Now that we have parsed the yml file we need to check for the special case in which we have a
@@ -488,19 +491,24 @@ class Runner:
             if 'build' in service:
                 context, dockerfile = self.get_build_info(service)
                 print(f"Building {service['image']}")
-                self.__notes.append({'note':f"Building {service['image']}" , 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
+                self.__notes.append({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
                 # Make sure the docker file exists and is not trying to escape some root. We don't need the returns
                 # but it will throw errors if something is wrong
-                context_path = join_path_and_file(self._folder, context) #If this is safe we can append the docker file
+                context_path = join_path_and_file(self._folder, context)  # If this is safe we can append the docker file
+                relative_path = ''
+                if '/' in self._filename and context == '.':
+                    relative_path = self._filename.rsplit('/', 1)[0]
+                    context_path += f"/{relative_path}"
+                    context = relative_path
                 join_path_and_file(context_path, dockerfile)
 
-                docker_build_command = ['docker', 'run','--rm',
+                docker_build_command = ['docker', 'run', '--rm',
                     '-v', f"{self._folder}:/workspace:ro",
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
                     f"--dockerfile=/workspace/{context}/{dockerfile}",
-                    '--context','dir:///workspace/',
+                    '--context', f'dir:///workspace/{relative_path}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--no-push']
