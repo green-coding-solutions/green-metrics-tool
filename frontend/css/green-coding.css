@@ -244,3 +244,9 @@ a,
     font-weight: bold;
     font-size: 1.2em;
 }
+
+#logs pre {
+    max-width: 80vw;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
