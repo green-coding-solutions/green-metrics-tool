@@ -10,3 +10,7 @@ updates:
     target-branch: "dev"
     schedule:
       interval: "daily"
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
