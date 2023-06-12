@@ -227,12 +227,12 @@ def is_valid_uuid(val):
         return False
 
 def sanitize(item):
-    """Replace special characters "&", "<" and ">" to HTML-safe sequences."""
+    """Replace special characters "'", "\"", "&", "<" and ">" to HTML-safe sequences."""
     if item is None:
         return None
 
     if isinstance(item, str):
-        return html_escape(item, quote=False)
+        return html_escape(item)
 
     if isinstance(item, list):
         return [sanitize(element) for element in item]
@@ -240,14 +240,14 @@ def sanitize(item):
     if isinstance(item, dict):
         for key, value in item.items():
             if isinstance(value, str):
-                item[key] = html_escape(value, quote=False)
+                item[key] = html_escape(value)
             elif isinstance(value, dict):
                 item[key] = sanitize(value)
             elif isinstance(value, list):
                 item[key] = [
                     sanitize(item)
                     if isinstance(item, dict)
-                    else html_escape(item, quote=False)
+                    else html_escape(item)
                     if isinstance(item, str)
                     else item
                     for item in value

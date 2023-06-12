@@ -33,7 +33,7 @@ class CI_Measurement(BaseModel):
 
 def test_sanitize_dict():
     messy_dict = {"link": '<a href="http://www.github.com">Click me</a>'}
-    escaped_link = '&lt;a href="http://www.github.com"&gt;Click me&lt;/a&gt;'
+    escaped_link = '&lt;a href=&quot;http://www.github.com&quot;&gt;Click me&lt;/a&gt;'
     sanitized = api_helpers.sanitize(messy_dict.copy())
 
     assert sanitized['link'] == escaped_link
