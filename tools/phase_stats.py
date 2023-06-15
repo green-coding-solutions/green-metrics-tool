@@ -13,7 +13,6 @@ sys.path.append(f"{CURRENT_DIR}/../lib")
 from db import DB
 
 
-
 def generate_csv_line(project_id, metric, detail_name, phase_name, value, value_type, max_value, unit):
     return f"{project_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{unit},NOW()\n"
 
@@ -106,16 +105,17 @@ def build_and_store_phase_stats(project_id):
                 csv_buffer.write(generate_csv_line(project_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_sum, 'MEAN', power_max, 'mW'))
 
                 if metric.endswith('_machine'):
-                    machine_co2 = ((value_sum / 3_600) * 519)
+                    machine_co2 = ((value_sum / 3_600) * 475)
                     csv_buffer.write(generate_csv_line(project_id, f"{metric.replace('_energy_', '_co2_')}", detail_name, f"{idx:03}_{phase['name']}", machine_co2, 'TOTAL', None, 'ug'))
 
 
             else:
                 csv_buffer.write(generate_csv_line(project_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', value_max, unit))
         # after going through detail metrics, create cumulated ones
-        if network_io_bytes_total != []:
+        if network_io_bytes_total:
             # build the network energy
             # network via formula: https://www.green-coding.berlin/co2-formulas/
+            # pylint: disable=invalid-name
             network_io_in_kWh = (sum(network_io_bytes_total) / 1_000_000_000) * 0.00375
             network_io_in_mJ = network_io_in_kWh * 3_600_000_000
             csv_buffer.write(generate_csv_line(project_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_mJ, 'TOTAL', None, 'mJ'))
@@ -146,5 +146,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()  # script will exit if type is not present
 
-    project_id = args.project_id
-    build_and_store_phase_stats(project_id)
+    build_and_store_phase_stats(args.project_id)
