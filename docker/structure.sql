@@ -26,12 +26,12 @@ CREATE TABLE projects (
 
 CREATE TABLE measurements (
     id SERIAL PRIMARY KEY,
-    project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    detail_name text,
-    metric text,
-    value bigint,
-    unit text,
-    time bigint,
+    project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE ,
+    detail_name text NOT NULL,
+    metric text NOT NULL,
+    value bigint NOT NULL,
+    unit text NOT NULL,
+    time bigint NOT NULL,
     phase text DEFAULT null,
     created_at timestamp with time zone DEFAULT now()
 );
@@ -57,14 +57,14 @@ CREATE TABLE machines (
 
 CREATE TABLE phase_stats (
     id SERIAL PRIMARY KEY,
-    project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    metric text,
-    detail_name text,
-    phase text,
-    value bigint,
-    type text,
+    project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    metric text NOT NULL,
+    detail_name text NOT NULL,
+    phase text NOT NULL,
+    value bigint NOT NULL,
+    type text NOT NULL,
     max_value bigint DEFAULT NULL,
-    unit text,
+    unit text NOT NULL,
     created_at timestamp with time zone DEFAULT now()
 );
 

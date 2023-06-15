@@ -49,6 +49,7 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
                              dtype={'time': int, 'value': int}
                              )
 
+        df['detail_name'] = '[DEFAULT]'  # standard container name when no further granularity was measured
         df['metric'] = self._metric_name
         df['project_id'] = project_id
 
