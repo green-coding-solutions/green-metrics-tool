@@ -1,4 +1,4 @@
-#pylint: disable=fixme, import-error
+#pylint: disable=fixme, import-error, wrong-import-position
 
 import sys
 import os
@@ -8,6 +8,7 @@ from functools import cache
 from html import escape as html_escape
 import numpy as np
 import scipy.stats
+# pylint: disable=no-name-in-module
 from pydantic import BaseModel
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
@@ -199,6 +200,23 @@ METRIC_MAPPINGS = {
         'clean_name': 'Memory Power (DRAM)',
         'source': 'RAPL',
         'explanation': 'Derived RAPL based memory energy of DRAM domain',
+    },
+    'psu_co2_ac_sdia_machine': {
+        'clean_name': 'Machine CO2',
+        'source': 'Formula (SDIA)',
+        'explanation': 'Machine CO2 calculated by formula via SDIA estimation',
+    },
+
+    'psu_energy_ac_sdia_machine': {
+        'clean_name': 'Machine Energy',
+        'source': 'SDIA',
+        'explanation': 'Full machine energy (AC) as estimated by SDIA model',
+    },
+
+    'psu_power_ac_sdia_machine': {
+        'clean_name': 'Machine Power',
+        'source': 'SDIA',
+        'explanation': 'Full machine power (AC) as estimated by SDIA model',
     },
 }
 
