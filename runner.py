@@ -124,6 +124,7 @@ class Runner:
         self.__start_measurement = None
         self.__end_measurement = None
         self.__services_to_pause_phase = {}
+        self.__join_default_network = False
 
     def custom_sleep(self, sleep_time):
         if not self._dry_run: time.sleep(sleep_time)
@@ -557,6 +558,15 @@ class Runner:
                 subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
                 subprocess.run(['docker', 'network', 'create', network], check=True)
                 self.__networks.append(network)
+        else:
+            print(TerminalColors.HEADER, '\nNo network found. Creating default network', TerminalColors.ENDC)
+            network = f"GMT_default_tmp_network_{random.randint(500000,10000000)}"
+            print('Creating network: ', network)
+            # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
+            subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
+            subprocess.run(['docker', 'network', 'create', network], check=True)
+            self.__networks.append(network)
+            self.__join_default_network = True
 
     def setup_services(self):
         # technically the usage_scenario needs no services and can also operate on an empty list
@@ -682,6 +692,12 @@ class Runner:
                 for network in service['networks']:
                     docker_run_string.append('--net')
                     docker_run_string.append(network)
+            elif self.__join_default_network:
+                # only join default network if no other networks provided
+                # if this is true only one entry is in self.__networks
+                docker_run_string.append('--net')
+                docker_run_string.append(self.__networks[0])
+
 
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
@@ -959,6 +975,7 @@ class Runner:
         self.__phases = {}
         self.__start_measurement = None
         self.__end_measurement = None
+        self.__join_default_network = False
 
     def run(self):
         '''
