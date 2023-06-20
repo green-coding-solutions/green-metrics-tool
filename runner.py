@@ -976,11 +976,13 @@ class Runner:
 
     def save_stdout_logs(self):
         logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.__stdout_logs.items()])
-        DB().query("""
-            UPDATE projects
-            SET logs=%s
-            WHERE id = %s
-            """, params=(logs_as_str, self._project_id))
+        logs_as_str = logs_as_str.replace('\x00','')
+        if logs_as_str:
+            DB().query("""
+                UPDATE projects
+                SET logs=%s
+                WHERE id = %s
+                """, params=(logs_as_str, self._project_id))
 
 
     def cleanup(self):
