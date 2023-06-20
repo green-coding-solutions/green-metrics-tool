@@ -76,7 +76,6 @@ const createPhaseTab = (phase) => {
         let cloned_tab_node = runtime_tab_node.cloneNode(true);
         cloned_tab_node.style.display = '';
         cloned_tab_node.setAttribute('data-tab', phase);
-        cloned_tab_node.innerHTML = ` &rarr; ${phase}`;
         runtime_tab_node.parentNode.insertBefore(cloned_tab_node, runtime_tab_node)
 
         let phase_step_node = document.querySelector('.runtime-tab');
