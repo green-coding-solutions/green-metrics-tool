@@ -7,7 +7,6 @@ import json
 import faulthandler
 import sys
 import os
-from html import escape
 
 from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import ORJSONResponse
@@ -29,8 +28,8 @@ import error_helpers
 import psycopg
 import anybadge
 from api_helpers import (add_phase_stats_statistics, determine_comparison_case,
-                         escape_dict, get_phase_stats, get_phase_stats_object,
-                         is_valid_uuid, rescale_energy_value, safe_escape)
+                         sanitize, get_phase_stats, get_phase_stats_object,
+                         is_valid_uuid, rescale_energy_value)
 
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
@@ -127,15 +126,7 @@ async def get_notes(project_id):
     if data is None or data == []:
         return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
 
-    escaped_data = [
-        [
-            note[0],
-            escape(note[1], quote=False),
-            escape(note[2], quote=False),
-            note[3],
-        ]
-        for note in data
-    ]
+    escaped_data = [sanitize(note) for note in data]
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
 # return a list of all possible registered machines
@@ -166,20 +157,7 @@ async def get_projects():
     if data is None or data == []:
         return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
 
-    escaped_data = [
-        [
-            project[0],
-            escape(project[1], quote=False),
-            escape(project[2], quote=False),
-            safe_escape(project[3]),
-            project[4],
-            project[5],
-            safe_escape(project[6]),
-            safe_escape(project[7]),
-            safe_escape(project[8]),
-        ]
-        for project in data
-    ]
+    escaped_data = [sanitize(project) for project in data]
 
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
@@ -361,6 +339,7 @@ class Project(BaseModel):
     name: str
     url: str
     email: str
+    filename: str
     branch: str
     machine_id: int
 
@@ -370,33 +349,30 @@ async def post_project_add(project: Project):
     if project.url is None or project.url.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'URL is empty'}, status_code=400)
 
-    project.url = escape(project.url, quote=False)
-
     if project.name is None or project.name.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'Name is empty'}, status_code=400)
-
-    project.name = escape(project.name, quote=False)
 
     if project.email is None or project.email.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'E-mail is empty'}, status_code=400)
 
-    project.email = escape(project.email, quote=False)
-
     if project.branch.strip() == '':
         project.branch = None
-    else:
-        project.branch = escape(project.branch, quote=False)
+
+    if project.filename.strip() == '':
+        project.filename = 'usage_scenario.yml'
 
     if project.machine_id == 0:
         project.machine_id = None
 
+    project = sanitize(project)
+
     # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
     query = """
-        INSERT INTO projects (uri,name,email, branch)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO projects (uri,name,email,branch,filename)
+        VALUES (%s, %s, %s, %s, %s)
         RETURNING id
         """
-    params = (project.url, project.name, project.email, project.branch)
+    params = (project.url, project.name, project.email, project.branch, project.filename)
     project_id = DB().fetch_one(query, params=params)[0]
     # This order as selected on purpose. If the admin mail fails, we currently do
     # not want the job to be queued, as we want to monitor every project execution manually
@@ -429,7 +405,7 @@ async def get_project(project_id: str):
     if data is None or data == []:
         return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
 
-    data = escape_dict(data)
+    data = sanitize(data)
 
     return ORJSONResponse({'success': True, 'data': data})
 
@@ -465,7 +441,6 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                     continue
                 if not is_valid_uuid(value.strip()):
                     return ORJSONResponse({'success': False, 'err': f"project_id '{value}' is not a valid uuid"}, status_code=400)
-                setattr(measurement, key, safe_escape(value))
                 continue
 
             case 'unit':
@@ -473,11 +448,9 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                     return ORJSONResponse({'success': False, 'err': f"{key} is empty"}, status_code=400)
                 if value != 'mJ':
                     return ORJSONResponse({'success': False, 'err': "Unit is unsupported - only mJ currently accepted"}, status_code=400)
-                setattr(measurement, key, safe_escape(value))
                 continue
 
             case 'label':  # Optional fields
-                setattr(measurement, key, safe_escape(value))
                 continue
 
             case _:
@@ -486,7 +459,9 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                 if isinstance(value, str):
                     if value.strip() == '':
                         return ORJSONResponse({'success': False, 'err': f"{key} is empty"}, status_code=400)
-                    setattr(measurement, key, escape(value))
+
+    measurement = sanitize(measurement)
+
     query = """
         INSERT INTO
             ci_measurements (value, unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash, duration)

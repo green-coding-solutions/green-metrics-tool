@@ -81,10 +81,11 @@ def test_insert_job():
 
 def test_simple_project_job():
     name = utils.randomword(12)
-    uri='https://github.com/green-coding-berlin/pytest-dummy-repo'
-    pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
+    uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    filename = 'usage_scenario.yml'
+    pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","filename","email","last_run","created_at") \
                     VALUES \
-                    (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(name, uri))[0]
+                    (%s,%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(name, uri, filename))[0]
 
     jobs.insert_job('project', pid)
     ps = subprocess.run(
@@ -104,11 +105,12 @@ def test_simple_project_job():
 #pylint: disable=unused-variable # for the time being, until I get the mocking to work
 def test_simple_email_job():
     name = utils.randomword(12)
-    uri='https://github.com/green-coding-berlin/pytest-dummy-repo'
+    uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
     email = 'fakeemailaddress'
-    pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
+    filename = 'usage_scenario.yml' 
+    pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","filename","last_run","created_at") \
                     VALUES \
-                    (%s,%s,%s,NULL,NOW()) RETURNING id;', params=(name, uri,email))[0]
+                    (%s,%s,%s,%s,NULL,NOW()) RETURNING id;', params=(name, uri, email, filename))[0]
 
     jobs.insert_job('email', pid)
 

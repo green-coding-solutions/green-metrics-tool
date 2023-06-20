@@ -245,3 +245,9 @@ a,
     font-size: 1.2em;
     text-align: center;
 }
+
+#logs pre {
+    max-width: 80vw;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
