@@ -50,6 +50,23 @@ const determineMultiComparison = (comparison_case) => {
 }
 
 
+/*
+    This function was originally written to include new phases in the "steps"
+
+    However atm we use it to include steps only in the runtime phase as items
+
+    Because of the CSS structure this function works identical in both places are "step" as well as "item" are
+    children.
+
+    Also [RUNTIME] is not actually a real separate step anymore atm. The
+    actual step to be filled is [[RUNTIME]], which is a dummy.
+
+    [RUNTIME] still works as a data-tab selector as the first item in there is the [[RUNTIME]] tab which will be
+    "accidentally" selected by querySelector.
+
+    Therefore this function relies on the current order of the steps and tabs and can only append new phases, but
+    not prepend
+*/
 const createPhaseTab = (phase) => {
 
     let phase_tab_node = document.querySelector(`a.step[data-tab='${phase}']`);
@@ -59,7 +76,7 @@ const createPhaseTab = (phase) => {
         let cloned_tab_node = runtime_tab_node.cloneNode(true);
         cloned_tab_node.style.display = '';
         cloned_tab_node.setAttribute('data-tab', phase);
-        cloned_tab_node.querySelector('.title').innerHTML = `${phase} ${cloned_tab_node.querySelector('.title').innerHTML}`;
+        cloned_tab_node.innerHTML = ` &rarr; ${phase}`;
         runtime_tab_node.parentNode.insertBefore(cloned_tab_node, runtime_tab_node)
 
         let phase_step_node = document.querySelector('.runtime-tab');
@@ -223,7 +240,14 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
         onLoad: function(value, text) {
             window.dispatchEvent(new Event('resize'));
         }
-    });
+    }); // activate tabs for runtime sub-phases
+
+    $('#runtime-sub-phases.menu .item').tab({
+        onLoad: function(value, text) {
+            window.dispatchEvent(new Event('resize'));
+        }
+    }); // activate tabs for runtime sub-phases
+
 
     $('.ui.accordion').accordion({ // if the accordion opens the detail charts are resized
         onOpen: function(value, text) {
@@ -235,7 +259,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
 
     // although there are multiple .step.runtime-step containers the first one
     // marks the first runtime step and is shown by default
-    document.querySelector('.step.runtime-step').dispatchEvent(new Event('click'));
+    document.querySelector('a.step[data-tab="[RUNTIME]"').dispatchEvent(new Event('click'));
 
     window.dispatchEvent(new Event('resize'));
 }

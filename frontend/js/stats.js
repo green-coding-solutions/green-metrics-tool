@@ -107,7 +107,7 @@ const fillProjectData = (project_data, key = null) => {
     document.querySelector('#project-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td>${measurement_duration_in_s} s</td></tr>`)
 
 
-    $('.ui.secondary.menu .item').tab(); // activate tabs for project data
+    $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.project-data-container'}); // activate tabs for project data
     $('.ui.accordion').accordion();
 
     if (project_data.invalid_project) {
@@ -355,8 +355,8 @@ $(document).ready( (e) => {
         fillProjectData(project_data);
 
         if(phase_stats_data != null) {
-            setupPhaseTabs(phase_stats_data, false)
-            displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case, false)
+            setupPhaseTabs(phase_stats_data, false, true)
+            displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case, false, true)
         }
 
         if (measurements_data == undefined) return;
