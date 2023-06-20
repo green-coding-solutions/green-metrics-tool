@@ -244,8 +244,7 @@ const displayCITable = (runs, url_params) => {
             run_link = `https://github.com/${url_params.get('repo')}/actions/runs/${run_id}`;
         }
         else if (source == 'gitlab') {
-            //run_link = `https://github.com/${url_params.get('repo')}/actions/runs/${run_id}`;
-            run_link = `https://gitlab.com/`;
+            run_link = `https://gitlab.com/${url_params.get('repo')}/-/pipelines/${run_id}`
         }
 
         const run_link_node = `<a href="${run_link}" target="_blank">${run_id}</a>`
