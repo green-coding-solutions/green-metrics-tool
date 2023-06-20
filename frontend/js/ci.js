@@ -237,8 +237,17 @@ const displayCITable = (runs, url_params) => {
         const commit_hash = el[6];
         const short_hash = commit_hash.substring(0, 7);
         const tooltip = `title="${commit_hash}"`;
+        const source = el[8];
 
-        const run_link = `https://github.com/${url_params.get('repo')}/actions/runs/${run_id}`;
+        var run_link = ''
+        if(source == 'github') {
+            run_link = `https://github.com/${url_params.get('repo')}/actions/runs/${run_id}`;
+        }
+        else if (source == 'gitlab') {
+            //run_link = `https://github.com/${url_params.get('repo')}/actions/runs/${run_id}`;
+            run_link = `https://gitlab.com/`;
+        }
+
         const run_link_node = `<a href="${run_link}" target="_blank">${run_id}</a>`
 
         const created_at = el[3]
@@ -287,11 +296,6 @@ $(document).ready((e) => {
             return;
         }
 
-        const repo_link = `https://github.com/${url_params.get('repo')}`;
-        const repo_link_node = `<a href="${repo_link}" target="_blank">${url_params.get('repo')}</a>`
-        document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Repository:</strong></td><td>${repo_link_node}</td></tr>`)
-        document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${url_params.get('branch')}</td></tr>`)
-        document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${url_params.get('workflow')}</td></tr>`)
 
         try {
             const link_node = document.createElement("a")
@@ -312,6 +316,20 @@ $(document).ready((e) => {
             return;
         }
 
+        let repo_link = ''
+
+        if(badges_data.data[0][8] == 'github') {
+            repo_link = `https://github.com/${url_params.get('repo')}`;
+        }
+        else if(badges_data.data[0][8] == 'gitlab') {
+            repo_link = `https://gitlab.com/${url_params.get('repo')}`;
+        }
+        //${repo_link}
+        const repo_link_node = `<a href="${repo_link}" target="_blank">${url_params.get('repo')}</a>`
+        document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Repository:</strong></td><td>${repo_link_node}</td></tr>`)
+        document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${url_params.get('branch')}</td></tr>`)
+        document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${url_params.get('workflow')}</td></tr>`)
+        
         displayCITable(badges_data.data, url_params);
         chart_instance = displayGraph(badges_data.data)
         displayAveragesTable(badges_data.data)

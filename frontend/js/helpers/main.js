@@ -43,7 +43,6 @@ const replaceRepoIcon = (uri) => {
     return uri;
 }
 
-
 const showNotification = (message_title, message_text, type='warning') => {
     $('body')
       .toast({
