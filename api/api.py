@@ -492,9 +492,10 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str):
 @app.get('/v1/ci/projects')
 async def get_ci_projects():
     query = """
-        SELECT repo, branch, workflow, source
+        SELECT repo, branch, workflow, source, MAX(created_at)
         FROM ci_measurements
         GROUP BY repo, branch, workflow, source
+        ORDER BY repo ASC
     """
 
     data = DB().fetch_all(query)

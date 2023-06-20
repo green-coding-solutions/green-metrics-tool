@@ -11,6 +11,7 @@
         const branch = el[1]
         const workflow = el[2]
         const source = el[3]
+        const last_run = el[4]
 
         let uri_display = repo;
         let uri = repo;
@@ -43,7 +44,8 @@
                       <div class="content">
                       </div>
                     </div>
-                </td>`;
+                </td>
+                <td>${branch}</td>`;
             let content = document.querySelector(`#projects-table td[data-uri='${uri}_${branch}'] div.content`);
             content.innerHTML = `
                 <table class="ui table">
@@ -51,6 +53,7 @@
                         <tr>
                             <th>Workflow</th>
                             <th>Branch</th>
+                            <th>Last Run</th>
                             <th>Source</th>
                             <th></th>
                         </tr>
@@ -65,6 +68,7 @@
         inner_row.innerHTML = `
             <td class="td-index"><a href="/ci.html?repo=${repo}&branch=${branch}&workflow=${workflow}">${workflow}</a></td>
             <td class="td-index" title="${branch}">${branch}</td>
+            <td class="td-index" style="width: 120px"><span title="${last_run}">${dateToYMD(new Date(last_run))}</span></td>
             <td class="td-index" title="${source}">${source}</td>`;
 
     });

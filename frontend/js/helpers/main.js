@@ -21,6 +21,9 @@ class GMTMenu extends HTMLElement {
             <a class="item" href="/data-analysis.html">
                 <b><i class="chartline icon"></i>Data Analysis</b>
             </a>
+            <a class="item" href="/ci-index.html">
+                <b><i class="seedling icon"></i>Eco-CI</b>
+            </a>
             <a class="item" href="/settings.html">
                 <b><i class="cogs icon"></i>Settings</b>
             </a>
