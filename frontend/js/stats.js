@@ -80,6 +80,8 @@ const fillProjectData = (project_data, key = null) => {
             fillProjectTab('#machine-specs', project_data[item]); // recurse
         } else if(item == 'usage_scenario') {
             document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<pre class="usage-scenario">${json2yaml(project_data?.[item])}</pre>`)
+        } else if(item == 'logs') {
+            document.querySelector("#logs").insertAdjacentHTML('beforeend', `<pre>${project_data?.[item]}</pre>`)
         } else if(item == 'measurement_config') {
             fillProjectTab('#measurement-config', project_data[item]); // recurse
         } else if(item == 'phases' || item == 'id') {

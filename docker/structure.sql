@@ -19,6 +19,7 @@ CREATE TABLE projects (
     start_measurement bigint,
     end_measurement bigint,
     phases JSON DEFAULT null,
+    logs text DEFAULT null,
     invalid_project text,
     last_run timestamp with time zone,
     created_at timestamp with time zone DEFAULT now()
