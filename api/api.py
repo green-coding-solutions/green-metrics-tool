@@ -201,6 +201,13 @@ async def compare_in_repo(ids: str):
         commit = project_info['commit_hash']
 
         match case:
+            case 'Multi-Commit':
+                # same repo, same usage scenarios, same machines, same branches, many commit hashes
+                phase_stats_object['common_info']['Repository'] = uri
+                phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
+                phase_stats_object['common_info']['Machine'] = machine
+                phase_stats_object['common_info']['Branch'] = branch
+                phase_stats_object['common_info']['Commit'] = commit
             case 'Repeated Run':
                 # same repo, same usage scenarios, same machines, same branches, same commit hashes
                 phase_stats_object['common_info']['Repository'] = uri

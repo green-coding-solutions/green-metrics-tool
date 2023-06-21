@@ -306,13 +306,14 @@ def determine_comparison_case(ids):
     # these cannot be just averaged. But they have to be split and then compared via t-test
     # For the moment I think it makes sense to restrict to two repositories. Comparing three is too much to handle I believe if we do not want to drill down to one specific metric
 
-    # Currently we support five cases:
+    # Currently we support six cases:
     # case = 'Repository' # Case D : RequirementsEngineering Case
     # case = 'Branch' # Case C_3 : SoftwareDeveloper Case
     # case = 'Usage Scenario' # Case C_2 : SoftwareDeveloper Case
     # case = 'Machine' # Case C_1 : DataCenter Case
     # case = 'Commit' # Case B: DevOps Case
     # case = 'Repeated Run' # Case A: Blue Angel
+    # case = 'Multi-Commit' # Case D: Evolution of repo over time
 
 
     if repos == 2: # diff repos
@@ -356,8 +357,10 @@ def determine_comparison_case(ids):
 
             elif machine_ids == 1: # same repo, same usage scenarios, same machines
                 if branches <= 1:
-                    if commit_hashes > 1: # same repo, same usage scenarios, same machines, diff commit hashes
+                    if commit_hashes == 2: # same repo, same usage scenarios, same machines, diff commit hashes
                         case = 'Commit' # Case B
+                    elif commit_hashes > 2: # same repo, same usage scenarios, same machines, many commit hashes
+                        case = 'Multi-Commit' # Case D
                     else: # same repo, same usage scenarios, same machines, same branches, same commit hashes
                         case = 'Repeated Run' # Case A
                 else: # same repo, same usage scenarios, same machines, diff branch
