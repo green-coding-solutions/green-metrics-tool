@@ -123,6 +123,9 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
         machine_energy_chart_labels.push(phase);
         machine_energy_chart_legend[phase]  = [];
 
+        let phase_key0_has_machine_energy = false;
+        let phase_key1_has_machine_energy = false;
+
         for (metric in phase_data) {
             let metric_data = phase_data[metric]
             for (detail in metric_data['data']) {
@@ -138,11 +141,13 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                 }
                 if (metric.match(/^.*_energy_.*_machine$/) !== null) {
                     machine_energy_chart_legend[phase].push(metric_data.clean_name);
-                    if(machine_energy_chart_data?.[`${metric_data.clean_name} - ${keys[0]}`] == null)
-                        machine_energy_chart_data[`${metric_data.clean_name} - ${keys[0]}`] = []
-                    machine_energy_chart_data[`${metric_data.clean_name} - ${keys[0]}`].push(detail_data.mean)
-
+                    if(machine_energy_chart_data?.[`Machine Energy - ${keys[0]}`] == null) {
+                        machine_energy_chart_data[`Machine Energy - ${keys[0]}`] = []
+                    }
+                    machine_energy_chart_data[`Machine Energy - ${keys[0]}`].push(detail_data.mean)
+                    phase_key0_has_machine_energy = true
                 }
+
                 if (comparison_case == null && metric.match(/^.*_co2_.*_machine$/) !== null) {
                     calculateCO2(phase, detail_data.mean);
                 }
@@ -211,10 +216,11 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                         energy_chart_data[1].push(detail_data2.mean)
                     }
                     if (metric.match(/^.*_energy.*_machine$/) !== null) {
-                        if(machine_energy_chart_data?.[`${metric_data.clean_name} - ${keys[1]}`] == null)
-                        machine_energy_chart_data[`${metric_data.clean_name} - ${keys[1]}`] = []
-
-                        machine_energy_chart_data[`${metric_data.clean_name} - ${keys[1]}`].push(detail_data2.mean)
+                        if(machine_energy_chart_data?.[`Machine Energy - ${keys[1]}`] == null) {
+                            machine_energy_chart_data[`Machine Energy - ${keys[1]}`] = []
+                        }
+                        machine_energy_chart_data[`Machine Energy - ${keys[1]}`].push(detail_data2.mean)
+                        phase_key1_has_machine_energy = true
                     }
                 } else {
                     displaySimpleMetricBox(phase,metric, metric_data, detail_data, keys[0]);
@@ -230,7 +236,20 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                 }
             }
         }
-        // phase ended. Render out the chart
+        if (phase_key0_has_machine_energy == false) { // add dummy
+            if(machine_energy_chart_data?.[`Machine Energy - ${keys[0]}`] == null) {
+                machine_energy_chart_data[`Machine Energy - ${keys[0]}`] = []
+            }
+            machine_energy_chart_data[`Machine Energy - ${keys[0]}`].push(0)
+        }
+        if (phase_key1_has_machine_energy == false && multi_comparison == 2) { // add dummy
+            if(machine_energy_chart_data?.[`Machine Energy - ${keys[1]}`] == null) {
+                machine_energy_chart_data[`Machine Energy - ${keys[1]}`] = []
+            }
+            machine_energy_chart_data[`Machine Energy - ${keys[1]}`].push(0)
+        }
+
+        // metric ended. Render out the chart
 
 
         let radar_legend = []
@@ -256,7 +275,8 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
 
         // displayKeyMetricsEmbodiedCarbonChart(phase);
 
-    }
+    } // phase end
+
     displayTotalChart(
         machine_energy_chart_legend,
         machine_energy_chart_labels,
