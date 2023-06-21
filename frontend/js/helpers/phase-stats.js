@@ -148,18 +148,33 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
 
 
 
-                if (multi_comparison == 1) {
-                    displaySimpleMetricBox(phase,metric, metric_data, detail_data, keys[0]);
-                    if(comparison_case !== null) {
-                        displayCompareChart(
-                            phase,
-                            `${metric_data.clean_name} (${metric_data.source} ${detail}) - [${metric_data.unit}]`,
-                            [`${comparison_case}: ${keys[0]}`],
-                            [detail_data.values],
-                            [{name:'Confidence Interval', bottom: detail_data.mean-detail_data.ci, top: detail_data.mean+detail_data.ci}],
-                        );
-                    }
+                if (multi_comparison > 2) {
+                    let detail_chart_data = []
+                    let detail_chart_mark = []
 
+                    keys.forEach(key => {
+                        let metric_data_x = phase_stats_object?.['data']?.[key]?.[phase]?.[metric]
+                        let detail_data_x = metric_data_x?.['data']?.[detail]
+                        if (detail_data_x == undefined) {
+                            // the metric or phase might not be present in the other run
+                            // note that this debug statement does not log when on the second branch more metrics are
+                            // present that are not shown. However we also do not want to display them.
+                            console.log(`${metric} ${detail} was missing from one comparison. Skipping`);
+                            return;
+                        }
+
+                        detail_chart_data.push(detail_data_x.values)
+                        detail_chart_mark.push(
+                            {name:'CI', bottom: detail_data_x.mean-detail_data_x.ci, top: detail_data_x.mean+detail_data_x.ci})
+                    })
+
+                    displayCompareChart(
+                        phase,
+                        `${metric_data.clean_name} (${detail}) - [${metric_data.unit}]`,
+                        [comparison_case],
+                        detail_chart_data,
+                        detail_chart_mark,
+                    );
                 } else if (multi_comparison == 2) {
                     let metric_data2 = phase_stats_object?.['data']?.[keys[1]]?.[phase]?.[metric]
                     let detail_data2 = metric_data2?.['data']?.[detail]
@@ -200,32 +215,16 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                         machine_energy_chart_data[`${metric_data.clean_name} - ${keys[1]}`].push(detail_data2.mean)
                     }
                 } else {
-                    let detail_chart_data = []
-                    let detail_chart_mark = []
-
-                    keys.forEach(key => {
-                        let metric_data_x = phase_stats_object?.['data']?.[key]?.[phase]?.[metric]
-                        let detail_data_x = metric_data_x?.['data']?.[detail]
-                        if (detail_data_x == undefined) {
-                            // the metric or phase might not be present in the other run
-                            // note that this debug statement does not log when on the second branch more metrics are
-                            // present that are not shown. However we also do not want to display them.
-                            console.log(`${metric} ${detail} was missing from one comparison. Skipping`);
-                            return;
-                        }
-
-                        detail_chart_data.push(detail_data_x.values)
-                        detail_chart_mark.push(
-                            {name:'CI', bottom: detail_data_x.mean-detail_data_x.ci, top: detail_data_x.mean+detail_data_x.ci})
-                    })
-
-                    displayCompareChart(
-                        phase,
-                        `${metric_data.clean_name} (${detail}) - [${metric_data.unit}]`,
-                        [comparison_case],
-                        detail_chart_data,
-                        detail_chart_mark,
-                    );
+                    displaySimpleMetricBox(phase,metric, metric_data, detail_data, keys[0]);
+                    if(comparison_case !== null) {
+                        displayCompareChart(
+                            phase,
+                            `${metric_data.clean_name} (${metric_data.source} ${detail}) - [${metric_data.unit}]`,
+                            [`${comparison_case}: ${keys[0]}`],
+                            [detail_data.values],
+                            [{name:'Confidence Interval', bottom: detail_data.mean-detail_data.ci, top: detail_data.mean+detail_data.ci}],
+                        );
+                    }
                 }
             }
         }
