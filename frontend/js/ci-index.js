@@ -27,7 +27,6 @@
             uri = `https://bitbucket.com/${repo}`;
         } 
 
-        console.log(uri_display);
         uri_link = `${uri_display} <a href="${uri}"><i class="icon external alternate"></i></a>`;
 
 
