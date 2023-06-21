@@ -477,13 +477,28 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 @app.get('/v1/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str):
     query = """
-        SELECT value, unit, run_id, created_at, label, cpu, commit_hash, duration
+        SELECT value, unit, run_id, created_at, label, cpu, commit_hash, duration, source
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s
         ORDER BY run_id ASC, created_at ASC
     """
     params = (repo, branch, workflow)
     data = DB().fetch_all(query, params=params)
+    if data is None or data == []:
+        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+
+    return ORJSONResponse({'success': True, 'data': data})
+
+@app.get('/v1/ci/projects')
+async def get_ci_projects():
+    query = """
+        SELECT repo, branch, workflow, source, MAX(created_at)
+        FROM ci_measurements
+        GROUP BY repo, branch, workflow, source
+        ORDER BY repo ASC
+    """
+
+    data = DB().fetch_all(query)
     if data is None or data == []:
         return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
 
