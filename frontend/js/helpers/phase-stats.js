@@ -150,7 +150,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                     if(comparison_case !== null) {
                         displayCompareChart(
                             phase,
-                            `${metric_data.clean_name} (${detail}) - [${metric_data.unit}]`,
+                            `${metric_data.clean_name} (${metric_data.source} ${detail}) - [${metric_data.unit}]`,
                             [`${comparison_case}: ${keys[0]}`],
                             [detail_data.values],
                             [{name:'Confidence Interval', bottom: detail_data.mean-detail_data.ci, top: detail_data.mean+detail_data.ci}],
