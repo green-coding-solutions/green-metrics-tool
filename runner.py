@@ -335,8 +335,10 @@ class Runner:
     def populate_image_names(self):
         for service_name, service in self._usage_scenario.get('services', []).items():
             if not service.get('image', None): # image is a non essential field. But we need it, so we tmp it
-                service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
-
+                if self._dev_repeat_run:
+                    service['image'] = f"{service_name}"
+                else:
+                    service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
 
     def remove_docker_images(self):
         if self._dev_repeat_run:
@@ -1040,8 +1042,7 @@ class Runner:
                 raise ValueError("Configuration check failed - not running measurement")
             self.checkout_repository()
             self.initial_parse()
-            if not self._dev_repeat_run:
-                self.populate_image_names()
+            self.populate_image_names()
             self.check_running_containers()
             self.remove_docker_images()
             self.download_dependencies()
