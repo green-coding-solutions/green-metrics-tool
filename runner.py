@@ -136,7 +136,7 @@ class Runner:
     def check_configuration(self):
         if self._skip_config_check:
             print("Configuration check skipped")
-            return True
+            return
 
         errors = []
         config = GlobalConfig().config
@@ -149,13 +149,14 @@ class Runner:
 
         if not errors:
             print("Configuration check passed")
-            return True
+            return
 
-        print("Configuration check failed:")
-        for error in errors:
-            print(f"\t{error}")
+        printable_errors = '\n'.join(errors) + '\n'
 
-        return False
+        raise ValueError(
+            "Configuration check failed - not running measurement\n"
+            f"Configuration errors:\n{printable_errors}"
+            )
 
     def checkout_repository(self):
 
@@ -1038,8 +1039,7 @@ class Runner:
         try:
             config = GlobalConfig().config
             self.initialize_folder(self._tmp_folder)
-            if not self.check_configuration():
-                raise ValueError("Configuration check failed - not running measurement")
+            self.check_configuration()
             self.checkout_repository()
             self.initial_parse()
             self.populate_image_names()
