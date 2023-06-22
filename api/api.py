@@ -129,6 +129,25 @@ async def get_notes(project_id):
     escaped_data = [sanitize(note) for note in data]
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
+@app.get('/v1/network/{project_id}')
+async def get_network(project_id):
+    if project_id is None or not is_valid_uuid(project_id):
+        return ORJSONResponse({'success': False, 'err': 'Project ID is not a valid UUID or empty'}, status_code=400)
+
+    query = """
+            SELECT *
+            FROM network_intercepts
+            WHERE project_id = %s
+            ORDER BY created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
+            """
+    data = DB().fetch_all(query, (project_id,))
+    if data is None or data == []:
+        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+
+    escaped_data = [sanitize(intercept) for intercept in data]
+    return ORJSONResponse({'success': True, 'data': escaped_data})
+
+
 # return a list of all possible registered machines
 @app.get('/v1/machines/')
 async def get_machines():

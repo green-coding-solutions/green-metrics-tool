@@ -295,18 +295,26 @@ async function makeAPICalls(url_params) {
     } catch (err) {
         showNotification('Could not get stats data from API', err);
     }
+
     try {
         var notes_data = await makeAPICall('/v1/notes/' + url_params.get('id'))
     } catch (err) {
         showNotification('Could not get notes data from API', err);
     }
+
+    try {
+        var network_data = await makeAPICall('/v1/network/' + url_params.get('id'))
+    } catch (err) {
+        showNotification('Could not get network intercepts data from API', err);
+    }
+
     try {
         var phase_stats_data = await makeAPICall('/v1/phase_stats/single/' + url_params.get('id'))
     } catch (err) {
         showNotification('Could not get phase_stats data from API', err);
     }
 
-    return [project_data?.data, measurement_data?.data, notes_data?.data, phase_stats_data?.data];
+    return [project_data?.data, measurement_data?.data, notes_data?.data, phase_stats_data?.data, network_data?.data];
 }
 
 const renderBadges = (url_params) => {
@@ -322,6 +330,14 @@ const renderBadges = (url_params) => {
     document.querySelectorAll(".copy-badge").forEach(el => {
         el.addEventListener('click', copyToClipboard)
     })
+}
+
+const displayNetworkIntercepts = (network_data) => {
+    for (item of network_data) {
+        date = new Date(Number(item[2]));
+        date = date.toLocaleString();
+        document.querySelector("#network-intercepts").insertAdjacentHTML('beforeend', `<tr><td><strong>${date}</strong></td><td>${item[3]}</td><td>${item[4]}</td></tr>`)
+    }
 }
 
 const getURLParams = () => {
@@ -346,7 +362,7 @@ $(document).ready( (e) => {
             return;
         }
 
-        let [project_data, measurements_data, notes_data, phase_stats_data] = await makeAPICalls(url_params);
+        let [project_data, measurements_data, notes_data, phase_stats_data, network_data] = await makeAPICalls(url_params);
 
         if (project_data == undefined) return;
 
@@ -364,6 +380,8 @@ $(document).ready( (e) => {
 
         if (notes_data == undefined) return;
         displayTimelineCharts(metrics, notes_data);
+
+        displayNetworkIntercepts(network_data);
 
         // after all charts instances have been placed
         // the flexboxes might have rearranged. We need to trigger resize

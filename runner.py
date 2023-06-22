@@ -46,6 +46,7 @@ from db import DB
 from global_config import GlobalConfig
 import utils
 from tools.save_notes import save_notes  # local file import
+from metric_providers.network.proxy.proxy_provider import ProxyMetricsProvider
 
 
 def arrows(text):
@@ -86,7 +87,7 @@ class Runner:
         uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_config_check=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
-        dry_run=False, dev_repeat_run=False):
+        dry_run=False, dev_repeat_run=False, docker_proxy=False):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -110,6 +111,7 @@ class Runner:
         self._folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
+        self._docker_proxy =  docker_proxy
 
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
@@ -125,6 +127,7 @@ class Runner:
         self.__end_measurement = None
         self.__services_to_pause_phase = {}
         self.__join_default_network = False
+        self.__docker_params = []
 
     def custom_sleep(self, sleep_time):
         if not self._dry_run: time.sleep(sleep_time)
@@ -439,6 +442,11 @@ class Runner:
 
             self.__metric_providers.append(metric_provider_obj)
 
+        if self._docker_proxy:
+            self.__metric_providers.append(ProxyMetricsProvider())
+            self.__docker_params = ['--env', 'HTTP_PROXY=http://host.docker.internal:8889',
+                                    '--env', 'HTTPS_PROXY=http://host.docker.internal:8889']
+
         self.__metric_providers.sort(key=lambda item: 'rapl' not in item.__class__.__name__.lower())
 
     def download_dependencies(self):
@@ -515,6 +523,9 @@ class Runner:
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--no-push']
+
+                if self._docker_proxy:
+                    docker_build_command[2:2] = self.__docker_params
 
                 print(" ".join(docker_build_command))
 
@@ -604,6 +615,10 @@ class Runner:
                 docker_run_string.append(f"{self._folder}:{service['folder-destination']}:ro")
             else:
                 docker_run_string.append(f"{self._folder}:/tmp/repo:ro")
+
+            if self._docker_proxy:
+                docker_run_string[2:2] = self.__docker_params
+
 
             if 'volumes' in service:
                 if self._allow_unsafe:
@@ -904,6 +919,11 @@ class Runner:
             metric_provider.stop_profiling()
 
             df = metric_provider.read_metrics(self._project_id, self.__containers)
+            if isinstance(df, int):
+                print('Imported', TerminalColors.HEADER, df, TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
+                # If df returns an int the data has already been committed to the db
+                return
+
             print('Imported', TerminalColors.HEADER, df.shape[0], TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
             if df is None or df.shape[0] == 0:
                 raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
@@ -1149,6 +1169,7 @@ if __name__ == '__main__':
     parser.add_argument('--dry-run', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
     parser.add_argument('--dev-repeat-run', action='store_true', help='Checks if a docker image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
+    parser.add_argument('--docker-proxy', action='store_true', help='Uses tinyproxy to log the network connections for only the docker containers')
 
     args = parser.parse_args()
 
@@ -1205,7 +1226,7 @@ if __name__ == '__main__':
                     no_file_cleanup=args.no_file_cleanup, skip_config_check =args.skip_config_check,
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                     full_docker_prune=args.full_docker_prune, dry_run=args.dry_run,
-                    dev_repeat_run=args.dev_repeat_run)
+                    dev_repeat_run=args.dev_repeat_run, docker_proxy=args.docker_proxy)
     try:
         runner.run()  # Start main code
 
