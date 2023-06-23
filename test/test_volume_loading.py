@@ -99,7 +99,7 @@ def test_load_files_from_within_gmt():
         out = ps.stdout
         err = ps.stderr
     finally:
-        runner.cleanup()
+        Tests.cleanup(runner)
     assert "File mounted" in out, Tests.assertion_info('/tmp/test-file mounted', f"out: {out} | err: {err}")
 
 def test_symlinks_should_fail():
@@ -163,5 +163,5 @@ def test_load_volume_references():
         out = ps.stdout
         err = ps.stderr
     finally:
-        runner.cleanup()
+        Tests.cleanup(runner)
     assert "File mounted" in out, Tests.assertion_info('/tmp/test-file mounted', f"out: {out} | err: {err}")

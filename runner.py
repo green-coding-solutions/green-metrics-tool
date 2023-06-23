@@ -133,6 +133,10 @@ class Runner:
         shutil.rmtree(path, ignore_errors=True)
         Path(path).mkdir(parents=True, exist_ok=True)
 
+    def save_notes_runner(self):
+        print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)
+        save_notes(self._project_id, self.__notes)
+
     def check_configuration(self):
         if self._skip_config_check:
             print("Configuration check skipped")
@@ -1121,8 +1125,7 @@ class Runner:
             try:
                 self.read_stdout_logs()
                 self.read_and_cleanup_processes()
-                print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)
-                save_notes(self._project_id, self.__notes)
+                self.save_notes_runner()
                 self.save_stdout_logs()
             finally:
                 self.cleanup()  # always run cleanup automatically after each run
