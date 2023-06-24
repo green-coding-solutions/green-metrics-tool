@@ -71,16 +71,15 @@ const copyToClipboard = (e) => {
 };
 
 const dateToYMD = (date, short=false) => {
-    let day = date.getDate();
-    day = day <= 9 ? '0' + day : day;
-
-    let month = date.getMonth() + 1; //Month from 0 to 11
-    month = month<=9 ? '0' + month : month;
-    let offset = new Date().getTimezoneOffset();
+    let day = date.getDate().toString().padStart(2, '0');
+    let month = (date.getMonth() + 1).toString().padStart(2, '0'); //Month from 0 to 11
+    let hours = date.getHours().toString().padStart(2, '0');
+    let minutes = date.getMinutes().toString().padStart(2, '0');
+    let offset = date.getTimezoneOffset();
     offset = offset < 0 ? `+${-offset/60}` : -offset/60;
 
     if(short) return `${date.getFullYear().toString().substr(-2)}.${month}.${day}`;
-    return ` ${date.getFullYear()}-${month}-${day} <br> ${date.getHours()}:${date.getMinutes()} UTC${offset}`;
+    return ` ${date.getFullYear()}-${month}-${day} <br> ${hours}:${minutes} UTC${offset}`;
 }
 
 async function makeAPICall(path, values=null) {
