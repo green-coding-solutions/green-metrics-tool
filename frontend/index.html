@@ -15,7 +15,6 @@
     <meta name="description" content="Measuring the energy of your software" />
     <script src="/dist/js/jquery.min.js" defer></script>
     <script src="/dist/js/accordion.min.js" defer></script>
-    <script src="/dist/js/tablesort.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/js/helpers/config.js" defer></script>
@@ -23,6 +22,11 @@
     <script src="/js/index.js" defer></script>
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
+
+    <link href="https://cdn.datatables.net/v/se/dt-1.13.4/sp-2.1.2/sl-1.6.2/datatables.min.css" rel="stylesheet"/>
+
+    <script src="https://cdn.datatables.net/v/se/dt-1.13.4/sp-2.1.2/sl-1.6.2/datatables.min.js" defer></script>
+
 </head>
 <body class="preload">
     <gmt-menu></gmt-menu>
@@ -54,9 +58,9 @@
         <table id="projects-table" class="ui sortable celled striped table">
             <thead>
                 <tr>
-                    <th>Repositories (<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.)</th>
-                    <th>Branch <i class="icon code branch"></i></th>
-                    <th><button id="compare-button" onclick="compareButton()" class="ui small button blue">Compare: 0 Run(s)</button></th>
+                    <th>
+                        Repositories (<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.)
+                        <button id="compare-button" onclick="compareButton()" class="ui small button blue right">Compare: 0 Run(s)</button></th>
                 </tr>
             </thead>
             <tbody></tbody>

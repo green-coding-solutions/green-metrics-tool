@@ -251,3 +251,7 @@ a,
     white-space: pre-wrap;
     word-wrap: break-word;
 }
+
+#compare-button {
+    float: right;
+}
