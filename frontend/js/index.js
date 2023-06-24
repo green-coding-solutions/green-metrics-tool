@@ -122,7 +122,8 @@ function allow_group_select_checkboxes(checkbox_wrapper_id){
     $('#projects-table table').DataTable({
         searchPanes: {
             initCollapsed: true,
-        }
+        },
+        "order": [[5, 'desc']], // sort by last_run by default
     });
 
 
