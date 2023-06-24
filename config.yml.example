@@ -92,6 +92,8 @@ measurement:
     #--- MacOS: On Mac you only need this provider. Please delete all others!
       powermetrics.provider.PowermetricsProvider:
         resolution: 100
+      cpu.utilization.macos.system.provider.CpuUtilizationMacosSystemProvider:
+        resolution: 100
     #--- Architecture - Common
     common:
     #--- Model based

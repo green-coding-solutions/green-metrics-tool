@@ -21,6 +21,12 @@ from db import DB
 
 METRIC_MAPPINGS = {
 
+    'cpu_utilization_macos_system': {
+        'clean_name': 'CPU Utilization',
+        'source': 'syscall',
+        'explanation': 'Duration of the phase measured by GMT through a macos syscall - host_statistics',
+    },
+
     'phase_time_syscall_system': {
         'clean_name': 'Phase Duration',
         'source': 'Syscall',

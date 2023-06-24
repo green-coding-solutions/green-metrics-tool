@@ -79,6 +79,7 @@ def build_and_store_phase_stats(project_id):
             if metric in (
                 'lm_sensors_temperature_component',
                 'lm_sensors_fan_component',
+                'cpu_utilization_macos_system',
                 'cpu_utilization_procfs_system',
                 'cpu_utilization_cgroup_container',
                 'memory_total_cgroup_container',
