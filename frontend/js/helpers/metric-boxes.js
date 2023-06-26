@@ -165,7 +165,7 @@ customElements.define('phase-metrics', PhaseMetrics);
 /*
     TODO: Include one sided T-test?
 */
-const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, comparison_key)  => {
+const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data)  => {
     let extra_label = ''
     if (detail_data.max != null) {
         let [max,max_unit] = convertValue(detail_data.max, metric_data.unit);
@@ -207,7 +207,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, co
     This function assumes that detail_data has only two elements. For everything else we would need to
     calculate a trend / regression and not a simple comparison
 */
-const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array, comparison_key, is_significant)  => {
+const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array, is_significant)  => {
     let extra_label = '';
     if (is_significant == true) extra_label = 'Significant';
     else extra_label = 'not significant / no-test';
@@ -232,6 +232,7 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array
     let [value_1, unit] = convertValue(detail_data_array[0].mean, metric_data.unit);
     let [value_2, _] = convertValue(detail_data_array[1].mean, metric_data.unit);
 
+    console.log("Metric Phase", phase);
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
     tr.innerHTML = `
         <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>

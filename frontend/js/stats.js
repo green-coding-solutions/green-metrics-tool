@@ -355,8 +355,8 @@ $(document).ready( (e) => {
         fillProjectData(project_data);
 
         if(phase_stats_data != null) {
-            setupPhaseTabs(phase_stats_data, false, true)
-            displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case, false, true)
+            setupPhaseTabs(phase_stats_data)
+            displayComparisonMetrics(phase_stats_data)
         }
 
         if (measurements_data == undefined) return;

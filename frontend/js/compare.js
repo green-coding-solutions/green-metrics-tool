@@ -38,9 +38,8 @@ $(document).ready( (e) => {
             document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${key}</strong></td><td>${phase_stats_data['common_info'][key]}</td></tr>`)
           });
 
-        let multi_comparison = determineMultiComparison(phase_stats_data.comparison_case)
-        setupPhaseTabs(phase_stats_data, multi_comparison)
-        displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case, multi_comparison)
+        setupPhaseTabs(phase_stats_data)
+        displayComparisonMetrics(phase_stats_data)
 
     })();
 });
