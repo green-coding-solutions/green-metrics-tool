@@ -26,14 +26,9 @@ services:
 
   ubuntu-stress-2:
     type: container
-    image: gcb_stress
+    image: gcb_stress # this will reuse the image earlier built
     networks:
       - network-for-pytests
-## remove later >> 
-    build:
-      context: .
-      dockerfile: Dockerfile
-### <<
 
 flow:
   - name: Stress

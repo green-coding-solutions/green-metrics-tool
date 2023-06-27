@@ -37,6 +37,7 @@ sys.path.append(f"{CURRENT_DIR}/tools")
 
 from debug_helper import DebugHelper
 from terminal_colors import TerminalColors
+from schema_checker import SchemaChecker
 import process_helpers
 import hardware_info
 import hardware_info_root
@@ -65,7 +66,8 @@ def join_path_and_file(path, file):
         raise ValueError(f"{file} not in {path}")
 
     # To double check we also check if it is in the files allow list
-    if filename not in [os.path.join(path, item) for item in os.listdir(path)]:
+    folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
+    if filename not in folder_content:
         raise ValueError(f"{file} not in {path}")
 
     # Another way to implement this. This is checking the third time but we want to be extra secure 👾
@@ -98,7 +100,7 @@ class Runner:
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
         self._dry_run = dry_run
-        self.dev_repeat_run = dev_repeat_run
+        self._dev_repeat_run = dev_repeat_run
         self._uri = uri
         self._uri_type = uri_type
         self._project_id = pid
@@ -109,9 +111,9 @@ class Runner:
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
 
-
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
+        self.__stdout_logs = {}
         self.__containers = {}
         self.__networks = []
         self.__ps_to_kill = []
@@ -122,6 +124,7 @@ class Runner:
         self.__start_measurement = None
         self.__end_measurement = None
         self.__services_to_pause_phase = {}
+        self.__join_default_network = False
 
     def custom_sleep(self, sleep_time):
         if not self._dry_run: time.sleep(sleep_time)
@@ -130,27 +133,34 @@ class Runner:
         shutil.rmtree(path, ignore_errors=True)
         Path(path).mkdir(parents=True, exist_ok=True)
 
+    def save_notes_runner(self):
+        print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)
+        save_notes(self._project_id, self.__notes)
+
     def check_configuration(self):
         if self._skip_config_check:
             print("Configuration check skipped")
-            return True
+            return
 
         errors = []
         config = GlobalConfig().config
-        metric_providers = utils.get_metric_providers_names(config)
+        metric_providers = list(utils.get_metric_providers(config).keys())
 
-        if sum(True for provider in metric_providers if provider.startswith('PsuEnergy')) > 1:
+        psu_energy_providers = sum(True for provider in metric_providers if ".energy" in provider and ".machine" in provider)
+
+        if psu_energy_providers > 1:
             errors.append("Multiple PSU Energy providers enabled!")
 
         if not errors:
             print("Configuration check passed")
-            return True
+            return
 
-        print("Configuration check failed:")
-        for error in errors:
-            print(f"\t{error}")
+        printable_errors = '\n'.join(errors) + '\n'
 
-        return False
+        raise ValueError(
+            "Configuration check failed - not running measurement\n"
+            f"Configuration errors:\n{printable_errors}"
+            )
 
     def checkout_repository(self):
 
@@ -260,7 +270,9 @@ class Runner:
 
         Loader.add_constructor('!include', Loader.include)
 
-        with open(f"{self._folder}/{self._filename}", 'r', encoding='utf-8') as fp:
+        usage_scenario_file = join_path_and_file(self._folder, self._filename)
+
+        with open(usage_scenario_file, 'r', encoding='utf-8') as fp:
             # We can use load here as the Loader extends SafeLoader
             yml_obj = yaml.load(fp, Loader)
             # Now that we have parsed the yml file we need to check for the special case in which we have a
@@ -295,6 +307,9 @@ class Runner:
 
         self.load_yml_file()
 
+        schema_checker = SchemaChecker(validate_compose_flag=True)
+        schema_checker.check_usage_scenario(self._usage_scenario)
+
         print(TerminalColors.HEADER, '\nHaving Usage Scenario ', self._usage_scenario['name'], TerminalColors.ENDC)
         print('From: ', self._usage_scenario['author'])
         print('Version ', self._usage_scenario['version'])
@@ -325,11 +340,13 @@ class Runner:
     def populate_image_names(self):
         for service_name, service in self._usage_scenario.get('services', []).items():
             if not service.get('image', None): # image is a non essential field. But we need it, so we tmp it
-                service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
-
+                if self._dev_repeat_run:
+                    service['image'] = f"{service_name}"
+                else:
+                    service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
 
     def remove_docker_images(self):
-        if self.dev_repeat_run:
+        if self._dev_repeat_run:
             return
 
         subprocess.run(
@@ -467,36 +484,39 @@ class Runner:
 
             tmp_img_name = self.clean_image_name(service['image'])
 
-            if self.dev_repeat_run:
-                #If we are in developer repeat runs check if the docker image has already been built
-                try:
-                    result = subprocess.run(['docker', 'inspect', '--type=image', tmp_img_name],
-                                             stdout=subprocess.PIPE,
-                                             stderr=subprocess.PIPE,
-                                             encoding='UTF-8',
-                                             check=True)
-                    if result.returncode == 0:
-                        # The image exists so exit and don't build
-                        continue
-                except subprocess.CalledProcessError:
-                    pass
+            #If we are in developer repeat runs check if the docker image has already been built
+            try:
+                subprocess.run(['docker', 'inspect', '--type=image', tmp_img_name],
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE,
+                                         encoding='UTF-8',
+                                         check=True)
+                # The image exists so exit and don't build
+                continue
+            except subprocess.CalledProcessError:
+                pass
 
             if 'build' in service:
                 context, dockerfile = self.get_build_info(service)
                 print(f"Building {service['image']}")
-                self.__notes.append({'note':f"Building {service['image']}" , 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
+                self.__notes.append({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
                 # Make sure the docker file exists and is not trying to escape some root. We don't need the returns
                 # but it will throw errors if something is wrong
-                context_path = join_path_and_file(self._folder, context) #If this is safe we can append the docker file
+                context_path = join_path_and_file(self._folder, context)  # If this is safe we can append the docker file
+                relative_path = ''
+                if '/' in self._filename and context == '.':
+                    relative_path = self._filename.rsplit('/', 1)[0]
+                    context_path += f"/{relative_path}"
+                    context = relative_path
                 join_path_and_file(context_path, dockerfile)
 
-                docker_build_command = ['docker', 'run','--rm',
+                docker_build_command = ['docker', 'run', '--rm',
                     '-v', f"{self._folder}:/workspace:ro",
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
                     f"--dockerfile=/workspace/{context}/{dockerfile}",
-                    '--context','dir:///workspace/',
+                    '--context', f'dir:///workspace/{relative_path}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--no-push']
@@ -545,6 +565,15 @@ class Runner:
                 subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
                 subprocess.run(['docker', 'network', 'create', network], check=True)
                 self.__networks.append(network)
+        else:
+            print(TerminalColors.HEADER, '\nNo network found. Creating default network', TerminalColors.ENDC)
+            network = f"GMT_default_tmp_network_{random.randint(500000,10000000)}"
+            print('Creating network: ', network)
+            # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
+            subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
+            subprocess.run(['docker', 'network', 'create', network], check=True)
+            self.__networks.append(network)
+            self.__join_default_network = True
 
     def setup_services(self):
         # technically the usage_scenario needs no services and can also operate on an empty list
@@ -670,6 +699,12 @@ class Runner:
                 for network in service['networks']:
                     docker_run_string.append('--net')
                     docker_run_string.append(network)
+            elif self.__join_default_network:
+                # only join default network if no other networks provided
+                # if this is true only one entry is in self.__networks
+                docker_run_string.append('--net')
+                docker_run_string.append(self.__networks[0])
+
 
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
@@ -713,6 +748,8 @@ class Runner:
                     encoding='UTF-8'
                 )
                 print('Stdout:', ps.stdout)
+                if ps.stdout:
+                    self.add_to_log(container_name, ps.stdout, d_command)
 
             # Obsolete warnings. But left in, cause reasoning for NotImplementedError still holds
             # elif el['type'] == 'Dockerfile':
@@ -726,6 +763,15 @@ class Runner:
             #    raise RuntimeError('Unknown type detected in setup: ', el.get('type', None))
 
         print(TerminalColors.HEADER, '\nCurrent known containers: ', self.__containers, TerminalColors.ENDC)
+
+    def get_logs(self):
+        return self.__stdout_logs
+
+    def add_to_log(self, container_name, message, cmd=''):
+        log_entry_name = f"{container_name}_{cmd}"
+        if log_entry_name not in self.__stdout_logs:
+            self.__stdout_logs[log_entry_name] = ''
+        self.__stdout_logs[log_entry_name] = '\n'.join((self.__stdout_logs[log_entry_name], message))
 
 
     def start_metric_providers(self, allow_container=True, allow_other=True):
@@ -832,6 +878,7 @@ class Runner:
                     self.__ps_to_read.append({
                         'cmd': docker_exec_command,
                         'ps': ps,
+                        'container_name': el['container'],
                         'read-notes-stdout': inner_el.get('read-notes-stdout', False),
                         'ignore-errors': inner_el.get('ignore-errors', False),
                         'detail_name': el['container'],
@@ -872,16 +919,26 @@ class Runner:
     def read_and_cleanup_processes(self):
         process_helpers.kill_ps(self.__ps_to_kill)
 
-        # now we have free CPU capacity to parse the stdout / stderr of the processes
-        print(TerminalColors.HEADER, '\nGetting output from processes: ', TerminalColors.ENDC)
+        print(TerminalColors.HEADER, '\nSaving processes stdout', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
-            for line in process_helpers.parse_stream_generator(ps['ps'], ps['cmd'], ps['ignore-errors'], ps['detach']):
-                print('Output from process: ', line)
+            while (line := ps['ps'].stdout.readline()): # a for loop breaks functionality here suprisingly
+                print('Output from process:', ps['cmd'], line)
+                self.add_to_log(ps['container_name'], line, ps['cmd'])
+
                 if ps['read-notes-stdout']:
                     # Fixed format according to our specification. If unpacking fails this is wanted error
                     timestamp, note = line.split(' ', 1)
                     self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
 
+
+    def check_stderr_processes(self):
+        # separate loop here, cause we want to first capture all stdouts without raising RuntimeError
+        print(TerminalColors.HEADER, '\nChecking process stderr', TerminalColors.ENDC)
+        for ps in self.__ps_to_read:
+            stderr_content = ps['ps'].stderr.read()
+            if not ps['ignore-errors']:
+                if process_helpers.check_process_failed(ps['ps'], stderr_content, ps['detach']):
+                    raise RuntimeError(f"Returncode was != 0 for process (was {ps['ps'].returncode}) or Stderr of docker exec command '{ps['cmd']}' was not empty: {stderr_content} - detached process: {ps['detach']}")
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
@@ -910,6 +967,29 @@ class Runner:
             SET phases=%s
             WHERE id = %s
             """, params=(json.dumps(self.__phases), self._project_id))
+
+    def read_stdout_logs(self):
+        print(TerminalColors.HEADER, '\nSaving container logs', TerminalColors.ENDC)
+        for container_name in self.__containers.values():
+            log = subprocess.run(
+                ['docker', 'logs', '-t', container_name],
+                check=True,
+                encoding='UTF-8',
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            if log.stdout:
+                self.add_to_log(container_name, log.stdout)
+
+    def save_stdout_logs(self):
+        logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.__stdout_logs.items()])
+        logs_as_str = logs_as_str.replace('\x00','')
+        if logs_as_str:
+            DB().query("""
+                UPDATE projects
+                SET logs=%s
+                WHERE id = %s
+                """, params=(logs_as_str, self._project_id))
 
 
     def cleanup(self):
@@ -947,6 +1027,7 @@ class Runner:
         self.__phases = {}
         self.__start_measurement = None
         self.__end_measurement = None
+        self.__join_default_network = False
 
     def run(self):
         '''
@@ -962,12 +1043,10 @@ class Runner:
         try:
             config = GlobalConfig().config
             self.initialize_folder(self._tmp_folder)
-            if not self.check_configuration():
-                raise ValueError("Configuration check failed - not running measurement")
+            self.check_configuration()
             self.checkout_repository()
             self.initial_parse()
-            if not self.dev_repeat_run:
-                self.populate_image_names()
+            self.populate_image_names()
             self.check_running_containers()
             self.remove_docker_images()
             self.download_dependencies()
@@ -1034,16 +1113,20 @@ class Runner:
                 self._debugger.pause('Remove phase complete. Waiting to stop and cleanup')
 
             self.end_measurement()
+            self.check_stderr_processes()
             self.custom_sleep(config['measurement']['idle-time-end'])
             self.stop_metric_providers()
-            self.read_and_cleanup_processes()
             self.store_phases()
             self.update_start_and_end_times()
-
+        except BaseException as exc:
+            self.add_to_log(exc.__class__.__name__, str(exc))
+            raise exc
         finally:
             try:
-                print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)
-                save_notes(self._project_id, self.__notes)
+                self.read_stdout_logs()
+                self.read_and_cleanup_processes()
+                self.save_notes_runner()
+                self.save_stdout_logs()
             finally:
                 self.cleanup()  # always run cleanup automatically after each run
 
@@ -1068,6 +1151,7 @@ if __name__ == '__main__':
     parser.add_argument('--full-docker-prune', action='store_true', help='Prune all images and build caches on the system')
     parser.add_argument('--dry-run', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
     parser.add_argument('--dev-repeat-run', action='store_true', help='Checks if a docker image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run')
+    parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
     args = parser.parse_args()
 
@@ -1153,3 +1237,5 @@ if __name__ == '__main__':
         error_helpers.log_error('RuntimeError occured in runner.py: ', e, project_id)
     except BaseException as e:
         error_helpers.log_error('Base exception occured in runner.py: ', e, project_id)
+    finally:
+        if args.print_logs: print("Container logs:", runner.get_logs())

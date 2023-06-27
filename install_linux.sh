@@ -50,6 +50,10 @@ if [[ -z "$db_pw" ]] ; then
     read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
 fi
 
+print_message "Clearing old api.conf and frontend.conf files"
+rm -Rf docker/nginx/api.conf
+rm -Rf docker/nginx/frontend.conf
+
 print_message "Updating compose.yml with current path ..."
 cp docker/compose.yml.example docker/compose.yml
 sed -i -e "s|PATH_TO_GREEN_METRICS_TOOL_REPO|$PWD|" docker/compose.yml
@@ -107,6 +111,9 @@ print_message "Adding hardware_info_root.py to sudoers file"
 PYTHON_PATH=$(which python3)
 PWD=$(pwd)
 echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
+
+print_message "Adding IPMI to sudoers file"
+echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/ipmi_get_machine_energy_stat
 
 if [[ $no_hosts != true ]] ; then
 

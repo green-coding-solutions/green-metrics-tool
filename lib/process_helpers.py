@@ -1,8 +1,6 @@
 import signal
 import os
 import subprocess
-import sys
-
 
 def kill_ps(ps_to_kill):
     print('Killing processes')
@@ -53,30 +51,16 @@ def timeout(process, cmd: str, duration: int):
             process.kill()
             #pylint: disable=raise-missing-from
             raise RuntimeError(f"Process could not terminate in 5s time and was killed: {cmd}") from exc2
-        # We want to safely kill the process, but still this is considered a critical
-        # error condition. Therefore we throw an exception nonetheless to mark it
-        #pylint: disable=raise-missing-from
-        finally:
-            stdout, stderr = process.communicate()
-            print("Captured process stdout:\n", file=sys.stderr)
-            print(stdout, file=sys.stderr)
-            print("Captured process stderr:\n", file=sys.stderr)
-            print(stderr, file=sys.stderr)
 
         raise RuntimeError(f"Process exceeded runtime of {duration}s: {cmd}") from exc
 
-def parse_stream_generator(process, cmd, ignore_errors: False, detach: False):
-    stderr_stream = process.stderr.read()
+def check_process_failed(process, stderr_content, detach: False):
     # detach allows processes to fail with 255, which means ctrl+C. This is how we kill processes.
-    if not ignore_errors:
-        if stderr_stream != '' or \
-            (detach is False and process.returncode != 0) or \
-            (detach is True and process.returncode != 0 and process.returncode != 255 and process.returncode != -15 and process.returncode != -9):
-            # code 9 is SIGKILL in Linux
-            # code 15 is SIGTERM in Linux
-            # code 255 is Sigtermn in macos
-            raise RuntimeError(
-            f"Returncode was != 0 (was {process.returncode}) or Stderr of docker exec command '{cmd}' was not empty: {stderr_stream} - detached process: {detach}")
-
-    while (pair := process.stdout.readline()):
-        yield pair
+    if stderr_content != '' or \
+        (detach is False and process.returncode != 0) or \
+        (detach is True and process.returncode != 0 and process.returncode != 255 and process.returncode != -15 and process.returncode != -9):
+        # code 9 is SIGKILL in Linux
+        # code 15 is SIGTERM in Linux
+        # code 255 is Sigtermn in macos
+        return True
+    return False

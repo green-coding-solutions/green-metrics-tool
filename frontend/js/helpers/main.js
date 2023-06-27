@@ -16,10 +16,13 @@ class GMTMenu extends HTMLElement {
                 <b><i class="home icon"></i>Home</b>
             </a>
             <a class="item" href="/request.html">
-                <b><i class="bullseye icon"></i>Certify new software</b>
+                <b><i class="bullseye icon"></i>Measure software</b>
             </a>
             <a class="item" href="/data-analysis.html">
                 <b><i class="chartline icon"></i>Data Analysis</b>
+            </a>
+            <a class="item" href="/ci-index.html">
+                <b><i class="seedling icon"></i>Eco-CI</b>
             </a>
             <a class="item" href="/settings.html">
                 <b><i class="cogs icon"></i>Settings</b>
@@ -42,7 +45,6 @@ const replaceRepoIcon = (uri) => {
     }
     return uri;
 }
-
 
 const showNotification = (message_title, message_text, type='warning') => {
     $('body')
@@ -68,6 +70,18 @@ const copyToClipboard = (e) => {
   return Promise.reject('The Clipboard API is not available.');
 };
 
+const dateToYMD = (date, short=false) => {
+    let day = date.getDate().toString().padStart(2, '0');
+    let month = (date.getMonth() + 1).toString().padStart(2, '0'); //Month from 0 to 11
+    let hours = date.getHours().toString().padStart(2, '0');
+    let minutes = date.getMinutes().toString().padStart(2, '0');
+    let offset = date.getTimezoneOffset();
+    offset = offset < 0 ? `+${-offset/60}` : -offset/60;
+
+    if(short) return `${date.getFullYear().toString().substr(-2)}.${month}.${day}`;
+    return ` ${date.getFullYear()}-${month}-${day} <br> ${hours}:${minutes} UTC${offset}`;
+}
+
 async function makeAPICall(path, values=null) {
 
     if(values != null ) {
@@ -85,13 +99,19 @@ async function makeAPICall(path, values=null) {
     let json_response = null;
     if(localStorage.getItem('remove_idle') == 'true') path += "?remove_idle=true"
     await fetch(API_URL + path, options)
-        .then(response => response.json())
-        .then(my_json => {
-            if (my_json.success != true) {
-                throw my_json.err
-            }
-            json_response = my_json
-        })
+    .then(response => {
+        if (response.status == 204) {
+            // 204 responses use no body, so json() call would fail
+            return {success: false, err: "Data is empty"}
+        }
+        return response.json()
+    })
+    .then(my_json => {
+        if (my_json.success != true) {
+            throw my_json.err
+        }
+        json_response = my_json
+    })
     return json_response;
 };
 
