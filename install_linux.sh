@@ -14,8 +14,9 @@ db_pw=''
 api_url=''
 metrics_url=''
 no_build=false
+no_hosts=false
 
-while getopts "p:a:m:n" o; do
+while getopts "p:a:m:n:h" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -29,6 +30,9 @@ while getopts "p:a:m:n" o; do
         n)
             no_build=true
             ;;
+        h)
+            no_hosts=true
+            ;;
     esac
 done
 
@@ -40,11 +44,15 @@ fi
 if [[ -z $metrics_url ]] ; then
     read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.internal:9142): " metrics_url
     metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
-fi 
+fi
 
 if [[ -z "$db_pw" ]] ; then
     read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
 fi
+
+print_message "Clearing old api.conf and frontend.conf files"
+rm -Rf docker/nginx/api.conf
+rm -Rf docker/nginx/frontend.conf
 
 print_message "Updating compose.yml with current path ..."
 cp docker/compose.yml.example docker/compose.yml
@@ -104,25 +112,30 @@ PYTHON_PATH=$(which python3)
 PWD=$(pwd)
 echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
 
+print_message "Adding IPMI to sudoers file"
+echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/ipmi_get_machine_energy_stat
 
-etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
-etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
+if [[ $no_hosts != true ]] ; then
 
-print_message "Writing to /etc/hosts file..."
+    etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
+    etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
 
-# Entry 1 is needed for the local resolution of the containers through the jobs.py and runner.py
-if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
-    echo "$etc_hosts_line_1" | sudo tee -a /etc/hosts
-else
-    echo "Entry was already present..."
-fi
+    print_message "Writing to /etc/hosts file..."
 
-# Entry 2 can be external URLs. These should not resolve to localhost if not explcitely wanted
-if [[ ${host_metrics_url} == *".green-coding.internal"* ]];then
-    if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
-        echo "$etc_hosts_line_2" | sudo tee -a /etc/hosts
+    # Entry 1 is needed for the local resolution of the containers through the jobs.py and runner.py
+    if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
+        echo "$etc_hosts_line_1" | sudo tee -a /etc/hosts
     else
         echo "Entry was already present..."
+    fi
+
+    # Entry 2 can be external URLs. These should not resolve to localhost if not explcitely wanted
+    if [[ ${host_metrics_url} == *".green-coding.internal"* ]];then
+        if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
+            echo "$etc_hosts_line_2" | sudo tee -a /etc/hosts
+        else
+            echo "Entry was already present..."
+        fi
     fi
 fi
 

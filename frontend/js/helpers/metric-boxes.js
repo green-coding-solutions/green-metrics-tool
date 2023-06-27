@@ -5,6 +5,7 @@
 class PhaseMetrics extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
+        <h3 class="ui dividing header">Key metrics</h3>
         <div class="ui four cards stackable no-transform-statistics">
             <div class="ui card phase-duration">
                 <div class="ui content">
@@ -145,12 +146,13 @@ class PhaseMetrics extends HTMLElement {
                 <i class="dropdown icon"></i> <a><u>Click here for detailed metrics ...</u></a>
             </div>
             <div class="content">
+                <h3 class="ui dividing header">Detailed metrics</h3>
                 <table class="ui celled table compare-metrics-table sortable">
                   <thead></thead>
                   <tbody></tbody>
                 </table>
                 <co2-tangible></co2-tangible>
-                <h3 class="ui dividing header">Detailed Charts</h3>
+                <h3 class="ui dividing header hide-for-single-stats">Detailed Charts</h3>
                 <div class="compare-chart-container"></div>
             </div>
         </div>`;
@@ -191,7 +193,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, co
         <td>${detail_data.name}</td>
         <td>${value}</td>
         <td>${unit}</td>
-        <td>${std_dev_text_table}</td>
+        <td class="hide-for-single-stats">${std_dev_text_table}</td>
         <td>${extra_label}</td>`;
 
     updateKeyMetric(

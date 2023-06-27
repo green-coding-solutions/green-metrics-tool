@@ -30,6 +30,9 @@
     <script src="/js/stats.js" defer></script>
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
+    <style type="text/css">
+        .hide-for-single-stats { display: none !important; }
+    </style>
 </head>
 <body class="preload">
     <gmt-menu></gmt-menu>
@@ -40,13 +43,14 @@
                 <div class="header"><a class="ui red ribbon label" href="#">
                     <h3>Project Data</h3>
                 </a></div>
-                <div class="description">
+                <div class="description project-data-container">
                     <div class="ui secondary menu">
                         <a class="item active" data-tab="one">General</a>
                         <a class="item" data-tab="two">Measurement</a>
                         <a class="item" data-tab="three">Badges</a>
                         <a class="item" data-tab="four">Machine</a>
                         <a class="item" data-tab="five">Usage Scenario</a>
+                        <a class="item" data-tab="six">Logs</a>
                     </div>
                     <div class="ui tab segment" data-tab="one">
                         <table class="table-hover" id="project-data-top"></table>
@@ -95,6 +99,10 @@
                     <div class="ui active tab segment" data-tab="five">
                         <span id="usage-scenario"></span>
                     </div>
+                    <div class="ui active tab segment" data-tab="six">
+                        <span id="logs"></span>
+                    </div>
+
                 </div>
             </div>
         </div><!-- end ui horizontal card -->
@@ -103,43 +111,31 @@
             <a class="active step" data-tab="[BASELINE]">
                 <div class="content">
                     <div class="title">Baseline<span class="ui icon" data-position="top left" data-inverted="" data-tooltip="Before container install / build / start and running software" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
-                    <div class="description" style="display:none">Energy consumption before installing application</div>
                 </div>
             </a>
             <a class="step" data-tab="[INSTALLATION]">
                 <div class="content">
                     <div class="title">Installation<span class="ui icon" data-position="top left" data-inverted="" data-tooltip="Container build / download" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
-                    <div class="description" style="display:none">This is where the containers are built / pulled</div>
                 </div>
             </a>
             <a class="step" data-tab="[BOOT]">
                 <div class="content">
                     <div class="title">Boot<span class="ui icon" data-position="top center" data-inverted="" data-tooltip="Container startup" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
-                    <div class="description" style="display:none">resource consumption while starting containers</div>
                 </div>
             </a>
             <a class="step" data-tab="[IDLE]">
                 <div class="content">
                     <div class="title">Idle<span class="ui icon" data-position="top center" data-inverted="" data-tooltip="After container installation and boot. flow not started. But services, if any, are already running." style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
-                    <div class="description" style="display:none">resource consumption while running idle containers</div>
                 </div>
             </a>
-            <a class="step runtime-step" data-tab="[RUNTIME]">
+            <a class="step" data-tab="[RUNTIME]">
                 <div class="content">
                     <div class="title">Runtime<span class="ui icon" data-position="top center" data-inverted="" data-tooltip="Contains cumulated runtime metrics." style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
-                    <div class="description" style="display:none">resource consumption while running idle containers</div>
-                </div>
-            </a>
-            <a class="step" data-tab="" style="display:none;"> <!-- empty element for copying. Usage phases will be inserted before -->
-                <div class="content">
-                    <div class="title"><span class="ui icon" data-inverted="" data-position="top right" data-tooltip="This is a user defined custom phase" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
-                    <div class="description" style="display:none">resource consumption while usage phase and executing usage scenario</div>
                 </div>
             </a>
             <a class="step" data-tab="[REMOVE]">
                 <div class="content">
                     <div class="title">Remove<span class="ui icon" data-inverted="" data-position="top right" data-tooltip="This is the removal phase, including cache-purging, container stop etc." style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
-                    <div class="description" style="display:none">When software is removed / uninstalled.</div>
                 </div>
             </a>
         </div>
@@ -151,7 +147,6 @@
                     <h3>Single Phase Data</h3>
                 </a></div>
             </div>
-            <h3 class="ui dividing header">key metrics</h3>
             <div class="key-metrics-chart-container">
                 <div class="bar-chart">
                     <div class="chart-title"></div>
@@ -164,7 +159,7 @@
             </div>
             <br>
             <phase-metrics></phase-metrics>
-        </div>
+        </div><!-- end BASELINE -->
         <div class="ui tab attached segment secondary" data-tab="[INSTALLATION]">
             <div class="content">
                 <div class="header"><a class="ui blue ribbon label" href="#">
@@ -172,7 +167,6 @@
                 </a></div>
             </div>
 
-            <h3 class="ui dividing header">key metrics</h3>
             <div class="key-metrics-chart-container">
                 <div class="bar-chart">
                     <div class="chart-title"></div>
@@ -185,7 +179,7 @@
             </div>
             <br>
             <phase-metrics></phase-metrics>
-        </div>
+        </div><!-- end INSTALLATION -->
         <div class="ui tab attached segment secondary" data-tab="[BOOT]">
             <div class="content">
                 <div class="header"><a class="ui blue ribbon label" href="#">
@@ -193,7 +187,6 @@
                 </a></div>
             </div>
 
-            <h3 class="ui dividing header">key metrics</h3>
             <div class="key-metrics-chart-container">
                 <div class="bar-chart">
                     <div class="chart-title"></div>
@@ -206,14 +199,13 @@
             </div>
             <br>
             <phase-metrics></phase-metrics>
-        </div>
+        </div><!-- end BOOT -->
         <div class="ui tab attached segment secondary" data-tab="[IDLE]">
             <div class="content">
                 <div class="header"><a class="ui blue ribbon label" href="#">
                     <h3>Single Phase Data</h3>
                 </a></div>
             </div>
-            <h3 class="ui dividing header">key metrics</h3>
             <div class="key-metrics-chart-container">
                 <div class="bar-chart">
                     <div class="chart-title"></div>
@@ -226,54 +218,66 @@
             </div>
             <br>
             <phase-metrics></phase-metrics>
-        </div>
-        <div class="ui tab attached segment secondary" data-tab="[RUNTIME]">
-            <div class="content">
-                <div class="header"><a class="ui blue ribbon label" href="#">
-                    <h3>Single Phase Data</h3>
-                </a></div>
+        </div><!-- end IDLE -->
+        <div id="runtime-steps" class="ui tab attached segment secondary" data-tab="[RUNTIME]">
+            <div class="ui top segment attached">
+                Runtime can contain multiple flows.
+                By default all runtime flows are aggregated. Please select a separate flow if needed.
             </div>
-            <h3 class="ui dividing header">key metrics</h3>
-            <div class="key-metrics-chart-container">
-                <div class="bar-chart">
-                    <div class="chart-title"></div>
-                    <div class="statistics-chart"></div>
-                </div>
-                <div class="radar-chart">
-                    <div class="chart-title"></div>
-                    <div class="statistics-chart"></div>
-                </div>
+            <div id="runtime-sub-phases" class="ui top attached tabular menu">
+                <a class="active item" data-tab="[[RUNTIME]]">All Flows</a>
+                <a class="item runtime-step" data-tab="" style="display:none;"></a> <!-- empty element for copying. Usage phases will be inserted before -->
             </div>
-            <br>
-            <phase-metrics></phase-metrics>
-        </div>
-        <div class="ui tab attached segment secondary runtime-tab" data-tab="" style="display:none;">
-            <div class="content">
-                <div class="header"><a class="ui blue ribbon label" href="#">
-                    <h3>Single Phase Data</h3>
-                </a></div>
-            </div>
-            <h3 class="ui dividing header">key metrics</h3>
-            <div class="key-metrics-chart-container">
-                <div class="bar-chart">
-                    <div class="chart-title"></div>
-                    <div class="statistics-chart"></div>
-                </div>
-                <div class="radar-chart">
-                    <div class="chart-title"></div>
-                    <div class="statistics-chart"></div>
+            <!-- We are using a trick here. The selection works on [RUNTIME] but will match this tab still, as it is the first by default -->
+            <div class="ui bottom attached active tab segment" data-tab="[[RUNTIME]]">
+                <div class="ui segment secondary">
+                    <div class="content">
+                        <div class="header"><a class="ui blue ribbon label" href="#">
+                            <h3>Single Phase Data</h3>
+                        </a></div>
+                    </div>
+                    <div class="key-metrics-chart-container">
+                        <div class="bar-chart">
+                            <div class="chart-title"></div>
+                            <div class="statistics-chart"></div>
+                        </div>
+                        <div class="radar-chart">
+                            <div class="chart-title"></div>
+                            <div class="statistics-chart"></div>
+                        </div>
+                    </div>
+                    <br>
+                    <phase-metrics></phase-metrics>
                 </div>
             </div>
-            <br>
-            <phase-metrics></phase-metrics>
-        </div>
+            <div class="ui bottom attached tab segment runtime-tab" data-tab="" style="display:none;">
+                <div class="ui segment secondary">
+                    <div class="content">
+                        <div class="header"><a class="ui blue ribbon label" href="#">
+                            <h3>Single Phase Data</h3>
+                        </a></div>
+                    </div>
+                    <div class="key-metrics-chart-container">
+                        <div class="bar-chart">
+                            <div class="chart-title"></div>
+                            <div class="statistics-chart"></div>
+                        </div>
+                        <div class="radar-chart">
+                            <div class="chart-title"></div>
+                            <div class="statistics-chart"></div>
+                        </div>
+                    </div>
+                    <br>
+                    <phase-metrics></phase-metrics>
+                </div>
+            </div>
+        </div><!-- end RUNTIME -->
         <div class="ui tab attached segment secondary" data-tab="[REMOVE]">
             <div class="content">
                 <div class="header"><a class="ui blue ribbon label" href="#">
                     <h3>Single Phase Data</h3>
                 </a></div>
             </div>
-            <h3 class="ui dividing header">key metrics</h3>
             <div class="key-metrics-chart-container">
                 <div class="bar-chart">
                     <div class="chart-title"></div>
@@ -286,7 +290,7 @@
             </div>
             <br>
             <phase-metrics></phase-metrics>
-        </div>
+        </div><!-- end REMOVE -->
 
         <div class="ui segment" id="total-phases-data">
             <div class="content">

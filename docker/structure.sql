@@ -19,6 +19,7 @@ CREATE TABLE projects (
     start_measurement bigint,
     end_measurement bigint,
     phases JSON DEFAULT null,
+    logs text DEFAULT null,
     invalid_project text,
     last_run timestamp with time zone,
     created_at timestamp with time zone DEFAULT now()
@@ -26,12 +27,12 @@ CREATE TABLE projects (
 
 CREATE TABLE measurements (
     id SERIAL PRIMARY KEY,
-    project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    detail_name text,
-    metric text,
-    value bigint,
-    unit text,
-    time bigint,
+    project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE ,
+    detail_name text NOT NULL,
+    metric text NOT NULL,
+    value bigint NOT NULL,
+    unit text NOT NULL,
+    time bigint NOT NULL,
     phase text DEFAULT null,
     created_at timestamp with time zone DEFAULT now()
 );
@@ -57,18 +58,16 @@ CREATE TABLE machines (
 
 CREATE TABLE phase_stats (
     id SERIAL PRIMARY KEY,
-    project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    metric text,
-    detail_name text,
-    phase text,
-    value bigint,
-    type text,
+    project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    metric text NOT NULL,
+    detail_name text NOT NULL,
+    phase text NOT NULL,
+    value bigint NOT NULL,
+    type text NOT NULL,
     max_value bigint DEFAULT NULL,
-    unit text,
+    unit text NOT NULL,
     created_at timestamp with time zone DEFAULT now()
 );
-CREATE UNIQUE INDEX description_unique ON machines(description text_ops);
-
 
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,
@@ -101,7 +100,17 @@ CREATE TABLE ci_measurements (
     cpu text DEFAULT NULL,
     commit_hash text DEFAULT NULL,
     label text,
+    duration bigint,
     source text,
     project_id uuid REFERENCES projects(id) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT null,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE client_status (
+    id SERIAL PRIMARY KEY,
+	status_code TEXT NOT NULL,
+	machine_id int REFERENCES machines(id) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT null,
+	"data" TEXT,
+	project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now()
 );

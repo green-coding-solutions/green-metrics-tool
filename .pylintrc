@@ -24,6 +24,7 @@ disable=missing-function-docstring,
     too-many-public-methods,
     too-many-branches,
     too-many-statements,
+    too-many-arguments,
 
 
 #    import-error

@@ -74,7 +74,7 @@ def get_env_vars(runner):
         )
         env_var_output = ps.stdout
     finally:
-        runner.cleanup()
+        Tests.cleanup(runner)
     return env_var_output
 
 def test_env_variable_no_skip_or_allow():
@@ -111,7 +111,7 @@ def get_port_bindings(runner):
         port = ps.stdout
         err = ps.stderr
     finally:
-        runner.cleanup()
+        Tests.cleanup(runner)
     return port, err
 
 def test_port_bindings_allow_unsafe_true():
@@ -206,7 +206,7 @@ def get_contents_of_bound_volume(runner):
             )
         ls = ps.stdout
     finally:
-        runner.cleanup()
+        Tests.cleanup(runner)
     return ls
 
 #volumes: [array] (optional)
@@ -253,7 +253,7 @@ def test_network_created():
         )
         ls = ps.stdout
     finally:
-        runner.cleanup()
+        Tests.cleanup(runner)
     assert 'gmt-test-network' in ls, Tests.assertion_info('gmt-test-network', ls)
 
 def test_container_is_in_network():
@@ -269,7 +269,7 @@ def test_container_is_in_network():
         )
         inspect = ps.stdout
     finally:
-        runner.cleanup()
+        Tests.cleanup(runner)
     assert 'test-container' in inspect, Tests.assertion_info('test-container', inspect)
 
 # cmd: [str] (optional)
@@ -289,7 +289,7 @@ def test_cmd_ran():
         )
         docker_ps_out = ps.stdout
     finally:
-        runner.cleanup()
+        Tests.cleanup(runner)
     assert '1 root      0:00 sh' in docker_ps_out, Tests.assertion_info('1 root      0:00 sh', docker_ps_out)
 
 ### The Tests for the runner options/flags
@@ -302,7 +302,7 @@ def test_uri_local_dir():
     project_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,'--config-override', 'test-config.yml',
-        '--skip-config-check'],
+        '--skip-config-check', '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -327,7 +327,7 @@ def test_uri_github_repo():
     project_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,'--config-override', 'test-config.yml',
-        '--skip-config-check'],
+        '--skip-config-check', '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -359,7 +359,7 @@ def test_uri_github_repo_branch():
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
         '--branch', 'test-branch' , '--filename', 'basic_stress.yml',
-        '--config-override', 'test-config.yml', '--skip-config-check'],
+        '--config-override', 'test-config.yml', '--skip-config-check', '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -416,7 +416,7 @@ def test_different_filename():
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
          '--filename', 'basic_stress.yml', '--config-override', 'test-config.yml',
-         '--skip-config-check'],
+         '--skip-config-check', '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -473,7 +473,8 @@ def test_debug(monkeypatch):
     project_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
-         '--debug', '--config-override', 'test-config.yml', '--skip-config-check'],
+         '--debug', '--config-override', 'test-config.yml', '--skip-config-check',
+          '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -494,8 +495,8 @@ def wip_test_verbose_provider_boot():
     project_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
-         '--verbose-provider-boot', '--config-override', 'test-config.yml'],
-         # '--config-override', 'test-config.yml'],
+         '--verbose-provider-boot', '--config-override', 'test-config.yml',
+         '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,

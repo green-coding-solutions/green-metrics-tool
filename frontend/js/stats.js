@@ -80,6 +80,8 @@ const fillProjectData = (project_data, key = null) => {
             fillProjectTab('#machine-specs', project_data[item]); // recurse
         } else if(item == 'usage_scenario') {
             document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<pre class="usage-scenario">${json2yaml(project_data?.[item])}</pre>`)
+        } else if(item == 'logs') {
+            document.querySelector("#logs").insertAdjacentHTML('beforeend', `<pre>${project_data?.[item]}</pre>`)
         } else if(item == 'measurement_config') {
             fillProjectTab('#measurement-config', project_data[item]); // recurse
         } else if(item == 'phases' || item == 'id') {
@@ -102,10 +104,10 @@ const fillProjectData = (project_data, key = null) => {
     // create new custom field
     // timestamp is in microseconds, therefore divide by 10**6
     const measurement_duration_in_s = (project_data.end_measurement - project_data.start_measurement) / 1000000
-    document.querySelector('#project-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${measurement_duration_in_s} s</td></tr>`)
+    document.querySelector('#project-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td>${measurement_duration_in_s} s</td></tr>`)
 
 
-    $('.ui.secondary.menu .item').tab(); // activate tabs for project data
+    $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.project-data-container'}); // activate tabs for project data
     $('.ui.accordion').accordion();
 
     if (project_data.invalid_project) {
@@ -353,9 +355,8 @@ $(document).ready( (e) => {
         fillProjectData(project_data);
 
         if(phase_stats_data != null) {
-            let multi_comparison = determineMultiComparison(phase_stats_data.comparison_case)
-            setupPhaseTabs(phase_stats_data, multi_comparison)
-            displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case, multi_comparison)
+            setupPhaseTabs(phase_stats_data, false, true)
+            displayComparisonMetrics(phase_stats_data, phase_stats_data.comparison_case, false, true)
         }
 
         if (measurements_data == undefined) return;
