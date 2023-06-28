@@ -94,6 +94,8 @@ measurement:
         resolution: 100
     #--- Architecture - Common
     common:
+      #network.proxy.proxy_provider.ProxyMetricsProvider:
+        # host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails
     #--- Model based
 #      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
 #        resolution: 100

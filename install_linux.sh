@@ -40,7 +40,7 @@ fi
 if [[ -z $metrics_url ]] ; then
     read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.internal:9142): " metrics_url
     metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
-fi 
+fi
 
 if [[ -z "$db_pw" ]] ; then
     read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
@@ -79,9 +79,9 @@ git submodule update --init
 
 print_message "Installing needed binaries for building ..."
 if lsb_release -is | grep -q "Fedora"; then
-    sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel
+    sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy
 else
-    sudo apt install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev
+    sudo apt install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy
 fi
 
 print_message "Building binaries ..."

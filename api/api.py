@@ -138,11 +138,11 @@ async def get_network(project_id):
             SELECT *
             FROM network_intercepts
             WHERE project_id = %s
-            ORDER BY created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
+            ORDER BY time
             """
     data = DB().fetch_all(query, (project_id,))
-    if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+    if data is None:
+        data == []
 
     escaped_data = [sanitize(intercept) for intercept in data]
     return ORJSONResponse({'success': True, 'data': escaped_data})

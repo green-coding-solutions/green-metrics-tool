@@ -333,10 +333,14 @@ const renderBadges = (url_params) => {
 }
 
 const displayNetworkIntercepts = (network_data) => {
-    for (item of network_data) {
-        date = new Date(Number(item[2]));
-        date = date.toLocaleString();
-        document.querySelector("#network-intercepts").insertAdjacentHTML('beforeend', `<tr><td><strong>${date}</strong></td><td>${item[3]}</td><td>${item[4]}</td></tr>`)
+    if (network_data.length === 0) {
+        document.querySelector("#network-divider").insertAdjacentHTML('afterEnd', '<p>No external network connections were detected.</p>')
+    } else {
+        for (item of network_data) {
+            date = new Date(Number(item[2]));
+            date = date.toLocaleString();
+            document.querySelector("#network-intercepts").insertAdjacentHTML('beforeend', `<tr><td><strong>${date}</strong></td><td>${item[3]}</td><td>${item[4]}</td></tr>`)
+        }
     }
 }
 

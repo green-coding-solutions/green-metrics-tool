@@ -12,19 +12,22 @@ import sys
 import time
 import re
 from datetime import datetime, timezone
+import platform
+import subprocess
 
 from db import DB
-
+from global_config import GlobalConfig
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class ProxyMetricsProvider:
 
-    def __init__(self):
+    def __init__(self, host_ip=None):
         self._metric_name = 'dockerproxy'
         self._tmp_folder = '/tmp/green-metrics-tool'
         self._conf_file = f"{CURRENT_DIR}/proxy_conf.conf"
         self._filename = f"{self._tmp_folder}/proxy.log"
         self._ps = None
+        self._host_ip = host_ip
 
         Path(self._tmp_folder).mkdir(exist_ok=True)
 
@@ -32,19 +35,39 @@ class ProxyMetricsProvider:
     def get_stderr(self):
         return self._ps.stderr.read()
 
+    def get_docker_params(self):
+
+        if self._host_ip:
+            return ['--env', f"HTTP_PROXY=http://{self._host_ip}:8889",
+                    '--env', f"HTTPS_PROXY=http://{self._host_ip}:8889"]
+        elif platform.system() == 'Linux':
+            # Under Linux there is no way to directly link to the host
+            ps = subprocess.run(['ip', 'route', 'list', 'default'], check=True, text=True, capture_output=True)
+            host_ip = ps.stdout.split()[8]
+            return ['--env', f"HTTP_PROXY=http://{host_ip}:8889",
+                    '--env', f"HTTPS_PROXY=http://{host_ip}:8889"]
+        else:
+             return ['--env', 'HTTP_PROXY=http://host.docker.internal:8889',
+                     '--env', 'HTTPS_PROXY=http://host.docker.internal:8889']
+
+
     def read_metrics(self, project_id, *_):
         records_added = 0
         with open(self._filename, 'r', encoding='utf-8') as file:
             lines = file.readlines()
 
-        pattern = re.compile(r"CONNECT\s+([A-Za-z]{3} \d{2} \d{2}:\d{2}:\d{2}\.\d{3}) \[\d+\]: Request \(file descriptor \d+\): (.+) (.+)")
+        pattern = re.compile(r"CONNECT\s+([A-Za-z]{3} \d{2} \d{2}:\d{2}:\d{2}(?:\.\d{3})?) \[\d+\]: Request \(file descriptor \d+\): (.+) (.+)")
 
         for line in lines:
             match = pattern.search(line)
             if match:
                 date_str, connection_type, protocol = match.groups()
                 # parse the date and time
-                date = datetime.strptime(date_str, '%b %d %H:%M:%S.%f').replace(year=datetime.now().year)
+                try:
+                    date = datetime.strptime(date_str, '%b %d %H:%M:%S.%f').replace(year=datetime.now().year)
+                except ValueError:
+                    date = datetime.strptime(date_str, '%b %d %H:%M:%S').replace(year=datetime.now().year)
+
                 time =  int(date.replace(tzinfo=timezone.utc).timestamp() * 1000)
 
                 query = """
@@ -62,6 +85,8 @@ class ProxyMetricsProvider:
     def start_profiling(self, *_):
 
         call_string = f"tinyproxy -d -c {self._conf_file} > {self._filename}"
+
+        print(call_string)
 
         self._ps = subprocess.Popen(
             [call_string],
