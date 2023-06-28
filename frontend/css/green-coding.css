@@ -246,7 +246,7 @@ a,
     text-align: center;
 }
 
-#logs pre {
+#logs pre, #machine-specs-tab {
     max-width: 80vw;
     white-space: pre-wrap;
     word-wrap: break-word;
@@ -255,3 +255,4 @@ a,
 #compare-button {
     float: right;
 }
+
