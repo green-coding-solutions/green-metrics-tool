@@ -620,9 +620,17 @@ class Runner:
                     # This is however not enabled anymore and hard to circumvent. We keep this as unfixed for now.
                     if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
+
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
-                        docker_run_string.append(f"{volume}")
+                        if volume.startswith('./'): # we have a bind-mount with relative path
+                            vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
+                            path = os.path.realpath(os.path.join(self._folder, vol[0]))
+                            if not os.path.exists(path):
+                                raise RuntimeError(f"Volume path does not exist {path}")
+                            docker_run_string.append(f"{path}:{vol[1]}")
+                        else:
+                            docker_run_string.append(f"{volume}")
                 else: # safe volume bindings are active by default
                     if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
