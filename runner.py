@@ -508,6 +508,9 @@ class Runner:
                     relative_path = self._filename.rsplit('/', 1)[0]
                     context_path += f"/{relative_path}"
                     context = relative_path
+                else:
+                    relative_path = context
+
                 join_path_and_file(context_path, dockerfile)
 
                 docker_build_command = ['docker', 'run', '--rm',
