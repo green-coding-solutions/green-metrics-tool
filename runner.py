@@ -639,8 +639,7 @@ class Runner:
                             raise RuntimeError(f"Trying to escape folder {path}")
 
                         # To double check we also check if it is in the files allow list
-                        if path not in [os.path.join(self._folder, item) for item in os.listdir(self._folder)]:
-                            print( os.listdir(self._folder))
+                        if path not in [str(item) for item in Path(self._folder).rglob("*")]:
                             raise RuntimeError(f"{path} not in allowed file list")
 
                         if len(vol) == 3:
