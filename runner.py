@@ -66,7 +66,7 @@ def join_path_and_file(path, file):
         raise ValueError(f"{file} not in {path}")
 
     # To double check we also check if it is in the files allow list
-    folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
+    folder_content = [str(item) for item in Path(path).rglob("*")]
     if filename not in folder_content:
         raise ValueError(f"{file} not in {path}")
 
