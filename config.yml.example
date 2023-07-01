@@ -6,6 +6,7 @@ postgresql:
   user: postgres
   dbname: green-coding
   password: PLEASE_CHANGE_THIS
+  port: 9573
 
 smtp:
   server: SMTP_SERVER
