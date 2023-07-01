@@ -59,7 +59,6 @@ if [[ $ask_tmpfs == true ]] ; then
     read -p "We strongly recommend mounting /tmp on a tmpfs. Do you want to do that? (y/N)" tmpfs
     if [[ "$tmpfs" == "Y" || "$tmpfs" == "y" ]] ; then
         sudo systemctl enable /usr/share/systemd/tmp.mount
-        print "OK"
     fi
 fi
 
@@ -160,3 +159,4 @@ fi
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
+echo -e "${GREEN}If you have newly requested to mount /tmp as tmpfs please reboot your system now.${NC}"
