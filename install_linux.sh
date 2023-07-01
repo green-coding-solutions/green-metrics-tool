@@ -15,8 +15,9 @@ api_url=''
 metrics_url=''
 no_build=false
 no_hosts=false
+ask_tmpfs=true
 
-while getopts "p:a:m:n:h" o; do
+while getopts "p:a:m:n:h:t" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -33,6 +34,10 @@ while getopts "p:a:m:n:h" o; do
         h)
             no_hosts=true
             ;;
+        t)
+            ask_tmpfs=false
+            ;;
+
     esac
 done
 
@@ -48,6 +53,14 @@ fi
 
 if [[ -z "$db_pw" ]] ; then
     read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
+fi
+
+if [[ $ask_tmpfs == true ]] ; then
+    read -p "We strongly recommend mounting /tmp on a tmpfs. Do you want to do that? (y/N)" tmpfs
+    if [[ "$tmpfs" == "Y" || "$tmpfs" == "y" ]] ; then
+        sudo systemctl enable /usr/share/systemd/tmp.mount
+        print "OK"
+    fi
 fi
 
 print_message "Clearing old api.conf and frontend.conf files"
