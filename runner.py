@@ -272,6 +272,14 @@ class Runner:
 
         usage_scenario_file = join_path_and_file(self._folder, self._filename)
 
+        # We set the working folder now to the actual location of the usage_scenario
+        if '/' in self._filename:
+            self._folder = usage_scenario_file.rsplit('/', 1)[0]
+            self._filename = usage_scenario_file.rsplit('/', 1)[1]
+            print("Working folder changed to ", self._folder)
+
+
+
         with open(usage_scenario_file, 'r', encoding='utf-8') as fp:
             # We can use load here as the Loader extends SafeLoader
             yml_obj = yaml.load(fp, Loader)
@@ -503,22 +511,15 @@ class Runner:
                 # Make sure the docker file exists and is not trying to escape some root. We don't need the returns
                 # but it will throw errors if something is wrong
                 context_path = join_path_and_file(self._folder, context)  # If this is safe we can append the docker file
-                relative_path = ''
-                if '/' in self._filename and context == '.':
-                    relative_path = self._filename.rsplit('/', 1)[0]
-                    context_path += f"/{relative_path}"
-                    context = relative_path
-                else:
-                    relative_path = context
 
-                join_path_and_file(context_path, dockerfile)
+                join_path_and_file(context_path, dockerfile) # just to check if Dockerfile is in expected location
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-v', f"{self._folder}:/workspace:ro",
+                    '-v', f"{self._folder}:/workspace:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
                     f"--dockerfile=/workspace/{context}/{dockerfile}",
-                    '--context', f'dir:///workspace/{relative_path}',
+                    '--context', f'dir:///workspace/{context_path}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--no-push']
