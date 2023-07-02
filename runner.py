@@ -29,7 +29,7 @@ import random
 import shutil
 import yaml
 
-faulthandler.enable()  # will catch segfaults and write to STDERR
+faulthandler.enable()  # will catch segfaults and write to stderr
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/lib")
@@ -763,8 +763,12 @@ class Runner:
                     encoding='UTF-8'
                 )
                 print('Stdout:', ps.stdout)
+                print('Stderr:', ps.stderr)
+
                 if ps.stdout:
-                    self.add_to_log(container_name, ps.stdout, d_command)
+                    self.add_to_log(container_name, f"stdout {ps.stdout}", d_command)
+                if ps.stderr:
+                    self.add_to_log(container_name, f"stderr {ps.stderr}", d_command)
 
             # Obsolete warnings. But left in, cause reasoning for NotImplementedError still holds
             # elif el['type'] == 'Dockerfile':
@@ -913,47 +917,54 @@ class Runner:
                     self._debugger.pause('Waiting to start next command in flow')
 
             self.end_phase(el['name'].replace('[', '').replace(']',''))
+            self.check_process_returncodes()
 
+    # this function should never be called twice to avoid double logging of metrics
     def stop_metric_providers(self):
         print(TerminalColors.HEADER, 'Stopping metric providers and parsing measurements', TerminalColors.ENDC)
+        errors = []
         for metric_provider in self.__metric_providers:
             stderr_read = metric_provider.get_stderr()
             if stderr_read is not None:
-                raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
+                errors.append(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
             metric_provider.stop_profiling()
 
             df = metric_provider.read_metrics(self._project_id, self.__containers)
             print('Imported', TerminalColors.HEADER, df.shape[0], TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
             if df is None or df.shape[0] == 0:
-                raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
+                errors.append(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
 
             f = StringIO(df.to_csv(index=False, header=False))
             DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')
+        self.__metric_providers = []
+        if errors:
+            raise RuntimeError("\n".join(errors))
+
 
     def read_and_cleanup_processes(self):
         process_helpers.kill_ps(self.__ps_to_kill)
-
         print(TerminalColors.HEADER, '\nSaving processes stdout', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
             while (line := ps['ps'].stdout.readline()): # a for loop breaks functionality here suprisingly
-                print('Output from process:', ps['cmd'], line)
-                self.add_to_log(ps['container_name'], line, ps['cmd'])
+                print('stdout from process:', ps['cmd'], line)
+                self.add_to_log(ps['container_name'], f"stdout: {line}", ps['cmd'])
 
                 if ps['read-notes-stdout']:
                     # Fixed format according to our specification. If unpacking fails this is wanted error
                     timestamp, note = line.split(' ', 1)
                     self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
+            while (line := ps['ps'].stderr.readline()): # a for loop breaks functionality here suprisingly
+                print('stderr from process:', ps['cmd'], line)
+                self.add_to_log(ps['container_name'], f"stderr: {line}", ps['cmd'])
 
-
-    def check_stderr_processes(self):
-        # separate loop here, cause we want to first capture all stdouts without raising RuntimeError
-        print(TerminalColors.HEADER, '\nChecking process stderr', TerminalColors.ENDC)
+    def check_process_returncodes(self):
+        print(TerminalColors.HEADER, '\nChecking process return codes', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
-            stderr_content = ps['ps'].stderr.read()
             if not ps['ignore-errors']:
-                if process_helpers.check_process_failed(ps['ps'], stderr_content, ps['detach']):
-                    raise RuntimeError(f"Returncode was != 0 for process (was {ps['ps'].returncode}) or Stderr of docker exec command '{ps['cmd']}' was not empty: {stderr_content} - detached process: {ps['detach']}")
+                if process_helpers.check_process_failed(ps['ps'], ps['detach']):
+                    stderr_content = ps['ps'].stderr.read()
+                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. \nStderr: {stderr_content} - detached process: {ps['detach']}")
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
@@ -983,7 +994,7 @@ class Runner:
             WHERE id = %s
             """, params=(json.dumps(self.__phases), self._project_id))
 
-    def read_stdout_logs(self):
+    def read_container_logs(self):
         print(TerminalColors.HEADER, '\nSaving container logs', TerminalColors.ENDC)
         for container_name in self.__containers.values():
             log = subprocess.run(
@@ -994,7 +1005,9 @@ class Runner:
                 stderr=subprocess.PIPE,
             )
             if log.stdout:
-                self.add_to_log(container_name, log.stdout)
+                self.add_to_log(container_name, f"stdout: {log.stdout}")
+            if log.stderr:
+                self.add_to_log(container_name, f"stderr: {log.stderr}")
 
     def save_stdout_logs(self):
         logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.__stdout_logs.items()])
@@ -1128,9 +1141,8 @@ class Runner:
                 self._debugger.pause('Remove phase complete. Waiting to stop and cleanup')
 
             self.end_measurement()
-            self.check_stderr_processes()
+            self.check_process_returncodes()
             self.custom_sleep(config['measurement']['idle-time-end'])
-            self.stop_metric_providers()
             self.store_phases()
             self.update_start_and_end_times()
         except BaseException as exc:
@@ -1138,12 +1150,36 @@ class Runner:
             raise exc
         finally:
             try:
-                self.read_stdout_logs()
-                self.read_and_cleanup_processes()
-                self.save_notes_runner()
-                self.save_stdout_logs()
+                self.read_container_logs()
+            except BaseException as exc:
+                self.add_to_log(exc.__class__.__name__, str(exc))
+                raise exc
             finally:
-                self.cleanup()  # always run cleanup automatically after each run
+                try:
+                    self.read_and_cleanup_processes()
+                except BaseException as exc:
+                    self.add_to_log(exc.__class__.__name__, str(exc))
+                    raise exc
+                finally:
+                    try:
+                        self.save_notes_runner()
+                    except BaseException as exc:
+                        self.add_to_log(exc.__class__.__name__, str(exc))
+                        raise exc
+                    finally:
+                        try:
+                            self.save_stdout_logs()
+                        except BaseException as exc:
+                            self.add_to_log(exc.__class__.__name__, str(exc))
+                            raise exc
+                        finally:
+                            try:
+                                self.stop_metric_providers()
+                            except BaseException as exc:
+                                self.add_to_log(exc.__class__.__name__, str(exc))
+                                raise exc
+                            finally:
+                                self.cleanup()  # always run cleanup automatically after each run
 
         print(TerminalColors.OKGREEN, arrows('MEASUREMENT SUCCESSFULLY COMPLETED'), TerminalColors.ENDC)
 
