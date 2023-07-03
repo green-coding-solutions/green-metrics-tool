@@ -345,7 +345,6 @@ class Project(BaseModel):
 
 @app.post('/v1/project/add')
 async def post_project_add(project: Project):
-
     if project.url is None or project.url.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'URL is empty'}, status_code=400)
 
@@ -363,7 +362,6 @@ async def post_project_add(project: Project):
 
     if project.machine_id == 0:
         project.machine_id = None
-
     project = sanitize(project)
 
     # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
@@ -433,7 +431,7 @@ class CI_Measurement(BaseModel):
 
 @app.post('/v1/ci/measurement/add')
 async def post_ci_measurement_add(measurement: CI_Measurement):
-    for key, value in measurement.dict().items():
+    for key, value in measurement.model_dump().items():
         match key:
             case 'project_id':
                 if value is None or value.strip() == '':
