@@ -273,8 +273,11 @@ def sanitize(item):
         return item
 
     if isinstance(item, BaseModel):
-        item_copy = item.copy(deep=True)
-        keys = [key for key in dir(item_copy) if not key.startswith('_') and not callable(getattr(item_copy, key))]
+        item_copy = item.model_copy(deep=True)
+        # we ignore keys that begin with model_ because pydantic v2 renamed a lot of their fields from __fields to model_fields:
+        # https://docs.pydantic.dev/dev-v2/migration/#changes-to-pydanticbasemodel
+        # This could cause an error if we ever make a BaseModel that has keys that begin with model_
+        keys = [key for key in dir(item_copy) if not key.startswith('_') and not key.startswith('model_') and not callable(getattr(item_copy, key))]
         for key in keys:
             setattr(item_copy, key, sanitize(getattr(item_copy, key)))
         return item_copy
