@@ -124,11 +124,10 @@ def run_until(runner, step):
         runner.end_phase('[REMOVE]')
 
         runner.end_measurement()
-        runner.check_std_processes() #DMM: New
+        runner.check_process_returncodes()
         runner.custom_sleep(config['measurement']['idle-time-end'])
-        runner.stop_metric_providers()
-        runner.store_phases() #DMM: reorder
-        runner.update_start_and_end_times() #DMM : reorder
+        runner.store_phases()
+        runner.update_start_and_end_times()
         runner.read_and_cleanup_processes()
     except BaseException as exc: #DMM: new
         runner.add_to_log(exc.__class__.__name__, str(exc))
@@ -137,11 +136,36 @@ def run_until(runner, step):
 def cleanup(runner):
     try:
         runner.read_container_logs()
-        runner.read_and_cleanup_processes()
-        runner.save_notes_runner()
-        runner.save_stdout_logs()
+    except BaseException as exc:
+        runner.add_to_log(exc.__class__.__name__, str(exc))
+        raise exc
     finally:
-        runner.cleanup()  # always run cleanup automatically after each run
+        try:
+            runner.read_and_cleanup_processes()
+        except BaseException as exc:
+            runner.add_to_log(exc.__class__.__name__, str(exc))
+            raise exc
+        finally:
+            try:
+                runner.save_notes_runner()
+            except BaseException as exc:
+                runner.add_to_log(exc.__class__.__name__, str(exc))
+                raise exc
+            finally:
+                try:
+                    runner.save_stdout_logs()
+                except BaseException as exc:
+                    runner.add_to_log(exc.__class__.__name__, str(exc))
+                    raise exc
+                finally:
+                    try:
+                        runner.stop_metric_providers()
+                    except BaseException as exc:
+                        runner.add_to_log(exc.__class__.__name__, str(exc))
+                        raise exc
+                    finally:
+                        runner.cleanup()  # always run cleanup automatically after each run
+
 
 def assertion_info(expected, actual):
     return f"Expected: {expected}, Actual: {actual}"

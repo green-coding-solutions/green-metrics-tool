@@ -177,10 +177,12 @@ def test_setup_commands_multiple_commands():
 
     expected_pattern = re.compile(r'Running command:  docker exec test-container sh -c echo hello world.*\
 \s*Stdout: hello world.*\
+\s*Stderr:.*\
 \s*Running command:  docker exec test-container sh -c ps -a.*\
 \s*Stdout:\s+PID\s+USER\s+TIME\s+COMMAND.*\
 \s*1\s+root\s+\d:\d\d\s+/bin/sh.*\
 \s*1\d+\s+root\s+\d:\d\d\s+ps -a.*\
+\s*Stderr:.*\
 \s*Running command:  docker exec test-container sh -c echo goodbye world.*\
 \s*Stdout: goodbye world.*\
 ', re.MULTILINE)
