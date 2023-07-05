@@ -136,7 +136,7 @@ def run_until(runner, step):
 
 def cleanup(runner):
     try:
-        runner.read_stdout_logs()
+        runner.read_container_logs()
         runner.read_and_cleanup_processes()
         runner.save_notes_runner()
         runner.save_stdout_logs()
