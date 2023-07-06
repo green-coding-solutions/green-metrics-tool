@@ -924,6 +924,9 @@ class Runner:
         print(TerminalColors.HEADER, 'Stopping metric providers and parsing measurements', TerminalColors.ENDC)
         errors = []
         for metric_provider in self.__metric_providers:
+            if not metric_provider.has_started():
+                continue
+
             stderr_read = metric_provider.get_stderr()
             if stderr_read is not None:
                 errors.append(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")

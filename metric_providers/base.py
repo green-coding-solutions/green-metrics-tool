@@ -42,6 +42,11 @@ class BaseMetricProvider:
     def get_stderr(self):
         return self._ps.stderr.read()
 
+    def has_started(self):
+        if self._ps:
+            return True
+        return False
+
     def read_metrics(self, project_id, containers):
         with open(self._filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
