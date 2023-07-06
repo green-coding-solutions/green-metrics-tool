@@ -55,29 +55,36 @@ def arrows(text):
 # path with `..`, symbolic links or similar.
 # We always return the same error message including the path and file parameter, never `filename` as
 # otherwise we might disclose if certain files exist or not.
-def join_path_and_file(path, file):
-    filename = os.path.realpath(os.path.join(path, file))
+def join_paths(path, path2, mode=None):
+    filename = os.path.realpath(os.path.join(path, path2))
 
     # This is a special case in which the file is '.'
     if filename == path.rstrip('/'):
         return filename
 
     if not filename.startswith(path):
-        raise ValueError(f"{file} not in {path}")
+        raise ValueError(f"{path2} not in {path}")
 
     # To double check we also check if it is in the files allow list
-    folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
+
+    if mode == 'file':
+        folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
+    elif mode == 'dir':
+        folder_content = [str(item) for item in Path(path).rglob("*") if item.is_dir()]
+    else:
+        folder_content = [str(item) for item in Path(path).rglob("*")]
+
     if filename not in folder_content:
-        raise ValueError(f"{file} not in {path}")
+        raise ValueError(f"{path2} not in {path}")
 
     # Another way to implement this. This is checking the third time but we want to be extra secure 👾
-    if Path(path).resolve(strict=True) not in Path(path, file).resolve(strict=True).parents:
-        raise ValueError(f"{file} not in {path}")
+    if Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
+        raise ValueError(f"{path2} not in {path}")
 
     if os.path.exists(filename):
         return filename
 
-    raise FileNotFoundError(f"{file} in {path} not found")
+    raise FileNotFoundError(f"{path2} in {path} not found")
 
 
 
@@ -249,7 +256,7 @@ class Runner:
                 else:
                     raise ValueError("We don't support Mapping Nodes to date")
 
-                filename = join_path_and_file(self._root, nodes[0])
+                filename = join_paths(self._root, nodes[0], 'file')
 
                 with open(filename, 'r', encoding='utf-8') as f:
                     # We want to enable a deep search for keys
@@ -270,7 +277,15 @@ class Runner:
 
         Loader.add_constructor('!include', Loader.include)
 
-        usage_scenario_file = join_path_and_file(self._folder, self._filename)
+        usage_scenario_file = join_paths(self._folder, self._filename, 'file')
+
+        # We set the working folder now to the actual location of the usage_scenario
+        if '/' in self._filename:
+            self._folder = usage_scenario_file.rsplit('/', 1)[0]
+            self._filename = usage_scenario_file.rsplit('/', 1)[1]
+            print("Working folder changed to ", self._folder)
+
+
 
         with open(usage_scenario_file, 'r', encoding='utf-8') as fp:
             # We can use load here as the Loader extends SafeLoader
@@ -500,22 +515,16 @@ class Runner:
                 print(f"Building {service['image']}")
                 self.__notes.append({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
-                # Make sure the docker file exists and is not trying to escape some root. We don't need the returns
-                # but it will throw errors if something is wrong
-                context_path = join_path_and_file(self._folder, context)  # If this is safe we can append the docker file
-                relative_path = ''
-                if '/' in self._filename and context == '.':
-                    relative_path = self._filename.rsplit('/', 1)[0]
-                    context_path += f"/{relative_path}"
-                    context = relative_path
-                join_path_and_file(context_path, dockerfile)
+                # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
+                context_path = join_paths(self._folder, context, 'dir')
+                join_paths(context_path, dockerfile, 'file')
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-v', f"{self._folder}:/workspace:ro",
+                    '-v', f"{self._folder}:/workspace:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
                     f"--dockerfile=/workspace/{context}/{dockerfile}",
-                    '--context', f'dir:///workspace/{relative_path}',
+                    '--context', f'dir:///workspace/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--no-push']
@@ -617,9 +626,17 @@ class Runner:
                     # This is however not enabled anymore and hard to circumvent. We keep this as unfixed for now.
                     if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
+
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
-                        docker_run_string.append(f"{volume}")
+                        if volume.startswith('./'): # we have a bind-mount with relative path
+                            vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
+                            path = os.path.realpath(os.path.join(self._folder, vol[0]))
+                            if not os.path.exists(path):
+                                raise RuntimeError(f"Volume path does not exist {path}")
+                            docker_run_string.append(f"{path}:{vol[1]}")
+                        else:
+                            docker_run_string.append(f"{volume}")
                 else: # safe volume bindings are active by default
                     if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
@@ -636,8 +653,7 @@ class Runner:
                             raise RuntimeError(f"Trying to escape folder {path}")
 
                         # To double check we also check if it is in the files allow list
-                        if path not in [os.path.join(self._folder, item) for item in os.listdir(self._folder)]:
-                            print( os.listdir(self._folder))
+                        if path not in [str(item) for item in Path(self._folder).rglob("*")]:
                             raise RuntimeError(f"{path} not in allowed file list")
 
                         if len(vol) == 3:
