@@ -312,7 +312,6 @@ class Runner:
 
         print(TerminalColors.HEADER, '\nHaving Usage Scenario ', self._usage_scenario['name'], TerminalColors.ENDC)
         print('From: ', self._usage_scenario['author'])
-        print('Version ', self._usage_scenario['version'])
         print('Description: ', self._usage_scenario['description'], '\n')
 
         if self._allow_unsafe:
