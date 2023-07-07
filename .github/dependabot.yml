@@ -19,4 +19,4 @@ updates:
     directory: ".github/workflows/"
     target-branch: "dev"
     schedule:
-      interval: "weekly"
+      interval: "daily"

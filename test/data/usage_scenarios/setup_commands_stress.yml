@@ -11,6 +11,7 @@ services:
     build: .
     setup-commands:
       - ps -a
+    shell: sh
 
 flow:
   - name: Stress
