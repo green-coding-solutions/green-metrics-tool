@@ -1,0 +1,65 @@
+name: Cat
+author: Arne Tarara <arne@green-coding.berlin>
+description: Cat
+
+services:
+  test-container-root:
+    build:
+       context: .
+       dockerfile: Dockerfile
+    image: volume_bind_mount_rel_to_context_root
+    container_name: test-container-root
+    volumes:
+      - ./subdir/testfile:/tmp/testfile-correctly-mounted
+      - ./subdir/subdir2/testfile2:/tmp/testfile2-correctly-mounted
+
+  test-container:
+    build:
+       context: ./subdir
+       dockerfile: ./subdir2/Dockerfile2
+    image: volume_bind_mount_rel_to_context
+    container_name: test-container
+    volumes:
+      - ./subdir/testfile:/tmp/testfile-correctly-mounted
+      - ./subdir/subdir2/testfile2:/tmp/testfile2-correctly-mounted
+      - ./subdir/subdir2/subdir3/testfile3:/tmp/testfile3-correctly-mounted
+
+
+flow:
+  - name: Cat testfile root
+    container: test-container-root
+    commands:
+      - type: console
+        command: grep "testfile-root-content" /tmp/testfile-root
+
+  - name: Cat testfile root extra copied
+    container: test-container-root
+    commands:
+      - type: console
+        command: grep "testfile-root-content" /tmp/testfile-root-extra-copied
+
+  - name: Cat testfile root subdir
+    container: test-container-root
+    commands:
+      - type: console
+        command: grep "testfile3-content" /tmp/testfile3-correctly-copied
+
+
+  - name: Cat testfile
+    container: test-container
+    commands:
+      - type: console
+        command: grep "testfile-content" /tmp/testfile-correctly-mounted
+
+  - name: Cat testfile2
+    container: test-container
+    commands:
+      - type: console
+        command: grep "testfile2-content" /tmp/testfile2-correctly-mounted
+
+  - name: Cat testfile3
+    container: test-container
+    commands:
+      - type: console
+        command: grep "testfile3-content" /tmp/testfile3-correctly-mounted
+
