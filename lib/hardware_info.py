@@ -75,7 +75,9 @@ linux_info_list = [
     [rpwr, 'Architecture', '/usr/bin/hostnamectl', r'Architecture:\s*(?P<o>.*)'],
     [rpwr, 'Hardware Vendor', '/usr/bin/hostnamectl', r'Hardware Vendor:\s*(?P<o>.*)'],
     [rpwr, 'Hardware Model', '/usr/bin/hostnamectl', r'Hardware Model:\s*(?P<o>.*)'],
-    [rpwr, 'Processes', ['/usr/bin/ps', '-aux'], r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Processes', '/usr/bin/ps -aux', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [
         rpwrs,
         'Scaling Governor',
@@ -88,7 +90,7 @@ linux_info_list = [
     # This is also listed in the complete dump but we include it here again so it is more visible in the listing
     [rfwr, 'Turbo Boost', '/sys/devices/system/cpu/intel_pstate/no_turbo', r'(?P<o>.*)'],
     [rfwr, 'Virtualization', '/proc/cpuinfo', r'(?P<o>hypervisor)'],
-    [rpwrs, 'SGX', [os.path.join(CURRENT_PATH, '../tools/sgx_enable'), '-s'], r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwrs, 'SGX', f"{os.path.join(CURRENT_PATH, '../tools/sgx_enable')} -s", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rfwr, 'IO scheduling', '/sys/block/sda/queue/scheduler', r'(?P<o>.*)'],
 ]
 
@@ -101,6 +103,9 @@ mac_info_list = [
     [rpwr, 'Mac Version', 'sw_vers -productVersion', r'(?P<o>.*)'],
     [rpwr, 'Build Version', 'sw_vers -buildVersion', r'(?P<o>.*)'],
     [rpwr, 'Uname', 'uname -a', r'(?P<o>.*)'],
+    [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Processes', '/bin/ps -ax', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
 ]
 
 def get_list():

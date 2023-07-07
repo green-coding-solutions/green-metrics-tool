@@ -246,6 +246,10 @@ a,
     text-align: center;
 }
 
+#machine-specs td {
+    vertical-align: top;
+}
+
 #logs pre, #machine-specs-tab {
     max-width: 80vw;
     white-space: pre-wrap;
