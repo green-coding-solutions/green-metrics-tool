@@ -28,13 +28,13 @@ jobs:
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Eco CI Energy Estimation - Get Measurement
-        uses: green-coding-berlin/eco-ci-energy-estimation@v1
+        uses: green-coding-berlin/eco-ci-energy-estimation@v2
         with:
           task: get-measurement
           branch: dev
 
       - name: Eco CI Energy Estimation - End Measurement
-        uses: green-coding-berlin/eco-ci-energy-estimation@v1
+        uses: green-coding-berlin/eco-ci-energy-estimation@v2
         with:
           task: display-results
           branch: dev
