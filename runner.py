@@ -996,10 +996,10 @@ class Runner:
         for ps in self.__ps_to_read:
             if not ps['ignore-errors']:
                 if process_helpers.check_process_failed(ps['ps'], ps['detach']):
-                    if ps['detach']:
-                        ps['ps'].stdout, ps['ps'].stderr = ps['ps'].communicate(timeout=5)
-
-                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {ps['ps'].stderr}. Detached process: {ps['detach']}")
+                    stderr = 'Not read because detached. Please use stderr logging.'
+                    if not ps['detach']:
+                        stderr = ps['ps'].stderr
+                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}. Detached process: {ps['detach']}")
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
