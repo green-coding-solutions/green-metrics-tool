@@ -246,7 +246,11 @@ a,
     text-align: center;
 }
 
-#logs pre {
+#machine-specs td {
+    vertical-align: top;
+}
+
+#logs pre, #machine-specs-tab {
     max-width: 80vw;
     white-space: pre-wrap;
     word-wrap: break-word;
@@ -255,3 +259,4 @@ a,
 #compare-button {
     float: right;
 }
+

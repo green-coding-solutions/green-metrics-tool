@@ -2,7 +2,6 @@
 name: Test Stress
 author: Dan Mateas
 description: test
-version: 1
 description: test
 
 compose-file: !include docker-compose-file

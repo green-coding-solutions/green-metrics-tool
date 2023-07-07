@@ -1,7 +1,6 @@
 ---
 name: Test
 author: Dan Mateas
-version: 1
 
 networks: 
   network?name:

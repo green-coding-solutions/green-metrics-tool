@@ -32,13 +32,12 @@ Subject: {subject}
 {body}
 
 --
-Green Coding Berlin
-https://www.green-coding.berlin
+{url}"""
 
-    """
     message = message.format(
         subject=subject,
         body=body,
+        url=config['cluster']['metrics_url'],
         receiver_email=config['admin']['email'],
         smtp_sender=config['smtp']['sender'])
     send_email(message, config['admin']['email'])
@@ -57,13 +56,12 @@ Project id: {project_id}
 {errors}
 
 --
-Green Coding Berlin
-https://www.green-coding.berlin
+{url}"""
 
-    """
     message = message.format(
         receiver_email=receiver_email,
         errors=error,
+        url=config['cluster']['metrics_url'],
         project_id=project_id,
         smtp_sender=config['smtp']['sender'])
     send_email(message, receiver_email)
@@ -71,7 +69,6 @@ https://www.green-coding.berlin
 
 def send_report_email(receiver_email, report_id):
     config = GlobalConfig().config
-    site = config['cluster']['metrics_url'].split(':')[0]
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
@@ -80,14 +77,12 @@ Subject: Your Green Metric report is ready
 Your report is now accessible under the URL: {url}/stats.html?id={report_id}
 
 --
-{site}
+{url}"""
 
-    """
     message = message.format(
         receiver_email=receiver_email,
         report_id=report_id,
         url=config['cluster']['metrics_url'],
-        site=site,
         smtp_sender=config['smtp']['sender'])
     send_email(message, receiver_email)
 

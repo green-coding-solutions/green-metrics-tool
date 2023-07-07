@@ -73,7 +73,6 @@ class SchemaChecker():
         usage_scenario_schema = Schema({
             "name": str,
             "author": str,
-            "version": Use(int),
             "description": str,
 
             Optional("networks"): {

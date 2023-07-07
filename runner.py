@@ -29,7 +29,7 @@ import random
 import shutil
 import yaml
 
-faulthandler.enable()  # will catch segfaults and write to STDERR
+faulthandler.enable()  # will catch segfaults and write to stderr
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/lib")
@@ -55,29 +55,36 @@ def arrows(text):
 # path with `..`, symbolic links or similar.
 # We always return the same error message including the path and file parameter, never `filename` as
 # otherwise we might disclose if certain files exist or not.
-def join_path_and_file(path, file):
-    filename = os.path.realpath(os.path.join(path, file))
+def join_paths(path, path2, mode=None):
+    filename = os.path.realpath(os.path.join(path, path2))
 
     # This is a special case in which the file is '.'
     if filename == path.rstrip('/'):
         return filename
 
     if not filename.startswith(path):
-        raise ValueError(f"{file} not in {path}")
+        raise ValueError(f"{path2} not in {path}")
 
     # To double check we also check if it is in the files allow list
-    folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
+
+    if mode == 'file':
+        folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
+    elif mode == 'dir':
+        folder_content = [str(item) for item in Path(path).rglob("*") if item.is_dir()]
+    else:
+        folder_content = [str(item) for item in Path(path).rglob("*")]
+
     if filename not in folder_content:
-        raise ValueError(f"{file} not in {path}")
+        raise ValueError(f"{path2} not in {path}")
 
     # Another way to implement this. This is checking the third time but we want to be extra secure 👾
-    if Path(path).resolve(strict=True) not in Path(path, file).resolve(strict=True).parents:
-        raise ValueError(f"{file} not in {path}")
+    if Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
+        raise ValueError(f"{path2} not in {path}")
 
     if os.path.exists(filename):
         return filename
 
-    raise FileNotFoundError(f"{file} in {path} not found")
+    raise FileNotFoundError(f"{path2} in {path} not found")
 
 
 
@@ -249,7 +256,7 @@ class Runner:
                 else:
                     raise ValueError("We don't support Mapping Nodes to date")
 
-                filename = join_path_and_file(self._root, nodes[0])
+                filename = join_paths(self._root, nodes[0], 'file')
 
                 with open(filename, 'r', encoding='utf-8') as f:
                     # We want to enable a deep search for keys
@@ -270,7 +277,15 @@ class Runner:
 
         Loader.add_constructor('!include', Loader.include)
 
-        usage_scenario_file = join_path_and_file(self._folder, self._filename)
+        usage_scenario_file = join_paths(self._folder, self._filename, 'file')
+
+        # We set the working folder now to the actual location of the usage_scenario
+        if '/' in self._filename:
+            self._folder = usage_scenario_file.rsplit('/', 1)[0]
+            self._filename = usage_scenario_file.rsplit('/', 1)[1]
+            print("Working folder changed to ", self._folder)
+
+
 
         with open(usage_scenario_file, 'r', encoding='utf-8') as fp:
             # We can use load here as the Loader extends SafeLoader
@@ -312,7 +327,6 @@ class Runner:
 
         print(TerminalColors.HEADER, '\nHaving Usage Scenario ', self._usage_scenario['name'], TerminalColors.ENDC)
         print('From: ', self._usage_scenario['author'])
-        print('Version ', self._usage_scenario['version'])
         print('Description: ', self._usage_scenario['description'], '\n')
 
         if self._allow_unsafe:
@@ -501,22 +515,16 @@ class Runner:
                 print(f"Building {service['image']}")
                 self.__notes.append({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
-                # Make sure the docker file exists and is not trying to escape some root. We don't need the returns
-                # but it will throw errors if something is wrong
-                context_path = join_path_and_file(self._folder, context)  # If this is safe we can append the docker file
-                relative_path = ''
-                if '/' in self._filename and context == '.':
-                    relative_path = self._filename.rsplit('/', 1)[0]
-                    context_path += f"/{relative_path}"
-                    context = relative_path
-                join_path_and_file(context_path, dockerfile)
+                # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
+                context_path = join_paths(self._folder, context, 'dir')
+                join_paths(context_path, dockerfile, 'file')
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-v', f"{self._folder}:/workspace:ro",
+                    '-v', f"{self._folder}:/workspace:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
                     f"--dockerfile=/workspace/{context}/{dockerfile}",
-                    '--context', f'dir:///workspace/{relative_path}',
+                    '--context', f'dir:///workspace/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--no-push']
@@ -618,9 +626,17 @@ class Runner:
                     # This is however not enabled anymore and hard to circumvent. We keep this as unfixed for now.
                     if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
+
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
-                        docker_run_string.append(f"{volume}")
+                        if volume.startswith('./'): # we have a bind-mount with relative path
+                            vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
+                            path = os.path.realpath(os.path.join(self._folder, vol[0]))
+                            if not os.path.exists(path):
+                                raise RuntimeError(f"Volume path does not exist {path}")
+                            docker_run_string.append(f"{path}:{vol[1]}")
+                        else:
+                            docker_run_string.append(f"{volume}")
                 else: # safe volume bindings are active by default
                     if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
@@ -637,8 +653,7 @@ class Runner:
                             raise RuntimeError(f"Trying to escape folder {path}")
 
                         # To double check we also check if it is in the files allow list
-                        if path not in [os.path.join(self._folder, item) for item in os.listdir(self._folder)]:
-                            print( os.listdir(self._folder))
+                        if path not in [str(item) for item in Path(self._folder).rglob("*")]:
                             raise RuntimeError(f"{path} not in allowed file list")
 
                         if len(vol) == 3:
@@ -748,8 +763,12 @@ class Runner:
                     encoding='UTF-8'
                 )
                 print('Stdout:', ps.stdout)
+                print('Stderr:', ps.stderr)
+
                 if ps.stdout:
-                    self.add_to_log(container_name, ps.stdout, d_command)
+                    self.add_to_log(container_name, f"stdout {ps.stdout}", d_command)
+                if ps.stderr:
+                    self.add_to_log(container_name, f"stderr {ps.stderr}", d_command)
 
             # Obsolete warnings. But left in, cause reasoning for NotImplementedError still holds
             # elif el['type'] == 'Dockerfile':
@@ -898,47 +917,57 @@ class Runner:
                     self._debugger.pause('Waiting to start next command in flow')
 
             self.end_phase(el['name'].replace('[', '').replace(']',''))
+            self.check_process_returncodes()
 
+    # this function should never be called twice to avoid double logging of metrics
     def stop_metric_providers(self):
         print(TerminalColors.HEADER, 'Stopping metric providers and parsing measurements', TerminalColors.ENDC)
+        errors = []
         for metric_provider in self.__metric_providers:
+            if not metric_provider.has_started():
+                continue
+
             stderr_read = metric_provider.get_stderr()
             if stderr_read is not None:
-                raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
+                errors.append(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
             metric_provider.stop_profiling()
 
             df = metric_provider.read_metrics(self._project_id, self.__containers)
             print('Imported', TerminalColors.HEADER, df.shape[0], TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
             if df is None or df.shape[0] == 0:
-                raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
+                errors.append(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
 
             f = StringIO(df.to_csv(index=False, header=False))
             DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')
+        self.__metric_providers = []
+        if errors:
+            raise RuntimeError("\n".join(errors))
+
 
     def read_and_cleanup_processes(self):
         process_helpers.kill_ps(self.__ps_to_kill)
-
         print(TerminalColors.HEADER, '\nSaving processes stdout', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
             while (line := ps['ps'].stdout.readline()): # a for loop breaks functionality here suprisingly
-                print('Output from process:', ps['cmd'], line)
-                self.add_to_log(ps['container_name'], line, ps['cmd'])
+                print('stdout from process:', ps['cmd'], line)
+                self.add_to_log(ps['container_name'], f"stdout: {line}", ps['cmd'])
 
                 if ps['read-notes-stdout']:
                     # Fixed format according to our specification. If unpacking fails this is wanted error
                     timestamp, note = line.split(' ', 1)
                     self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
+            while (line := ps['ps'].stderr.readline()): # a for loop breaks functionality here suprisingly
+                print('stderr from process:', ps['cmd'], line)
+                self.add_to_log(ps['container_name'], f"stderr: {line}", ps['cmd'])
 
-
-    def check_stderr_processes(self):
-        # separate loop here, cause we want to first capture all stdouts without raising RuntimeError
-        print(TerminalColors.HEADER, '\nChecking process stderr', TerminalColors.ENDC)
+    def check_process_returncodes(self):
+        print(TerminalColors.HEADER, '\nChecking process return codes', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
-            stderr_content = ps['ps'].stderr.read()
             if not ps['ignore-errors']:
-                if process_helpers.check_process_failed(ps['ps'], stderr_content, ps['detach']):
-                    raise RuntimeError(f"Returncode was != 0 for process (was {ps['ps'].returncode}) or Stderr of docker exec command '{ps['cmd']}' was not empty: {stderr_content} - detached process: {ps['detach']}")
+                if process_helpers.check_process_failed(ps['ps'], ps['detach']):
+                    stderr_content = ps['ps'].stderr.read()
+                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. \nStderr: {stderr_content} - detached process: {ps['detach']}")
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
@@ -968,7 +997,7 @@ class Runner:
             WHERE id = %s
             """, params=(json.dumps(self.__phases), self._project_id))
 
-    def read_stdout_logs(self):
+    def read_container_logs(self):
         print(TerminalColors.HEADER, '\nSaving container logs', TerminalColors.ENDC)
         for container_name in self.__containers.values():
             log = subprocess.run(
@@ -979,7 +1008,9 @@ class Runner:
                 stderr=subprocess.PIPE,
             )
             if log.stdout:
-                self.add_to_log(container_name, log.stdout)
+                self.add_to_log(container_name, f"stdout: {log.stdout}")
+            if log.stderr:
+                self.add_to_log(container_name, f"stderr: {log.stderr}")
 
     def save_stdout_logs(self):
         logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.__stdout_logs.items()])
@@ -1113,9 +1144,8 @@ class Runner:
                 self._debugger.pause('Remove phase complete. Waiting to stop and cleanup')
 
             self.end_measurement()
-            self.check_stderr_processes()
+            self.check_process_returncodes()
             self.custom_sleep(config['measurement']['idle-time-end'])
-            self.stop_metric_providers()
             self.store_phases()
             self.update_start_and_end_times()
         except BaseException as exc:
@@ -1123,12 +1153,36 @@ class Runner:
             raise exc
         finally:
             try:
-                self.read_stdout_logs()
-                self.read_and_cleanup_processes()
-                self.save_notes_runner()
-                self.save_stdout_logs()
+                self.read_container_logs()
+            except BaseException as exc:
+                self.add_to_log(exc.__class__.__name__, str(exc))
+                raise exc
             finally:
-                self.cleanup()  # always run cleanup automatically after each run
+                try:
+                    self.read_and_cleanup_processes()
+                except BaseException as exc:
+                    self.add_to_log(exc.__class__.__name__, str(exc))
+                    raise exc
+                finally:
+                    try:
+                        self.save_notes_runner()
+                    except BaseException as exc:
+                        self.add_to_log(exc.__class__.__name__, str(exc))
+                        raise exc
+                    finally:
+                        try:
+                            self.save_stdout_logs()
+                        except BaseException as exc:
+                            self.add_to_log(exc.__class__.__name__, str(exc))
+                            raise exc
+                        finally:
+                            try:
+                                self.stop_metric_providers()
+                            except BaseException as exc:
+                                self.add_to_log(exc.__class__.__name__, str(exc))
+                                raise exc
+                            finally:
+                                self.cleanup()  # always run cleanup automatically after each run
 
         print(TerminalColors.OKGREEN, arrows('MEASUREMENT SUCCESSFULLY COMPLETED'), TerminalColors.ENDC)
 

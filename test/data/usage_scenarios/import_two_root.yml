@@ -1,6 +1,5 @@
 name: my sample flow
 author: Arne Tarara
-version: 1
 description: test
 
 compose-file: !include import_two_compose.yml

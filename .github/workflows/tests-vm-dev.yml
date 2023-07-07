@@ -14,7 +14,7 @@ jobs:
     steps:
       - id: check-date
         if: ${{ github.event_name != 'workflow_dispatch' }}
-        uses: green-coding-berlin/eco-ci-activity-checker@v1
+        uses: green-coding-berlin/eco-ci-activity-checker@701b5f2f4ba601be587823cd0786f07cb6ae2ee6
         with:
           branch: 'dev'
 
@@ -26,7 +26,7 @@ jobs:
           submodules: 'true'
 
       - name: Eco CI Energy Estimation - Initialize
-        uses: green-coding-berlin/eco-ci-energy-estimation@v1
+        uses: green-coding-berlin/eco-ci-energy-estimation@701b5f2f4ba601be587823cd0786f07cb6ae2ee6
         with:
           task: start-measurement
 
@@ -38,13 +38,13 @@ jobs:
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Eco CI Energy Estimation - Get Measurement
-        uses: green-coding-berlin/eco-ci-energy-estimation@v1
+        uses: green-coding-berlin/eco-ci-energy-estimation@701b5f2f4ba601be587823cd0786f07cb6ae2ee6
         with:
           task: get-measurement
           branch: dev
 
       - name: Eco CI Energy Estimation - End Measurement
-        uses: green-coding-berlin/eco-ci-energy-estimation@v1
+        uses: green-coding-berlin/eco-ci-energy-estimation@701b5f2f4ba601be587823cd0786f07cb6ae2ee6
         with:
           task: display-results
           branch: dev
