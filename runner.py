@@ -750,7 +750,11 @@ class Runner:
                 continue  # setup commands are optional
             print('Running commands')
             for cmd in service['setup-commands']:
-                d_command = ['docker', 'exec', container_name, 'sh', '-c', cmd] # This must be a list!
+                if shell := service.get('shell', False):
+                    d_command = ['docker', 'exec', container_name, shell, '-c', cmd] # This must be a list!
+                else:
+                    d_command = ['docker', 'exec', container_name, *cmd.split()] # This must be a list!
+
                 print('Running command: ', ' '.join(d_command))
 
                 # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
@@ -877,9 +881,13 @@ class Runner:
                     docker_exec_command = ['docker', 'exec']
 
                     docker_exec_command.append(el['container'])
-                    docker_exec_command.append('sh')
-                    docker_exec_command.append('-c')
-                    docker_exec_command.append(inner_el['command'])
+                    if shell := inner_el.get('shell', False):
+                        docker_exec_command.append(shell)
+                        docker_exec_command.append('-c')
+                        docker_exec_command.append(inner_el['command'])
+                    else:
+                        for cmd in inner_el['command'].split():
+                            docker_exec_command.append(cmd)
 
                     # Note: In case of a detach wish in the usage_scenario.yml:
                     # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
