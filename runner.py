@@ -886,13 +886,38 @@ class Runner:
                     # Since Popen always make the process asynchronous we can leverage this to emulate a detached
                     # behavior
 
-                    #pylint: disable=consider-using-with
-                    ps = subprocess.Popen(
-                        docker_exec_command,
-                        stderr=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        encoding='UTF-8'
-                    )
+                    stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
+                    if inner_el.get('log-stdout', False):
+                        stdout_behaviour = subprocess.PIPE
+                    if inner_el.get('log-stderr', False):
+                        stdout_behaviour = subprocess.PIPE
+
+
+                    if inner_el.get('detach', False) is True:
+                        print('Process should be detached. Running asynchronously and detaching ...')
+                        #pylint: disable=consider-using-with
+                        ps = subprocess.Popen(
+                            docker_exec_command,
+                            stderr=stderr_behaviour,
+                            stdout=stdout_behaviour,
+                            encoding='UTF-8',
+                        )
+                        if stderr_behaviour == subprocess.PIPE:
+                            os.set_blocking(ps.stderr.fileno(), False)
+                        if  stdout_behaviour == subprocess.PIPE:
+                            os.set_blocking(ps.stdout.fileno(), False)
+
+                        self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
+                    else:
+                        print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
+                        ps = subprocess.run(
+                            docker_exec_command,
+                            stderr=stderr_behaviour,
+                            stdout=stdout_behaviour,
+                            encoding='UTF-8',
+                            check=False, # cause it will be checked later and also ignore-errors checked
+                            timeout=config['measurement']['flow-process-runtime'],
+                        )
 
                     self.__ps_to_read.append({
                         'cmd': docker_exec_command,
@@ -904,12 +929,7 @@ class Runner:
                         'detach': inner_el.get('detach', False),
                     })
 
-                    if inner_el.get('detach', False) is True:
-                        print('Process should be detached. Running asynchronously and detaching ...')
-                        self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
-                    else:
-                        print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
-                        process_helpers.timeout(ps, inner_el['command'], config['measurement']['flow-process-runtime'])
+
                 else:
                     raise RuntimeError('Unknown command type in flow: ', inner_el['type'])
 
@@ -949,25 +969,34 @@ class Runner:
         process_helpers.kill_ps(self.__ps_to_kill)
         print(TerminalColors.HEADER, '\nSaving processes stdout', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
-            while (line := ps['ps'].stdout.readline()): # a for loop breaks functionality here suprisingly
-                print('stdout from process:', ps['cmd'], line)
-                self.add_to_log(ps['container_name'], f"stdout: {line}", ps['cmd'])
+            if ps['detach']:
+                stdout, stderr = ps['ps'].communicate(timeout=5)
+            else:
+                stdout = ps['ps'].stdout
+                stderr = ps['ps'].stderr
 
-                if ps['read-notes-stdout']:
-                    # Fixed format according to our specification. If unpacking fails this is wanted error
-                    timestamp, note = line.split(' ', 1)
-                    self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
-            while (line := ps['ps'].stderr.readline()): # a for loop breaks functionality here suprisingly
-                print('stderr from process:', ps['cmd'], line)
-                self.add_to_log(ps['container_name'], f"stderr: {line}", ps['cmd'])
+            if stdout:
+                stdout = stdout.splitlines()
+                for line in stdout:
+                    print('stdout from process:', ps['cmd'], line)
+                    self.add_to_log(ps['container_name'], f"stdout: {line}", ps['cmd'])
+
+                    if ps['read-notes-stdout']:
+                        # Fixed format according to our specification. If unpacking fails this is wanted error
+                        timestamp, note = line.split(' ', 1)
+                        self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
+            if stderr:
+                stderr = stderr.splitlines()
+                for line in stderr:
+                    print('stderr from process:', ps['cmd'], line)
+                    self.add_to_log(ps['container_name'], f"stderr: {line}", ps['cmd'])
 
     def check_process_returncodes(self):
         print(TerminalColors.HEADER, '\nChecking process return codes', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
             if not ps['ignore-errors']:
                 if process_helpers.check_process_failed(ps['ps'], ps['detach']):
-                    stderr_content = ps['ps'].stderr.read()
-                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. \nStderr: {stderr_content} - detached process: {ps['detach']}")
+                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Detached process: {ps['detach']}")
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
