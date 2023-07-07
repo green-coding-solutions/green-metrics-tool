@@ -81,7 +81,7 @@ linux_info_list = [
     [
         rpwrs,
         'Scaling Governor',
-        ['/usr/bin/cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'],
+        '/usr/bin/cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor',
         r'(?P<o>.*)',
         re.IGNORECASE | re.DOTALL,
     ],
