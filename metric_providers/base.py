@@ -44,7 +44,7 @@ class BaseMetricProvider:
         return self._ps.stderr.read()
 
     def has_started(self):
-        return self._has_started:
+        return self._has_started
 
     def read_metrics(self, project_id, containers):
         with open(self._filename, 'r', encoding='utf-8') as file:
