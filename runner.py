@@ -890,7 +890,7 @@ class Runner:
                     if inner_el.get('log-stdout', False):
                         stdout_behaviour = subprocess.PIPE
                     if inner_el.get('log-stderr', False):
-                        stdout_behaviour = subprocess.PIPE
+                        stderr_behaviour = subprocess.PIPE
 
 
                     if inner_el.get('detach', False) is True:
@@ -996,7 +996,10 @@ class Runner:
         for ps in self.__ps_to_read:
             if not ps['ignore-errors']:
                 if process_helpers.check_process_failed(ps['ps'], ps['detach']):
-                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Detached process: {ps['detach']}")
+                    if ps['detach']:
+                        ps['ps'].stdout, ps['ps'].stderr = ps['ps'].communicate(timeout=5)
+
+                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {ps['ps'].stderr}. Detached process: {ps['detach']}")
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
