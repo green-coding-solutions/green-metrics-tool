@@ -16,9 +16,8 @@ metrics_url=''
 no_build=false
 no_hosts=false
 ask_tmpfs=true
-workflow_automation=false
 
-while getopts "p:a:m:nhtw" o; do
+while getopts "p:a:m:nht" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -37,9 +36,6 @@ while getopts "p:a:m:nhtw" o; do
             ;;
         t)
             ask_tmpfs=false
-            ;;
-        w)
-            workflow_automation=true
             ;;
 
     esac
@@ -60,11 +56,7 @@ if [[ -z "$db_pw" ]] ; then
 fi
 
 if [[ $ask_tmpfs == true ]] ; then
-    if [[ $workflow_automation == false ]] ; then
-        read -p "We strongly recommend mounting /tmp on a tmpfs. Do you want to do that? (y/N)" tmpfs
-    else 
-        tmpfs="y"
-    fi
+    read -p "We strongly recommend mounting /tmp on a tmpfs. Do you want to do that? (y/N)" tmpfs
     if [[ "$tmpfs" == "Y" || "$tmpfs" == "y" ]] ; then
         sudo systemctl enable /usr/share/systemd/tmp.mount
     fi
