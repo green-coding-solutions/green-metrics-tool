@@ -20,12 +20,14 @@ flow:
     container: test-container
     commands:
       - type: console
-        command: grep "testfile2-content" /tmp/testfile2-correctly-mounted
+        command: grep testfile2-content /tmp/testfile2-correctly-mounted
+        log-stdout: true
 
   - name: Cat Subdir3
     container: test-container
     commands:
       - type: console
-        command: grep "testfile3-content" /tmp/testfile3-correctly-mounted
+        command: grep testfile3-content /tmp/testfile3-correctly-mounted
+        log-stdout: true
 
 

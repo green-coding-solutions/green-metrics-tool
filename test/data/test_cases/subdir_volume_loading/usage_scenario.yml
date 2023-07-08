@@ -30,36 +30,42 @@ flow:
     container: test-container-root
     commands:
       - type: console
-        command: grep "testfile-root-content" /tmp/testfile-root
+        command: grep testfile-root-content /tmp/testfile-root
+        log-stdout: true
 
   - name: Cat testfile root extra copied
     container: test-container-root
     commands:
       - type: console
-        command: grep "testfile-root-content" /tmp/testfile-root-extra-copied
+        command: grep testfile-root-content /tmp/testfile-root-extra-copied
+        log-stdout: true
 
   - name: Cat testfile root subdir
     container: test-container-root
     commands:
       - type: console
-        command: grep "testfile3-content" /tmp/testfile3-correctly-copied
+        command: grep testfile3-content /tmp/testfile3-correctly-copied
+        log-stdout: true
 
 
   - name: Cat testfile
     container: test-container
     commands:
       - type: console
-        command: grep "testfile-content" /tmp/testfile-correctly-mounted
+        command: grep testfile-content /tmp/testfile-correctly-mounted
+        log-stdout: true
 
   - name: Cat testfile2
     container: test-container
     commands:
       - type: console
-        command: grep "testfile2-content" /tmp/testfile2-correctly-mounted
+        command: grep testfile2-content /tmp/testfile2-correctly-mounted
+        log-stdout: true
 
   - name: Cat testfile3
     container: test-container
     commands:
       - type: console
-        command: grep "testfile3-content" /tmp/testfile3-correctly-mounted
+        command: grep testfile3-content /tmp/testfile3-correctly-mounted
+        log-stdout: true
 

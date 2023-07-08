@@ -182,20 +182,20 @@ def test_volume_loading_subdirectories_root():
     run_stdout = out.getvalue()
     assert run_stderr == '', Tests.assertion_info('stderr empty', f"stderr: {run_stderr}")
 
-    expect_content_testfile_root = "stdout from process: ['docker', 'exec', 'test-container-root', 'sh', '-c', 'grep \"testfile-root-content\" /tmp/testfile-root'] testfile-root-content"
-    assert expect_content_testfile_root in run_stdout, Tests.assertion_info('test-container-root testfile content found', "expected output not in stdout")
+    expect_content_testfile_root = "stdout from process: ['docker', 'exec', 'test-container-root', 'grep', 'testfile-root-content', '/tmp/testfile-root'] testfile-root-content"
+    assert expect_content_testfile_root in run_stdout, Tests.assertion_info(expect_content_testfile_root, f"expected output not in {run_stdout}")
 
-    expect_extra_testfile_root = "stdout from process: ['docker', 'exec', 'test-container-root', 'sh', '-c', 'grep \"testfile-root-content\" /tmp/testfile-root-extra-copied'] testfile-root-content"
-    assert expect_extra_testfile_root in run_stdout, Tests.assertion_info('test-container-root extra testfile content found', "expected output not in stdout")
+    expect_extra_testfile_root = "stdout from process: ['docker', 'exec', 'test-container-root', 'grep', 'testfile-root-content', '/tmp/testfile-root-extra-copied'] testfile-root-content"
+    assert expect_extra_testfile_root in run_stdout, Tests.assertion_info(expect_extra_testfile_root, f"expected output not in {run_stdout}")
 
-    expect_mounted_testfile = "stdout from process: ['docker', 'exec', 'test-container', 'sh', '-c', 'grep \"testfile-content\" /tmp/testfile-correctly-mounted'] testfile-content"
-    assert expect_mounted_testfile in run_stdout, Tests.assertion_info('test-container testfile mounted', "expected output not in stdout")
+    expect_mounted_testfile = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile-content', '/tmp/testfile-correctly-mounted'] testfile-content"
+    assert expect_mounted_testfile in run_stdout, Tests.assertion_info(expect_mounted_testfile, f"expected output not in {run_stdout}")
 
-    expect_mounted_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'sh', '-c', 'grep \"testfile2-content\" /tmp/testfile2-correctly-mounted'] testfile2-content"
-    assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info('test-container testfile2 mounted', "expected output not in stdout")
+    expect_mounted_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
+    assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, f"expected output not in {run_stdout}")
 
-    expect_mounted_testfile_3 = "stdout from process: ['docker', 'exec', 'test-container-root', 'sh', '-c', 'grep \"testfile3-content\" /tmp/testfile3-correctly-copied'] testfile3-content"
-    assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info('test-container-root testfile3 content found', "expected output not in stdout")
+    expect_mounted_testfile_3 = "stdout from process: ['docker', 'exec', 'test-container-root', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
+    assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
 def test_volume_loading_subdirectories_subdir():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
@@ -210,11 +210,11 @@ def test_volume_loading_subdirectories_subdir():
     run_stdout = out.getvalue()
     assert run_stderr == '', Tests.assertion_info('stderr empty', f"stderr: {run_stderr}")
 
-    expect_mounted_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'sh', '-c', 'grep \"testfile2-content\" /tmp/testfile2-correctly-mounted'] testfile2-content"
-    assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info('test-container testfile2 mounted', "expected output not in stdout")
+    expect_mounted_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
+    assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, f"expected output not in {run_stdout}")
 
-    expect_mounted_testfile_3 = "stdout from process: ['docker', 'exec', 'test-container', 'sh', '-c', 'grep \"testfile3-content\" /tmp/testfile3-correctly-mounted'] testfile3-content"
-    assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info('test-container testfile3 mounted', "expected output not in stdout")
+    expect_mounted_testfile_3 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-mounted'] testfile3-content"
+    assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
 def test_volume_loading_subdirectories_subdir2():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
@@ -229,14 +229,14 @@ def test_volume_loading_subdirectories_subdir2():
     run_stdout = out.getvalue()
     assert run_stderr == '', Tests.assertion_info('stderr empty', f"stderr: {run_stderr}")
 
-    expect_mounted_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'sh', '-c', 'grep \"testfile2-content\" /tmp/testfile2-correctly-mounted'] testfile2-content"
-    assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info('test-container testfile2 mounted', "expected output not in stdout")
+    expect_mounted_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
+    assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, "expected output not in {run_stdout}")
 
-    expect_copied_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'sh', '-c', 'grep \"testfile2-content\" /tmp/testfile2-correctly-copied'] testfile2-content"
-    assert expect_copied_testfile_2 in run_stdout, Tests.assertion_info('test-container testfile2 content copied', "expected output not in stdout")
+    expect_copied_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-copied'] testfile2-content"
+    assert expect_copied_testfile_2 in run_stdout, Tests.assertion_info(expect_copied_testfile_2, f"expected output not in {run_stdout}")
 
-    expect_copied_testfile_3 = "stdout from process: ['docker', 'exec', 'test-container', 'sh', '-c', 'grep \"testfile3-content\" /tmp/testfile3-correctly-copied'] testfile3-content"
-    assert expect_copied_testfile_3 in run_stdout, Tests.assertion_info('test-container testfile3 content copied', "expected output not in stdout")
+    expect_copied_testfile_3 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
+    assert expect_copied_testfile_3 in run_stdout, Tests.assertion_info(expect_copied_testfile_3, f"expected output not in {run_stdout}")
 
-    expect_copied_testfile_4 = "stdout from process: ['docker', 'exec', 'test-container', 'sh', '-c', 'grep \"testfile4-content\" /tmp/testfile4-correctly-copied'] testfile4-content"
-    assert expect_copied_testfile_4 in run_stdout, Tests.assertion_info('test-container testfile4 content copied', "expected output not in stdout")
+    expect_copied_testfile_4 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile4-content', '/tmp/testfile4-correctly-copied'] testfile4-content"
+    assert expect_copied_testfile_4 in run_stdout, Tests.assertion_info(expect_copied_testfile_4, f"expected output not in {run_stdout}")
