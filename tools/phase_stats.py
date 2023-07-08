@@ -39,9 +39,9 @@ def build_and_store_phase_stats(project_id):
         query = """
             UPDATE measurements
             SET phase = %s
-            WHERE phase IS NULL and time > %s and time < %s AND project_id = %s
+            WHERE project_id = %s AND phase IS NULL and time > %s and time < %s
             """
-        DB().query(query, (phase['name'], phase['start'], phase['end'], project_id, ))
+        DB().query(query, (phase['name'], project_id, phase['start'], phase['end'], ))
 
         network_io_bytes_total = [] # reset; # we use array here and sum later, because checking for 0 alone not enough
 
