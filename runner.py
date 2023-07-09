@@ -974,8 +974,8 @@ class Runner:
 
 
     def read_and_cleanup_processes(self):
+        print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
         process_helpers.kill_ps(self.__ps_to_kill)
-        print(TerminalColors.HEADER, '\nSaving processes stdout', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
             if ps['detach']:
                 stdout, stderr = ps['ps'].communicate(timeout=5)
@@ -990,9 +990,8 @@ class Runner:
                     self.add_to_log(ps['container_name'], f"stdout: {line}", ps['cmd'])
 
                     if ps['read-notes-stdout']:
-                        # Fixed format according to our specification. If unpacking fails this is wanted error
-                        timestamp, note = line.split(' ', 1)
-                        self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
+                        if match := re.match(r'(^(\d{16}) (.+))', line):
+                            self.__notes.append({'note': match[2], 'detail_name': ps['detail_name'], 'timestamp': match[1]})
             if stderr:
                 stderr = stderr.splitlines()
                 for line in stderr:
@@ -1038,7 +1037,7 @@ class Runner:
             """, params=(json.dumps(self.__phases), self._project_id))
 
     def read_container_logs(self):
-        print(TerminalColors.HEADER, '\nSaving container logs', TerminalColors.ENDC)
+        print(TerminalColors.HEADER, '\nCapturing container logs', TerminalColors.ENDC)
         for container_name in self.__containers.values():
             log = subprocess.run(
                 ['docker', 'logs', '-t', container_name],
@@ -1053,6 +1052,7 @@ class Runner:
                 self.add_to_log(container_name, f"stderr: {log.stderr}")
 
     def save_stdout_logs(self):
+        print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
         logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.__stdout_logs.items()])
         logs_as_str = logs_as_str.replace('\x00','')
         if logs_as_str:
@@ -1310,6 +1310,8 @@ if __name__ == '__main__':
         # From a user perspective it makes perfect sense to run both jobs directly after each other
         # In a cloud setup it however makes sense to free the measurement machine as soon as possible
         # So this code should be individually callable, separate from the runner
+
+        print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
 
         # get all the metrics from the measurements table grouped by metric
         # loop over them issueing separate queries to the DB
