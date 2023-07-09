@@ -990,9 +990,8 @@ class Runner:
                     self.add_to_log(ps['container_name'], f"stdout: {line}", ps['cmd'])
 
                     if ps['read-notes-stdout']:
-                        # Fixed format according to our specification. If unpacking fails this is wanted error
-                        timestamp, note = line.split(' ', 1)
-                        self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
+                        if match := re.match(r'(^(\d{16}) (.+))', line):
+                            self.__notes.append({'note': match[2], 'detail_name': ps['detail_name'], 'timestamp': match[1]})
             if stderr:
                 stderr = stderr.splitlines()
                 for line in stderr:
