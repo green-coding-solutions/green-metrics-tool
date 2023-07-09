@@ -45,7 +45,7 @@ import error_helpers
 from db import DB
 from global_config import GlobalConfig
 import utils
-from tools.save_notes import save_notes  # local file import
+from tools.save_notes import save_notes, parse_note  # local file import
 
 
 def arrows(text):
@@ -990,8 +990,8 @@ class Runner:
                     self.add_to_log(ps['container_name'], f"stdout: {line}", ps['cmd'])
 
                     if ps['read-notes-stdout']:
-                        if match := re.match(r'(^(\d{16}) (.+))', line):
-                            self.__notes.append({'note': match[2], 'detail_name': ps['detail_name'], 'timestamp': match[1]})
+                        if note := parse_note(line):
+                            self.__notes.append({'note': note[1], 'detail_name': ps['detail_name'], 'timestamp': note[0]})
             if stderr:
                 stderr = stderr.splitlines()
                 for line in stderr:

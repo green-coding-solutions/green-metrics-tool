@@ -11,16 +11,6 @@ from db import DB
 def save_notes(project_id, notes):
 
     for note in notes:
-        try:
-            if not fullmatch(r'\d{16}', str(note['timestamp'])):
-                raise ValueError
-            if not isinstance(note['timestamp'], int):
-                note['timestamp'] = int(note['timestamp'])
-        except ValueError as err:
-            raise ValueError(
-                f"Note timestamp did not match expected format: {note['timestamp']}"
-            ) from err
-
         DB().query("""
                 INSERT INTO notes
                 ("project_id", "detail_name", "note", "time", "created_at")
@@ -30,6 +20,10 @@ def save_notes(project_id, notes):
                    params=(project_id, escape(note['detail_name']), escape(note['note']), note['timestamp'])
                    )
 
+def parse_note(line):
+    if match := fullmatch(r'^(\d{16}) (.+)', line):
+        return int(match[1]), match[2]
+    return None
 
 if __name__ == '__main__':
     import argparse
