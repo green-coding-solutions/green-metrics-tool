@@ -58,7 +58,11 @@ fi
 if [[ $ask_tmpfs == true ]] ; then
     read -p "We strongly recommend mounting /tmp on a tmpfs. Do you want to do that? (y/N)" tmpfs
     if [[ "$tmpfs" == "Y" || "$tmpfs" == "y" ]] ; then
-        sudo systemctl enable /usr/share/systemd/tmp.mount
+        if lsb_release -is | grep -q "Fedora"; then
+            sudo systemctl unmask --now tmp.mount
+        else
+            sudo systemctl enable /usr/share/systemd/tmp.mount
+        fi
     fi
 fi
 
