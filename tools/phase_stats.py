@@ -36,17 +36,10 @@ def build_and_store_phase_stats(project_id):
     csv_buffer = StringIO()
 
     for idx, phase in enumerate(phases[0]):
-        query = """
-            UPDATE measurements
-            SET phase = %s
-            WHERE project_id = %s AND phase IS NULL and time > %s and time < %s
-            """
-        DB().query(query, (phase['name'], project_id, phase['start'], phase['end'], ))
-
         network_io_bytes_total = [] # reset; # we use array here and sum later, because checking for 0 alone not enough
 
         select_query = """
-            SELECT SUM(value), MAX(value), AVG(value), COUNT(value)
+            SELECT SUM(value), MAX(value), MIN(value), AVG(value), COUNT(value)
             FROM measurements
             WHERE project_id = %s AND metric = %s AND detail_name = %s AND time > %s and time < %s
         """
@@ -66,11 +59,11 @@ def build_and_store_phase_stats(project_id):
 
             value_sum = 0
             value_max = 0
+            value_min = 0
             value_avg = 0
             value_count = 0
 
-
-            value_sum, value_max, value_avg, value_count = results
+            value_sum, value_max, value_min, value_avg, value_count = results
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
@@ -88,10 +81,10 @@ def build_and_store_phase_stats(project_id):
 
             elif metric == 'network_io_cgroup_container':
                 # These metrics are accumulating already. We only need the max here and deliver it as total
-                csv_buffer.write(generate_csv_line(project_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_max, 'TOTAL', None, unit))
+                csv_buffer.write(generate_csv_line(project_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_max-value_min, 'TOTAL', None, unit))
                 # No max here
                 # But we need to build the energy
-                network_io_bytes_total.append(value_max)
+                network_io_bytes_total.append(value_max-value_min)
 
             elif metric == 'energy_impact_powermetrics_vm':
                 csv_buffer.write(generate_csv_line(project_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_avg, 'MEAN', value_max, unit))

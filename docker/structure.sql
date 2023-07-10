@@ -33,12 +33,10 @@ CREATE TABLE measurements (
     value bigint NOT NULL,
     unit text NOT NULL,
     time bigint NOT NULL,
-    phase text DEFAULT null,
     created_at timestamp with time zone DEFAULT now()
 );
 
 CREATE UNIQUE INDEX measurements_get ON measurements(project_id ,metric ,detail_name ,time );
-CREATE INDEX measurements_phase_update ON measurements(project_id ,phase ,time );
 CREATE INDEX measurements_build_and_store_phase_stats ON measurements(project_id, metric, unit, detail_name);
 CREATE INDEX measurements_build_phases ON measurements(metric, unit, detail_name);
 
