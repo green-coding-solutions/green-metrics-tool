@@ -45,7 +45,7 @@ import error_helpers
 from db import DB
 from global_config import GlobalConfig
 import utils
-from tools.save_notes import save_notes, parse_note  # local file import
+from notes import Notes
 
 
 def arrows(text):
@@ -126,7 +126,7 @@ class Runner:
         self.__ps_to_kill = []
         self.__ps_to_read = []
         self.__metric_providers = []
-        self.__notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
+        self.__notes_helper = Notes()
         self.__phases = {}
         self.__start_measurement = None
         self.__end_measurement = None
@@ -141,8 +141,8 @@ class Runner:
         Path(path).mkdir(parents=True, exist_ok=True)
 
     def save_notes_runner(self):
-        print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)
-        save_notes(self._project_id, self.__notes)
+        print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
+        self.__notes_helper.save_to_db(self._project_id)
 
     def check_configuration(self):
         if self._skip_config_check:
@@ -513,7 +513,7 @@ class Runner:
             if 'build' in service:
                 context, dockerfile = self.get_build_info(service)
                 print(f"Building {service['image']}")
-                self.__notes.append({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
+                self.__notes_helper.add_note({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
                 # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
                 context_path = join_paths(self._folder, context, 'dir')
@@ -548,7 +548,7 @@ class Runner:
 
             else:
                 print(f"Pulling {service['image']}")
-                self.__notes.append({'note':f"Pulling {service['image']}" , 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
+                self.__notes_helper.add_note({'note':f"Pulling {service['image']}" , 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
                 ps = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0:
@@ -809,7 +809,7 @@ class Runner:
             message = f"Booting {metric_provider.__class__.__name__}"
             metric_provider.start_profiling(self.__containers)
             if self._verbose_provider_boot:
-                self.__notes.append({'note': message, 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
+                self.__notes_helper.add_note({'note': message, 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
                 self.custom_sleep(10)
 
         print(TerminalColors.HEADER, '\nWaiting for Metric Providers to boot ...', TerminalColors.ENDC)
@@ -838,7 +838,7 @@ class Runner:
         # TODO. Check if temperature is back to baseline and put into best-practices section
 
         phase_time = int(time.time_ns() / 1_000)
-        self.__notes.append({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+        self.__notes_helper.add_note({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
         if phase in self.__phases:
             raise RuntimeError(f"'{phase}' as phase name has already used. Please set unique name for phases.")
@@ -855,13 +855,13 @@ class Runner:
             for container_to_pause in self.__services_to_pause_phase[phase]:
                 info_text = f"Pausing {container_to_pause} after phase: {phase}."
                 print(info_text)
-                self.__notes.append({'note': info_text, 'detail_name': '[NOTES]', 'timestamp': phase_time})
+                self.__notes_helper.add_note({'note': info_text, 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
                 subprocess.run(['docker', 'pause', container_to_pause], check=True, stdout=subprocess.DEVNULL)
 
 
         self.__phases[phase]['end'] = phase_time
-        self.__notes.append({'note': f"Ending phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+        self.__notes_helper.add_note({'note': f"Ending phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
     def run_flows(self):
         config = GlobalConfig().config
@@ -873,7 +873,7 @@ class Runner:
 
             for inner_el in el['commands']:
                 if 'note' in inner_el:
-                    self.__notes.append({'note': inner_el['note'], 'detail_name': el['container'], 'timestamp': int(time.time_ns() / 1_000)})
+                    self.__notes_helper.add_note({'note': inner_el['note'], 'detail_name': el['container'], 'timestamp': int(time.time_ns() / 1_000)})
 
                 if inner_el['type'] == 'console':
                     print(TerminalColors.HEADER, '\nConsole command', inner_el['command'], 'on container', el['container'], TerminalColors.ENDC)
@@ -990,8 +990,8 @@ class Runner:
                     self.add_to_log(ps['container_name'], f"stdout: {line}", ps['cmd'])
 
                     if ps['read-notes-stdout']:
-                        if note := parse_note(line):
-                            self.__notes.append({'note': note[1], 'detail_name': ps['detail_name'], 'timestamp': note[0]})
+                        if note := self.__notes_helper.parse_note(line):
+                            self.__notes_helper.add_note({'note': note[1], 'detail_name': ps['detail_name'], 'timestamp': note[0]})
             if stderr:
                 stderr = stderr.splitlines()
                 for line in stderr:
@@ -1010,11 +1010,11 @@ class Runner:
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
-        self.__notes.append({'note': 'Start of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__start_measurement})
+        self.__notes_helper.add_note({'note': 'Start of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__start_measurement})
 
     def end_measurement(self):
         self.__end_measurement = int(time.time_ns() / 1_000)
-        self.__notes.append({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
+        self.__notes_helper.add_note({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
 
     def update_start_and_end_times(self):
         print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
@@ -1089,7 +1089,7 @@ class Runner:
         process_helpers.kill_ps(self.__ps_to_kill)
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
-        self.__notes = []
+        self.__notes_helper = Notes()
         self.__containers = {}
         self.__networks = []
         self.__ps_to_kill = []
