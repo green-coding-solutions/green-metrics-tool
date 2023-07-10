@@ -53,6 +53,7 @@ fi
 
 if [[ -z "$db_pw" ]] ; then
     read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
+    echo "" # force a newline, because print -sp will consume it
 fi
 
 if [[ $ask_tmpfs == true ]] ; then

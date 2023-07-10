@@ -267,7 +267,7 @@ async def get_measurements_single(project_id: str):
 
     query = """
             SELECT measurements.detail_name, measurements.time, measurements.metric,
-                   measurements.value, measurements.unit, measurements.phase
+                   measurements.value, measurements.unit
             FROM measurements
             WHERE measurements.project_id = %s
             """
