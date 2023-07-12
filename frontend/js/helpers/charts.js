@@ -455,6 +455,11 @@ const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
     });
 }
 
+const removeKeyMetricsRadarChart = (phase) => {
+    document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart`).classList.add('single')
+    document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart`).remove()
+}
+
 const displayKeyMetricsBarChart = (legend, labels, data, phase) => {
 
     let series = data.map((el, idx) => { return {type: "bar", name: legend[idx], data: el}})

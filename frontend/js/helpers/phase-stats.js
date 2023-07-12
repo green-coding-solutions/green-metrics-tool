@@ -124,7 +124,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                 let detail_data = metric_data['data'][detail]
 
                 // push data to chart that we need in any case
-                if(radar_chart_condition(metric)) {
+                if(radar_chart_condition(metric) && multi_comparison) {
                     radar_chart_labels.push(metric_data.clean_name);
                     radar_chart_data[0].push(detail_data.mean)
                 }
@@ -188,7 +188,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                         detail_chart_mark,
                     );
 
-                    if(radar_chart_condition(metric)) {
+                    if(radar_chart_condition(metric) && multi_comparison) {
                         radar_chart_data[1].push(detail_data2.mean)
                     }
 
@@ -215,12 +215,16 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
             radar_legend = [keys[0]]
         }
 
-        displayKeyMetricsRadarChart(
-            radar_legend,
-            radar_chart_labels,
-            radar_chart_data,
-            phase
-        );
+        if(multi_comparison) {
+            displayKeyMetricsRadarChart(
+                radar_legend,
+                radar_chart_labels,
+                radar_chart_data,
+                phase
+            );
+        } else if(comparison_case != null) { // stats.html does not even have it. so only remove for Repeated Run etc.
+            removeKeyMetricsRadarChart(phase)
+        }
 
         displayKeyMetricsBarChart(
             radar_legend,
