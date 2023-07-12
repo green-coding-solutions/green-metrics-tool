@@ -415,7 +415,7 @@ const createChartContainer = (container, el) => {
 const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
 
     let chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart .statistics-chart`);
-    document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart .chart-title`).innerText = 'General component distribution';
+    document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart .chart-title`).innerText = RADAR_CHART_TITLE;
     let myChart = echarts.init(chartDom);
     labels = labels.map((el) => { return {name: el}})
     let series = data.map((el, idx) => { return {name: legend[idx], value: el}})
@@ -458,7 +458,7 @@ const displayKeyMetricsBarChart = (legend, labels, data, phase) => {
 
     let series = data.map((el, idx) => { return {type: "bar", name: legend[idx], data: el}})
     let chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .statistics-chart`);
-    document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .chart-title`).innerText = 'Energy metrics';
+    document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .chart-title`).innerText = TOP_BAR_CHART_TITLE;
 
     let myChart = echarts.init(chartDom);
     let options = getLineBarChartOptions(labels, series, null, 'category', true);
@@ -528,7 +528,7 @@ const displayKeyMetricsEmbodiedCarbonChart = (phase) => {
 const displayTotalChart = (legend, labels, data) => {
 
     let chartDom = document.querySelector(`#total-phases-data .bar-chart .statistics-chart`);
-    document.querySelector(`#total-phases-data .bar-chart .chart-title`).innerText = 'Total Phases consumption [J]';
+    document.querySelector(`#total-phases-data .bar-chart .chart-title`).innerText = TOTAL_CHART_BOTTOM_TITLE;
 
     let myChart = echarts.init(chartDom);
 

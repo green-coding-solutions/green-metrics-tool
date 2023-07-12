@@ -1,2 +1,29 @@
+// Please do not change these constants. They should set by the install script
 API_URL = "__API_URL__"
 METRICS_URL = "__METRICS_URL__"
+
+/*
+    The following are configurations to customize de Detailed Metrics / Compare view according to your needs.
+    The components are fixed, but you can rename then and include different metrics if needed
+*/
+
+// title and filter function for the top left most chart in the Detailed Metrics / Compare view
+const TOTAL_CHART_BOTTOM_TITLE = 'Total energy consumption [J]';
+// function must return boolean
+const total_chart_bottom_condition = (metric) => {
+    if(metric.match(/^.*_energy.*_machine$/) !== null) return true;
+    return false;
+}
+
+// title and filter function for the top left most chart in the Detailed Metrics / Compare view
+const TOP_BAR_CHART_TITLE = 'Energy metrics'
+const top_bar_chart_condition = (metric) => {
+    if(metric.indexOf('_energy_') !== -1) return true;
+    return false;
+}
+
+// title and filter function for the top right radar chart in the Detailed Metrics / Compare view
+const RADAR_CHART_TITLE = 'General component distribution'
+const radar_chart_condition = (metric) => {
+    return true;
+}
