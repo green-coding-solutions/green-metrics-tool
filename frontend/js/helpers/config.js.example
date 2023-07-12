@@ -25,5 +25,6 @@ const top_bar_chart_condition = (metric) => {
 // title and filter function for the top right radar chart in the Detailed Metrics / Compare view
 const RADAR_CHART_TITLE = 'General component distribution'
 const radar_chart_condition = (metric) => {
-    return true;
+    if(metric.indexOf('cpu_frequency_sysfs_core') == -1) return true;
+    return false;
 }
