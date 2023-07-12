@@ -118,6 +118,8 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
         total_chart_bottom_labels.push(phase);
         total_chart_bottom_legend[phase]  = [];
 
+        let co2_calculated = false;
+
         for (metric in phase_data) {
             let metric_data = phase_data[metric]
             for (detail in metric_data['data']) {
@@ -141,12 +143,14 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                     total_chart_bottom_data[`${metric_data.clean_name} - ${keys[0]}`].push(detail_data.mean)
 
                 }
-                if (comparison_case == null && metric.match(/^.*_co2_.*_machine$/) !== null) {
+                if (comparison_case == null && co2_metrics_condition(metric)) {
+                    if(co2_calculated) {
+                        showNotification('CO2 was already calculated! Do you have CO2 Machine reporters set');
+                        throw 'CO2 was already calculated! Do you have two CO2 Machine reporters set?'
+                    }
+                    co2_calculated = true;
                     calculateCO2(phase, detail_data.mean);
                 }
-
-
-
 
                 if (!multi_comparison) {
                     displaySimpleMetricBox(phase,metric, metric_data, detail_data, keys[0]);
