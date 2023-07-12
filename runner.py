@@ -166,7 +166,8 @@ class Runner:
 
         raise ValueError(
             "Configuration check failed - not running measurement\n"
-            f"Configuration errors:\n{printable_errors}"
+            f"Configuration errors:\n{printable_errors}\n"
+            "If however that is what you want to do (for debug purposes), please set the --skip-config-check switch"
             )
 
     def checkout_repository(self):
