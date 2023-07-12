@@ -120,6 +120,9 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
 
         let co2_calculated = false;
 
+        let phase_key0_has_machine_energy = false;
+        let phase_key1_has_machine_energy = false;
+
         for (metric in phase_data) {
             let metric_data = phase_data[metric]
             for (detail in metric_data['data']) {
@@ -137,12 +140,14 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                 }
                 if (total_chart_bottom_condition(metric)) {
                     total_chart_bottom_legend[phase].push(metric_data.clean_name);
-                    if(total_chart_bottom_data?.[`${metric_data.clean_name} - ${keys[0]}`] == null) {
-                        total_chart_bottom_data[`${metric_data.clean_name} - ${keys[0]}`] = []
-                    }
-                    total_chart_bottom_data[`${metric_data.clean_name} - ${keys[0]}`].push(detail_data.mean)
 
+                    if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[0]}`] == null) {
+                        total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[0]}`] = []
+                    }
+                    total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[0]}`].push(detail_data.mean)
+                    phase_key0_has_machine_energy = true
                 }
+
                 if (comparison_case == null && co2_metrics_condition(metric)) {
                     if(co2_calculated) {
                         showNotification('CO2 was already calculated! Do you have CO2 Machine reporters set');
@@ -200,11 +205,12 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                         top_bar_chart_data[1].push(detail_data2.mean)
                     }
                     if (total_chart_bottom_condition(metric)) {
-                        if(total_chart_bottom_data?.[`${metric_data.clean_name} - ${keys[1]}`] == null) {
-                            total_chart_bottom_data[`${metric_data.clean_name} - ${keys[1]}`] = []
+                        if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[1]}`] == null) {
+                            total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[1]}`] = []
                         }
 
-                        total_chart_bottom_data[`${metric_data.clean_name} - ${keys[1]}`].push(detail_data2.mean)
+                        total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[1]}`].push(detail_data2.mean)
+                        phase_key1_has_machine_energy = true
                     }
                 }
             }
@@ -217,6 +223,19 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
             radar_legend = [`${comparison_case}: ${keys[0]}`, `${comparison_case}: ${keys[1]}`]
         } else {
             radar_legend = [keys[0]]
+        }
+
+        if (phase_key0_has_machine_energy == false) { // add dummy
+            if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[0]}`] == null) {
+                total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[0]}`] = []
+            }
+            total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[0]}`].push(0)
+        }
+        if (phase_key1_has_machine_energy == false && multi_comparison == 2) { // add dummy
+            if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[1]}`] == null) {
+                total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[1]}`] = []
+            }
+            total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[1]}`].push(0)
         }
 
         if(multi_comparison) {

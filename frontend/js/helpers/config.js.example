@@ -9,6 +9,7 @@ METRICS_URL = "__METRICS_URL__"
 
 // title and filter function for the top left most chart in the Detailed Metrics / Compare view
 const TOTAL_CHART_BOTTOM_TITLE = 'Total energy consumption [mJ]';
+const TOTAL_CHART_BOTTOM_LABEL = 'Machine Energy';
 // function must return boolean
 const total_chart_bottom_condition = (metric) => {
     if(metric.match(/^.*_energy.*_machine$/) !== null) return true;
