@@ -111,15 +111,15 @@ class Runner:
         self._uri = uri
         self._uri_type = uri_type
         self._project_id = pid
-        self._filename = filename
+        self._original_filename = filename
         self._branch = branch
         self._tmp_folder = '/tmp/green-metrics-tool'
-        self._folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
 
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
+        # They are __ as they should not be changed because this could break the state of the runner
         self.__stdout_logs = {}
         self.__containers = {}
         self.__networks = []
@@ -132,6 +132,11 @@ class Runner:
         self.__end_measurement = None
         self.__services_to_pause_phase = {}
         self.__join_default_network = False
+        self.__folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
+
+        # we currently do not use this variable
+        # self.__filename = self._original_filename # this can be changed later if working directory changes
+
 
     def custom_sleep(self, sleep_time):
         if not self._dry_run: time.sleep(sleep_time)
@@ -188,7 +193,7 @@ class Runner:
                         '--recurse-submodules',
                         '--shallow-submodules',
                         self._uri,
-                        self._folder
+                        self.__folder
                     ],
                     check=True,
                     capture_output=True,
@@ -204,7 +209,7 @@ class Runner:
                         '--recurse-submodules',
                         '--shallow-submodules',
                         self._uri,
-                        self._folder
+                        self.__folder
                     ],
                     check=True,
                     capture_output=True,
@@ -214,7 +219,7 @@ class Runner:
         else:
             if self._branch:
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
-            self._folder = self._uri
+            self.__folder = self._uri
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
@@ -223,7 +228,7 @@ class Runner:
             check=True,
             capture_output=True,
             encoding='UTF-8',
-            cwd=self._folder
+            cwd=self.__folder
         )
         commit_hash = commit_hash.stdout.strip("\n")
 
@@ -278,14 +283,13 @@ class Runner:
 
         Loader.add_constructor('!include', Loader.include)
 
-        usage_scenario_file = join_paths(self._folder, self._filename, 'file')
+        usage_scenario_file = join_paths(self.__folder, self._original_filename, 'file')
 
         # We set the working folder now to the actual location of the usage_scenario
-        if '/' in self._filename:
-            self._folder = usage_scenario_file.rsplit('/', 1)[0]
-            self._filename = usage_scenario_file.rsplit('/', 1)[1]
-            print("Working folder changed to ", self._folder)
-
+        if '/' in self._original_filename:
+            self.__folder = usage_scenario_file.rsplit('/', 1)[0]
+            #self.__filename = usage_scenario_file.rsplit('/', 1)[1] # we currently do not use this variable
+            print("Working folder changed to ", self.__folder)
 
 
         with open(usage_scenario_file, 'r', encoding='utf-8') as fp:
@@ -431,7 +435,7 @@ class Runner:
             escape(json.dumps(machine_specs), quote=False),
             json.dumps(config['measurement']),
             escape(json.dumps(self._usage_scenario), quote=False),
-            self._filename,
+            self._original_filename,
             self._project_id)
         )
 
@@ -517,11 +521,11 @@ class Runner:
                 self.__notes_helper.add_note({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
                 # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
-                context_path = join_paths(self._folder, context, 'dir')
+                context_path = join_paths(self.__folder, context, 'dir')
                 join_paths(context_path, dockerfile, 'file')
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-v', f"{self._folder}:/workspace:ro", # this is the folder where the usage_scenario is!
+                    '-v', f"{self.__folder}:/workspace:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
                     f"--dockerfile=/workspace/{context}/{dockerfile}",
@@ -615,9 +619,9 @@ class Runner:
 
             docker_run_string.append('-v')
             if 'folder-destination' in service:
-                docker_run_string.append(f"{self._folder}:{service['folder-destination']}:ro")
+                docker_run_string.append(f"{self.__folder}:{service['folder-destination']}:ro")
             else:
-                docker_run_string.append(f"{self._folder}:/tmp/repo:ro")
+                docker_run_string.append(f"{self.__folder}:/tmp/repo:ro")
 
             if 'volumes' in service:
                 if self._allow_unsafe:
@@ -632,7 +636,7 @@ class Runner:
                         docker_run_string.append('-v')
                         if volume.startswith('./'): # we have a bind-mount with relative path
                             vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
-                            path = os.path.realpath(os.path.join(self._folder, vol[0]))
+                            path = os.path.realpath(os.path.join(self.__folder, vol[0]))
                             if not os.path.exists(path):
                                 raise RuntimeError(f"Volume path does not exist {path}")
                             docker_run_string.append(f"{path}:{vol[1]}")
@@ -645,16 +649,16 @@ class Runner:
                         vol = volume.split(':')
                         # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
                         # could create volumes that would linger on our system.
-                        path = os.path.realpath(os.path.join(self._folder, vol[0]))
+                        path = os.path.realpath(os.path.join(self.__folder, vol[0]))
                         if not os.path.exists(path):
                             raise RuntimeError(f"Volume path does not exist {path}")
 
-                        # Check that the path starts with self._folder
-                        if not path.startswith(self._folder):
+                        # Check that the path starts with self.__folder
+                        if not path.startswith(self.__folder):
                             raise RuntimeError(f"Trying to escape folder {path}")
 
                         # To double check we also check if it is in the files allow list
-                        if path not in [str(item) for item in Path(self._folder).rglob("*")]:
+                        if path not in [str(item) for item in Path(self.__folder).rglob("*")]:
                             raise RuntimeError(f"{path} not in allowed file list")
 
                         if len(vol) == 3:
@@ -1100,6 +1104,8 @@ class Runner:
         self.__start_measurement = None
         self.__end_measurement = None
         self.__join_default_network = False
+        #self.__filename = self._original_filename # # we currently do not use this variable
+        self.__folder = f"{self._tmp_folder}/repo"
 
     def run(self):
         '''
