@@ -257,6 +257,7 @@ a,
     max-width: 80vw;
     white-space: pre-wrap;
     word-wrap: break-word;
+    overflow: scroll;
 }
 
 #compare-button {
