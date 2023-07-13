@@ -119,6 +119,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
         total_chart_bottom_legend[phase]  = [];
 
         let co2_calculated = false;
+        let found_bottom_chart_metric = false;
 
         let phase_key0_has_machine_energy = false;
         let phase_key1_has_machine_energy = false;
@@ -135,23 +136,27 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                 }
 
                 if (top_bar_chart_condition(metric)) {
-                    top_bar_chart_labels.push(metric_data.clean_name);
+                    top_bar_chart_labels.push(`${metric_data.clean_name} (${metric_data.source})`);
                     top_bar_chart_data[0].push(detail_data.mean)
                 }
                 if (total_chart_bottom_condition(metric)) {
-                    total_chart_bottom_legend[phase].push(metric_data.clean_name);
+                    if(found_bottom_chart_metric) {
+                        showNotification(`Another metric for the bottom chart was already set (${found_bottom_chart_metric}), skipping ${metric} and only first one will be shown.`);
+                    } else {
+                        total_chart_bottom_legend[phase].push(metric_data.clean_name);
 
-                    if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[0]}`] == null) {
-                        total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[0]}`] = []
+                        if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[0]}`] == null) {
+                            total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[0]}`] = []
+                        }
+                        total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[0]}`].push(detail_data.mean)
+                        phase_key0_has_machine_energy = true
+                        found_bottom_chart_metric = metric;
                     }
-                    total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[0]}`].push(detail_data.mean)
-                    phase_key0_has_machine_energy = true
                 }
 
                 if (comparison_case == null && co2_metrics_condition(metric)) {
                     if(co2_calculated) {
                         showNotification('CO2 was already calculated! Do you have CO2 Machine reporters set');
-                        throw 'CO2 was already calculated! Do you have two CO2 Machine reporters set?'
                     }
                     co2_calculated = true;
                     calculateCO2(phase, detail_data.mean);
@@ -205,12 +210,16 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                         top_bar_chart_data[1].push(detail_data2.mean)
                     }
                     if (total_chart_bottom_condition(metric)) {
-                        if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[1]}`] == null) {
-                            total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[1]}`] = []
-                        }
+                        if(found_bottom_chart_metric && found_bottom_chart_metric !== metric) {
+                            showNotification(`Another metric for the bottom chart was already set (${found_bottom_chart_metric}), skipping ${metric} and only first one will be shown.`);
+                        } else {
+                            if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[1]}`] == null) {
+                                total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[1]}`] = []
+                            }
 
-                        total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[1]}`].push(detail_data2.mean)
-                        phase_key1_has_machine_energy = true
+                            total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[1]}`].push(detail_data2.mean)
+                            phase_key1_has_machine_energy = true
+                        }
                     }
                 }
             }
