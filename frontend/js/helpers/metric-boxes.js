@@ -232,7 +232,6 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array
     let [value_1, unit] = convertValue(detail_data_array[0].mean, metric_data.unit);
     let [value_2, _] = convertValue(detail_data_array[1].mean, metric_data.unit);
 
-    console.log("Metric Phase", phase);
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
     tr.innerHTML = `
         <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>

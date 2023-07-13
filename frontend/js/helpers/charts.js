@@ -317,6 +317,7 @@ const createChartContainer = (container, el) => {
                 <div class="statistics-chart"></div>
             </div>
         </div>`;
+
     document.querySelector(container).appendChild(chart_node)
 
     chart_node.querySelector('.toggle-width').addEventListener("click", toggleWidth, false);

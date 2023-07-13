@@ -20,15 +20,17 @@ class DB:
             # force domain socket connection by not supplying host
             # pylint: disable=consider-using-f-string
             if config['postgresql']['host'] is None:
-                self._conn = psycopg.connect("user=%s dbname=%s password=%s" % (
+                self._conn = psycopg.connect("user=%s dbname=%s port=%s password=%s" % (
                     config['postgresql']['user'],
                     config['postgresql']['dbname'],
+                    config['postgresql']['port'],
                     config['postgresql']['password']))
             else:
-                self._conn = psycopg.connect("host=%s user=%s dbname=%s password=%s" % (
+                self._conn = psycopg.connect("host=%s user=%s dbname=%s port=%s password=%s" % (
                     config['postgresql']['host'],
                     config['postgresql']['user'],
                     config['postgresql']['dbname'],
+                    config['postgresql']['port'],
                     config['postgresql']['password']))
 
     def __query(self, query, params=None, return_type=None, row_factory=None):

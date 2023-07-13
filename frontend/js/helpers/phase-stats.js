@@ -2,7 +2,7 @@ const setupPhaseTabs = (phase_stats_object) => {
     let keys = Object.keys(phase_stats_object['data'])
     // only need to traverse one branch in case of a comparison
     // no need to display phases that do not exist in both
-    for (key in phase_stats_object) {
+    keys.forEach((key) =>  {
         for (phase in phase_stats_object['data'][key]) {
             createPhaseTab(phase); // will not create already existing phase tabs
             console.log("Phase", phase);
@@ -30,7 +30,7 @@ const setupPhaseTabs = (phase_stats_object) => {
                     <th>MAX</th>`;
             }
         }
-    }
+    })
 }
 
 /*
