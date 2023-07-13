@@ -15,6 +15,7 @@ CREATE TABLE projects (
     filename text,
     machine_specs jsonb,
     machine_id int DEFAULT 1,
+    gmt_hash text,
     measurement_config jsonb,
     start_measurement bigint,
     end_measurement bigint,
