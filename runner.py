@@ -410,6 +410,16 @@ class Runner:
     def update_and_insert_specs(self):
         config = GlobalConfig().config
 
+        gmt_hash = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            check=True,
+            capture_output=True,
+            encoding='UTF-8',
+            cwd=CURRENT_DIR
+        )
+        gmt_hash = gmt_hash.stdout.strip("\n")
+
+
         # There are two ways we get hardware info. First things we don't need to be root to do which we get through
         # a method call. And then things we need root privilege which we need to call as a subprocess with sudo. The
         # install.sh script should have called the makefile which adds the script to the sudoes file.
@@ -428,7 +438,7 @@ class Runner:
             UPDATE projects
             SET
                 machine_id=%s, machine_specs=%s, measurement_config=%s,
-                usage_scenario = %s, filename=%s, last_run = NOW()
+                usage_scenario = %s, filename=%s, gmt_hash=%s, last_run = NOW()
             WHERE id = %s
             """, params=(
             config['machine']['id'],
@@ -436,6 +446,7 @@ class Runner:
             json.dumps(config['measurement']),
             escape(json.dumps(self._usage_scenario), quote=False),
             self._original_filename,
+            gmt_hash,
             self._project_id)
         )
 
