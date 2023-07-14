@@ -26,7 +26,8 @@ const setupPhaseTabs = (phase_stats_object, multi_comparison, include_detail_pha
                 <th>Value</th>
                 <th>Unit</th>
                 <th class="hide-for-single-stats">StdDev</th>
-                <th>MAX</th>`;
+                <th>MAX</th>
+                <th>MIN</th>`;
         }
     }
 }

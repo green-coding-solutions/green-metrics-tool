@@ -66,6 +66,7 @@ CREATE TABLE phase_stats (
     value bigint NOT NULL,
     type text NOT NULL,
     max_value bigint DEFAULT NULL,
+    min_value bigint DEFAULT NULL,
     unit text NOT NULL,
     created_at timestamp with time zone DEFAULT now()
 );
