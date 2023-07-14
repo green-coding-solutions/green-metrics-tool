@@ -1,9 +1,8 @@
-const setupPhaseTabs = (phase_stats_object, multi_comparison, include_detail_phases = false) => {
+const setupPhaseTabs = (phase_stats_object, multi_comparison) => {
     let keys = Object.keys(phase_stats_object['data'])
     // only need to traverse one branch in case of a comparison
     // no need to display phases that do not exist in both
     for (phase in phase_stats_object['data'][keys[0]]) {
-        if (include_detail_phases == false && phase.indexOf('[') == -1) continue;
         createPhaseTab(phase);
         let tr = document.querySelector(`div.tab[data-tab='${phase}'] .compare-metrics-table thead`).insertRow();
         if (multi_comparison) {
@@ -71,11 +70,11 @@ const determineMultiComparison = (comparison_case) => {
 const createPhaseTab = (phase) => {
 
     let phase_tab_node = document.querySelector(`a.step[data-tab='${phase}']`);
-
     if(phase_tab_node == null || phase_tab_node == undefined) {
         let runtime_tab_node = document.querySelector('a.runtime-step');
         let cloned_tab_node = runtime_tab_node.cloneNode(true);
         cloned_tab_node.style.display = '';
+        cloned_tab_node.innerText = phase;
         cloned_tab_node.setAttribute('data-tab', phase);
         runtime_tab_node.parentNode.insertBefore(cloned_tab_node, runtime_tab_node)
 
@@ -91,7 +90,7 @@ const createPhaseTab = (phase) => {
     We traverse the multi-dimensional metrics object only once and fill data
     in the appropriate variables for metric-boxes and charts
 */
-const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_comparison, include_detail_phases = false) => {
+const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_comparison) => {
 
     let keys = Object.keys(phase_stats_object['data'])
 
@@ -108,7 +107,6 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
     let total_chart_bottom_legend =  {};
     let total_chart_bottom_labels = [];
     for (phase in phase_stats_object['data'][keys[0]]) {
-        if (include_detail_phases == false && phase.indexOf('[') == -1) continue;
         let phase_data = phase_stats_object['data'][keys[0]][phase];
 
         let radar_chart_labels = [];
