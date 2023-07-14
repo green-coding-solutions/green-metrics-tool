@@ -31,6 +31,16 @@ const setupPhaseTabs = (phase_stats_object, multi_comparison) => {
     }
 }
 
+const showWarning = (phase, warning) => {
+    if (phase == '[RUNTIME]' ) phase == '[[RUNTIME]]';
+    document.querySelector(`div.tab[data-tab='${phase}'] .ui.warning.message`).classList.remove('hidden');
+    const newListItem = document.createElement("li");
+    newListItem.textContent = warning;
+    document.querySelector(`div.tab[data-tab='${phase}'] .ui.warning.message ul`).appendChild(newListItem);
+
+
+}
+
 const determineMultiComparison = (comparison_case) => {
     switch (comparison_case) {
         case null: // single value
@@ -140,7 +150,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                 }
                 if (total_chart_bottom_condition(metric)) {
                     if(found_bottom_chart_metric) {
-                        showNotification(`Another metric for the bottom chart was already set (${found_bottom_chart_metric}), skipping ${metric} and only first one will be shown.`);
+                        showWarning(phase, `Another metric for the bottom chart was already set (${found_bottom_chart_metric}), skipping ${metric} and only first one will be shown.`);
                     } else {
                         total_chart_bottom_legend[phase].push(metric_data.clean_name);
 
@@ -155,7 +165,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
 
                 if (comparison_case == null && co2_metrics_condition(metric)) {
                     if(co2_calculated) {
-                        showNotification('CO2 was already calculated! Do you have CO2 Machine reporters set');
+                        showWarning(phase, 'CO2 was already calculated! Do you have CO2 Machine reporters set');
                     }
                     co2_calculated = true;
                     calculateCO2(phase, detail_data.mean);
@@ -180,7 +190,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                         // the metric or phase might not be present in the other run
                         // note that this debug statement does not log when on the second branch more metrics are
                         // present that are not shown. However we also do not want to display them.
-                        console.log(`${metric} ${detail} was missing from one comparison. Skipping`);
+                        showWarning(phase, `${metric} ${detail} was missing from one comparison. Skipping`);
                         continue;
                     }
                     displayDiffMetricBox(
@@ -210,7 +220,7 @@ const displayComparisonMetrics = (phase_stats_object, comparison_case, multi_com
                     }
                     if (total_chart_bottom_condition(metric)) {
                         if(found_bottom_chart_metric && found_bottom_chart_metric !== metric) {
-                            showNotification(`Another metric for the bottom chart was already set (${found_bottom_chart_metric}), skipping ${metric} and only first one will be shown.`);
+                            showWarning(phase, `Another metric for the bottom chart was already set (${found_bottom_chart_metric}), skipping ${metric} and only first one will be shown.`);
                         } else {
                             if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[1]}`] == null) {
                                 total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${keys[1]}`] = []
