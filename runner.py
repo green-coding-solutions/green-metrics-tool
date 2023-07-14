@@ -139,7 +139,9 @@ class Runner:
 
 
     def custom_sleep(self, sleep_time):
-        if not self._dry_run: time.sleep(sleep_time)
+        if not self._dry_run:
+            print(TerminalColors.HEADER, '\nSleeping for : ', sleep_time, TerminalColors.ENDC)
+            time.sleep(sleep_time)
 
     def initialize_folder(self, path):
         shutil.rmtree(path, ignore_errors=True)
