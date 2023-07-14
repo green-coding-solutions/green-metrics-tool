@@ -28,7 +28,7 @@ const convertValue = (value, unit) => {
         return [(value / 1_000_000).toFixed(2), 'MB'];
         break;
     default:
-        return [(value).toFixed(2), unit];        // no conversion in default calse
+        return [value, unit];        // no conversion in default calse
     }
 }
 
