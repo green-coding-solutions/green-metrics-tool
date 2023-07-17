@@ -153,13 +153,13 @@ def cleanup(runner):
                 raise exc
             finally:
                 try:
-                    runner.save_stdout_logs()
+                    runner.stop_metric_providers()
                 except BaseException as exc:
                     runner.add_to_log(exc.__class__.__name__, str(exc))
                     raise exc
                 finally:
                     try:
-                        runner.stop_metric_providers()
+                        runner.save_stdout_logs()
                     except BaseException as exc:
                         runner.add_to_log(exc.__class__.__name__, str(exc))
                         raise exc
