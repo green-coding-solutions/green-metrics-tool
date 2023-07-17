@@ -318,10 +318,10 @@ $(document).ready((e) => {
         let repo_link = ''
 
         if(badges_data.data[0][8] == 'github') {
-            repo_link = `https://github.com/${url_params.get('repo')}`;
+            repo_link = `https://github.com/${sanitize(url_params.get('repo'))}`;
         }
         else if(badges_data.data[0][8] == 'gitlab') {
-            repo_link = `https://gitlab.com/${url_params.get('repo')}`;
+            repo_link = `https://gitlab.com/${sanitize(url_params.get('repo'))}`;
         }
         //${repo_link}
         const repo_link_node = `<a href="${repo_link}" target="_blank">${url_params.get('repo')}</a>`
