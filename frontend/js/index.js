@@ -5,7 +5,7 @@ const compareButton = () => {
     checkedBoxes.forEach(checkbox => {
         link = `${link}${checkbox.value},`;
     });
-    window.location = link.substr(0,link.length-1);
+    window.location = encodeURIComponent(link.substr(0, link.length - 1));
 }
 const updateCompareCount = () => {
     const countButton = document.getElementById('compare-button');

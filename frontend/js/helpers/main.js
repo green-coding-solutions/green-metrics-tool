@@ -32,6 +32,18 @@ class GMTMenu extends HTMLElement {
 }
 customElements.define('gmt-menu', GMTMenu);
 
+function sanitize(string) {
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;'
+    };
+    const reg = /[&<>"']/ig;
+    return string.replace(reg, (match) => map[match]);
+  }
+
 const replaceRepoIcon = (uri) => {
     if (uri.startsWith("https://www.github.com") || uri.startsWith("https://github.com")) {
         uri = uri.replace("https://www.github.com", '<i class="icon github"></i>');
