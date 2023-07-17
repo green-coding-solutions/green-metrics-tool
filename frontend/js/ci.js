@@ -342,5 +342,6 @@ $(document).ready((e) => {
             chart_instance.setOption(options);
             displayAveragesTable(new_runs);
         });
+        setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);
     })();
 });
