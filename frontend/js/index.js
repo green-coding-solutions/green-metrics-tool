@@ -119,15 +119,34 @@ function allow_group_select_checkboxes(checkbox_wrapper_id){
     });
 
 
-    $('#projects-table table').DataTable({
-        searchPanes: {
-            initCollapsed: true,
-        },
-        "order": [[5, 'desc']], // sort by last_run by default
-    });
-
 
     $('.ui.accordion').accordion();
+    setTimeout(function() {
+        $('#projects-table table').DataTable({
+//            searchPanes: {
+//              initCollapsed: true,
+//            },
+            "order": [[5, 'desc']], // sort by last_run by default
+        });
+
+    }, 1000); // Delay of 2000 milliseconds (2 seconds)
+
+    /*
+    This code would be most efficient. But it has bad UI experience due to lag
+    $('.ui.accordion').accordion({
+        onOpen: function(value, text) {
+            table = this.querySelector('table')
+            if(!$.fn.DataTable.isDataTable(table)) {
+                $(table).DataTable({
+        //            searchPanes: {
+        //              initCollapsed: true,
+        //            },
+                    "order": [[5, 'desc']], // sort by last_run by default
+                });
+            }
+    }});
+    */
+
 
     document.querySelectorAll('input[name=chbx-proj]').forEach((e) =>{
         e.addEventListener('change', updateCompareCount);

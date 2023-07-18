@@ -45,7 +45,7 @@ import error_helpers
 from db import DB
 from global_config import GlobalConfig
 import utils
-from tools.save_notes import save_notes  # local file import
+from notes import Notes
 
 
 def arrows(text):
@@ -111,38 +111,45 @@ class Runner:
         self._uri = uri
         self._uri_type = uri_type
         self._project_id = pid
-        self._filename = filename
+        self._original_filename = filename
         self._branch = branch
         self._tmp_folder = '/tmp/green-metrics-tool'
-        self._folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
 
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
+        # They are __ as they should not be changed because this could break the state of the runner
         self.__stdout_logs = {}
         self.__containers = {}
         self.__networks = []
         self.__ps_to_kill = []
         self.__ps_to_read = []
         self.__metric_providers = []
-        self.__notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
+        self.__notes_helper = Notes()
         self.__phases = {}
         self.__start_measurement = None
         self.__end_measurement = None
         self.__services_to_pause_phase = {}
         self.__join_default_network = False
+        self.__folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
+
+        # we currently do not use this variable
+        # self.__filename = self._original_filename # this can be changed later if working directory changes
+
 
     def custom_sleep(self, sleep_time):
-        if not self._dry_run: time.sleep(sleep_time)
+        if not self._dry_run:
+            print(TerminalColors.HEADER, '\nSleeping for : ', sleep_time, TerminalColors.ENDC)
+            time.sleep(sleep_time)
 
     def initialize_folder(self, path):
         shutil.rmtree(path, ignore_errors=True)
         Path(path).mkdir(parents=True, exist_ok=True)
 
     def save_notes_runner(self):
-        print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)
-        save_notes(self._project_id, self.__notes)
+        print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
+        self.__notes_helper.save_to_db(self._project_id)
 
     def check_configuration(self):
         if self._skip_config_check:
@@ -166,7 +173,8 @@ class Runner:
 
         raise ValueError(
             "Configuration check failed - not running measurement\n"
-            f"Configuration errors:\n{printable_errors}"
+            f"Configuration errors:\n{printable_errors}\n"
+            "If however that is what you want to do (for debug purposes), please set the --skip-config-check switch"
             )
 
     def checkout_repository(self):
@@ -187,7 +195,7 @@ class Runner:
                         '--recurse-submodules',
                         '--shallow-submodules',
                         self._uri,
-                        self._folder
+                        self.__folder
                     ],
                     check=True,
                     capture_output=True,
@@ -203,7 +211,7 @@ class Runner:
                         '--recurse-submodules',
                         '--shallow-submodules',
                         self._uri,
-                        self._folder
+                        self.__folder
                     ],
                     check=True,
                     capture_output=True,
@@ -213,7 +221,7 @@ class Runner:
         else:
             if self._branch:
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
-            self._folder = self._uri
+            self.__folder = self._uri
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
@@ -222,7 +230,7 @@ class Runner:
             check=True,
             capture_output=True,
             encoding='UTF-8',
-            cwd=self._folder
+            cwd=self.__folder
         )
         commit_hash = commit_hash.stdout.strip("\n")
 
@@ -277,14 +285,13 @@ class Runner:
 
         Loader.add_constructor('!include', Loader.include)
 
-        usage_scenario_file = join_paths(self._folder, self._filename, 'file')
+        usage_scenario_file = join_paths(self.__folder, self._original_filename, 'file')
 
         # We set the working folder now to the actual location of the usage_scenario
-        if '/' in self._filename:
-            self._folder = usage_scenario_file.rsplit('/', 1)[0]
-            self._filename = usage_scenario_file.rsplit('/', 1)[1]
-            print("Working folder changed to ", self._folder)
-
+        if '/' in self._original_filename:
+            self.__folder = usage_scenario_file.rsplit('/', 1)[0]
+            #self.__filename = usage_scenario_file.rsplit('/', 1)[1] # we currently do not use this variable
+            print("Working folder changed to ", self.__folder)
 
 
         with open(usage_scenario_file, 'r', encoding='utf-8') as fp:
@@ -405,6 +412,16 @@ class Runner:
     def update_and_insert_specs(self):
         config = GlobalConfig().config
 
+        gmt_hash = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            check=True,
+            capture_output=True,
+            encoding='UTF-8',
+            cwd=CURRENT_DIR
+        )
+        gmt_hash = gmt_hash.stdout.strip("\n")
+
+
         # There are two ways we get hardware info. First things we don't need to be root to do which we get through
         # a method call. And then things we need root privilege which we need to call as a subprocess with sudo. The
         # install.sh script should have called the makefile which adds the script to the sudoes file.
@@ -423,14 +440,15 @@ class Runner:
             UPDATE projects
             SET
                 machine_id=%s, machine_specs=%s, measurement_config=%s,
-                usage_scenario = %s, filename=%s, last_run = NOW()
+                usage_scenario = %s, filename=%s, gmt_hash=%s, last_run = NOW()
             WHERE id = %s
             """, params=(
             config['machine']['id'],
             escape(json.dumps(machine_specs), quote=False),
             json.dumps(config['measurement']),
             escape(json.dumps(self._usage_scenario), quote=False),
-            self._filename,
+            self._original_filename,
+            gmt_hash,
             self._project_id)
         )
 
@@ -513,14 +531,14 @@ class Runner:
             if 'build' in service:
                 context, dockerfile = self.get_build_info(service)
                 print(f"Building {service['image']}")
-                self.__notes.append({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
+                self.__notes_helper.add_note({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
                 # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
-                context_path = join_paths(self._folder, context, 'dir')
+                context_path = join_paths(self.__folder, context, 'dir')
                 join_paths(context_path, dockerfile, 'file')
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-v', f"{self._folder}:/workspace:ro", # this is the folder where the usage_scenario is!
+                    '-v', f"{self.__folder}:/workspace:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
                     f"--dockerfile=/workspace/{context}/{dockerfile}",
@@ -548,7 +566,7 @@ class Runner:
 
             else:
                 print(f"Pulling {service['image']}")
-                self.__notes.append({'note':f"Pulling {service['image']}" , 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
+                self.__notes_helper.add_note({'note':f"Pulling {service['image']}" , 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
                 ps = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0:
@@ -614,9 +632,9 @@ class Runner:
 
             docker_run_string.append('-v')
             if 'folder-destination' in service:
-                docker_run_string.append(f"{self._folder}:{service['folder-destination']}:ro")
+                docker_run_string.append(f"{self.__folder}:{service['folder-destination']}:ro")
             else:
-                docker_run_string.append(f"{self._folder}:/tmp/repo:ro")
+                docker_run_string.append(f"{self.__folder}:/tmp/repo:ro")
 
             if 'volumes' in service:
                 if self._allow_unsafe:
@@ -631,7 +649,7 @@ class Runner:
                         docker_run_string.append('-v')
                         if volume.startswith('./'): # we have a bind-mount with relative path
                             vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
-                            path = os.path.realpath(os.path.join(self._folder, vol[0]))
+                            path = os.path.realpath(os.path.join(self.__folder, vol[0]))
                             if not os.path.exists(path):
                                 raise RuntimeError(f"Volume path does not exist {path}")
                             docker_run_string.append(f"{path}:{vol[1]}")
@@ -644,16 +662,16 @@ class Runner:
                         vol = volume.split(':')
                         # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
                         # could create volumes that would linger on our system.
-                        path = os.path.realpath(os.path.join(self._folder, vol[0]))
+                        path = os.path.realpath(os.path.join(self.__folder, vol[0]))
                         if not os.path.exists(path):
                             raise RuntimeError(f"Volume path does not exist {path}")
 
-                        # Check that the path starts with self._folder
-                        if not path.startswith(self._folder):
+                        # Check that the path starts with self.__folder
+                        if not path.startswith(self.__folder):
                             raise RuntimeError(f"Trying to escape folder {path}")
 
                         # To double check we also check if it is in the files allow list
-                        if path not in [str(item) for item in Path(self._folder).rglob("*")]:
+                        if path not in [str(item) for item in Path(self.__folder).rglob("*")]:
                             raise RuntimeError(f"{path} not in allowed file list")
 
                         if len(vol) == 3:
@@ -809,7 +827,7 @@ class Runner:
             message = f"Booting {metric_provider.__class__.__name__}"
             metric_provider.start_profiling(self.__containers)
             if self._verbose_provider_boot:
-                self.__notes.append({'note': message, 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
+                self.__notes_helper.add_note({'note': message, 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
                 self.custom_sleep(10)
 
         print(TerminalColors.HEADER, '\nWaiting for Metric Providers to boot ...', TerminalColors.ENDC)
@@ -838,7 +856,7 @@ class Runner:
         # TODO. Check if temperature is back to baseline and put into best-practices section
 
         phase_time = int(time.time_ns() / 1_000)
-        self.__notes.append({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+        self.__notes_helper.add_note({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
         if phase in self.__phases:
             raise RuntimeError(f"'{phase}' as phase name has already used. Please set unique name for phases.")
@@ -855,13 +873,13 @@ class Runner:
             for container_to_pause in self.__services_to_pause_phase[phase]:
                 info_text = f"Pausing {container_to_pause} after phase: {phase}."
                 print(info_text)
-                self.__notes.append({'note': info_text, 'detail_name': '[NOTES]', 'timestamp': phase_time})
+                self.__notes_helper.add_note({'note': info_text, 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
                 subprocess.run(['docker', 'pause', container_to_pause], check=True, stdout=subprocess.DEVNULL)
 
 
         self.__phases[phase]['end'] = phase_time
-        self.__notes.append({'note': f"Ending phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+        self.__notes_helper.add_note({'note': f"Ending phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
     def run_flows(self):
         config = GlobalConfig().config
@@ -873,7 +891,7 @@ class Runner:
 
             for inner_el in el['commands']:
                 if 'note' in inner_el:
-                    self.__notes.append({'note': inner_el['note'], 'detail_name': el['container'], 'timestamp': int(time.time_ns() / 1_000)})
+                    self.__notes_helper.add_note({'note': inner_el['note'], 'detail_name': el['container'], 'timestamp': int(time.time_ns() / 1_000)})
 
                 if inner_el['type'] == 'console':
                     print(TerminalColors.HEADER, '\nConsole command', inner_el['command'], 'on container', el['container'], TerminalColors.ENDC)
@@ -974,8 +992,8 @@ class Runner:
 
 
     def read_and_cleanup_processes(self):
+        print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
         process_helpers.kill_ps(self.__ps_to_kill)
-        print(TerminalColors.HEADER, '\nSaving processes stdout', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
             if ps['detach']:
                 stdout, stderr = ps['ps'].communicate(timeout=5)
@@ -990,9 +1008,8 @@ class Runner:
                     self.add_to_log(ps['container_name'], f"stdout: {line}", ps['cmd'])
 
                     if ps['read-notes-stdout']:
-                        # Fixed format according to our specification. If unpacking fails this is wanted error
-                        timestamp, note = line.split(' ', 1)
-                        self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
+                        if note := self.__notes_helper.parse_note(line):
+                            self.__notes_helper.add_note({'note': note[1], 'detail_name': ps['detail_name'], 'timestamp': note[0]})
             if stderr:
                 stderr = stderr.splitlines()
                 for line in stderr:
@@ -1011,11 +1028,11 @@ class Runner:
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
-        self.__notes.append({'note': 'Start of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__start_measurement})
+        self.__notes_helper.add_note({'note': 'Start of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__start_measurement})
 
     def end_measurement(self):
         self.__end_measurement = int(time.time_ns() / 1_000)
-        self.__notes.append({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
+        self.__notes_helper.add_note({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
 
     def update_start_and_end_times(self):
         print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
@@ -1038,7 +1055,7 @@ class Runner:
             """, params=(json.dumps(self.__phases), self._project_id))
 
     def read_container_logs(self):
-        print(TerminalColors.HEADER, '\nSaving container logs', TerminalColors.ENDC)
+        print(TerminalColors.HEADER, '\nCapturing container logs', TerminalColors.ENDC)
         for container_name in self.__containers.values():
             log = subprocess.run(
                 ['docker', 'logs', '-t', container_name],
@@ -1053,6 +1070,7 @@ class Runner:
                 self.add_to_log(container_name, f"stderr: {log.stderr}")
 
     def save_stdout_logs(self):
+        print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
         logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.__stdout_logs.items()])
         logs_as_str = logs_as_str.replace('\x00','')
         if logs_as_str:
@@ -1089,7 +1107,7 @@ class Runner:
         process_helpers.kill_ps(self.__ps_to_kill)
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
-        self.__notes = []
+        self.__notes_helper = Notes()
         self.__containers = {}
         self.__networks = []
         self.__ps_to_kill = []
@@ -1099,6 +1117,8 @@ class Runner:
         self.__start_measurement = None
         self.__end_measurement = None
         self.__join_default_network = False
+        #self.__filename = self._original_filename # # we currently do not use this variable
+        self.__folder = f"{self._tmp_folder}/repo"
 
     def run(self):
         '''
@@ -1211,13 +1231,13 @@ class Runner:
                         raise exc
                     finally:
                         try:
-                            self.save_stdout_logs()
+                            self.stop_metric_providers()
                         except BaseException as exc:
                             self.add_to_log(exc.__class__.__name__, str(exc))
                             raise exc
                         finally:
                             try:
-                                self.stop_metric_providers()
+                                self.save_stdout_logs()
                             except BaseException as exc:
                                 self.add_to_log(exc.__class__.__name__, str(exc))
                                 raise exc
@@ -1310,6 +1330,8 @@ if __name__ == '__main__':
         # From a user perspective it makes perfect sense to run both jobs directly after each other
         # In a cloud setup it however makes sense to free the measurement machine as soon as possible
         # So this code should be individually callable, separate from the runner
+
+        print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
 
         # get all the metrics from the measurements table grouped by metric
         # loop over them issueing separate queries to the DB
