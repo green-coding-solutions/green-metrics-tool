@@ -43,7 +43,7 @@ Subject: {subject}
     send_email(message, config['admin']['email'])
 
 
-def send_error_email(receiver_email, error, project_id=None):
+def send_error_email(receiver_email, error, project_id=None, name=None):
     config = GlobalConfig().config
     message = """\
 From: {smtp_sender}
@@ -52,7 +52,9 @@ Subject: Your Green Metrics analysis has encountered problems
 
 Unfortunately, your Green Metrics analysis has run into some issues and could not be completed.
 
+Name: {name}
 Project id: {project_id}
+
 {errors}
 
 --
@@ -61,18 +63,21 @@ Project id: {project_id}
     message = message.format(
         receiver_email=receiver_email,
         errors=error,
+        name=name,
         url=config['cluster']['metrics_url'],
         project_id=project_id,
         smtp_sender=config['smtp']['sender'])
     send_email(message, receiver_email)
 
 
-def send_report_email(receiver_email, report_id):
+def send_report_email(receiver_email, report_id, name):
     config = GlobalConfig().config
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
 Subject: Your Green Metric report is ready
+
+Project name: {name}
 
 Your report is now accessible under the URL: {url}/stats.html?id={report_id}
 
@@ -82,6 +87,7 @@ Your report is now accessible under the URL: {url}/stats.html?id={report_id}
     message = message.format(
         receiver_email=receiver_email,
         report_id=report_id,
+        name=name,
         url=config['cluster']['metrics_url'],
         smtp_sender=config['smtp']['sender'])
     send_email(message, receiver_email)
@@ -96,4 +102,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()  # script will exit if arguments is not present
 
-    send_report_email(args.receiver_email, args.report_id)
+    send_report_email(args.receiver_email, args.report_id, "My custom name")

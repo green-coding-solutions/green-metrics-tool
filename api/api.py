@@ -267,7 +267,7 @@ async def get_measurements_single(project_id: str):
 
     query = """
             SELECT measurements.detail_name, measurements.time, measurements.metric,
-                   measurements.value, measurements.unit, measurements.phase
+                   measurements.value, measurements.unit
             FROM measurements
             WHERE measurements.project_id = %s
             """
@@ -374,11 +374,15 @@ async def post_project_add(project: Project):
         """
     params = (project.url, project.name, project.email, project.branch, project.filename)
     project_id = DB().fetch_one(query, params=params)[0]
+
     # This order as selected on purpose. If the admin mail fails, we currently do
     # not want the job to be queued, as we want to monitor every project execution manually
-    email_helpers.send_admin_email(
-        f"New project added from Web Interface: {project.name}", project
-    )  # notify admin of new project
+    config = GlobalConfig().config
+    if (config['admin']['notify_admin_for_own_project_add'] or config['admin']['email'] != project.email):
+        email_helpers.send_admin_email(
+            f"New project added from Web Interface: {project.name}", project
+        )  # notify admin of new project
+
     jobs.insert_job('project', project_id, project.machine_id)
 
     return ORJSONResponse({'success': True}, status_code=202)
@@ -394,7 +398,7 @@ async def get_project(project_id: str):
                 id, name, uri, branch, commit_hash,
                 (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements
                     LEFT JOIN categories as t on t.id = elements) as categories,
-                start_measurement, end_measurement,
+                filename, start_measurement, end_measurement,
                 measurement_config, machine_specs, machine_id, usage_scenario,
                 last_run, created_at, invalid_project, phases, logs
             FROM projects

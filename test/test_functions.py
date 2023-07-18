@@ -76,7 +76,7 @@ def run_until(runner, step):
     try:
         config = GlobalConfig().config
         runner.initialize_folder(runner._tmp_folder)
-        runner.check_configuration() # DMM: new
+        runner.check_configuration()
         runner.checkout_repository()
         runner.initial_parse()
         runner.populate_image_names()
@@ -129,7 +129,7 @@ def run_until(runner, step):
         runner.store_phases()
         runner.update_start_and_end_times()
         runner.read_and_cleanup_processes()
-    except BaseException as exc: #DMM: new
+    except BaseException as exc:
         runner.add_to_log(exc.__class__.__name__, str(exc))
         raise exc
 
@@ -153,13 +153,13 @@ def cleanup(runner):
                 raise exc
             finally:
                 try:
-                    runner.save_stdout_logs()
+                    runner.stop_metric_providers()
                 except BaseException as exc:
                     runner.add_to_log(exc.__class__.__name__, str(exc))
                     raise exc
                 finally:
                     try:
-                        runner.stop_metric_providers()
+                        runner.save_stdout_logs()
                     except BaseException as exc:
                         runner.add_to_log(exc.__class__.__name__, str(exc))
                         raise exc
