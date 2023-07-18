@@ -398,7 +398,7 @@ async def get_project(project_id: str):
                 id, name, uri, branch, commit_hash,
                 (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements
                     LEFT JOIN categories as t on t.id = elements) as categories,
-                start_measurement, end_measurement,
+                filename, start_measurement, end_measurement,
                 measurement_config, machine_specs, machine_id, usage_scenario,
                 last_run, created_at, invalid_project, phases, logs
             FROM projects

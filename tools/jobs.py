@@ -155,20 +155,24 @@ if __name__ == '__main__':
             sys.exit(1)
         GlobalConfig(config_name=args.config_override)
 
-    project = None
+    p_id = None
     try:
         job = get_job(args.type)
         if (job is None or job == []):
             print('No job to process. Exiting')
             sys.exit(0)
-        project = job[2]
+        p_id = job[2]
         process_job(job[0], job[1], job[2], args.skip_config_check, args.full_docker_prune)
         print('Successfully processed jobs queue item.')
     except Exception as exce:
+        project_name = None
+        client_mail = None
+        if p_id:
+            [project_name, _, client_mail, _, _] = get_project(p_id)
+
         error_helpers.log_error('Base exception occurred in jobs.py: ', exce)
         email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
-            'Base exception occurred in jobs.py: ', exce), project_id=project)
-        if project is not None:
-            [project_name, _, mail, _, _] = get_project(project)
-            # reduced error message to client
-            email_helpers.send_error_email(mail, exce, project_id=project, name=project_name)
+            'Base exception occurred in jobs.py: ', exce), project_id=p_id, name=project_name)
+
+        if client_mail: # reduced error message to client
+            email_helpers.send_error_email(client_mail, exce, project_id=p_id, name=project_name)

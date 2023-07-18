@@ -1231,13 +1231,13 @@ class Runner:
                         raise exc
                     finally:
                         try:
-                            self.save_stdout_logs()
+                            self.stop_metric_providers()
                         except BaseException as exc:
                             self.add_to_log(exc.__class__.__name__, str(exc))
                             raise exc
                         finally:
                             try:
-                                self.stop_metric_providers()
+                                self.save_stdout_logs()
                             except BaseException as exc:
                                 self.add_to_log(exc.__class__.__name__, str(exc))
                                 raise exc
