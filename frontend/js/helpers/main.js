@@ -32,7 +32,7 @@ class GMTMenu extends HTMLElement {
 }
 customElements.define('gmt-menu', GMTMenu);
 
-function sanitize(string) {
+function escapeString(string) {
     const map = {
       '&': '&amp;',
       '<': '&lt;',

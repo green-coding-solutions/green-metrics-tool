@@ -241,10 +241,10 @@ const displayCITable = (runs, url_params) => {
 
         var run_link = ''
         if(source == 'github') {
-            run_link = `https://github.com/${url_params.get('repo')}/actions/runs/${run_id}`;
+            run_link = `https://github.com/${escapeString(url_params.get('repo'))}/actions/runs/${run_id}`;
         }
         else if (source == 'gitlab') {
-            run_link = `https://gitlab.com/${url_params.get('repo')}/-/pipelines/${run_id}`
+            run_link = `https://gitlab.com/${escapeString(url_params.get('repo'))}/-/pipelines/${run_id}`
         }
 
         const run_link_node = `<a href="${run_link}" target="_blank">${run_id}</a>`
@@ -254,13 +254,13 @@ const displayCITable = (runs, url_params) => {
         const label = el[4]
         const duration = el[7]
 
-        li_node.innerHTML = `<td class="td-index">${sanitize(value)}</td>\
-                            <td class="td-index">${sanitize(label)}</td>\
-                            <td class="td-index">${sanitize(run_link_node)}</td>\
-                            <td class="td-index"><span title="${sanitize(created_at)}">${dateToYMD(new Date(sanitize(created_at)))}</span></td>\
-                            <td class="td-index" ${sanitize(tooltip)}>${sanitize(short_hash)}</td>\
-                            <td class="td-index">${sanitize(cpu)}</td>\
-                            <td class="td-index">${sanitize(duration)} seconds</td>`;
+        li_node.innerHTML = `<td class="td-index">${escapeString(value)}</td>\
+                            <td class="td-index">${escapeString(label)}</td>\
+                            <td class="td-index">${escapeString(run_link_node)}</td>\
+                            <td class="td-index"><span title="${escapeString(created_at)}">${dateToYMD(new Date(escapeString(created_at)))}</span></td>\
+                            <td class="td-index" ${escapeString(tooltip)}>${escapeString(short_hash)}</td>\
+                            <td class="td-index">${escapeString(cpu)}</td>\
+                            <td class="td-index">${escapeString(duration)} seconds</td>`;
         document.querySelector("#ci-table").appendChild(li_node);
     });
     $('table').tablesort();
@@ -318,16 +318,16 @@ $(document).ready((e) => {
         let repo_link = ''
 
         if(badges_data.data[0][8] == 'github') {
-            repo_link = `https://github.com/${sanitize(url_params.get('repo'))}`;
+            repo_link = `https://github.com/${escapeString(url_params.get('repo'))}`;
         }
         else if(badges_data.data[0][8] == 'gitlab') {
-            repo_link = `https://gitlab.com/${sanitize(url_params.get('repo'))}`;
+            repo_link = `https://gitlab.com/${escapeString(url_params.get('repo'))}`;
         }
         //${repo_link}
-        const repo_link_node = `<a href="${repo_link}" target="_blank">${url_params.get('repo')}</a>`
+        const repo_link_node = `<a href="${repo_link}" target="_blank">${escapeString(url_params.get('repo'))}</a>`
         document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Repository:</strong></td><td>${repo_link_node}</td></tr>`)
-        document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${sanitize(url_params.get('branch'))}</td></tr>`)
-        document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${sanitize(url_params.get('workflow'))}</td></tr>`)
+        document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params.get('branch'))}</td></tr>`)
+        document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(url_params.get('workflow'))}</td></tr>`)
         
         displayCITable(badges_data.data, url_params);
         chart_instance = displayGraph(badges_data.data)
