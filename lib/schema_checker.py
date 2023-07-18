@@ -2,7 +2,7 @@ import os
 import string
 import re
 from schema import Schema, SchemaError, Optional, Or, Use
-# https://docs.green-coding.berlin/docs/measuring/usage-scenario/
+#
 # networks documentation is different than what i see in the wild!
     # name: str
     # also isn't networks optional?
@@ -67,7 +67,6 @@ class SchemaChecker():
             raise SchemaError(f"{value} is not 'container'")
         return value
 
-
     def check_usage_scenario(self, usage_scenario):
         # Anything with Optional() is not needed, but if it exists must conform to the definition specified
         usage_scenario_schema = Schema({
@@ -106,12 +105,15 @@ class SchemaChecker():
                 }],
             }],
 
-            Optional("builds"): {
-                str:str
-            },
+            Optional("builds"): {str:str},
 
             Optional("compose-file"): Use(self.validate_compose_include)
         }, ignore_extra_keys=True)
+
+        if "builds" not in usage_scenario and usage_scenario.get("services") is not None:
+            for service in usage_scenario["services"].values():
+                if "image" not in service:
+                    raise SchemaError("The 'image' key under services is required when 'builds' key is not present.")
 
         usage_scenario_schema.validate(usage_scenario)
 
@@ -120,7 +122,6 @@ class SchemaChecker():
 #     import yaml
 
 #     with open("test-file.yml", encoding='utf8') as f:
-#     # with open("test-file-2.yaml", encoding='utf8') as f:
 #         usage_scenario = yaml.safe_load(f)
 
 #     SchemaChecker = SchemaChecker(validate_compose_flag=True)
