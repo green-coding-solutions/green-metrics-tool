@@ -98,7 +98,10 @@ def _do_email_job(job_id, project_id):
 
     [name, _, email, _, _] = get_project(project_id)
 
-    email_helpers.send_report_email(email, project_id, name)
+    config = GlobalConfig().config
+    if (config['admin']['notify_admin_for_own_project_ready'] or config['admin']['email'] != email):
+        email_helpers.send_report_email(email, project_id, name)
+
     delete_job(job_id)
 
 
