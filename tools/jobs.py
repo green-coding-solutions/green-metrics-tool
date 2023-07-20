@@ -98,7 +98,10 @@ def _do_email_job(job_id, project_id):
 
     [name, _, email, _, _] = get_project(project_id)
 
-    email_helpers.send_report_email(email, project_id, name)
+    config = GlobalConfig().config
+    if (config['admin']['notify_admin_for_own_project_ready'] or config['admin']['email'] != email):
+        email_helpers.send_report_email(email, project_id, name)
+
     delete_job(job_id)
 
 
@@ -174,5 +177,6 @@ if __name__ == '__main__':
         email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
             'Base exception occurred in jobs.py: ', exce), project_id=p_id, name=project_name)
 
-        if client_mail: # reduced error message to client
+        # reduced error message to client
+        if client_mail and GlobalConfig().config['admin']['email'] != client_mail:
             email_helpers.send_error_email(client_mail, exce, project_id=p_id, name=project_name)
