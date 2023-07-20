@@ -166,12 +166,18 @@ customElements.define('phase-metrics', PhaseMetrics);
     TODO: Include one sided T-test?
 */
 const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, comparison_key)  => {
-    let extra_label = ''
+    let max_value = ''
     if (detail_data.max != null) {
         let [max,max_unit] = convertValue(detail_data.max, metric_data.unit);
-        extra_label = `${max} ${max_unit} (MAX)`;
-
+        max_value = `${max} ${max_unit} (MAX)`;
     }
+    let min_value = ''
+    if (detail_data.min != null) {
+        let [min,min_unit] = convertValue(detail_data.min, metric_data.unit);
+        min_value = `${min} ${min_unit} (MIN)`;
+    }
+
+
     let std_dev_text = '';
     let std_dev_text_table = 'N/A';
 
@@ -194,11 +200,12 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, co
         <td>${value}</td>
         <td>${unit}</td>
         <td class="hide-for-single-stats">${std_dev_text_table}</td>
-        <td>${extra_label}</td>`;
+        <td>${max_value}</td>
+        <td>${min_value}</td>`;
 
     updateKeyMetric(
         phase, metric_name, metric_data.clean_name, detail_data.name,
-        value , std_dev_text, extra_label, unit,
+        value , std_dev_text, unit,
         metric_data.explanation, metric_data.source
     );
 }
@@ -246,7 +253,7 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array
 
     updateKeyMetric(
         phase, metric_name, metric_data.clean_name, detail_data_array[0].name,
-        value, '', extra_label, metric_data.unit,
+        value, '', metric_data.unit,
         metric_data.explanation, metric_data.source
     );
 
@@ -290,7 +297,7 @@ const calculateCO2 = (phase, total_CO2_in_ug) => {
     }
 }
 
-const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std_dev_text, extra_label, unit, explanation, source) => {
+const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std_dev_text, unit, explanation, source) => {
 
     let selector = null;
     // key metrics are already there, cause we want a fixed order, so we just replace

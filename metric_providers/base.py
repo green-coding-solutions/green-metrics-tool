@@ -28,6 +28,7 @@ class BaseMetricProvider:
         self._current_dir = current_dir
         self._metric_provider_executable = metric_provider_executable
         self._sudo = sudo
+        self._has_started = False
 
         self._tmp_folder = '/tmp/green-metrics-tool'
         self._ps = None
@@ -41,6 +42,9 @@ class BaseMetricProvider:
     # some child classes might not actually have _ps attribute set
     def get_stderr(self):
         return self._ps.stderr.read()
+
+    def has_started(self):
+        return self._has_started
 
     def read_metrics(self, project_id, containers):
         with open(self._filename, 'r', encoding='utf-8') as file:
@@ -114,6 +118,7 @@ class BaseMetricProvider:
 
         # set_block False enables non-blocking reads on stderr.read(). Otherwise it would wait forever on empty
         os.set_blocking(self._ps.stderr.fileno(), False)
+        self._has_started = True
 
     def stop_profiling(self):
         if self._ps is None:

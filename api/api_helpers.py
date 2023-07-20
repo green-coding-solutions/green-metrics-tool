@@ -385,7 +385,7 @@ def determine_comparison_case(ids):
 def get_phase_stats(ids):
     query = """
             SELECT
-                a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.unit,
+                a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.min_value, a.unit,
                 b.uri, c.description, b.filename, b.commit_hash, COALESCE(b.branch, 'main / master') as branch
             FROM phase_stats as a
             LEFT JOIN projects as b on b.id = a.project_id
@@ -393,8 +393,6 @@ def get_phase_stats(ids):
 
             WHERE
                 a.project_id = ANY(%s::uuid[])
-                AND
-                a.metric NOT LIKE '%%_MAX'
             ORDER BY
                 a.phase ASC,
                 a.metric ASC,
@@ -510,7 +508,7 @@ def get_phase_stats_object(phase_stats, case):
 
     for phase_stat in phase_stats:
         [
-            phase, metric_name, detail_name, value, metric_type, max_value, unit,
+            phase, metric_name, detail_name, value, metric_type, max_value, min_value, unit,
             repo, machine_description, filename, commit_hash, branch
         ] = phase_stat # unpack
 
@@ -553,6 +551,7 @@ def get_phase_stats_object(phase_stats, case):
                 'name': detail_name,
                 'mean': None, # this is the mean over all repetitions of the detail_name
                 'max': max_value,
+                'min': min_value,
                 'stddev': None,
                 'ci': None,
                 'p_value': None, # only for the last key the list compare to the rest. one-sided t-test
@@ -587,7 +586,8 @@ def add_phase_stats_statistics(phase_stats_object):
                         # JSON does not recognize the numpy data types. Sometimes int64 is returned
                         detail['mean'] = float(np.mean(detail['values']))
                         detail['stddev'] = float(np.std(detail['values']))
-                        detail['max'] = float(np.max(detail['values']))
+                        detail['max'] = float(np.max(detail['values'])) # overwrite with max of list
+                        detail['min'] = float(np.min(detail['values'])) # overwrite with min of list
                         detail['ci'] = detail['stddev']*t_stat
 
                         if len(detail['values']) > 2:

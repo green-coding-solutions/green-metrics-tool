@@ -9,4 +9,14 @@ updates:
     directory: "/"
     target-branch: "dev"
     schedule:
+      interval: "daily"
+  - package-ecosystem: "docker"
+    directory: "/"
+    target-branch: "dev"
+    schedule:
       interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: ".github/workflows/"
+    target-branch: "dev"
+    schedule:
+      interval: "daily"

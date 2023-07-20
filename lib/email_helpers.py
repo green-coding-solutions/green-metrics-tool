@@ -32,19 +32,18 @@ Subject: {subject}
 {body}
 
 --
-Green Coding Berlin
-https://www.green-coding.berlin
+{url}"""
 
-    """
     message = message.format(
         subject=subject,
         body=body,
+        url=config['cluster']['metrics_url'],
         receiver_email=config['admin']['email'],
         smtp_sender=config['smtp']['sender'])
     send_email(message, config['admin']['email'])
 
 
-def send_error_email(receiver_email, error, project_id=None):
+def send_error_email(receiver_email, error, project_id=None, name=None):
     config = GlobalConfig().config
     message = """\
 From: {smtp_sender}
@@ -53,41 +52,43 @@ Subject: Your Green Metrics analysis has encountered problems
 
 Unfortunately, your Green Metrics analysis has run into some issues and could not be completed.
 
+Name: {name}
 Project id: {project_id}
+
 {errors}
 
 --
-Green Coding Berlin
-https://www.green-coding.berlin
+{url}"""
 
-    """
     message = message.format(
         receiver_email=receiver_email,
         errors=error,
+        name=name,
+        url=config['cluster']['metrics_url'],
         project_id=project_id,
         smtp_sender=config['smtp']['sender'])
     send_email(message, receiver_email)
 
 
-def send_report_email(receiver_email, report_id):
+def send_report_email(receiver_email, report_id, name):
     config = GlobalConfig().config
-    site = config['cluster']['metrics_url'].split(':')[0]
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
 Subject: Your Green Metric report is ready
 
+Project name: {name}
+
 Your report is now accessible under the URL: {url}/stats.html?id={report_id}
 
 --
-{site}
+{url}"""
 
-    """
     message = message.format(
         receiver_email=receiver_email,
         report_id=report_id,
+        name=name,
         url=config['cluster']['metrics_url'],
-        site=site,
         smtp_sender=config['smtp']['sender'])
     send_email(message, receiver_email)
 
@@ -101,4 +102,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()  # script will exit if arguments is not present
 
-    send_report_email(args.receiver_email, args.report_id)
+    send_report_email(args.receiver_email, args.report_id, "My custom name")

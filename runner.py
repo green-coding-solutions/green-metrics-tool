@@ -29,7 +29,7 @@ import random
 import shutil
 import yaml
 
-faulthandler.enable()  # will catch segfaults and write to STDERR
+faulthandler.enable()  # will catch segfaults and write to stderr
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/lib")
@@ -45,7 +45,7 @@ import error_helpers
 from db import DB
 from global_config import GlobalConfig
 import utils
-from tools.save_notes import save_notes  # local file import
+from notes import Notes
 
 
 def arrows(text):
@@ -55,29 +55,36 @@ def arrows(text):
 # path with `..`, symbolic links or similar.
 # We always return the same error message including the path and file parameter, never `filename` as
 # otherwise we might disclose if certain files exist or not.
-def join_path_and_file(path, file):
-    filename = os.path.realpath(os.path.join(path, file))
+def join_paths(path, path2, mode=None):
+    filename = os.path.realpath(os.path.join(path, path2))
 
     # This is a special case in which the file is '.'
     if filename == path.rstrip('/'):
         return filename
 
     if not filename.startswith(path):
-        raise ValueError(f"{file} not in {path}")
+        raise ValueError(f"{path2} not in {path}")
 
     # To double check we also check if it is in the files allow list
-    folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
+
+    if mode == 'file':
+        folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
+    elif mode == 'dir':
+        folder_content = [str(item) for item in Path(path).rglob("*") if item.is_dir()]
+    else:
+        folder_content = [str(item) for item in Path(path).rglob("*")]
+
     if filename not in folder_content:
-        raise ValueError(f"{file} not in {path}")
+        raise ValueError(f"{path2} not in {path}")
 
     # Another way to implement this. This is checking the third time but we want to be extra secure 👾
-    if Path(path).resolve(strict=True) not in Path(path, file).resolve(strict=True).parents:
-        raise ValueError(f"{file} not in {path}")
+    if Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
+        raise ValueError(f"{path2} not in {path}")
 
     if os.path.exists(filename):
         return filename
 
-    raise FileNotFoundError(f"{file} in {path} not found")
+    raise FileNotFoundError(f"{path2} in {path} not found")
 
 
 
@@ -104,38 +111,45 @@ class Runner:
         self._uri = uri
         self._uri_type = uri_type
         self._project_id = pid
-        self._filename = filename
+        self._original_filename = filename
         self._branch = branch
         self._tmp_folder = '/tmp/green-metrics-tool'
-        self._folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
 
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
+        # They are __ as they should not be changed because this could break the state of the runner
         self.__stdout_logs = {}
         self.__containers = {}
         self.__networks = []
         self.__ps_to_kill = []
         self.__ps_to_read = []
         self.__metric_providers = []
-        self.__notes = [] # notes may have duplicate timestamps, therefore list and no dict structure
+        self.__notes_helper = Notes()
         self.__phases = {}
         self.__start_measurement = None
         self.__end_measurement = None
         self.__services_to_pause_phase = {}
         self.__join_default_network = False
+        self.__folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
+
+        # we currently do not use this variable
+        # self.__filename = self._original_filename # this can be changed later if working directory changes
+
 
     def custom_sleep(self, sleep_time):
-        if not self._dry_run: time.sleep(sleep_time)
+        if not self._dry_run:
+            print(TerminalColors.HEADER, '\nSleeping for : ', sleep_time, TerminalColors.ENDC)
+            time.sleep(sleep_time)
 
     def initialize_folder(self, path):
         shutil.rmtree(path, ignore_errors=True)
         Path(path).mkdir(parents=True, exist_ok=True)
 
     def save_notes_runner(self):
-        print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes)
-        save_notes(self._project_id, self.__notes)
+        print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
+        self.__notes_helper.save_to_db(self._project_id)
 
     def check_configuration(self):
         if self._skip_config_check:
@@ -159,7 +173,8 @@ class Runner:
 
         raise ValueError(
             "Configuration check failed - not running measurement\n"
-            f"Configuration errors:\n{printable_errors}"
+            f"Configuration errors:\n{printable_errors}\n"
+            "If however that is what you want to do (for debug purposes), please set the --skip-config-check switch"
             )
 
     def checkout_repository(self):
@@ -180,7 +195,7 @@ class Runner:
                         '--recurse-submodules',
                         '--shallow-submodules',
                         self._uri,
-                        self._folder
+                        self.__folder
                     ],
                     check=True,
                     capture_output=True,
@@ -196,7 +211,7 @@ class Runner:
                         '--recurse-submodules',
                         '--shallow-submodules',
                         self._uri,
-                        self._folder
+                        self.__folder
                     ],
                     check=True,
                     capture_output=True,
@@ -206,7 +221,7 @@ class Runner:
         else:
             if self._branch:
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
-            self._folder = self._uri
+            self.__folder = self._uri
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
@@ -215,7 +230,7 @@ class Runner:
             check=True,
             capture_output=True,
             encoding='UTF-8',
-            cwd=self._folder
+            cwd=self.__folder
         )
         commit_hash = commit_hash.stdout.strip("\n")
 
@@ -249,7 +264,7 @@ class Runner:
                 else:
                     raise ValueError("We don't support Mapping Nodes to date")
 
-                filename = join_path_and_file(self._root, nodes[0])
+                filename = join_paths(self._root, nodes[0], 'file')
 
                 with open(filename, 'r', encoding='utf-8') as f:
                     # We want to enable a deep search for keys
@@ -270,7 +285,14 @@ class Runner:
 
         Loader.add_constructor('!include', Loader.include)
 
-        usage_scenario_file = join_path_and_file(self._folder, self._filename)
+        usage_scenario_file = join_paths(self.__folder, self._original_filename, 'file')
+
+        # We set the working folder now to the actual location of the usage_scenario
+        if '/' in self._original_filename:
+            self.__folder = usage_scenario_file.rsplit('/', 1)[0]
+            #self.__filename = usage_scenario_file.rsplit('/', 1)[1] # we currently do not use this variable
+            print("Working folder changed to ", self.__folder)
+
 
         with open(usage_scenario_file, 'r', encoding='utf-8') as fp:
             # We can use load here as the Loader extends SafeLoader
@@ -312,7 +334,6 @@ class Runner:
 
         print(TerminalColors.HEADER, '\nHaving Usage Scenario ', self._usage_scenario['name'], TerminalColors.ENDC)
         print('From: ', self._usage_scenario['author'])
-        print('Version ', self._usage_scenario['version'])
         print('Description: ', self._usage_scenario['description'], '\n')
 
         if self._allow_unsafe:
@@ -391,6 +412,16 @@ class Runner:
     def update_and_insert_specs(self):
         config = GlobalConfig().config
 
+        gmt_hash = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            check=True,
+            capture_output=True,
+            encoding='UTF-8',
+            cwd=CURRENT_DIR
+        )
+        gmt_hash = gmt_hash.stdout.strip("\n")
+
+
         # There are two ways we get hardware info. First things we don't need to be root to do which we get through
         # a method call. And then things we need root privilege which we need to call as a subprocess with sudo. The
         # install.sh script should have called the makefile which adds the script to the sudoes file.
@@ -409,14 +440,15 @@ class Runner:
             UPDATE projects
             SET
                 machine_id=%s, machine_specs=%s, measurement_config=%s,
-                usage_scenario = %s, filename=%s, last_run = NOW()
+                usage_scenario = %s, filename=%s, gmt_hash=%s, last_run = NOW()
             WHERE id = %s
             """, params=(
             config['machine']['id'],
             escape(json.dumps(machine_specs), quote=False),
             json.dumps(config['measurement']),
             escape(json.dumps(self._usage_scenario), quote=False),
-            self._filename,
+            self._original_filename,
+            gmt_hash,
             self._project_id)
         )
 
@@ -499,24 +531,18 @@ class Runner:
             if 'build' in service:
                 context, dockerfile = self.get_build_info(service)
                 print(f"Building {service['image']}")
-                self.__notes.append({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
+                self.__notes_helper.add_note({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
-                # Make sure the docker file exists and is not trying to escape some root. We don't need the returns
-                # but it will throw errors if something is wrong
-                context_path = join_path_and_file(self._folder, context)  # If this is safe we can append the docker file
-                relative_path = ''
-                if '/' in self._filename and context == '.':
-                    relative_path = self._filename.rsplit('/', 1)[0]
-                    context_path += f"/{relative_path}"
-                    context = relative_path
-                join_path_and_file(context_path, dockerfile)
+                # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
+                context_path = join_paths(self.__folder, context, 'dir')
+                join_paths(context_path, dockerfile, 'file')
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-v', f"{self._folder}:/workspace:ro",
+                    '-v', f"{self.__folder}:/workspace:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
                     f"--dockerfile=/workspace/{context}/{dockerfile}",
-                    '--context', f'dir:///workspace/{relative_path}',
+                    '--context', f'dir:///workspace/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--no-push']
@@ -540,7 +566,7 @@ class Runner:
 
             else:
                 print(f"Pulling {service['image']}")
-                self.__notes.append({'note':f"Pulling {service['image']}" , 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
+                self.__notes_helper.add_note({'note':f"Pulling {service['image']}" , 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
                 ps = subprocess.run(['docker', 'pull', service['image']], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0:
@@ -606,9 +632,9 @@ class Runner:
 
             docker_run_string.append('-v')
             if 'folder-destination' in service:
-                docker_run_string.append(f"{self._folder}:{service['folder-destination']}:ro")
+                docker_run_string.append(f"{self.__folder}:{service['folder-destination']}:ro")
             else:
-                docker_run_string.append(f"{self._folder}:/tmp/repo:ro")
+                docker_run_string.append(f"{self.__folder}:/tmp/repo:ro")
 
             if 'volumes' in service:
                 if self._allow_unsafe:
@@ -618,9 +644,17 @@ class Runner:
                     # This is however not enabled anymore and hard to circumvent. We keep this as unfixed for now.
                     if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
+
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
-                        docker_run_string.append(f"{volume}")
+                        if volume.startswith('./'): # we have a bind-mount with relative path
+                            vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
+                            path = os.path.realpath(os.path.join(self.__folder, vol[0]))
+                            if not os.path.exists(path):
+                                raise RuntimeError(f"Volume path does not exist {path}")
+                            docker_run_string.append(f"{path}:{vol[1]}")
+                        else:
+                            docker_run_string.append(f"{volume}")
                 else: # safe volume bindings are active by default
                     if not isinstance(service['volumes'], list):
                         raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
@@ -628,17 +662,16 @@ class Runner:
                         vol = volume.split(':')
                         # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
                         # could create volumes that would linger on our system.
-                        path = os.path.realpath(os.path.join(self._folder, vol[0]))
+                        path = os.path.realpath(os.path.join(self.__folder, vol[0]))
                         if not os.path.exists(path):
                             raise RuntimeError(f"Volume path does not exist {path}")
 
-                        # Check that the path starts with self._folder
-                        if not path.startswith(self._folder):
+                        # Check that the path starts with self.__folder
+                        if not path.startswith(self.__folder):
                             raise RuntimeError(f"Trying to escape folder {path}")
 
                         # To double check we also check if it is in the files allow list
-                        if path not in [os.path.join(self._folder, item) for item in os.listdir(self._folder)]:
-                            print( os.listdir(self._folder))
+                        if path not in [str(item) for item in Path(self.__folder).rglob("*")]:
                             raise RuntimeError(f"{path} not in allowed file list")
 
                         if len(vol) == 3:
@@ -735,7 +768,11 @@ class Runner:
                 continue  # setup commands are optional
             print('Running commands')
             for cmd in service['setup-commands']:
-                d_command = ['docker', 'exec', container_name, 'sh', '-c', cmd] # This must be a list!
+                if shell := service.get('shell', False):
+                    d_command = ['docker', 'exec', container_name, shell, '-c', cmd] # This must be a list!
+                else:
+                    d_command = ['docker', 'exec', container_name, *cmd.split()] # This must be a list!
+
                 print('Running command: ', ' '.join(d_command))
 
                 # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
@@ -748,8 +785,12 @@ class Runner:
                     encoding='UTF-8'
                 )
                 print('Stdout:', ps.stdout)
+                print('Stderr:', ps.stderr)
+
                 if ps.stdout:
-                    self.add_to_log(container_name, ps.stdout, d_command)
+                    self.add_to_log(container_name, f"stdout {ps.stdout}", d_command)
+                if ps.stderr:
+                    self.add_to_log(container_name, f"stderr {ps.stderr}", d_command)
 
             # Obsolete warnings. But left in, cause reasoning for NotImplementedError still holds
             # elif el['type'] == 'Dockerfile':
@@ -786,7 +827,7 @@ class Runner:
             message = f"Booting {metric_provider.__class__.__name__}"
             metric_provider.start_profiling(self.__containers)
             if self._verbose_provider_boot:
-                self.__notes.append({'note': message, 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
+                self.__notes_helper.add_note({'note': message, 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
                 self.custom_sleep(10)
 
         print(TerminalColors.HEADER, '\nWaiting for Metric Providers to boot ...', TerminalColors.ENDC)
@@ -815,7 +856,7 @@ class Runner:
         # TODO. Check if temperature is back to baseline and put into best-practices section
 
         phase_time = int(time.time_ns() / 1_000)
-        self.__notes.append({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+        self.__notes_helper.add_note({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
         if phase in self.__phases:
             raise RuntimeError(f"'{phase}' as phase name has already used. Please set unique name for phases.")
@@ -832,13 +873,13 @@ class Runner:
             for container_to_pause in self.__services_to_pause_phase[phase]:
                 info_text = f"Pausing {container_to_pause} after phase: {phase}."
                 print(info_text)
-                self.__notes.append({'note': info_text, 'detail_name': '[NOTES]', 'timestamp': phase_time})
+                self.__notes_helper.add_note({'note': info_text, 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
                 subprocess.run(['docker', 'pause', container_to_pause], check=True, stdout=subprocess.DEVNULL)
 
 
         self.__phases[phase]['end'] = phase_time
-        self.__notes.append({'note': f"Ending phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+        self.__notes_helper.add_note({'note': f"Ending phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
     def run_flows(self):
         config = GlobalConfig().config
@@ -850,7 +891,7 @@ class Runner:
 
             for inner_el in el['commands']:
                 if 'note' in inner_el:
-                    self.__notes.append({'note': inner_el['note'], 'detail_name': el['container'], 'timestamp': int(time.time_ns() / 1_000)})
+                    self.__notes_helper.add_note({'note': inner_el['note'], 'detail_name': el['container'], 'timestamp': int(time.time_ns() / 1_000)})
 
                 if inner_el['type'] == 'console':
                     print(TerminalColors.HEADER, '\nConsole command', inner_el['command'], 'on container', el['container'], TerminalColors.ENDC)
@@ -858,22 +899,51 @@ class Runner:
                     docker_exec_command = ['docker', 'exec']
 
                     docker_exec_command.append(el['container'])
-                    docker_exec_command.append('sh')
-                    docker_exec_command.append('-c')
-                    docker_exec_command.append(inner_el['command'])
+                    if shell := inner_el.get('shell', False):
+                        docker_exec_command.append(shell)
+                        docker_exec_command.append('-c')
+                        docker_exec_command.append(inner_el['command'])
+                    else:
+                        for cmd in inner_el['command'].split():
+                            docker_exec_command.append(cmd)
 
                     # Note: In case of a detach wish in the usage_scenario.yml:
                     # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
                     # Since Popen always make the process asynchronous we can leverage this to emulate a detached
                     # behavior
 
-                    #pylint: disable=consider-using-with
-                    ps = subprocess.Popen(
-                        docker_exec_command,
-                        stderr=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        encoding='UTF-8'
-                    )
+                    stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
+                    if inner_el.get('log-stdout', False):
+                        stdout_behaviour = subprocess.PIPE
+                    if inner_el.get('log-stderr', False):
+                        stderr_behaviour = subprocess.PIPE
+
+
+                    if inner_el.get('detach', False) is True:
+                        print('Process should be detached. Running asynchronously and detaching ...')
+                        #pylint: disable=consider-using-with
+                        ps = subprocess.Popen(
+                            docker_exec_command,
+                            stderr=stderr_behaviour,
+                            stdout=stdout_behaviour,
+                            encoding='UTF-8',
+                        )
+                        if stderr_behaviour == subprocess.PIPE:
+                            os.set_blocking(ps.stderr.fileno(), False)
+                        if  stdout_behaviour == subprocess.PIPE:
+                            os.set_blocking(ps.stdout.fileno(), False)
+
+                        self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
+                    else:
+                        print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
+                        ps = subprocess.run(
+                            docker_exec_command,
+                            stderr=stderr_behaviour,
+                            stdout=stdout_behaviour,
+                            encoding='UTF-8',
+                            check=False, # cause it will be checked later and also ignore-errors checked
+                            timeout=config['measurement']['flow-process-runtime'],
+                        )
 
                     self.__ps_to_read.append({
                         'cmd': docker_exec_command,
@@ -885,12 +955,7 @@ class Runner:
                         'detach': inner_el.get('detach', False),
                     })
 
-                    if inner_el.get('detach', False) is True:
-                        print('Process should be detached. Running asynchronously and detaching ...')
-                        self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
-                    else:
-                        print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
-                        process_helpers.timeout(ps, inner_el['command'], config['measurement']['flow-process-runtime'])
+
                 else:
                     raise RuntimeError('Unknown command type in flow: ', inner_el['type'])
 
@@ -898,55 +963,76 @@ class Runner:
                     self._debugger.pause('Waiting to start next command in flow')
 
             self.end_phase(el['name'].replace('[', '').replace(']',''))
+            self.check_process_returncodes()
 
+    # this function should never be called twice to avoid double logging of metrics
     def stop_metric_providers(self):
         print(TerminalColors.HEADER, 'Stopping metric providers and parsing measurements', TerminalColors.ENDC)
+        errors = []
         for metric_provider in self.__metric_providers:
+            if not metric_provider.has_started():
+                continue
+
             stderr_read = metric_provider.get_stderr()
             if stderr_read is not None:
-                raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
+                errors.append(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
             metric_provider.stop_profiling()
 
             df = metric_provider.read_metrics(self._project_id, self.__containers)
             print('Imported', TerminalColors.HEADER, df.shape[0], TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
             if df is None or df.shape[0] == 0:
-                raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
+                errors.append(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
 
             f = StringIO(df.to_csv(index=False, header=False))
             DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')
+        self.__metric_providers = []
+        if errors:
+            raise RuntimeError("\n".join(errors))
+
 
     def read_and_cleanup_processes(self):
+        print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
         process_helpers.kill_ps(self.__ps_to_kill)
-
-        print(TerminalColors.HEADER, '\nSaving processes stdout', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
-            while (line := ps['ps'].stdout.readline()): # a for loop breaks functionality here suprisingly
-                print('Output from process:', ps['cmd'], line)
-                self.add_to_log(ps['container_name'], line, ps['cmd'])
+            if ps['detach']:
+                stdout, stderr = ps['ps'].communicate(timeout=5)
+            else:
+                stdout = ps['ps'].stdout
+                stderr = ps['ps'].stderr
 
-                if ps['read-notes-stdout']:
-                    # Fixed format according to our specification. If unpacking fails this is wanted error
-                    timestamp, note = line.split(' ', 1)
-                    self.__notes.append({'note': note, 'detail_name': ps['detail_name'], 'timestamp': timestamp})
+            if stdout:
+                stdout = stdout.splitlines()
+                for line in stdout:
+                    print('stdout from process:', ps['cmd'], line)
+                    self.add_to_log(ps['container_name'], f"stdout: {line}", ps['cmd'])
 
+                    if ps['read-notes-stdout']:
+                        if note := self.__notes_helper.parse_note(line):
+                            self.__notes_helper.add_note({'note': note[1], 'detail_name': ps['detail_name'], 'timestamp': note[0]})
+            if stderr:
+                stderr = stderr.splitlines()
+                for line in stderr:
+                    print('stderr from process:', ps['cmd'], line)
+                    self.add_to_log(ps['container_name'], f"stderr: {line}", ps['cmd'])
 
-    def check_stderr_processes(self):
-        # separate loop here, cause we want to first capture all stdouts without raising RuntimeError
-        print(TerminalColors.HEADER, '\nChecking process stderr', TerminalColors.ENDC)
+    def check_process_returncodes(self):
+        print(TerminalColors.HEADER, '\nChecking process return codes', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
-            stderr_content = ps['ps'].stderr.read()
             if not ps['ignore-errors']:
-                if process_helpers.check_process_failed(ps['ps'], stderr_content, ps['detach']):
-                    raise RuntimeError(f"Returncode was != 0 for process (was {ps['ps'].returncode}) or Stderr of docker exec command '{ps['cmd']}' was not empty: {stderr_content} - detached process: {ps['detach']}")
+                if process_helpers.check_process_failed(ps['ps'], ps['detach']):
+                    stderr = 'Not read because detached. Please use stderr logging.'
+                    if not ps['detach']:
+                        stderr = ps['ps'].stderr
+                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}. Detached process: {ps['detach']}")
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
-        self.__notes.append({'note': 'Start of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__start_measurement})
+        self.__notes_helper.add_note({'note': 'Start of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__start_measurement})
 
     def end_measurement(self):
         self.__end_measurement = int(time.time_ns() / 1_000)
-        self.__notes.append({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
+        self.__notes_helper.add_note({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
 
     def update_start_and_end_times(self):
         print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
@@ -968,8 +1054,8 @@ class Runner:
             WHERE id = %s
             """, params=(json.dumps(self.__phases), self._project_id))
 
-    def read_stdout_logs(self):
-        print(TerminalColors.HEADER, '\nSaving container logs', TerminalColors.ENDC)
+    def read_container_logs(self):
+        print(TerminalColors.HEADER, '\nCapturing container logs', TerminalColors.ENDC)
         for container_name in self.__containers.values():
             log = subprocess.run(
                 ['docker', 'logs', '-t', container_name],
@@ -979,9 +1065,12 @@ class Runner:
                 stderr=subprocess.PIPE,
             )
             if log.stdout:
-                self.add_to_log(container_name, log.stdout)
+                self.add_to_log(container_name, f"stdout: {log.stdout}")
+            if log.stderr:
+                self.add_to_log(container_name, f"stderr: {log.stderr}")
 
     def save_stdout_logs(self):
+        print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
         logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.__stdout_logs.items()])
         logs_as_str = logs_as_str.replace('\x00','')
         if logs_as_str:
@@ -1018,7 +1107,7 @@ class Runner:
         process_helpers.kill_ps(self.__ps_to_kill)
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
-        self.__notes = []
+        self.__notes_helper = Notes()
         self.__containers = {}
         self.__networks = []
         self.__ps_to_kill = []
@@ -1028,6 +1117,8 @@ class Runner:
         self.__start_measurement = None
         self.__end_measurement = None
         self.__join_default_network = False
+        #self.__filename = self._original_filename # # we currently do not use this variable
+        self.__folder = f"{self._tmp_folder}/repo"
 
     def run(self):
         '''
@@ -1113,9 +1204,8 @@ class Runner:
                 self._debugger.pause('Remove phase complete. Waiting to stop and cleanup')
 
             self.end_measurement()
-            self.check_stderr_processes()
+            self.check_process_returncodes()
             self.custom_sleep(config['measurement']['idle-time-end'])
-            self.stop_metric_providers()
             self.store_phases()
             self.update_start_and_end_times()
         except BaseException as exc:
@@ -1123,12 +1213,36 @@ class Runner:
             raise exc
         finally:
             try:
-                self.read_stdout_logs()
-                self.read_and_cleanup_processes()
-                self.save_notes_runner()
-                self.save_stdout_logs()
+                self.read_container_logs()
+            except BaseException as exc:
+                self.add_to_log(exc.__class__.__name__, str(exc))
+                raise exc
             finally:
-                self.cleanup()  # always run cleanup automatically after each run
+                try:
+                    self.read_and_cleanup_processes()
+                except BaseException as exc:
+                    self.add_to_log(exc.__class__.__name__, str(exc))
+                    raise exc
+                finally:
+                    try:
+                        self.save_notes_runner()
+                    except BaseException as exc:
+                        self.add_to_log(exc.__class__.__name__, str(exc))
+                        raise exc
+                    finally:
+                        try:
+                            self.stop_metric_providers()
+                        except BaseException as exc:
+                            self.add_to_log(exc.__class__.__name__, str(exc))
+                            raise exc
+                        finally:
+                            try:
+                                self.save_stdout_logs()
+                            except BaseException as exc:
+                                self.add_to_log(exc.__class__.__name__, str(exc))
+                                raise exc
+                            finally:
+                                self.cleanup()  # always run cleanup automatically after each run
 
         print(TerminalColors.OKGREEN, arrows('MEASUREMENT SUCCESSFULLY COMPLETED'), TerminalColors.ENDC)
 
@@ -1216,6 +1330,8 @@ if __name__ == '__main__':
         # From a user perspective it makes perfect sense to run both jobs directly after each other
         # In a cloud setup it however makes sense to free the measurement machine as soon as possible
         # So this code should be individually callable, separate from the runner
+
+        print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
 
         # get all the metrics from the measurements table grouped by metric
         # loop over them issueing separate queries to the DB
