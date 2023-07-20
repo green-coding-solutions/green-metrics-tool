@@ -20,10 +20,11 @@ admin:
   email: myemail@dev.local
   # no_emails: True will suppress all emails. Helpful in development servers
   no_emails: True
-  # notifiy_admin_for_own_project_add: False will suppress an email if a project is added with the
+  # notifiy_admin_for_own_project_*: False will suppress an email if a project is added / ready with the
   # same email address as the admin.
   # If no_emails is set to True, this will have no effect
   notify_admin_for_own_project_add: False
+  notify_admin_for_own_project_ready: False
 
 
 cluster:
