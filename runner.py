@@ -643,7 +643,7 @@ class Runner:
                     # and the file does NOT exist, then docker will create the folder in the current running dir
                     # This is however not enabled anymore and hard to circumvent. We keep this as unfixed for now.
                     if not isinstance(service['volumes'], list):
-                        raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
+                        raise RuntimeError(f"Service '{service_name}' volumes must be a list but is: {type(service['volumes'])}")
 
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
@@ -651,32 +651,32 @@ class Runner:
                             vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
                             path = os.path.realpath(os.path.join(self.__folder, vol[0]))
                             if not os.path.exists(path):
-                                raise RuntimeError(f"Volume path does not exist {path}")
+                                raise RuntimeError(f"Service '{service_name}' volume path does not exist: {path}")
                             docker_run_string.append(f"{path}:{vol[1]}")
                         else:
                             docker_run_string.append(f"{volume}")
                 else: # safe volume bindings are active by default
                     if not isinstance(service['volumes'], list):
-                        raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
+                        raise RuntimeError(f"Service '{service_name}' volumes must be a list but is: {type(service['volumes'])}")
                     for volume in service['volumes']:
                         vol = volume.split(':')
                         # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
                         # could create volumes that would linger on our system.
                         path = os.path.realpath(os.path.join(self.__folder, vol[0]))
                         if not os.path.exists(path):
-                            raise RuntimeError(f"Volume path does not exist {path}")
+                            raise RuntimeError(f"Service '{service_name}' volume path does not exist: {path}")
 
                         # Check that the path starts with self.__folder
                         if not path.startswith(self.__folder):
-                            raise RuntimeError(f"Trying to escape folder {path}")
+                            raise RuntimeError(f"Service '{service_name}' trying to escape folder: {path}")
 
                         # To double check we also check if it is in the files allow list
                         if path not in [str(item) for item in Path(self.__folder).rglob("*")]:
-                            raise RuntimeError(f"{path} not in allowed file list")
+                            raise RuntimeError(f"Service '{service_name}' volume '{path}' not in allowed file list")
 
                         if len(vol) == 3:
                             if vol[2] != 'ro':
-                                raise RuntimeError('We only allow ro as parameter in volume mounts in unsafe mode')
+                                raise RuntimeError(f"Service '{service_name}': We only allow ro as parameter in volume mounts in unsafe mode")
 
                         docker_run_string.append('--mount')
                         docker_run_string.append(f"type=bind,source={path},target={vol[1]},readonly")
