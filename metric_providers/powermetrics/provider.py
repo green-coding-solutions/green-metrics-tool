@@ -3,6 +3,8 @@ import subprocess
 import plistlib
 from datetime import timezone
 import pandas
+import time
+import xml
 
 #pylint: disable=import-error
 from db import DB
@@ -33,13 +35,35 @@ class PowermetricsProvider(BaseMetricProvider):
             '-o',
             self._filename]
 
+    def is_powermetrics_running(self):
+        try:
+            output = subprocess.check_output('pgrep -x powermetrics', shell=True)
+            if output.strip():  # If the output is not empty, the process is running.
+                return True
+        except subprocess.CalledProcessError:  # If the process is not running, 'pgrep' returns non-zero exit code.
+            return False
+
+
     def stop_profiling(self):
         try:
             # We try calling the parent method but if this doesn't work we use the more hardcore approach
             super().stop_profiling()
         except PermissionError:
-            # This isn't the nicest way of doing this but there isn't really any other way that is nicer
+            #This isn't the nicest way of doing this but there isn't really any other way that is nicer
             subprocess.check_output('sudo /usr/bin/killall powermetrics', shell=True)
+            print('Killed powermetrics process with killall!')
+
+        # As killall returns right after sending the SIGKILL we need to wait and make sure that the process
+        # had time to flush everything to disk
+        count = 0
+        while self.is_powermetrics_running():
+            time.sleep(1)
+            count += 1
+            if count >= 5:
+                raise RuntimeError('powermetrics is not stopping. Please kill with `kill -9 ...`.')
+
+        # We need to give the OS a second to flush
+        time.sleep(1)
 
         self._ps = None
 
@@ -56,8 +80,15 @@ class PowermetricsProvider(BaseMetricProvider):
         dfs = []
         cum_time = None
 
-        for data in datas:
-            data = plistlib.loads(data)
+        for count, data in enumerate(datas, start=1):
+            try:
+                data = plistlib.loads(data)
+            except xml.parsers.expat.ExpatError as e:
+                print('There was an error parsing the powermetrics data!')
+                print(f"Iteration count: {count}")
+                print(f"Number of items in datas: {len(datas)}")
+                print(data)
+                raise e
 
             if cum_time is None:
                 # Convert seconds to nano seconds
