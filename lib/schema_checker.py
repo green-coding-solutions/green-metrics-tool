@@ -101,7 +101,10 @@ class SchemaChecker():
                     Optional("detach"): bool,
                     Optional("note"): str,
                     Optional("read-notes-stdout"): bool,
-                    Optional("ignore-errors"): bool
+                    Optional("ignore-errors"): bool,
+                    Optional("shell"): str,
+                    Optional("log-stdout"): bool,
+                    Optional("log-stderr"): bool,
                 }],
             }],
 
