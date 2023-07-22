@@ -1,4 +1,4 @@
-#pylint: disable=wrong-import-position,import-error
+#pylint: disable=wrong-import-position,import-error,invalid-name
 import os
 import sys
 
@@ -41,7 +41,7 @@ def test_sanitize_dict():
 def test_sanitize_project():
     messy_project = Project(name="test<?>", url='testURL', email='testEmail', branch='', machine_id=0)
     escaped_name = 'test&lt;?&gt;'
-    sanitized = api_helpers.sanitize(messy_project.copy())
+    sanitized = api_helpers.sanitize(messy_project.model_copy())
 
     assert sanitized.name == escaped_name
 
@@ -61,6 +61,6 @@ def test_sanitize_measurement():
         duration=13,
     )
     escaped_repo = 'link&lt;some_place&gt;'
-    sanitized = api_helpers.sanitize(measurement.copy())
+    sanitized = api_helpers.sanitize(measurement.model_copy())
 
     assert sanitized.repo == escaped_repo
