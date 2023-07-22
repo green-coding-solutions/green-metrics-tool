@@ -359,8 +359,10 @@ def determine_comparison_case(ids):
 
             elif machine_ids == 1: # same repo, same usage scenarios, same machines
                 if branches <= 1:
-                    if commit_hashes > 1: # same repo, same usage scenarios, same machines, diff commit hashes
+                    if commit_hashes == 2: # same repo, same usage scenarios, same machines, diff commit hashes
                         case = 'Commit' # Case B
+                    elif commit_hashes > 2: # same repo, same usage scenarios, same machines, many commit hashes
+                        raise RuntimeError('Multiple Commits not supported. Please switch to Timeline view')
                     else: # same repo, same usage scenarios, same machines, same branches, same commit hashes
                         case = 'Repeated Run' # Case A
                 else: # same repo, same usage scenarios, same machines, diff branch
