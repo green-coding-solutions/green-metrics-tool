@@ -1,6 +1,6 @@
 services:
   green-coding-postgres:
-    image: postgres
+    image: postgres:15
     shm_size: 256MB
     container_name: green-coding-postgres-container
     restart: always
