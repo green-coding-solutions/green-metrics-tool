@@ -199,11 +199,13 @@ async def compare_in_repo(ids: str):
         usage_scenario = project_info['usage_scenario']['name']
         branch = project_info['branch'] if project_info['branch'] is not None else 'main / master'
         commit = project_info['commit_hash']
+        filename = project_info['filename']
 
         match case:
             case 'Repeated Run':
                 # same repo, same usage scenarios, same machines, same branches, same commit hashes
                 phase_stats_object['common_info']['Repository'] = uri
+                phase_stats_object['common_info']['Filename'] = filename
                 phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
                 phase_stats_object['common_info']['Machine'] = machine
                 phase_stats_object['common_info']['Branch'] = branch
@@ -217,12 +219,14 @@ async def compare_in_repo(ids: str):
             case 'Machine':
                 # same repo, same usage scenarios, diff machines, same branches, same commit hashes
                 phase_stats_object['common_info']['Repository'] = uri
+                phase_stats_object['common_info']['Filename'] = filename
                 phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
                 phase_stats_object['common_info']['Branch'] = branch
                 phase_stats_object['common_info']['Commit'] = commit
             case 'Commit':
                 # same repo, same usage scenarios, same machines, diff commit hashes
                 phase_stats_object['common_info']['Repository'] = uri
+                phase_stats_object['common_info']['Filename'] = filename
                 phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
                 phase_stats_object['common_info']['Machine'] = machine
             case 'Repository':
@@ -232,6 +236,7 @@ async def compare_in_repo(ids: str):
             case 'Branch':
                 # same repo, same usage scenarios, same machines, diff branch
                 phase_stats_object['common_info']['Repository'] = uri
+                phase_stats_object['common_info']['Filename'] = filename
                 phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
                 phase_stats_object['common_info']['Machine'] = machine
 
