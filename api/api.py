@@ -124,7 +124,7 @@ async def get_notes(project_id):
             """
     data = DB().fetch_all(query, (project_id,))
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     escaped_data = [sanitize(note) for note in data]
     return ORJSONResponse({'success': True, 'data': escaped_data})
@@ -139,7 +139,7 @@ async def get_machines():
             """
     data = DB().fetch_all(query)
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     return ORJSONResponse({'success': True, 'data': data})
 
@@ -155,7 +155,7 @@ async def get_projects():
             """
     data = DB().fetch_all(query)
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     escaped_data = [sanitize(project) for project in data]
 
@@ -181,7 +181,7 @@ async def compare_in_repo(ids: str):
     try:
         phase_stats = get_phase_stats(ids)
     except RuntimeError:
-        return ORJSONResponse(None, status_code=204)
+        return Response(status_code=204) # No-Content
     try:
         phase_stats_object = get_phase_stats_object(phase_stats, case)
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
@@ -245,7 +245,6 @@ async def compare_in_repo(ids: str):
 
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
-
 # This route is primarily used to load phase stats it into a pandas data frame
 @app.get('/v1/phase_stats/single/{project_id}')
 async def get_phase_stats_single(project_id: str):
@@ -257,9 +256,8 @@ async def get_phase_stats_single(project_id: str):
         phase_stats_object = get_phase_stats_object(phase_stats, None)
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
 
-    except RuntimeError as err:
-
-        return ORJSONResponse({'success': False, 'err': str(err)}, status_code=204)
+    except RuntimeError:
+        return Response(status_code=204) # No-Content
 
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
@@ -286,7 +284,7 @@ async def get_measurements_single(project_id: str):
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     return ORJSONResponse({'success': True, 'data': data})
 
@@ -410,7 +408,7 @@ async def get_project(project_id: str):
     params = (project_id,)
     data = DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     data = sanitize(data)
 
@@ -492,7 +490,7 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str):
     params = (repo, branch, workflow)
     data = DB().fetch_all(query, params=params)
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     return ORJSONResponse({'success': True, 'data': data})
 
@@ -507,7 +505,7 @@ async def get_ci_projects():
 
     data = DB().fetch_all(query)
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     return ORJSONResponse({'success': True, 'data': data})
 
@@ -526,7 +524,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     data = DB().fetch_one(query, params=params)
 
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     energy_unit = data[1]
     energy_value = data[0]
