@@ -74,9 +74,9 @@ class SchemaChecker():
             "author": str,
             "description": str,
 
-            Optional("networks"): {
+            Optional("networks"): Or({
                Use(self.contains_no_invalid_chars): None
-            },
+            }, [Use(self.contains_no_invalid_chars)]),
 
             Optional("services"): {
                 Use(self.contains_no_invalid_chars): {
