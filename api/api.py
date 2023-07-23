@@ -262,7 +262,7 @@ async def get_timeline_stats(uri: str, branch: str | None = None, filename: str 
 
     query = f"""
             SELECT
-                phase_stats.metric, phase_stats.detail_name, phase_stats.phase,
+                projects.id, phase_stats.metric, phase_stats.detail_name, phase_stats.phase,
                 phase_stats.value, projects.commit_hash, projects.commit_timestamp
             FROM projects
             LEFT JOIN phase_stats ON

@@ -37,8 +37,10 @@ $(document).ready( (e) => {
         let legends = {};
         let series = {};
 
+        let pproject_id = null
+
         phase_stats_data.forEach( (data) => {
-            let [metric_name, detail_name, phase, value, commit_hash, commit_timestamp] = data
+            let [project_id, metric_name, detail_name, phase, value, commit_hash, commit_timestamp] = data
 
 
             if (series[`${metric_name} - ${detail_name}`] == undefined) {
@@ -50,15 +52,12 @@ $(document).ready( (e) => {
             series[`${metric_name} - ${detail_name}`].notes.push({
                 commit_timestamp: commit_timestamp,
                 commit_hash: commit_hash,
-                phase: phase
-
+                phase: phase,
+                project_id: project_id,
+                pproject_id: pproject_id,
             })
 
-
-
-
-
-
+            pproject_id = project_id
         })
 
         const chart_instances = [];
@@ -86,13 +85,23 @@ $(document).ready( (e) => {
             options.tooltip = {
                 trigger: 'item',
                 formatter: function (params, ticket, callback) {
-                    console.log(params);
-                    return `<strong>${series[params.seriesName].notes[params.dataIndex]}</strong><br>
+                    return `<strong>${params.seriesName}</strong><br>
+                            phase: ${series[params.seriesName].notes[params.dataIndex].phase}<br>
+                            value: ${series[params.seriesName].values[params.dataIndex]}<br>
                             timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
                             commit_hash: ${series[params.seriesName].notes[params.dataIndex].commit_hash}<br>
+                            <br>
+                            <i>Click to diff measurement with previous</i>
                             `;
                 }
             };
+
+            chart_instance.on('click', function (params) {
+              // The params object contains information about the clicked bar
+                window.open(`/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].project_id},${series[params.seriesName].notes[params.dataIndex].pproject_id}`, '_blank');
+
+            });
+
 
             chart_instance.setOption(options);
             chart_instances.push(chart_instance);
