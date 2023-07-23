@@ -246,6 +246,52 @@ async def compare_in_repo(ids: str):
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
 # This route is primarily used to load phase stats it into a pandas data frame
+@app.get('/v1/timeline')
+async def get_timeline_stats(uri: str, branch: str | None = None, filename: str | None = None):
+    if uri is None or uri.strip() == '':
+        return ORJSONResponse({'success': False, 'err': 'URI is empty'}, status_code=400)
+
+    if branch is None or branch.strip() == '':
+        branch = None
+        branch_condition = 'projects.branch IS NULL'
+    else:
+        branch_condition = 'projects.branch = %s'
+
+    if filename is None or filename.strip() == '':
+        filename =  'usage_scenario.yml'
+
+    query = f"""
+            SELECT
+                phase_stats.metric, phase_stats.detail_name, phase_stats.phase,
+                phase_stats.value, projects.commit_hash, projects.commit_timestamp
+            FROM projects
+            LEFT JOIN phase_stats ON
+                projects.id = phase_stats.project_id AND
+                phase LIKE '%%[RUNTIME]'
+            WHERE
+                projects.uri = %s AND
+                {branch_condition} AND
+                projects.filename = %s AND
+                projects.end_measurement IS NOT NULL
+                AND projects.last_run IS NOT NULL
+            ORDER BY
+                phase_stats.metric ASC, phase_stats.detail_name ASC,
+                phase_stats.phase ASC, projects.commit_timestamp ASC;
+            """
+
+    if branch:
+        params = params = (uri, branch, filename)
+    else:
+        params = params = (uri, filename)
+
+    data = DB().fetch_all(query, params=params)
+
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
+
+    return ORJSONResponse({'success': True, 'data': data})
+
+# This route is primarily used to load phase stats it into a pandas data frame
 @app.get('/v1/phase_stats/single/{project_id}')
 async def get_phase_stats_single(project_id: str):
     if project_id is None or not is_valid_uuid(project_id):

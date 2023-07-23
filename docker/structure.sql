@@ -9,6 +9,7 @@ CREATE TABLE projects (
     uri text,
     branch text,
     commit_hash text,
+    commit_timestamp timestamp,
     email text,
     categories int[],
     usage_scenario json,
