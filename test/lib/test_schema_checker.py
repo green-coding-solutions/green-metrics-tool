@@ -22,7 +22,7 @@ def test_schema_checker_valid():
     schema_checker = SchemaChecker(validate_compose_flag=True)
     schema_checker.check_usage_scenario(usage_scenario)
 
-def test_schema_checker_invalid():
+def test_schema_checker_invalid_missing_description():
     usage_scenario_name = 'schema_checker_invalid_1.yml'
     usage_scenario_path = os.path.join(CURRENT_DIR, '../data/usage_scenarios/', usage_scenario_name)
     with open(usage_scenario_path, encoding='utf8') as file:
@@ -33,5 +33,35 @@ def test_schema_checker_invalid():
         schema_checker.check_usage_scenario(usage_scenario)
 
     expected_exception = "Missing key: 'description'"
+    assert expected_exception in str(error.value), \
+        Tests.assertion_info(f"Exception: {expected_exception}", str(error.value))
+
+
+def test_schema_checker_invalid_image_req_when_no_build():
+    usage_scenario_name = 'schema_checker_invalid_image_builds.yml'
+    usage_scenario_path = os.path.join(CURRENT_DIR, '../data/usage_scenarios/', usage_scenario_name)
+    with open(usage_scenario_path, encoding='utf8') as file:
+        usage_scenario = yaml.safe_load(file)
+
+    schema_checker = SchemaChecker(validate_compose_flag=True)
+    with pytest.raises(SchemaError) as error:
+        schema_checker.check_usage_scenario(usage_scenario)
+
+    expected_exception = "The 'image' key under services is required when 'builds' key is not present."
+    assert expected_exception in str(error.value), \
+        Tests.assertion_info(f"Exception: {expected_exception}", str(error.value))
+
+def test_schema_checker_invalid_wrong_type():
+    usage_scenario_name = 'schema_checker_invalid_wrong_type.yml'
+    usage_scenario_path = os.path.join(CURRENT_DIR, '../data/usage_scenarios/', usage_scenario_name)
+    with open(usage_scenario_path, encoding='utf8') as file:
+        usage_scenario = yaml.safe_load(file)
+
+    schema_checker = SchemaChecker(validate_compose_flag=True)
+    with pytest.raises(SchemaError) as error:
+        schema_checker.check_usage_scenario(usage_scenario)
+
+    expected_exception = "Key 'log-stderr' error:\n'no' should be instance of 'bool'"
+    print(error.value)
     assert expected_exception in str(error.value), \
         Tests.assertion_info(f"Exception: {expected_exception}", str(error.value))
