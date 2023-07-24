@@ -139,6 +139,25 @@ class PhaseMetrics extends HTMLElement {
                     </div>
                 </div>
             </div>
+            <div class="ui card software-carbon-intensity">
+                <div class="ui content">
+                    <div class="ui top black attached label overflow-ellipsis">Green Software Foundation SCI</sub><span class="si-unit"></span></div>
+                    <div class="description">
+                        <div class="ui fluid mini statistic">
+                            <div class="value">
+                                <i class="burn icon"></i> <span>N/A</span>
+                            </div>
+                        </div>
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="SCI by the Green Software Foundation">
+                            <u><a href="https://sci-guide.greensoftware.foundation/">via Formula</a></u>
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div><!-- end ui three cards stackable -->
         <br>
         <div class="ui accordion">
@@ -309,6 +328,10 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
         selector = '.phase-duration';
     } else if(metric == 'network_co2_formula_global') {
         selector = '.network-co2';
+    } else if(metric == 'embodied_carbon_share_machine') {
+        selector = '.embodied-carbon';
+    } else if(metric == 'software_carbon_intensity_global') {
+        selector = '.software-carbon-intensity';
     } else if(metric.match(/^.*_power_.*_machine$/) !== null) {
         selector = '.machine-power';
     } else if(metric.match(/^.*_co2_.*_machine$/) !== null) {

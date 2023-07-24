@@ -21,6 +21,17 @@ from db import DB
 
 METRIC_MAPPINGS = {
 
+
+    'embodied_carbon_share_machine': {
+        'clean_name': 'Embodied Carbon',
+        'source': 'formula',
+        'explanation': 'Embodied carbon attributed by time share of the life-span and total embodied carbon',
+    },
+    'software_carbon_intensity_global': {
+        'clean_name': 'SCI',
+        'source': 'formula',
+        'explanation': 'SCI metric by the Green Software Foundation',
+    },
     'phase_time_syscall_system': {
         'clean_name': 'Phase Duration',
         'source': 'Syscall',

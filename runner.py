@@ -118,6 +118,8 @@ class Runner:
         self._tmp_folder = '/tmp/green-metrics-tool'
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
+        self._sci = {'R': 0}
+
 
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
@@ -971,6 +973,7 @@ class Runner:
                         'container_name': el['container'],
                         'read-notes-stdout': inner_el.get('read-notes-stdout', False),
                         'ignore-errors': inner_el.get('ignore-errors', False),
+                        'read-sci-stdout': inner_el.get('read-sci-stdout', False),
                         'detail_name': el['container'],
                         'detach': inner_el.get('detach', False),
                     })
@@ -1030,6 +1033,10 @@ class Runner:
                     if ps['read-notes-stdout']:
                         if note := self.__notes_helper.parse_note(line):
                             self.__notes_helper.add_note({'note': note[1], 'detail_name': ps['detail_name'], 'timestamp': note[0]})
+
+                    if ps['read-sci-stdout']:
+                        if match := re.match(r'GMT_SCI_R=(\d+)', line):
+                            self._sci['R'] += int(match[1])
             if stderr:
                 stderr = stderr.splitlines()
                 for line in stderr:
@@ -1367,7 +1374,7 @@ if __name__ == '__main__':
         # get all the metrics from the measurements table grouped by metric
         # loop over them issueing separate queries to the DB
         from phase_stats import build_and_store_phase_stats
-        build_and_store_phase_stats(project_id)
+        build_and_store_phase_stats(project_id, runner._sci)
 
 
         print(TerminalColors.OKGREEN,'\n\n####################################################################################')
