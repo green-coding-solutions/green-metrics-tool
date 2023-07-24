@@ -2,8 +2,8 @@
 from io import StringIO
 import sys
 import os
+import decimal
 import faulthandler
-
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -127,10 +127,10 @@ def build_and_store_phase_stats(project_id, sci=None):
 
         duration_in_years = duration / (1_000_000 * 60 * 60 * 24 * 365)
         embodied_carbon_share_g = (duration_in_years / (config['gsf-sci']['EL']) ) * config['gsf-sci']['TE'] * config['gsf-sci']['RS']
-        embodied_carbon_share_ug = embodied_carbon_share_g * 1_000_000
+        embodied_carbon_share_ug = decimal.Decimal(embodied_carbon_share_g * 1_000_000)
         csv_buffer.write(generate_csv_line(project_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 'ug'))
 
-        if machine_co2 is not None:
+        if machine_co2 is not None and sci is not None and sci.get('R', None) is not None:
             csv_buffer.write(generate_csv_line(project_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_co2 + embodied_carbon_share_ug) * sci['R'], 'TOTAL', None, None, 'ug/R'))
 
 
