@@ -14,7 +14,7 @@ jobs:
     steps:
       - id: check-date
         if: ${{ github.event_name != 'workflow_dispatch' }}
-        uses: green-coding-berlin/eco-ci-activity-checker@701b5f2f4ba601be587823cd0786f07cb6ae2ee6
+        uses: green-coding-berlin/eco-ci-activity-checker@v1
         with:
           branch: 'dev'
 
