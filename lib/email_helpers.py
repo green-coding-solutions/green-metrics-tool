@@ -54,6 +54,7 @@ Unfortunately, your Green Metrics analysis has run into some issues and could no
 
 Name: {name}
 Project id: {project_id}
+Link: {url}/stats.html?id={project_id}
 
 {errors}
 
