@@ -156,6 +156,8 @@ class Runner:
         self.__notes_helper.save_to_db(self._project_id)
 
     def check_configuration(self):
+        print(TerminalColors.HEADER, '\nStarting configuration check', TerminalColors.ENDC)
+
         if self._skip_config_check:
             print("Configuration check skipped")
             return
@@ -182,6 +184,7 @@ class Runner:
             )
 
     def checkout_repository(self):
+        print(TerminalColors.HEADER, '\nChecking out repository', TerminalColors.ENDC)
 
         if self._uri_type == 'URL':
             # always remove the folder if URL provided, cause -v directory binding always creates it
