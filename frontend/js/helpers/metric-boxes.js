@@ -344,7 +344,7 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerText = `${(value)} ${std_dev_text}`
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .si-unit`).innerText = `[${unit}]`
     if(std_dev_text != '') document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(AVG + STD.DEV)`;
-    else if(value.indexOf('%') !== -1) document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(Diff. in %)`;
+    else if(String(value).indexOf('%') !== -1) document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(Diff. in %)`;
 
     node = document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .source`)
     if (node !== null) node.innerText = source // not every key metric shall have a custom detail_name
