@@ -31,13 +31,13 @@ jobs:
         uses: green-coding-berlin/eco-ci-energy-estimation@v2
         with:
           task: get-measurement
-          branch: dev
+          branch: main
 
       - name: Eco CI Energy Estimation - End Measurement
         uses: green-coding-berlin/eco-ci-energy-estimation@v2
         with:
           task: display-results
-          branch: dev
+          branch: main
         
 
 
