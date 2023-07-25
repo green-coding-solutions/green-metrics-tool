@@ -38,6 +38,7 @@ jobs:
         with:
           task: display-results
           branch: dev
+          pr-comment: true
         
 
 
