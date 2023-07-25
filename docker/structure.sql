@@ -15,6 +15,7 @@ CREATE TABLE projects (
     filename text,
     machine_specs jsonb,
     machine_id int DEFAULT 1,
+    gmt_hash text,
     measurement_config jsonb,
     start_measurement bigint,
     end_measurement bigint,
@@ -65,6 +66,7 @@ CREATE TABLE phase_stats (
     value bigint NOT NULL,
     type text NOT NULL,
     max_value bigint DEFAULT NULL,
+    min_value bigint DEFAULT NULL,
     unit text NOT NULL,
     created_at timestamp with time zone DEFAULT now()
 );

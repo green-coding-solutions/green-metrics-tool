@@ -111,15 +111,15 @@ class Runner:
         self._uri = uri
         self._uri_type = uri_type
         self._project_id = pid
-        self._filename = filename
+        self._original_filename = filename
         self._branch = branch
         self._tmp_folder = '/tmp/green-metrics-tool'
-        self._folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
 
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
+        # They are __ as they should not be changed because this could break the state of the runner
         self.__stdout_logs = {}
         self.__containers = {}
         self.__networks = []
@@ -132,9 +132,16 @@ class Runner:
         self.__end_measurement = None
         self.__services_to_pause_phase = {}
         self.__join_default_network = False
+        self.__folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
+
+        # we currently do not use this variable
+        # self.__filename = self._original_filename # this can be changed later if working directory changes
+
 
     def custom_sleep(self, sleep_time):
-        if not self._dry_run: time.sleep(sleep_time)
+        if not self._dry_run:
+            print(TerminalColors.HEADER, '\nSleeping for : ', sleep_time, TerminalColors.ENDC)
+            time.sleep(sleep_time)
 
     def initialize_folder(self, path):
         shutil.rmtree(path, ignore_errors=True)
@@ -166,7 +173,8 @@ class Runner:
 
         raise ValueError(
             "Configuration check failed - not running measurement\n"
-            f"Configuration errors:\n{printable_errors}"
+            f"Configuration errors:\n{printable_errors}\n"
+            "If however that is what you want to do (for debug purposes), please set the --skip-config-check switch"
             )
 
     def checkout_repository(self):
@@ -187,7 +195,7 @@ class Runner:
                         '--recurse-submodules',
                         '--shallow-submodules',
                         self._uri,
-                        self._folder
+                        self.__folder
                     ],
                     check=True,
                     capture_output=True,
@@ -203,7 +211,7 @@ class Runner:
                         '--recurse-submodules',
                         '--shallow-submodules',
                         self._uri,
-                        self._folder
+                        self.__folder
                     ],
                     check=True,
                     capture_output=True,
@@ -213,7 +221,7 @@ class Runner:
         else:
             if self._branch:
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
-            self._folder = self._uri
+            self.__folder = self._uri
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
@@ -222,7 +230,7 @@ class Runner:
             check=True,
             capture_output=True,
             encoding='UTF-8',
-            cwd=self._folder
+            cwd=self.__folder
         )
         commit_hash = commit_hash.stdout.strip("\n")
 
@@ -277,14 +285,13 @@ class Runner:
 
         Loader.add_constructor('!include', Loader.include)
 
-        usage_scenario_file = join_paths(self._folder, self._filename, 'file')
+        usage_scenario_file = join_paths(self.__folder, self._original_filename, 'file')
 
         # We set the working folder now to the actual location of the usage_scenario
-        if '/' in self._filename:
-            self._folder = usage_scenario_file.rsplit('/', 1)[0]
-            self._filename = usage_scenario_file.rsplit('/', 1)[1]
-            print("Working folder changed to ", self._folder)
-
+        if '/' in self._original_filename:
+            self.__folder = usage_scenario_file.rsplit('/', 1)[0]
+            #self.__filename = usage_scenario_file.rsplit('/', 1)[1] # we currently do not use this variable
+            print("Working folder changed to ", self.__folder)
 
 
         with open(usage_scenario_file, 'r', encoding='utf-8') as fp:
@@ -405,6 +412,16 @@ class Runner:
     def update_and_insert_specs(self):
         config = GlobalConfig().config
 
+        gmt_hash = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            check=True,
+            capture_output=True,
+            encoding='UTF-8',
+            cwd=CURRENT_DIR
+        )
+        gmt_hash = gmt_hash.stdout.strip("\n")
+
+
         # There are two ways we get hardware info. First things we don't need to be root to do which we get through
         # a method call. And then things we need root privilege which we need to call as a subprocess with sudo. The
         # install.sh script should have called the makefile which adds the script to the sudoes file.
@@ -423,14 +440,15 @@ class Runner:
             UPDATE projects
             SET
                 machine_id=%s, machine_specs=%s, measurement_config=%s,
-                usage_scenario = %s, filename=%s, last_run = NOW()
+                usage_scenario = %s, filename=%s, gmt_hash=%s, last_run = NOW()
             WHERE id = %s
             """, params=(
             config['machine']['id'],
             escape(json.dumps(machine_specs), quote=False),
             json.dumps(config['measurement']),
             escape(json.dumps(self._usage_scenario), quote=False),
-            self._filename,
+            self._original_filename,
+            gmt_hash,
             self._project_id)
         )
 
@@ -516,11 +534,11 @@ class Runner:
                 self.__notes_helper.add_note({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
                 # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
-                context_path = join_paths(self._folder, context, 'dir')
+                context_path = join_paths(self.__folder, context, 'dir')
                 join_paths(context_path, dockerfile, 'file')
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-v', f"{self._folder}:/workspace:ro", # this is the folder where the usage_scenario is!
+                    '-v', f"{self.__folder}:/workspace:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
                     f"--dockerfile=/workspace/{context}/{dockerfile}",
@@ -614,9 +632,9 @@ class Runner:
 
             docker_run_string.append('-v')
             if 'folder-destination' in service:
-                docker_run_string.append(f"{self._folder}:{service['folder-destination']}:ro")
+                docker_run_string.append(f"{self.__folder}:{service['folder-destination']}:ro")
             else:
-                docker_run_string.append(f"{self._folder}:/tmp/repo:ro")
+                docker_run_string.append(f"{self.__folder}:/tmp/repo:ro")
 
             if 'volumes' in service:
                 if self._allow_unsafe:
@@ -625,40 +643,40 @@ class Runner:
                     # and the file does NOT exist, then docker will create the folder in the current running dir
                     # This is however not enabled anymore and hard to circumvent. We keep this as unfixed for now.
                     if not isinstance(service['volumes'], list):
-                        raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
+                        raise RuntimeError(f"Service '{service_name}' volumes must be a list but is: {type(service['volumes'])}")
 
                     for volume in service['volumes']:
                         docker_run_string.append('-v')
                         if volume.startswith('./'): # we have a bind-mount with relative path
                             vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
-                            path = os.path.realpath(os.path.join(self._folder, vol[0]))
+                            path = os.path.realpath(os.path.join(self.__folder, vol[0]))
                             if not os.path.exists(path):
-                                raise RuntimeError(f"Volume path does not exist {path}")
+                                raise RuntimeError(f"Service '{service_name}' volume path does not exist: {path}")
                             docker_run_string.append(f"{path}:{vol[1]}")
                         else:
                             docker_run_string.append(f"{volume}")
                 else: # safe volume bindings are active by default
                     if not isinstance(service['volumes'], list):
-                        raise RuntimeError(f"Volumes must be a list but is: {type(service['volumes'])}")
+                        raise RuntimeError(f"Service '{service_name}' volumes must be a list but is: {type(service['volumes'])}")
                     for volume in service['volumes']:
                         vol = volume.split(':')
                         # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
                         # could create volumes that would linger on our system.
-                        path = os.path.realpath(os.path.join(self._folder, vol[0]))
+                        path = os.path.realpath(os.path.join(self.__folder, vol[0]))
                         if not os.path.exists(path):
-                            raise RuntimeError(f"Volume path does not exist {path}")
+                            raise RuntimeError(f"Service '{service_name}' volume path does not exist: {path}")
 
-                        # Check that the path starts with self._folder
-                        if not path.startswith(self._folder):
-                            raise RuntimeError(f"Trying to escape folder {path}")
+                        # Check that the path starts with self.__folder
+                        if not path.startswith(self.__folder):
+                            raise RuntimeError(f"Service '{service_name}' trying to escape folder: {path}")
 
                         # To double check we also check if it is in the files allow list
-                        if path not in [str(item) for item in Path(self._folder).rglob("*")]:
-                            raise RuntimeError(f"{path} not in allowed file list")
+                        if path not in [str(item) for item in Path(self.__folder).rglob("*")]:
+                            raise RuntimeError(f"Service '{service_name}' volume '{path}' not in allowed file list")
 
                         if len(vol) == 3:
                             if vol[2] != 'ro':
-                                raise RuntimeError('We only allow ro as parameter in volume mounts in unsafe mode')
+                                raise RuntimeError(f"Service '{service_name}': We only allow ro as parameter in volume mounts in unsafe mode")
 
                         docker_run_string.append('--mount')
                         docker_run_string.append(f"type=bind,source={path},target={vol[1]},readonly")
@@ -1099,6 +1117,8 @@ class Runner:
         self.__start_measurement = None
         self.__end_measurement = None
         self.__join_default_network = False
+        #self.__filename = self._original_filename # # we currently do not use this variable
+        self.__folder = f"{self._tmp_folder}/repo"
 
     def run(self):
         '''
@@ -1211,13 +1231,13 @@ class Runner:
                         raise exc
                     finally:
                         try:
-                            self.save_stdout_logs()
+                            self.stop_metric_providers()
                         except BaseException as exc:
                             self.add_to_log(exc.__class__.__name__, str(exc))
                             raise exc
                         finally:
                             try:
-                                self.stop_metric_providers()
+                                self.save_stdout_logs()
                             except BaseException as exc:
                                 self.add_to_log(exc.__class__.__name__, str(exc))
                                 raise exc
