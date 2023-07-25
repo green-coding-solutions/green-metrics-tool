@@ -131,7 +131,7 @@ def build_and_store_phase_stats(project_id, sci=None):
         csv_buffer.write(generate_csv_line(project_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 'ug'))
 
         if machine_co2 is not None and sci is not None and sci.get('R', None) is not None:
-            csv_buffer.write(generate_csv_line(project_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_co2 + embodied_carbon_share_ug) * sci['R'], 'TOTAL', None, None, 'ug/R'))
+            csv_buffer.write(generate_csv_line(project_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_co2 + embodied_carbon_share_ug) / sci['R'], 'TOTAL', None, None, 'ug/R'))
 
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning
