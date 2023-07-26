@@ -18,6 +18,7 @@ import subprocess
 import json
 import os
 import time
+from datetime import datetime
 from html import escape
 import sys
 import importlib
@@ -234,11 +235,23 @@ class Runner:
         )
         commit_hash = commit_hash.stdout.strip("\n")
 
+        commit_timestamp = subprocess.run(
+            ['git', 'show', '-s', '--format=%ci'],
+            check=True,
+            capture_output=True,
+            encoding='UTF-8',
+            cwd=self.__folder
+        )
+        commit_timestamp = commit_timestamp.stdout.strip("\n")
+        parsed_timestamp = datetime.strptime(commit_timestamp, "%Y-%m-%d %H:%M:%S %z")
+
         DB().query("""
             UPDATE projects
-            SET commit_hash=%s
+            SET
+                commit_hash=%s,
+                commit_timestamp=%s
             WHERE id = %s
-            """, params=(commit_hash, self._project_id))
+            """, params=(commit_hash, parsed_timestamp, self._project_id))
 
     # This method loads the yml file and takes care that the includes work and are secure.
     # It uses the tagging infrastructure provided by https://pyyaml.org/wiki/PyYAMLDocumentation
