@@ -928,7 +928,7 @@ class Runner:
                     stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
                     if inner_el.get('log-stdout', False):
                         stdout_behaviour = subprocess.PIPE
-                    if inner_el.get('log-stderr', False):
+                    if inner_el.get('log-stderr', True):
                         stderr_behaviour = subprocess.PIPE
 
 
