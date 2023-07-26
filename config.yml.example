@@ -6,6 +6,7 @@ postgresql:
   user: postgres
   dbname: green-coding
   password: PLEASE_CHANGE_THIS
+  port: 9573
 
 smtp:
   server: SMTP_SERVER
@@ -19,10 +20,18 @@ admin:
   email: myemail@dev.local
   # no_emails: True will suppress all emails. Helpful in development servers
   no_emails: True
+  # notifiy_admin_for_own_project_*: False will suppress an email if a project is added / ready with the
+  # same email address as the admin.
+  # If no_emails is set to True, this will have no effect
+  notify_admin_for_own_project_add: False
+  notify_admin_for_own_project_ready: False
+
 
 cluster:
   api_url: __API_URL__
   metrics_url: __METRICS_URL__
+client:
+  sleep_time: 300
 
 machine:
   id: 1

@@ -124,7 +124,7 @@ async def get_notes(project_id):
             """
     data = DB().fetch_all(query, (project_id,))
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     escaped_data = [sanitize(note) for note in data]
     return ORJSONResponse({'success': True, 'data': escaped_data})
@@ -158,7 +158,7 @@ async def get_machines():
             """
     data = DB().fetch_all(query)
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     return ORJSONResponse({'success': True, 'data': data})
 
@@ -167,14 +167,14 @@ async def get_machines():
 @app.get('/v1/projects')
 async def get_projects():
     query = """
-            SELECT a.id, a.name, a.uri, COALESCE(a.branch, 'main / master'), a.end_measurement, a.last_run, a.invalid_project, a.filename, b.description
+            SELECT a.id, a.name, a.uri, COALESCE(a.branch, 'main / master'), a.end_measurement, a.last_run, a.invalid_project, a.filename, b.description, a.commit_hash
             FROM projects as a
             LEFT JOIN machines as b on a.machine_id = b.id
             ORDER BY a.created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
             """
     data = DB().fetch_all(query)
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     escaped_data = [sanitize(project) for project in data]
 
@@ -200,7 +200,7 @@ async def compare_in_repo(ids: str):
     try:
         phase_stats = get_phase_stats(ids)
     except RuntimeError:
-        return ORJSONResponse(None, status_code=204)
+        return Response(status_code=204) # No-Content
     try:
         phase_stats_object = get_phase_stats_object(phase_stats, case)
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
@@ -218,11 +218,13 @@ async def compare_in_repo(ids: str):
         usage_scenario = project_info['usage_scenario']['name']
         branch = project_info['branch'] if project_info['branch'] is not None else 'main / master'
         commit = project_info['commit_hash']
+        filename = project_info['filename']
 
         match case:
             case 'Repeated Run':
                 # same repo, same usage scenarios, same machines, same branches, same commit hashes
                 phase_stats_object['common_info']['Repository'] = uri
+                phase_stats_object['common_info']['Filename'] = filename
                 phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
                 phase_stats_object['common_info']['Machine'] = machine
                 phase_stats_object['common_info']['Branch'] = branch
@@ -236,12 +238,14 @@ async def compare_in_repo(ids: str):
             case 'Machine':
                 # same repo, same usage scenarios, diff machines, same branches, same commit hashes
                 phase_stats_object['common_info']['Repository'] = uri
+                phase_stats_object['common_info']['Filename'] = filename
                 phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
                 phase_stats_object['common_info']['Branch'] = branch
                 phase_stats_object['common_info']['Commit'] = commit
             case 'Commit':
                 # same repo, same usage scenarios, same machines, diff commit hashes
                 phase_stats_object['common_info']['Repository'] = uri
+                phase_stats_object['common_info']['Filename'] = filename
                 phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
                 phase_stats_object['common_info']['Machine'] = machine
             case 'Repository':
@@ -251,6 +255,7 @@ async def compare_in_repo(ids: str):
             case 'Branch':
                 # same repo, same usage scenarios, same machines, diff branch
                 phase_stats_object['common_info']['Repository'] = uri
+                phase_stats_object['common_info']['Filename'] = filename
                 phase_stats_object['common_info']['Usage Scenario'] = usage_scenario
                 phase_stats_object['common_info']['Machine'] = machine
 
@@ -258,7 +263,6 @@ async def compare_in_repo(ids: str):
         return ORJSONResponse({'success': False, 'err': str(err)}, status_code=500)
 
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
-
 
 # This route is primarily used to load phase stats it into a pandas data frame
 @app.get('/v1/phase_stats/single/{project_id}')
@@ -271,9 +275,8 @@ async def get_phase_stats_single(project_id: str):
         phase_stats_object = get_phase_stats_object(phase_stats, None)
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
 
-    except RuntimeError as err:
-
-        return ORJSONResponse({'success': False, 'err': str(err)}, status_code=204)
+    except RuntimeError:
+        return Response(status_code=204) # No-Content
 
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
@@ -286,7 +289,7 @@ async def get_measurements_single(project_id: str):
 
     query = """
             SELECT measurements.detail_name, measurements.time, measurements.metric,
-                   measurements.value, measurements.unit, measurements.phase
+                   measurements.value, measurements.unit
             FROM measurements
             WHERE measurements.project_id = %s
             """
@@ -300,7 +303,7 @@ async def get_measurements_single(project_id: str):
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     return ORJSONResponse({'success': True, 'data': data})
 
@@ -364,7 +367,6 @@ class Project(BaseModel):
 
 @app.post('/v1/project/add')
 async def post_project_add(project: Project):
-
     if project.url is None or project.url.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'URL is empty'}, status_code=400)
 
@@ -382,7 +384,6 @@ async def post_project_add(project: Project):
 
     if project.machine_id == 0:
         project.machine_id = None
-
     project = sanitize(project)
 
     # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
@@ -393,11 +394,15 @@ async def post_project_add(project: Project):
         """
     params = (project.url, project.name, project.email, project.branch, project.filename)
     project_id = DB().fetch_one(query, params=params)[0]
+
     # This order as selected on purpose. If the admin mail fails, we currently do
     # not want the job to be queued, as we want to monitor every project execution manually
-    email_helpers.send_admin_email(
-        f"New project added from Web Interface: {project.name}", project
-    )  # notify admin of new project
+    config = GlobalConfig().config
+    if (config['admin']['notify_admin_for_own_project_add'] or config['admin']['email'] != project.email):
+        email_helpers.send_admin_email(
+            f"New project added from Web Interface: {project.name}", project
+        )  # notify admin of new project
+
     jobs.insert_job('project', project_id, project.machine_id)
 
     return ORJSONResponse({'success': True}, status_code=202)
@@ -413,7 +418,7 @@ async def get_project(project_id: str):
                 id, name, uri, branch, commit_hash,
                 (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements
                     LEFT JOIN categories as t on t.id = elements) as categories,
-                start_measurement, end_measurement,
+                filename, start_measurement, end_measurement,
                 measurement_config, machine_specs, machine_id, usage_scenario,
                 last_run, created_at, invalid_project, phases, logs
             FROM projects
@@ -422,7 +427,7 @@ async def get_project(project_id: str):
     params = (project_id,)
     data = DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     data = sanitize(data)
 
@@ -452,7 +457,7 @@ class CI_Measurement(BaseModel):
 
 @app.post('/v1/ci/measurement/add')
 async def post_ci_measurement_add(measurement: CI_Measurement):
-    for key, value in measurement.dict().items():
+    for key, value in measurement.model_dump().items():
         match key:
             case 'project_id':
                 if value is None or value.strip() == '':
@@ -504,7 +509,7 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str):
     params = (repo, branch, workflow)
     data = DB().fetch_all(query, params=params)
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     return ORJSONResponse({'success': True, 'data': data})
 
@@ -519,7 +524,7 @@ async def get_ci_projects():
 
     data = DB().fetch_all(query)
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     return ORJSONResponse({'success': True, 'data': data})
 
@@ -538,7 +543,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     data = DB().fetch_one(query, params=params)
 
     if data is None or data == []:
-        return ORJSONResponse({'success': False, 'err': 'Data is empty'}, status_code=204)
+        return Response(status_code=204) # No-Content
 
     energy_unit = data[1]
     energy_value = data[0]

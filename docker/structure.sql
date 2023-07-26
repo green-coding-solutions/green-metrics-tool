@@ -15,6 +15,7 @@ CREATE TABLE projects (
     filename text,
     machine_specs jsonb,
     machine_id int DEFAULT 1,
+    gmt_hash text,
     measurement_config jsonb,
     start_measurement bigint,
     end_measurement bigint,
@@ -33,12 +34,12 @@ CREATE TABLE measurements (
     value bigint NOT NULL,
     unit text NOT NULL,
     time bigint NOT NULL,
-    phase text DEFAULT null,
     created_at timestamp with time zone DEFAULT now()
 );
 
-CREATE INDEX "stats_project_id" ON "measurements" USING HASH ("project_id");
-CREATE INDEX sorting ON measurements (metric, detail_name, time);
+CREATE UNIQUE INDEX measurements_get ON measurements(project_id ,metric ,detail_name ,time );
+CREATE INDEX measurements_build_and_store_phase_stats ON measurements(project_id, metric, unit, detail_name);
+CREATE INDEX measurements_build_phases ON measurements(metric, unit, detail_name);
 
 CREATE TABLE network_intercepts (
     id SERIAL PRIMARY KEY,
@@ -73,9 +74,11 @@ CREATE TABLE phase_stats (
     value bigint NOT NULL,
     type text NOT NULL,
     max_value bigint DEFAULT NULL,
+    min_value bigint DEFAULT NULL,
     unit text NOT NULL,
     created_at timestamp with time zone DEFAULT now()
 );
+CREATE INDEX "phase_stats_project_id" ON "phase_stats" USING HASH ("project_id");
 
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,
@@ -88,6 +91,7 @@ CREATE TABLE jobs (
     created_at timestamp with time zone DEFAULT now()
 );
 
+
 CREATE TABLE notes (
     id SERIAL PRIMARY KEY,
     project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -96,6 +100,8 @@ CREATE TABLE notes (
     time bigint,
     created_at timestamp with time zone DEFAULT now()
 );
+CREATE INDEX "notes_project_id" ON "notes" USING HASH ("project_id");
+
 
 CREATE TABLE ci_measurements (
     id SERIAL PRIMARY KEY,
@@ -111,5 +117,15 @@ CREATE TABLE ci_measurements (
     duration bigint,
     source text,
     project_id uuid REFERENCES projects(id) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT null,
+    created_at timestamp with time zone DEFAULT now()
+);
+CREATE INDEX "ci_measurements_get" ON ci_measurements(repo, branch, workflow, run_id, created_at);
+
+CREATE TABLE client_status (
+    id SERIAL PRIMARY KEY,
+	status_code TEXT NOT NULL,
+	machine_id int REFERENCES machines(id) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT null,
+	"data" TEXT,
+	project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now()
 );

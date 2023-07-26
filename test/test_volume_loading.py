@@ -6,6 +6,7 @@ import re
 import shutil
 import sys
 import subprocess
+import io
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/..")
@@ -13,7 +14,9 @@ sys.path.append(f"{CURRENT_DIR}/../lib")
 
 import pytest
 import utils
+from contextlib import redirect_stdout, redirect_stderr
 from global_config import GlobalConfig
+from runner import Runner
 import test_functions as Tests
 
 GlobalConfig().override_config(config_name='test-config.yml')
@@ -50,7 +53,7 @@ def test_volume_load_no_escape():
         container_running = check_if_container_running('test-container')
         runner.cleanup()
 
-    expected_error = 'Trying to escape folder /etc/passwd'
+    expected_error = 'trying to escape folder: /etc/passwd'
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
@@ -99,7 +102,7 @@ def test_load_files_from_within_gmt():
         out = ps.stdout
         err = ps.stderr
     finally:
-        runner.cleanup()
+        Tests.cleanup(runner)
     assert "File mounted" in out, Tests.assertion_info('/tmp/test-file mounted', f"out: {out} | err: {err}")
 
 def test_symlinks_should_fail():
@@ -119,7 +122,7 @@ def test_symlinks_should_fail():
         container_running = check_if_container_running('test-container')
         runner.cleanup()
 
-    expected_error = 'Trying to escape folder /etc/passwd'
+    expected_error = 'trying to escape folder: /etc/passwd'
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
@@ -137,7 +140,7 @@ def test_non_bind_mounts_should_fail():
         container_running = check_if_container_running('test-container')
         runner.cleanup()
 
-    expected_error = 'Volume path does not exist'
+    expected_error = 'volume path does not exist'
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
@@ -163,5 +166,77 @@ def test_load_volume_references():
         out = ps.stdout
         err = ps.stderr
     finally:
-        runner.cleanup()
+        Tests.cleanup(runner)
     assert "File mounted" in out, Tests.assertion_info('/tmp/test-file mounted', f"out: {out} | err: {err}")
+
+def test_volume_loading_subdirectories_root():
+    uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
+    pid = Tests.insert_project(uri)
+    runner = Runner(uri=uri, uri_type='folder', pid=pid, skip_config_check=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+    run_stderr = err.getvalue()
+    run_stdout = out.getvalue()
+    assert run_stderr == '', Tests.assertion_info('stderr empty', f"stderr: {run_stderr}")
+
+    expect_content_testfile_root = "stdout from process: ['docker', 'exec', 'test-container-root', 'grep', 'testfile-root-content', '/tmp/testfile-root'] testfile-root-content"
+    assert expect_content_testfile_root in run_stdout, Tests.assertion_info(expect_content_testfile_root, f"expected output not in {run_stdout}")
+
+    expect_extra_testfile_root = "stdout from process: ['docker', 'exec', 'test-container-root', 'grep', 'testfile-root-content', '/tmp/testfile-root-extra-copied'] testfile-root-content"
+    assert expect_extra_testfile_root in run_stdout, Tests.assertion_info(expect_extra_testfile_root, f"expected output not in {run_stdout}")
+
+    expect_mounted_testfile = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile-content', '/tmp/testfile-correctly-mounted'] testfile-content"
+    assert expect_mounted_testfile in run_stdout, Tests.assertion_info(expect_mounted_testfile, f"expected output not in {run_stdout}")
+
+    expect_mounted_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
+    assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, f"expected output not in {run_stdout}")
+
+    expect_mounted_testfile_3 = "stdout from process: ['docker', 'exec', 'test-container-root', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
+    assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
+
+def test_volume_loading_subdirectories_subdir():
+    uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
+    pid = Tests.insert_project(uri)
+    runner = Runner(uri=uri, uri_type='folder', filename="subdir/usage_scenario_subdir.yml", pid=pid, skip_config_check=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+    run_stderr = err.getvalue()
+    run_stdout = out.getvalue()
+    assert run_stderr == '', Tests.assertion_info('stderr empty', f"stderr: {run_stderr}")
+
+    expect_mounted_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
+    assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, f"expected output not in {run_stdout}")
+
+    expect_mounted_testfile_3 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-mounted'] testfile3-content"
+    assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
+
+def test_volume_loading_subdirectories_subdir2():
+    uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
+    pid = Tests.insert_project(uri)
+    runner = Runner(uri=uri, uri_type='folder', filename="subdir/subdir2/usage_scenario_subdir2.yml", pid=pid, skip_config_check=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+    run_stderr = err.getvalue()
+    run_stdout = out.getvalue()
+    assert run_stderr == '', Tests.assertion_info('stderr empty', f"stderr: {run_stderr}")
+
+    expect_mounted_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
+    assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, "expected output not in {run_stdout}")
+
+    expect_copied_testfile_2 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-copied'] testfile2-content"
+    assert expect_copied_testfile_2 in run_stdout, Tests.assertion_info(expect_copied_testfile_2, f"expected output not in {run_stdout}")
+
+    expect_copied_testfile_3 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
+    assert expect_copied_testfile_3 in run_stdout, Tests.assertion_info(expect_copied_testfile_3, f"expected output not in {run_stdout}")
+
+    expect_copied_testfile_4 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile4-content', '/tmp/testfile4-correctly-copied'] testfile4-content"
+    assert expect_copied_testfile_4 in run_stdout, Tests.assertion_info(expect_copied_testfile_4, f"expected output not in {run_stdout}")

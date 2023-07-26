@@ -1,3 +1,4 @@
+from contextlib import nullcontext as does_not_raise
 import os
 import sys
 from shutil import copy2
@@ -16,18 +17,18 @@ from global_config import GlobalConfig
 
 
 test_data = [
-    ("two_psu_providers.yml", True, True),
-    ("two_psu_providers.yml", False, False),
+    ("two_psu_providers.yml", True, does_not_raise()),
+    ("two_psu_providers.yml", False, pytest.raises(ValueError)),
 ]
 
-@pytest.mark.parametrize("config_file,skip_config_check,expected_return", test_data)
-def test_check_configuration(config_file, skip_config_check, expected_return):
+@pytest.mark.parametrize("config_file,skip_config_check,expectation", test_data)
+def test_check_configuration(config_file, skip_config_check, expectation):
 
     runner = Runner("foo", "baz", "bar", skip_config_check=skip_config_check)
     copy2(os.path.join(TEST_DATA_CONFIG_DIR, config_file), os.path.join(REPO_ROOT, config_file))
     GlobalConfig().override_config(config_name=config_file)
-    ret = runner.check_configuration()
-
-    os.remove(os.path.join(REPO_ROOT, config_file))
-
-    assert ret == expected_return
+    try:
+        with expectation:
+            runner.check_configuration()
+    finally:
+        os.remove(os.path.join(REPO_ROOT, config_file))

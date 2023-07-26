@@ -7,6 +7,16 @@ version: 2
 updates:
   - package-ecosystem: "pip"
     directory: "/"
-    target-branch: "dev"
+    target-branch: "main"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "docker"
+    directory: "/"
+    target-branch: "main"
     schedule:
       interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "main"
+    schedule:
+      interval: "daily"
