@@ -94,7 +94,7 @@ class Runner:
         uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_config_check=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
-        dry_run=False, dev_repeat_run=False):
+        dry_run=False, dev_repeat_run=False, docker_prune=False):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -107,6 +107,7 @@ class Runner:
         self._skip_config_check = skip_config_check
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
+        self._docker_prune = docker_prune
         self._dry_run = dry_run
         self._dev_repeat_run = dev_repeat_run
         self._uri = uri
@@ -383,18 +384,24 @@ class Runner:
         if self._dev_repeat_run:
             return
 
+        print(TerminalColors.HEADER, '\nRemoving all temporary GMT images', TerminalColors.ENDC)
         subprocess.run(
             'docker images --format "{{.Repository}}:{{.Tag}}" | grep "gmt_run_tmp" | xargs docker rmi -f',
             shell=True,
             stderr=subprocess.DEVNULL, # to suppress showing of stderr
             check=False,
         )
+
         if self._full_docker_prune:
+            print(TerminalColors.HEADER, '\nStopping and removing all containers, build caches, volumes and images on the system', TerminalColors.ENDC)
             subprocess.run('docker ps -aq | xargs docker stop', shell=True, check=False)
             subprocess.run('docker images --format "{{.ID}}" | xargs docker rmi -f', shell=True, check=False)
             subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
+        elif self._docker_prune:
+            print(TerminalColors.HEADER, '\nRemoving all unassociated build caches, networks volumes and stopped containers on the system', TerminalColors.ENDC)
+            subprocess.run(['docker', 'system', 'prune' ,'--force', '--volumes'], check=True)
         else:
-            print(TerminalColors.WARNING, arrows('Warning: GMT is not instructed to prune docker images and build caches. This is most likely what you want for development, but leads to wrong build time measurements in production.'), TerminalColors.ENDC)
+            print(TerminalColors.WARNING, arrows('Warning: GMT is not instructed to prune docker images and build caches. \nWe recommend to set --docker-prune to remove build caches and anonymous volumes, because otherwise your disk will get full very quickly. If you want to measure also network I/O delay for pulling images and have a dedicated measurement machine please set --full-docker-prune'), TerminalColors.ENDC)
 
     '''
         A machine will always register in the database on run.
@@ -1275,7 +1282,8 @@ if __name__ == '__main__':
     parser.add_argument('--skip-unsafe', action='store_true', help='Skip unsafe volume bindings, ports and complex environment vars')
     parser.add_argument('--skip-config-check', action='store_true', help='Skip checking the configuration')
     parser.add_argument('--verbose-provider-boot', action='store_true', help='Boot metric providers gradually')
-    parser.add_argument('--full-docker-prune', action='store_true', help='Prune all images and build caches on the system')
+    parser.add_argument('--full-docker-prune', action='store_true', help='Stop and remove all containers, build caches, volumes and images on the system')
+    parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
     parser.add_argument('--dry-run', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
     parser.add_argument('--dev-repeat-run', action='store_true', help='Checks if a docker image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
@@ -1290,6 +1298,16 @@ if __name__ == '__main__':
     if args.allow_unsafe and args.skip_unsafe:
         parser.print_help()
         error_helpers.log_error('--allow-unsafe and skip--unsafe in conjuction is not possible')
+        sys.exit(1)
+
+    if args.dev_repeat_run and (args.docker_prune or args.full_docker_prune):
+        parser.print_help()
+        error_helpers.log_error('--dev-repeat-run blocks pruning docker images. Combination is not allowed')
+        sys.exit(1)
+
+    if args.full_docker_prune and GlobalConfig().config['postgresql']['host'] == 'green-coding-postgres-container':
+        parser.print_help()
+        error_helpers.log_error('--full-docker-prune is set while your database host is "green-coding-postgres-container".\nThe switch is only for remote measuring machines. It would stop the GMT images itself when running locally')
         sys.exit(1)
 
     if args.name is None:
@@ -1335,7 +1353,7 @@ if __name__ == '__main__':
                     no_file_cleanup=args.no_file_cleanup, skip_config_check =args.skip_config_check,
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                     full_docker_prune=args.full_docker_prune, dry_run=args.dry_run,
-                    dev_repeat_run=args.dev_repeat_run)
+                    dev_repeat_run=args.dev_repeat_run, docker_prune=args.docker_prune)
     try:
         runner.run()  # Start main code
 
