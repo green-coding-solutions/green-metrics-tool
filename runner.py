@@ -1300,7 +1300,7 @@ if __name__ == '__main__':
         error_helpers.log_error('--allow-unsafe and skip--unsafe in conjuction is not possible')
         sys.exit(1)
 
-    if args.dev_repeat_run and (args.docker_prune or args.docker_full_prune):
+    if args.dev_repeat_run and (args.docker_prune or args.full_docker_prune):
         parser.print_help()
         error_helpers.log_error('--dev-repeat-run blocks pruning docker images. Combination is not allowed')
         sys.exit(1)
