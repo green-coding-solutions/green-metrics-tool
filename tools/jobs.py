@@ -78,12 +78,12 @@ def get_project(project_id):
     return data
 
 
-def process_job(job_id, job_type, project_id, skip_config_check=False, full_docker_prune=False):
+def process_job(job_id, job_type, project_id, skip_config_check=False, docker_prune=False, full_docker_prune=False):
     try:
         if job_type == 'email':
             _do_email_job(job_id, project_id)
         elif job_type == 'project':
-            _do_project_job(job_id, project_id, skip_config_check, full_docker_prune)
+            _do_project_job(job_id, project_id, skip_config_check, docker_prune, full_docker_prune)
         else:
             raise RuntimeError(
                 f"Job w/ id {job_id} has unknown type: {job_type}.")
@@ -106,7 +106,7 @@ def _do_email_job(job_id, project_id):
 
 
 # should not be called without enclosing try-except block
-def _do_project_job(job_id, project_id, skip_config_check=False, full_docker_prune=False):
+def _do_project_job(job_id, project_id, skip_config_check=False, docker_prune=False, full_docker_prune=False):
     check_job_running('project', job_id)
 
     [_, uri, _, branch, filename] = get_project(project_id)
@@ -120,6 +120,7 @@ def _do_project_job(job_id, project_id, skip_config_check=False, full_docker_pru
         skip_unsafe=True,
         skip_config_check=skip_config_check,
         full_docker_prune=full_docker_prune,
+        docker_prune=docker_prune,
     )
     try:
         # Start main code. Only URL is allowed for cron jobs
@@ -141,7 +142,8 @@ if __name__ == '__main__':
     parser.add_argument('type', help='Select the operation mode.', choices=['email', 'project'])
     parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be located in the same directory as the regular configuration file. Pass in only the name.')
     parser.add_argument('--skip-config-check', action='store_true', default=False, help='Skip checking the configuration')
-    parser.add_argument('--full-docker-prune', action='store_true', default=False, help='Prune all images and build caches on the system')
+    parser.add_argument('--full-docker-prune', action='store_true', help='Stop and remove all containers, build caches, volumes and images on the system')
+    parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
 
 
     args = parser.parse_args()  # script will exit if type is not present
@@ -165,7 +167,7 @@ if __name__ == '__main__':
             print('No job to process. Exiting')
             sys.exit(0)
         p_id = job[2]
-        process_job(job[0], job[1], job[2], args.skip_config_check, args.full_docker_prune)
+        process_job(job[0], job[1], job[2], args.skip_config_check, args.docker_prune, args.full_docker_prune)
         print('Successfully processed jobs queue item.')
     except Exception as exce:
         project_name = None
