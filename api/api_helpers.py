@@ -234,17 +234,21 @@ METRIC_MAPPINGS = {
 
 def rescale_energy_value(value, unit):
     # We only expect values to be mJ for energy!
-    if unit != 'mJ':
+    if unit in ['mJ', 'ug'] or unit.startswith('ugCO2e/'):
+        unit_type = unit[1:]
+
+        energy_rescaled = [value, unit]
+
+        # pylint: disable=multiple-statements
+        if value > 1_000_000_000: energy_rescaled = [value/(10**12), f"G{unit_type}"]
+        elif value > 1_000_000_000: energy_rescaled = [value/(10**9), f"M{unit_type}"]
+        elif value > 1_000_000: energy_rescaled = [value/(10**6), f"k{unit_type}"]
+        elif value > 1_000: energy_rescaled = [value/(10**3), f"{unit_type}"]
+        elif value < 0.001: energy_rescaled = [value*(10**3), f"n{unit_type}"]
+
+    else:
         raise RuntimeError('Unexpected unit occured for energy rescaling: ', unit)
 
-    energy_rescaled = [value, unit]
-
-    # pylint: disable=multiple-statements
-    if value > 1_000_000_000: energy_rescaled = [value/(10**12), 'GJ']
-    elif value > 1_000_000_000: energy_rescaled = [value/(10**9), 'MJ']
-    elif value > 1_000_000: energy_rescaled = [value/(10**6), 'kJ']
-    elif value > 1_000: energy_rescaled = [value/(10**3), 'J']
-    elif value < 0.001: energy_rescaled = [value*(10**3), 'nJ']
 
     return energy_rescaled
 

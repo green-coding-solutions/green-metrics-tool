@@ -141,7 +141,7 @@ class PhaseMetrics extends HTMLElement {
             </div>
             <div class="ui card software-carbon-intensity">
                 <div class="ui content">
-                    <div class="ui top black attached label overflow-ellipsis">Green Software Foundation SCI</sub><span class="si-unit"></span></div>
+                    <div class="ui top black attached label overflow-ellipsis">SCI</sub> <span class="si-unit"></span></div>
                     <div class="description">
                         <div class="ui fluid mini statistic">
                             <div class="value">

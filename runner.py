@@ -118,7 +118,7 @@ class Runner:
         self._tmp_folder = '/tmp/green-metrics-tool'
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
-        self._sci = {'R': 0}
+        self._sci = {'R-Dimension': None, 'R': 0}
 
 
         # transient variables that are created by the runner itself
@@ -360,6 +360,8 @@ class Runner:
 
         if self._usage_scenario.get('architecture') is not None and self._architecture != self._usage_scenario['architecture'].lower():
             raise RuntimeError(f"Specified architecture does not match system architecture: system ({self._architecture}) != specified ({self._usage_scenario.get('architecture')})")
+
+        self._sci['R-Dimension'] = self._usage_scenario.get('R-Dimension', None)
 
     def check_running_containers(self):
         result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
