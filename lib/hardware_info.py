@@ -92,6 +92,7 @@ linux_info_list = [
     [rfwr, 'Virtualization', '/proc/cpuinfo', r'(?P<o>hypervisor)'],
     [rpwrs, 'SGX', f"{os.path.join(CURRENT_PATH, '../tools/sgx_enable')} -s", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rfwr, 'IO scheduling', '/sys/block/sda/queue/scheduler', r'(?P<o>.*)'],
+    [rpwr, 'Network Interfaces', 'ip addr | grep ether -B 1', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
 ]
 
 # This is a very slimmed down version in comparison to the linux list. This is because we will not be using this
@@ -106,6 +107,8 @@ mac_info_list = [
     [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Processes', '/bin/ps -ax', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Network Interfaces', 'ifconfig | grep -E "flags|ether"', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+
 ]
 
 def get_list():
