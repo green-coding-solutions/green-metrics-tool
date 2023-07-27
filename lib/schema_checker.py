@@ -67,6 +67,20 @@ class SchemaChecker():
             raise SchemaError(f"{value} is not 'container'")
         return value
 
+    def validate_networks_no_invalid_chars(self, networks):
+        if isinstance(networks, list):
+            for item in networks:
+                if item is not None:
+                    self.contains_no_invalid_chars(item)
+        elif isinstance(networks, dict):
+            for key, value in networks.items():
+                self.contains_no_invalid_chars(key)
+                if value is not None:
+                    self.contains_no_invalid_chars(value)
+        else:
+            raise SchemaError("'networks' should be a list or a dictionary")
+
+
     def check_usage_scenario(self, usage_scenario):
         # Anything with Optional() is not needed, but if it exists must conform to the definition specified
         usage_scenario_schema = Schema({
@@ -74,9 +88,7 @@ class SchemaChecker():
             "author": str,
             "description": str,
 
-            Optional("networks"): Or({
-               Use(self.contains_no_invalid_chars): None
-            }, [Use(self.contains_no_invalid_chars)]),
+            Optional("networks"): Or(list, dict),
 
             Optional("services"): {
                 Use(self.contains_no_invalid_chars): {
@@ -112,6 +124,11 @@ class SchemaChecker():
 
             Optional("compose-file"): Use(self.validate_compose_include)
         }, ignore_extra_keys=True)
+
+        # This check is necessary to do in a seperate pass. If tried to bake into the schema object above,
+        # it will not know how to handle the value passed when it could be either a dict or list
+        if 'networks' in usage_scenario:
+            self.validate_networks_no_invalid_chars(usage_scenario['networks'])
 
         if "builds" not in usage_scenario and usage_scenario.get("services") is not None:
             for service in usage_scenario["services"].values():

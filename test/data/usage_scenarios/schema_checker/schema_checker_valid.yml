@@ -7,15 +7,14 @@ networks:
   network-name:
   network-name-2:
 
-networks:
-  - network-a
-  - network-b
-
 services:
   test-container:
     type: container
     image: gcb_stress
     build: .
+  test-container-2:
+    type: container
+    image: fizzbump
 
 flow:
   - name: Stress
