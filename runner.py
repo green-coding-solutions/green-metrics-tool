@@ -361,7 +361,7 @@ class Runner:
         if self._usage_scenario.get('architecture') is not None and self._architecture != self._usage_scenario['architecture'].lower():
             raise RuntimeError(f"Specified architecture does not match system architecture: system ({self._architecture}) != specified ({self._usage_scenario.get('architecture')})")
 
-        self._sci['R-Dimension'] = self._usage_scenario.get('R-Dimension', None)
+        self._sci['R-Dimension'] = self._usage_scenario.get('sci', {}).get('R-Dimension', None)
 
     def check_running_containers(self):
         result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
