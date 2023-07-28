@@ -144,7 +144,7 @@ async def get_network(project_id):
     if data is None:
         data == []
 
-    escaped_data = [sanitize(intercept) for intercept in data]
+    escaped_data = sanitize(data)
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
 
