@@ -8,6 +8,8 @@ import sys
 from io import StringIO
 import pandas
 
+class MetricProviderConfigurationError(Exception):
+    pass
 
 class BaseMetricProvider:
 
