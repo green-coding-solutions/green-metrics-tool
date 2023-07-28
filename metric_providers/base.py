@@ -8,7 +8,9 @@ import sys
 from io import StringIO
 import pandas
 
-class MetricProviderConfigurationError(Exception):
+from lib.system_checks import ConfigurationCheckError
+
+class MetricProviderConfigurationError(ConfigurationCheckError):
     pass
 
 class BaseMetricProvider:

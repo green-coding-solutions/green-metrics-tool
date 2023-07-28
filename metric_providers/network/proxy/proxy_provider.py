@@ -21,7 +21,7 @@ from global_config import GlobalConfig
 from metric_providers.base import MetricProviderConfigurationError
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-class ProxyMetricsProvider:
+class NetworkConnectionsProxyContainerProvider:
 
     def __init__(self, host_ip=None):
         self._metric_name = 'dockerproxy'
@@ -30,17 +30,22 @@ class ProxyMetricsProvider:
         self._filename = f"{self._tmp_folder}/proxy.log"
         self._ps = None
         self._host_ip = host_ip
+        self._has_started = False
 
         Path(self._tmp_folder).mkdir(exist_ok=True)
 
+    # This needs to be static as we want to check the system before we initialise all the providers
     def check_system(self):
 
         output = subprocess.check_output(["tinyproxy", "-v"], stderr=subprocess.STDOUT, text=True)
-        version_string = output.strip().split()[1]
+        version_string = output.strip().split()[1].split('-')[0]
         if parse(version_string) >= parse("1.11"):
             return True
 
         raise MetricProviderConfigurationError('Tinyproxy needs to be version 1.11 or greater.')
+
+    def has_started(self):
+        return self._has_started
 
     def get_stderr(self):
         return self._ps.stderr.read()
@@ -52,10 +57,10 @@ class ProxyMetricsProvider:
                     '--env', f"HTTPS_PROXY=http://{self._host_ip}:8889"]
         elif platform.system() == 'Linux':
             # Under Linux there is no way to directly link to the host
-            cs =  'ip addr show dev $(ip route | grep default | awk "{print $5}") | grep "inet " | awk "{print $2}" | cut -f1 -d"/"'
+            cs =  "ip addr show dev $(ip route | grep default | awk '{print $5}') | grep 'inet '| awk '{print $2}'| cut -f1 -d'/'"
             ps = subprocess.run(cs, shell=True, check=True, text=True, capture_output=True)
-            return ['--env', f"HTTP_PROXY=http://{ps.stdout}:8889",
-                    '--env', f"HTTPS_PROXY=http://{ps.stdout}:8889"]
+            return ['--env', f"HTTP_PROXY=http://{ps.stdout.strip()}:8889",
+                    '--env', f"HTTPS_PROXY=http://{ps.stdout.strip()}:8889"]
         else:
              return ['--env', 'HTTP_PROXY=http://host.docker.internal:8889',
                      '--env', 'HTTPS_PROXY=http://host.docker.internal:8889']
@@ -111,6 +116,7 @@ class ProxyMetricsProvider:
 
         # set_block False enables non-blocking reads on stderr.read(). Otherwise it would wait forever on empty
         os.set_blocking(self._ps.stderr.fileno(), False)
+        self._has_started = True
 
     def stop_profiling(self, *_):
         if self._ps is None:

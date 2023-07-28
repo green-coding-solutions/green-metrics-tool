@@ -47,6 +47,7 @@ from db import DB
 from global_config import GlobalConfig
 import utils
 from notes import Notes
+from lib import system_checks
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -91,7 +92,7 @@ def join_paths(path, path2, mode=None):
 class Runner:
     def __init__(self,
         uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
-        debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_config_check=False,
+        debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_system_checks=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
         dry_run=False, dev_repeat_run=False):
 
@@ -103,7 +104,7 @@ class Runner:
         self._allow_unsafe = allow_unsafe
         self._no_file_cleanup = no_file_cleanup
         self._skip_unsafe = skip_unsafe
-        self._skip_config_check = skip_config_check
+        self._skip_system_checks = skip_system_checks
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
         self._dry_run = dry_run
@@ -151,31 +152,13 @@ class Runner:
         print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
         self.__notes_helper.save_to_db(self._project_id)
 
-    def check_configuration(self):
-        if self._skip_config_check:
-            print("Configuration check skipped")
+    def check_system(self):
+        if self._skip_system_checks:
+            print("System check skipped")
             return
 
-        errors = []
-        config = GlobalConfig().config
-        metric_providers = list(utils.get_metric_providers(config).keys())
+        system_checks.check_all(self)
 
-        psu_energy_providers = sum(True for provider in metric_providers if ".energy" in provider and ".machine" in provider)
-
-        if psu_energy_providers > 1:
-            errors.append("Multiple PSU Energy providers enabled!")
-
-        if not errors:
-            print("Configuration check passed")
-            return
-
-        printable_errors = '\n'.join(errors) + '\n'
-
-        raise ValueError(
-            "Configuration check failed - not running measurement\n"
-            f"Configuration errors:\n{printable_errors}\n"
-            "If however that is what you want to do (for debug purposes), please set the --skip-config-check switch"
-            )
 
     def checkout_repository(self):
 
@@ -436,7 +419,7 @@ class Runner:
 
         # There are two ways we get hardware info. First things we don't need to be root to do which we get through
         # a method call. And then things we need root privilege which we need to call as a subprocess with sudo. The
-        # install.sh script should have called the makefile which adds the script to the sudoes file.
+        # install.sh script should have added the script to the sudoes file.
         machine_specs = hardware_info.get_default_values()
 
         if len(hardware_info_root.get_root_list()) > 0:
@@ -1164,16 +1147,16 @@ class Runner:
         try:
             config = GlobalConfig().config
             self.initialize_folder(self._tmp_folder)
-            self.check_configuration()
+            self.import_metric_providers()
             self.checkout_repository()
             self.initial_parse()
             self.populate_image_names()
             self.check_running_containers()
+            self.check_system()
             self.remove_docker_images()
             self.download_dependencies()
             self.register_machine_id()
             self.update_and_insert_specs()
-            self.import_metric_providers()
             if self._debugger.active:
                 self._debugger.pause('Initial load complete. Waiting to start metric providers')
 
@@ -1290,7 +1273,7 @@ if __name__ == '__main__':
     parser.add_argument('--debug', action='store_true', help='Activate steppable debug mode')
     parser.add_argument('--allow-unsafe', action='store_true', help='Activate unsafe volume bindings, ports and complex environment vars')
     parser.add_argument('--skip-unsafe', action='store_true', help='Skip unsafe volume bindings, ports and complex environment vars')
-    parser.add_argument('--skip-config-check', action='store_true', help='Skip checking the configuration')
+    parser.add_argument('--skip-system-checks', action='store_true', help='Skip checking the system if the GMT can run')
     parser.add_argument('--verbose-provider-boot', action='store_true', help='Boot metric providers gradually')
     parser.add_argument('--full-docker-prune', action='store_true', help='Prune all images and build caches on the system')
     parser.add_argument('--dry-run', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
@@ -1349,7 +1332,7 @@ if __name__ == '__main__':
 
     runner = Runner(uri=args.uri, uri_type=run_type, pid=project_id, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
-                    no_file_cleanup=args.no_file_cleanup, skip_config_check =args.skip_config_check,
+                    no_file_cleanup=args.no_file_cleanup, skip_system_checks=args.skip_system_checks,
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                     full_docker_prune=args.full_docker_prune, dry_run=args.dry_run,
                     dev_repeat_run=args.dev_repeat_run)

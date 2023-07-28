@@ -13,7 +13,7 @@ from global_config import GlobalConfig
 from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
-    def __init__(self, resolution):
+    def __init__(self, resolution, **_):
         super().__init__(
             metric_name="psu_energy_ac_xgboost_machine",
             metrics={"time": int, "value": int},

@@ -78,12 +78,12 @@ def get_project(project_id):
     return data
 
 
-def process_job(job_id, job_type, project_id, skip_config_check=False, full_docker_prune=False):
+def process_job(job_id, job_type, project_id, skip_system_checks=False, full_docker_prune=False):
     try:
         if job_type == 'email':
             _do_email_job(job_id, project_id)
         elif job_type == 'project':
-            _do_project_job(job_id, project_id, skip_config_check, full_docker_prune)
+            _do_project_job(job_id, project_id, skip_system_checks, full_docker_prune)
         else:
             raise RuntimeError(
                 f"Job w/ id {job_id} has unknown type: {job_type}.")
@@ -106,7 +106,7 @@ def _do_email_job(job_id, project_id):
 
 
 # should not be called without enclosing try-except block
-def _do_project_job(job_id, project_id, skip_config_check=False, full_docker_prune=False):
+def _do_project_job(job_id, project_id, skip_system_checks=False, full_docker_prune=False):
     check_job_running('project', job_id)
 
     [_, uri, _, branch, filename] = get_project(project_id)
@@ -118,7 +118,7 @@ def _do_project_job(job_id, project_id, skip_config_check=False, full_docker_pru
         filename=filename,
         branch=branch,
         skip_unsafe=True,
-        skip_config_check=skip_config_check,
+        skip_system_checks=skip_system_checks,
         full_docker_prune=full_docker_prune,
     )
     try:
@@ -140,7 +140,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('type', help='Select the operation mode.', choices=['email', 'project'])
     parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be located in the same directory as the regular configuration file. Pass in only the name.')
-    parser.add_argument('--skip-config-check', action='store_true', default=False, help='Skip checking the configuration')
+    parser.add_argument('--skip-system-checks', action='store_true', default=False, help='Skip checking the configuration')
     parser.add_argument('--full-docker-prune', action='store_true', default=False, help='Prune all images and build caches on the system')
 
 
@@ -165,7 +165,7 @@ if __name__ == '__main__':
             print('No job to process. Exiting')
             sys.exit(0)
         p_id = job[2]
-        process_job(job[0], job[1], job[2], args.skip_config_check, args.full_docker_prune)
+        process_job(job[0], job[1], job[2], args.skip_system_checks, args.full_docker_prune)
         print('Successfully processed jobs queue item.')
     except Exception as exce:
         project_name = None

@@ -14,21 +14,22 @@ sys.path.append(f"{CURRENT_DIR}/../lib/")
 #pylint:disable=import-error, wrong-import-position, wrong-import-order
 from runner import Runner
 from global_config import GlobalConfig
+from lib.system_checks import ConfigurationCheckError
 
 
 test_data = [
     ("two_psu_providers.yml", True, does_not_raise()),
-    ("two_psu_providers.yml", False, pytest.raises(ValueError)),
+    ("two_psu_providers.yml", False, pytest.raises(ConfigurationCheckError)),
 ]
 
-@pytest.mark.parametrize("config_file,skip_config_check,expectation", test_data)
-def test_check_configuration(config_file, skip_config_check, expectation):
+@pytest.mark.parametrize("config_file,skip_system_checks,expectation", test_data)
+def test_check_system(config_file, skip_system_checks, expectation):
 
-    runner = Runner("foo", "baz", "bar", skip_config_check=skip_config_check)
+    runner = Runner("foo", "baz", "bar", skip_system_checks=skip_system_checks)
     copy2(os.path.join(TEST_DATA_CONFIG_DIR, config_file), os.path.join(REPO_ROOT, config_file))
     GlobalConfig().override_config(config_name=config_file)
     try:
         with expectation:
-            runner.check_configuration()
+            runner.check_system()
     finally:
         os.remove(os.path.join(REPO_ROOT, config_file))

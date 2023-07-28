@@ -13,7 +13,7 @@ from global_config import GlobalConfig
 from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
-    def __init__(self, resolution):
+    def __init__(self, resolution, CPUChips, TDP):
         super().__init__(
             metric_name='psu_energy_ac_sdia_machine',
             metrics={'time': int, 'value': int},
@@ -21,6 +21,9 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
             unit='mJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
         )
+        self.cpu_chips = CPUChips
+        self.tpd = TDP
+
 
     # Since no process is ever started we just return None
     def get_stderr(self):
@@ -56,20 +59,17 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
 
         #Z = df.loc[:, ['value']]
 
-        provider_config = GlobalConfig(
-        ).config['measurement']['metric-providers']['common']\
-        ['psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider']
 
-        if 'CPUChips' not in provider_config:
+        if not self.cpu_chips:
             raise RuntimeError(
                 'Please set the CPUChips config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
-        if 'TDP' not in provider_config:
+        if not self.tpd:
             raise RuntimeError('Please set the TDP config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
 
         # since the CPU-Utilization is a ratio, we technically have to divide by 10,000 to get a 0...1 range.
         # And then again at the end multiply with 1000 to get mW. We take the
         # shortcut and just mutiply the 0.65 ratio from the SDIA by 10 -> 6.5
-        df.value = ((df.value * provider_config['TDP']) / 6.5) * provider_config['CPUChips'] # will result in mW
+        df.value = ((df.value * self.tpd) / 6.5) * self.cpu_chips # will result in mW
         df.value = (df.value * df.time.diff()) / 1_000_000 # mW * us / 1_000_000 will result in mJ
 
         df['unit'] = self._unit
