@@ -2,11 +2,12 @@ const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', c
     let tooltip_trigger = (chart_type=='line') ? 'axis' : 'item';
 
     let series_count = series.length;
-    let max = Math.max(...series[0])
+    let max = 0
     series.forEach(item => {
+        if(item == undefined) return;
         max = Math.max(max, ...item)
     })
-    max = max*1.2
+    max = Math.round(max*1.2)
 
     let options =  {
         tooltip: {trigger: tooltip_trigger},
@@ -18,18 +19,6 @@ const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', c
             animation: false,
             graphic: graphic,
             legend: [],
-            toolbox: {
-                itemSize: 25,
-                top: 55,
-                feature: {
-                    dataZoom: {
-                        yAxisIndex: 'none'
-                    },
-                    restore: {}
-                }
-            },
-
-
     }
 
     series.forEach((item, index) => {
@@ -39,13 +28,11 @@ const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', c
                     type: x_axis,
                     splitLine: {show: false},
                     name: [legend[index]],
-                    axisLabel: {
-                        show: true,
-                        interval: 0,
-                        rotate: 45,
-                   },
+                    nameLocation: 'center',
+                    axisLabel: {show: false},
                 }
         );
+
         options.yAxis.push(
             {
               gridIndex: index,
@@ -59,13 +46,16 @@ const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', c
               left: `${10 + (90 / series_count) * index}%`,
               right: `${100 - (10 + (90 / series_count) * (index+1))}%`,
               type: 'value',
-              containLabel: false,
+              bottom: 30,
+              containLabel: false
             }
         );
         options.legend.push(
             {
               data: legend[index],
               bottom: 0,
+              show: false,
+              type: 'scroll',
             }
         );
         options.series.push(
@@ -109,7 +99,7 @@ const getLineBarChartOptions = (legend, series, mark_area=null, x_axis='time', n
         grid: {
                 left: '0%',
                 right: 70,
-                bottom: '0%',
+                bottom: 0,
                 containLabel: true
         },
         xAxis: {
@@ -132,7 +122,7 @@ const getLineBarChartOptions = (legend, series, mark_area=null, x_axis='time', n
         legend: {
             data: legend,
             bottom: 0,
-            // type: 'scroll' // maybe active this if legends gets too long
+            type: 'scroll'
         }
     };
     if (mark_area != null) {
@@ -334,25 +324,22 @@ const createChartContainer = (container, el) => {
 const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
 
     let chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart .statistics-chart`);
-    document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart .chart-title`).innerText = 'General component distribution';
+    document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart .chart-title`).innerText = RADAR_CHART_TITLE;
     let myChart = echarts.init(chartDom);
     labels = labels.map((el) => { return {name: el}})
     let series = data.map((el, idx) => { return {name: legend[idx], value: el}})
 
     let options = {
-      grid: {
-        left: '0%',
-        right: '0%',
-        bottom: '0%',
-        containLabel: true
-      },
       legend: {
         data: legend,
-        bottom: 0
+        bottom: 0,
+        type: 'scroll',
       },
       radar: {
         shape: 'circle',
-        indicator: labels
+        indicator: labels,
+        radius: '70%',
+        center: ['50%', '45%'], // Adjust the vertical position (y-axis) as needed
       },
       series: [
         {
@@ -363,7 +350,6 @@ const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
         }
       ]
     };
-
     options && myChart.setOption(options);
 
     // set callback when ever the user changes the viewport
@@ -373,11 +359,16 @@ const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
     });
 }
 
+const removeKeyMetricsRadarChart = (phase) => {
+    document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart`).classList.add('single')
+    document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart`).remove()
+}
+
 const displayKeyMetricsBarChart = (legend, labels, data, phase) => {
 
     let series = data.map((el, idx) => { return {type: "bar", name: legend[idx], data: el}})
     let chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .statistics-chart`);
-    document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .chart-title`).innerText = 'Energy metrics';
+    document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .chart-title`).innerText = TOP_BAR_CHART_TITLE;
 
     let myChart = echarts.init(chartDom);
     let options = getLineBarChartOptions(labels, series, null, 'category', true);
@@ -447,7 +438,7 @@ const displayKeyMetricsEmbodiedCarbonChart = (phase) => {
 const displayTotalChart = (legend, labels, data) => {
 
     let chartDom = document.querySelector(`#total-phases-data .bar-chart .statistics-chart`);
-    document.querySelector(`#total-phases-data .bar-chart .chart-title`).innerText = 'Total Phases consumption [J]';
+    document.querySelector(`#total-phases-data .bar-chart .chart-title`).innerText = TOTAL_CHART_BOTTOM_TITLE;
 
     let myChart = echarts.init(chartDom);
 

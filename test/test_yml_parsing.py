@@ -39,7 +39,6 @@ class TestYML(unittest.TestCase):
         runner.load_yml_file()
         result_obj = {'name': 'my sample flow',
                       'author': 'Arne Tarara',
-                      'version': 1,
                       'description': 'test',
                       'services': {'my-database':
                                    {'some-key': 'something',

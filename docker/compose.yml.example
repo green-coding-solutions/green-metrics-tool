@@ -1,6 +1,6 @@
 services:
   green-coding-postgres:
-    image: postgres
+    image: postgres:15
     shm_size: 256MB
     container_name: green-coding-postgres-container
     restart: always
@@ -15,12 +15,13 @@ services:
   # We use container internal networking as it is easier to to setup a test-container-setup
   # and the performance is identical to socket connections in our internal tests
     ports:
-      - 5432:5432
+      - 9573:9573
     command: >
       -c ssl=on
       -c ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
       -c ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
       -c work_mem=16MB
+      -p 9573
 # This option can potentially speed up big queries: https://www.twilio.com/blog/sqlite-postgresql-complicated
   green-coding-nginx:
     image: nginx

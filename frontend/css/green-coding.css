@@ -200,13 +200,6 @@ a,
     margin:auto;
 }
 
-.key-metrics-chart-container .radar-chart,
-.key-metrics-chart-container .pie-chart,
-.key-metrics-chart-container .bar-chart,
-.key-metrics-chart-container .embodied-chart {
-    width: 45%;
-}
-
 .bar-chart, .phases-chart {
     width: 100%;
     min-width: 300px;
@@ -215,6 +208,16 @@ a,
     margin:auto;
 }
 
+.key-metrics-chart-container .radar-chart,
+.key-metrics-chart-container .pie-chart,
+.key-metrics-chart-container .bar-chart,
+.key-metrics-chart-container .embodied-chart {
+    width: 45%;
+}
+
+.key-metrics-chart-container .bar-chart.single {
+    width: 100%;
+}
 
 
 .compare-chart-container, .key-metrics-chart-container {
@@ -246,8 +249,18 @@ a,
     text-align: center;
 }
 
-#logs pre {
+#machine-specs td {
+    vertical-align: top;
+}
+
+#logs pre, #machine-specs-tab {
     max-width: 80vw;
     white-space: pre-wrap;
     word-wrap: break-word;
+    overflow: scroll;
 }
+
+#compare-button {
+    float: right;
+}
+

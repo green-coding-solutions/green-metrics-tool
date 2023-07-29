@@ -1,36 +1,52 @@
-const setupPhaseTabs = (phase_stats_object) => {
-    let keys = Object.keys(phase_stats_object['data'])
-    // only need to traverse one branch in case of a comparison
-    // no need to display phases that do not exist in both
-    keys.forEach((key) =>  {
-        for (phase in phase_stats_object['data'][key]) {
-            createPhaseTab(phase); // will not create already existing phase tabs
-            console.log("Phase", phase);
-            let tr = document.querySelector(`div.tab[data-tab='${phase}'] .compare-metrics-table thead`).insertRow();
-            if (keys.length == 2) {
-                tr.innerHTML = `
-                    <th>Metric</th>
-                    <th>Source</th>
-                    <th>Scope</th>
-                    <th>Detail Name</th>
-                    <th><span class="overflow-ellipsis" style="width: 100px; display:block;" title="${keys[0]}">${replaceRepoIcon(keys[0])}</span></th>
-                    <th><span class="overflow-ellipsis" style="width: 100px; display:block;" title="${keys[1]}">${replaceRepoIcon(keys[1])}</span></th>
-                    <th>Unit</th>
-                    <th>Change</th>
-                    <th>Significant (T-Test)</th>`;
-            } else {
-                tr.innerHTML = `
-                    <th>Metric</th>
-                    <th>Source</th>
-                    <th>Scope</th>
-                    <th>Detail Name</th>
-                    <th>Value</th>
-                    <th>Unit</th>
-                    <th class="hide-for-single-stats">StdDev</th>
-                    <th>MAX</th>`;
-            }
-        }
-    })
+const createTableHeader = (phase, comparison_keys, comparison_case, comparison_amounts) => {
+    let tr = document.querySelector(`div.tab[data-tab='${phase}'] .compare-metrics-table thead`).insertRow();
+
+    if (comparison_amounts >= 2) {
+        tr.innerHTML = `
+            <th>Metric</th>
+            <th>Source</th>
+            <th>Scope</th>
+            <th>Detail Name</th>
+            <th>Type</th>
+            <th><span class="overflow-ellipsis" style="width: 100px; display:block;" title="${comparison_keys[0]}">${replaceRepoIcon(comparison_keys[0])}</span></th>
+            <th><span class="overflow-ellipsis" style="width: 100px; display:block;" title="${comparison_keys[1]}">${replaceRepoIcon(comparison_keys[1])}</span></th>
+            <th>Unit</th>
+            <th>Change</th>
+            <th>Significant (T-Test)</th>`;
+    } else if(comparison_case !== null) {
+        tr.innerHTML = `
+            <th>Metric</th>
+            <th>Source</th>
+            <th>Scope</th>
+            <th>Detail Name</th>
+            <th>Type</th>
+            <th>Value</th>
+            <th>Unit</th>
+            <th>StdDev</th>
+            <th>Max.</th>
+            <th>Min.</th>
+            <th>Max. (of means)</th>
+            <th>Min. (of means)</th>`;
+    } else {
+        tr.innerHTML = `
+            <th>Metric</th>
+            <th>Source</th>
+            <th>Scope</th>
+            <th>Detail Name</th>
+            <th>Type</th>
+            <th>Value</th>
+            <th>Unit</th>
+            <th>Max.</th>
+            <th>Min.</th>`;
+    }
+}
+
+const showWarning = (phase, warning) => {
+    if (phase == '[RUNTIME]' ) phase == '[[RUNTIME]]';
+    document.querySelector(`div.tab[data-tab='${phase}'] .ui.warning.message`).classList.remove('hidden');
+    const newListItem = document.createElement("li");
+    newListItem.textContent = warning;
+    document.querySelector(`div.tab[data-tab='${phase}'] .ui.warning.message ul`).appendChild(newListItem);
 }
 
 /*
@@ -51,16 +67,15 @@ const setupPhaseTabs = (phase_stats_object) => {
     not prepend
 */
 const createPhaseTab = (phase) => {
-
+    console.log("Creating", phase);
     let phase_tab_node = document.querySelector(`a.step[data-tab='${phase}']`);
 
-    if(phase_tab_node == null || phase_tab_node == undefined) {
+    if(phase_tab_node == null) {
         let runtime_tab_node = document.querySelector('a.runtime-step');
         let cloned_tab_node = runtime_tab_node.cloneNode(true);
         cloned_tab_node.style.display = '';
-        cloned_tab_node.setAttribute('data-tab', phase);
         cloned_tab_node.innerText = phase;
-
+        cloned_tab_node.setAttribute('data-tab', phase);
         runtime_tab_node.parentNode.insertBefore(cloned_tab_node, runtime_tab_node)
 
         let phase_step_node = document.querySelector('.runtime-tab');
@@ -76,169 +91,186 @@ const createPhaseTab = (phase) => {
     in the appropriate variables for metric-boxes and charts
 */
 const displayComparisonMetrics = (phase_stats_object) => {
-    let comparison_case = phase_stats_object.comparison_case
-    console.log("comparison_case", comparison_case);
-    let keys = Object.keys(phase_stats_object['data'])
-    console.log(keys);
-    // we need to traverse only one branch of the tree and copy in all other values if
-    // a matching metric exists in the other branch
-    // we first go through one branch until we reach the detail object
-    // we identify if a metric is a key metric regarding something and handle that
-    // we identify if a metric is a normal metric regarding something and handle that
+    // we now traverse all branches of the tree
+    // the tree is sparese, so although we see all metrics that are throughout all phases and comparison_keys
+    // not every branch has a leaf with the metric for the corresponding comparsion_key ... it might be missing
+    // we must fill this value than with a NaN in the charts
+
     // if we have a comparison case between the two we just display the difference between them
     // if we have a repetition case we display the STDDEV
     // otherwise we just display the value
 
-    let machine_energy_chart_data =  {};
-    let machine_energy_chart_legend =  {};
-    let machine_energy_chart_labels = [];
+    // unsure atm what to do in a Diff scenario ... filling with 0 can be misleading
 
-    let index = 0;
-    let keys_length = keys.length;
-    console.log("Keys length", keys_length);
-    for (index in keys) {
-        key = keys[index];
-        console.log("Iterating", key);
-        console.log(phase_stats_object['data']);
-        for (phase in phase_stats_object['data'][key]) {
+    let total_chart_bottom_data =  {};
+    let total_chart_bottom_legend =  {};
+    let total_chart_bottom_labels = [];
 
-            // what I want to do is to:
-            // - check if we have a multi comparison
-            // - if not, we just set the values for the single charts
-            // - if we have a multi-key comparison
-            //     - just iterate over all the keys. Push all metrics and their details and the corresponding counterparts
-            //     - then iterate over the next key. If the metric is already present then skip
-            //     - however, if it is not present, than add it also
+    for (phase in phase_stats_object['data']) {
+        createPhaseTab(phase); // will not create already existing phase tabs
+        createTableHeader(
+            phase,
+            phase_stats_object.comparison_details,
+            phase_stats_object.comparison_case,
+            phase_stats_object.comparison_details.length
+        )
 
-            let phase_data = phase_stats_object['data'][key][phase];
+        let phase_data = phase_stats_object['data'][phase];
 
-            let radar_chart_labels = [];
-            let radar_chart_data = [...Array(keys_length)].map(e => Array(0));
+        let radar_chart_labels = [];
+        let radar_chart_data = [...Array(phase_stats_object.comparison_details.length)].map(e => Array(0));
 
-            let energy_chart_labels = [];
-            let energy_chart_data =  [...Array(keys_length)].map(e => Array(0));
-            machine_energy_chart_labels.push(phase);
-            machine_energy_chart_legend[phase]  = [];
+        let top_bar_chart_labels = [];
+        let top_bar_chart_data =  [[],[]];
+        total_chart_bottom_labels.push(phase);
+        total_chart_bottom_legend[phase]  = [];
 
-            let has_machine_energy = false;
+        let co2_calculated = false;
+        let found_bottom_chart_metric = false;
+        const bottom_chart_present_keys = phase_stats_object.comparison_details.reduce((acc, value) => {
+          acc[value] = false;
+          return acc;
+        }, {});
 
-            for (metric in phase_data) {
-                let metric_data = phase_data[metric]
-                for (detail in metric_data['data']) {
 
-                    if detail is already known, then we skip
-                    let detail_data = metric_data['data'][detail]
+        for (metric in phase_data) {
+            let metric_data = phase_data[metric]
+            let found_radar_chart_item = false;
 
+            for (detail in metric_data['data']) {
+                let detail_data = metric_data['data'][detail]
+
+                /*
+                    BLOCK LABELS
+                    This block must be done outside of the key loop and cannot use a Set() datastructure
+                    as we can have the same metric multiple times just with different detail names
+                */
+                if(radar_chart_condition(metric) && phase_stats_object.comparison_details.length >= 2) {
                     radar_chart_labels.push(metric_data.clean_name);
-                    if (metric.indexOf('_energy_') !== -1) {
-                        energy_chart_labels.push(metric_data.clean_name);
-                    }
-
-                    if (metric.match(/^.*_energy_.*_machine$/) !== null) {
-                        machine_energy_chart_legend[phase].push(metric_data.clean_name);
-                        if(machine_energy_chart_data?.[`Machine Energy - ${key}`] == null) {
-                            machine_energy_chart_data[`Machine Energy - ${key}`] = []
-                        }
-                        machine_energy_chart_data[`Machine Energy - ${key}`].push(detail_data.mean)
-                        has_machine_energy = true
-                    }
-
-
-                    let metric_box_data = []
-                    let detail_chart_data = []
-                    let detail_chart_mark = []
-                    let detail_chart_labels = []
-
-                    // now we go through all the other keys and find the matching metrics.
-                    // we need to do this in an inner loop, as if they do not exist, than we need to fill a NaN value
-
-                    for (inner_index in keys) {
-                        let inner_key = keys[index]
-                        let metric_data_x = phase_stats_object?.['data']?.[inner_key]?.[phase]?.[metric]
-                        let detail_data_x = metric_data_x?.['data']?.[detail];
-
-                        if (detail_data_x == undefined) {
-                            // the metric or phase might not be present in the other run
-                            // note that this debug statement does not log when on the second branch more metrics are
-                            // present that are not shown. However we also do not want to display them.
-                            console.log(`${metric} ${detail} was missing from ${inner_key}. Skipping`);
-                            return;
-                        }
-
-                        detail_chart_labels.push(`${comparison_case}: ${inner_key}`)
-                        detail_chart_data.push(detail_data_x.values)
-                        detail_chart_mark.push(
-                            {name:'CI', bottom: detail_data_x.mean-detail_data_x.ci, top: detail_data_x.mean+detail_data_x.ci})
-
-                        if (metric.indexOf('_energy_') !== -1) {
-                            energy_chart_data[inner_index].push(detail_data_x.mean)
-                        }
-                        radar_chart_data[inner_index].push(detail_data_x.mean)
-                        metric_box_data.push(detail_data_x)
-                    }
-
-                    // now we have iterated through all keys for this metric and aggregated all paired data
-                    // we can now display the compare chart
-
-                    if (keys_length > 1) {
-                        displayDiffMetricBox(
-                            phase, metric, metric_data, metric_box_data,
-                            phase_stats_object.statistics?.[phase]?.[metric]?.[detail]?.is_significant
-                        );
-                    } else { // no comparison case and thus only one key. But can still be multiple items if repeated run
-                        console.log("Simple metric box");
-                        displaySimpleMetricBox(phase,metric, metric_data, detail_data);
-                    }
-
-
-                    if(comparison_case == null) {
-                        if(metric.match(/^.*_co2_.*_machine$/) !== null) {
-                            calculateCO2(phase, detail_data.mean);
-                        }
-                    } else  {
-                        displayCompareChart(
-                            phase,
-                            `${metric_data.clean_name} (${detail}) - [${metric_data.unit}]`,
-                            detail_chart_labels,
-                            detail_chart_data,
-                            detail_chart_mark,
-                        );
-                    }
-                } // end detail
-            } // end metric
-
-            if (has_machine_energy == false) { // add dummy
-                if(machine_energy_chart_data?.[`Machine Energy - ${key}`] == null) {
-                    machine_energy_chart_data[`Machine Energy - ${key}`] = []
                 }
-                machine_energy_chart_data[`Machine Energy - ${key}`].push(NaN)
+
+                if (top_bar_chart_condition(metric)) {
+                    top_bar_chart_labels.push(`${metric_data.clean_name} (${metric_data.source})`);
+                }
+
+                if (total_chart_bottom_condition(metric)) {
+                    if(found_bottom_chart_metric) {
+                        showWarning(phase, `Another metric for the bottom chart was already set (${found_bottom_chart_metric}), skipping ${metric} and only first one will be shown.`);
+                    } else {
+                        total_chart_bottom_legend[phase].push(metric_data.clean_name);
+                        found_bottom_chart_metric = metric;
+                    }
+                }
+                /* END BLOCK LABELS*/
+
+                if (Object.keys(detail_data['data']).length != phase_stats_object.comparison_details.length) {
+                    showWarning(phase, `${metric} ${detail} was missing from at least one comparison.`);
+                }
+
+                let compare_chart_data = []
+                let compare_chart_mark = []
+                let compare_chart_labels = []
+                let metric_box_data = [...Array(phase_stats_object.comparison_details.length)].map(e => null)
+
+
+                let found_radar_chart_item_key = null;
+
+                // we loop over all keys that exist, not over the one that are present in detail_data['data']
+                phase_stats_object.comparison_details.forEach((key,key_index) => {
+                    if(radar_chart_condition(metric) && phase_stats_object.comparison_details.length >= 2) {
+                        radar_chart_data[key_index].push(detail_data['data'][key]?.mean)
+                    }
+
+                    if (top_bar_chart_condition(metric)) {
+                        top_bar_chart_data[key_index].push(detail_data['data'][key]?.mean)
+                    }
+                    if (total_chart_bottom_condition(metric) && metric == found_bottom_chart_metric) {
+                        if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
+                            total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] = []
+                        }
+                        total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`].push(detail_data['data'][key]?.mean)
+                        bottom_chart_present_keys[key] = true
+                    }
+
+                    if (phase_stats_object.comparison_case == null && co2_metrics_condition(metric)) {
+                        if(co2_calculated) {
+                            showWarning(phase, 'CO2 was already calculated! Do you have CO2 Machine reporters set');
+                        }
+                        // mean will always be present, as we only have one key and thus we need no ?.
+                        calculateCO2(phase, detail_data['data'][key].mean);
+                        co2_calculated = true;
+                    }
+                    metric_box_data[key_index] = detail_data['data'][key]?.mean
+                    compare_chart_data.push(detail_data['data'][key]?.values)
+                    compare_chart_labels.push(`${phase_stats_object.comparison_case}: ${key}`)
+                    compare_chart_mark.push({
+                        name:'Confidence Interval',
+                        bottom: detail_data['data'][key]?.mean-detail_data['data'][key]?.ci,
+                        top: detail_data['data'][key]?.mean+detail_data['data'][key]?.ci
+                    })
+                }) // end key
+
+                if (phase_stats_object.comparison_details.length == 1) {
+                    // Note: key is still the set variable from the for loop earlier
+                    displaySimpleMetricBox(phase,metric, metric_data, detail_data['name'], detail_data['data'][phase_stats_object.comparison_details[0]]);
+                } else {
+                    displayDiffMetricBox(
+                        phase, metric, metric_data, detail_data['name'], metric_box_data,
+                        detail_data.is_significant
+                    );
+                }
+                if(phase_stats_object.comparison_case !== null) { // compare charts will display for everything apart stats.html
+                    displayCompareChart(
+                        phase,
+                        `${metric_data.clean_name} (${detail}) - [${metric_data.unit}]`,
+                        compare_chart_labels,
+                        compare_chart_data,
+                        compare_chart_mark,
+                    );
+                }
+            } // end detail
+        } // end metric
+
+        // a phase had no bottom chart metric and must be null-filled
+        // this can for instance happen if a phase is too short and no metric was reported in the timespan
+        for (key in bottom_chart_present_keys) {
+            if(bottom_chart_present_keys[key] == false) {
+                if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
+                    total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] = []
+                }
+                total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`].push(NaN)
             }
+        }
 
-            let radar_legend = keys.map(e => `${comparison_case}: ${e}`)
+        let radar_legend = phase_stats_object.comparison_details.map(e => `${phase_stats_object.comparison_case}: ${e}`)
 
+        if(phase_stats_object.comparison_details.length >= 2) {
             displayKeyMetricsRadarChart(
                 radar_legend,
                 radar_chart_labels,
                 radar_chart_data,
                 phase
             );
+        } else if(phase_stats_object.comparison_case != null) {
+            // stats.html does not even have it. so only remove for Repeated Run etc.
+            removeKeyMetricsRadarChart(phase)
+        }
 
-            displayKeyMetricsBarChart(
-                radar_legend,
-                energy_chart_labels,
-                energy_chart_data,
-                phase
-            )
+        displayKeyMetricsBarChart(
+            radar_legend,
+            top_bar_chart_labels,
+            top_bar_chart_data,
+            phase
+        )
 
-            // displayKeyMetricsEmbodiedCarbonChart(phase);
+        // displayKeyMetricsEmbodiedCarbonChart(phase);
 
-        } // phase end
-    } // keys end
+    } // phase end
 
     displayTotalChart(
-        machine_energy_chart_legend,
-        machine_energy_chart_labels,
-        machine_energy_chart_data
+        total_chart_bottom_legend,
+        total_chart_bottom_labels,
+        total_chart_bottom_data
     )
 
     /*
@@ -271,4 +303,3 @@ const displayComparisonMetrics = (phase_stats_object) => {
 
     window.dispatchEvent(new Event('resize'));
 }
-

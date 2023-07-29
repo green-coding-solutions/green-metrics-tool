@@ -1,0 +1,8 @@
+FROM alpine
+RUN apk add stress-ng
+
+COPY ./testfile2 /tmp/testfile2-correctly-copied
+COPY ./subdir3/testfile3 /tmp/testfile3-correctly-copied
+COPY ./subdir3/subdir4/testfile4 /tmp/testfile4-correctly-copied
+
+CMD ["sh"]

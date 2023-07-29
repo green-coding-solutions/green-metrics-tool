@@ -4,13 +4,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-tests-dev:
+  run-tests-main:
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
     steps:
       - name: 'Checkout repository'
         uses: actions/checkout@v3
         with:
-          ref: 'dev'
+          ref: 'main'
           submodules: 'true'
 
       - name: Eco CI Energy Estimation - Initialize
@@ -34,13 +37,13 @@ jobs:
         uses: green-coding-berlin/eco-ci-energy-estimation@testing
         with:
           task: get-measurement
-          branch: dev
+          branch: main
 
       - name: Eco CI Energy Estimation - End Measurement
         uses: green-coding-berlin/eco-ci-energy-estimation@testing
         with:
           task: display-results
-          branch: dev
+          branch: main
         
 
 

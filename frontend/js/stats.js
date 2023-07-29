@@ -90,7 +90,7 @@ const fillProjectData = (project_data, key = null) => {
             if (project_data?.[item] == null) continue; // some old projects did not save it
             let commit_link = buildCommitLink(project_data);
             document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${commit_link}" target="_blank">${project_data?.[item]}</a></td></tr>`)
-        } else if(item == 'name') {
+        } else if(item == 'name' || item == 'filename') {
             document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project_data?.[item]}</td></tr>`)
         } else if(item == 'uri') {
             let entry = project_data?.[item];
@@ -355,7 +355,6 @@ $(document).ready( (e) => {
         fillProjectData(project_data);
 
         if(phase_stats_data != null) {
-            setupPhaseTabs(phase_stats_data)
             displayComparisonMetrics(phase_stats_data)
         }
 

@@ -28,7 +28,7 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
 
     # All work is done by reading system cpu utilization file
     def start_profiling(self, containers=None):
-        return  # noop
+        self._has_started = True
 
     def read_metrics(self, project_id, containers):
 

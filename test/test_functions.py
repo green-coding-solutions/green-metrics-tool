@@ -73,61 +73,98 @@ def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='f
 # remember to catch in try:finally and do cleanup when calling this!
 #pylint: disable=redefined-argument-from-local
 def run_until(runner, step):
-    config = GlobalConfig().config
-    runner.initialize_folder(runner._tmp_folder)
-    runner.checkout_repository()
-    runner.initial_parse()
-    runner.populate_image_names()
-    runner.check_running_containers()
-    runner.remove_docker_images()
-    runner.download_dependencies()
-    runner.register_machine_id()
-    runner.update_and_insert_specs()
-    runner.import_metric_providers()
+    try:
+        config = GlobalConfig().config
+        runner.initialize_folder(runner._tmp_folder)
+        runner.check_configuration()
+        runner.checkout_repository()
+        runner.initial_parse()
+        runner.populate_image_names()
+        runner.check_running_containers()
+        runner.remove_docker_images()
+        runner.download_dependencies()
+        runner.register_machine_id()
+        runner.update_and_insert_specs()
+        runner.import_metric_providers()
 
-    runner.start_metric_providers(allow_other=True, allow_container=False)
-    runner.custom_sleep(config['measurement']['idle-time-start'])
+        runner.start_metric_providers(allow_other=True, allow_container=False)
+        runner.custom_sleep(config['measurement']['idle-time-start'])
 
-    runner.start_measurement()
+        runner.start_measurement()
 
-    runner.start_phase('[BASELINE]')
-    runner.custom_sleep(5)
-    runner.end_phase('[BASELINE]')
+        runner.start_phase('[BASELINE]')
+        runner.custom_sleep(5)
+        runner.end_phase('[BASELINE]')
 
-    runner.start_phase('[INSTALLATION]')
-    runner.build_docker_images()
-    runner.end_phase('[INSTALLATION]')
+        runner.start_phase('[INSTALLATION]')
+        runner.build_docker_images()
+        runner.end_phase('[INSTALLATION]')
 
-    runner.start_phase('[BOOT]')
-    runner.setup_networks()
-    if step == 'setup_networks':
-        return
-    runner.setup_services()
-    if step == 'setup_services':
-        return
-    runner.end_phase('[BOOT]')
+        runner.start_phase('[BOOT]')
+        runner.setup_networks()
+        if step == 'setup_networks':
+            return
+        runner.setup_services()
+        if step == 'setup_services':
+            return
+        runner.end_phase('[BOOT]')
 
-    runner.start_metric_providers(allow_container=True, allow_other=False)
+        runner.start_metric_providers(allow_container=True, allow_other=False)
 
-    runner.start_phase('[IDLE]')
-    runner.custom_sleep(5)
-    runner.end_phase('[IDLE]')
+        runner.start_phase('[IDLE]')
+        runner.custom_sleep(5)
+        runner.end_phase('[IDLE]')
 
-    runner.start_phase('[RUNTIME]')
-    runner.run_flows() # can trigger debug breakpoints;
-    runner.end_phase('[RUNTIME]')
+        runner.start_phase('[RUNTIME]')
+        runner.run_flows() # can trigger debug breakpoints;
+        runner.end_phase('[RUNTIME]')
 
-    runner.start_phase('[REMOVE]')
-    runner.custom_sleep(1)
-    runner.end_phase('[REMOVE]')
+        runner.start_phase('[REMOVE]')
+        runner.custom_sleep(1)
+        runner.end_phase('[REMOVE]')
 
-    runner.end_measurement()
-    runner.custom_sleep(config['measurement']['idle-time-end'])
-    runner.stop_metric_providers()
-    runner.read_and_cleanup_processes()
-    runner.store_phases()
-    runner.update_start_and_end_times()
+        runner.end_measurement()
+        runner.check_process_returncodes()
+        runner.custom_sleep(config['measurement']['idle-time-end'])
+        runner.store_phases()
+        runner.update_start_and_end_times()
+        runner.read_and_cleanup_processes()
+    except BaseException as exc:
+        runner.add_to_log(exc.__class__.__name__, str(exc))
+        raise exc
 
+def cleanup(runner):
+    try:
+        runner.read_container_logs()
+    except BaseException as exc:
+        runner.add_to_log(exc.__class__.__name__, str(exc))
+        raise exc
+    finally:
+        try:
+            runner.read_and_cleanup_processes()
+        except BaseException as exc:
+            runner.add_to_log(exc.__class__.__name__, str(exc))
+            raise exc
+        finally:
+            try:
+                runner.save_notes_runner()
+            except BaseException as exc:
+                runner.add_to_log(exc.__class__.__name__, str(exc))
+                raise exc
+            finally:
+                try:
+                    runner.stop_metric_providers()
+                except BaseException as exc:
+                    runner.add_to_log(exc.__class__.__name__, str(exc))
+                    raise exc
+                finally:
+                    try:
+                        runner.save_stdout_logs()
+                    except BaseException as exc:
+                        runner.add_to_log(exc.__class__.__name__, str(exc))
+                        raise exc
+                    finally:
+                        runner.cleanup()  # always run cleanup automatically after each run
 
 
 def assertion_info(expected, actual):

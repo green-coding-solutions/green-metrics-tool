@@ -8,6 +8,9 @@ on:
 jobs:
   run-tests-main:
     runs-on: self-hosted
+    permissions:
+      packages: write
+      contents: read
     steps:
       # - id: check-date
       #   if: ${{ github.event_name != 'workflow_dispatch' }}

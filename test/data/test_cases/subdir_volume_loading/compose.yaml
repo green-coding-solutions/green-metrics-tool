@@ -1,0 +1,16 @@
+version: '2'
+services:
+  test-container:
+    build:
+       context: ./subdir
+       dockerfile: ./subdir2/Dockerfile
+    image: volume_bind_mount_rel_to_context
+    container_name: test-container
+    volumes:
+      - ./compose.yaml:/tmp/compose.yml-correctly-mounted
+      - ./testfile:/tmp/testfile-wrongly-mounted-as-dir
+      - ./testfile2:/tmp/testfile2-wrongly-mounted-as-dir
+      - ./testfile3:/tmp/testfile3-wrongly-mounted-as-dir
+      - ./subdir/testfile:/tmp/testfile-correctly-mounted
+      - ./subdir/subdir2/testfile2:/tmp/testfile2-correctly-mounted
+      - ./subdir/subdir2/subdir3/testfile3:/tmp/testfile3-correctly-mounted

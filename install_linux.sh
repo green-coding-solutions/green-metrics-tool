@@ -14,8 +14,10 @@ db_pw=''
 api_url=''
 metrics_url=''
 no_build=false
+no_hosts=false
+ask_tmpfs=true
 
-while getopts "p:a:m:n" o; do
+while getopts "p:a:m:nht" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -29,6 +31,13 @@ while getopts "p:a:m:n" o; do
         n)
             no_build=true
             ;;
+        h)
+            no_hosts=true
+            ;;
+        t)
+            ask_tmpfs=false
+            ;;
+
     esac
 done
 
@@ -40,10 +49,22 @@ fi
 if [[ -z $metrics_url ]] ; then
     read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.internal:9142): " metrics_url
     metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
-fi 
+fi
 
 if [[ -z "$db_pw" ]] ; then
     read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
+    echo "" # force a newline, because print -sp will consume it
+fi
+
+if [[ $ask_tmpfs == true ]] ; then
+    read -p "We strongly recommend mounting /tmp on a tmpfs. Do you want to do that? (y/N)" tmpfs
+    if [[ "$tmpfs" == "Y" || "$tmpfs" == "y" ]] ; then
+        if lsb_release -is | grep -q "Fedora"; then
+            sudo systemctl unmask --now tmp.mount
+        else
+            sudo systemctl enable /usr/share/systemd/tmp.mount
+        fi
+    fi
 fi
 
 print_message "Clearing old api.conf and frontend.conf files"
@@ -108,25 +129,33 @@ PYTHON_PATH=$(which python3)
 PWD=$(pwd)
 echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
 
+print_message "Installing IPMI tools"
+sudo apt-get install freeipmi-tools ipmitool
 
-etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
-etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
+print_message "Adding IPMI to sudoers file"
+echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/ipmi_get_machine_energy_stat
 
-print_message "Writing to /etc/hosts file..."
+if [[ $no_hosts != true ]] ; then
 
-# Entry 1 is needed for the local resolution of the containers through the jobs.py and runner.py
-if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
-    echo "$etc_hosts_line_1" | sudo tee -a /etc/hosts
-else
-    echo "Entry was already present..."
-fi
+    etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
+    etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
 
-# Entry 2 can be external URLs. These should not resolve to localhost if not explcitely wanted
-if [[ ${host_metrics_url} == *".green-coding.internal"* ]];then
-    if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
-        echo "$etc_hosts_line_2" | sudo tee -a /etc/hosts
+    print_message "Writing to /etc/hosts file..."
+
+    # Entry 1 is needed for the local resolution of the containers through the jobs.py and runner.py
+    if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
+        echo "$etc_hosts_line_1" | sudo tee -a /etc/hosts
     else
         echo "Entry was already present..."
+    fi
+
+    # Entry 2 can be external URLs. These should not resolve to localhost if not explcitely wanted
+    if [[ ${host_metrics_url} == *".green-coding.internal"* ]];then
+        if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
+            echo "$etc_hosts_line_2" | sudo tee -a /etc/hosts
+        else
+            echo "Entry was already present..."
+        fi
     fi
 fi
 
@@ -138,3 +167,4 @@ fi
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
+echo -e "${GREEN}If you have newly requested to mount /tmp as tmpfs please reboot your system now.${NC}"

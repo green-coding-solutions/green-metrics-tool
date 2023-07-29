@@ -38,7 +38,6 @@ $(document).ready( (e) => {
             document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${key}</strong></td><td>${phase_stats_data['common_info'][key]}</td></tr>`)
           });
 
-        setupPhaseTabs(phase_stats_data)
         displayComparisonMetrics(phase_stats_data)
 
     })();
