@@ -67,7 +67,6 @@ const showWarning = (phase, warning) => {
     not prepend
 */
 const createPhaseTab = (phase) => {
-    console.log("Creating", phase);
     let phase_tab_node = document.querySelector(`a.step[data-tab='${phase}']`);
 
     if(phase_tab_node == null) {
