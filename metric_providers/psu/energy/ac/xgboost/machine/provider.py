@@ -7,7 +7,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/../../../../../../lib")
 sys.path.append(CURRENT_DIR)
 
-#pylint: disable=import-error
+#pylint: disable=import-error, wrong-import-position
 import model.xgb as mlmodel
 from global_config import GlobalConfig
 from metric_providers.base import BaseMetricProvider
@@ -29,7 +29,6 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
     # All work is done by reading system cpu utilization file
     def start_profiling(self, containers=None):
         self._has_started = True
-        return  # noop
 
     def read_metrics(self, project_id, containers):
 

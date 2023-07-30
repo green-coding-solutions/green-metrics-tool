@@ -1,186 +1,89 @@
 const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', chart_type='line', graphic=null) => {
     let tooltip_trigger = (chart_type=='line') ? 'axis' : 'item';
-    if (series.length > 1) {
-       let max = Math.round(Math.max(...series[0],...series[1])*1.2)
-       let options =  {
-            tooltip: {trigger: tooltip_trigger},
-            xAxis: [
-                {
-                    gridIndex: 0,
-                    type: x_axis,
-                    splitLine: {show: false},
-                    name: [legend[0]],
-                    nameLocation: 'center',
-                    axisLabel: {
-                        show: false,
-                   },
-                },
-                {
-                    gridIndex: 1,
-                    splitLine: {show: false},
-                    type: x_axis,
-                    name: [legend[1]],
-                    nameLocation: 'center',
-                    axisLabel: {
-                        show: false,
-                   },
-                }
-              ],
-            yAxis: [
-                {
-                  gridIndex: 0,
-                  splitLine: {show: true},
-                  max: max
-                },
-                {
-                  gridIndex: 1,
-                  splitLine: {show: true},
-                  max: max
-                },
-            ],
-            areaStyle: {},
-            grid: [
-                {
-                  right: '60%',
-                  type: 'value',
-                  bottom: 30,
-                  containLabel: false,
-                },
-                {
-                  left: '60%',
-                  type: 'value',
-                  bottom: 30,
-                  containLabel: false,
-                }
-            ],
-            series: [
-                {
-                    type: chart_type,
-                    data: series[0],
-                    xAxisIndex: 0,
-                    yAxisIndex:0,
-                    markLine: {
-                        precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
-                        data: [ {type: "average",label: {formatter: "Mean:\n{c}"}}]
-                    }
 
-                },
-                {
-                    type: chart_type,
-                    data: series[1],
-                    xAxisIndex: 1,
-                    yAxisIndex:1,
-                    markLine: {
-                        precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
-                        data: [ {type: "average",label: {formatter: "Mean:\n{c}"}}]
-                    }
-                }
-            ],
+    let series_count = series.length;
+    let max = 0
+    series.forEach(item => {
+        if(item == undefined) return;
+        max = Math.max(max, ...item)
+    })
+    max = Math.round(max*1.2)
+
+    let options =  {
+        tooltip: {trigger: tooltip_trigger},
+            xAxis: [],
+            yAxis: [],
+            areaStyle: {},
+            grid: [],
+            series: [],
             animation: false,
             graphic: graphic,
-            legend: [
-              {
-                  show: false,
-                  data: legend[0],
-                  bottom: 0,
-                  type: 'scroll',
-              },
-              {
-                  show: false,
-                  data: legend[0],
-                  bottom: 0,
-                  type: 'scroll',
-              },
-            ],
-            toolbox: {
-                itemSize: 25,
-                top: 55,
-                feature: {
-                    dataZoom: {
-                        yAxisIndex: 'none'
-                    },
-                    restore: {}
-                }
-            },
-        };
-        if (mark_area != null) {
-            options['series'][0]['markArea'] = {
-                data: [
-                    [
-                        { name: mark_area[0].name, yAxis: mark_area[0].top }, // a name in one item is apprently enough ...
-                        { yAxis: mark_area[0].bottom }
-                    ]
-                ]
-            };
-            options['series'][1]['markArea'] = {
-                data: [
-                    [
-                        { name: mark_area[1].name, yAxis: mark_area[1].top }, // a name in one item is apprently enough ...
-                        { yAxis: mark_area[1].bottom }
-                    ]
-                ]
-            };
-        }
-        return options;
-    } else {
-       let max = Math.round(Math.max(...series[0])*1.2)
-       let options =  {
-            tooltip: {trigger: tooltip_trigger},
-            grid: {
-                left: '0%',
-                right: '0%',
-                bottom: 30,
-                containLabel: true
-            },
-            xAxis: {
-                type: x_axis,
-                splitLine: {show: false},
-                name: [legend[0]],
-                nameLocation: 'center',
-                axisLabel: {
-                    show: false,
-                },
-            },
-            yAxis: {
-                type: 'value',
-                splitLine: {show: true}
-            },
-            series: [{
-                data:series[0],
-                type: chart_type,
-                markLine: { data: [ {type: "average",label: {formatter: "Mean:\n{c}"}}]}
-            }],
-            animation: false,
-            graphic: graphic,
-            legend: {
-                show: false,
-                data: legend,
-                bottom: 0,
-                type: 'scroll',
-            },
-            toolbox: {
-                itemSize: 25,
-                top: 55,
-                feature: {
-                    dataZoom: {
-                        yAxisIndex: 'none'
-                    },
-                    restore: {}
-                }
-            },
-        };
-        if (mark_area != null) {
-            options['series'][0]['markArea'] = {
-                data: [
-                    [
-                        { name: mark_area[0].name, yAxis: mark_area[0].top }, // a name in one item is apprently enough ...
-                        { yAxis: mark_area[0].bottom }
-                    ]
-                ]
-            }
-        }
-        return options;
+            legend: [],
     }
+
+    series.forEach((item, index) => {
+        options.xAxis.push(
+            {
+                    gridIndex: index,
+                    type: x_axis,
+                    splitLine: {show: false},
+                    name: [legend[index]],
+                    nameLocation: 'center',
+                    axisLabel: {show: false},
+                }
+        );
+
+        options.yAxis.push(
+            {
+              gridIndex: index,
+              splitLine: {show: true},
+              max: max,
+              axisLabel: {show: false},
+            }
+        );
+        options.grid.push(
+            {
+              left: `${10 + (90 / series_count) * index}%`,
+              right: `${100 - (10 + (90 / series_count) * (index+1))}%`,
+              type: 'value',
+              bottom: 30,
+              containLabel: false
+            }
+        );
+        options.legend.push(
+            {
+              data: legend[index],
+              bottom: 0,
+              show: false,
+              type: 'scroll',
+            }
+        );
+        options.series.push(
+            {
+                type: chart_type,
+                data: series[index],
+                xAxisIndex: index,
+                yAxisIndex:index,
+                markLine: {
+                    precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
+                    data: [ {type: "average",label: {formatter: "Mean:\n{c}"}}]
+                }
+            }
+        );
+        if (mark_area != null) {
+            options['series'][index]['markArea'] = {
+                data: [
+                    [
+                        { name: mark_area[index].name, yAxis: mark_area[index].top }, // a name in one item is apprently enough ...
+                        { yAxis: mark_area[index].bottom }
+                    ]
+                ]
+            };
+        }
+
+    })
+    options.yAxis[0].axisLabel = {show: true};
+    return options;
 }
 
 const getLineBarChartOptions = (legend, series, mark_area=null, x_axis='time', no_toolbox = false, graphic=null) => {
@@ -404,6 +307,7 @@ const createChartContainer = (container, el) => {
                 <div class="statistics-chart"></div>
             </div>
         </div>`;
+
     document.querySelector(container).appendChild(chart_node)
 
     chart_node.querySelector('.toggle-width').addEventListener("click", toggleWidth, false);
