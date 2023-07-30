@@ -191,7 +191,7 @@ const displayComparisonMetrics = (phase_stats_object) => {
                         bottom_chart_present_keys[key] = true
                     }
 
-                    if (phase_stats_object.comparison_case == null && co2_metrics_condition(metric)) {
+                    if (phase_stats_object.comparison_case == null && machine_co2_metric_condition(metric)) {
                         if(co2_calculated) {
                             showWarning(phase, 'CO2 was already calculated! Do you have multiple machine energy reporters set?');
                         }
@@ -199,6 +199,7 @@ const displayComparisonMetrics = (phase_stats_object) => {
                         calculateCO2(phase, detail_data['data'][key].mean);
                         co2_calculated = true;
                     }
+
                     metric_box_data[key_index] = detail_data['data'][key]?.mean
                     compare_chart_data.push(detail_data['data'][key]?.values)
                     compare_chart_labels.push(`${phase_stats_object.comparison_case}: ${key}`)

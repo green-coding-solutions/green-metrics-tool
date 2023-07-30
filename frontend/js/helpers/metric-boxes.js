@@ -340,17 +340,17 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
 
     let selector = null;
     // key metrics are already there, cause we want a fixed order, so we just replace
-    if(metric.match(/^.*_energy_.*_machine$/) !== null) {
+    if(machine_energy_metric_condition(metric)) {
         selector = '.machine-energy';
-    } else if(metric == 'network_energy_formula_global') {
+    } else if(network_energy_metric_condition(metric)) {
         selector = '.network-energy';
-    } else if(metric == 'phase_time_syscall_system') {
+    } else if(phase_time_metric_condition(metric)) {
         selector = '.phase-duration';
-    } else if(metric == 'network_co2_formula_global') {
+    } else if(network_co2_metric_condition(metric)) {
         selector = '.network-co2';
-    } else if(metric.match(/^.*_power_.*_machine$/) !== null) {
+    } else if(machine_power_metric_condition(metric)) {
         selector = '.machine-power';
-    } else if(metric.match(/^.*_co2_.*_machine$/) !== null) {
+    } else if(machine_co2_metric_condition(metric)) {
         selector = '.machine-co2';
     } else {
         return; // could not match key metric
