@@ -193,7 +193,7 @@ const displayComparisonMetrics = (phase_stats_object) => {
 
                     if (phase_stats_object.comparison_case == null && co2_metrics_condition(metric)) {
                         if(co2_calculated) {
-                            showWarning(phase, 'CO2 was already calculated! Do you have CO2 Machine reporters set');
+                            showWarning(phase, 'CO2 was already calculated! Do you have multiple machine energy reporters set?');
                         }
                         // mean will always be present, as we only have one key and thus we need no ?.
                         calculateCO2(phase, detail_data['data'][key].mean);
