@@ -125,12 +125,11 @@ const displayComparisonMetrics = (phase_stats_object) => {
         total_chart_bottom_legend[phase]  = [];
 
         let co2_calculated = false;
-        let found_bottom_chart_metric = false;
-        const bottom_chart_present_keys = phase_stats_object.comparison_details.reduce((acc, value) => {
-          acc[value] = false;
-          return acc;
-        }, {});
 
+        // the following variables are needed for filling missing values in charts and the machine energy
+        // we need to keep track if in the coming loop a matching metric was found or mitigate the missing value
+        let found_bottom_chart_metric = false;
+        const bottom_chart_present_keys = Object.fromEntries(phase_stats_object.comparison_details.map(e => [e, false]))
 
         for (metric in phase_data) {
             let metric_data = phase_data[metric]
@@ -157,7 +156,7 @@ const displayComparisonMetrics = (phase_stats_object) => {
                         showWarning(phase, `Another metric for the bottom chart was already set (${found_bottom_chart_metric}), skipping ${metric} and only first one will be shown.`);
                     } else {
                         total_chart_bottom_legend[phase].push(metric_data.clean_name);
-                        found_bottom_chart_metric = metric;
+                        found_bottom_chart_metric = `${metric} ${detail_data['name']}`;
                     }
                 }
                 /* END BLOCK LABELS*/
@@ -169,10 +168,7 @@ const displayComparisonMetrics = (phase_stats_object) => {
                 let compare_chart_data = []
                 let compare_chart_mark = []
                 let compare_chart_labels = []
-                let metric_box_data = [...Array(phase_stats_object.comparison_details.length)].map(e => null)
-
-
-                let found_radar_chart_item_key = null;
+                let metric_box_data = [...Array(phase_stats_object.comparison_details.length)].map(e => {{}})
 
                 // we loop over all keys that exist, not over the one that are present in detail_data['data']
                 phase_stats_object.comparison_details.forEach((key,key_index) => {
@@ -183,7 +179,7 @@ const displayComparisonMetrics = (phase_stats_object) => {
                     if (top_bar_chart_condition(metric)) {
                         top_bar_chart_data[key_index].push(detail_data['data'][key]?.mean)
                     }
-                    if (total_chart_bottom_condition(metric) && metric == found_bottom_chart_metric) {
+                    if (total_chart_bottom_condition(metric) && `${metric} ${detail_data['name']}` == found_bottom_chart_metric) {
                         if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
                             total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] = []
                         }
