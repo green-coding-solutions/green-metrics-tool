@@ -99,7 +99,7 @@ def build_and_store_phase_stats(project_id):
                 csv_buffer.write(generate_csv_line(project_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_sum, 'MEAN', power_max, power_min, 'mW'))
 
                 if metric.endswith('_machine'):
-                    machine_co2 = ((value_sum / 3_600) * 475)
+                    machine_co2 = (value_sum / 3_600) * 475
                     csv_buffer.write(generate_csv_line(project_id, f"{metric.replace('_energy_', '_co2_')}", detail_name, f"{idx:03}_{phase['name']}", machine_co2, 'TOTAL', None, None, 'ug'))
 
 
