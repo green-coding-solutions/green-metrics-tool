@@ -246,25 +246,24 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
 */
 const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, detail_data_array, is_significant)  => {
 
+    // no max, we use significant rather
     let extra_label = 'not significant / no-test';
     if (is_significant == true) extra_label = 'Significant';
 
-    // no max, we use significant rather
-
+    // TODO: Remove this guard clause once we want to support more than 2 compared items
     if (detail_data_array.length > 2) throw "Comparions > 2 currently not implemented"
 
-    // no value conversion, cause we just use relatives
-    let value = 'undefined';
+    // no value conversion in this block, cause we just use relatives
+    let value = 'N/A';
     if (detail_data_array[0] == 0 && detail_data_array[1] == 0) {
         value = 0;
     } else if (detail_data_array[0] == null || detail_data_array[1] == null) {
-        value = 'undefined';
+        value = 'not comparable';
     } else {
        value = detail_data_array[0] == 0 ? 0: (((detail_data_array[1] - detail_data_array[0])/detail_data_array[0])*100).toFixed(2);
     }
 
     let icon_color = 'positive';
-
     if (value > 0) {
         icon_color = 'error';
         value = `+ ${value} %`;
@@ -367,5 +366,3 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
     if (node !== null) node.innerText = source // not every key metric shall have a custom detail_name
 
 }
-
-
