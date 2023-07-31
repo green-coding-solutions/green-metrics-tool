@@ -1,4 +1,5 @@
 const convertValue = (value, unit) => {
+    if (value == null) return [value, unit];
     switch (unit) {
     case 'mJ':
         return [(value / 1_000).toFixed(2), 'J'];

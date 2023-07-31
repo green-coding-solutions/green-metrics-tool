@@ -324,13 +324,14 @@ def determine_comparison_case(ids):
     # these cannot be just averaged. But they have to be split and then compared via t-test
     # For the moment I think it makes sense to restrict to two repositories. Comparing three is too much to handle I believe if we do not want to drill down to one specific metric
 
-    # Currently we support five cases:
+    # Currently we support six cases:
     # case = 'Repository' # Case D : RequirementsEngineering Case
     # case = 'Branch' # Case C_3 : SoftwareDeveloper Case
     # case = 'Usage Scenario' # Case C_2 : SoftwareDeveloper Case
     # case = 'Machine' # Case C_1 : DataCenter Case
     # case = 'Commit' # Case B: DevOps Case
     # case = 'Repeated Run' # Case A: Blue Angel
+    # case = 'Multi-Commit' # Case D: Evolution of repo over time
 
 
     if repos == 2: # diff repos
@@ -374,8 +375,10 @@ def determine_comparison_case(ids):
 
             elif machine_ids == 1: # same repo, same usage scenarios, same machines
                 if branches <= 1:
-                    if commit_hashes > 1: # same repo, same usage scenarios, same machines, diff commit hashes
+                    if commit_hashes == 2: # same repo, same usage scenarios, same machines, diff commit hashes
                         case = 'Commit' # Case B
+                    elif commit_hashes > 2: # same repo, same usage scenarios, same machines, many commit hashes
+                        raise RuntimeError('Multiple commits comparison not supported. Please switch to Timeline view')
                     else: # same repo, same usage scenarios, same machines, same branches, same commit hashes
                         case = 'Repeated Run' # Case A
                 else: # same repo, same usage scenarios, same machines, diff branch
@@ -516,8 +519,7 @@ def get_phase_stats_object(phase_stats, case):
 
     phase_stats_object = {
         'comparison_case': case,
-        'comparison_details': [],
-        'statistics': {},
+        'comparison_details': set(),
         'data': {}
     }
 
@@ -540,14 +542,10 @@ def get_phase_stats_object(phase_stats, case):
         else:
             key = commit_hash # No comparison case / Case A: Blue Angel / Case B: DevOps Case
 
-        if key not in phase_stats_object['data']:
-            phase_stats_object['data'][key] = {}
-            phase_stats_object['comparison_details'].append(key)
+        if phase not in phase_stats_object['data']: phase_stats_object['data'][phase] = {}
 
-        if phase not in phase_stats_object['data'][key]: phase_stats_object['data'][key][phase] = {}
-
-        if metric_name not in phase_stats_object['data'][key][phase]:
-            phase_stats_object['data'][key][phase][metric_name] = {
+        if metric_name not in phase_stats_object['data'][phase]:
+            phase_stats_object['data'][phase][metric_name] = {
                 'clean_name': METRIC_MAPPINGS[metric_name]['clean_name'],
                 'explanation': METRIC_MAPPINGS[metric_name]['explanation'],
                 'type': metric_type,
@@ -561,20 +559,43 @@ def get_phase_stats_object(phase_stats, case):
                 'data': {},
             }
 
-        if detail_name not in phase_stats_object['data'][key][phase][metric_name]['data']:
-            phase_stats_object['data'][key][phase][metric_name]['data'][detail_name] = {
+        if detail_name not in phase_stats_object['data'][phase][metric_name]['data']:
+            phase_stats_object['data'][phase][metric_name]['data'][detail_name] = {
                 'name': detail_name,
-                'mean': None, # this is the mean over all repetitions of the detail_name
+                # 'mean': None, # mean for a detail over multiple machines / branches makes no sense
+                # 'max': max_value, # max for a detail over multiple machines / branches makes no sense
+                # 'min': min_value, # min for a detail over multiple machines / branches makes no sense
+                # 'stddev': None, # stddev for a detail over multiple machines / branches makes no sense
+                # 'ci': None, # since we only compare two keys atm this  could no be calculated.
+                'p_value': None, # comparing the means of two machines, branches etc. Both cases must have multiple values for this to get populated
+                'is_significant': None, # comparing the means of two machines, branches etc. Both cases must have multiple values for this to get populated
+                'data': {},
+            }
+
+        detail_data = phase_stats_object['data'][phase][metric_name]['data'][detail_name]['data']
+        if key not in detail_data:
+            detail_data[key] = {
+                'mean': None, # this is the mean over all repetitions of the detail_name for the key
                 'max': max_value,
                 'min': min_value,
+                'max_mean': None,
+                'min_mean': None,
                 'stddev': None,
                 'ci': None,
                 'p_value': None, # only for the last key the list compare to the rest. one-sided t-test
                 'is_significant': None, # only for the last key the list compare to the rest. one-sided t-test
                 'values': [],
             }
+            phase_stats_object['comparison_details'].add(key)
 
-        phase_stats_object['data'][key][phase][metric_name]['data'][detail_name]['values'].append(value)
+        detail_data[key]['values'].append(value)
+
+        # since we do not save the min/max values we need to to the comparison here in every loop again
+        # all other statistics are derived later in add_phase_stats_statistics()
+        detail_data[key]['max'] = max((x for x in [max_value, detail_data[key]['max']] if x is not None), default=None)
+        detail_data[key]['min'] = min((x for x in [min_value, detail_data[key]['min']] if x is not None), default=None)
+
+    phase_stats_object['comparison_details'] = list(phase_stats_object['comparison_details'])
 
     return phase_stats_object
 
@@ -582,72 +603,66 @@ def get_phase_stats_object(phase_stats, case):
 '''
     Here we need to traverse the object again and calculate all the averages we need
     This could have also been done while constructing the object through checking when a change
-    in phase / detail_name etc. occurs.
+    in phase / detail_name etc. occurs., however this is more efficient
 '''
 def add_phase_stats_statistics(phase_stats_object):
 
-    ## build per comparison key stats
-    for key in phase_stats_object['data']:
-        for phase, phase_data in phase_stats_object['data'][key].items():
-            for metric_name, metric in phase_data.items():
-                for detail_name, detail in metric['data'].items():
+    for _, phase_data in phase_stats_object['data'].items():
+        for _, metric in phase_data.items():
+            for _, detail in metric['data'].items():
+                for _, key_obj in detail['data'].items():
+
                     # if a detail has multiple values we calculate a std.dev and the one-sided t-test for the last value
 
-                    detail['mean'] = detail['values'][0] # default. might be overridden
+                    key_obj['mean'] = key_obj['values'][0] # default. might be overridden
+                    key_obj['max_mean'] = key_obj['values'][0] # default. might be overridden
+                    key_obj['min_mean'] = key_obj['values'][0] # default. might be overridden
 
-                    if len(detail['values']) > 1:
-                        t_stat = get_t_stat(len(detail['values']))
+                    if len(key_obj['values']) > 1:
+                        t_stat = get_t_stat(len(key_obj['values']))
 
                         # JSON does not recognize the numpy data types. Sometimes int64 is returned
-                        detail['mean'] = float(np.mean(detail['values']))
-                        detail['stddev'] = float(np.std(detail['values']))
-                        detail['max'] = float(np.max(detail['values'])) # overwrite with max of list
-                        detail['min'] = float(np.min(detail['values'])) # overwrite with min of list
-                        detail['ci'] = detail['stddev']*t_stat
+                        key_obj['mean'] = float(np.mean(key_obj['values']))
+                        key_obj['stddev'] = float(np.std(key_obj['values']))
+                        key_obj['max_mean'] = np.max(key_obj['values']) # overwrite with max of list
+                        key_obj['min_mean'] = np.min(key_obj['values']) # overwrite with min of list
+                        key_obj['ci'] = key_obj['stddev']*t_stat
 
-                        if len(detail['values']) > 2:
-                            data_c = detail['values'].copy()
+                        if len(key_obj['values']) > 2:
+                            data_c = key_obj['values'].copy()
                             pop_mean = data_c.pop()
                             _, p_value = scipy.stats.ttest_1samp(data_c, pop_mean)
                             if not np.isnan(p_value):
-                                detail['p_value'] = p_value
-                                if detail['p_value'] > 0.05:
-                                    detail['is_significant'] = False
+                                key_obj['p_value'] = p_value
+                                if key_obj['p_value'] > 0.05:
+                                    key_obj['is_significant'] = False
                                 else:
-                                    detail['is_significant'] = True
+                                    key_obj['is_significant'] = True
 
 
     ## builds stats between the keys
     if len(phase_stats_object['comparison_details']) == 2:
         # since we currently allow only two comparisons we hardcode this here
+        # this is then needed to rebuild if we would allow more
         key1 = phase_stats_object['comparison_details'][0]
         key2 = phase_stats_object['comparison_details'][1]
 
         # we need to traverse only one branch of the tree like structure, as we only need to compare matching metrics
-        for phase, phase_data in phase_stats_object['data'][key1].items():
-            phase_stats_object['statistics'][phase] = {}
-            for metric_name, metric in phase_data.items():
-                phase_stats_object['statistics'][phase][metric_name] = {}
-                for detail_name, detail in metric['data'].items():
-                    phase_stats_object['statistics'][phase][metric_name][detail_name] = {}
-                    try: # other metric or phase might not be present
-                        detail2 = phase_stats_object['data'][key2][phase][metric_name]['data'][detail_name]
-                    except KeyError:
+        for _, phase_data in phase_stats_object['data'].items():
+            for _, metric in phase_data.items():
+                for _, detail in metric['data'].items():
+                    if key1 not in detail['data'] or key2 not in detail['data']:
                         continue
-                    statistics_node = phase_stats_object['statistics'][phase][metric_name][detail_name]
 
                     # Welch-Test because we cannot assume equal variances
-                    _, p_value = scipy.stats.ttest_ind(detail['values'], detail2['values'], equal_var=False) #
+                    _, p_value = scipy.stats.ttest_ind(detail['data'][key1]['values'], detail['data'][key2]['values'], equal_var=False)
 
-                    if np.isnan(p_value):
-                        statistics_node['p_value'] = None
-                        statistics_node['is_significant'] = None
-                    else:
-                        statistics_node['p_value'] = p_value
-                        if statistics_node['p_value'] > 0.05:
-                            statistics_node['is_significant'] = False
+                    if not np.isnan(p_value):
+                        detail['p_value'] = p_value
+                        if detail['p_value'] > 0.05:
+                            detail['is_significant'] = False
                         else:
-                            statistics_node['is_significant'] = True
+                            detail['is_significant'] = True
 
     return phase_stats_object
 

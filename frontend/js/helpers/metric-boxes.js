@@ -184,16 +184,27 @@ customElements.define('phase-metrics', PhaseMetrics);
 /*
     TODO: Include one sided T-test?
 */
-const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, comparison_key)  => {
+const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, detail_data)  => {
     let max_value = ''
     if (detail_data.max != null) {
         let [max,max_unit] = convertValue(detail_data.max, metric_data.unit);
-        max_value = `${max} ${max_unit} (MAX)`;
+        max_value = `${max} ${max_unit}`;
     }
     let min_value = ''
     if (detail_data.min != null) {
         let [min,min_unit] = convertValue(detail_data.min, metric_data.unit);
-        min_value = `${min} ${min_unit} (MIN)`;
+        min_value = `${min} ${min_unit}`;
+    }
+
+    let max_mean_value = ''
+    if (detail_data.max_mean != null) {
+        let [max_mean,max_unit] = convertValue(detail_data.max_mean, metric_data.unit);
+        max_mean_value = `${max_mean} ${max_unit}`;
+    }
+    let min_mean_value = ''
+    if (detail_data.min_mean != null) {
+        let [min_mean,min_unit] = convertValue(detail_data.min_mean, metric_data.unit);
+        min_mean_value = `${min_mean} ${min_unit}`;
     }
 
 
@@ -211,19 +222,38 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, co
     let [value, unit] = convertValue(detail_data.mean, metric_data.unit);
 
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
-    tr.innerHTML = `
-        <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>
-        <td>${metric_data.source}</td>
-        <td>${scope}</td>
-        <td>${detail_data.name}</td>
-        <td>${value}</td>
-        <td>${unit}</td>
-        <td class="hide-for-single-stats">${std_dev_text_table}</td>
-        <td>${max_value}</td>
-        <td>${min_value}</td>`;
+
+    if(detail_data.stddev != null) {
+        tr.innerHTML = `
+            <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>
+            <td>${metric_data.source}</td>
+            <td>${scope}</td>
+            <td>${detail_name}</td>
+            <td>${metric_data.type}</td>
+            <td>${value}</td>
+            <td>${unit}</td>
+            <td>${std_dev_text_table}</td>
+            <td>${max_value}</td>
+            <td>${min_value}</td>
+            <td>${max_mean_value}</td>
+            <td>${min_mean_value}</td>`;
+
+    } else {
+        tr.innerHTML = `
+            <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>
+            <td>${metric_data.source}</td>
+            <td>${scope}</td>
+            <td>${detail_name}</td>
+            <td>${metric_data.type}</td>
+            <td>${value}</td>
+            <td>${unit}</td>
+            <td>${max_value}</td>
+            <td>${min_value}</td>`;
+    }
+
 
     updateKeyMetric(
-        phase, metric_name, metric_data.clean_name, detail_data.name,
+        phase, metric_name, metric_data.clean_name, detail_name,
         value , std_dev_text, unit,
         metric_data.explanation, metric_data.source
     );
@@ -233,18 +263,26 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_data, co
     This function assumes that detail_data has only two elements. For everything else we would need to
     calculate a trend / regression and not a simple comparison
 */
-const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array, comparison_key, is_significant)  => {
-    let extra_label = '';
-    if (is_significant == true) extra_label = 'Significant';
-    else extra_label = 'not significant / no-test';
+const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, detail_data_array, is_significant)  => {
 
     // no max, we use significant rather
+    let extra_label = 'not significant / no-test';
+    if (is_significant == true) extra_label = 'Significant';
 
-    // no value conversion, cause we just use relatives
-    let value = detail_data_array[0].mean == 0 ? 0: (((detail_data_array[1].mean - detail_data_array[0].mean)/detail_data_array[0].mean)*100).toFixed(2);
+    // TODO: Remove this guard clause once we want to support more than 2 compared items
+    if (detail_data_array.length > 2) throw "Comparions > 2 currently not implemented"
+
+    // no value conversion in this block, cause we just use relatives
+    let value = 'N/A';
+    if (detail_data_array[0] == 0 && detail_data_array[1] == 0) {
+        value = 0;
+    } else if (detail_data_array[0] == null || detail_data_array[1] == null) {
+        value = 'not comparable';
+    } else {
+       value = detail_data_array[0] == 0 ? 0: (((detail_data_array[1] - detail_data_array[0])/detail_data_array[0])*100).toFixed(2);
+    }
 
     let icon_color = 'positive';
-
     if (value > 0) {
         icon_color = 'error';
         value = `+ ${value} %`;
@@ -255,15 +293,16 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array
     let scope = metric_name.split('_')
     scope = scope[scope.length-1]
 
-    let [value_1, unit] = convertValue(detail_data_array[0].mean, metric_data.unit);
-    let [value_2, _] = convertValue(detail_data_array[1].mean, metric_data.unit);
+    let [value_1, unit] = convertValue(detail_data_array[0], metric_data.unit);
+    let [value_2, _] = convertValue(detail_data_array[1], metric_data.unit);
 
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
     tr.innerHTML = `
         <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>
         <td>${metric_data.source}</td>
         <td>${scope}</td>
-        <td>${detail_data_array[0].name}</td>
+        <td>${detail_name}</td>
+        <td>${metric_data.type}</td>
         <td>${value_1}</td>
         <td>${value_2}</td>
         <td>${unit}</td>
@@ -271,7 +310,7 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_data_array
         <td>${extra_label}</td>`;
 
     updateKeyMetric(
-        phase, metric_name, metric_data.clean_name, detail_data_array[0].name,
+        phase, metric_name, metric_data.clean_name, detail_name,
         value, '', metric_data.unit,
         metric_data.explanation, metric_data.source
     );
@@ -320,21 +359,21 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
 
     let selector = null;
     // key metrics are already there, cause we want a fixed order, so we just replace
-    if(metric.match(/^.*_energy_.*_machine$/) !== null) {
+    if(machine_energy_metric_condition(metric)) {
         selector = '.machine-energy';
-    } else if(metric == 'network_energy_formula_global') {
+    } else if(network_energy_metric_condition(metric)) {
         selector = '.network-energy';
-    } else if(metric == 'phase_time_syscall_system') {
+    } else if(phase_time_metric_condition(metric)) {
         selector = '.phase-duration';
-    } else if(metric == 'network_co2_formula_global') {
+    } else if(network_co2_metric_condition(metric)) {
         selector = '.network-co2';
-    } else if(metric == 'embodied_carbon_share_machine') {
+    } else if(embodied_carbon_share_metric_condition(metric)) {
         selector = '.embodied-carbon';
-    } else if(metric == 'software_carbon_intensity_global') {
+    } else if(sci_metric_condition(metric)) {
         selector = '.software-carbon-intensity';
-    } else if(metric.match(/^.*_power_.*_machine$/) !== null) {
+    } else if(machine_power_metric_condition(metric)) {
         selector = '.machine-power';
-    } else if(metric.match(/^.*_co2_.*_machine$/) !== null) {
+    } else if(machine_co2_metric_condition(metric)) {
         selector = '.machine-co2';
     } else {
         return; // could not match key metric
@@ -350,5 +389,3 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
     if (node !== null) node.innerText = source // not every key metric shall have a custom detail_name
 
 }
-
-

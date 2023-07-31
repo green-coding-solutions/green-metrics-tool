@@ -872,15 +872,15 @@ class Runner:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
 
-    def start_phase(self, phase):
+    def start_phase(self, phase, transition = True):
         config = GlobalConfig().config
-        print(TerminalColors.HEADER, f"\nStarting phase {phase}. Force-sleeping for {config['measurement']['phase-transition-time']}s", TerminalColors.ENDC)
+        print(TerminalColors.HEADER, f"\nStarting phase {phase}.", TerminalColors.ENDC)
 
-        self.custom_sleep(config['measurement']['phase-transition-time'])
-
-        print(TerminalColors.HEADER, '\nForce-sleep endeded. Checking if temperature is back to baseline ...', TerminalColors.ENDC)
-
-        # TODO. Check if temperature is back to baseline and put into best-practices section
+        if transition:
+            # The force-sleep must go and we must actually check for the temperature baseline
+            print(f"\nForce-sleeping for {config['measurement']['phase-transition-time']}s")
+            self.custom_sleep(config['measurement']['phase-transition-time'])
+            print(TerminalColors.HEADER, '\nChecking if temperature is back to baseline ...', TerminalColors.ENDC)
 
         phase_time = int(time.time_ns() / 1_000)
         self.__notes_helper.add_note({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
@@ -914,7 +914,7 @@ class Runner:
         for el in self._usage_scenario['flow']:
             print(TerminalColors.HEADER, '\nRunning flow: ', el['name'], TerminalColors.ENDC)
 
-            self.start_phase(el['name'].replace('[', '').replace(']',''))
+            self.start_phase(el['name'].replace('[', '').replace(']',''), transition=False)
 
             for inner_el in el['commands']:
                 if 'note' in inner_el:
