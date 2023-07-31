@@ -130,11 +130,9 @@ def build_and_store_phase_stats(project_id, sci=None):
         embodied_carbon_share_ug = decimal.Decimal(embodied_carbon_share_g * 1_000_000)
         csv_buffer.write(generate_csv_line(project_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 'ug'))
 
-        if machine_co2 is not None and sci is not None and sci.get('R', None) is not None:
-            if sci.get('R_d', None):
-                csv_buffer.write(generate_csv_line(project_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_co2 + embodied_carbon_share_ug), 'TOTAL', None, None, f"ugCO2e/{sci['R_d']}"))
-            else:
-                csv_buffer.write(generate_csv_line(project_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_co2 + embodied_carbon_share_ug) / sci['R'], 'TOTAL', None, None, f"ugCO2e/{sci['R_d']}"))
+        if phase['name'] == '[RUNTIME]' and machine_co2 is not None and sci is not None \
+                         and sci.get('R', None) is not None and sci['R'] != 0:
+            csv_buffer.write(generate_csv_line(project_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_co2 + embodied_carbon_share_ug) / sci['R'], 'TOTAL', None, None, f"ugCO2e/{sci['R_d']}"))
 
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning
