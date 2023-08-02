@@ -146,14 +146,28 @@ async def get_machines():
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/projects')
-async def get_projects():
+async def get_projects(repo: str, filename: str):
     query = """
             SELECT a.id, a.name, a.uri, COALESCE(a.branch, 'main / master'), a.end_measurement, a.last_run, a.invalid_project, a.filename, b.description, a.commit_hash
             FROM projects as a
             LEFT JOIN machines as b on a.machine_id = b.id
-            ORDER BY a.created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
+            WHERE 1=1
             """
-    data = DB().fetch_all(query)
+    params = []
+
+    filename = filename.strip()
+    if filename not in ('', 'null'):
+        query = f"{query} AND a.filename LIKE %s  \n"
+        params.append(f"%{filename}%")
+
+    repo = repo.strip()
+    if repo not in ('', 'null'):
+        query = f"{query} AND a.uri LIKE %s \n"
+        params.append(f"%{repo}%")
+
+    query = f"{query} ORDER BY a.created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!"
+
+    data = DB().fetch_all(query, params=tuple(params))
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
