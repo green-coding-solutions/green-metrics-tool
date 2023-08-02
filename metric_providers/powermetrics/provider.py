@@ -60,7 +60,8 @@ class PowermetricsProvider(BaseMetricProvider):
             time.sleep(1)
             count += 1
             if count >= 5:
-                raise RuntimeError('powermetrics is not stopping. Please kill with `kill -9 ...`.')
+                subprocess.check_output('sudo /usr/bin/killall -9 powermetrics', shell=True)
+                raise RuntimeError('powermetrics was stopped with kill -9. Values can not be trusted!')
 
         # We need to give the OS a second to flush
         time.sleep(1)
