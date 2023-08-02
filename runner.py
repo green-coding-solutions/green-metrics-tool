@@ -782,13 +782,19 @@ class Runner:
             ps = subprocess.run(
                 docker_run_string,
                 check=True,
-                stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
+                #stderr=subprocess.DEVNULL, // not setting will show in CLI
                 encoding='UTF-8'
             )
 
             container_id = ps.stdout.strip()
-            self.__containers[container_id] = container_name
+            self.__containers[container_id] = {
+                'name': container_name,
+                'log-stdout': service.get('log-stdout', False),
+                'log-stderr': service.get('log-stderr', True),
+                'read-sci-stdout': service.get('read-sci-stdout', False),
+            }
+
             print('Stdout:', container_id)
 
             if 'setup-commands' not in service:
@@ -1040,8 +1046,8 @@ class Runner:
                             self.__notes_helper.add_note({'note': note[1], 'detail_name': ps['detail_name'], 'timestamp': note[0]})
 
                     if ps['read-sci-stdout']:
-                        if match := re.match(r'GMT_SCI_R=(\d+)', line):
-                            self._sci['R'] += int(match[1])
+                        if match := re.findall(r'GMT_SCI_R=(\d+)', line):
+                            self._sci['R'] += int(match[0])
             if stderr:
                 stderr = stderr.splitlines()
                 for line in stderr:
@@ -1088,18 +1094,32 @@ class Runner:
 
     def read_container_logs(self):
         print(TerminalColors.HEADER, '\nCapturing container logs', TerminalColors.ENDC)
-        for container_name in self.__containers.values():
+        for container_id, container_info in self.__containers.items():
+
+            stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
+            if container_info['log-stdout'] is True:
+                stdout_behaviour = subprocess.PIPE
+            if container_info['log-stderr'] is True:
+                stderr_behaviour = subprocess.PIPE
+
+
             log = subprocess.run(
-                ['docker', 'logs', '-t', container_name],
+                ['docker', 'logs', '-t', container_id],
                 check=True,
                 encoding='UTF-8',
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=stdout_behaviour,
+                stderr=stderr_behaviour,
             )
+
             if log.stdout:
-                self.add_to_log(container_name, f"stdout: {log.stdout}")
+                self.add_to_log(container_id, f"stdout: {log.stdout}")
+                if container_info['read-sci-stdout']:
+                    for line in log.stdout.splitlines():
+                        if match := re.findall(r'GMT_SCI_R=(\d+)', line):
+                            self._sci['R'] += int(match[0])
+
             if log.stderr:
-                self.add_to_log(container_name, f"stderr: {log.stderr}")
+                self.add_to_log(container_id, f"stderr: {log.stderr}")
 
     def save_stdout_logs(self):
         print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
@@ -1122,8 +1142,8 @@ class Runner:
             metric_provider.stop_profiling()
 
         print('Stopping containers')
-        for container_name in self.__containers.values():
-            subprocess.run(['docker', 'rm', '-f', container_name], check=True, stderr=subprocess.DEVNULL)
+        for container_id in self.__containers:
+            subprocess.run(['docker', 'rm', '-f', container_id], check=True, stderr=subprocess.DEVNULL)
 
         print('Removing network')
         for network_name in self.__networks:
