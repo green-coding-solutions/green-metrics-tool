@@ -18,21 +18,21 @@ from packaging.version import parse
 
 from db import DB
 from global_config import GlobalConfig
-from metric_providers.base import MetricProviderConfigurationError
+from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-class NetworkConnectionsProxyContainerProvider:
-
+class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
     def __init__(self, host_ip=None):
-        self._metric_name = 'dockerproxy'
-        self._tmp_folder = '/tmp/green-metrics-tool'
+        super().__init__(
+            metric_name="network_connections_proxy_container_dockerproxy",
+            metrics=None,
+            resolution=None,
+            unit=None,
+            current_dir=os.path.dirname(os.path.abspath(__file__)),
+        )
         self._conf_file = f"{CURRENT_DIR}/proxy_conf.conf"
         self._filename = f"{self._tmp_folder}/proxy.log"
-        self._ps = None
         self._host_ip = host_ip
-        self._has_started = False
-
-        Path(self._tmp_folder).mkdir(exist_ok=True)
 
     # This needs to be static as we want to check the system before we initialise all the providers
     def check_system(self):
@@ -44,11 +44,6 @@ class NetworkConnectionsProxyContainerProvider:
 
         raise MetricProviderConfigurationError('Tinyproxy needs to be version 1.11 or greater.')
 
-    def has_started(self):
-        return self._has_started
-
-    def get_stderr(self):
-        return self._ps.stderr.read()
 
     def get_docker_params(self):
 
@@ -117,30 +112,3 @@ class NetworkConnectionsProxyContainerProvider:
         # set_block False enables non-blocking reads on stderr.read(). Otherwise it would wait forever on empty
         os.set_blocking(self._ps.stderr.fileno(), False)
         self._has_started = True
-
-    def stop_profiling(self, *_):
-        if self._ps is None:
-            return
-        try:
-            print(f"Killing process with id: {self._ps.pid}")
-            ps_group_id = os.getpgid(self._ps.pid)
-            print(f" and process group {ps_group_id}")
-            os.killpg(ps_group_id, signal.SIGTERM)
-            try:
-                self._ps.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                # If the process hasn't gracefully exited after 5 seconds we kill it
-                os.killpg(ps_group_id, signal.SIGKILL)
-
-        except ProcessLookupError:
-            print(f"Could not find process-group for {self._ps.pid}",
-                    file=sys.stderr)  # process/-group may have already closed
-
-        self._ps = None
-
-if __name__ == "__main__":
-    pp = ProxyMetricsProvider()
-    pp.start_profiling()
-    time.sleep(10)
-    pp.stop_profiling()
-    pp.read_metrics()

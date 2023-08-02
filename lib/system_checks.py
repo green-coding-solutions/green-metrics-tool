@@ -53,13 +53,6 @@ def check_free_disk_90(_):
 def check_free_disk_95(_):
     return check_free_disk(95)
 
-def check_temperature(_):
-    for _, temp_info in psutil.sensors_temperatures().items():
-        for entry in temp_info:
-            if entry.current and entry.high:
-                if entry.current > entry.high:
-                    return False
-
 def check_free_memory(_):
     if psutil.virtual_memory().percent >= 70:
         return False
@@ -73,7 +66,6 @@ checks = [
     (check_free_disk_80, Status.INFO, '80% free disk space', 'We recommend to free up some disk space'),
     (check_free_disk_90, Status.WARN, '90% free disk space', 'We recommend to free up some disk space!!!!!!!'),
     (check_free_disk_95, Status.ERROR, '95% free disk space', 'No free disk space left. Please clean up some files'),
-    (check_temperature, Status.WARN, 'high system temperature', 'System temperature is high. Measurement results may vary!'),
     (check_free_memory, Status.ERROR, '80% free memory', 'No free memory! Please kill some programs'),
 
 ]
