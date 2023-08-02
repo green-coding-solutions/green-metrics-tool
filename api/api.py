@@ -8,6 +8,7 @@ import faulthandler
 import sys
 import os
 
+from xml.sax.saxutils import escape as xml_escape
 from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -30,7 +31,6 @@ import anybadge
 from api_helpers import (add_phase_stats_statistics, determine_comparison_case,
                          sanitize, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value)
-
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic
@@ -335,8 +335,8 @@ async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
         badge_value= f"{energy_value:.2f} {energy_unit} {via}"
 
     badge = anybadge.Badge(
-        label=label,
-        value=badge_value,
+        label=xml_escape(label),
+        value=xml_escape(badge_value),
         num_value_padding_chars=1,
         default_color='cornflowerblue')
     return Response(content=str(badge), media_type="image/svg+xml")
@@ -538,7 +538,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
 
     badge = anybadge.Badge(
         label='Energy Used',
-        value=badge_value,
+        value=xml_escape(badge_value),
         num_value_padding_chars=1,
         default_color='green')
     return Response(content=str(badge), media_type="image/svg+xml")
