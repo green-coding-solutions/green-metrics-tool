@@ -102,5 +102,8 @@ print_message "Building / Updating docker containers"
 docker compose -f docker/compose.yml down
 docker compose -f docker/compose.yml build
 
+print_message "Updating python requirements"
+python3 -m pip install -r requirements.txt
+
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
