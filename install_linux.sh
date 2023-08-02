@@ -101,12 +101,12 @@ sed -i -e "s|__METRICS_URL__|$metrics_url|" frontend/js/helpers/config.js
 print_message "Checking out further git submodules ..."
 git submodule update --init
 
-sudo apt-get update
 
 print_message "Installing needed binaries for building ..."
 if lsb_release -is | grep -q "Fedora"; then
     sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy
 else
+    sudo apt-get update
     sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy
 fi
 

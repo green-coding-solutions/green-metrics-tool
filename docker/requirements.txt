@@ -1,9 +1,13 @@
+gunicorn==21.2.0
 psycopg[binary]==3.1.9
 fastapi==0.100.1
+uvicorn[standard]==0.23.2
 pandas==2.0.3
 PyYAML==6.0.1
 anybadge==1.14.0
-scipy==1.11.1
+uvicorn==0.23.2
 orjson==3.9.2
 pyserial==3.5
 psutil==5.9.5
+scipy==1.11.1
+schema==0.7.5
