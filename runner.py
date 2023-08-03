@@ -59,6 +59,9 @@ def arrows(text):
 def join_paths(path, path2, mode=None):
     filename = os.path.realpath(os.path.join(path, path2))
 
+    # If the original path is a symlink we need to resolve it.
+    path = os.path.realpath(path)
+
     # This is a special case in which the file is '.'
     if filename == path.rstrip('/'):
         return filename
