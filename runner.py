@@ -1036,8 +1036,7 @@ class Runner:
                 stderr = ps['ps'].stderr
 
             if stdout:
-                stdout = stdout.splitlines()
-                for line in stdout:
+                for line in stdout.splitlines():
                     print('stdout from process:', ps['cmd'], line)
                     self.add_to_log(ps['container_name'], f"stdout: {line}", ps['cmd'])
 
