@@ -104,7 +104,7 @@ def build_and_store_phase_stats(project_id, sci=None):
                 csv_buffer.write(generate_csv_line(project_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_sum, 'MEAN', power_max, power_min, 'mW'))
 
                 if metric.endswith('_machine'):
-                    machine_co2 = (value_sum / 3_600) * config['gsf-sci']['I']
+                    machine_co2 = (value_sum / 3_600) * config['sci']['I']
                     csv_buffer.write(generate_csv_line(project_id, f"{metric.replace('_energy_', '_co2_')}", detail_name, f"{idx:03}_{phase['name']}", machine_co2, 'TOTAL', None, None, 'ug'))
 
 
@@ -119,14 +119,14 @@ def build_and_store_phase_stats(project_id, sci=None):
             network_io_in_mJ = network_io_in_kWh * 3_600_000_000
             csv_buffer.write(generate_csv_line(project_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_mJ, 'TOTAL', None, None, 'mJ'))
             # co2 calculations
-            network_io_co2_in_ug = network_io_in_kWh * config['gsf-sci']['I'] * 1_000_000
+            network_io_co2_in_ug = network_io_in_kWh * config['sci']['I'] * 1_000_000
             csv_buffer.write(generate_csv_line(project_id, 'network_co2_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_co2_in_ug, 'TOTAL', None, None, 'ug'))
 
         duration = phase['end']-phase['start']
         csv_buffer.write(generate_csv_line(project_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", duration, 'TOTAL', None, None, 'us'))
 
         duration_in_years = duration / (1_000_000 * 60 * 60 * 24 * 365)
-        embodied_carbon_share_g = (duration_in_years / (config['gsf-sci']['EL']) ) * config['gsf-sci']['TE'] * config['gsf-sci']['RS']
+        embodied_carbon_share_g = (duration_in_years / (config['sci']['EL']) ) * config['sci']['TE'] * config['sci']['RS']
         embodied_carbon_share_ug = decimal.Decimal(embodied_carbon_share_g * 1_000_000)
         csv_buffer.write(generate_csv_line(project_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 'ug'))
 

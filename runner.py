@@ -462,6 +462,9 @@ class Runner:
             machine_specs.update(machine_specs_root)
 
 
+        keys = ["measurement", "sci"]
+        measurement_config = {key: config.get(key, None) for key in keys}
+
         # Insert auxilary info for the run. Not critical.
         DB().query("""
             UPDATE projects
@@ -472,7 +475,7 @@ class Runner:
             """, params=(
             config['machine']['id'],
             escape(json.dumps(machine_specs), quote=False),
-            json.dumps(config['measurement']),
+            json.dumps(measurement_config),
             escape(json.dumps(self._usage_scenario), quote=False),
             self._original_filename,
             gmt_hash,

@@ -123,7 +123,7 @@ measurement:
   #--- END
 
 
-gsf-sci:
+sci:
     # https://github.com/Green-Software-Foundation/sci/blob/main/Software_Carbon_Intensity/Software_Carbon_Intensity_Specification.md
 
     # The values specific to the machine will be set here. The values that are specific to the
