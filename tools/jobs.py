@@ -2,6 +2,7 @@
 import sys
 import os
 import faulthandler
+import datetime
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
@@ -164,7 +165,7 @@ if __name__ == '__main__':
     try:
         job = get_job(args.type)
         if (job is None or job == []):
-            print('No job to process. Exiting')
+            print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'No job to process. Exiting')
             sys.exit(0)
         p_id = job[2]
         process_job(job[0], job[1], job[2], args.skip_config_check, args.docker_prune, args.full_docker_prune)
