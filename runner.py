@@ -345,6 +345,15 @@ class Runner:
                 del yml_obj['compose-file']
 
             yml_obj.update(new_dict)
+
+            # If a service is defined as None we remove it. This is so we can have a compose file that starts
+            # all the various services but we can disable them in the usage_scenario. This is quite useful when
+            # creating benchmarking scripts and you want to have all options in the compose but not in each benchmark.
+            # The cleaner way would be to handle an empty service key throughout the code but would make it quite messy
+            # so we chose to remove it right at the start.
+            for key in [sname for sname, content in yml_obj['services'].items() if content is None]:
+                del yml_obj['services'][key]
+
             self._usage_scenario = yml_obj
 
     def initial_parse(self):
