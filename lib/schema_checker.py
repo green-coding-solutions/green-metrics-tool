@@ -90,7 +90,7 @@ class SchemaChecker():
                     Optional("volumes"): self.single_or_list(str),
                     Optional("folder-destination"):str,
                     Optional("cmd"): str,
-                },
+                }
             },
 
             "flow": [{
