@@ -2,7 +2,7 @@
 import sys
 import os
 import faulthandler
-import datetime
+from datetime import datetime
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
