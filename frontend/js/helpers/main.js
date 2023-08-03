@@ -82,6 +82,18 @@ const dateToYMD = (date, short=false) => {
     return ` ${date.getFullYear()}-${month}-${day} <br> ${hours}:${minutes} UTC${offset}`;
 }
 
+const escapeString = (string) =>{
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;'
+    };
+    const reg = /[&<>"']/ig;
+    return string.replace(reg, (match) => map[match]);
+  }
+
 async function makeAPICall(path, values=null) {
 
     if(values != null ) {
