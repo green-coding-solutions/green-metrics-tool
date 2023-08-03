@@ -135,6 +135,7 @@ async def get_machines():
     query = """
             SELECT id, description
             FROM machines
+            WHERE available = True
             ORDER BY description ASC
             """
     data = DB().fetch_all(query)
