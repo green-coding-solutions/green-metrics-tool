@@ -80,7 +80,7 @@ class SchemaChecker():
             },
 
             Optional("services"): {
-                Use(self.contains_no_invalid_chars): Or (None, {
+                Use(self.contains_no_invalid_chars): {
                     Optional("type"): Use(self.valid_service_types),
                     Optional("image"): str,
                     Optional("networks"): self.single_or_list(Use(self.contains_no_invalid_chars)),
@@ -90,7 +90,7 @@ class SchemaChecker():
                     Optional("volumes"): self.single_or_list(str),
                     Optional("folder-destination"):str,
                     Optional("cmd"): str,
-                }, ignore_extra_keys=True)
+                },
             },
 
             "flow": [{
