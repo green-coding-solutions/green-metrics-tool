@@ -8,6 +8,7 @@ import faulthandler
 import sys
 import os
 
+from xml.sax.saxutils import escape as xml_escape
 from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -30,7 +31,6 @@ import anybadge
 from api_helpers import (add_phase_stats_statistics, determine_comparison_case,
                          sanitize, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value)
-
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic
@@ -152,7 +152,7 @@ async def get_network(project_id):
 @app.get('/v1/machines/')
 async def get_machines():
     query = """
-            SELECT id, description
+            SELECT id, description, available
             FROM machines
             ORDER BY description ASC
             """
@@ -165,14 +165,28 @@ async def get_machines():
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/projects')
-async def get_projects():
+async def get_projects(repo: str, filename: str):
     query = """
             SELECT a.id, a.name, a.uri, COALESCE(a.branch, 'main / master'), a.end_measurement, a.last_run, a.invalid_project, a.filename, b.description, a.commit_hash
             FROM projects as a
             LEFT JOIN machines as b on a.machine_id = b.id
-            ORDER BY a.created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
+            WHERE 1=1
             """
-    data = DB().fetch_all(query)
+    params = []
+
+    filename = filename.strip()
+    if filename not in ('', 'null'):
+        query = f"{query} AND a.filename LIKE %s  \n"
+        params.append(f"%{filename}%")
+
+    repo = repo.strip()
+    if repo not in ('', 'null'):
+        query = f"{query} AND a.uri LIKE %s \n"
+        params.append(f"%{repo}%")
+
+    query = f"{query} ORDER BY a.created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!"
+
+    data = DB().fetch_all(query, params=tuple(params))
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
@@ -316,42 +330,46 @@ async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
         return ORJSONResponse({'success': False, 'err': 'Project ID is not a valid UUID or empty'}, status_code=400)
 
     query = '''
-        WITH times AS (
-            SELECT start_measurement, end_measurement FROM projects WHERE id = %s
-        ) SELECT
-            (SELECT start_measurement FROM times), (SELECT end_measurement FROM times),
-            SUM(measurements.value), measurements.unit
-        FROM measurements
+        SELECT
+            SUM(value), MAX(unit)
+        FROM
+            phase_stats
         WHERE
-            measurements.project_id = %s
-            AND measurements.time >= (SELECT start_measurement FROM times)
-            AND measurements.time <= (SELECT end_measurement FROM times)
-            AND measurements.metric LIKE %s
-        GROUP BY measurements.unit
+            project_id = %s
+            AND metric LIKE %s
+            AND phase LIKE '%%_[RUNTIME]'
     '''
 
     value = None
+    label = 'Energy Cost'
+    via = ''
     if metric == 'ml-estimated':
         value = 'psu_energy_ac_xgboost_machine'
+        via = 'via XGBoost ML'
     elif metric == 'RAPL':
-        value = '%_rapl_%'
+        value = '%_energy_rapl_%'
+        via = 'via RAPL'
     elif metric == 'AC':
         value = 'psu_energy_ac_%'
+        via = 'via PSU (AC)'
+    elif metric == 'SCI':
+        label = 'SCI'
+        value = 'software_carbon_intensity_global'
     else:
         return ORJSONResponse({'success': False, 'err': f"Unknown metric '{metric}' submitted"}, status_code=400)
 
-    params = (project_id, project_id, value)
+    params = (project_id, value)
     data = DB().fetch_one(query, params=params)
 
-    if data is None or data == []:
+    if data is None or data == [] or not data[1] :
         badge_value = 'No energy data yet'
     else:
-        [energy_value, energy_unit] = rescale_energy_value(data[2], data[3])
-        badge_value= f"{energy_value:.2f} {energy_unit} via {metric}"
+        [energy_value, energy_unit] = rescale_energy_value(data[0], data[1])
+        badge_value= f"{energy_value:.2f} {energy_unit} {via}"
 
     badge = anybadge.Badge(
-        label='Energy cost',
-        value=badge_value,
+        label=xml_escape(label),
+        value=xml_escape(badge_value),
         num_value_padding_chars=1,
         default_color='cornflowerblue')
     return Response(content=str(badge), media_type="image/svg+xml")
@@ -553,7 +571,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
 
     badge = anybadge.Badge(
         label='Energy Used',
-        value=badge_value,
+        value=xml_escape(badge_value),
         num_value_padding_chars=1,
         default_color='green')
     return Response(content=str(badge), media_type="image/svg+xml")

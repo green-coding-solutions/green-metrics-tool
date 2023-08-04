@@ -2,6 +2,7 @@
 import sys
 import os
 import faulthandler
+from datetime import datetime
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
@@ -125,7 +126,7 @@ def _do_project_job(job_id, project_id, skip_system_checks=False, docker_prune=F
     try:
         # Start main code. Only URL is allowed for cron jobs
         runner.run()
-        build_and_store_phase_stats(project_id)
+        build_and_store_phase_stats(project_id, runner._sci)
         insert_job('email', project_id=project_id)
         delete_job(job_id)
     except Exception as exc:
@@ -163,7 +164,7 @@ if __name__ == '__main__':
     try:
         job = get_job(args.type)
         if (job is None or job == []):
-            print('No job to process. Exiting')
+            print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'No job to process. Exiting')
             sys.exit(0)
         p_id = job[2]
         process_job(job[0], job[1], job[2], args.skip_system_checks, args.docker_prune, args.full_docker_prune)

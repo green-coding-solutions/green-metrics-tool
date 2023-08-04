@@ -9,6 +9,7 @@ jobs:
     permissions:
       packages: write
       contents: read
+      pull-requests: write
     steps:
       - name: 'Checkout repository'
         uses: actions/checkout@v3
@@ -38,6 +39,5 @@ jobs:
         with:
           task: display-results
           branch: main
+          pr-comment: true
         
-
-
