@@ -139,6 +139,25 @@ class PhaseMetrics extends HTMLElement {
                     </div>
                 </div>
             </div>
+            <div class="ui card software-carbon-intensity">
+                <div class="ui content">
+                    <div class="ui top black attached label overflow-ellipsis">SCI</sub> <span class="si-unit"></span></div>
+                    <div class="description">
+                        <div class="ui fluid mini statistic">
+                            <div class="value">
+                                <i class="burn icon"></i> <span>N/A</span>
+                            </div>
+                        </div>
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="SCI by the Green Software Foundation">
+                            <u><a href="https://sci-guide.greensoftware.foundation/">via Formula</a></u>
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div><!-- end ui three cards stackable -->
         <br>
         <div class="ui accordion">
@@ -348,6 +367,10 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
         selector = '.phase-duration';
     } else if(network_co2_metric_condition(metric)) {
         selector = '.network-co2';
+    } else if(embodied_carbon_share_metric_condition(metric)) {
+        selector = '.embodied-carbon';
+    } else if(sci_metric_condition(metric)) {
+        selector = '.software-carbon-intensity';
     } else if(machine_power_metric_condition(metric)) {
         selector = '.machine-power';
     } else if(machine_co2_metric_condition(metric)) {
@@ -360,7 +383,7 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerText = `${(value)} ${std_dev_text}`
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .si-unit`).innerText = `[${unit}]`
     if(std_dev_text != '') document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(AVG + STD.DEV)`;
-    else if(value.indexOf('%') !== -1) document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(Diff. in %)`;
+    else if(String(value).indexOf('%') !== -1) document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(Diff. in %)`;
 
     node = document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .source`)
     if (node !== null) node.innerText = source // not every key metric shall have a custom detail_name

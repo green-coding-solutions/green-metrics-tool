@@ -160,6 +160,7 @@ a,
     text-overflow: ellipsis;
     overflow-wrap: normal;
     overflow: hidden;
+    white-space: nowrap;
 }
 
 .si-unit {

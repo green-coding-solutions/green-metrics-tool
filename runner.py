@@ -121,6 +121,8 @@ class Runner:
         self._tmp_folder = '/tmp/green-metrics-tool'
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
+        self._sci = {'R_d': None, 'R': 0}
+
 
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
@@ -157,6 +159,8 @@ class Runner:
         self.__notes_helper.save_to_db(self._project_id)
 
     def check_configuration(self):
+        print(TerminalColors.HEADER, '\nStarting configuration check', TerminalColors.ENDC)
+
         if self._skip_config_check:
             print("Configuration check skipped")
             return
@@ -183,6 +187,7 @@ class Runner:
             )
 
     def checkout_repository(self):
+        print(TerminalColors.HEADER, '\nChecking out repository', TerminalColors.ENDC)
 
         if self._uri_type == 'URL':
             # always remove the folder if URL provided, cause -v directory binding always creates it
@@ -368,6 +373,8 @@ class Runner:
         if self._usage_scenario.get('architecture') is not None and self._architecture != self._usage_scenario['architecture'].lower():
             raise RuntimeError(f"Specified architecture does not match system architecture: system ({self._architecture}) != specified ({self._usage_scenario.get('architecture')})")
 
+        self._sci['R_d'] = self._usage_scenario.get('sci', {}).get('R_d', None)
+
     def check_running_containers(self):
         result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
                                 stdout=subprocess.PIPE,
@@ -467,6 +474,9 @@ class Runner:
             machine_specs.update(machine_specs_root)
 
 
+        keys = ["measurement", "sci"]
+        measurement_config = {key: config.get(key, None) for key in keys}
+
         # Insert auxilary info for the run. Not critical.
         DB().query("""
             UPDATE projects
@@ -477,7 +487,7 @@ class Runner:
             """, params=(
             config['machine']['id'],
             escape(json.dumps(machine_specs), quote=False),
-            json.dumps(config['measurement']),
+            json.dumps(measurement_config),
             escape(json.dumps(self._usage_scenario), quote=False),
             self._original_filename,
             gmt_hash,
@@ -787,13 +797,19 @@ class Runner:
             ps = subprocess.run(
                 docker_run_string,
                 check=True,
-                stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
+                #stderr=subprocess.DEVNULL, // not setting will show in CLI
                 encoding='UTF-8'
             )
 
             container_id = ps.stdout.strip()
-            self.__containers[container_id] = container_name
+            self.__containers[container_id] = {
+                'name': container_name,
+                'log-stdout': service.get('log-stdout', False),
+                'log-stderr': service.get('log-stderr', True),
+                'read-sci-stdout': service.get('read-sci-stdout', False),
+            }
+
             print('Stdout:', container_id)
 
             if 'setup-commands' not in service:
@@ -983,6 +999,7 @@ class Runner:
                         'container_name': el['container'],
                         'read-notes-stdout': inner_el.get('read-notes-stdout', False),
                         'ignore-errors': inner_el.get('ignore-errors', False),
+                        'read-sci-stdout': inner_el.get('read-sci-stdout', False),
                         'detail_name': el['container'],
                         'detach': inner_el.get('detach', False),
                     })
@@ -1034,14 +1051,17 @@ class Runner:
                 stderr = ps['ps'].stderr
 
             if stdout:
-                stdout = stdout.splitlines()
-                for line in stdout:
+                for line in stdout.splitlines():
                     print('stdout from process:', ps['cmd'], line)
                     self.add_to_log(ps['container_name'], f"stdout: {line}", ps['cmd'])
 
                     if ps['read-notes-stdout']:
                         if note := self.__notes_helper.parse_note(line):
                             self.__notes_helper.add_note({'note': note[1], 'detail_name': ps['detail_name'], 'timestamp': note[0]})
+
+                    if ps['read-sci-stdout']:
+                        if match := re.findall(r'GMT_SCI_R=(\d+)', line):
+                            self._sci['R'] += int(match[0])
             if stderr:
                 stderr = stderr.splitlines()
                 for line in stderr:
@@ -1088,18 +1108,32 @@ class Runner:
 
     def read_container_logs(self):
         print(TerminalColors.HEADER, '\nCapturing container logs', TerminalColors.ENDC)
-        for container_name in self.__containers.values():
+        for container_id, container_info in self.__containers.items():
+
+            stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
+            if container_info['log-stdout'] is True:
+                stdout_behaviour = subprocess.PIPE
+            if container_info['log-stderr'] is True:
+                stderr_behaviour = subprocess.PIPE
+
+
             log = subprocess.run(
-                ['docker', 'logs', '-t', container_name],
+                ['docker', 'logs', '-t', container_id],
                 check=True,
                 encoding='UTF-8',
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=stdout_behaviour,
+                stderr=stderr_behaviour,
             )
+
             if log.stdout:
-                self.add_to_log(container_name, f"stdout: {log.stdout}")
+                self.add_to_log(container_id, f"stdout: {log.stdout}")
+                if container_info['read-sci-stdout']:
+                    for line in log.stdout.splitlines():
+                        if match := re.findall(r'GMT_SCI_R=(\d+)', line):
+                            self._sci['R'] += int(match[0])
+
             if log.stderr:
-                self.add_to_log(container_name, f"stderr: {log.stderr}")
+                self.add_to_log(container_id, f"stderr: {log.stderr}")
 
     def save_stdout_logs(self):
         print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
@@ -1122,8 +1156,8 @@ class Runner:
             metric_provider.stop_profiling()
 
         print('Stopping containers')
-        for container_name in self.__containers.values():
-            subprocess.run(['docker', 'rm', '-f', container_name], check=True, stderr=subprocess.DEVNULL)
+        for container_id in self.__containers:
+            subprocess.run(['docker', 'rm', '-f', container_id], check=True, stderr=subprocess.DEVNULL)
 
         print('Removing network')
         for network_name in self.__networks:
@@ -1379,7 +1413,7 @@ if __name__ == '__main__':
         # get all the metrics from the measurements table grouped by metric
         # loop over them issueing separate queries to the DB
         from phase_stats import build_and_store_phase_stats
-        build_and_store_phase_stats(project_id)
+        build_and_store_phase_stats(project_id, runner._sci)
 
 
         print(TerminalColors.OKGREEN,'\n\n####################################################################################')

@@ -61,3 +61,14 @@ const machine_energy_metric_condition = (metric) => {
     if(metric.match(/^.*_energy_.*_machine$/) !== null) return true;
     return false;
 }
+
+const sci_metric_condition = (metric) => {
+    if(metric == 'software_carbon_intensity_global') return true;
+    return false;
+}
+
+const embodied_carbon_share_metric_condition = (metric) => {
+    if(metric == 'embodied_carbon_share_machine') return true;
+    return false;
+}
+
