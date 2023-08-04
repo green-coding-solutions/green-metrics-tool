@@ -33,19 +33,26 @@ class GMTMenu extends HTMLElement {
 customElements.define('gmt-menu', GMTMenu);
 
 const replaceRepoIcon = (uri) => {
-    const replacements = [
-      { pattern: /^https:\/\/(www\.)?github\.com/, replacement: '<i class="icon github"></i>' },
-      { pattern: /^https:\/\/(www\.)?bitbucket\.com/, replacement: '<i class="icon bitbucket"></i>' },
-      { pattern: /^https:\/\/(www\.)?gitlab\.com/, replacement: '<i class="icon gitlab"></i>' }
-    ];
+  const url = new URL(uri);
+  let iconClass = "";
 
-    for (const { pattern, replacement } of replacements) {
-      if (pattern.test(uri)) {
-        return uri.replace(pattern, replacement);
-      }
-    }
-
-    return uri;
+  switch (url.host) {
+    case "github.com":
+    case "www.github.com":
+      iconClass = "github";
+      break;
+    case "bitbucket.com":
+    case "www.bitbucket.com":
+      iconClass = "bitbucket";
+      break;
+    case "gitlab.com":
+    case "www.gitlab.com":
+      iconClass = "gitlab";
+      break;
+    default:
+      return uri;
+  }
+  return `<i class="icon ${iconClass}"></i>` + uri.substring(url.origin.length);
 };
 
 const showNotification = (message_title, message_text, type='warning') => {
