@@ -133,9 +133,8 @@ async def get_notes(project_id):
 @app.get('/v1/machines/')
 async def get_machines():
     query = """
-            SELECT id, description
+            SELECT id, description, available
             FROM machines
-            WHERE available = True
             ORDER BY description ASC
             """
     data = DB().fetch_all(query)
