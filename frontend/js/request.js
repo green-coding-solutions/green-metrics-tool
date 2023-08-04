@@ -3,6 +3,7 @@
         var machines_json = await makeAPICall('/v1/machines/');
 
         machines_json.data.forEach(machine => {
+                if(machine[2] == false) return;
                 let newOption = new Option(machine[1],machine[0]);
                 const select = document.querySelector('select');
                 select.add(newOption,undefined);
