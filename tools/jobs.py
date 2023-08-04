@@ -126,7 +126,7 @@ def _do_project_job(job_id, project_id, skip_config_check=False, docker_prune=Fa
     try:
         # Start main code. Only URL is allowed for cron jobs
         runner.run()
-        build_and_store_phase_stats(project_id)
+        build_and_store_phase_stats(project_id, runner._sci)
         insert_job('email', project_id=project_id)
         delete_job(job_id)
     except Exception as exc:

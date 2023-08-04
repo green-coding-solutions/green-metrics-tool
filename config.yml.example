@@ -27,6 +27,7 @@ admin:
   notify_admin_for_own_project_ready: False
 
 
+
 cluster:
   api_url: __API_URL__
   metrics_url: __METRICS_URL__
@@ -120,3 +121,31 @@ measurement:
 #        HW_MemAmountGB: 16
 #        Hardware_Availability_Year: 2011
   #--- END
+
+
+sci:
+    # https://github.com/Green-Software-Foundation/sci/blob/main/Software_Carbon_Intensity/Software_Carbon_Intensity_Specification.md
+
+    # The values specific to the machine will be set here. The values that are specific to the
+    # software, like R – Functional unit, will be set in the usage_scenario.yml
+
+    # EL Expected Lifespan; the anticipated time that the equipment will be installed. Value is in years
+    # The number 3.5 comes from a typical developer machine (Apple Macbook 16" 2023 - https://dataviz.boavizta.org/manufacturerdata?lifetime=3.5&name=14-inch%20MacBook%20Pro%20with%2064GB)
+    EL: 3.5
+    # RS Resource-share; the share of the total available resources of the hardware reserved for use by the software.
+    # This ratio is typically 1 with the Green Metrics Tool unless you use a custom distributed orchestrator
+    RS: 1
+    # TE Total Embodied Emissions; the sum of Life Cycle Assessment (LCA) emissions for all hardware components.
+    # Value is in gCO2eq
+    # The value has to be identified from vendor datasheets. Here are some example sources:
+    # https://dataviz.boavizta.org/manufacturerdata
+    # https://tco.exploresurface.com/sustainability/calculator
+    # https://www.delltechnologies.com/asset/en-us/products/servers/technical-support/Full_LCA_Dell_R740.pdf
+    # The default is the value for a developer machine (Apple Macbook 16" 2023 - https://dataviz.boavizta.org/manufacturerdata?lifetime=3.5&name=14-inch%20MacBook%20Pro%20with%2064GB)
+    TE: 194000
+    # I is the Carbon Intensity at the location of this machine
+    # The value can either be a number in gCO2e/kWh or a carbon intensity provider that fetches this number dynamically
+    # https://docs.green-coding.berlin/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/
+    # For fixed values get the number from https://ember-climate.org/insights/research/global-electricity-review-2022/
+    # The number 475 that comes as default is for Germany from 2022
+    I: 475
