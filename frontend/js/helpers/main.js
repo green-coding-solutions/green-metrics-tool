@@ -33,9 +33,12 @@ class GMTMenu extends HTMLElement {
 customElements.define('gmt-menu', GMTMenu);
 
 const replaceRepoIcon = (uri) => {
-  const url = new URL(uri);
-  let iconClass = "";
 
+  if(!uri.startsWith('http')) return uri; // ignore filesystem paths
+
+  const url = new URL(uri);
+
+  let iconClass = "";
   switch (url.host) {
     case "github.com":
     case "www.github.com":
