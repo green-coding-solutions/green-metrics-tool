@@ -95,6 +95,7 @@ const dateToYMD = (date, short=false) => {
 }
 
 const escapeString = (string) =>{
+    let my_string = String(string)
     const map = {
       '&': '&amp;',
       '<': '&lt;',
@@ -103,7 +104,7 @@ const escapeString = (string) =>{
       "'": '&#x27;'
     };
     const reg = /[&<>"']/ig;
-    return string.replace(reg, (match) => map[match]);
+    return my_string.replace(reg, (match) => map[match]);
   }
 
 async function makeAPICall(path, values=null) {
