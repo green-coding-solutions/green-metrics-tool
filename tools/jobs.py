@@ -132,6 +132,20 @@ def _do_project_job(job_id, project_id, skip_config_check=False, docker_prune=Fa
     except Exception as exc:
         raise exc
 
+# pylint: disable=redefined-outer-name
+def handle_job_exception(exce, p_id):
+    project_name = None
+    client_mail = None
+    if p_id:
+        [project_name, _, client_mail, _, _] = get_project(p_id)
+
+    error_helpers.log_error('Base exception occurred in jobs.py: ', exce)
+    email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
+        'Base exception occurred in jobs.py: ', exce), project_id=p_id, name=project_name)
+
+    # reduced error message to client
+    if client_mail and GlobalConfig().config['admin']['email'] != client_mail:
+        email_helpers.send_error_email(client_mail, exce, project_id=p_id, name=project_name)
 
 if __name__ == '__main__':
     #pylint: disable=broad-except,invalid-name
@@ -171,15 +185,4 @@ if __name__ == '__main__':
         process_job(job[0], job[1], job[2], args.skip_config_check, args.docker_prune, args.full_docker_prune)
         print('Successfully processed jobs queue item.')
     except Exception as exce:
-        project_name = None
-        client_mail = None
-        if p_id:
-            [project_name, _, client_mail, _, _] = get_project(p_id)
-
-        error_helpers.log_error('Base exception occurred in jobs.py: ', exce)
-        email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
-            'Base exception occurred in jobs.py: ', exce), project_id=p_id, name=project_name)
-
-        # reduced error message to client
-        if client_mail and GlobalConfig().config['admin']['email'] != client_mail:
-            email_helpers.send_error_email(client_mail, exce, project_id=p_id, name=project_name)
+        handle_job_exception(exce, p_id)
