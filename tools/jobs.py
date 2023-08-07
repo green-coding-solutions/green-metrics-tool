@@ -79,7 +79,7 @@ def get_project(project_id):
     return data
 
 
-def process_job(job_id, job_type, project_id, skip_config_check=False, docker_prune=False, full_docker_prune=False):
+def process_job(job_id, job_type, project_id, skip_config_check=False, docker_prune=True, full_docker_prune=False):
     try:
         if job_type == 'email':
             _do_email_job(job_id, project_id)
