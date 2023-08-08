@@ -218,7 +218,8 @@ const displayComparisonMetrics = (phase_stats_object) => {
                 if(phase_stats_object.comparison_case !== null) { // compare charts will display for everything apart stats.html
                     displayCompareChart(
                         phase,
-                        `${metric_data.clean_name} (${detail}) - [${metric_data.unit}]`,
+                        `${metric_data.clean_name} (${detail})`,
+                        metric_data.unit,
                         compare_chart_labels,
                         compare_chart_data,
                         compare_chart_mark,
