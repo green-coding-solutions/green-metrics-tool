@@ -234,23 +234,23 @@ METRIC_MAPPINGS = {
 
 def rescale_energy_value(value, unit):
     # We only expect values to be mJ for energy!
-    if unit in ['mJ', 'ug'] or unit.startswith('ugCO2e/'):
-        unit_type = unit[1:]
-
-        energy_rescaled = [value, unit]
-
-        # pylint: disable=multiple-statements
-        if value > 1_000_000_000: energy_rescaled = [value/(10**12), f"G{unit_type}"]
-        elif value > 1_000_000_000: energy_rescaled = [value/(10**9), f"M{unit_type}"]
-        elif value > 1_000_000: energy_rescaled = [value/(10**6), f"k{unit_type}"]
-        elif value > 1_000: energy_rescaled = [value/(10**3), f"m{unit_type}"]
-        elif value < 0.001: energy_rescaled = [value*(10**3), f"n{unit_type}"]
-
-    else:
+    if unit != 'mJ' and not unit.startswith('ugCO2e/'):
         raise RuntimeError('Unexpected unit occured for energy rescaling: ', unit)
 
+    unit_type = unit[1:]
 
-    return energy_rescaled
+    if unit.startswith('ugCO2e'): # bring also to mg
+        value = value / (10**3)
+        unit = f"m{unit_type}"
+
+    # pylint: disable=multiple-statements
+    if value > 1_000_000_000: return [value/(10**12), f"G{unit_type}"]
+    if value > 1_000_000_000: return [value/(10**9), f"M{unit_type}"]
+    if value > 1_000_000: return [value/(10**6), f"k{unit_type}"]
+    if value > 1_000: return [value/(10**3), f"{unit_type}"]
+    if value < 0.001: return [value*(10**3), f"n{unit_type}"]
+
+    return [value, unit] # default, no change
 
 def is_valid_uuid(val):
     try:
