@@ -90,21 +90,23 @@ const getCompareChartOptions = (legend, series, chart_type='line', x_axis='time'
 
 const calculateMA = (series, factor) => {
   var result = [];
-  for (var i = 0, len = series.length; i < len; i++) {
+  factor = Math.round(factor)
+
+  for (let i = 0, len = series.length; i < len; i++) {
     if (i < factor) {
       result.push('-');
       continue;
     }
     var sum = 0;
     for (var j = 0; j < factor; j++) {
-      sum += series[i - j];
+      sum += series[i - j].value;
     }
     result.push(sum / factor);
   }
   return result;
 }
 
-const getLineBarChartOptions = (legend, series, x_axis_name=null, y_axis_name='', x_axis='time', mark_area=null, no_toolbox=false, graphic=null, moving_average=false, show_x_axis_label=true) => {
+const getLineBarChartOptions = (legend, labels, series, x_axis_name=null, y_axis_name='', x_axis='time', mark_area=null, no_toolbox=false, graphic=null, moving_average=false, show_x_axis_label=true) => {
 
     if(Object.keys(series).length == 0) {
         return {graphic: getChartGraphic("No energy reporter active")};
@@ -113,13 +115,15 @@ const getLineBarChartOptions = (legend, series, x_axis_name=null, y_axis_name=''
    let tooltip_trigger = (series[0].type=='line') ? 'axis' : 'item';
 
    if(moving_average) {
+       legend.push('Moving Average (5)')
        series.push({
-          name: 'MA5',
+          name: 'Moving Average (5)',
           type: 'line',
-          data: calculateMA(series[0].data, series[0].data.length*0.05),
+          data: calculateMA(series[0].data, 5),
           smooth: true,
           lineStyle: {
-            opacity: 0.5
+            opacity: 1,
+            color: 'red'
           }
        })
    }
@@ -136,7 +140,7 @@ const getLineBarChartOptions = (legend, series, x_axis_name=null, y_axis_name=''
             name: x_axis_name,
             type: x_axis,
             splitLine: {show: false},
-            data: legend,
+            data: labels,
             axisLabel: {
                 show: show_x_axis_label,
                 interval: 0,
@@ -153,7 +157,7 @@ const getLineBarChartOptions = (legend, series, x_axis_name=null, y_axis_name=''
         graphic: graphic,
         legend: {
             data: legend,
-            bottom: 0,
+            top: 0,
             type: 'scroll'
         }
     };
@@ -170,7 +174,7 @@ const getLineBarChartOptions = (legend, series, x_axis_name=null, y_axis_name=''
     if (no_toolbox == false) {
         options['toolbox'] = {
             itemSize: 25,
-            top: 55,
+            top: 15,
             feature: {
                 dataZoom: {
                     yAxisIndex: 'none'
@@ -313,7 +317,7 @@ function movers(e) {
     icons.classList.toggle("hide")
 }
 
-const createChartContainer = (container, el) => {
+const createChartContainer = (container, el, extra='') => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");
     chart_node.classList.add('statistics-chart-card')
@@ -330,6 +334,7 @@ const createChartContainer = (container, el) => {
             <div class="ui right floated icon buttons">
                 <button class="ui button movers"><i class="arrows alternate icon"></i></button>
             </div>
+
             <div class="ui right floated icon buttons chart-navigation-icon hide">
                 <button class="ui button move-first"><i class="angle double left icon"></i></button>
                 <button class="ui button move-left"><i class="angle left icon"></i></button>
@@ -339,6 +344,10 @@ const createChartContainer = (container, el) => {
             <div class="description">
                 <div class="statistics-chart"></div>
             </div>
+            <hr>
+            ${extra}
+
+
         </div>`;
 
     document.querySelector(container).appendChild(chart_node)
@@ -365,14 +374,14 @@ const displayKeyMetricsRadarChart = (legend, labels, data, phase) => {
     let options = {
       legend: {
         data: legend,
-        bottom: 0,
+        top: 0,
         type: 'scroll',
       },
       radar: {
         shape: 'circle',
         indicator: labels,
         radius: '70%',
-        center: ['50%', '45%'], // Adjust the vertical position (y-axis) as needed
+        center: ['50%', '55%'], // Adjust the vertical position (y-axis) as needed
       },
       series: [
         {
@@ -404,7 +413,7 @@ const displayKeyMetricsBarChart = (legend, labels, data, phase) => {
     document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .chart-title`).innerText = TOP_BAR_CHART_TITLE;
 
     let myChart = echarts.init(chartDom);
-    let options = getLineBarChartOptions(labels, series, null, TOP_BAR_CHART_UNIT, 'category', null, true);
+    let options = getLineBarChartOptions(null, labels, series, null, TOP_BAR_CHART_UNIT, 'category', null, true);
     myChart.setOption(options);
 
     // set callback when ever the user changes the viewport
@@ -457,7 +466,7 @@ const displayKeyMetricsEmbodiedCarbonChart = (phase) => {
               data: ['N/A']
           }
       ];
-    let options = getLineBarChartOptions(['Phases'], series);
+    let options = getLineBarChartOptions(null, ['Phases'], series);
     myChart.setOption(options);
 
     // set callback when ever the user changes the viewport
@@ -488,7 +497,7 @@ const displayTotalChart = (legend, labels, data) => {
     }
 
 
-    let options = getLineBarChartOptions(labels, series, null, TOTAL_CHART_UNIT, 'category', null, true)
+    let options = getLineBarChartOptions(null, labels, series, null, TOTAL_CHART_UNIT, 'category', null, true)
     myChart.setOption(options);
         // set callback when ever the user changes the viewport
     // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks

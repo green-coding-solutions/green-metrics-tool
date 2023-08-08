@@ -54,7 +54,7 @@ def check_job_running(job_type, job_id):
     query = "SELECT FROM jobs WHERE running=true AND type=%s"
     params = (job_type,)
     data = DB().fetch_one(query, params=params)
-    if data is not None:
+    if data is None or data == [] or data[1] is None:
         # No email here, only debug
         error_helpers.log_error('Job was still running: ', job_type, job_id)
         sys.exit(1)  # is this the right way to exit here?
@@ -73,7 +73,7 @@ def get_project(project_id):
     data = DB().fetch_one(
         "SELECT name, uri,email,branch,filename FROM projects WHERE id = %s LIMIT 1", (project_id, ))
 
-    if (data is None or data == []):
+    if data is None or data == [] or data[1] is None:
         raise RuntimeError(f"couldn't find project w/ id: {project_id}")
 
     return data
@@ -178,7 +178,7 @@ if __name__ == '__main__':
     p_id = None
     try:
         job = get_job(args.type)
-        if (job is None or job == []):
+        if job is None or job == [] or job[1] is None:
             print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'No job to process. Exiting')
             sys.exit(0)
         p_id = job[2]

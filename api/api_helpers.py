@@ -22,6 +22,23 @@ from db import DB
 METRIC_MAPPINGS = {
 
 
+    'psu_co2_ac_mcp_machine': {
+        'clean_name': 'Machine CO2',
+        'source': 'mcp',
+        'explanation': 'Machine CO2 as reported by mcp',
+    },
+
+    'psu_energy_ac_mcp_machine': {
+        'clean_name': 'Machine Energy',
+        'source': 'mcp',
+        'explanation': 'Full machine energy (AC) as reported by mcp',
+    },
+    'psu_power_ac_mcp_machine': {
+        'clean_name': 'Machine Power',
+        'source': 'mcp',
+        'explanation': 'Full machine power (AC) as reported by PowerSpy2',
+    },
+
     'embodied_carbon_share_machine': {
         'clean_name': 'Embodied Carbon',
         'source': 'formula',
@@ -259,7 +276,7 @@ def is_valid_uuid(val):
     except ValueError:
         return False
 
-def sanitize(item):
+def html_escape_multi(item):
     """Replace special characters "'", "\"", "&", "<" and ">" to HTML-safe sequences."""
     if item is None:
         return None
@@ -268,17 +285,17 @@ def sanitize(item):
         return html_escape(item)
 
     if isinstance(item, list):
-        return [sanitize(element) for element in item]
+        return [html_escape_multi(element) for element in item]
 
     if isinstance(item, dict):
         for key, value in item.items():
             if isinstance(value, str):
                 item[key] = html_escape(value)
             elif isinstance(value, dict):
-                item[key] = sanitize(value)
+                item[key] = html_escape_multi(value)
             elif isinstance(value, list):
                 item[key] = [
-                    sanitize(item)
+                    html_escape_multi(item)
                     if isinstance(item, dict)
                     else html_escape(item)
                     if isinstance(item, str)
@@ -294,10 +311,79 @@ def sanitize(item):
         # This could cause an error if we ever make a BaseModel that has keys that begin with model_
         keys = [key for key in dir(item_copy) if not key.startswith('_') and not key.startswith('model_') and not callable(getattr(item_copy, key))]
         for key in keys:
-            setattr(item_copy, key, sanitize(getattr(item_copy, key)))
+            setattr(item_copy, key, html_escape_multi(getattr(item_copy, key)))
         return item_copy
 
     return item
+
+def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None):
+
+    if filename is None or filename.strip() == '':
+        filename =  'usage_scenario.yml'
+
+    params = [uri, filename, machine_id]
+
+    branch_condition = ''
+    if branch is not None and branch.strip() != '':
+        branch_condition = 'AND projects.branch = %s'
+        params.append(branch)
+
+    metrics_condition = ''
+    if metrics is None or metrics.strip() == '' or metrics.strip() == 'key':
+        metrics_condition =  "AND (metric LIKE 'psu_energy_ac_%%' OR metric = 'software_carbon_intensity_global')"
+    elif metrics.strip() != 'all':
+        metrics_condition =  "AND metric = %s"
+        params.append(metrics)
+
+    phase_condition = ''
+    if phase is not None and phase.strip() != '':
+        phase_condition =  "AND (phase LIKE %s)"
+        params.append(f"%{phase}")
+
+    start_date_condition = ''
+    if start_date is not None and start_date.strip() != '':
+        start_date_condition =  "AND DATE(projects.last_run) >= TO_DATE(%s, 'YYYY-MM-DD')"
+        params.append(start_date)
+
+    end_date_condition = ''
+    if end_date is not None and end_date.strip() != '':
+        end_date_condition =  "AND DATE(projects.last_run) <= TO_DATE(%s, 'YYYY-MM-DD')"
+        params.append(end_date)
+
+    detail_name_condition = ''
+    if detail_name is not None and detail_name.strip() != '':
+        detail_name_condition =  "AND phase_stats.detail_name = %s"
+        params.append(detail_name)
+
+
+
+    query = f"""
+            SELECT
+                projects.id, phase_stats.metric, phase_stats.detail_name, phase_stats.phase,
+                phase_stats.value, phase_stats.unit, projects.commit_hash, projects.commit_timestamp,
+                row_number() OVER () AS row_num
+            FROM projects
+            LEFT JOIN phase_stats ON
+                projects.id = phase_stats.project_id
+            WHERE
+                projects.uri = %s
+                AND projects.filename = %s
+                AND projects.end_measurement IS NOT NULL
+                AND projects.last_run IS NOT NULL
+                AND machine_id = %s
+                {metrics_condition}
+                {branch_condition}
+                {phase_condition}
+                {start_date_condition}
+                {end_date_condition}
+                {detail_name_condition}
+
+            ORDER BY
+                phase_stats.metric ASC, phase_stats.detail_name ASC,
+                phase_stats.phase ASC, projects.commit_timestamp ASC
+            """
+    print(query)
+    return (query, params)
 
 def determine_comparison_case(ids):
 
@@ -314,7 +400,7 @@ def determine_comparison_case(ids):
     '''
 
     data = DB().fetch_one(query, (ids, ))
-    if data is None or data == []:
+    if data is None or data == [] or data[1] is None:
         raise RuntimeError('Could not determine compare case')
 
     [repos, usage_scenarios, machine_ids, commit_hashes, branches] = data

@@ -262,7 +262,7 @@ const displayTimelineCharts = (metrics, notes) => {
         });
 
         const chart_instance = echarts.init(element);
-        let options = getLineBarChartOptions(legend, series, 'Time', metrics[metric_name].converted_unit);
+        let options = getLineBarChartOptions(null, legend, series, 'Time', metrics[metric_name].converted_unit);
         chart_instance.setOption(options);
         chart_instances.push(chart_instance);
 

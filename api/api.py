@@ -29,8 +29,8 @@ import error_helpers
 import psycopg
 import anybadge
 from api_helpers import (add_phase_stats_statistics, determine_comparison_case,
-                         sanitize, get_phase_stats, get_phase_stats_object,
-                         is_valid_uuid, rescale_energy_value)
+                         html_escape_multi, get_phase_stats, get_phase_stats_object,
+                         is_valid_uuid, rescale_energy_value, get_timeline_query, METRIC_MAPPINGS)
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic
@@ -126,7 +126,7 @@ async def get_notes(project_id):
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    escaped_data = [sanitize(note) for note in data]
+    escaped_data = [html_escape_multi(note) for note in data]
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
 # return a list of all possible registered machines
@@ -171,7 +171,7 @@ async def get_projects(repo: str, filename: str):
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    escaped_data = [sanitize(project) for project in data]
+    escaped_data = [html_escape_multi(project) for project in data]
 
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
@@ -259,53 +259,7 @@ async def compare_in_repo(ids: str):
 
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
-# This route is primarily used to load phase stats it into a pandas data frame
-@app.get('/v1/timeline')
-async def get_timeline_stats(uri: str, branch: str | None = None, filename: str | None = None):
-    if uri is None or uri.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'URI is empty'}, status_code=400)
 
-    if branch is None or branch.strip() == '':
-        branch = None
-        branch_condition = 'projects.branch IS NULL'
-    else:
-        branch_condition = 'projects.branch = %s'
-
-    if filename is None or filename.strip() == '':
-        filename =  'usage_scenario.yml'
-
-    query = f"""
-            SELECT
-                projects.id, phase_stats.metric, phase_stats.detail_name, phase_stats.phase,
-                phase_stats.value, projects.commit_hash, projects.commit_timestamp
-            FROM projects
-            LEFT JOIN phase_stats ON
-                projects.id = phase_stats.project_id AND
-                phase LIKE '%%[RUNTIME]'
-            WHERE
-                projects.uri = %s AND
-                {branch_condition} AND
-                projects.filename = %s AND
-                projects.end_measurement IS NOT NULL
-                AND projects.last_run IS NOT NULL
-            ORDER BY
-                phase_stats.metric ASC, phase_stats.detail_name ASC,
-                phase_stats.phase ASC, projects.commit_timestamp ASC;
-            """
-
-    if branch:
-        params = params = (uri, branch, filename)
-    else:
-        params = params = (uri, filename)
-
-    data = DB().fetch_all(query, params=params)
-
-    if data is None or data == []:
-        return Response(status_code=204) # No-Content
-
-    return ORJSONResponse({'success': True, 'data': data})
-
-# This route is primarily used to load phase stats it into a pandas data frame
 @app.get('/v1/phase_stats/single/{project_id}')
 async def get_phase_stats_single(project_id: str):
     if project_id is None or not is_valid_uuid(project_id):
@@ -348,6 +302,55 @@ async def get_measurements_single(project_id: str):
 
     return ORJSONResponse({'success': True, 'data': data})
 
+@app.get('/v1/timeline')
+async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, start_date: str | None = None, end_date: str | None = None, metrics: str | None = None, phase: str | None = None):
+    if uri is None or uri.strip() == '':
+        return ORJSONResponse({'success': False, 'err': 'URI is empty'}, status_code=400)
+
+    query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_date, end_date)
+
+    data = DB().fetch_all(query, params=params)
+
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
+
+    return ORJSONResponse({'success': True, 'data': data})
+
+@app.get('/v1/badge/timeline')
+async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, metrics: str | None = None, phase: str | None = None):
+    if uri is None or uri.strip() == '':
+        return ORJSONResponse({'success': False, 'err': 'URI is empty'}, status_code=400)
+
+    query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, phase, detail_name=detail_name)
+
+    query = f"""
+        WITH trend_data AS (
+            {query}
+        ) SELECT
+          MAX(row_num::float),
+          regr_slope(value, row_num::float) AS trend_slope,
+          regr_intercept(value, row_num::float) AS trend_intercept,
+          MAX(unit)
+        FROM trend_data;
+    """
+
+    data = DB().fetch_one(query, params=params)
+
+    if data is None or data == [] or data[1] is None:
+        return Response(status_code=204) # No-Content
+
+    print(data)
+
+    cost = data[1]/data[0]
+    cost = f"+{round(float(cost), 2)}" if abs(cost) == cost else f"{round(float(cost), 2)}"
+
+    badge = anybadge.Badge(
+        label=xml_escape(f"{METRIC_MAPPINGS[metrics]['explanation']} {phase} trend"),
+        value=xml_escape(f"{cost} {data[3]} per day"),
+        num_value_padding_chars=1,
+        default_color='orange')
+    return Response(content=str(badge), media_type="image/svg+xml")
+
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/badge/single/{project_id}')
@@ -388,7 +391,7 @@ async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
     params = (project_id, value)
     data = DB().fetch_one(query, params=params)
 
-    if data is None or data == [] or not data[1] :
+    if data is None or data == [] or data[1] is None:
         badge_value = 'No energy data yet'
     else:
         [energy_value, energy_unit] = rescale_energy_value(data[0], data[1])
@@ -429,7 +432,7 @@ async def post_project_add(project: Project):
 
     if project.machine_id == 0:
         project.machine_id = None
-    project = sanitize(project)
+    project = html_escape_multi(project)
 
     # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
     query = """
@@ -471,10 +474,10 @@ async def get_project(project_id: str):
             """
     params = (project_id,)
     data = DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
-    if data is None or data == []:
+    if data is None or data == [] or data[1] is None:
         return Response(status_code=204) # No-Content
 
-    data = sanitize(data)
+    data = html_escape_multi(data)
 
     return ORJSONResponse({'success': True, 'data': data})
 
@@ -529,7 +532,7 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                     if value.strip() == '':
                         return ORJSONResponse({'success': False, 'err': f"{key} is empty"}, status_code=400)
 
-    measurement = sanitize(measurement)
+    measurement = html_escape_multi(measurement)
 
     query = """
         INSERT INTO
@@ -587,7 +590,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     params = (repo, branch, workflow)
     data = DB().fetch_one(query, params=params)
 
-    if data is None or data == []:
+    if data is None or data == [] or data[1] is None:
         return Response(status_code=204) # No-Content
 
     energy_unit = data[1]

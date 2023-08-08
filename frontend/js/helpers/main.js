@@ -82,7 +82,7 @@ const copyToClipboard = (e) => {
   return Promise.reject('The Clipboard API is not available.');
 };
 
-const dateToYMD = (date, short=false) => {
+const dateToYMD = (date, short=false, sane=false) => {
     let day = date.getDate().toString().padStart(2, '0');
     let month = (date.getMonth() + 1).toString().padStart(2, '0'); //Month from 0 to 11
     let hours = date.getHours().toString().padStart(2, '0');
@@ -90,6 +90,7 @@ const dateToYMD = (date, short=false) => {
     let offset = date.getTimezoneOffset();
     offset = offset < 0 ? `+${-offset/60}` : -offset/60;
 
+    if(sane) return `${date.getFullYear().toString()}-${month}-${day}`;
     if(short) return `${date.getFullYear().toString().substr(-2)}.${month}.${day}`;
     return ` ${date.getFullYear()}-${month}-${day} <br> ${hours}:${minutes} UTC${offset}`;
 }

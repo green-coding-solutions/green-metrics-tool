@@ -20,7 +20,12 @@
     <script src="/dist/js/accordion.min.js" defer></script>
     <script src="/dist/js/tab.min.js" defer></script>
     <script src="/dist/js/echarts.min.js" defer></script>
-    <script src="/dist/js/json2yaml.js" defer></script>
+    <script src="/dist/js/calendar.min.js" defer></script>
+    <script src="/dist/js/popup.min.js" defer></script>
+    <script src="/dist/js/tablesort.min.js" defer></script>
+    <script src="/dist/js/toast.min.js" defer></script>
+    <script src="/dist/js/transition.min.js" defer></script>
+    <script src="/dist/js/tab.min.js" defer></script>
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
     <script src="/js/helpers/phase-stats.js" defer></script>
@@ -37,274 +42,120 @@
 <body class="preload">
     <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
-        <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Detailed Metrics</h1>
+        <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Timeline View</h1>
         <div class="ui horizontal card" id="horizontal-card">
             <div class="content">
                 <div class="header"><a class="ui red ribbon label" href="#">
                     <h3>Project Data</h3>
                 </a></div>
                 <div class="description project-data-container">
-                    <div class="ui secondary menu">
-                        <a class="item active" data-tab="one">General</a>
-                        <a class="item" data-tab="two">Measurement</a>
-                        <a class="item" data-tab="three">Badges</a>
-                        <a class="item" data-tab="four">Machine</a>
-                        <a class="item" data-tab="five">Usage Scenario</a>
-                        <a class="item" data-tab="six">Logs</a>
-                    </div>
-                    <div class="ui tab segment" data-tab="one">
-                        <table class="table-hover" id="project-data-top"></table>
-                        <div class="ui accordion">
-                            <div class="title ui header">
-                                <i class="dropdown icon"></i> <u>Click here for more data ...</u>
-                            </div>
-                            <div class="content">
-                                <table class="table-hover" id="project-data-accordion"></table>
-                            </div>
+                    <div class="ui form">
+                        <div class="field">
+                            <label for="metrics">URI:</label>
+                            <input type="text" name="uri">
                         </div>
-                    </div>
-                    <div class="ui active tab segment" data-tab="two">
-                        <table class="table-hover" id="measurement-config"></table>
-                    </div>
-                    <div class="ui active tab segment" data-tab="three">
-                        <div id="badges">
-                            <div class="inline field">
-                                <span class="energy-badge-container" data-metric="ml-estimated"></span>
-                                <div class="ui left pointing blue basic label">
-                                    XGBoost estimated AC energy
-                                </div>
-                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
-                            </div>
-                            <div class="ui divider"></div>
-                            <div class="inline field">
-                                <span class="energy-badge-container" data-metric="RAPL"></span>
-                                <div class="ui left pointing blue basic label">
-                                    RAPL component energy
-                                </div>
-                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
-                            </div>
-                            <div class="ui divider"></div>
-                            <div class="inline field">
-                                <span class="energy-badge-container" data-metric="AC"></span>
-                                <div class="ui left pointing blue basic label">
-                                    Measured AC energy
-                                </div>
-                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="ui tab segment" data-tab="four" id="machine-specs-tab">
-                        <table class="table-hover" id="machine-specs"></table>
-                    </div>
-                    <div class="ui active tab segment" data-tab="five">
-                        <span id="usage-scenario"></span>
-                    </div>
-                    <div class="ui active tab segment" data-tab="six">
-                        <span id="logs"></span>
-                    </div>
 
+                        <div class="equal width fields">
+                            <div class="field">
+                                <label for="metrics">Filename:</label>
+                                <input type="text" name="filename" value="" placeholder="Leave empty for default (usage_scenario.yml)" class="ui input large">
+                            </div>
+                            <div class="field">
+                                <label for="metrics">Branch:</label>
+                                <input type="text" name="branch" value="" placeholder="Leave empty for default (main/master)" class="ui input large">
+                            </div>
+                        </div>
+                        <div class="inline fields">
+                            <label for="machine">Machine:</label>
+                            <select name="machine_id">
+                            </select>
+                        </div>
+                        <div class="inline fields">
+                            <label for="metrics">Metrics to show:</label>
+                            <div class="field">
+                                <div class="ui radio checkbox">
+                                    <input id="metrics-key" type="radio" name="metrics" value="key" checked>
+                                    <label for="metrics-key">Key metrics only</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui radio checkbox">
+                                    <input id="metrics-all" type="radio" name="metrics" value="all">
+                                    <label for="metrics-all">All metrics</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inline fields">
+                            <label for="phase">Phase to show:</label>
+                            <div class="field">
+                                <div class="ui radio checkbox">
+                                    <input id="phase-baseline" type="radio" name="phase" value="[BASELINE]">
+                                    <label for="phase-baseline">Baseline</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui radio checkbox">
+                                    <input id="phase-installation" type="radio" name="phase" value="[INSTALLATION]">
+                                    <label for="phase-installation">Installation</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui radio checkbox">
+                                    <input id="phase-boot" type="radio" name="phase" value=[BOOT]>
+                                    <label for="phase-boot">Boot</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui radio checkbox">
+                                    <input id="phase-idle" type="radio" name="phase" value="[IDLE]">
+                                    <label for="phase-idle">Idle</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui radio checkbox">
+                                    <input id="phase-runtime" type="radio" name="phase" value="[RUNTIME]" checked>
+                                    <label for="phase-runtime">Runtime</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui radio checkbox">
+                                    <input id="phase-remove" type="radio" name="phase" value="[REMOVE]">
+                                    <label for="phase-remove">Remove</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="three fields">
+                            <div class="field">
+                                <label>Start date</label>
+                                <div id="rangestart" class="ui calendar">
+                                    <div class="ui input left icon">
+                                        <i class="calendar icon"></i>
+                                        <input type="text" name="start_date" placeholder="Start">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label>End date</label>
+                                <div id="rangeend" class="ui calendar">
+                                    <div class="ui input left icon">
+                                        <i class="calendar icon"></i>
+                                        <input type="text" name="end_date" placeholder="End">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label>&nbsp;</label>
+                                <button class="positive ui button" id="submit">Refresh Chart</button>
+                            </div>
+                        </div>
+
+
+                    </div>
                 </div>
             </div>
         </div><!-- end ui horizontal card -->
 
-        <div class="ui steps attached phases">
-            <a class="active step" data-tab="[BASELINE]">
-                <div class="content">
-                    <div class="title">Baseline<span class="ui icon" data-position="top left" data-inverted="" data-tooltip="Before container install / build / start and running software" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
-                </div>
-            </a>
-            <a class="step" data-tab="[INSTALLATION]">
-                <div class="content">
-                    <div class="title">Installation<span class="ui icon" data-position="top left" data-inverted="" data-tooltip="Container build / download" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
-                </div>
-            </a>
-            <a class="step" data-tab="[BOOT]">
-                <div class="content">
-                    <div class="title">Boot<span class="ui icon" data-position="top center" data-inverted="" data-tooltip="Container startup" style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
-                </div>
-            </a>
-            <a class="step" data-tab="[IDLE]">
-                <div class="content">
-                    <div class="title">Idle<span class="ui icon" data-position="top center" data-inverted="" data-tooltip="After container installation and boot. flow not started. But services, if any, are already running." style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
-                </div>
-            </a>
-            <a class="step" data-tab="[RUNTIME]">
-                <div class="content">
-                    <div class="title">Runtime<span class="ui icon" data-position="top center" data-inverted="" data-tooltip="Contains cumulated runtime metrics." style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
-                </div>
-            </a>
-            <a class="step" data-tab="[REMOVE]">
-                <div class="content">
-                    <div class="title">Remove<span class="ui icon" data-inverted="" data-position="top right" data-tooltip="This is the removal phase, including cache-purging, container stop etc." style="margin-left: 20px;"><i class="ui question circle icon fluid"></i></span></div>
-                </div>
-            </a>
-        </div>
 
-
-        <div class="ui tab attached segment secondary" data-tab="[BASELINE]">
-            <div class="ui warning message hidden">
-                <div class="header">
-                    <i class="notched warning icon"></i> This phase has some warnings
-                </div>
-                <ul></ul>
-            </div>
-            <div class="content">
-                <div class="header"><a class="ui blue ribbon label" href="#">
-                    <h3>Single Phase Data</h3>
-                </a></div>
-            </div>
-            <div class="key-metrics-chart-container">
-                <div class="bar-chart single">
-                    <div class="chart-title"></div>
-                    <div class="statistics-chart"></div>
-                </div>
-            </div>
-            <br>
-            <phase-metrics></phase-metrics>
-        </div><!-- end BASELINE -->
-        <div class="ui tab attached segment secondary" data-tab="[INSTALLATION]">
-            <div class="ui warning message hidden">
-                <div class="header">
-                    <i class="notched warning icon"></i> This phase has some warnings
-                </div>
-                <ul></ul>
-            </div>
-            <div class="content">
-                <div class="header"><a class="ui blue ribbon label" href="#">
-                    <h3>Single Phase Data</h3>
-                </a></div>
-            </div>
-
-            <div class="key-metrics-chart-container">
-                <div class="bar-chart single">
-                    <div class="chart-title"></div>
-                    <div class="statistics-chart"></div>
-                </div>
-            </div>
-            <br>
-            <phase-metrics></phase-metrics>
-        </div><!-- end INSTALLATION -->
-        <div class="ui tab attached segment secondary" data-tab="[BOOT]">
-            <div class="ui warning message hidden">
-                <div class="header">
-                    <i class="notched warning icon"></i> This phase has some warnings
-                </div>
-                <ul></ul>
-            </div>
-            <div class="content">
-                <div class="header"><a class="ui blue ribbon label" href="#">
-                    <h3>Single Phase Data</h3>
-                </a></div>
-            </div>
-
-            <div class="key-metrics-chart-container">
-                <div class="bar-chart single">
-                    <div class="chart-title"></div>
-                    <div class="statistics-chart"></div>
-                </div>
-            </div>
-            <br>
-            <phase-metrics></phase-metrics>
-        </div><!-- end BOOT -->
-        <div class="ui tab attached segment secondary" data-tab="[IDLE]">
-            <div class="ui warning message hidden">
-                <div class="header">
-                    <i class="notched warning icon"></i> This phase has some warnings
-                </div>
-                <ul></ul>
-            </div>
-            <div class="content">
-                <div class="header"><a class="ui blue ribbon label" href="#">
-                    <h3>Single Phase Data</h3>
-                </a></div>
-            </div>
-            <div class="key-metrics-chart-container">
-                <div class="bar-chart single">
-                    <div class="chart-title"></div>
-                    <div class="statistics-chart"></div>
-                </div>
-            </div>
-            <br>
-            <phase-metrics></phase-metrics>
-        </div><!-- end IDLE -->
-        <div id="runtime-steps" class="ui tab attached segment secondary" data-tab="[RUNTIME]">
-            <div class="ui top segment attached">
-                Runtime can contain multiple flows.
-                By default all runtime flows are aggregated. Please select a separate flow if needed.
-            </div>
-            <div id="runtime-sub-phases" class="ui top attached tabular menu">
-                <a class="active item" data-tab="[[RUNTIME]]">All Flows</a>
-                <a class="item runtime-step" data-tab="" style="display:none;"></a> <!-- empty element for copying. Usage phases will be inserted before -->
-            </div>
-            <!-- We are using a trick here. The selection works on [RUNTIME] but will match this tab still, as it is the first by default -->
-            <div class="ui bottom attached active tab segment" data-tab="[[RUNTIME]]">
-                <div class="ui warning message hidden">
-                    <div class="header">
-                        <i class="notched warning icon"></i> This phase has some warnings
-                    </div>
-                    <ul></ul>
-                </div>
-                <div class="ui segment secondary">
-                    <div class="content">
-                        <div class="header"><a class="ui blue ribbon label" href="#">
-                            <h3>Single Phase Data</h3>
-                        </a></div>
-                    </div>
-                    <div class="key-metrics-chart-container">
-                        <div class="bar-chart single">
-                            <div class="chart-title"></div>
-                            <div class="statistics-chart"></div>
-                        </div>
-                    </div>
-                    <br>
-                    <phase-metrics></phase-metrics>
-                </div>
-            </div>
-            <div class="ui bottom attached tab segment runtime-tab" data-tab="" style="display:none;">
-                <div class="ui warning message hidden">
-                    <div class="header">
-                        <i class="notched warning icon"></i> This phase has some warnings
-                    </div>
-                    <ul></ul>
-                </div>
-                <div class="ui segment secondary">
-                    <div class="content">
-                        <div class="header"><a class="ui blue ribbon label" href="#">
-                            <h3>Single Phase Data</h3>
-                        </a></div>
-                    </div>
-                    <div class="key-metrics-chart-container">
-                        <div class="bar-chart single">
-                            <div class="chart-title"></div>
-                            <div class="statistics-chart"></div>
-                        </div>
-                    </div>
-                    <br>
-                    <phase-metrics></phase-metrics>
-                </div>
-            </div>
-        </div><!-- end RUNTIME -->
-        <div class="ui tab attached segment secondary" data-tab="[REMOVE]">
-            <div class="ui warning message hidden">
-                <div class="header">
-                    <i class="notched warning icon"></i> This phase has some warnings
-                </div>
-                <ul></ul>
-            </div>
-            <div class="content">
-                <div class="header"><a class="ui blue ribbon label" href="#">
-                    <h3>Single Phase Data</h3>
-                </a></div>
-            </div>
-            <div class="key-metrics-chart-container">
-                <div class="bar-chart single">
-                    <div class="chart-title"></div>
-                    <div class="statistics-chart"></div>
-                </div>
-            </div>
-            <br>
-            <phase-metrics></phase-metrics>
-        </div><!-- end REMOVE -->
 
 
         <div class="ui" id="horizontal-card">
