@@ -80,8 +80,12 @@ $(document).ready( (e) => {
                 }
             }]
 
+<<<<<<< Updated upstream
 
             let options = getLineBarChartOptions(series[my_series].labels, data_series, null, 'category');
+=======
+            let options = getLineBarChartOptions(series[my_series].labels, data_series, null, 'category', true, null, true, false);
+>>>>>>> Stashed changes
             options.tooltip = {
                 trigger: 'item',
                 formatter: function (params, ticket, callback) {

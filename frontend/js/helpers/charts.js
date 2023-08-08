@@ -86,13 +86,41 @@ const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', c
     return options;
 }
 
-const getLineBarChartOptions = (legend, series, mark_area=null, x_axis='time', no_toolbox = false, graphic=null) => {
+const calculateMA = (series, factor) => {
+  var result = [];
+  for (var i = 0, len = series.length; i < len; i++) {
+    if (i < factor) {
+      result.push('-');
+      continue;
+    }
+    var sum = 0;
+    for (var j = 0; j < factor; j++) {
+      sum += series[i - j];
+    }
+    result.push(sum / factor);
+  }
+  return result;
+}
+
+const getLineBarChartOptions = (legend, series, x_axis_name=null, y_axis_name='', x_axis='time', mark_area=null, no_toolbox=false, graphic=null, moving_average=false, show_x_axis_label=true) => {
 
     if(Object.keys(series).length == 0) {
         return {graphic: getChartGraphic("No energy reporter active")};
     }
 
    let tooltip_trigger = (series[0].type=='line') ? 'axis' : 'item';
+
+   if(moving_average) {
+       series.push({
+          name: 'MA5',
+          type: 'line',
+          data: calculateMA(series[0].data, series[0].data.length*0.05),
+          smooth: true,
+          lineStyle: {
+            opacity: 0.5
+          }
+       })
+   }
 
    let options =  {
         tooltip: { trigger: tooltip_trigger },
