@@ -8,8 +8,9 @@ METRICS_URL = "__METRICS_URL__"
 */
 
 // title and filter function for the top left most chart in the Detailed Metrics / Compare view
-const TOTAL_CHART_BOTTOM_TITLE = 'Total energy consumption [mJ]';
+const TOTAL_CHART_BOTTOM_TITLE = 'Total energy consumption';
 const TOTAL_CHART_BOTTOM_LABEL = 'Machine Energy';
+const TOTAL_CHART_UNIT = 'mJ';
 // function must return boolean
 const total_chart_bottom_condition = (metric) => {
     if(metric.match(/^.*_energy.*_machine$/) !== null) return true;
@@ -17,7 +18,8 @@ const total_chart_bottom_condition = (metric) => {
 }
 
 // title and filter function for the top left most chart in the Detailed Metrics / Compare view
-const TOP_BAR_CHART_TITLE = 'Energy metrics [mJ]'
+const TOP_BAR_CHART_TITLE = 'Energy metrics'
+const TOP_BAR_CHART_UNIT = 'mJ'
 const top_bar_chart_condition = (metric) => {
     if(metric.indexOf('_energy_') !== -1) return true;
     return false;

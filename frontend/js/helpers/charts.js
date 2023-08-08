@@ -1,4 +1,4 @@
-const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', chart_type='line', graphic=null) => {
+const getCompareChartOptions = (legend, series, chart_type='line', x_axis='time', y_axis_name, mark_area=null,  graphic=null) => {
     let tooltip_trigger = (chart_type=='line') ? 'axis' : 'item';
 
     let series_count = series.length;
@@ -83,6 +83,8 @@ const getCompareChartOptions = (legend, series, mark_area=null, x_axis='time', c
 
     })
     options.yAxis[0].axisLabel = {show: true};
+    options.yAxis[0].name = `Unit: [${y_axis_name}]`;
+
     return options;
 }
 
@@ -127,20 +129,22 @@ const getLineBarChartOptions = (legend, series, x_axis_name=null, y_axis_name=''
         grid: {
                 left: '0%',
                 right: 70,
-                bottom: 0,
+                bottom: 5,
                 containLabel: true
         },
         xAxis: {
+            name: x_axis_name,
             type: x_axis,
             splitLine: {show: false},
             data: legend,
             axisLabel: {
-                show: true,
+                show: show_x_axis_label,
                 interval: 0,
                 rotate: -15,
             },
         },
         yAxis: {
+            name: `Unit: [${y_axis_name}]`,
             type: 'value',
             splitLine: {show: true}
         },
@@ -175,6 +179,7 @@ const getLineBarChartOptions = (legend, series, x_axis_name=null, y_axis_name=''
             }
         }
     }
+
     return options;
 }
 
@@ -399,7 +404,7 @@ const displayKeyMetricsBarChart = (legend, labels, data, phase) => {
     document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .chart-title`).innerText = TOP_BAR_CHART_TITLE;
 
     let myChart = echarts.init(chartDom);
-    let options = getLineBarChartOptions(labels, series, null, 'category', true);
+    let options = getLineBarChartOptions(labels, series, null, TOP_BAR_CHART_UNIT, 'category', null, true);
     myChart.setOption(options);
 
     // set callback when ever the user changes the viewport
@@ -483,7 +488,7 @@ const displayTotalChart = (legend, labels, data) => {
     }
 
 
-    let options = getLineBarChartOptions(labels, series, null, 'category')
+    let options = getLineBarChartOptions(labels, series, null, TOTAL_CHART_UNIT, 'category', null, true)
     myChart.setOption(options);
         // set callback when ever the user changes the viewport
     // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks
@@ -495,11 +500,11 @@ const displayTotalChart = (legend, labels, data) => {
 }
 
 
-const displayCompareChart = (phase, title, legend, data, mark_area, graphic) => {
+const displayCompareChart = (phase, title, y_axis_name, legend, data, mark_area, graphic) => {
 
     const element = createChartContainer(`.ui.tab[data-tab='${phase}'] .compare-chart-container`, title);
     const myChart = echarts.init(element);
-    let options = getCompareChartOptions(legend, data, mark_area, 'category', 'bar');
+    let options = getCompareChartOptions(legend, data, 'bar', 'category', y_axis_name, mark_area);
     myChart.setOption(options);
     // set callback when ever the user changes the viewport
     // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks
