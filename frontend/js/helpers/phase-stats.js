@@ -208,7 +208,7 @@ const displayComparisonMetrics = (phase_stats_object) => {
 
                 if (phase_stats_object.comparison_details.length == 1) {
                     // Note: key is still the set variable from the for loop earlier
-                    displaySimpleMetricBox(phase,metric, metric_data, detail_data['name'], detail_data['data'][phase_stats_object.comparison_details[0]]);
+                    displaySimpleMetricBox(phase,metric, metric_data, detail_data['name'], detail_data['data'][phase_stats_object.comparison_details[0]], phase_stats_object.comparison_case);
                 } else {
                     displayDiffMetricBox(
                         phase, metric, metric_data, detail_data['name'], metric_box_data,

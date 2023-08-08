@@ -184,7 +184,7 @@ customElements.define('phase-metrics', PhaseMetrics);
 /*
     TODO: Include one sided T-test?
 */
-const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, detail_data)  => {
+const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, detail_data, comparison_case)  => {
     let max_value = ''
     if (detail_data.max != null) {
         let [max,max_unit] = convertValue(detail_data.max, metric_data.unit);
@@ -222,8 +222,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
     let [value, unit] = convertValue(detail_data.mean, metric_data.unit);
 
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
-
-    if(detail_data.stddev != null) {
+    if(comparison_case !== null) {
         tr.innerHTML = `
             <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>
             <td>${metric_data.source}</td>
