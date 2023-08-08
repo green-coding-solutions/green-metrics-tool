@@ -32,7 +32,43 @@ const radar_chart_condition = (metric) => {
 
 // filter function for the CO2 calculations in the Detailed Metrics
 // please note that this metric must be unique per phase
-const co2_metrics_condition = (metric) => {
+const phase_time_metric_condition = (metric) => {
+    if(metric == 'phase_time_syscall_system') return true;
+    return false;
+}
+
+const machine_co2_metric_condition = (metric) => {
     if(metric.match(/^.*_co2_.*_machine$/) !== null) return true;
     return false;
 }
+
+const network_co2_metric_condition = (metric) => {
+    if(metric == 'network_co2_formula_global') return true;
+    return false;
+}
+
+const network_energy_metric_condition = (metric) => {
+    if(metric == 'network_energy_formula_global') return true;
+    return false;
+}
+
+const machine_power_metric_condition = (metric) => {
+    if(metric.match(/^.*_power_.*_machine$/) !== null) return true;
+    return false;
+}
+
+const machine_energy_metric_condition = (metric) => {
+    if(metric.match(/^.*_energy_.*_machine$/) !== null) return true;
+    return false;
+}
+
+const sci_metric_condition = (metric) => {
+    if(metric == 'software_carbon_intensity_global') return true;
+    return false;
+}
+
+const embodied_carbon_share_metric_condition = (metric) => {
+    if(metric == 'embodied_carbon_share_machine') return true;
+    return false;
+}
+

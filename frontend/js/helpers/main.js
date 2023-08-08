@@ -33,18 +33,30 @@ class GMTMenu extends HTMLElement {
 customElements.define('gmt-menu', GMTMenu);
 
 const replaceRepoIcon = (uri) => {
-    if (uri.startsWith("https://www.github.com") || uri.startsWith("https://github.com")) {
-        uri = uri.replace("https://www.github.com", '<i class="icon github"></i>');
-        uri = uri.replace("https://github.com", '<i class="icon github"></i>');
-    } else if (uri.startsWith("https://www.bitbucket.com") || uri.startsWith("https://bitbucket.com")) {
-        uri = uri.replace("https://www.bitbucket.com", '<i class="icon bitbucket"></i>');
-        uri = uri.replace("https://bitbucket.com", '<i class="icon bitbucket"></i>');
-    } else if (uri.startsWith("https://www.gitlab.com") || uri.startsWith("https://gitlab.com")) {
-        uri = uri.replace("https://www.gitlab.com", '<i class="icon gitlab"></i>');
-        uri = uri.replace("https://gitlab.com", '<i class="icon gitlab"></i>');
-    }
-    return uri;
-}
+
+  if(!uri.startsWith('http')) return uri; // ignore filesystem paths
+
+  const url = new URL(uri);
+
+  let iconClass = "";
+  switch (url.host) {
+    case "github.com":
+    case "www.github.com":
+      iconClass = "github";
+      break;
+    case "bitbucket.com":
+    case "www.bitbucket.com":
+      iconClass = "bitbucket";
+      break;
+    case "gitlab.com":
+    case "www.gitlab.com":
+      iconClass = "gitlab";
+      break;
+    default:
+      return uri;
+  }
+  return `<i class="icon ${iconClass}"></i>` + uri.substring(url.origin.length);
+};
 
 const showNotification = (message_title, message_text, type='warning') => {
     $('body')
@@ -81,6 +93,19 @@ const dateToYMD = (date, short=false) => {
     if(short) return `${date.getFullYear().toString().substr(-2)}.${month}.${day}`;
     return ` ${date.getFullYear()}-${month}-${day} <br> ${hours}:${minutes} UTC${offset}`;
 }
+
+const escapeString = (string) =>{
+    let my_string = String(string)
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#x27;'
+    };
+    const reg = /[&<>"']/ig;
+    return my_string.replace(reg, (match) => map[match]);
+  }
 
 async function makeAPICall(path, values=null) {
 

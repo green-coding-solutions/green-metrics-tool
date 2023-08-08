@@ -47,7 +47,7 @@ def test_get_projects(cleanup_projects):
     pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
                     VALUES \
                     (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(project_name, uri))[0]
-    response = requests.get(f"{API_URL}/v1/projects", timeout=15)
+    response = requests.get(f"{API_URL}/v1/projects?repo=&filename=", timeout=15)
     res_json = response.json()
     assert response.status_code == 200
     assert res_json['data'][0][0] == str(pid)

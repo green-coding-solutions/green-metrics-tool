@@ -21,7 +21,6 @@ class DB:
             # pylint: disable=consider-using-f-string
             if config['postgresql']['host'] is None:
                 self._conn = psycopg.connect("user=%s dbname=%s password=%s port=%s" % (
-                    config['postgresql']['port'],
                     config['postgresql']['user'],
                     config['postgresql']['dbname'],
                     config['postgresql']['password'],
