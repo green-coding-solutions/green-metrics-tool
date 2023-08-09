@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
             set_status('cleanup_start')
 
-            result = subprocess.run(['sudo',
+            result = subprocess.run(['sudo', 'bash',
                                      os.path.join(os.path.dirname(os.path.abspath(__file__)),'cluster/cleanup.sh')],
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
