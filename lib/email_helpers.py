@@ -19,7 +19,7 @@ def send_email(message, receiver_email):
         # No need to set server.auth manually. server.login will iterater over all available methods
         # see https://github.com/python/cpython/blob/main/Lib/smtplib.py
         server.login(config['smtp']['user'], config['smtp']['password'])
-        server.sendmail(config['smtp']['sender'], receiver_email, message)
+        server.sendmail(config['smtp']['sender'], receiver_email, message.encode('utf-8'))
 
 
 def send_admin_email(subject, body):
