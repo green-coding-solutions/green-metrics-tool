@@ -9,19 +9,78 @@ const convertValue = (value, unit) => {
 
 }
 
-const getAverageOfLabel = (runs, label) => {
-    let filteredRuns = runs.filter(run => run[4] == label);
-    let sum = filteredRuns.reduce((acc, run) => acc + run[0], 0);
-    return Math.round(sum / filteredRuns.length);
-}
+const calculateStats = (measurements) => {
+    let energySums = measurements.map(measurement => measurement[0]);
+    let timeSums = measurements.map(measurement => measurement[7]);
+
+    let energyAverage = energySums.reduce((a, b) => a + b, 0) / energySums.length;
+    let timeAverage = math.mean(timeSums);
+
+    let energyStdDeviation = math.std(energySums);
+    let timeStdDeviation = math.std(timeSums);
+
+    let energyStdDevPercent = (energyStdDeviation / energyAverage) * 100;
+    let timeStdDevPercent = (timeStdDeviation / timeAverage) * 100;
+
+    return {
+        energy: {
+            average: Math.round(energyAverage),
+            stdDeviation: Math.round(energyStdDeviation),
+            stdDevPercent: Math.round(energyStdDevPercent)
+        },
+        time: {
+            average: Math.round(timeAverage),
+            stdDeviation: Math.round(timeStdDeviation),
+            stdDevPercent: Math.round(timeStdDevPercent)
+        }
+    };
+};
 
 
-const getTotalAverage = (runs) => {
-    let sum = runs.reduce((acc, run) => acc + run[0], 0);
-    return Math.round(sum / runs.length);
-}
+const getStatsofLabel = (measurements, label) => {
+    let filteredMeasurements = measurements.filter(measurement => measurement[4] === label);
 
-const createChartContainer = (container, el, runs) => {
+    if (filteredMeasurements.length === 0) {
+        return { average: NaN, stdDeviation: NaN };
+    }
+
+    return calculateStats(filteredMeasurements);
+};
+
+const getFullRunStats = (measurements) => {
+    let combinedMeasurements = [];
+
+    let sumByRunId = {};
+
+    measurements.forEach(measurement => {
+        const runId = measurement[2];
+
+        if (!sumByRunId[runId]) {
+            sumByRunId[runId] = {
+                energySum: 0,
+                timeSum: 0,
+                count: 0
+            };
+        }
+
+        sumByRunId[runId].energySum += measurement[0];
+        sumByRunId[runId].timeSum += measurement[7];
+        sumByRunId[runId].count++;
+    });
+
+    for (const runId in sumByRunId) {
+        combinedMeasurements.push({
+            0: sumByRunId[runId].energySum,
+            7: sumByRunId[runId].timeSum,
+            2: runId
+        });
+    }
+
+    return calculateStats(combinedMeasurements);
+};
+
+
+const createChartContainer = (container, el) => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");
     chart_node.classList.add('statistics-chart-card')
@@ -65,68 +124,20 @@ const getEChartsOptions = () => {
     };
 }
 
-const filterRuns = (runs, start_date, end_date) => {
-    let filtered_runs = [];
-    let discard_runs = [];
-    runs.forEach(run => {
-        let run_id = run[2];
-        let timestamp = new Date(run[3]);
+const filterMeasurements = (measurements, start_date, end_date) => {
+    let filtered_measurements = [];
+    let discard_measurements = [];
+    measurements.forEach(measurement => {
+        let run_id = measurement[2];
+        let timestamp = new Date(measurement[3]);
         if (timestamp >= start_date && timestamp <= end_date) {
-            filtered_runs.push(run);
+            filtered_measurements.push(measurement);
         }
         else
-            discard_runs.push(run_id);
+            discard_measurements.push(run_id);
     });
-    // This was intended to catch the case where a run has dates that start before midnight and end after midngiht
-    // but it is not working correctly at the moment
-    //filtered_runs = filtered_runs.filter(run => !discard_runs.includes(run[2]));
-    return filtered_runs;
+    return filtered_measurements;
 }
-
-// This is not in use at the moment, keeping it as I believe it will be useful in the next iteration of the
-// chart display
-function transformRuns(runs) {
-    const transformedRuns = {};
-    for (const run of runs) {
-        const runId = run[2];
-        const unit = run[1];
-        const timestamp = new Date(run[3]).getTime();
-        const value = run[0];
-        const label = run[4];
-        const cpu = run[5];
-        const commitHash = run[6];
-        const duration = run[7]
-
-        if (!transformedRuns[runId]) {
-            transformedRuns[runId] = {
-                run_id: runId,
-                unit: unit,
-                timestamps: [],
-                values: [],
-                labels: [],
-                cpu: cpu,
-                commit_hash: commitHash,
-                duration: duration,
-                earliest_timestamp: timestamp,
-                earliest_timestamp_readable: dateToYMD(new Date(timestamp),short=true)
-            };
-        } else if (timestamp < transformedRuns[runId].earliest_timestamp) {
-            transformedRuns[runId].earliest_timestamp = timestamp;
-            transformedRuns[runId].earliest_timestamp_readable = dateToYMD(new Date(timestamp));
-        }
-
-        transformedRuns[runId].timestamps.push(timestamp);
-        transformedRuns[runId].values.push(value);
-        transformedRuns[runId].labels.push(label);
-  }
-
-  return Object.values(transformedRuns);
-}
-
-// Also not in use at the moment, keeping it in case we need to pad the array later
-const createPaddedArray = (index, value) => {
-  return [...Array(index).fill(0), value];
-};
 
 const getChartOptions = (runs, chart_element) => {
     let options = getEChartsOptions();
@@ -169,10 +180,10 @@ const getChartOptions = (runs, chart_element) => {
     return options
 }
 
-const displayGraph = (runs) => {
-    const element = createChartContainer("#chart-container", "run-energy", runs);
+const displayGraph = (measurements) => {
+    const element = createChartContainer("#chart-container", "run-energy");
 
-    const options = getChartOptions(runs, element);
+    const options = getChartOptions(measurements, element);
 
     const chart_instance = echarts.init(element);
     chart_instance.setOption(options);
@@ -200,37 +211,50 @@ const displayGraph = (runs) => {
     return chart_instance;
 }
 
-const displayAveragesTable = (runs) => {
+const displayStatsTable = (measurements) => {
     let labels = new Set()
-    runs.forEach(run => {
-        labels.add(run[4])
+    measurements.forEach(measurement => {
+        labels.add(measurement[4])
     });
 
-    const tableBody = document.querySelector("#label-avg-table");
+    const tableBody = document.querySelector("#label-stats-table");
     tableBody.innerHTML = "";
 
-    const label_total_avg_node = document.createElement("tr")
-    label_total_avg_node.innerHTML += `
-                            <td class="td-index">${getTotalAverage(runs)} mJ</td>
-                            <td class="td-index">Total</td>`
-    tableBody.appendChild(label_total_avg_node);
+    const label_full_stats_node = document.createElement("tr")
+    full_stats = getFullRunStats(measurements)
+    label_full_stats_node.innerHTML += `
+                            <td class="td-index">Full Run</td>
+                            <td class="td-index">${full_stats.energy.average} mJ</td>
+                            <td class="td-index">${full_stats.energy.stdDeviation} mJ</td>
+                            <td class="td-index">${full_stats.energy.stdDevPercent}%</td>
+                            <td class="td-index">${full_stats.time.average} mJ</td>
+                            <td class="td-index">${full_stats.time.stdDeviation} mJ</td>
+                            <td class="td-index">${full_stats.time.stdDevPercent}%</td>
+                            `
+    tableBody.appendChild(label_full_stats_node);
 
     labels.forEach(label => {
-        const label_avgs_node = document.createElement("tr")
-        let avg = getAverageOfLabel(runs, label);
-        label_avgs_node.innerHTML += `
-                                        <td class="td-index">${avg} mJ</td>
-                                        <td class="td-index">${label}</td>`
-    document.querySelector("#label-avg-table").appendChild(label_avgs_node);
+        const label_stats_node = document.createElement("tr")
+        let stats = getStatsofLabel(measurements, label);
+        label_stats_node.innerHTML += `
+                                        <td class="td-index">${label}</td>
+                                        <td class="td-index">${stats.energy.average} mJ</td>
+                                        <td class="td-index">${stats.energy.stdDeviation} mJ</td>
+                                        <td class="td-index">${stats.energy.stdDevPercent}%</td>
+                                        <td class="td-index">${stats.time.average} mJ</td>
+                                        <td class="td-index">${stats.time.stdDeviation} mJ</td>
+                                        <td class="td-index">${stats.time.stdDevPercent}%</td>
+                                        `
+    document.querySelector("#label-stats-table").appendChild(label_stats_node);
     });
 }
 
-const displayCITable = (runs, url_params) => {
-    runs.forEach(el => {
+const displayCITable = (measurements, url_params) => {
+    measurements.forEach(el => {
         const li_node = document.createElement("tr");
 
-        [badge_value, badge_unit] = convertValue(el[0], el[1])
-        const value = `${badge_value} ${badge_unit}`;
+        [energy_value, energy_unit] = convertValue(el[0], el[1])
+        const value = `${energy_value} ${energy_unit}`;
 
         const run_id = el[2];
         const cpu = el[5];
@@ -260,7 +284,7 @@ const displayCITable = (runs, url_params) => {
                             <td class="td-index"><span title="${escapeString(created_at)}">${dateToYMD(new Date(created_at))}</span></td>\
                             <td class="td-index" ${escapeString(tooltip)}>${escapeString(short_hash)}</td>\
                             <td class="td-index">${escapeString(cpu)}</td>\
-                            <td class="td-index">${escapeString(duration)} seconds</td>`;
+                            <td class="td-index">${duration} seconds</td>`;
         document.querySelector("#ci-table").appendChild(li_node);
     });
     $('table').tablesort();
@@ -309,18 +333,19 @@ $(document).ready((e) => {
 
         try {
             api_string=`/v1/ci/measurements?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`;
-            var badges_data = await makeAPICall(api_string);
+            var measurements = await makeAPICall(api_string);
         } catch (err) {
             showNotification('Could not get data from API', err);
             return;
         }
 
         let repo_link = ''
+        let source = measurements.data[0][8]
 
-        if(badges_data.data[0][8] == 'github') {
+        if(source == 'github') {
             repo_link = `https://github.com/${escapeString(url_params.get('repo'))}`;
         }
-        else if(badges_data.data[0][8] == 'gitlab') {
+        else if(source == 'gitlab') {
             repo_link = `https://gitlab.com/${escapeString(url_params.get('repo'))}`;
         }
         //${repo_link}
@@ -329,18 +354,18 @@ $(document).ready((e) => {
         document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params.get('branch'))}</td></tr>`)
         document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(url_params.get('workflow'))}</td></tr>`)
 
-        displayCITable(badges_data.data, url_params);
-        chart_instance = displayGraph(badges_data.data)
-        displayAveragesTable(badges_data.data)
+        displayCITable(measurements.data, url_params);
+        chart_instance = displayGraph(measurements.data)
+        displayStatsTable(measurements.data)
         dateTimePicker();
         $('#submit').on('click', function() {
             var startDate = new Date($('#rangestart input').val());
             var endDate = new Date($('#rangeend input').val());
-            new_runs = filterRuns(badges_data.data, startDate, endDate)
-            options = getChartOptions(new_runs)
+            new_measurements = filterMeasurements(measurements.data, startDate, endDate)
+            options = getChartOptions(new_measurements)
             chart_instance.clear()
             chart_instance.setOption(options);
-            displayAveragesTable(new_runs);
+            displayStatsTable(new_measurements);
         });
         setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);
     })();

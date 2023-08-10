@@ -19,6 +19,7 @@
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
     <script src="/js/ci.js" defer></script>
+    <script src="/dist/js/math.min.js" defer></script>
     <script src="/dist/js/popup.min.js" defer></script>
     <script src="/dist/js/tablesort.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
@@ -78,25 +79,43 @@
                 </div>
             </div>
         </div>
-        <div id="chart-container">
+        <div class="ui segment" id="chart-container">
+            
+        </div>
+        <div class = "ui segment" id="stats-container">
+            <div class="header"><a class="ui teal ribbon label" href="#">
+                    <h3>Run Stats</h3>
+                </a></div>
             <div class="ui right floated icon">
                 <table class="ui sortable celled striped table">
                     <thead>
                         <tr>
+                            <th rowspan="2">Label</th>
+                            <th colspan="3">Energy</th>
+                            <th colspan="3">Time</th>
+                        </tr>
+                        <tr>
                             <th>Average</th>
-                            <th>Label</th>
+                            <th>Std Dev</th>
+                            <th>Std Dev %</th>
+                            <th>Average</th>
+                            <th>Std Dev</th>
+                            <th>Std Dev %</th>
                         </tr>
                     </thead>
-                    <tbody id="label-avg-table"></tbody>
+                    <tbody id="label-stats-table"></tbody>
                 </table>
             </div>
         </div>
-        <div id="badges">
+        <div class="ui segment" id="runs-table">
+            <div class="header"><a class="ui teal ribbon label" href="#">
+                    <h3>Runs Table</h3>
+                </a></div>
             <div id="ci-date-picker"></div>
             <table class="ui sortable celled striped table" id="table">
             <thead>
                 <tr>
-                    <th>Value</th>
+                    <th>Energy Value</th>
                     <th>Label</th>
                     <th>Run ID</th>
                     <th>Ran At</th>
