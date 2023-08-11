@@ -54,7 +54,7 @@ def check_job_running(job_type, job_id):
     query = "SELECT FROM jobs WHERE running=true AND type=%s"
     params = (job_type,)
     data = DB().fetch_one(query, params=params)
-    if data is None or data == []:
+    if data:
         # No email here, only debug
         error_helpers.log_error('Job was still running: ', job_type, job_id)
         sys.exit(1)  # is this the right way to exit here?
@@ -181,7 +181,7 @@ if __name__ == '__main__':
     p_id = None
     try:
         job = get_job(args.type)
-        if job is None or job == [] or job[1] is None:
+        if job is None or job == []:
             print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'No job to process. Exiting')
             sys.exit(0)
         p_id = job[2]
