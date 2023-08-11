@@ -45,8 +45,6 @@ const calculateStats = (measurements) => {
     };
 };
 
-
-
 const getStatsofLabel = (measurements, label) => {
     let filteredMeasurements = measurements.filter(measurement => measurement[4] === label);
 
@@ -93,8 +91,6 @@ const getFullRunStats = (measurements) => {
     return calculateStats(combinedMeasurements);
 };
 
-
-
 const createChartContainer = (container, el) => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");
@@ -139,19 +135,23 @@ const getEChartsOptions = () => {
     };
 }
 
-const filterMeasurements = (measurements, start_date, end_date) => {
-    let filtered_measurements = [];
+const filterMeasurements = (measurements, start_date, end_date, selectedLegends) => {
+    let filteredMeasurements = [];
     let discard_measurements = [];
+
     measurements.forEach(measurement => {
         let run_id = measurement[2];
         let timestamp = new Date(measurement[3]);
-        if (timestamp >= start_date && timestamp <= end_date) {
-            filtered_measurements.push(measurement);
-        }
-        else
+
+        if (timestamp >= start_date && timestamp <= end_date && selectedLegends[measurement[5]]) {
+            filteredMeasurements.push(measurement);
+        } else {
             discard_measurements.push(run_id);
+        }
     });
-    return filtered_measurements;
+
+    updateStatsTable(filteredMeasurements); // Update stats table
+    return filteredMeasurements;
 }
 
 const getChartOptions = (measurements, chart_element) => {
@@ -196,6 +196,39 @@ const getChartOptions = (measurements, chart_element) => {
     return options
 }
 
+const updateStatsTable = (filteredMeasurements) => {
+    const tableBody = document.querySelector("#label-stats-table");
+    tableBody.innerHTML = "";
+
+    const fullStats = getFullRunStats(filteredMeasurements);
+    const fullStatsRow = createStatsRow('Full Run', fullStats);
+    tableBody.appendChild(fullStatsRow);
+
+    const uniqueLabels = new Set(filteredMeasurements.map(measurement => measurement[4]));
+    uniqueLabels.forEach(label => {
+        const stats = getStatsofLabel(filteredMeasurements, label);
+        const labelStatsRow = createStatsRow(label, stats);
+        tableBody.appendChild(labelStatsRow);
+    });
+}
+
+const createStatsRow = (label, stats) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+        <td class="td-index">${label}</td>
+        <td class="td-index">${stats.energy.average} mJ</td>
+        <td class="td-index">${stats.energy.stdDeviation} mJ</td>
+        <td class="td-index">${stats.energy.stdDevPercent}%</td>
+        <td class="td-index">${stats.time.average}s</td>
+        <td class="td-index">${stats.time.stdDeviation}s</td>
+        <td class="td-index">${stats.time.stdDevPercent}%</td>
+        <td class="td-index">${stats.cpu_util.average}%</td>
+    `;
+
+    return row;
+}
+
+
 const displayGraph = (measurements) => {
     const element = createChartContainer("#chart-container", "run-energy");
 
@@ -223,6 +256,13 @@ const displayGraph = (measurements) => {
     window.onresize = function () { // set callback when ever the user changes the viewport
         chart_instance.resize();
     }
+
+    chart_instance.on('legendselectchanged', function (params) {
+        const selectedLegends = params.selected;
+        const filteredMeasurements = measurements.filter(measurement => selectedLegends[measurement[5]]);
+
+        updateStatsTable(filteredMeasurements);
+    });
 
     return chart_instance;
 }
@@ -379,15 +419,19 @@ $(document).ready((e) => {
         chart_instance = displayGraph(measurements.data)
         displayStatsTable(measurements.data)
         dateTimePicker();
-        $('#submit').on('click', function() {
+
+        $('#submit').on('click', function () {
             var startDate = new Date($('#rangestart input').val());
             var endDate = new Date($('#rangeend input').val());
-            new_measurements = filterMeasurements(measurements.data, startDate, endDate)
-            options = getChartOptions(new_measurements)
-            chart_instance.clear()
+
+            const selectedLegends = chart_instance.getOption().legend[0].selected;
+            const filteredMeasurements = filterMeasurements(measurements.data, startDate, endDate, selectedLegends);
+
+            options = getChartOptions(filteredMeasurements);
+            chart_instance.clear();
             chart_instance.setOption(options);
-            displayStatsTable(new_measurements);
         });
+
         setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);
     })();
 });
