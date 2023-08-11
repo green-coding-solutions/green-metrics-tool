@@ -76,7 +76,7 @@ const showNotification = (message_title, message_text, type='warning') => {
 
 const copyToClipboard = (e) => {
   if (navigator && navigator.clipboard && navigator.clipboard.writeText)
-    return navigator.clipboard.writeText(e.currentTarget.closest('div.inline.field').querySelector('span').innerHTML)
+    return navigator.clipboard.writeText(e.currentTarget.closest('.field').querySelector('span').innerHTML)
 
   alert('Copying badge on local is not working due to browser security models')
   return Promise.reject('The Clipboard API is not available.');
