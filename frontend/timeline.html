@@ -43,7 +43,7 @@
     <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
         <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Timeline View</h1>
-        <div class="ui horizontal card" id="horizontal-card">
+        <div class="ui full-width-card card">
             <div class="content">
                 <div class="description project-data-container">
                     <div class="header"><a class="ui red ribbon label" href="#">
@@ -79,27 +79,27 @@
                     <div class="ui tab" data-tab="two">
                         <div class="ui form">
                             <div class="field">
-                                <label for="metrics">URI:</label>
+                                <label>URI:</label>
                                 <input type="text" name="uri">
                             </div>
 
                             <div class="equal width fields">
                                 <div class="field">
-                                    <label for="metrics">Filename:</label>
+                                    <label>Filename:</label>
                                     <input type="text" name="filename" value="" placeholder="Leave empty for default (usage_scenario.yml)" class="ui input large">
                                 </div>
                                 <div class="field">
-                                    <label for="metrics">Branch:</label>
+                                    <label>Branch:</label>
                                     <input type="text" name="branch" value="" placeholder="Leave empty for default (main/master)" class="ui input large">
                                 </div>
                             </div>
                             <div class="inline fields">
-                                <label for="machine">Machine:</label>
+                                <label>Machine:</label>
                                 <select name="machine_id">
                                 </select>
                             </div>
                             <div class="inline fields">
-                                <label for="metrics">Metrics to show:</label>
+                                <label>Metrics to show:</label>
                                 <div class="field">
                                     <div class="ui radio checkbox">
                                         <input id="metrics-key" type="radio" name="metrics" value="key" checked>
@@ -114,7 +114,7 @@
                                 </div>
                             </div>
                             <div class="inline fields">
-                                <label for="phase">Phase to show:</label>
+                                <label>Phase to show:</label>
                                 <div class="field">
                                     <div class="ui radio checkbox">
                                         <input id="phase-baseline" type="radio" name="phase" value="[BASELINE]">
@@ -180,12 +180,12 @@
                     </div>
                 </div>
             </div>
-        </div><!-- end ui horizontal card -->
+        </div><!-- end ui full-width-card card -->
 
 
 
 
-        <div class="ui" id="horizontal-card">
+        <div class="ui full-width-card">
 
         </div>
         <div class="ui blue icon message">

@@ -162,9 +162,16 @@ const loadCharts = async () => {
     for(my_series in series) {
         let badge = `
                 <p class="field">
-                </a><div class="header title"><strong>${METRIC_MAPPINGS[series[my_series].metric_name]['clean_name']}</strong> via <strong>${METRIC_MAPPINGS[series[my_series].metric_name]['source']}</strong> - ${series[my_series].detail_name}<i data-tooltip="${METRIC_MAPPINGS[series[my_series].metric_name]['explanation']}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i></div>
+                    <div class="header title">
+                        <strong>${METRIC_MAPPINGS[series[my_series].metric_name]['clean_name']}</strong> via
+                        <strong>${METRIC_MAPPINGS[series[my_series].metric_name]['source']}</strong>
+                         - ${series[my_series].detail_name}
+                        <i data-tooltip="${METRIC_MAPPINGS[series[my_series].metric_name]['explanation']}" data-position="bottom center" data-inverted>
+                            <i class="question circle icon link"></i>
+                        </i>
+                    </div>
                     <span class="energy-badge-container"><a href="/timeline.html?${buildQueryParams()}"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(skip_dates=false,metric_override=series[my_series].metric_name,detail_name=series[my_series].detail_name)}"></a></span>
-                    <a href="#" class="copy-badge"><i class="copy icon"></i>
+                    <a href="#" class="copy-badge"><i class="copy icon"></i></a>
                 </p>`
         document.querySelector("#badge-container").innerHTML += badge;
 
