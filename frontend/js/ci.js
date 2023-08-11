@@ -154,15 +154,15 @@ const filterMeasurements = (measurements, start_date, end_date) => {
     return filtered_measurements;
 }
 
-const getChartOptions = (runs, chart_element) => {
+const getChartOptions = (measurements, chart_element) => {
     let options = getEChartsOptions();
     options.title.text = `Workflow energy cost per run [mJ]`;
 
     let legend = new Set()
     let labels = []
 
-    runs.forEach(run => { // iterate over all runs, which are in row order
-        let [value, unit, run_id, timestamp, label, cpu, commit_hash, duration] = run;
+    measurements.forEach(measurement => { // iterate over all measurements, which are in row order
+        let [value, unit, run_id, timestamp, label, cpu, commit_hash, duration, source, cpu_util] = measurement;
         options.series.push({
             type: 'bar',
             smooth: true,
@@ -176,7 +176,7 @@ const getChartOptions = (runs, chart_element) => {
         })
         legend.add(cpu)
 
-        labels.push({value: value, unit: unit, run_id: run_id, labels: [label], duration: duration, commit_hash: commit_hash, timestamp: dateToYMD(new Date(timestamp))})
+        labels.push({value: value, unit: unit, run_id: run_id, labels: [label], cpu_util: cpu_util, duration: duration, commit_hash: commit_hash, timestamp: dateToYMD(new Date(timestamp))})
     });
 
     options.legend.data = Array.from(legend)
@@ -189,6 +189,7 @@ const getChartOptions = (runs, chart_element) => {
                     commit_hash: ${labels[params.componentIndex].commit_hash}<br>
                     value: ${labels[params.componentIndex].value} ${labels[params.componentIndex].unit}<br>
                     duration: ${labels[params.componentIndex].duration} seconds<br>
+                    avg. cpu. utilization: ${labels[params.componentIndex].cpu_util}%<br>
                     `;
         }
     };
@@ -338,7 +339,6 @@ $(document).ready((e) => {
             showNotification('No Workflow', 'Workflow parameter in URL is empty or not present. Did you follow a correct URL?');
             return;
         }
-
 
         try {
             const link_node = document.createElement("a")
