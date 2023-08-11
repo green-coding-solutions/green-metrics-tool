@@ -243,8 +243,8 @@ const displayStatsTable = (measurements) => {
                             <td class="td-index">${full_stats.energy.average} mJ</td>
                             <td class="td-index">${full_stats.energy.stdDeviation} mJ</td>
                             <td class="td-index">${full_stats.energy.stdDevPercent}%</td>
-                            <td class="td-index">${full_stats.time.average} mJ</td>
-                            <td class="td-index">${full_stats.time.stdDeviation} mJ</td>
+                            <td class="td-index">${full_stats.time.average}s</td>
+                            <td class="td-index">${full_stats.time.stdDeviation}s</td>
                             <td class="td-index">${full_stats.time.stdDevPercent}%</td>
                             <td class="td-index">${full_stats.cpu_util.average}%</td>
                             `
@@ -258,8 +258,8 @@ const displayStatsTable = (measurements) => {
                                         <td class="td-index">${stats.energy.average} mJ</td>
                                         <td class="td-index">${stats.energy.stdDeviation} mJ</td>
                                         <td class="td-index">${stats.energy.stdDevPercent}%</td>
-                                        <td class="td-index">${stats.time.average} mJ</td>
-                                        <td class="td-index">${stats.time.stdDeviation} mJ</td>
+                                        <td class="td-index">${stats.time.average}s</td>
+                                        <td class="td-index">${stats.time.stdDeviation}s</td>
                                         <td class="td-index">${stats.time.stdDevPercent}%</td>
                                         <td class="td-index">${stats.cpu_util.average}%</td>
                                         `
@@ -297,14 +297,15 @@ const displayCITable = (measurements, url_params) => {
         const label = el[4]
         const duration = el[7]
 
-        li_node.innerHTML = `<td class="td-index">${escapeString(value)}</td>\
-                            <td class="td-index">${escapeString(label)}</td>\
+        li_node.innerHTML = `
                             <td class="td-index">${run_link_node}</td>\
+                            <td class="td-index">${escapeString(label)}</td>\
                             <td class="td-index"><span title="${escapeString(created_at)}">${dateToYMD(new Date(created_at))}</span></td>\
-                            <td class="td-index" ${escapeString(tooltip)}>${escapeString(short_hash)}</td>\
+                            <td class="td-index">${escapeString(value)}</td>\
                             <td class="td-index">${escapeString(cpu)}</td>\
-                            <td class="td-index">${duration} seconds</td>
                             <td class="td-index">${cpu_avg}%</td>
+                            <td class="td-index">${duration} seconds</td>
+                            <td class="td-index" ${escapeString(tooltip)}>${escapeString(short_hash)}</td>\
                             `;
         document.querySelector("#ci-table").appendChild(li_node);
     });

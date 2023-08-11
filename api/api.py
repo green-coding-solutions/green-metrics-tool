@@ -437,8 +437,8 @@ async def robots_txt():
 
 # pylint: disable=invalid-name
 class CI_Measurement(BaseModel):
-    value: int
-    unit: str
+    energy_value: int
+    energy_unit: str
     repo: str
     branch: str
     cpu: str
@@ -472,8 +472,6 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 
             case 'label':  # Optional fields
                 continue
-            case 'cpu_util_avg':
-                continue
 
             case _:
                 if value is None:
@@ -486,10 +484,10 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 
     query = """
         INSERT INTO
-            ci_measurements (value, unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash, duration, cpu_util_avg)
+            ci_measurements (energy_value, energy_unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash, duration, cpu_util_avg)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
-    params = (measurement.value, measurement.unit, measurement.repo, measurement.branch,
+    params = (measurement.energy_value, measurement.energy_unit, measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id, measurement.project_id,
             measurement.label, measurement.source, measurement.cpu, measurement.commit_hash,
             measurement.duration, measurement.cpu_util_avg)
@@ -500,7 +498,7 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 @app.get('/v1/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str):
     query = """
-        SELECT value, unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg
+        SELECT energy_value, energy_unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s
         ORDER BY run_id ASC, created_at ASC
@@ -530,7 +528,7 @@ async def get_ci_projects():
 @app.get('/v1/ci/badge/get')
 async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
-        SELECT SUM(value), MAX(unit), MAX(run_id)
+        SELECT SUM(energy_value), MAX(energy_unit), MAX(run_id)
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s
         GROUP BY run_id
