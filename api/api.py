@@ -442,6 +442,7 @@ class CI_Measurement(BaseModel):
     repo: str
     branch: str
     cpu: str
+    cpu_util_avg: float
     commit_hash: str
     workflow: str
     run_id: str
@@ -471,6 +472,8 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 
             case 'label':  # Optional fields
                 continue
+            case 'cpu_util_avg':
+                continue
 
             case _:
                 if value is None:
@@ -483,12 +486,13 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 
     query = """
         INSERT INTO
-            ci_measurements (value, unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash, duration)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ci_measurements (value, unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash, duration, cpu_util_avg)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
     params = (measurement.value, measurement.unit, measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id, measurement.project_id,
-            measurement.label, measurement.source, measurement.cpu, measurement.commit_hash, measurement.duration)
+            measurement.label, measurement.source, measurement.cpu, measurement.commit_hash,
+            measurement.duration, measurement.cpu_util_avg)
 
     DB().query(query=query, params=params)
     return ORJSONResponse({'success': True}, status_code=201)
@@ -496,7 +500,7 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 @app.get('/v1/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str):
     query = """
-        SELECT value, unit, run_id, created_at, label, cpu, commit_hash, duration, source
+        SELECT value, unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s
         ORDER BY run_id ASC, created_at ASC
@@ -540,8 +544,8 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    energy_unit = data[1]
     energy_value = data[0]
+    energy_unit = data[1]
 
     [energy_value, energy_unit] = rescale_energy_value(energy_value, energy_unit)
     badge_value= f"{energy_value:.2f} {energy_unit}"

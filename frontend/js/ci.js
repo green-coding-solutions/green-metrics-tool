@@ -12,15 +12,19 @@ const convertValue = (value, unit) => {
 const calculateStats = (measurements) => {
     let energySums = measurements.map(measurement => measurement[0]);
     let timeSums = measurements.map(measurement => measurement[7]);
+    let cpuUtilSums = measurements.map(measurement => measurement[9]);
 
     let energyAverage = energySums.reduce((a, b) => a + b, 0) / energySums.length;
     let timeAverage = math.mean(timeSums);
+    let cpuUtilAverage = math.mean(cpuUtilSums);
 
     let energyStdDeviation = math.std(energySums);
     let timeStdDeviation = math.std(timeSums);
+    let cpuUtilStdDeviation = math.std(cpuUtilSums);
 
     let energyStdDevPercent = (energyStdDeviation / energyAverage) * 100;
     let timeStdDevPercent = (timeStdDeviation / timeAverage) * 100;
+    let cpuUtilStdDevPercent = (cpuUtilStdDeviation / cpuUtilAverage) * 100;
 
     return {
         energy: {
@@ -32,9 +36,15 @@ const calculateStats = (measurements) => {
             average: Math.round(timeAverage),
             stdDeviation: Math.round(timeStdDeviation),
             stdDevPercent: Math.round(timeStdDevPercent)
+        },
+        cpu_util: {
+            average: Math.round(cpuUtilAverage),
+            stdDeviation: Math.round(cpuUtilStdDeviation),
+            stdDevPercent: Math.round(cpuUtilStdDevPercent)
         }
     };
 };
+
 
 
 const getStatsofLabel = (measurements, label) => {
@@ -59,25 +69,30 @@ const getFullRunStats = (measurements) => {
             sumByRunId[runId] = {
                 energySum: 0,
                 timeSum: 0,
+                cpuUtilSum: 0,
                 count: 0
             };
         }
 
         sumByRunId[runId].energySum += measurement[0];
         sumByRunId[runId].timeSum += measurement[7];
+        sumByRunId[runId].cpuUtilSum += measurement[9];
         sumByRunId[runId].count++;
     });
 
     for (const runId in sumByRunId) {
+        const avgCpuUtil = sumByRunId[runId].cpuUtilSum / sumByRunId[runId].count; // Calculate the average
         combinedMeasurements.push({
             0: sumByRunId[runId].energySum,
             7: sumByRunId[runId].timeSum,
+            9: avgCpuUtil, // Use the calculated average
             2: runId
         });
     }
 
     return calculateStats(combinedMeasurements);
 };
+
 
 
 const createChartContainer = (container, el) => {
@@ -230,6 +245,7 @@ const displayStatsTable = (measurements) => {
                             <td class="td-index">${full_stats.time.average} mJ</td>
                             <td class="td-index">${full_stats.time.stdDeviation} mJ</td>
                             <td class="td-index">${full_stats.time.stdDevPercent}%</td>
+                            <td class="td-index">${full_stats.cpu_util.average}%</td>
                             `
     tableBody.appendChild(label_full_stats_node);
 
@@ -244,6 +260,7 @@ const displayStatsTable = (measurements) => {
                                         <td class="td-index">${stats.time.average} mJ</td>
                                         <td class="td-index">${stats.time.stdDeviation} mJ</td>
                                         <td class="td-index">${stats.time.stdDevPercent}%</td>
+                                        <td class="td-index">${stats.cpu_util.average}%</td>
                                         `
     document.querySelector("#label-stats-table").appendChild(label_stats_node);
     });
@@ -262,6 +279,7 @@ const displayCITable = (measurements, url_params) => {
         const short_hash = commit_hash.substring(0, 7);
         const tooltip = `title="${commit_hash}"`;
         const source = el[8];
+        const cpu_avg = el[9];
 
         var run_link = ''
         if(source == 'github') {
@@ -284,7 +302,9 @@ const displayCITable = (measurements, url_params) => {
                             <td class="td-index"><span title="${escapeString(created_at)}">${dateToYMD(new Date(created_at))}</span></td>\
                             <td class="td-index" ${escapeString(tooltip)}>${escapeString(short_hash)}</td>\
                             <td class="td-index">${escapeString(cpu)}</td>\
-                            <td class="td-index">${duration} seconds</td>`;
+                            <td class="td-index">${duration} seconds</td>
+                            <td class="td-index">${cpu_avg}%</td>
+                            `;
         document.querySelector("#ci-table").appendChild(li_node);
     });
     $('table').tablesort();

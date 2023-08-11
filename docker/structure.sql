@@ -105,6 +105,7 @@ CREATE TABLE ci_measurements (
     workflow text,
     run_id text,
     cpu text DEFAULT NULL,
+    cpu_util_avg bigint,
     commit_hash text DEFAULT NULL,
     label text,
     duration bigint,
