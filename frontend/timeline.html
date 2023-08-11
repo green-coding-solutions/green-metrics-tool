@@ -58,15 +58,21 @@
                     </div>
                     <div class="ui divider"></div>
                     <div class="ui active tab bottom" data-tab="one">
-                        <div id="badge-container"></div>
-                        <div class="ui yellow icon message">
-                            <i class="info circle icon"></i>
-                            <div class="content">
-                                <div class="header">
-                                    Badge Info
+                        <div class="ui one column stackable grid">
+                            <div class="column">
+                                <div class="ui yellow icon message floated right">
+                                    <i class="info circle icon"></i>
+                                    <div class="content">
+                                        <div class="header">
+                                            Badge Info
+                                        </div>
+                                        <p>Badges are showing always the trend over the last 365 days.</p>
+                                        <p>Badges are cached and will only update once per day, even if the charts already show new data.</p>
+                                    </div>
                                 </div>
-                                <p>Badges are showing always the trend over the last 365 days.</p>
-                                <p>Badges are cached and will only update once per day, even if the charts already show new data.</p>
+                            </div>
+                            <div class="column">
+                                <div id="badge-container"></div>
                             </div>
                         </div>
                     </div>
@@ -182,7 +188,15 @@
         <div class="ui" id="horizontal-card">
 
         </div>
-
+        <div class="ui blue icon message">
+            <i class="info circle icon"></i>
+            <div class="content">
+                <div class="header">
+                    Graph Info
+                </div>
+                <p>Graphs show every measurement as a bar. We color the bars according to the commit timestamp and change the color for every new commit. After some time the color repeats ...</p>
+            </div>
+        </div>
         <div class="ui two cards" id="api-loader">
             <div class="card" style="min-height: 300px">
                 <div class="ui active dimmer">
