@@ -122,6 +122,7 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
 const loadCharts = async () => {
     chart_instances = []; // reset
     document.querySelector("#chart-container").innerHTML = ''; // reset
+    document.querySelector("#badge-container").innerHTML = ''; // reset
 
     const api_url = `/v1/timeline?${buildQueryParams()}`;
 
@@ -141,9 +142,8 @@ const loadCharts = async () => {
     phase_stats_data.forEach( (data) => {
         let [project_id, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp] = data
 
-
         if (series[`${metric_name} - ${detail_name}`] == undefined) {
-            series[`${metric_name} - ${detail_name}`] = {labels: [], values: [], notes: [], unit: unit, metric_name: metric_name, detail_name, detail_name}
+            series[`${metric_name} - ${detail_name}`] = {labels: [], values: [], notes: [], unit: unit, metric_name: metric_name, detail_name: detail_name}
         }
 
         series[`${metric_name} - ${detail_name}`].labels.push(commit_timestamp)
@@ -160,14 +160,16 @@ const loadCharts = async () => {
     })
 
     for(my_series in series) {
-        let badge = `<div class="description">
-                <h4>Badges to share</h4>
-                <div class="inline field">
+        let badge = `
+                <p class="field">
+                </a><div class="header title"><strong>${METRIC_MAPPINGS[series[my_series].metric_name]['clean_name']}</strong> via <strong>${METRIC_MAPPINGS[series[my_series].metric_name]['source']}</strong> - ${series[my_series].detail_name}<i data-tooltip="${METRIC_MAPPINGS[series[my_series].metric_name]['explanation']}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i></div>
                     <span class="energy-badge-container"><a href="/timeline.html?${buildQueryParams()}"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(skip_dates=false,metric_override=series[my_series].metric_name,detail_name=series[my_series].detail_name)}"></a></span>
-                    <a href="#" class="copy-badge"><i class="copy icon"></i></a>
-                </div>
-            </div>`
-        const element = createChartContainer("#chart-container", my_series, extra=badge);
+                    <a href="#" class="copy-badge"><i class="copy icon"></i>
+                </p>`
+        document.querySelector("#badge-container").innerHTML += badge;
+
+
+        const element = createChartContainer("#chart-container", `${METRIC_MAPPINGS[series[my_series].metric_name]['clean_name']} via ${METRIC_MAPPINGS[series[my_series].metric_name]['source']} - ${series[my_series].detail_name} <i data-tooltip="${METRIC_MAPPINGS[series[my_series].metric_name]['explanation']}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
 
         const chart_instance = echarts.init(element);
 
@@ -224,6 +226,7 @@ const loadCharts = async () => {
 
 $(document).ready( (e) => {
     (async () => {
+        $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.project-data-container'}); // activate tabs for project data
         $('#rangestart').calendar({
             type: 'date',
             endCalendar: $('#rangeend'),
@@ -241,7 +244,7 @@ $(document).ready( (e) => {
             loadCharts()
         });
         fillInputsFromURL();
-        loadCharts()
+        loadCharts();
     })();
 });
 

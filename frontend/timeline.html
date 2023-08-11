@@ -45,111 +45,132 @@
         <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Timeline View</h1>
         <div class="ui horizontal card" id="horizontal-card">
             <div class="content">
-                <div class="header"><a class="ui red ribbon label" href="#">
-                    <h3>Project Data</h3>
-                </a></div>
                 <div class="description project-data-container">
-                    <div class="ui form">
-                        <div class="field">
-                            <label for="metrics">URI:</label>
-                            <input type="text" name="uri">
+                    <div class="header"><a class="ui red ribbon label" href="#">
+                        <h3>Timeline View Details</h3>
+                    </a></div>
+                    <h4>What is Timeline View?</h4>
+                    <p>Timeline View shows all the measurements we have for a specific project over time. <br>This allows you to inspect if a software has an upward or downward trend in energy, memory, CO2 etc.</p>
+                    <p>If you want to change the graphs you are seeing, please click on <b>Customize</b>. The badges will change on refresh.</p>
+                    <div class="ui top secondary menu">
+                        <a class="item active" data-tab="one">Badges</a>
+                        <a class="item" data-tab="two">Customize</a>
+                    </div>
+                    <div class="ui divider"></div>
+                    <div class="ui active tab bottom" data-tab="one">
+                        <div id="badge-container"></div>
+                        <div class="ui yellow icon message">
+                            <i class="info circle icon"></i>
+                            <div class="content">
+                                <div class="header">
+                                    Badge Info
+                                </div>
+                                <p>Badges are showing always the trend over the last 365 days.</p>
+                                <p>Badges are cached and will only update once per day, even if the charts already show new data.</p>
+                            </div>
                         </div>
+                    </div>
+                    <div class="ui tab" data-tab="two">
+                        <div class="ui form">
+                            <div class="field">
+                                <label for="metrics">URI:</label>
+                                <input type="text" name="uri">
+                            </div>
 
-                        <div class="equal width fields">
-                            <div class="field">
-                                <label for="metrics">Filename:</label>
-                                <input type="text" name="filename" value="" placeholder="Leave empty for default (usage_scenario.yml)" class="ui input large">
-                            </div>
-                            <div class="field">
-                                <label for="metrics">Branch:</label>
-                                <input type="text" name="branch" value="" placeholder="Leave empty for default (main/master)" class="ui input large">
-                            </div>
-                        </div>
-                        <div class="inline fields">
-                            <label for="machine">Machine:</label>
-                            <select name="machine_id">
-                            </select>
-                        </div>
-                        <div class="inline fields">
-                            <label for="metrics">Metrics to show:</label>
-                            <div class="field">
-                                <div class="ui radio checkbox">
-                                    <input id="metrics-key" type="radio" name="metrics" value="key" checked>
-                                    <label for="metrics-key">Key metrics only</label>
+                            <div class="equal width fields">
+                                <div class="field">
+                                    <label for="metrics">Filename:</label>
+                                    <input type="text" name="filename" value="" placeholder="Leave empty for default (usage_scenario.yml)" class="ui input large">
+                                </div>
+                                <div class="field">
+                                    <label for="metrics">Branch:</label>
+                                    <input type="text" name="branch" value="" placeholder="Leave empty for default (main/master)" class="ui input large">
                                 </div>
                             </div>
-                            <div class="field">
-                                <div class="ui radio checkbox">
-                                    <input id="metrics-all" type="radio" name="metrics" value="all">
-                                    <label for="metrics-all">All metrics</label>
-                                </div>
+                            <div class="inline fields">
+                                <label for="machine">Machine:</label>
+                                <select name="machine_id">
+                                </select>
                             </div>
-                        </div>
-                        <div class="inline fields">
-                            <label for="phase">Phase to show:</label>
-                            <div class="field">
-                                <div class="ui radio checkbox">
-                                    <input id="phase-baseline" type="radio" name="phase" value="[BASELINE]">
-                                    <label for="phase-baseline">Baseline</label>
+                            <div class="inline fields">
+                                <label for="metrics">Metrics to show:</label>
+                                <div class="field">
+                                    <div class="ui radio checkbox">
+                                        <input id="metrics-key" type="radio" name="metrics" value="key" checked>
+                                        <label for="metrics-key">Key metrics only</label>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="field">
-                                <div class="ui radio checkbox">
-                                    <input id="phase-installation" type="radio" name="phase" value="[INSTALLATION]">
-                                    <label for="phase-installation">Installation</label>
-                                </div>
-                            </div>
-                            <div class="field">
-                                <div class="ui radio checkbox">
-                                    <input id="phase-boot" type="radio" name="phase" value=[BOOT]>
-                                    <label for="phase-boot">Boot</label>
-                                </div>
-                            </div>
-                            <div class="field">
-                                <div class="ui radio checkbox">
-                                    <input id="phase-idle" type="radio" name="phase" value="[IDLE]">
-                                    <label for="phase-idle">Idle</label>
-                                </div>
-                            </div>
-                            <div class="field">
-                                <div class="ui radio checkbox">
-                                    <input id="phase-runtime" type="radio" name="phase" value="[RUNTIME]" checked>
-                                    <label for="phase-runtime">Runtime</label>
-                                </div>
-                            </div>
-                            <div class="field">
-                                <div class="ui radio checkbox">
-                                    <input id="phase-remove" type="radio" name="phase" value="[REMOVE]">
-                                    <label for="phase-remove">Remove</label>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="three fields">
-                            <div class="field">
-                                <label>Start date</label>
-                                <div id="rangestart" class="ui calendar">
-                                    <div class="ui input left icon">
-                                        <i class="calendar icon"></i>
-                                        <input type="text" name="start_date" placeholder="Start">
+                                <div class="field">
+                                    <div class="ui radio checkbox">
+                                        <input id="metrics-all" type="radio" name="metrics" value="all">
+                                        <label for="metrics-all">All metrics</label>
                                     </div>
                                 </div>
                             </div>
-                            <div class="field">
-                                <label>End date</label>
-                                <div id="rangeend" class="ui calendar">
-                                    <div class="ui input left icon">
-                                        <i class="calendar icon"></i>
-                                        <input type="text" name="end_date" placeholder="End">
+                            <div class="inline fields">
+                                <label for="phase">Phase to show:</label>
+                                <div class="field">
+                                    <div class="ui radio checkbox">
+                                        <input id="phase-baseline" type="radio" name="phase" value="[BASELINE]">
+                                        <label for="phase-baseline">Baseline</label>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <div class="ui radio checkbox">
+                                        <input id="phase-installation" type="radio" name="phase" value="[INSTALLATION]">
+                                        <label for="phase-installation">Installation</label>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <div class="ui radio checkbox">
+                                        <input id="phase-boot" type="radio" name="phase" value=[BOOT]>
+                                        <label for="phase-boot">Boot</label>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <div class="ui radio checkbox">
+                                        <input id="phase-idle" type="radio" name="phase" value="[IDLE]">
+                                        <label for="phase-idle">Idle</label>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <div class="ui radio checkbox">
+                                        <input id="phase-runtime" type="radio" name="phase" value="[RUNTIME]" checked>
+                                        <label for="phase-runtime">Runtime</label>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <div class="ui radio checkbox">
+                                        <input id="phase-remove" type="radio" name="phase" value="[REMOVE]">
+                                        <label for="phase-remove">Remove</label>
                                     </div>
                                 </div>
                             </div>
-                            <div class="field">
-                                <label>&nbsp;</label>
-                                <button class="positive ui button" id="submit">Refresh Chart</button>
+                            <div class="three fields">
+                                <div class="field">
+                                    <label>Start date</label>
+                                    <div id="rangestart" class="ui calendar">
+                                        <div class="ui input left icon">
+                                            <i class="calendar icon"></i>
+                                            <input type="text" name="start_date" placeholder="Start">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>End date</label>
+                                    <div id="rangeend" class="ui calendar">
+                                        <div class="ui input left icon">
+                                            <i class="calendar icon"></i>
+                                            <input type="text" name="end_date" placeholder="End">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>&nbsp;</label>
+                                    <button class="positive ui button" id="submit">Refresh Charts & Badges</button>
+                                </div>
                             </div>
                         </div>
-
-
                     </div>
                 </div>
             </div>

@@ -317,7 +317,7 @@ function movers(e) {
     icons.classList.toggle("hide")
 }
 
-const createChartContainer = (container, el, extra='') => {
+const createChartContainer = (container, title) => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");
     chart_node.classList.add('statistics-chart-card')
@@ -326,7 +326,7 @@ const createChartContainer = (container, el, extra='') => {
     chart_node.innerHTML = `
         <div class="content">
             <div class="ui left floated chart-title">
-                ${el}
+                ${title}
             </div>
             <div class="ui right floated icon buttons">
                 <button class="ui button toggle-width"><i class="expand icon toggle-icon"></i></button>
@@ -344,10 +344,6 @@ const createChartContainer = (container, el, extra='') => {
             <div class="description">
                 <div class="statistics-chart"></div>
             </div>
-            <hr>
-            ${extra}
-
-
         </div>`;
 
     document.querySelector(container).appendChild(chart_node)
