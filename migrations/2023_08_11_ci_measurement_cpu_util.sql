@@ -1,0 +1,1 @@
+ALTER TABLE "ci_measurements" ADD "cpu_util_avg" bigint  NULL;
