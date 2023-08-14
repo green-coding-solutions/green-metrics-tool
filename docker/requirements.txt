@@ -9,3 +9,4 @@ uvicorn==0.23.2
 orjson==3.9.2
 scipy==1.11.1
 schema==0.7.5
+psutil==5.9.5
