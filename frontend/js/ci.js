@@ -10,17 +10,19 @@ const convertValue = (value, unit) => {
 }
 
 const calculateStats = (measurements) => {
-    let energySums = measurements.map(measurement => measurement[0]);
-    let timeSums = measurements.map(measurement => measurement[7]);
-    let cpuUtilSums = measurements.map(measurement => measurement[9]);
+    let energyMeasurements = measurements.map(measurement => measurement[0]);
+    let energySum = energyMeasurements.reduce((a, b) => a + b, 0);
+    let timeMeasurements = measurements.map(measurement => measurement[7]);
+    let timeSum = timeMeasurements.reduce((a, b) => a + b, 0);
+    let cpuUtilMeasurments = measurements.map(measurement => measurement[9]);
 
-    let energyAverage = energySums.reduce((a, b) => a + b, 0) / energySums.length;
-    let timeAverage = math.mean(timeSums);
-    let cpuUtilAverage = math.mean(cpuUtilSums);
+    let energyAverage = math.mean(energyMeasurements);
+    let timeAverage = math.mean(timeMeasurements);
+    let cpuUtilAverage = math.mean(cpuUtilMeasurments);
 
-    let energyStdDeviation = math.std(energySums);
-    let timeStdDeviation = math.std(timeSums);
-    let cpuUtilStdDeviation = math.std(cpuUtilSums);
+    let energyStdDeviation = math.std(energyMeasurements);
+    let timeStdDeviation = math.std(timeMeasurements);
+    let cpuUtilStdDeviation = math.std(cpuUtilMeasurments);
 
     let energyStdDevPercent = (energyStdDeviation / energyAverage) * 100;
     let timeStdDevPercent = (timeStdDeviation / timeAverage) * 100;
@@ -30,18 +32,21 @@ const calculateStats = (measurements) => {
         energy: {
             average: Math.round(energyAverage),
             stdDeviation: Math.round(energyStdDeviation),
-            stdDevPercent: Math.round(energyStdDevPercent)
+            stdDevPercent: Math.round(energyStdDevPercent),
+            total: Math.round(energySum)
         },
         time: {
             average: Math.round(timeAverage),
             stdDeviation: Math.round(timeStdDeviation),
-            stdDevPercent: Math.round(timeStdDevPercent)
+            stdDevPercent: Math.round(timeStdDevPercent),
+            total: Math.round(timeSum)
         },
         cpu_util: {
             average: Math.round(cpuUtilAverage),
             stdDeviation: Math.round(cpuUtilStdDeviation),
             stdDevPercent: Math.round(cpuUtilStdDevPercent)
-        }
+        },
+        count: measurements.length
     };
 };
 
@@ -150,7 +155,7 @@ const filterMeasurements = (measurements, start_date, end_date, selectedLegends)
         }
     });
 
-    updateStatsTable(filteredMeasurements); // Update stats table
+    displayStatsTable(filteredMeasurements); // Update stats table
     return filteredMeasurements;
 }
 
@@ -196,38 +201,6 @@ const getChartOptions = (measurements, chart_element) => {
     return options
 }
 
-const updateStatsTable = (filteredMeasurements) => {
-    const tableBody = document.querySelector("#label-stats-table");
-    tableBody.innerHTML = "";
-
-    const fullStats = getFullRunStats(filteredMeasurements);
-    const fullStatsRow = createStatsRow('Full Run', fullStats);
-    tableBody.appendChild(fullStatsRow);
-
-    const uniqueLabels = new Set(filteredMeasurements.map(measurement => measurement[4]));
-    uniqueLabels.forEach(label => {
-        const stats = getStatsofLabel(filteredMeasurements, label);
-        const labelStatsRow = createStatsRow(label, stats);
-        tableBody.appendChild(labelStatsRow);
-    });
-}
-
-const createStatsRow = (label, stats) => {
-    const row = document.createElement("tr");
-    row.innerHTML = `
-        <td class="td-index">${label}</td>
-        <td class="td-index">${stats.energy.average} mJ</td>
-        <td class="td-index">${stats.energy.stdDeviation} mJ</td>
-        <td class="td-index">${stats.energy.stdDevPercent}%</td>
-        <td class="td-index">${stats.time.average}s</td>
-        <td class="td-index">${stats.time.stdDeviation}s</td>
-        <td class="td-index">${stats.time.stdDevPercent}%</td>
-        <td class="td-index">${stats.cpu_util.average}%</td>
-    `;
-
-    return row;
-}
-
 
 const displayGraph = (measurements) => {
     const element = createChartContainer("#chart-container", "run-energy");
@@ -261,7 +234,7 @@ const displayGraph = (measurements) => {
         const selectedLegends = params.selected;
         const filteredMeasurements = measurements.filter(measurement => selectedLegends[measurement[5]]);
 
-        updateStatsTable(filteredMeasurements);
+        displayStatsTable(filteredMeasurements);
     });
 
     return chart_instance;
@@ -279,7 +252,7 @@ const displayStatsTable = (measurements) => {
     const label_full_stats_node = document.createElement("tr")
     full_stats = getFullRunStats(measurements)
     label_full_stats_node.innerHTML += `
-                            <td class="td-index">Full Run</td>
+                            <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)"> <i class="question circle icon small"></i> Full Run</td>
                             <td class="td-index">${full_stats.energy.average} mJ</td>
                             <td class="td-index">${full_stats.energy.stdDeviation} mJ</td>
                             <td class="td-index">${full_stats.energy.stdDevPercent}%</td>
@@ -287,6 +260,9 @@ const displayStatsTable = (measurements) => {
                             <td class="td-index">${full_stats.time.stdDeviation}s</td>
                             <td class="td-index">${full_stats.time.stdDevPercent}%</td>
                             <td class="td-index">${full_stats.cpu_util.average}%</td>
+                            <td class="td-index">${full_stats.energy.total} mJ</td>
+                            <td class="td-index">${full_stats.time.total}s</td>
+                            <td class="td-index">${full_stats.count}</td>
                             `
     tableBody.appendChild(label_full_stats_node);
 
@@ -294,7 +270,7 @@ const displayStatsTable = (measurements) => {
         const label_stats_node = document.createElement("tr")
         let stats = getStatsofLabel(measurements, label);
         label_stats_node.innerHTML += `
-                                        <td class="td-index">${label}</td>
+                                        <td class="td-index" data-tooltip="Stats for the series of steps represented by the ${label} label">${label}</td>
                                         <td class="td-index">${stats.energy.average} mJ</td>
                                         <td class="td-index">${stats.energy.stdDeviation} mJ</td>
                                         <td class="td-index">${stats.energy.stdDevPercent}%</td>
@@ -302,6 +278,9 @@ const displayStatsTable = (measurements) => {
                                         <td class="td-index">${stats.time.stdDeviation}s</td>
                                         <td class="td-index">${stats.time.stdDevPercent}%</td>
                                         <td class="td-index">${stats.cpu_util.average}%</td>
+                                        <td class="td-index">${stats.energy.total} mJ</td>
+                                        <td class="td-index">${stats.time.total}s</td>
+                                        <td class="td-index">${stats.count}</td>
                                         `
     document.querySelector("#label-stats-table").appendChild(label_stats_node);
     });
@@ -351,6 +330,7 @@ const displayCITable = (measurements, url_params) => {
     });
     $('table').tablesort();
 }
+
 
 function dateTimePicker() {
     $('#rangestart').calendar({
@@ -416,6 +396,7 @@ $(document).ready((e) => {
         document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(url_params.get('workflow'))}</td></tr>`)
 
         displayCITable(measurements.data, url_params);
+        
         chart_instance = displayGraph(measurements.data)
         displayStatsTable(measurements.data)
         dateTimePicker();
