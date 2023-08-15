@@ -18,13 +18,14 @@
     <script src="/dist/js/calendar.min.js" defer></script>
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
-    <script src="/js/ci.js" defer></script>
+    <script src="/dist/js/math.min.js" defer></script>
     <script src="/dist/js/popup.min.js" defer></script>
     <script src="/dist/js/tablesort.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
     <!-- <script src="/dist/js/apexcharts.min.js" defer></script> -->
     <script src="/dist/js/tab.min.js" defer></script>
+    <script src="/js/ci.js" defer></script>
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
@@ -52,6 +53,16 @@
                 </div>
             </div>
         </div><!-- end ui horizontal card -->
+        
+        <div class="ui icon message blue">
+            <i class="info circle icon"></i>
+            <div class="content">
+                <p> Here you can see the energy measurements of the associated CI pipeline. </p>
+                <p> You can use the date picker or the legend (CPU) to filter which results are displayed on the chart. The energy measurement of a pipeline tends to be very strongly dependent on the CPU of the machine, so it is strongly recommended that you do any statistical analysis on a per CPU basis.
+                </p>
+                <p>The Stats Table will only display stats for the data shown in the chart, and exclude filtered data. It shows the stats for the full runs, and additionally for each label specifically.</p>
+            </div>
+        </div>
         <div class="ui form">
             <div class="three fields">
                 <div class="field">
@@ -78,35 +89,63 @@
                 </div>
             </div>
         </div>
-        <div id="chart-container">
+
+        <div class="ui segment" id="chart-container">
+            
+        </div>
+        <div class = "ui segment" id="stats-container">
+            <div class="header"><a class="ui teal ribbon label" href="#">
+                    <h3>Run Stats</h3>
+                </a></div>
+                <br/>
             <div class="ui right floated icon">
                 <table class="ui sortable celled striped table">
                     <thead>
                         <tr>
+                            <th rowspan="2">Label</th>
+                            <th colspan="3">Energy</th>
+                            <th colspan="3">Time</th>
+                            <th rowspan="2">Avg. CPU Util.</th>
+                            <th colspan="3">Total</th>
+                        </tr>
+                        <tr>
                             <th>Average</th>
-                            <th>Label</th>
+                            <th>Std Dev</th>
+                            <th>Std Dev %</th>
+                            <th>Average</th>
+                            <th>Std Dev</th>
+                            <th>Std Dev %</th>
+                            <th>Energy</th>
+                            <th>Time</th>
+                            <th>Count</th>
                         </tr>
                     </thead>
-                    <tbody id="label-avg-table"></tbody>
+                    <tbody id="label-stats-table"></tbody>
                 </table>
             </div>
         </div>
-        <div id="badges">
-            <div id="ci-date-picker"></div>
+        <div class="ui segment" id="runs-table">
+            <div class="content">
+            </div>
+            <div class="header"><a class="ui teal ribbon label" href="#">
+                    <h3 data-tooltip="The Measurement Table shows all measurements your pipeline has made, without any filtering.">Measurements Table <i class="question circle icon "></i> </h3>
+                </a></div>
             <table class="ui sortable celled striped table" id="table">
             <thead>
                 <tr>
-                    <th>Value</th>
-                    <th>Label</th>
                     <th>Run ID</th>
+                    <th>Label</th>
                     <th>Ran At</th>
-                    <th>Commit Hash</th>
+                    <th>Energy Value</th>
                     <th>CPU</th>
+                    <th>Avg. CPU Util.</th>
                     <th>Duration</th>
+                    <th>Commit Hash</th>
                 </tr>
             </thead>
             <tbody id="ci-table"></tbody>
-        </table>
+            </table>
+            <div id="pagination-controls" class="ui pagination menu"></div>
         </div>
         <div class="clearing" style="display:block; height: 10px;"></div>
     </div>
