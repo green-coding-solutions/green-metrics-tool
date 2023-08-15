@@ -11,22 +11,34 @@ const convertValue = (value, unit) => {
 
 const calculateStats = (measurements) => {
     let energyMeasurements = measurements.map(measurement => measurement[0]);
+    energyMeasurements = energyMeasurements.filter(measurement => measurement != null);
     let energySum = energyMeasurements.reduce((a, b) => a + b, 0);
+
     let timeMeasurements = measurements.map(measurement => measurement[7]);
+    timeMeasurements = timeMeasurements.filter(measurement => measurement != null);
     let timeSum = timeMeasurements.reduce((a, b) => a + b, 0);
-    let cpuUtilMeasurments = measurements.map(measurement => measurement[9]);
+
+    let cpuUtilMeasurements = measurements.map(measurement => measurement[9]);
+    cpuUtilMeasurements = cpuUtilMeasurements.filter(measurement => measurement != null);
 
     let energyAverage = math.mean(energyMeasurements);
     let timeAverage = math.mean(timeMeasurements);
-    let cpuUtilAverage = math.mean(cpuUtilMeasurments);
 
     let energyStdDeviation = math.std(energyMeasurements);
     let timeStdDeviation = math.std(timeMeasurements);
-    let cpuUtilStdDeviation = math.std(cpuUtilMeasurments);
 
     let energyStdDevPercent = (energyStdDeviation / energyAverage) * 100;
     let timeStdDevPercent = (timeStdDeviation / timeAverage) * 100;
-    let cpuUtilStdDevPercent = (cpuUtilStdDeviation / cpuUtilAverage) * 100;
+
+    let cpuUtilStdDeviation = '--'
+    let cpuUtilAverage = '--'
+    let cpuUtilStdDevPercent = '--'
+
+    if (cpuUtilMeasurements.length > 0) {
+        cpuUtilStdDeviation = Math.round(math.std(cpuUtilMeasurements));
+        cpuUtilAverage = Math.round(math.mean(cpuUtilMeasurements));
+        cpuUtilStdDevPercent = Math.round((cpuUtilStdDeviation / cpuUtilAverage) * 100);
+    }
 
     return {
         energy: {
@@ -42,9 +54,9 @@ const calculateStats = (measurements) => {
             total: Math.round(timeSum)
         },
         cpu_util: {
-            average: Math.round(cpuUtilAverage),
-            stdDeviation: Math.round(cpuUtilStdDeviation),
-            stdDevPercent: Math.round(cpuUtilStdDevPercent)
+            average: cpuUtilAverage,
+            stdDeviation: cpuUtilStdDeviation,
+            stdDevPercent: cpuUtilStdDevPercent
         },
         count: measurements.length
     };
@@ -73,18 +85,20 @@ const getFullRunStats = (measurements) => {
                 energySum: 0,
                 timeSum: 0,
                 cpuUtilSum: 0,
-                count: 0
+                cpuUtilCount: 0
             };
         }
 
         sumByRunId[runId].energySum += measurement[0];
         sumByRunId[runId].timeSum += measurement[7];
-        sumByRunId[runId].cpuUtilSum += measurement[9];
-        sumByRunId[runId].count++;
+        if (measurement[9] !== null) {
+            sumByRunId[runId].cpuUtilSum += measurement[9];
+            sumByRunId[runId].cpuUtilCount++;
+        }
     });
 
     for (const runId in sumByRunId) {
-        const avgCpuUtil = sumByRunId[runId].cpuUtilSum / sumByRunId[runId].count; // Calculate the average
+        const avgCpuUtil = sumByRunId[runId].cpuUtilCount > 0 ? sumByRunId[runId].cpuUtilSum / sumByRunId[runId].cpuUtilCount : null;
         combinedMeasurements.push({
             0: sumByRunId[runId].energySum,
             7: sumByRunId[runId].timeSum,
@@ -92,7 +106,6 @@ const getFullRunStats = (measurements) => {
             2: runId
         });
     }
-
     return calculateStats(combinedMeasurements);
 };
 
@@ -168,6 +181,7 @@ const getChartOptions = (measurements, chart_element) => {
 
     measurements.forEach(measurement => { // iterate over all measurements, which are in row order
         let [value, unit, run_id, timestamp, label, cpu, commit_hash, duration, source, cpu_util] = measurement;
+        cpu_util = cpu_util ? cpu_util : '--';
         options.series.push({
             type: 'bar',
             smooth: true,
@@ -252,7 +266,7 @@ const displayStatsTable = (measurements) => {
     const label_full_stats_node = document.createElement("tr")
     full_stats = getFullRunStats(measurements)
     label_full_stats_node.innerHTML += `
-                            <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)"> <i class="question circle icon small"></i> Full Run</td>
+                            <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)">Full Run <i class="question circle icon small"></i> </td>
                             <td class="td-index">${full_stats.energy.average} mJ</td>
                             <td class="td-index">${full_stats.energy.stdDeviation} mJ</td>
                             <td class="td-index">${full_stats.energy.stdDevPercent}%</td>
@@ -299,7 +313,7 @@ const displayCITable = (measurements, url_params) => {
         const short_hash = commit_hash.substring(0, 7);
         const tooltip = `title="${commit_hash}"`;
         const source = el[8];
-        const cpu_avg = el[9];
+        const cpu_avg = el[9] ? el[9] : '--';
 
         var run_link = ''
         if(source == 'github') {
