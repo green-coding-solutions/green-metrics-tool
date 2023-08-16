@@ -4,9 +4,10 @@ root.
 '''
 import re
 import os
-import subprocess
 import platform
 import pprint
+import subprocess
+import sys
 
 REGEX_PARAMS = re.MULTILINE | re.IGNORECASE
 
@@ -77,6 +78,8 @@ linux_info_list = [
     [rpwr, 'Hardware Model', '/usr/bin/hostnamectl', r'Hardware Model:\s*(?P<o>.*)'],
     [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Installed System Packages', 'if [ -f /etc/lsb-release ]; then dpkg -l | cat ; elif [ -f /etc/redhat-release ]; then dnf list installed | cat; fi', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Installed Python Packages', f"{sys.executable} -m pip freeze", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Processes', '/usr/bin/ps -aux', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [
         rpwrs,
