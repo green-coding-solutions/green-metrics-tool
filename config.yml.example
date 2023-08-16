@@ -77,6 +77,8 @@ measurement:
 #        resolution: 100
 #      psu.energy.ac.powerspy2.machine.provider.PsuEnergyAcPowerspy2MachineProvider:
 #        resolution: 250
+#      psu.energy.ac.mcp.machine.provider.PsuEnergyAcMcpMachineProvider:
+#        resolution: 100
 #      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
 #        resolution: 100
     #--- Sensors
