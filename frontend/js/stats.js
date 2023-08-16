@@ -222,7 +222,7 @@ const displayTimelineCharts = (metrics, notes) => {
 
     for ( metric_name in metrics) {
 
-        const element = createChartContainer("#chart-container", metric_name);
+        const element = createChartContainer("#chart-container", `${METRIC_MAPPINGS[metric_name]['clean_name']} via ${METRIC_MAPPINGS[metric_name]['source']} <i data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
 
         let legend = [];
         let series = [];
@@ -262,7 +262,7 @@ const displayTimelineCharts = (metrics, notes) => {
         });
 
         const chart_instance = echarts.init(element);
-        let options = getLineBarChartOptions(legend, series, 'Time', metrics[metric_name].converted_unit);
+        let options = getLineBarChartOptions(null, legend, series, 'Time', metrics[metric_name].converted_unit);
         chart_instance.setOption(options);
         chart_instances.push(chart_instance);
 
