@@ -296,11 +296,11 @@ async def get_measurements_single(project_id: str):
     return ORJSONResponse({'success': True, 'data': data})
 
 @app.get('/v1/timeline')
-async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, start_date: str | None = None, end_date: str | None = None, metrics: str | None = None, phase: str | None = None):
+async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, start_date: str | None = None, end_date: str | None = None, metrics: str | None = None, phase: str | None = None, sorting: str | None = None,):
     if uri is None or uri.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'URI is empty'}, status_code=400)
 
-    query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_date, end_date)
+    query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_date=start_date, end_date=end_date, sorting=sorting)
 
     data = DB().fetch_all(query, params=params)
 
@@ -317,7 +317,7 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
     if detail_name is None or detail_name.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'Detail Name is mandatory'}, status_code=400)
 
-    query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, phase, detail_name=detail_name)
+    query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, phase, detail_name=detail_name, limit_365=True)
 
     query = f"""
         WITH trend_data AS (

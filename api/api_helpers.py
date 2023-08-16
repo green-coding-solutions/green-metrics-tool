@@ -110,7 +110,7 @@ def get_project_info(project_id):
     return DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
 
 
-def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, limit_365=False):
+def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, limit_365=False, sorting='run'):
 
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
@@ -153,9 +153,14 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
     if limit_365:
         limit_365_condition = "AND projects.last_run >= CURRENT_DATE - INTERVAL '365 days'"
 
+    sorting_condition = 'projects.commit_timestamp ASC, projects.last_run ASC'
+    if sorting is not None and sorting.strip() == 'run':
+        sorting_condition = 'projects.last_run ASC, projects.commit_timestamp ASC'
+
+
     query = f"""
             SELECT
-                projects.id, phase_stats.metric, phase_stats.detail_name, phase_stats.phase,
+                projects.id, projects.name, projects.last_run, phase_stats.metric, phase_stats.detail_name, phase_stats.phase,
                 phase_stats.value, phase_stats.unit, projects.commit_hash, projects.commit_timestamp,
                 row_number() OVER () AS row_num
             FROM projects
@@ -175,10 +180,10 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
                 {detail_name_condition}
                 {limit_365_condition}
                 AND projects.commit_timestamp IS NOT NULL
-
             ORDER BY
                 phase_stats.metric ASC, phase_stats.detail_name ASC,
-                phase_stats.phase ASC, projects.commit_timestamp ASC
+                phase_stats.phase ASC, {sorting_condition}
+
             """
     print(query)
     return (query, params)

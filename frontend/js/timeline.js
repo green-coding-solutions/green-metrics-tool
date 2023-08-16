@@ -12,6 +12,13 @@ window.onresize = function() { // set callback when ever the user changes the vi
     })
 }
 
+
+const numberFormatter = new Intl.NumberFormat('en-US', {
+  style: 'decimal', // You can also use 'currency', 'percent', or 'unit'
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 function* colorIterator() {
     colors = [
         '#88a788',
@@ -72,13 +79,24 @@ const fillInputsFromURL = () => {
         throw "Error";
     }
     $('input[name="uri"]').val(escapeString(url_params.get('uri')));
+    $('#uri').text(escapeString(url_params.get('uri')));
 
     // all variables can be set via URL initially
-    if(url_params.get('branch') != null) $('input[name="branch"]').val(escapeString(url_params.get('branch')));
-    if(url_params.get('filename') != null) $('input[name="filename"]').val(escapeString(url_params.get('filename')));
+    if(url_params.get('branch') != null) {
+        $('input[name="branch"]').val(escapeString(url_params.get('branch')));
+        $('#branch').text(escapeString(url_params.get('branch')));
+    }
+    if(url_params.get('filename') != null) {
+        $('input[name="filename"]').val(escapeString(url_params.get('filename')));
+        $('#filename').text(escapeString(url_params.get('filename')));
+    }
+    if(url_params.get('machine_id') != null) {
+        $('select[name="machine_id"]').val(escapeString(url_params.get('machine_id')));
+        $('#machine').text($('select[name="machine_id"] :checked').text());
+    }
+    if(url_params.get('sorting') != null) $(`#sorting-${url_params.get('sorting')}`).prop('checked', true);
     if(url_params.get('phase') != null) $(`#phase-${url_params.get('phase')}`).prop('checked', true);
     if(url_params.get('metrics') != null) $(`#metrics-${url_params.get('metrics')}`).prop('checked', true);
-    if(url_params.get('machine_id') != null) $('select[name="machine_id"]').val(escapeString(url_params.get('machine_id')));
 
     // these two need no escaping, as the date library will always produce a result
     // it might fail parsing the date however
@@ -95,6 +113,7 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
 
     // however, the form takes precendence
     if($('input[name="branch"]').val() !== '') api_url = `${api_url}&branch=${$('input[name="branch"]').val()}`
+    if($('input[name="sorting"]:checked').val() !== '') api_url = `${api_url}&sorting=${$('input[name="sorting"]:checked').val()}`
     if($('input[name="phase"]:checked').val() !== '') api_url = `${api_url}&phase=${$('input[name="phase"]:checked').val()}`
     if($('select[name="machine_id"]').val() !== '') api_url = `${api_url}&machine_id=${$('select[name="machine_id"]').val()}`
     if($('input[name="filename"]').val() !== '') api_url = `${api_url}&filename=${$('input[name="filename"]').val()}`
@@ -140,7 +159,8 @@ const loadCharts = async () => {
     let pproject_id = null
 
     phase_stats_data.forEach( (data) => {
-        let [project_id, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp] = data
+        let [project_id, project_name, last_run, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp] = data
+
 
         if (series[`${metric_name} - ${detail_name}`] == undefined) {
             series[`${metric_name} - ${detail_name}`] = {labels: [], values: [], notes: [], unit: unit, metric_name: metric_name, detail_name: detail_name}
@@ -149,6 +169,8 @@ const loadCharts = async () => {
         series[`${metric_name} - ${detail_name}`].labels.push(commit_timestamp)
         series[`${metric_name} - ${detail_name}`].values.push({value: value, commit_hash: commit_hash})
         series[`${metric_name} - ${detail_name}`].notes.push({
+            project_name: project_name,
+            last_run: last_run,
             commit_timestamp: commit_timestamp,
             commit_hash: commit_hash,
             phase: phase,
@@ -202,10 +224,12 @@ const loadCharts = async () => {
             trigger: 'item',
             formatter: function (params, ticket, callback) {
                 if(params.componentType != 'series') return; // no notes for the MovingAverage
-                return `<strong>${params.seriesName}</strong><br>
+                return `<strong>${series[params.seriesName].notes[params.dataIndex].project_name}</strong><br>
+                        date: ${series[params.seriesName].notes[params.dataIndex].last_run}<br>
+                        metric_name: ${params.seriesName}<br>
                         phase: ${series[params.seriesName].notes[params.dataIndex].phase}<br>
-                        value: ${series[params.seriesName].values[params.dataIndex].value}<br>
-                        timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
+                        value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
+                        commit_timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
                         commit_hash: ${series[params.seriesName].notes[params.dataIndex].commit_hash}<br>
                         <br>
                         <i>Click to diff measurement with previous</i>
