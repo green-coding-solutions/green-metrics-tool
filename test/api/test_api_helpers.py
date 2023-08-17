@@ -31,21 +31,21 @@ class CI_Measurement(BaseModel):
     duration: int
 
 
-def test_sanitize_dict():
+def test_escape_dict():
     messy_dict = {"link": '<a href="http://www.github.com">Click me</a>'}
     escaped_link = '&lt;a href=&quot;http://www.github.com&quot;&gt;Click me&lt;/a&gt;'
-    sanitized = api_helpers.sanitize(messy_dict.copy())
+    escaped = api_helpers.html_escape_multi(messy_dict.copy())
 
-    assert sanitized['link'] == escaped_link
+    assert escaped['link'] == escaped_link
 
-def test_sanitize_project():
+def test_escape_project():
     messy_project = Project(name="test<?>", url='testURL', email='testEmail', branch='', machine_id=0)
     escaped_name = 'test&lt;?&gt;'
-    sanitized = api_helpers.sanitize(messy_project.model_copy())
+    escaped = api_helpers.html_escape_multi(messy_project.model_copy())
 
-    assert sanitized.name == escaped_name
+    assert escaped.name == escaped_name
 
-def test_sanitize_measurement():
+def test_escape_measurement():
     measurement = CI_Measurement(
         value=123,
         unit='mJ',
@@ -61,6 +61,6 @@ def test_sanitize_measurement():
         duration=13,
     )
     escaped_repo = 'link&lt;some_place&gt;'
-    sanitized = api_helpers.sanitize(measurement.model_copy())
+    escaped = api_helpers.html_escape_multi(measurement.model_copy())
 
-    assert sanitized.repo == escaped_repo
+    assert escaped.repo == escaped_repo

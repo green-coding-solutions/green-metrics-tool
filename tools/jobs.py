@@ -54,7 +54,7 @@ def check_job_running(job_type, job_id):
     query = "SELECT FROM jobs WHERE running=true AND type=%s"
     params = (job_type,)
     data = DB().fetch_one(query, params=params)
-    if data is not None:
+    if data:
         # No email here, only debug
         error_helpers.log_error('Job was still running: ', job_type, job_id)
         sys.exit(1)  # is this the right way to exit here?
@@ -76,7 +76,7 @@ def get_project(project_id):
            LEFT JOIN machines AS m ON p.machine_id = m.id
            WHERE p.id = %s LIMIT 1""", (project_id, ))
 
-    if (data is None or data == []):
+    if data is None or data == []:
         raise RuntimeError(f"couldn't find project w/ id: {project_id}")
 
     return data
@@ -181,7 +181,7 @@ if __name__ == '__main__':
     p_id = None
     try:
         job = get_job(args.type)
-        if (job is None or job == []):
+        if job is None or job == []:
             print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'No job to process. Exiting')
             sys.exit(0)
         p_id = job[2]
