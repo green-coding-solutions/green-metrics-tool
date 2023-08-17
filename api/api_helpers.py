@@ -6,6 +6,7 @@ import uuid
 import faulthandler
 from functools import cache
 from html import escape as html_escape
+import psycopg
 import numpy as np
 import scipy.stats
 # pylint: disable=no-name-in-module
@@ -17,220 +18,6 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
 
 from db import DB
-
-
-METRIC_MAPPINGS = {
-
-
-    'embodied_carbon_share_machine': {
-        'clean_name': 'Embodied Carbon',
-        'source': 'formula',
-        'explanation': 'Embodied carbon attributed by time share of the life-span and total embodied carbon',
-    },
-    'software_carbon_intensity_global': {
-        'clean_name': 'SCI',
-        'source': 'formula',
-        'explanation': 'SCI metric by the Green Software Foundation',
-    },
-    'phase_time_syscall_system': {
-        'clean_name': 'Phase Duration',
-        'source': 'Syscall',
-        'explanation': 'Duration of the phase measured by GMT through a syscall',
-    },
-    'psu_co2_ac_ipmi_machine': {
-        'clean_name': 'Machine CO2',
-        'source': 'Formula (IPMI)',
-        'explanation': 'Machine CO2 calculated by formula via IPMI measurement',
-    },
-    'psu_co2_dc_picolog_mainboard': {
-        'clean_name': 'Machine CO2',
-        'source': 'Formula (PicoLog)',
-        'explanation': 'Machine CO2 calculated by formula via PicoLog HRDL ADC-24 measurement',
-    },
-    'psu_co2_ac_powerspy2_machine': {
-        'clean_name': 'Machine CO2',
-        'source': 'PowerSpy2',
-        'explanation': 'Machine CO2 calculated by formula via PowerSpy2 measurement',
-    },
-    'psu_co2_ac_xgboost_machine': {
-        'clean_name': 'Machine CO2',
-        'source': 'Formula (XGBoost)',
-        'explanation': 'Machine CO2 calculated by formula via XGBoost estimation',
-    },
-    'network_energy_formula_global': {
-        'clean_name': 'Network Energy',
-        'source': 'Formula',
-        'explanation': 'Network Energy calculated by formula',
-    },
-    'network_co2_formula_global': {
-        'clean_name': 'Network CO2',
-        'source': 'Formula',
-        'explanation': 'Network CO2 calculated by formula',
-    },
-     'lm_sensors_temperature_component': {
-        'clean_name': 'CPU Temperature',
-        'source': 'lm_sensors',
-        'explanation': 'CPU Temperature as reported by lm_sensors',
-    },
-    'lm_sensors_fan_component': {
-        'clean_name': 'Fan Speed',
-        'source': 'lm_sensors',
-        'explanation': 'Fan speed as reported by lm_sensors',
-    },
-    'psu_energy_ac_powerspy2_machine': {
-        'clean_name': 'Machine Energy',
-        'source': 'PowerSpy2',
-        'explanation': 'Full machine energy (AC) as reported by PowerSpy2',
-    },
-    'psu_power_ac_powerspy2_machine': {
-        'clean_name': 'Machine Power',
-        'source': 'PowerSpy2',
-        'explanation': 'Full machine power (AC) as reported by PowerSpy2',
-    },
-    'psu_energy_ac_xgboost_machine': {
-        'clean_name': 'Machine Energy',
-        'source': 'XGBoost',
-        'explanation': 'Full machine energy (AC) as estimated by XGBoost model',
-    },
-    'psu_power_ac_xgboost_machine': {
-        'clean_name': 'Machine Power',
-        'source': 'XGBoost',
-        'explanation': 'Full machine power (AC) as estimated by XGBoost model',
-    },
-    'psu_energy_ac_ipmi_machine': {
-        'clean_name': 'Machine Energy',
-        'source': 'IPMI',
-        'explanation': 'Full machine energy (AC) as reported by IPMI',
-    },
-    'psu_power_ac_ipmi_machine': {
-        'clean_name': 'Machine Power',
-        'source': 'IPMI',
-        'explanation': 'Full machine power (AC) as reported by IPMI',
-    },
-    'psu_energy_dc_picolog_mainboard': {
-        'clean_name': 'Machine Energy',
-        'source': 'PicoLog',
-        'explanation': 'Full machine energy (DC) as reported by PicoLog HRDL ADC-24',
-    },
-    'psu_power_dc_picolog_mainboard': {
-        'clean_name': 'Machine Power',
-        'source': 'Picolog',
-        'explanation': 'Full machine power (DC) as reported by PicoLog HRDL ADC-24',
-    },
-    'cpu_frequency_sysfs_core': {
-        'clean_name': 'CPU Frequency',
-        'source': 'sysfs',
-        'explanation': 'CPU Frequency per core as reported by sysfs',
-    },
-    'ane_power_powermetrics_component': {
-        'clean_name': 'ANE Power',
-        'source': 'powermetrics',
-        'explanation': 'Apple Neural Engine',
-    },
-    'ane_energy_powermetrics_component': {
-        'clean_name': 'ANE Energy',
-        'source': 'powermetrics',
-        'explanation': 'Apple Neural Engine',
-    },
-    'gpu_power_powermetrics_component': {
-        'clean_name': 'GPU Power',
-        'source': 'powermetrics',
-        'explanation': 'Apple M1 GPU / Intel GPU',
-    },
-    'gpu_energy_powermetrics_component': {
-        'clean_name': 'GPU Energy',
-        'source': 'powermetrics',
-        'explanation': 'Apple M1 GPU / Intel GPU',
-    },
-    'cores_power_powermetrics_component': {
-        'clean_name': 'CPU Power (Cores)',
-        'source': 'powermetrics',
-        'explanation': 'Power of the cores only without GPU, ANE, GPU, DRAM etc.',
-    },
-    'cores_energy_powermetrics_component': {
-        'clean_name': 'CPU Energy (Cores)',
-        'source': 'powermetrics',
-        'explanation': 'Energy of the cores only without GPU, ANE, GPU, DRAM etc.',
-    },
-    'cpu_time_powermetrics_vm': {
-        'clean_name': 'CPU time',
-        'source': 'powermetrics',
-        'explanation': 'Effective execution time of the CPU for all cores combined',
-    },
-    'disk_io_bytesread_powermetrics_vm': {
-        'clean_name': 'Bytes read (HDD/SDD)',
-        'source': 'powermetrics',
-        'explanation': 'Effective execution time of the CPU for all cores combined',
-    },
-    'disk_io_byteswritten_powermetrics_vm': {
-        'clean_name': 'Bytes written (HDD/SDD)',
-        'source': 'powermetrics',
-        'explanation': 'Effective execution time of the CPU for all cores combined',
-    },
-    'energy_impact_powermetrics_vm': {
-        'clean_name': 'Energy impact',
-        'source': 'powermetrics',
-        'explanation': 'macOS proprietary value for relative energy impact on device',
-    },
-    'cpu_utilization_cgroup_container': {
-        'clean_name': 'CPU %',
-        'source': 'cgroup',
-        'explanation': 'CPU Utilization per container',
-    },
-    'memory_total_cgroup_container': {
-        'clean_name': 'Memory Usage',
-        'source': 'cgroup',
-        'explanation': 'Memory Usage per container',
-    },
-    'network_io_cgroup_container': {
-        'clean_name': 'Network I/O',
-        'source': 'cgroup',
-        'explanation': 'Network I/O. Details on docs.green-coding.berlin/docs/measuring/metric-providers/network-io-cgroup-container',
-    },
-    'cpu_energy_rapl_msr_component': {
-        'clean_name': 'CPU Energy (Package)',
-        'source': 'RAPL',
-        'explanation': 'RAPL based CPU energy of package domain',
-    },
-    'cpu_power_rapl_msr_component': {
-        'clean_name': 'CPU Power (Package)',
-        'source': 'RAPL',
-        'explanation': 'Derived RAPL based CPU energy of package domain',
-    },
-    'cpu_utilization_procfs_system': {
-        'clean_name': 'CPU %',
-        'source': 'procfs',
-        'explanation': 'CPU Utilization of total system',
-    },
-    'memory_energy_rapl_msr_component': {
-        'clean_name': 'Memory Energy (DRAM)',
-        'source': 'RAPL',
-        'explanation': 'RAPL based memory energy of DRAM domain',
-    },
-    'memory_power_rapl_msr_component': {
-        'clean_name': 'Memory Power (DRAM)',
-        'source': 'RAPL',
-        'explanation': 'Derived RAPL based memory energy of DRAM domain',
-    },
-    'psu_co2_ac_sdia_machine': {
-        'clean_name': 'Machine CO2',
-        'source': 'Formula (SDIA)',
-        'explanation': 'Machine CO2 calculated by formula via SDIA estimation',
-    },
-
-    'psu_energy_ac_sdia_machine': {
-        'clean_name': 'Machine Energy',
-        'source': 'SDIA',
-        'explanation': 'Full machine energy (AC) as estimated by SDIA model',
-    },
-
-    'psu_power_ac_sdia_machine': {
-        'clean_name': 'Machine Power',
-        'source': 'SDIA',
-        'explanation': 'Full machine power (AC) as estimated by SDIA model',
-    },
-}
-
 
 def rescale_energy_value(value, unit):
     # We only expect values to be mJ for energy!
@@ -259,7 +46,7 @@ def is_valid_uuid(val):
     except ValueError:
         return False
 
-def sanitize(item):
+def html_escape_multi(item):
     """Replace special characters "'", "\"", "&", "<" and ">" to HTML-safe sequences."""
     if item is None:
         return None
@@ -268,17 +55,17 @@ def sanitize(item):
         return html_escape(item)
 
     if isinstance(item, list):
-        return [sanitize(element) for element in item]
+        return [html_escape_multi(element) for element in item]
 
     if isinstance(item, dict):
         for key, value in item.items():
             if isinstance(value, str):
                 item[key] = html_escape(value)
             elif isinstance(value, dict):
-                item[key] = sanitize(value)
+                item[key] = html_escape_multi(value)
             elif isinstance(value, list):
                 item[key] = [
-                    sanitize(item)
+                    html_escape_multi(item)
                     if isinstance(item, dict)
                     else html_escape(item)
                     if isinstance(item, str)
@@ -294,10 +81,112 @@ def sanitize(item):
         # This could cause an error if we ever make a BaseModel that has keys that begin with model_
         keys = [key for key in dir(item_copy) if not key.startswith('_') and not key.startswith('model_') and not callable(getattr(item_copy, key))]
         for key in keys:
-            setattr(item_copy, key, sanitize(getattr(item_copy, key)))
+            setattr(item_copy, key, html_escape_multi(getattr(item_copy, key)))
         return item_copy
 
     return item
+
+def get_machine_list():
+    query = """
+            SELECT id, description, available
+            FROM machines
+            ORDER BY description ASC
+            """
+    return DB().fetch_all(query)
+
+def get_project_info(project_id):
+    query = """
+            SELECT
+                id, name, uri, branch, commit_hash,
+                (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements
+                    LEFT JOIN categories as t on t.id = elements) as categories,
+                filename, start_measurement, end_measurement,
+                measurement_config, machine_specs, machine_id, usage_scenario,
+                last_run, created_at, invalid_project, phases, logs
+            FROM projects
+            WHERE id = %s
+            """
+    params = (project_id,)
+    return DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
+
+
+def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, limit_365=False, sorting='run'):
+
+    if filename is None or filename.strip() == '':
+        filename =  'usage_scenario.yml'
+
+    params = [uri, filename, machine_id]
+
+    branch_condition = ''
+    if branch is not None and branch.strip() != '':
+        branch_condition = 'AND projects.branch = %s'
+        params.append(branch)
+
+    metrics_condition = ''
+    if metrics is None or metrics.strip() == '' or metrics.strip() == 'key':
+        metrics_condition =  "AND (metric LIKE '%%_energy_%%' OR metric = 'software_carbon_intensity_global')"
+    elif metrics.strip() != 'all':
+        metrics_condition =  "AND metric = %s"
+        params.append(metrics)
+
+    phase_condition = ''
+    if phase is not None and phase.strip() != '':
+        phase_condition =  "AND (phase LIKE %s)"
+        params.append(f"%{phase}")
+
+    start_date_condition = ''
+    if start_date is not None and start_date.strip() != '':
+        start_date_condition =  "AND DATE(projects.last_run) >= TO_DATE(%s, 'YYYY-MM-DD')"
+        params.append(start_date)
+
+    end_date_condition = ''
+    if end_date is not None and end_date.strip() != '':
+        end_date_condition =  "AND DATE(projects.last_run) <= TO_DATE(%s, 'YYYY-MM-DD')"
+        params.append(end_date)
+
+    detail_name_condition = ''
+    if detail_name is not None and detail_name.strip() != '':
+        detail_name_condition =  "AND phase_stats.detail_name = %s"
+        params.append(detail_name)
+
+    limit_365_condition = ''
+    if limit_365:
+        limit_365_condition = "AND projects.last_run >= CURRENT_DATE - INTERVAL '365 days'"
+
+    sorting_condition = 'projects.commit_timestamp ASC, projects.last_run ASC'
+    if sorting is not None and sorting.strip() == 'run':
+        sorting_condition = 'projects.last_run ASC, projects.commit_timestamp ASC'
+
+
+    query = f"""
+            SELECT
+                projects.id, projects.name, projects.last_run, phase_stats.metric, phase_stats.detail_name, phase_stats.phase,
+                phase_stats.value, phase_stats.unit, projects.commit_hash, projects.commit_timestamp,
+                row_number() OVER () AS row_num
+            FROM projects
+            LEFT JOIN phase_stats ON
+                projects.id = phase_stats.project_id
+            WHERE
+                projects.uri = %s
+                AND projects.filename = %s
+                AND projects.end_measurement IS NOT NULL
+                AND projects.last_run IS NOT NULL
+                AND machine_id = %s
+                {metrics_condition}
+                {branch_condition}
+                {phase_condition}
+                {start_date_condition}
+                {end_date_condition}
+                {detail_name_condition}
+                {limit_365_condition}
+                AND projects.commit_timestamp IS NOT NULL
+            ORDER BY
+                phase_stats.metric ASC, phase_stats.detail_name ASC,
+                phase_stats.phase ASC, {sorting_condition}
+
+            """
+    print(query)
+    return (query, params)
 
 def determine_comparison_case(ids):
 
@@ -314,7 +203,7 @@ def determine_comparison_case(ids):
     '''
 
     data = DB().fetch_one(query, (ids, ))
-    if data is None or data == []:
+    if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         raise RuntimeError('Could not determine compare case')
 
     [repos, usage_scenarios, machine_ids, commit_hashes, branches] = data
@@ -546,11 +435,8 @@ def get_phase_stats_object(phase_stats, case):
 
         if metric_name not in phase_stats_object['data'][phase]:
             phase_stats_object['data'][phase][metric_name] = {
-                'clean_name': METRIC_MAPPINGS[metric_name]['clean_name'],
-                'explanation': METRIC_MAPPINGS[metric_name]['explanation'],
                 'type': metric_type,
                 'unit': unit,
-                'source': METRIC_MAPPINGS[metric_name]['source'],
                 #'mean': None, # currently no use for that
                 #'stddev': None,  # currently no use for that
                 #'ci': None,  # currently no use for that

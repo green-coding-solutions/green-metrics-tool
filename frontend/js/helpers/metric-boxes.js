@@ -184,7 +184,7 @@ customElements.define('phase-metrics', PhaseMetrics);
 /*
     TODO: Include one sided T-test?
 */
-const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, detail_data)  => {
+const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, detail_data, comparison_case)  => {
     let max_value = ''
     if (detail_data.max != null) {
         let [max,max_unit] = convertValue(detail_data.max, metric_data.unit);
@@ -222,11 +222,10 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
     let [value, unit] = convertValue(detail_data.mean, metric_data.unit);
 
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
-
-    if(detail_data.stddev != null) {
+    if(comparison_case !== null) {
         tr.innerHTML = `
-            <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>
-            <td>${metric_data.source}</td>
+            <td data-position="bottom left" data-inverted="" data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}"><i class="question circle icon"></i>${METRIC_MAPPINGS[metric_name]['clean_name']}</td>
+            <td>${METRIC_MAPPINGS[metric_name]['source']}</td>
             <td>${scope}</td>
             <td>${detail_name}</td>
             <td>${metric_data.type}</td>
@@ -240,8 +239,8 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
 
     } else {
         tr.innerHTML = `
-            <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>
-            <td>${metric_data.source}</td>
+            <td data-position="bottom left" data-inverted="" data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}"><i class="question circle icon"></i>${METRIC_MAPPINGS[metric_name]['clean_name']}</td>
+            <td>${METRIC_MAPPINGS[metric_name]['source']}</td>
             <td>${scope}</td>
             <td>${detail_name}</td>
             <td>${metric_data.type}</td>
@@ -253,9 +252,9 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
 
 
     updateKeyMetric(
-        phase, metric_name, metric_data.clean_name, detail_name,
+        phase, metric_name, METRIC_MAPPINGS[metric_name]['clean_name'], detail_name,
         value , std_dev_text, unit,
-        metric_data.explanation, metric_data.source
+        METRIC_MAPPINGS[metric_name]['explanation'], METRIC_MAPPINGS[metric_name]['source']
     );
 }
 
@@ -298,8 +297,8 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
 
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
     tr.innerHTML = `
-        <td data-position="bottom left" data-inverted="" data-tooltip="${metric_data.explanation}"><i class="question circle icon"></i>${metric_data.clean_name}</td>
-        <td>${metric_data.source}</td>
+        <td data-position="bottom left" data-inverted="" data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}"><i class="question circle icon"></i>${METRIC_MAPPINGS[metric_name]['clean_name']}</td>
+        <td>${METRIC_MAPPINGS[metric_name]['source']}</td>
         <td>${scope}</td>
         <td>${detail_name}</td>
         <td>${metric_data.type}</td>
@@ -310,9 +309,9 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
         <td>${extra_label}</td>`;
 
     updateKeyMetric(
-        phase, metric_name, metric_data.clean_name, detail_name,
+        phase, metric_name, METRIC_MAPPINGS[metric_name]['clean_name'], detail_name,
         value, '', metric_data.unit,
-        metric_data.explanation, metric_data.source
+        METRIC_MAPPINGS[metric_name]['explanation'], METRIC_MAPPINGS[metric_name]['source']
     );
 
 }
@@ -359,21 +358,21 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
 
     let selector = null;
     // key metrics are already there, cause we want a fixed order, so we just replace
-    if(machine_energy_metric_condition(metric)) {
+    if(machine_energy_metric_condition(metric_name)) {
         selector = '.machine-energy';
-    } else if(network_energy_metric_condition(metric)) {
+    } else if(network_energy_metric_condition(metric_name)) {
         selector = '.network-energy';
-    } else if(phase_time_metric_condition(metric)) {
+    } else if(phase_time_metric_condition(metric_name)) {
         selector = '.phase-duration';
-    } else if(network_co2_metric_condition(metric)) {
+    } else if(network_co2_metric_condition(metric_name)) {
         selector = '.network-co2';
-    } else if(embodied_carbon_share_metric_condition(metric)) {
+    } else if(embodied_carbon_share_metric_condition(metric_name)) {
         selector = '.embodied-carbon';
-    } else if(sci_metric_condition(metric)) {
+    } else if(sci_metric_condition(metric_name)) {
         selector = '.software-carbon-intensity';
-    } else if(machine_power_metric_condition(metric)) {
+    } else if(machine_power_metric_condition(metric_name)) {
         selector = '.machine-power';
-    } else if(machine_co2_metric_condition(metric)) {
+    } else if(machine_co2_metric_condition(metric_name)) {
         selector = '.machine-co2';
     } else {
         return; // could not match key metric

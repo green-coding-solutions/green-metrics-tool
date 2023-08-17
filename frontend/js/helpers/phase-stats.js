@@ -131,38 +131,38 @@ const displayComparisonMetrics = (phase_stats_object) => {
         let found_bottom_chart_metric = false;
         const bottom_chart_present_keys = Object.fromEntries(phase_stats_object.comparison_details.map(e => [e, false]))
 
-        for (metric in phase_data) {
-            let metric_data = phase_data[metric]
+        for (metric_name in phase_data) {
+            let metric_data = phase_data[metric_name]
             let found_radar_chart_item = false;
 
-            for (detail in metric_data['data']) {
-                let detail_data = metric_data['data'][detail]
+            for (detail_name in metric_data['data']) {
+                let detail_data = metric_data['data'][detail_name]
 
                 /*
                     BLOCK LABELS
                     This block must be done outside of the key loop and cannot use a Set() datastructure
                     as we can have the same metric multiple times just with different detail names
                 */
-                if(radar_chart_condition(metric) && phase_stats_object.comparison_details.length >= 2) {
-                    radar_chart_labels.push(metric_data.clean_name);
+                if(radar_chart_condition(metric_name) && phase_stats_object.comparison_details.length >= 2) {
+                    radar_chart_labels.push(METRIC_MAPPINGS[metric_name]['clean_name']);
                 }
 
-                if (top_bar_chart_condition(metric)) {
-                    top_bar_chart_labels.push(`${metric_data.clean_name} (${metric_data.source})`);
+                if (top_bar_chart_condition(metric_name)) {
+                    top_bar_chart_labels.push(`${METRIC_MAPPINGS[metric_name]['clean_name']} (${METRIC_MAPPINGS[metric_name]['source']})`);
                 }
 
-                if (total_chart_bottom_condition(metric)) {
+                if (total_chart_bottom_condition(metric_name)) {
                     if(found_bottom_chart_metric) {
-                        showWarning(phase, `Another metric for the bottom chart was already set (${found_bottom_chart_metric}), skipping ${metric} and only first one will be shown.`);
+                        showWarning(phase, `Another metric for the bottom chart was already set (${found_bottom_chart_metric}), skipping ${metric_name} and only first one will be shown.`);
                     } else {
-                        total_chart_bottom_legend[phase].push(metric_data.clean_name);
-                        found_bottom_chart_metric = `${metric} ${detail_data['name']}`;
+                        total_chart_bottom_legend[phase].push(METRIC_MAPPINGS[metric_name]['clean_name']);
+                        found_bottom_chart_metric = `${metric_name} ${detail_name}`;
                     }
                 }
                 /* END BLOCK LABELS*/
 
                 if (Object.keys(detail_data['data']).length != phase_stats_object.comparison_details.length) {
-                    showWarning(phase, `${metric} ${detail} was missing from at least one comparison.`);
+                    showWarning(phase, `${metric_name} ${detail_name} was missing from at least one comparison.`);
                 }
 
                 let compare_chart_data = []
@@ -172,14 +172,14 @@ const displayComparisonMetrics = (phase_stats_object) => {
 
                 // we loop over all keys that exist, not over the one that are present in detail_data['data']
                 phase_stats_object.comparison_details.forEach((key,key_index) => {
-                    if(radar_chart_condition(metric) && phase_stats_object.comparison_details.length >= 2) {
+                    if(radar_chart_condition(metric_name) && phase_stats_object.comparison_details.length >= 2) {
                         radar_chart_data[key_index].push(detail_data['data'][key]?.mean)
                     }
 
-                    if (top_bar_chart_condition(metric)) {
+                    if (top_bar_chart_condition(metric_name)) {
                         top_bar_chart_data[key_index].push(detail_data['data'][key]?.mean)
                     }
-                    if (total_chart_bottom_condition(metric) && `${metric} ${detail_data['name']}` == found_bottom_chart_metric) {
+                    if (total_chart_bottom_condition(metric_name) && `${metric_name} ${detail_name}` == found_bottom_chart_metric) {
                         if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
                             total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] = []
                         }
@@ -187,7 +187,7 @@ const displayComparisonMetrics = (phase_stats_object) => {
                         bottom_chart_present_keys[key] = true
                     }
 
-                    if (phase_stats_object.comparison_case == null && machine_co2_metric_condition(metric)) {
+                    if (phase_stats_object.comparison_case == null && machine_co2_metric_condition(metric_name)) {
                         if(co2_calculated) {
                             showWarning(phase, 'CO2 was already calculated! Do you have multiple machine energy reporters set?');
                         }
@@ -208,17 +208,17 @@ const displayComparisonMetrics = (phase_stats_object) => {
 
                 if (phase_stats_object.comparison_details.length == 1) {
                     // Note: key is still the set variable from the for loop earlier
-                    displaySimpleMetricBox(phase,metric, metric_data, detail_data['name'], detail_data['data'][phase_stats_object.comparison_details[0]]);
+                    displaySimpleMetricBox(phase, metric_name, metric_data, detail_name, detail_data['data'][phase_stats_object.comparison_details[0]], phase_stats_object.comparison_case);
                 } else {
                     displayDiffMetricBox(
-                        phase, metric, metric_data, detail_data['name'], metric_box_data,
+                        phase, metric_name, metric_data, detail_name, metric_box_data,
                         detail_data.is_significant
                     );
                 }
                 if(phase_stats_object.comparison_case !== null) { // compare charts will display for everything apart stats.html
                     displayCompareChart(
                         phase,
-                        `${metric_data.clean_name} (${detail})`,
+                        `${METRIC_MAPPINGS[metric_name]['clean_name']} via ${METRIC_MAPPINGS[metric_name]['source']} - ${detail_name} <i data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`,
                         metric_data.unit,
                         compare_chart_labels,
                         compare_chart_data,
