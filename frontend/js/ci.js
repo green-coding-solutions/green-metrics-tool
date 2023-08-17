@@ -9,105 +9,119 @@ const convertValue = (value, unit) => {
 
 }
 
-const calculateStats = (measurements) => {
-    let energyMeasurements = measurements.map(measurement => measurement[0]);
-    energyMeasurements = energyMeasurements.filter(measurement => measurement != null);
-    let energySum = energyMeasurements.reduce((a, b) => a + b, 0);
+const calculateStats = (energy_measurements, time_measurements, cpu_util_measurements) => {
+    let energyAverage = '--'
+    let energyStdDeviation = '--'
+    let energyStdDevPercent = '--'
 
-    let timeMeasurements = measurements.map(measurement => measurement[7]);
-    timeMeasurements = timeMeasurements.filter(measurement => measurement != null);
-    let timeSum = timeMeasurements.reduce((a, b) => a + b, 0);
-
-    let cpuUtilMeasurements = measurements.map(measurement => measurement[9]);
-    cpuUtilMeasurements = cpuUtilMeasurements.filter(measurement => measurement != null);
-
-    let energyAverage = math.mean(energyMeasurements);
-    let timeAverage = math.mean(timeMeasurements);
-
-    let energyStdDeviation = math.std(energyMeasurements);
-    let timeStdDeviation = math.std(timeMeasurements);
-
-    let energyStdDevPercent = (energyStdDeviation / energyAverage) * 100;
-    let timeStdDevPercent = (timeStdDeviation / timeAverage) * 100;
+    let timeAverage = '--'
+    let timeStdDeviation = '--'
+    let timeStdDevPercent = '--'
 
     let cpuUtilStdDeviation = '--'
     let cpuUtilAverage = '--'
     let cpuUtilStdDevPercent = '--'
 
-    if (cpuUtilMeasurements.length > 0) {
-        cpuUtilStdDeviation = Math.round(math.std(cpuUtilMeasurements));
-        cpuUtilAverage = Math.round(math.mean(cpuUtilMeasurements));
+    if (energy_measurements.length > 0) {
+        energyStdDeviation = Math.round(math.std(energy_measurements));
+        energyAverage = Math.round(math.mean(energy_measurements));
+        energyStdDevPercent = Math.round((energyStdDeviation / energyAverage) * 100);
+        energySum = Math.round(math.sum(energy_measurements));
+    }
+
+    if (time_measurements.length > 0) {
+        timeStdDeviation = Math.round(math.std(time_measurements));
+        timeAverage = Math.round(math.mean(time_measurements));
+        timeStdDevPercent = Math.round((timeStdDeviation / timeAverage) * 100);
+        timeSum = Math.round(math.sum(time_measurements));
+    }
+
+    if (cpu_util_measurements.length > 0) {
+        cpuUtilStdDeviation = Math.round(math.std(cpu_util_measurements));
+        cpuUtilAverage = Math.round(math.mean(cpu_util_measurements));
         cpuUtilStdDevPercent = Math.round((cpuUtilStdDeviation / cpuUtilAverage) * 100);
     }
 
     return {
         energy: {
-            average: Math.round(energyAverage),
-            stdDeviation: Math.round(energyStdDeviation),
-            stdDevPercent: Math.round(energyStdDevPercent),
-            total: Math.round(energySum)
+            average: energyAverage,
+            stdDeviation: energyStdDeviation,
+            stdDevPercent: energyStdDevPercent,
+            total: energySum
         },
         time: {
-            average: Math.round(timeAverage),
-            stdDeviation: Math.round(timeStdDeviation),
-            stdDevPercent: Math.round(timeStdDevPercent),
-            total: Math.round(timeSum)
+            average: timeAverage,
+            stdDeviation: timeStdDeviation,
+            stdDevPercent: timeStdDevPercent,
+            total: timeSum
         },
         cpu_util: {
             average: cpuUtilAverage,
             stdDeviation: cpuUtilStdDeviation,
             stdDevPercent: cpuUtilStdDevPercent
         },
-        count: measurements.length
     };
 };
 
-const getStatsofLabel = (measurements, label) => {
-    let filteredMeasurements = measurements.filter(measurement => measurement[4] === label);
-
-    if (filteredMeasurements.length === 0) {
-        return { average: NaN, stdDeviation: NaN };
-    }
-
-    return calculateStats(filteredMeasurements);
-};
-
-const getFullRunStats = (measurements) => {
-    let combinedMeasurements = [];
-
-    let sumByRunId = {};
+const createStatsArrays = (measurements) => {
+    measurementsByRun = {}
+    measurementsByLabel = {}
 
     measurements.forEach(measurement => {
-        const runId = measurement[2];
+        run_id = measurement[2]
+        energy = measurement[0]
+        time = measurement[7]
+        cpuUtil = measurement[9]
+        label = measurement[4]
 
-        if (!sumByRunId[runId]) {
-            sumByRunId[runId] = {
-                energySum: 0,
-                timeSum: 0,
-                cpuUtilSum: 0,
-                cpuUtilCount: 0
+        if (!measurementsByLabel[label]) {
+            measurementsByLabel[label] = {
+                energy: [],
+                time: [],
+                cpu_util: [],
+                count: 0
+            };
+        }
+        if (!measurementsByRun[run_id]) {
+            measurementsByRun[run_id] = {
+                energy: 0,
+                time: 0,
+                cpu_util: []
             };
         }
 
-        sumByRunId[runId].energySum += measurement[0];
-        sumByRunId[runId].timeSum += measurement[7];
-        if (measurement[9] !== null) {
-            sumByRunId[runId].cpuUtilSum += measurement[9];
-            sumByRunId[runId].cpuUtilCount++;
+        if (energy) {
+            measurementsByLabel[label].energy.push(energy);
+            measurementsByRun[run_id].energy += energy;
+        } 
+        if (time) { 
+            measurementsByLabel[label].time.push(time);
+            measurementsByRun[run_id].time += time;
         }
+        if (cpuUtil) {
+            measurementsByLabel[label].cpu_util.push(cpuUtil);
+            measurementsByRun[run_id].cpu_util.push(cpuUtil);
+        }
+        measurementsByLabel[label].count += 1;
     });
 
-    for (const runId in sumByRunId) {
-        const avgCpuUtil = sumByRunId[runId].cpuUtilCount > 0 ? sumByRunId[runId].cpuUtilSum / sumByRunId[runId].cpuUtilCount : null;
-        combinedMeasurements.push({
-            0: sumByRunId[runId].energySum,
-            7: sumByRunId[runId].timeSum,
-            9: avgCpuUtil, // Use the calculated average
-            2: runId
-        });
+    const measurementsForFullRun = {
+        energy: [],
+        time: [],
+        cpu_util: [],
+        count: 0
+    };
+
+   for (const run_id in measurementsByRun) {
+        if (measurementsByRun[run_id].energy) measurementsForFullRun.energy.push(measurementsByRun[run_id].energy);
+        if (measurementsByRun[run_id].time) measurementsForFullRun.time.push(measurementsByRun[run_id].time);
+        if (measurementsByRun[run_id].cpu_util.length > 0) measurementsForFullRun.cpu_util.push(math.mean(measurementsByRun[run_id].cpu_util));
+        measurementsForFullRun.count += 1;
     }
-    return calculateStats(combinedMeasurements);
-};
+
+    return [measurementsForFullRun, measurementsByLabel];
+
+}
 
 const createChartContainer = (container, el) => {
     const chart_node = document.createElement("div")
@@ -155,7 +169,7 @@ const getEChartsOptions = () => {
 
 const filterMeasurements = (measurements, start_date, end_date, selectedLegends) => {
     let filteredMeasurements = [];
-    let discard_measurements = [];
+    let discardMeasurements = [];
 
     measurements.forEach(measurement => {
         let run_id = measurement[2];
@@ -164,7 +178,7 @@ const filterMeasurements = (measurements, start_date, end_date, selectedLegends)
         if (timestamp >= start_date && timestamp <= end_date && selectedLegends[measurement[5]]) {
             filteredMeasurements.push(measurement);
         } else {
-            discard_measurements.push(run_id);
+            discardMeasurements.push(run_id);
         }
     });
 
@@ -255,49 +269,47 @@ const displayGraph = (measurements) => {
 }
 
 const displayStatsTable = (measurements) => {
-    let labels = new Set()
-    measurements.forEach(measurement => {
-        labels.add(measurement[4])
-    });
+    const [fullRunArray, labelsArray] = createStatsArrays(measurements);    
 
     const tableBody = document.querySelector("#label-stats-table");
     tableBody.innerHTML = "";
 
-    const label_full_stats_node = document.createElement("tr")
-    full_stats = getFullRunStats(measurements)
-    label_full_stats_node.innerHTML += `
+    const full_run_stats_node = document.createElement("tr")
+    full_run_stats = calculateStats(fullRunArray.energy, fullRunArray.time, fullRunArray.cpu_util)
+    console.log("LENGTH: " + fullRunArray.length)
+    full_run_stats_node.innerHTML += `
                             <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)">Full Run <i class="question circle icon small"></i> </td>
-                            <td class="td-index">${full_stats.energy.average} mJ</td>
-                            <td class="td-index">${full_stats.energy.stdDeviation} mJ</td>
-                            <td class="td-index">${full_stats.energy.stdDevPercent}%</td>
-                            <td class="td-index">${full_stats.time.average}s</td>
-                            <td class="td-index">${full_stats.time.stdDeviation}s</td>
-                            <td class="td-index">${full_stats.time.stdDevPercent}%</td>
-                            <td class="td-index">${full_stats.cpu_util.average}%</td>
-                            <td class="td-index">${full_stats.energy.total} mJ</td>
-                            <td class="td-index">${full_stats.time.total}s</td>
-                            <td class="td-index">${full_stats.count}</td>
+                            <td class="td-index">${full_run_stats.energy.average} mJ</td>
+                            <td class="td-index">${full_run_stats.energy.stdDeviation} mJ</td>
+                            <td class="td-index">${full_run_stats.energy.stdDevPercent}%</td>
+                            <td class="td-index">${full_run_stats.time.average}s</td>
+                            <td class="td-index">${full_run_stats.time.stdDeviation}s</td>
+                            <td class="td-index">${full_run_stats.time.stdDevPercent}%</td>
+                            <td class="td-index">${full_run_stats.cpu_util.average}%</td>
+                            <td class="td-index">${full_run_stats.energy.total} mJ</td>
+                            <td class="td-index">${full_run_stats.time.total}s</td>
+                            <td class="td-index">${fullRunArray.count}</td>
                             `
-    tableBody.appendChild(label_full_stats_node);
+    tableBody.appendChild(full_run_stats_node);
 
-    labels.forEach(label => {
+    for (const label in labelsArray) {
+        label_stats = calculateStats(labelsArray[label].energy, labelsArray[label].time, labelsArray[label].cpu_util)
         const label_stats_node = document.createElement("tr")
-        let stats = getStatsofLabel(measurements, label);
         label_stats_node.innerHTML += `
-                                        <td class="td-index" data-tooltip="Stats for the series of steps represented by the ${label} label">${label}</td>
-                                        <td class="td-index">${stats.energy.average} mJ</td>
-                                        <td class="td-index">${stats.energy.stdDeviation} mJ</td>
-                                        <td class="td-index">${stats.energy.stdDevPercent}%</td>
-                                        <td class="td-index">${stats.time.average}s</td>
-                                        <td class="td-index">${stats.time.stdDeviation}s</td>
-                                        <td class="td-index">${stats.time.stdDevPercent}%</td>
-                                        <td class="td-index">${stats.cpu_util.average}%</td>
-                                        <td class="td-index">${stats.energy.total} mJ</td>
-                                        <td class="td-index">${stats.time.total}s</td>
-                                        <td class="td-index">${stats.count}</td>
+                                        <td class="td-index" data-tooltip="stats for the series of steps represented by the ${label} label">${label}</td>
+                                        <td class="td-index">${label_stats.energy.average} mJ</td>
+                                        <td class="td-index">${label_stats.energy.stdDeviation} mJ</td>
+                                        <td class="td-index">${label_stats.energy.stdDevPercent}%</td>
+                                        <td class="td-index">${label_stats.time.average}s</td>
+                                        <td class="td-index">${label_stats.time.stdDeviation}s</td>
+                                        <td class="td-index">${label_stats.time.stdDevPercent}%</td>
+                                        <td class="td-index">${label_stats.cpu_util.average}%</td>
+                                        <td class="td-index">${label_stats.energy.total} mJ</td>
+                                        <td class="td-index">${label_stats.time.total}s</td>
+                                        <td class="td-index">${labelsArray[label].count}</td>
                                         `
     document.querySelector("#label-stats-table").appendChild(label_stats_node);
-    });
+    };
 }
 
 const displayCITable = (measurements, url_params) => {
