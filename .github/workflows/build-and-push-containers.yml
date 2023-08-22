@@ -1,9 +1,16 @@
 name: Build and Push Containers
 on:
+  pull_request:
+    types:
+      - closed
+    paths:
+      - 'docker/auxiliary-containers/**/Dockerfile'
+
   workflow_dispatch:
 
 jobs:
   build-and-push-containers:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -22,11 +29,8 @@ jobs:
       - name: Login to Docker Registry
         uses: docker/login-action@v2
         with:
-          registry: ghcr.io  # change this to docker hub later?
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          # username: ${{ secrets.DOCKERHUB_USERNAME }}    # if we move this to docker hub, 
-          # password: ${{ secrets.DOCKERHUB_TOKEN }}       # then we need to set these secrets
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and Push Containers
         run: bash ./docker/auxiliary-containers/build-containers.sh
