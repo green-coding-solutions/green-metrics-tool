@@ -6,6 +6,7 @@ import uuid
 import faulthandler
 from functools import cache
 from html import escape as html_escape
+import psycopg
 import numpy as np
 import scipy.stats
 # pylint: disable=no-name-in-module
@@ -18,224 +19,25 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
 
 from db import DB
 
-
-METRIC_MAPPINGS = {
-
-    'phase_time_syscall_system': {
-        'clean_name': 'Phase Duration',
-        'source': 'Syscall',
-        'explanation': 'Duration of the phase measured by GMT through a syscall',
-    },
-    'psu_co2_ac_ipmi_machine': {
-        'clean_name': 'Machine CO2',
-        'source': 'Formula (IPMI)',
-        'explanation': 'Machine CO2 calculated by formula via IPMI measurement',
-    },
-    'psu_co2_dc_picolog_mainboard': {
-        'clean_name': 'Machine CO2',
-        'source': 'Formula (PicoLog)',
-        'explanation': 'Machine CO2 calculated by formula via PicoLog HRDL ADC-24 measurement',
-    },
-    'psu_co2_ac_powerspy2_machine': {
-        'clean_name': 'Machine CO2',
-        'source': 'PowerSpy2',
-        'explanation': 'Machine CO2 calculated by formula via PowerSpy2 measurement',
-    },
-    'psu_co2_ac_xgboost_machine': {
-        'clean_name': 'Machine CO2',
-        'source': 'Formula (XGBoost)',
-        'explanation': 'Machine CO2 calculated by formula via XGBoost estimation',
-    },
-    'network_energy_formula_global': {
-        'clean_name': 'Network Energy',
-        'source': 'Formula',
-        'explanation': 'Network Energy calculated by formula',
-    },
-    'network_co2_formula_global': {
-        'clean_name': 'Network CO2',
-        'source': 'Formula',
-        'explanation': 'Network CO2 calculated by formula',
-    },
-     'lm_sensors_temperature_component': {
-        'clean_name': 'CPU Temperature',
-        'source': 'lm_sensors',
-        'explanation': 'CPU Temperature as reported by lm_sensors',
-    },
-    'lm_sensors_fan_component': {
-        'clean_name': 'Fan Speed',
-        'source': 'lm_sensors',
-        'explanation': 'Fan speed as reported by lm_sensors',
-    },
-    'psu_energy_ac_powerspy2_machine': {
-        'clean_name': 'Machine Energy',
-        'source': 'PowerSpy2',
-        'explanation': 'Full machine energy (AC) as reported by PowerSpy2',
-    },
-    'psu_power_ac_powerspy2_machine': {
-        'clean_name': 'Machine Power',
-        'source': 'PowerSpy2',
-        'explanation': 'Full machine power (AC) as reported by PowerSpy2',
-    },
-    'psu_energy_ac_xgboost_machine': {
-        'clean_name': 'Machine Energy',
-        'source': 'XGBoost',
-        'explanation': 'Full machine energy (AC) as estimated by XGBoost model',
-    },
-    'psu_power_ac_xgboost_machine': {
-        'clean_name': 'Machine Power',
-        'source': 'XGBoost',
-        'explanation': 'Full machine power (AC) as estimated by XGBoost model',
-    },
-    'psu_energy_ac_ipmi_machine': {
-        'clean_name': 'Machine Energy',
-        'source': 'IPMI',
-        'explanation': 'Full machine energy (AC) as reported by IPMI',
-    },
-    'psu_power_ac_ipmi_machine': {
-        'clean_name': 'Machine Power',
-        'source': 'IPMI',
-        'explanation': 'Full machine power (AC) as reported by IPMI',
-    },
-    'psu_energy_dc_picolog_mainboard': {
-        'clean_name': 'Machine Energy',
-        'source': 'PicoLog',
-        'explanation': 'Full machine energy (DC) as reported by PicoLog HRDL ADC-24',
-    },
-    'psu_power_dc_picolog_mainboard': {
-        'clean_name': 'Machine Power',
-        'source': 'Picolog',
-        'explanation': 'Full machine power (DC) as reported by PicoLog HRDL ADC-24',
-    },
-    'cpu_frequency_sysfs_core': {
-        'clean_name': 'CPU Frequency',
-        'source': 'sysfs',
-        'explanation': 'CPU Frequency per core as reported by sysfs',
-    },
-    'ane_power_powermetrics_component': {
-        'clean_name': 'ANE Power',
-        'source': 'powermetrics',
-        'explanation': 'Apple Neural Engine',
-    },
-    'ane_energy_powermetrics_component': {
-        'clean_name': 'ANE Energy',
-        'source': 'powermetrics',
-        'explanation': 'Apple Neural Engine',
-    },
-    'gpu_power_powermetrics_component': {
-        'clean_name': 'GPU Power',
-        'source': 'powermetrics',
-        'explanation': 'Apple M1 GPU / Intel GPU',
-    },
-    'gpu_energy_powermetrics_component': {
-        'clean_name': 'GPU Energy',
-        'source': 'powermetrics',
-        'explanation': 'Apple M1 GPU / Intel GPU',
-    },
-    'cores_power_powermetrics_component': {
-        'clean_name': 'CPU Power (Cores)',
-        'source': 'powermetrics',
-        'explanation': 'Power of the cores only without GPU, ANE, GPU, DRAM etc.',
-    },
-    'cores_energy_powermetrics_component': {
-        'clean_name': 'CPU Energy (Cores)',
-        'source': 'powermetrics',
-        'explanation': 'Energy of the cores only without GPU, ANE, GPU, DRAM etc.',
-    },
-    'cpu_time_powermetrics_vm': {
-        'clean_name': 'CPU time',
-        'source': 'powermetrics',
-        'explanation': 'Effective execution time of the CPU for all cores combined',
-    },
-    'disk_io_bytesread_powermetrics_vm': {
-        'clean_name': 'Bytes read (HDD/SDD)',
-        'source': 'powermetrics',
-        'explanation': 'Effective execution time of the CPU for all cores combined',
-    },
-    'disk_io_byteswritten_powermetrics_vm': {
-        'clean_name': 'Bytes written (HDD/SDD)',
-        'source': 'powermetrics',
-        'explanation': 'Effective execution time of the CPU for all cores combined',
-    },
-    'energy_impact_powermetrics_vm': {
-        'clean_name': 'Energy impact',
-        'source': 'powermetrics',
-        'explanation': 'macOS proprietary value for relative energy impact on device',
-    },
-    'cpu_utilization_cgroup_container': {
-        'clean_name': 'CPU %',
-        'source': 'cgroup',
-        'explanation': 'CPU Utilization per container',
-    },
-    'memory_total_cgroup_container': {
-        'clean_name': 'Memory Usage',
-        'source': 'cgroup',
-        'explanation': 'Memory Usage per container',
-    },
-    'network_io_cgroup_container': {
-        'clean_name': 'Network I/O',
-        'source': 'cgroup',
-        'explanation': 'Network I/O. Details on docs.green-coding.berlin/docs/measuring/metric-providers/network-io-cgroup-container',
-    },
-    'cpu_energy_rapl_msr_component': {
-        'clean_name': 'CPU Energy (Package)',
-        'source': 'RAPL',
-        'explanation': 'RAPL based CPU energy of package domain',
-    },
-    'cpu_power_rapl_msr_component': {
-        'clean_name': 'CPU Power (Package)',
-        'source': 'RAPL',
-        'explanation': 'Derived RAPL based CPU energy of package domain',
-    },
-    'cpu_utilization_procfs_system': {
-        'clean_name': 'CPU %',
-        'source': 'procfs',
-        'explanation': 'CPU Utilization of total system',
-    },
-    'memory_energy_rapl_msr_component': {
-        'clean_name': 'Memory Energy (DRAM)',
-        'source': 'RAPL',
-        'explanation': 'RAPL based memory energy of DRAM domain',
-    },
-    'memory_power_rapl_msr_component': {
-        'clean_name': 'Memory Power (DRAM)',
-        'source': 'RAPL',
-        'explanation': 'Derived RAPL based memory energy of DRAM domain',
-    },
-    'psu_co2_ac_sdia_machine': {
-        'clean_name': 'Machine CO2',
-        'source': 'Formula (SDIA)',
-        'explanation': 'Machine CO2 calculated by formula via SDIA estimation',
-    },
-
-    'psu_energy_ac_sdia_machine': {
-        'clean_name': 'Machine Energy',
-        'source': 'SDIA',
-        'explanation': 'Full machine energy (AC) as estimated by SDIA model',
-    },
-
-    'psu_power_ac_sdia_machine': {
-        'clean_name': 'Machine Power',
-        'source': 'SDIA',
-        'explanation': 'Full machine power (AC) as estimated by SDIA model',
-    },
-}
-
-
 def rescale_energy_value(value, unit):
     # We only expect values to be mJ for energy!
-    if unit != 'mJ':
+    if unit != 'mJ' and not unit.startswith('ugCO2e/'):
         raise RuntimeError('Unexpected unit occured for energy rescaling: ', unit)
 
-    energy_rescaled = [value, unit]
+    unit_type = unit[1:]
+
+    if unit.startswith('ugCO2e'): # bring also to mg
+        value = value / (10**3)
+        unit = f"m{unit_type}"
 
     # pylint: disable=multiple-statements
-    if value > 1_000_000_000: energy_rescaled = [value/(10**12), 'GJ']
-    elif value > 1_000_000_000: energy_rescaled = [value/(10**9), 'MJ']
-    elif value > 1_000_000: energy_rescaled = [value/(10**6), 'kJ']
-    elif value > 1_000: energy_rescaled = [value/(10**3), 'J']
-    elif value < 0.001: energy_rescaled = [value*(10**3), 'nJ']
+    if value > 1_000_000_000: return [value/(10**12), f"G{unit_type}"]
+    if value > 1_000_000_000: return [value/(10**9), f"M{unit_type}"]
+    if value > 1_000_000: return [value/(10**6), f"k{unit_type}"]
+    if value > 1_000: return [value/(10**3), f"{unit_type}"]
+    if value < 0.001: return [value*(10**3), f"n{unit_type}"]
 
-    return energy_rescaled
+    return [value, unit] # default, no change
 
 def is_valid_uuid(val):
     try:
@@ -244,7 +46,7 @@ def is_valid_uuid(val):
     except ValueError:
         return False
 
-def sanitize(item):
+def html_escape_multi(item):
     """Replace special characters "'", "\"", "&", "<" and ">" to HTML-safe sequences."""
     if item is None:
         return None
@@ -253,17 +55,17 @@ def sanitize(item):
         return html_escape(item)
 
     if isinstance(item, list):
-        return [sanitize(element) for element in item]
+        return [html_escape_multi(element) for element in item]
 
     if isinstance(item, dict):
         for key, value in item.items():
             if isinstance(value, str):
                 item[key] = html_escape(value)
             elif isinstance(value, dict):
-                item[key] = sanitize(value)
+                item[key] = html_escape_multi(value)
             elif isinstance(value, list):
                 item[key] = [
-                    sanitize(item)
+                    html_escape_multi(item)
                     if isinstance(item, dict)
                     else html_escape(item)
                     if isinstance(item, str)
@@ -279,10 +81,112 @@ def sanitize(item):
         # This could cause an error if we ever make a BaseModel that has keys that begin with model_
         keys = [key for key in dir(item_copy) if not key.startswith('_') and not key.startswith('model_') and not callable(getattr(item_copy, key))]
         for key in keys:
-            setattr(item_copy, key, sanitize(getattr(item_copy, key)))
+            setattr(item_copy, key, html_escape_multi(getattr(item_copy, key)))
         return item_copy
 
     return item
+
+def get_machine_list():
+    query = """
+            SELECT id, description, available
+            FROM machines
+            ORDER BY description ASC
+            """
+    return DB().fetch_all(query)
+
+def get_project_info(project_id):
+    query = """
+            SELECT
+                id, name, uri, branch, commit_hash,
+                (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements
+                    LEFT JOIN categories as t on t.id = elements) as categories,
+                filename, start_measurement, end_measurement,
+                measurement_config, machine_specs, machine_id, usage_scenario,
+                last_run, created_at, invalid_project, phases, logs
+            FROM projects
+            WHERE id = %s
+            """
+    params = (project_id,)
+    return DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
+
+
+def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, limit_365=False, sorting='run'):
+
+    if filename is None or filename.strip() == '':
+        filename =  'usage_scenario.yml'
+
+    params = [uri, filename, machine_id]
+
+    branch_condition = ''
+    if branch is not None and branch.strip() != '':
+        branch_condition = 'AND projects.branch = %s'
+        params.append(branch)
+
+    metrics_condition = ''
+    if metrics is None or metrics.strip() == '' or metrics.strip() == 'key':
+        metrics_condition =  "AND (metric LIKE '%%_energy_%%' OR metric = 'software_carbon_intensity_global')"
+    elif metrics.strip() != 'all':
+        metrics_condition =  "AND metric = %s"
+        params.append(metrics)
+
+    phase_condition = ''
+    if phase is not None and phase.strip() != '':
+        phase_condition =  "AND (phase LIKE %s)"
+        params.append(f"%{phase}")
+
+    start_date_condition = ''
+    if start_date is not None and start_date.strip() != '':
+        start_date_condition =  "AND DATE(projects.last_run) >= TO_DATE(%s, 'YYYY-MM-DD')"
+        params.append(start_date)
+
+    end_date_condition = ''
+    if end_date is not None and end_date.strip() != '':
+        end_date_condition =  "AND DATE(projects.last_run) <= TO_DATE(%s, 'YYYY-MM-DD')"
+        params.append(end_date)
+
+    detail_name_condition = ''
+    if detail_name is not None and detail_name.strip() != '':
+        detail_name_condition =  "AND phase_stats.detail_name = %s"
+        params.append(detail_name)
+
+    limit_365_condition = ''
+    if limit_365:
+        limit_365_condition = "AND projects.last_run >= CURRENT_DATE - INTERVAL '365 days'"
+
+    sorting_condition = 'projects.commit_timestamp ASC, projects.last_run ASC'
+    if sorting is not None and sorting.strip() == 'run':
+        sorting_condition = 'projects.last_run ASC, projects.commit_timestamp ASC'
+
+
+    query = f"""
+            SELECT
+                projects.id, projects.name, projects.last_run, phase_stats.metric, phase_stats.detail_name, phase_stats.phase,
+                phase_stats.value, phase_stats.unit, projects.commit_hash, projects.commit_timestamp,
+                row_number() OVER () AS row_num
+            FROM projects
+            LEFT JOIN phase_stats ON
+                projects.id = phase_stats.project_id
+            WHERE
+                projects.uri = %s
+                AND projects.filename = %s
+                AND projects.end_measurement IS NOT NULL
+                AND projects.last_run IS NOT NULL
+                AND machine_id = %s
+                {metrics_condition}
+                {branch_condition}
+                {phase_condition}
+                {start_date_condition}
+                {end_date_condition}
+                {detail_name_condition}
+                {limit_365_condition}
+                AND projects.commit_timestamp IS NOT NULL
+            ORDER BY
+                phase_stats.metric ASC, phase_stats.detail_name ASC,
+                phase_stats.phase ASC, {sorting_condition}
+
+            """
+    print(query)
+    return (query, params)
 
 def determine_comparison_case(ids):
 
@@ -299,7 +203,7 @@ def determine_comparison_case(ids):
     '''
 
     data = DB().fetch_one(query, (ids, ))
-    if data is None or data == []:
+    if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         raise RuntimeError('Could not determine compare case')
 
     [repos, usage_scenarios, machine_ids, commit_hashes, branches] = data
@@ -309,13 +213,14 @@ def determine_comparison_case(ids):
     # these cannot be just averaged. But they have to be split and then compared via t-test
     # For the moment I think it makes sense to restrict to two repositories. Comparing three is too much to handle I believe if we do not want to drill down to one specific metric
 
-    # Currently we support five cases:
+    # Currently we support six cases:
     # case = 'Repository' # Case D : RequirementsEngineering Case
     # case = 'Branch' # Case C_3 : SoftwareDeveloper Case
     # case = 'Usage Scenario' # Case C_2 : SoftwareDeveloper Case
     # case = 'Machine' # Case C_1 : DataCenter Case
     # case = 'Commit' # Case B: DevOps Case
     # case = 'Repeated Run' # Case A: Blue Angel
+    # case = 'Multi-Commit' # Case D: Evolution of repo over time
 
 
     if repos == 2: # diff repos
@@ -359,8 +264,10 @@ def determine_comparison_case(ids):
 
             elif machine_ids == 1: # same repo, same usage scenarios, same machines
                 if branches <= 1:
-                    if commit_hashes > 1: # same repo, same usage scenarios, same machines, diff commit hashes
+                    if commit_hashes == 2: # same repo, same usage scenarios, same machines, diff commit hashes
                         case = 'Commit' # Case B
+                    elif commit_hashes > 2: # same repo, same usage scenarios, same machines, many commit hashes
+                        raise RuntimeError('Multiple commits comparison not supported. Please switch to Timeline view')
                     else: # same repo, same usage scenarios, same machines, same branches, same commit hashes
                         case = 'Repeated Run' # Case A
                 else: # same repo, same usage scenarios, same machines, diff branch
@@ -501,8 +408,7 @@ def get_phase_stats_object(phase_stats, case):
 
     phase_stats_object = {
         'comparison_case': case,
-        'comparison_details': [],
-        'statistics': {},
+        'comparison_details': set(),
         'data': {}
     }
 
@@ -525,19 +431,12 @@ def get_phase_stats_object(phase_stats, case):
         else:
             key = commit_hash # No comparison case / Case A: Blue Angel / Case B: DevOps Case
 
-        if key not in phase_stats_object['data']:
-            phase_stats_object['data'][key] = {}
-            phase_stats_object['comparison_details'].append(key)
+        if phase not in phase_stats_object['data']: phase_stats_object['data'][phase] = {}
 
-        if phase not in phase_stats_object['data'][key]: phase_stats_object['data'][key][phase] = {}
-
-        if metric_name not in phase_stats_object['data'][key][phase]:
-            phase_stats_object['data'][key][phase][metric_name] = {
-                'clean_name': METRIC_MAPPINGS[metric_name]['clean_name'],
-                'explanation': METRIC_MAPPINGS[metric_name]['explanation'],
+        if metric_name not in phase_stats_object['data'][phase]:
+            phase_stats_object['data'][phase][metric_name] = {
                 'type': metric_type,
                 'unit': unit,
-                'source': METRIC_MAPPINGS[metric_name]['source'],
                 #'mean': None, # currently no use for that
                 #'stddev': None,  # currently no use for that
                 #'ci': None,  # currently no use for that
@@ -546,20 +445,43 @@ def get_phase_stats_object(phase_stats, case):
                 'data': {},
             }
 
-        if detail_name not in phase_stats_object['data'][key][phase][metric_name]['data']:
-            phase_stats_object['data'][key][phase][metric_name]['data'][detail_name] = {
+        if detail_name not in phase_stats_object['data'][phase][metric_name]['data']:
+            phase_stats_object['data'][phase][metric_name]['data'][detail_name] = {
                 'name': detail_name,
-                'mean': None, # this is the mean over all repetitions of the detail_name
+                # 'mean': None, # mean for a detail over multiple machines / branches makes no sense
+                # 'max': max_value, # max for a detail over multiple machines / branches makes no sense
+                # 'min': min_value, # min for a detail over multiple machines / branches makes no sense
+                # 'stddev': None, # stddev for a detail over multiple machines / branches makes no sense
+                # 'ci': None, # since we only compare two keys atm this  could no be calculated.
+                'p_value': None, # comparing the means of two machines, branches etc. Both cases must have multiple values for this to get populated
+                'is_significant': None, # comparing the means of two machines, branches etc. Both cases must have multiple values for this to get populated
+                'data': {},
+            }
+
+        detail_data = phase_stats_object['data'][phase][metric_name]['data'][detail_name]['data']
+        if key not in detail_data:
+            detail_data[key] = {
+                'mean': None, # this is the mean over all repetitions of the detail_name for the key
                 'max': max_value,
                 'min': min_value,
+                'max_mean': None,
+                'min_mean': None,
                 'stddev': None,
                 'ci': None,
                 'p_value': None, # only for the last key the list compare to the rest. one-sided t-test
                 'is_significant': None, # only for the last key the list compare to the rest. one-sided t-test
                 'values': [],
             }
+            phase_stats_object['comparison_details'].add(key)
 
-        phase_stats_object['data'][key][phase][metric_name]['data'][detail_name]['values'].append(value)
+        detail_data[key]['values'].append(value)
+
+        # since we do not save the min/max values we need to to the comparison here in every loop again
+        # all other statistics are derived later in add_phase_stats_statistics()
+        detail_data[key]['max'] = max((x for x in [max_value, detail_data[key]['max']] if x is not None), default=None)
+        detail_data[key]['min'] = min((x for x in [min_value, detail_data[key]['min']] if x is not None), default=None)
+
+    phase_stats_object['comparison_details'] = list(phase_stats_object['comparison_details'])
 
     return phase_stats_object
 
@@ -567,72 +489,66 @@ def get_phase_stats_object(phase_stats, case):
 '''
     Here we need to traverse the object again and calculate all the averages we need
     This could have also been done while constructing the object through checking when a change
-    in phase / detail_name etc. occurs.
+    in phase / detail_name etc. occurs., however this is more efficient
 '''
 def add_phase_stats_statistics(phase_stats_object):
 
-    ## build per comparison key stats
-    for key in phase_stats_object['data']:
-        for phase, phase_data in phase_stats_object['data'][key].items():
-            for metric_name, metric in phase_data.items():
-                for detail_name, detail in metric['data'].items():
+    for _, phase_data in phase_stats_object['data'].items():
+        for _, metric in phase_data.items():
+            for _, detail in metric['data'].items():
+                for _, key_obj in detail['data'].items():
+
                     # if a detail has multiple values we calculate a std.dev and the one-sided t-test for the last value
 
-                    detail['mean'] = detail['values'][0] # default. might be overridden
+                    key_obj['mean'] = key_obj['values'][0] # default. might be overridden
+                    key_obj['max_mean'] = key_obj['values'][0] # default. might be overridden
+                    key_obj['min_mean'] = key_obj['values'][0] # default. might be overridden
 
-                    if len(detail['values']) > 1:
-                        t_stat = get_t_stat(len(detail['values']))
+                    if len(key_obj['values']) > 1:
+                        t_stat = get_t_stat(len(key_obj['values']))
 
                         # JSON does not recognize the numpy data types. Sometimes int64 is returned
-                        detail['mean'] = float(np.mean(detail['values']))
-                        detail['stddev'] = float(np.std(detail['values']))
-                        detail['max'] = float(np.max(detail['values'])) # overwrite with max of list
-                        detail['min'] = float(np.min(detail['values'])) # overwrite with min of list
-                        detail['ci'] = detail['stddev']*t_stat
+                        key_obj['mean'] = float(np.mean(key_obj['values']))
+                        key_obj['stddev'] = float(np.std(key_obj['values']))
+                        key_obj['max_mean'] = np.max(key_obj['values']) # overwrite with max of list
+                        key_obj['min_mean'] = np.min(key_obj['values']) # overwrite with min of list
+                        key_obj['ci'] = key_obj['stddev']*t_stat
 
-                        if len(detail['values']) > 2:
-                            data_c = detail['values'].copy()
+                        if len(key_obj['values']) > 2:
+                            data_c = key_obj['values'].copy()
                             pop_mean = data_c.pop()
                             _, p_value = scipy.stats.ttest_1samp(data_c, pop_mean)
                             if not np.isnan(p_value):
-                                detail['p_value'] = p_value
-                                if detail['p_value'] > 0.05:
-                                    detail['is_significant'] = False
+                                key_obj['p_value'] = p_value
+                                if key_obj['p_value'] > 0.05:
+                                    key_obj['is_significant'] = False
                                 else:
-                                    detail['is_significant'] = True
+                                    key_obj['is_significant'] = True
 
 
     ## builds stats between the keys
     if len(phase_stats_object['comparison_details']) == 2:
         # since we currently allow only two comparisons we hardcode this here
+        # this is then needed to rebuild if we would allow more
         key1 = phase_stats_object['comparison_details'][0]
         key2 = phase_stats_object['comparison_details'][1]
 
         # we need to traverse only one branch of the tree like structure, as we only need to compare matching metrics
-        for phase, phase_data in phase_stats_object['data'][key1].items():
-            phase_stats_object['statistics'][phase] = {}
-            for metric_name, metric in phase_data.items():
-                phase_stats_object['statistics'][phase][metric_name] = {}
-                for detail_name, detail in metric['data'].items():
-                    phase_stats_object['statistics'][phase][metric_name][detail_name] = {}
-                    try: # other metric or phase might not be present
-                        detail2 = phase_stats_object['data'][key2][phase][metric_name]['data'][detail_name]
-                    except KeyError:
+        for _, phase_data in phase_stats_object['data'].items():
+            for _, metric in phase_data.items():
+                for _, detail in metric['data'].items():
+                    if key1 not in detail['data'] or key2 not in detail['data']:
                         continue
-                    statistics_node = phase_stats_object['statistics'][phase][metric_name][detail_name]
 
                     # Welch-Test because we cannot assume equal variances
-                    _, p_value = scipy.stats.ttest_ind(detail['values'], detail2['values'], equal_var=False) #
+                    _, p_value = scipy.stats.ttest_ind(detail['data'][key1]['values'], detail['data'][key2]['values'], equal_var=False)
 
-                    if np.isnan(p_value):
-                        statistics_node['p_value'] = None
-                        statistics_node['is_significant'] = None
-                    else:
-                        statistics_node['p_value'] = p_value
-                        if statistics_node['p_value'] > 0.05:
-                            statistics_node['is_significant'] = False
+                    if not np.isnan(p_value):
+                        detail['p_value'] = p_value
+                        if detail['p_value'] > 0.05:
+                            detail['is_significant'] = False
                         else:
-                            statistics_node['is_significant'] = True
+                            detail['is_significant'] = True
 
     return phase_stats_object
 

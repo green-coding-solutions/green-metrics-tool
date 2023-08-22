@@ -9,6 +9,7 @@ jobs:
     permissions:
       packages: write
       contents: read
+      pull-requests: write
     steps:
       - name: 'Checkout repository'
         uses: actions/checkout@v3
@@ -31,13 +32,12 @@ jobs:
         uses: green-coding-berlin/eco-ci-energy-estimation@v2
         with:
           task: get-measurement
-          branch: dev
+          branch: main
 
       - name: Eco CI Energy Estimation - End Measurement
         uses: green-coding-berlin/eco-ci-energy-estimation@v2
         with:
           task: display-results
-          branch: dev
+          branch: main
+          pr-comment: true
         
-
-

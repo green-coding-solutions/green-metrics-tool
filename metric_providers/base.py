@@ -72,7 +72,7 @@ class BaseMetricProvider:
         elif self._metrics.get('container_id') is not None:
             df['detail_name'] = df.container_id
             for container_id in containers:
-                df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]
+                df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]['name']
             df = df.drop('container_id', axis=1)
         else: # We use the default granularity from the name of the provider eg. "..._machine"  => [MACHINE]
             df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]"
@@ -133,6 +133,7 @@ class BaseMetricProvider:
             except subprocess.TimeoutExpired:
                 # If the process hasn't gracefully exited after 5 seconds we kill it
                 os.killpg(ps_group_id, signal.SIGKILL)
+                print("Killed the process with SIGKILL. This could lead to corrupted metric log files!")
 
         except ProcessLookupError:
             print(f"Could not find process-group for {self._ps.pid}",

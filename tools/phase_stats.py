@@ -2,8 +2,8 @@
 from io import StringIO
 import sys
 import os
+import decimal
 import faulthandler
-
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -11,12 +11,15 @@ sys.path.append(f"{CURRENT_DIR}/..")
 sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from db import DB
+from global_config import GlobalConfig
 
 
 def generate_csv_line(project_id, metric, detail_name, phase_name, value, value_type, max_value, min_value, unit):
     return f"{project_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{round(min_value) if min_value is not None else ''},{unit},NOW()\n"
 
-def build_and_store_phase_stats(project_id):
+def build_and_store_phase_stats(project_id, sci=None):
+    config = GlobalConfig().config
+
     query = """
             SELECT metric, unit, detail_name
             FROM measurements
@@ -37,6 +40,8 @@ def build_and_store_phase_stats(project_id):
 
     for idx, phase in enumerate(phases[0]):
         network_io_bytes_total = [] # reset; # we use array here and sum later, because checking for 0 alone not enough
+
+        machine_co2 = None # reset
 
         select_query = """
             SELECT SUM(value), MAX(value), MIN(value), AVG(value), COUNT(value)
@@ -99,7 +104,7 @@ def build_and_store_phase_stats(project_id):
                 csv_buffer.write(generate_csv_line(project_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_sum, 'MEAN', power_max, power_min, 'mW'))
 
                 if metric.endswith('_machine'):
-                    machine_co2 = ((value_sum / 3_600) * 475)
+                    machine_co2 = (value_sum / 3_600) * config['sci']['I']
                     csv_buffer.write(generate_csv_line(project_id, f"{metric.replace('_energy_', '_co2_')}", detail_name, f"{idx:03}_{phase['name']}", machine_co2, 'TOTAL', None, None, 'ug'))
 
 
@@ -114,11 +119,21 @@ def build_and_store_phase_stats(project_id):
             network_io_in_mJ = network_io_in_kWh * 3_600_000_000
             csv_buffer.write(generate_csv_line(project_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_mJ, 'TOTAL', None, None, 'mJ'))
             # co2 calculations
-            network_io_co2_in_ug = network_io_in_kWh * 475 * 1_000_000
+            network_io_co2_in_ug = network_io_in_kWh * config['sci']['I'] * 1_000_000
             csv_buffer.write(generate_csv_line(project_id, 'network_co2_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_co2_in_ug, 'TOTAL', None, None, 'ug'))
 
-        # also create the phase time metric
-        csv_buffer.write(generate_csv_line(project_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", phase['end']-phase['start'], 'TOTAL', None, None, 'us'))
+        duration = phase['end']-phase['start']
+        csv_buffer.write(generate_csv_line(project_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", duration, 'TOTAL', None, None, 'us'))
+
+        duration_in_years = duration / (1_000_000 * 60 * 60 * 24 * 365)
+        embodied_carbon_share_g = (duration_in_years / (config['sci']['EL']) ) * config['sci']['TE'] * config['sci']['RS']
+        embodied_carbon_share_ug = decimal.Decimal(embodied_carbon_share_g * 1_000_000)
+        csv_buffer.write(generate_csv_line(project_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 'ug'))
+
+        if phase['name'] == '[RUNTIME]' and machine_co2 is not None and sci is not None \
+                         and sci.get('R', None) is not None and sci['R'] != 0:
+            csv_buffer.write(generate_csv_line(project_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_co2 + embodied_carbon_share_ug) / sci['R'], 'TOTAL', None, None, f"ugCO2e/{sci['R_d']}"))
+
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning
     DB().copy_from(

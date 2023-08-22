@@ -13,7 +13,7 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
   -o-transition: none !important;
 }
 
-#horizontal-card {
+.full-width-card {
     width: 100% !important;
     margin-bottom: 26px !important;
 }
@@ -160,6 +160,7 @@ a,
     text-overflow: ellipsis;
     overflow-wrap: normal;
     overflow: hidden;
+    white-space: nowrap;
 }
 
 .si-unit {

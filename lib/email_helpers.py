@@ -19,7 +19,7 @@ def send_email(message, receiver_email):
         # No need to set server.auth manually. server.login will iterater over all available methods
         # see https://github.com/python/cpython/blob/main/Lib/smtplib.py
         server.login(config['smtp']['user'], config['smtp']['password'])
-        server.sendmail(config['smtp']['sender'], receiver_email, message)
+        server.sendmail(config['smtp']['sender'], receiver_email, message.encode('utf-8'))
 
 
 def send_admin_email(subject, body):
@@ -43,7 +43,7 @@ Subject: {subject}
     send_email(message, config['admin']['email'])
 
 
-def send_error_email(receiver_email, error, project_id=None, name=None):
+def send_error_email(receiver_email, error, project_id=None, name=None, machine=None):
     config = GlobalConfig().config
     message = """\
 From: {smtp_sender}
@@ -54,6 +54,8 @@ Unfortunately, your Green Metrics analysis has run into some issues and could no
 
 Name: {name}
 Project id: {project_id}
+Machine: {machine}
+Link: {url}/stats.html?id={project_id}
 
 {errors}
 
@@ -64,13 +66,14 @@ Project id: {project_id}
         receiver_email=receiver_email,
         errors=error,
         name=name,
+        machine=machine,
         url=config['cluster']['metrics_url'],
         project_id=project_id,
         smtp_sender=config['smtp']['sender'])
     send_email(message, receiver_email)
 
 
-def send_report_email(receiver_email, report_id, name):
+def send_report_email(receiver_email, report_id, name, machine=None):
     config = GlobalConfig().config
     message = """\
 From: {smtp_sender}
@@ -78,6 +81,7 @@ To: {receiver_email}
 Subject: Your Green Metric report is ready
 
 Project name: {name}
+Machine: {machine}
 
 Your report is now accessible under the URL: {url}/stats.html?id={report_id}
 
@@ -87,6 +91,7 @@ Your report is now accessible under the URL: {url}/stats.html?id={report_id}
     message = message.format(
         receiver_email=receiver_email,
         report_id=report_id,
+        machine=machine,
         name=name,
         url=config['cluster']['metrics_url'],
         smtp_sender=config['smtp']['sender'])

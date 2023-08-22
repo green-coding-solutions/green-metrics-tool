@@ -7,9 +7,238 @@ METRICS_URL = "__METRICS_URL__"
     The components are fixed, but you can rename then and include different metrics if needed
 */
 
+METRIC_MAPPINGS = {
+
+    'psu_co2_ac_mcp_machine': {
+        'clean_name': 'Machine CO2',
+        'source': 'mcp',
+        'explanation': 'Machine CO2 as reported by mcp',
+    },
+
+    'psu_energy_ac_mcp_machine': {
+        'clean_name': 'Machine Energy',
+        'source': 'mcp',
+        'explanation': 'Full machine energy (AC) as reported by mcp',
+    },
+    'psu_power_ac_mcp_machine': {
+        'clean_name': 'Machine Power',
+        'source': 'mcp',
+        'explanation': 'Full machine power (AC) as reported by PowerSpy2',
+    },
+
+    'embodied_carbon_share_machine': {
+        'clean_name': 'Embodied Carbon',
+        'source': 'formula',
+        'explanation': 'Embodied carbon attributed by time share of the life-span and total embodied carbon',
+    },
+    'software_carbon_intensity_global': {
+        'clean_name': 'SCI',
+        'source': 'formula',
+        'explanation': 'SCI metric by the Green Software Foundation',
+    },
+    'phase_time_syscall_system': {
+        'clean_name': 'Phase Duration',
+        'source': 'Syscall',
+        'explanation': 'Duration of the phase measured by GMT through a syscall',
+    },
+    'psu_co2_ac_ipmi_machine': {
+        'clean_name': 'Machine CO2',
+        'source': 'Formula (IPMI)',
+        'explanation': 'Machine CO2 calculated by formula via IPMI measurement',
+    },
+    'psu_co2_dc_picolog_mainboard': {
+        'clean_name': 'Machine CO2',
+        'source': 'Formula (PicoLog)',
+        'explanation': 'Machine CO2 calculated by formula via PicoLog HRDL ADC-24 measurement',
+    },
+    'psu_co2_ac_powerspy2_machine': {
+        'clean_name': 'Machine CO2',
+        'source': 'PowerSpy2',
+        'explanation': 'Machine CO2 calculated by formula via PowerSpy2 measurement',
+    },
+    'psu_co2_ac_xgboost_machine': {
+        'clean_name': 'Machine CO2',
+        'source': 'Formula (XGBoost)',
+        'explanation': 'Machine CO2 calculated by formula via XGBoost estimation',
+    },
+    'network_energy_formula_global': {
+        'clean_name': 'Network Energy',
+        'source': 'Formula',
+        'explanation': 'Network Energy calculated by formula',
+    },
+    'network_co2_formula_global': {
+        'clean_name': 'Network CO2',
+        'source': 'Formula',
+        'explanation': 'Network CO2 calculated by formula',
+    },
+     'lm_sensors_temperature_component': {
+        'clean_name': 'CPU Temperature',
+        'source': 'lm_sensors',
+        'explanation': 'CPU Temperature as reported by lm_sensors',
+    },
+    'lm_sensors_fan_component': {
+        'clean_name': 'Fan Speed',
+        'source': 'lm_sensors',
+        'explanation': 'Fan speed as reported by lm_sensors',
+    },
+    'psu_energy_ac_powerspy2_machine': {
+        'clean_name': 'Machine Energy',
+        'source': 'PowerSpy2',
+        'explanation': 'Full machine energy (AC) as reported by PowerSpy2',
+    },
+    'psu_power_ac_powerspy2_machine': {
+        'clean_name': 'Machine Power',
+        'source': 'PowerSpy2',
+        'explanation': 'Full machine power (AC) as reported by PowerSpy2',
+    },
+    'psu_energy_ac_xgboost_machine': {
+        'clean_name': 'Machine Energy',
+        'source': 'XGBoost',
+        'explanation': 'Full machine energy (AC) as estimated by XGBoost model',
+    },
+    'psu_power_ac_xgboost_machine': {
+        'clean_name': 'Machine Power',
+        'source': 'XGBoost',
+        'explanation': 'Full machine power (AC) as estimated by XGBoost model',
+    },
+    'psu_energy_ac_ipmi_machine': {
+        'clean_name': 'Machine Energy',
+        'source': 'IPMI',
+        'explanation': 'Full machine energy (AC) as reported by IPMI',
+    },
+    'psu_power_ac_ipmi_machine': {
+        'clean_name': 'Machine Power',
+        'source': 'IPMI',
+        'explanation': 'Full machine power (AC) as reported by IPMI',
+    },
+    'psu_energy_dc_picolog_mainboard': {
+        'clean_name': 'Machine Energy',
+        'source': 'PicoLog',
+        'explanation': 'Full machine energy (DC) as reported by PicoLog HRDL ADC-24',
+    },
+    'psu_power_dc_picolog_mainboard': {
+        'clean_name': 'Machine Power',
+        'source': 'Picolog',
+        'explanation': 'Full machine power (DC) as reported by PicoLog HRDL ADC-24',
+    },
+    'cpu_frequency_sysfs_core': {
+        'clean_name': 'CPU Frequency',
+        'source': 'sysfs',
+        'explanation': 'CPU Frequency per core as reported by sysfs',
+    },
+    'ane_power_powermetrics_component': {
+        'clean_name': 'ANE Power',
+        'source': 'powermetrics',
+        'explanation': 'Apple Neural Engine',
+    },
+    'ane_energy_powermetrics_component': {
+        'clean_name': 'ANE Energy',
+        'source': 'powermetrics',
+        'explanation': 'Apple Neural Engine',
+    },
+    'gpu_power_powermetrics_component': {
+        'clean_name': 'GPU Power',
+        'source': 'powermetrics',
+        'explanation': 'Apple M1 GPU / Intel GPU',
+    },
+    'gpu_energy_powermetrics_component': {
+        'clean_name': 'GPU Energy',
+        'source': 'powermetrics',
+        'explanation': 'Apple M1 GPU / Intel GPU',
+    },
+    'cores_power_powermetrics_component': {
+        'clean_name': 'CPU Power (Cores)',
+        'source': 'powermetrics',
+        'explanation': 'Power of the cores only without GPU, ANE, GPU, DRAM etc.',
+    },
+    'cores_energy_powermetrics_component': {
+        'clean_name': 'CPU Energy (Cores)',
+        'source': 'powermetrics',
+        'explanation': 'Energy of the cores only without GPU, ANE, GPU, DRAM etc.',
+    },
+    'cpu_time_powermetrics_vm': {
+        'clean_name': 'CPU time',
+        'source': 'powermetrics',
+        'explanation': 'Effective execution time of the CPU for all cores combined',
+    },
+    'disk_io_bytesread_powermetrics_vm': {
+        'clean_name': 'Bytes read (HDD/SDD)',
+        'source': 'powermetrics',
+        'explanation': 'Effective execution time of the CPU for all cores combined',
+    },
+    'disk_io_byteswritten_powermetrics_vm': {
+        'clean_name': 'Bytes written (HDD/SDD)',
+        'source': 'powermetrics',
+        'explanation': 'Effective execution time of the CPU for all cores combined',
+    },
+    'energy_impact_powermetrics_vm': {
+        'clean_name': 'Energy impact',
+        'source': 'powermetrics',
+        'explanation': 'macOS proprietary value for relative energy impact on device',
+    },
+    'cpu_utilization_cgroup_container': {
+        'clean_name': 'CPU %',
+        'source': 'cgroup',
+        'explanation': 'CPU Utilization per container',
+    },
+    'memory_total_cgroup_container': {
+        'clean_name': 'Memory Usage',
+        'source': 'cgroup',
+        'explanation': 'Memory Usage per container',
+    },
+    'network_io_cgroup_container': {
+        'clean_name': 'Network I/O',
+        'source': 'cgroup',
+        'explanation': 'Network I/O. Details on docs.green-coding.berlin/docs/measuring/metric-providers/network-io-cgroup-container',
+    },
+    'cpu_energy_rapl_msr_component': {
+        'clean_name': 'CPU Energy (Package)',
+        'source': 'RAPL',
+        'explanation': 'RAPL based CPU energy of package domain',
+    },
+    'cpu_power_rapl_msr_component': {
+        'clean_name': 'CPU Power (Package)',
+        'source': 'RAPL',
+        'explanation': 'Derived RAPL based CPU energy of package domain',
+    },
+    'cpu_utilization_procfs_system': {
+        'clean_name': 'CPU %',
+        'source': 'procfs',
+        'explanation': 'CPU Utilization of total system',
+    },
+    'memory_energy_rapl_msr_component': {
+        'clean_name': 'Memory Energy (DRAM)',
+        'source': 'RAPL',
+        'explanation': 'RAPL based memory energy of DRAM domain',
+    },
+    'memory_power_rapl_msr_component': {
+        'clean_name': 'Memory Power (DRAM)',
+        'source': 'RAPL',
+        'explanation': 'Derived RAPL based memory energy of DRAM domain',
+    },
+    'psu_co2_ac_sdia_machine': {
+        'clean_name': 'Machine CO2',
+        'source': 'Formula (SDIA)',
+        'explanation': 'Machine CO2 calculated by formula via SDIA estimation',
+    },
+
+    'psu_energy_ac_sdia_machine': {
+        'clean_name': 'Machine Energy',
+        'source': 'SDIA',
+        'explanation': 'Full machine energy (AC) as estimated by SDIA model',
+    },
+
+    'psu_power_ac_sdia_machine': {
+        'clean_name': 'Machine Power',
+        'source': 'SDIA',
+        'explanation': 'Full machine power (AC) as estimated by SDIA model',
+    },
+}
+
 // title and filter function for the top left most chart in the Detailed Metrics / Compare view
-const TOTAL_CHART_BOTTOM_TITLE = 'Total energy consumption [mJ]';
+const TOTAL_CHART_BOTTOM_TITLE = 'Total energy consumption';
 const TOTAL_CHART_BOTTOM_LABEL = 'Machine Energy';
+const TOTAL_CHART_UNIT = 'mJ';
 // function must return boolean
 const total_chart_bottom_condition = (metric) => {
     if(metric.match(/^.*_energy.*_machine$/) !== null) return true;
@@ -17,7 +246,8 @@ const total_chart_bottom_condition = (metric) => {
 }
 
 // title and filter function for the top left most chart in the Detailed Metrics / Compare view
-const TOP_BAR_CHART_TITLE = 'Energy metrics [mJ]'
+const TOP_BAR_CHART_TITLE = 'Energy metrics'
+const TOP_BAR_CHART_UNIT = 'mJ'
 const top_bar_chart_condition = (metric) => {
     if(metric.indexOf('_energy_') !== -1) return true;
     return false;
@@ -32,7 +262,43 @@ const radar_chart_condition = (metric) => {
 
 // filter function for the CO2 calculations in the Detailed Metrics
 // please note that this metric must be unique per phase
-const co2_metrics_condition = (metric) => {
+const phase_time_metric_condition = (metric) => {
+    if(metric == 'phase_time_syscall_system') return true;
+    return false;
+}
+
+const machine_co2_metric_condition = (metric) => {
     if(metric.match(/^.*_co2_.*_machine$/) !== null) return true;
     return false;
 }
+
+const network_co2_metric_condition = (metric) => {
+    if(metric == 'network_co2_formula_global') return true;
+    return false;
+}
+
+const network_energy_metric_condition = (metric) => {
+    if(metric == 'network_energy_formula_global') return true;
+    return false;
+}
+
+const machine_power_metric_condition = (metric) => {
+    if(metric.match(/^.*_power_.*_machine$/) !== null) return true;
+    return false;
+}
+
+const machine_energy_metric_condition = (metric) => {
+    if(metric.match(/^.*_energy_.*_machine$/) !== null) return true;
+    return false;
+}
+
+const sci_metric_condition = (metric) => {
+    if(metric == 'software_carbon_intensity_global') return true;
+    return false;
+}
+
+const embodied_carbon_share_metric_condition = (metric) => {
+    if(metric == 'embodied_carbon_share_machine') return true;
+    return false;
+}
+

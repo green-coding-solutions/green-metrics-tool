@@ -38,7 +38,7 @@
     <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
         <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Detailed Metrics</h1>
-        <div class="ui horizontal card" id="horizontal-card">
+        <div class="ui full-width-card card">
             <div class="content">
                 <div class="header"><a class="ui red ribbon label" href="#">
                     <h3>Project Data</h3>
@@ -71,7 +71,7 @@
                             <div class="inline field">
                                 <span class="energy-badge-container" data-metric="ml-estimated"></span>
                                 <div class="ui left pointing blue basic label">
-                                    XGBoost estimated AC energy
+                                    XGBoost estimated AC energy (Runtime)
                                 </div>
                                 <a href="#" class="copy-badge"><i class="copy icon"></i></a>
                             </div>
@@ -79,7 +79,7 @@
                             <div class="inline field">
                                 <span class="energy-badge-container" data-metric="RAPL"></span>
                                 <div class="ui left pointing blue basic label">
-                                    RAPL component energy
+                                    RAPL component energy (Runtime)
                                 </div>
                                 <a href="#" class="copy-badge"><i class="copy icon"></i></a>
                             </div>
@@ -87,7 +87,15 @@
                             <div class="inline field">
                                 <span class="energy-badge-container" data-metric="AC"></span>
                                 <div class="ui left pointing blue basic label">
-                                    Measured AC energy
+                                    Measured AC energy (Runtime)
+                                </div>
+                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                            </div>
+                            <div class="ui divider"></div>
+                            <div class="inline field">
+                                <span class="energy-badge-container" data-metric="SCI"></span>
+                                <div class="ui left pointing blue basic label">
+                                    SCI (Runtime)
                                 </div>
                                 <a href="#" class="copy-badge"><i class="copy icon"></i></a>
                             </div>
@@ -105,7 +113,7 @@
 
                 </div>
             </div>
-        </div><!-- end ui horizontal card -->
+        </div><!-- end ui full-width-card card -->
 
         <div class="ui steps attached phases">
             <a class="active step" data-tab="[BASELINE]">
@@ -322,7 +330,7 @@
 
 
 
-        <div class="ui horizontal card" id="horizontal-card">
+        <div class="ui full-width-card card">
             <div class="content">
                 <div class="header"><a class="ui teal ribbon label" href="#">
                     <h3>Metric Charts</h3>

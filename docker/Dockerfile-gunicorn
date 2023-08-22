@@ -1,14 +1,8 @@
 # syntax=docker/dockerfile:1
-FROM ubuntu:22.04
+FROM python:3.11.4-slim-bookworm
 ENV DEBIAN_FRONTEND=noninteractive
-
-RUN rm -rf /var/lib/apt/lists/*
-RUN apt update && \
-    apt install python3 python3-pip gunicorn -y
 
 COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
-RUN rm -rf /var/lib/apt/lists/*
-
-ENTRYPOINT ["/bin/gunicorn", "--workers=2", "--log-file=-", "--worker-tmp-dir=/dev/shm", "--threads=4", "--worker-class=gthread",  "--bind", "unix:/tmp/green-coding-api.sock", "-m", "007", "--user", "www-data", "--chdir", "/var/www/green-metrics-tool/api", "-k", "uvicorn.workers.UvicornWorker", "api:app"]
+ENTRYPOINT ["/usr/local/bin/gunicorn", "--workers=2", "--access-logfile=-", "--error-logfile=-", "--worker-tmp-dir=/dev/shm", "--threads=4", "--worker-class=gthread",  "--bind", "unix:/tmp/green-coding-api.sock", "-m", "007", "--user", "www-data", "--chdir", "/var/www/green-metrics-tool/api", "-k", "uvicorn.workers.UvicornWorker", "api:app"]

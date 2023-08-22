@@ -5,7 +5,7 @@ const compareButton = () => {
     checkedBoxes.forEach(checkbox => {
         link = `${link}${checkbox.value},`;
     });
-    window.location = link.substr(0,link.length-1);
+    window.open(link.substr(0,link.length-1), '_blank');
 }
 const updateCompareCount = () => {
     const countButton = document.getElementById('compare-button');
@@ -13,7 +13,23 @@ const updateCompareCount = () => {
     countButton.textContent = `Compare: ${checkedCount} Run(s)`;
 }
 
-function allow_group_select_checkboxes(checkbox_wrapper_id){
+const removeFilter = (paramName) => {
+    const urlSearchParams = new URLSearchParams(window.location.search);
+    urlSearchParams.delete(paramName);
+    const newUrl = `${window.location.pathname}?${urlSearchParams.toString()}`;
+    window.location.href = newUrl;
+}
+
+const showActiveFilters = (key, value) => {
+    document.querySelector(`.ui.warning.message`).classList.remove('hidden');
+    const newListItem = document.createElement("span");
+    newListItem.innerHTML = `<div class="ui label"><i class="times circle icon" onClick="removeFilter('${escapeString(key)}')"></i>${escapeString(key)}: ${escapeString(value)} </div> `;
+    document.querySelector(`.ui.warning.message ul`).appendChild(newListItem);
+
+}
+
+
+const allow_group_select_checkboxes = (checkbox_wrapper_id) => {
     let lastChecked = null;
     let checkboxes = document.querySelectorAll(checkbox_wrapper_id);
     
@@ -42,10 +58,21 @@ function allow_group_select_checkboxes(checkbox_wrapper_id){
 
 (async () => {
     try {
-        var api_data = await makeAPICall('/v1/projects')
+        const url_params = (new URLSearchParams(window.location.search))
+        let repo_filter = '';
+        if (url_params.get('repo') != null && url_params.get('repo').trim() != '') {
+            repo_filter = url_params.get('repo').trim()
+            showActiveFilters('repo', repo_filter)
+        }
+        let filename_filter = '';
+        if (url_params.get('filename') != null && url_params.get('filename').trim() != '') {
+            filename_filter = url_params.get('filename').trim()
+            showActiveFilters('filename', filename_filter)
+        }
+        var api_data = await makeAPICall(`/v1/projects?repo=${repo_filter}&filename=${filename_filter}`)
     } catch (err) {
-            showNotification('Could not get data from API', err);
-            return;
+        showNotification('Could not get data from API', err);
+        return;
     }
 
     api_data.data.forEach(el => {

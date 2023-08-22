@@ -20,7 +20,7 @@ def get_project_data(project_name):
             WHERE name = %s
             """
     data = DB().fetch_one(query, (project_name, ), row_factory=psycopg.rows.dict_row)
-    if (data is None or data == []):
+    if data is None or data == []:
         return None
     return data
 
