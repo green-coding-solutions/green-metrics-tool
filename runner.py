@@ -501,7 +501,8 @@ class Runner:
             self.__metric_providers.append(metric_provider_obj)
 
             if hasattr(metric_provider_obj, 'get_docker_params'):
-                self.__docker_params += metric_provider_obj.get_docker_params()
+                services_list = ",".join(list(self._usage_scenario['services'].keys()))
+                self.__docker_params += metric_provider_obj.get_docker_params(no_proxy_list=services_list)
 
 
         self.__metric_providers.sort(key=lambda item: 'rapl' not in item.__class__.__name__.lower())
@@ -1198,9 +1199,9 @@ class Runner:
         try:
             config = GlobalConfig().config
             self.initialize_folder(self._tmp_folder)
-            self.import_metric_providers()
             self.checkout_repository()
             self.initial_parse()
+            self.import_metric_providers()
             self.populate_image_names()
             self.check_running_containers()
             self.check_system()

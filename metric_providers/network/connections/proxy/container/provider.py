@@ -45,20 +45,23 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
         raise MetricProviderConfigurationError('Tinyproxy needs to be version 1.11 or greater.')
 
 
-    def get_docker_params(self):
+    def get_docker_params(self, no_proxy_list=''):
 
+        proxy_addr = ''
         if self._host_ip:
-            return ['--env', f"HTTP_PROXY=http://{self._host_ip}:8889",
-                    '--env', f"HTTPS_PROXY=http://{self._host_ip}:8889"]
+            proxy_addr = self._host_ip
         elif platform.system() == 'Linux':
             # Under Linux there is no way to directly link to the host
             cs =  "ip addr show dev $(ip route | grep default | awk '{print $5}') | grep 'inet '| awk '{print $2}'| cut -f1 -d'/'"
             ps = subprocess.run(cs, shell=True, check=True, text=True, capture_output=True)
-            return ['--env', f"HTTP_PROXY=http://{ps.stdout.strip()}:8889",
-                    '--env', f"HTTPS_PROXY=http://{ps.stdout.strip()}:8889"]
+            proxy_addr = ps.stdout.strip()
         else:
-             return ['--env', 'HTTP_PROXY=http://host.docker.internal:8889',
-                     '--env', 'HTTPS_PROXY=http://host.docker.internal:8889']
+             proxy_addr = 'host.docker.internal'
+
+        # See https://about.gitlab.com/blog/2021/01/27/we-need-to-talk-no-proxy/ for a discussion on the env vars
+        return ['--env', f"http_proxy=http://{proxy_addr}:8889",
+                '--env', f"https_proxy=http://{proxy_addr}:8889",
+                '--env', f"no_proxy={no_proxy_list}"]
 
 
     def read_metrics(self, project_id, *_):
@@ -94,7 +97,7 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
 
     def start_profiling(self, *_):
 
-        call_string = f"tinyproxy -d -c {self._conf_file} > {self._filename}"
+        call_string = f"stdbuf -o0 tinyproxy -d -c {self._conf_file} > {self._filename}"
 
         print(call_string)
 
