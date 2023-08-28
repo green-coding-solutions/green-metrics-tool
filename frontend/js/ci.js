@@ -9,19 +9,94 @@ const convertValue = (value, unit) => {
 
 }
 
-const getAverageOfLabel = (runs, label) => {
-    let filteredRuns = runs.filter(run => run[4] == label);
-    let sum = filteredRuns.reduce((acc, run) => acc + run[0], 0);
-    return Math.round(sum / filteredRuns.length);
-}
+const calculateStats = (measurements) => {
+    let energyMeasurements = measurements.map(measurement => measurement[0]);
+    let energySum = energyMeasurements.reduce((a, b) => a + b, 0);
+    let timeMeasurements = measurements.map(measurement => measurement[7]);
+    let timeSum = timeMeasurements.reduce((a, b) => a + b, 0);
+    let cpuUtilMeasurments = measurements.map(measurement => measurement[9]);
 
+    let energyAverage = math.mean(energyMeasurements);
+    let timeAverage = math.mean(timeMeasurements);
+    let cpuUtilAverage = math.mean(cpuUtilMeasurments);
 
-const getTotalAverage = (runs) => {
-    let sum = runs.reduce((acc, run) => acc + run[0], 0);
-    return Math.round(sum / runs.length);
-}
+    let energyStdDeviation = math.std(energyMeasurements);
+    let timeStdDeviation = math.std(timeMeasurements);
+    let cpuUtilStdDeviation = math.std(cpuUtilMeasurments);
 
-const createChartContainer = (container, el, runs) => {
+    let energyStdDevPercent = (energyStdDeviation / energyAverage) * 100;
+    let timeStdDevPercent = (timeStdDeviation / timeAverage) * 100;
+    let cpuUtilStdDevPercent = (cpuUtilStdDeviation / cpuUtilAverage) * 100;
+
+    return {
+        energy: {
+            average: Math.round(energyAverage),
+            stdDeviation: Math.round(energyStdDeviation),
+            stdDevPercent: Math.round(energyStdDevPercent),
+            total: Math.round(energySum)
+        },
+        time: {
+            average: Math.round(timeAverage),
+            stdDeviation: Math.round(timeStdDeviation),
+            stdDevPercent: Math.round(timeStdDevPercent),
+            total: Math.round(timeSum)
+        },
+        cpu_util: {
+            average: Math.round(cpuUtilAverage),
+            stdDeviation: Math.round(cpuUtilStdDeviation),
+            stdDevPercent: Math.round(cpuUtilStdDevPercent)
+        },
+        count: measurements.length
+    };
+};
+
+const getStatsofLabel = (measurements, label) => {
+    let filteredMeasurements = measurements.filter(measurement => measurement[4] === label);
+
+    if (filteredMeasurements.length === 0) {
+        return { average: NaN, stdDeviation: NaN };
+    }
+
+    return calculateStats(filteredMeasurements);
+};
+
+const getFullRunStats = (measurements) => {
+    let combinedMeasurements = [];
+
+    let sumByRunId = {};
+
+    measurements.forEach(measurement => {
+        const runId = measurement[2];
+
+        if (!sumByRunId[runId]) {
+            sumByRunId[runId] = {
+                energySum: 0,
+                timeSum: 0,
+                cpuUtilSum: 0,
+                count: 0
+            };
+        }
+
+        sumByRunId[runId].energySum += measurement[0];
+        sumByRunId[runId].timeSum += measurement[7];
+        sumByRunId[runId].cpuUtilSum += measurement[9];
+        sumByRunId[runId].count++;
+    });
+
+    for (const runId in sumByRunId) {
+        const avgCpuUtil = sumByRunId[runId].cpuUtilSum / sumByRunId[runId].count; // Calculate the average
+        combinedMeasurements.push({
+            0: sumByRunId[runId].energySum,
+            7: sumByRunId[runId].timeSum,
+            9: avgCpuUtil, // Use the calculated average
+            2: runId
+        });
+    }
+
+    return calculateStats(combinedMeasurements);
+};
+
+const createChartContainer = (container, el) => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");
     chart_node.classList.add('statistics-chart-card')
@@ -65,78 +140,34 @@ const getEChartsOptions = () => {
     };
 }
 
-const filterRuns = (runs, start_date, end_date) => {
-    let filtered_runs = [];
-    let discard_runs = [];
-    runs.forEach(run => {
-        let run_id = run[2];
-        let timestamp = new Date(run[3]);
-        if (timestamp >= start_date && timestamp <= end_date) {
-            filtered_runs.push(run);
+const filterMeasurements = (measurements, start_date, end_date, selectedLegends) => {
+    let filteredMeasurements = [];
+    let discard_measurements = [];
+
+    measurements.forEach(measurement => {
+        let run_id = measurement[2];
+        let timestamp = new Date(measurement[3]);
+
+        if (timestamp >= start_date && timestamp <= end_date && selectedLegends[measurement[5]]) {
+            filteredMeasurements.push(measurement);
+        } else {
+            discard_measurements.push(run_id);
         }
-        else
-            discard_runs.push(run_id);
     });
-    // This was intended to catch the case where a run has dates that start before midnight and end after midngiht
-    // but it is not working correctly at the moment
-    //filtered_runs = filtered_runs.filter(run => !discard_runs.includes(run[2]));
-    return filtered_runs;
+
+    displayStatsTable(filteredMeasurements); // Update stats table
+    return filteredMeasurements;
 }
 
-// This is not in use at the moment, keeping it as I believe it will be useful in the next iteration of the
-// chart display
-function transformRuns(runs) {
-    const transformedRuns = {};
-    for (const run of runs) {
-        const runId = run[2];
-        const unit = run[1];
-        const timestamp = new Date(run[3]).getTime();
-        const value = run[0];
-        const label = run[4];
-        const cpu = run[5];
-        const commitHash = run[6];
-        const duration = run[7]
-
-        if (!transformedRuns[runId]) {
-            transformedRuns[runId] = {
-                run_id: runId,
-                unit: unit,
-                timestamps: [],
-                values: [],
-                labels: [],
-                cpu: cpu,
-                commit_hash: commitHash,
-                duration: duration,
-                earliest_timestamp: timestamp,
-                earliest_timestamp_readable: dateToYMD(new Date(timestamp),short=true)
-            };
-        } else if (timestamp < transformedRuns[runId].earliest_timestamp) {
-            transformedRuns[runId].earliest_timestamp = timestamp;
-            transformedRuns[runId].earliest_timestamp_readable = dateToYMD(new Date(timestamp));
-        }
-
-        transformedRuns[runId].timestamps.push(timestamp);
-        transformedRuns[runId].values.push(value);
-        transformedRuns[runId].labels.push(label);
-  }
-
-  return Object.values(transformedRuns);
-}
-
-// Also not in use at the moment, keeping it in case we need to pad the array later
-const createPaddedArray = (index, value) => {
-  return [...Array(index).fill(0), value];
-};
-
-const getChartOptions = (runs, chart_element) => {
+const getChartOptions = (measurements, chart_element) => {
     let options = getEChartsOptions();
     options.title.text = `Workflow energy cost per run [mJ]`;
 
     let legend = new Set()
     let labels = []
 
-    runs.forEach(run => { // iterate over all runs, which are in row order
-        let [value, unit, run_id, timestamp, label, cpu, commit_hash, duration] = run;
+    measurements.forEach(measurement => { // iterate over all measurements, which are in row order
+        let [value, unit, run_id, timestamp, label, cpu, commit_hash, duration, source, cpu_util] = measurement;
         options.series.push({
             type: 'bar',
             smooth: true,
@@ -150,7 +181,7 @@ const getChartOptions = (runs, chart_element) => {
         })
         legend.add(cpu)
 
-        labels.push({value: value, unit: unit, run_id: run_id, labels: [label], duration: duration, commit_hash: commit_hash, timestamp: dateToYMD(new Date(timestamp))})
+        labels.push({value: value, unit: unit, run_id: run_id, labels: [label], cpu_util: cpu_util, duration: duration, commit_hash: commit_hash, timestamp: dateToYMD(new Date(timestamp))})
     });
 
     options.legend.data = Array.from(legend)
@@ -163,16 +194,18 @@ const getChartOptions = (runs, chart_element) => {
                     commit_hash: ${labels[params.componentIndex].commit_hash}<br>
                     value: ${labels[params.componentIndex].value} ${labels[params.componentIndex].unit}<br>
                     duration: ${labels[params.componentIndex].duration} seconds<br>
+                    avg. cpu. utilization: ${labels[params.componentIndex].cpu_util}%<br>
                     `;
         }
     };
     return options
 }
 
-const displayGraph = (runs) => {
-    const element = createChartContainer("#chart-container", "run-energy", runs);
 
-    const options = getChartOptions(runs, element);
+const displayGraph = (measurements) => {
+    const element = createChartContainer("#chart-container", "run-energy");
+
+    const options = getChartOptions(measurements, element);
 
     const chart_instance = echarts.init(element);
     chart_instance.setOption(options);
@@ -197,40 +230,68 @@ const displayGraph = (runs) => {
         chart_instance.resize();
     }
 
+    chart_instance.on('legendselectchanged', function (params) {
+        const selectedLegends = params.selected;
+        const filteredMeasurements = measurements.filter(measurement => selectedLegends[measurement[5]]);
+
+        displayStatsTable(filteredMeasurements);
+    });
+
     return chart_instance;
 }
 
-const displayAveragesTable = (runs) => {
+const displayStatsTable = (measurements) => {
     let labels = new Set()
-    runs.forEach(run => {
-        labels.add(run[4])
+    measurements.forEach(measurement => {
+        labels.add(measurement[4])
     });
 
-    const tableBody = document.querySelector("#label-avg-table");
+    const tableBody = document.querySelector("#label-stats-table");
     tableBody.innerHTML = "";
 
-    const label_total_avg_node = document.createElement("tr")
-    label_total_avg_node.innerHTML += `
-                            <td class="td-index">${getTotalAverage(runs)} mJ</td>
-                            <td class="td-index">Total</td>`
-    tableBody.appendChild(label_total_avg_node);
+    const label_full_stats_node = document.createElement("tr")
+    full_stats = getFullRunStats(measurements)
+    label_full_stats_node.innerHTML += `
+                            <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)"> <i class="question circle icon small"></i> Full Run</td>
+                            <td class="td-index">${full_stats.energy.average} mJ</td>
+                            <td class="td-index">${full_stats.energy.stdDeviation} mJ</td>
+                            <td class="td-index">${full_stats.energy.stdDevPercent}%</td>
+                            <td class="td-index">${full_stats.time.average}s</td>
+                            <td class="td-index">${full_stats.time.stdDeviation}s</td>
+                            <td class="td-index">${full_stats.time.stdDevPercent}%</td>
+                            <td class="td-index">${full_stats.cpu_util.average}%</td>
+                            <td class="td-index">${full_stats.energy.total} mJ</td>
+                            <td class="td-index">${full_stats.time.total}s</td>
+                            <td class="td-index">${full_stats.count}</td>
+                            `
+    tableBody.appendChild(label_full_stats_node);
 
     labels.forEach(label => {
-        const label_avgs_node = document.createElement("tr")
-        let avg = getAverageOfLabel(runs, label);
-        label_avgs_node.innerHTML += `
-                                        <td class="td-index">${avg} mJ</td>
-                                        <td class="td-index">${label}</td>`
-    document.querySelector("#label-avg-table").appendChild(label_avgs_node);
+        const label_stats_node = document.createElement("tr")
+        let stats = getStatsofLabel(measurements, label);
+        label_stats_node.innerHTML += `
+                                        <td class="td-index" data-tooltip="Stats for the series of steps represented by the ${label} label">${label}</td>
+                                        <td class="td-index">${stats.energy.average} mJ</td>
+                                        <td class="td-index">${stats.energy.stdDeviation} mJ</td>
+                                        <td class="td-index">${stats.energy.stdDevPercent}%</td>
+                                        <td class="td-index">${stats.time.average}s</td>
+                                        <td class="td-index">${stats.time.stdDeviation}s</td>
+                                        <td class="td-index">${stats.time.stdDevPercent}%</td>
+                                        <td class="td-index">${stats.cpu_util.average}%</td>
+                                        <td class="td-index">${stats.energy.total} mJ</td>
+                                        <td class="td-index">${stats.time.total}s</td>
+                                        <td class="td-index">${stats.count}</td>
+                                        `
+    document.querySelector("#label-stats-table").appendChild(label_stats_node);
     });
 }
 
-const displayCITable = (runs, url_params) => {
-    runs.forEach(el => {
+const displayCITable = (measurements, url_params) => {
+    measurements.forEach(el => {
         const li_node = document.createElement("tr");
 
-        [badge_value, badge_unit] = convertValue(el[0], el[1])
-        const value = `${badge_value} ${badge_unit}`;
+        [energy_value, energy_unit] = convertValue(el[0], el[1])
+        const value = `${energy_value} ${energy_unit}`;
 
         const run_id = el[2];
         const cpu = el[5];
@@ -238,6 +299,7 @@ const displayCITable = (runs, url_params) => {
         const short_hash = commit_hash.substring(0, 7);
         const tooltip = `title="${commit_hash}"`;
         const source = el[8];
+        const cpu_avg = el[9];
 
         var run_link = ''
         if(source == 'github') {
@@ -254,17 +316,21 @@ const displayCITable = (runs, url_params) => {
         const label = el[4]
         const duration = el[7]
 
-        li_node.innerHTML = `<td class="td-index">${escapeString(value)}</td>\
-                            <td class="td-index">${escapeString(label)}</td>\
+        li_node.innerHTML = `
                             <td class="td-index">${run_link_node}</td>\
+                            <td class="td-index">${escapeString(label)}</td>\
                             <td class="td-index"><span title="${escapeString(created_at)}">${dateToYMD(new Date(created_at))}</span></td>\
-                            <td class="td-index" ${escapeString(tooltip)}>${escapeString(short_hash)}</td>\
+                            <td class="td-index">${escapeString(value)}</td>\
                             <td class="td-index">${escapeString(cpu)}</td>\
-                            <td class="td-index">${escapeString(duration)} seconds</td>`;
+                            <td class="td-index">${cpu_avg}%</td>
+                            <td class="td-index">${duration} seconds</td>
+                            <td class="td-index" ${escapeString(tooltip)}>${escapeString(short_hash)}</td>\
+                            `;
         document.querySelector("#ci-table").appendChild(li_node);
     });
     $('table').tablesort();
 }
+
 
 function dateTimePicker() {
     $('#rangestart').calendar({
@@ -295,7 +361,6 @@ $(document).ready((e) => {
             return;
         }
 
-
         try {
             const link_node = document.createElement("a")
             const img_node = document.createElement("img")
@@ -309,18 +374,19 @@ $(document).ready((e) => {
 
         try {
             api_string=`/v1/ci/measurements?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`;
-            var badges_data = await makeAPICall(api_string);
+            var measurements = await makeAPICall(api_string);
         } catch (err) {
             showNotification('Could not get data from API', err);
             return;
         }
 
         let repo_link = ''
+        let source = measurements.data[0][8]
 
-        if(badges_data.data[0][8] == 'github') {
+        if(source == 'github') {
             repo_link = `https://github.com/${escapeString(url_params.get('repo'))}`;
         }
-        else if(badges_data.data[0][8] == 'gitlab') {
+        else if(source == 'gitlab') {
             repo_link = `https://gitlab.com/${escapeString(url_params.get('repo'))}`;
         }
         //${repo_link}
@@ -329,19 +395,24 @@ $(document).ready((e) => {
         document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params.get('branch'))}</td></tr>`)
         document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(url_params.get('workflow'))}</td></tr>`)
 
-        displayCITable(badges_data.data, url_params);
-        chart_instance = displayGraph(badges_data.data)
-        displayAveragesTable(badges_data.data)
+        displayCITable(measurements.data, url_params);
+        
+        chart_instance = displayGraph(measurements.data)
+        displayStatsTable(measurements.data)
         dateTimePicker();
-        $('#submit').on('click', function() {
+
+        $('#submit').on('click', function () {
             var startDate = new Date($('#rangestart input').val());
             var endDate = new Date($('#rangeend input').val());
-            new_runs = filterRuns(badges_data.data, startDate, endDate)
-            options = getChartOptions(new_runs)
-            chart_instance.clear()
+
+            const selectedLegends = chart_instance.getOption().legend[0].selected;
+            const filteredMeasurements = filterMeasurements(measurements.data, startDate, endDate, selectedLegends);
+
+            options = getChartOptions(filteredMeasurements);
+            chart_instance.clear();
             chart_instance.setOption(options);
-            displayAveragesTable(new_runs);
         });
+
         setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);
     })();
 });

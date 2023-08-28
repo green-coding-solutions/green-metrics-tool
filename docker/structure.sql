@@ -106,13 +106,14 @@ CREATE INDEX "notes_project_id" ON "notes" USING HASH ("project_id");
 
 CREATE TABLE ci_measurements (
     id SERIAL PRIMARY KEY,
-    value bigint,
-    unit text,
+    energy_value bigint,
+    energy_unit text,
     repo text,
     branch text,
     workflow text,
     run_id text,
     cpu text DEFAULT NULL,
+    cpu_util_avg int,
     commit_hash text DEFAULT NULL,
     label text,
     duration bigint,

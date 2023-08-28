@@ -1,5 +1,11 @@
 const convertValue = (value, unit) => {
+    // we do not allow a dynamic rescaling here, as we need all the units we feed into
+    // to be on the same order of magnitude
+
     if (value == null) return [value, unit];
+
+    if(unit.startsWith('ugCO2e/')) return [(value/(10**6)).toFixed(2), unit.substr(1)]
+
     switch (unit) {
     case 'mJ':
         return [(value / 1_000).toFixed(2), 'J'];

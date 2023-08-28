@@ -101,7 +101,6 @@ sed -i -e "s|__METRICS_URL__|$metrics_url|" frontend/js/helpers/config.js
 print_message "Checking out further git submodules ..."
 git submodule update --init
 
-
 print_message "Installing needed binaries for building ..."
 if lsb_release -is | grep -q "Fedora"; then
     sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy
@@ -136,10 +135,11 @@ echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo
 
 print_message "Installing IPMI tools"
 if lsb_release -is | grep -q "Fedora"; then
-    sudo dnf install -y ipmitool
+    sudo dnf -y install ipmitool
 else
     sudo apt-get install -y freeipmi-tools ipmitool
 fi
+
 
 print_message "Adding IPMI to sudoers file"
 echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/ipmi_get_machine_energy_stat

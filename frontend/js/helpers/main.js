@@ -76,7 +76,7 @@ const showNotification = (message_title, message_text, type='warning') => {
 
 const copyToClipboard = (e) => {
   if (navigator && navigator.clipboard && navigator.clipboard.writeText)
-    return navigator.clipboard.writeText(e.currentTarget.closest('div.inline.field').querySelector('span').innerHTML)
+    return navigator.clipboard.writeText(e.currentTarget.closest('.field').querySelector('span').innerHTML)
 
   alert('Copying badge on local is not working due to browser security models')
   return Promise.reject('The Clipboard API is not available.');
@@ -90,11 +90,12 @@ const dateToYMD = (date, short=false) => {
     let offset = date.getTimezoneOffset();
     offset = offset < 0 ? `+${-offset/60}` : -offset/60;
 
-    if(short) return `${date.getFullYear().toString().substr(-2)}.${month}.${day}`;
+    if(short) return `${date.getFullYear().toString()}.${month}.${day}`;
     return ` ${date.getFullYear()}-${month}-${day} <br> ${hours}:${minutes} UTC${offset}`;
 }
 
 const escapeString = (string) =>{
+    let my_string = String(string)
     const map = {
       '&': '&amp;',
       '<': '&lt;',
@@ -103,7 +104,7 @@ const escapeString = (string) =>{
       "'": '&#x27;'
     };
     const reg = /[&<>"']/ig;
-    return string.replace(reg, (match) => map[match]);
+    return my_string.replace(reg, (match) => map[match]);
   }
 
 async function makeAPICall(path, values=null) {

@@ -3,7 +3,6 @@
 # pylint: disable=no-name-in-module
 # pylint: disable=wrong-import-position
 
-import json
 import faulthandler
 import sys
 import os
@@ -26,11 +25,11 @@ from db import DB
 import jobs
 import email_helpers
 import error_helpers
-import psycopg
 import anybadge
 from api_helpers import (add_phase_stats_statistics, determine_comparison_case,
-                         sanitize, get_phase_stats, get_phase_stats_object,
-                         is_valid_uuid, rescale_energy_value)
+                         html_escape_multi, get_phase_stats, get_phase_stats_object,
+                         is_valid_uuid, rescale_energy_value, get_timeline_query,
+                         get_project_info, get_machine_list)
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic
@@ -126,7 +125,7 @@ async def get_notes(project_id):
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    escaped_data = [sanitize(note) for note in data]
+    escaped_data = [html_escape_multi(note) for note in data]
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
 @app.get('/v1/network/{project_id}')
@@ -151,12 +150,8 @@ async def get_network(project_id):
 # return a list of all possible registered machines
 @app.get('/v1/machines/')
 async def get_machines():
-    query = """
-            SELECT id, description, available
-            FROM machines
-            ORDER BY description ASC
-            """
-    data = DB().fetch_all(query)
+
+    data = get_machine_list()
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
@@ -190,7 +185,7 @@ async def get_projects(repo: str, filename: str):
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    escaped_data = [sanitize(project) for project in data]
+    escaped_data = [html_escape_multi(project) for project in data]
 
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
@@ -220,12 +215,10 @@ async def compare_in_repo(ids: str):
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
         phase_stats_object['common_info'] = {}
 
-        project_info_response = await get_project(ids[0])
-        project_info = json.loads(project_info_response.body)['data']
+        project_info = get_project_info(ids[0])
 
-        machines_response = await get_machines()
-        machines_info = json.loads(machines_response.body)['data']
-        machines = {machine[0]: machine[1] for machine in machines_info}
+        machine_list = get_machine_list()
+        machines = {machine[0]: machine[1] for machine in machine_list}
 
         machine = machines[project_info['machine_id']]
         uri = project_info['uri']
@@ -278,7 +271,7 @@ async def compare_in_repo(ids: str):
 
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
-# This route is primarily used to load phase stats it into a pandas data frame
+
 @app.get('/v1/phase_stats/single/{project_id}')
 async def get_phase_stats_single(project_id: str):
     if project_id is None or not is_valid_uuid(project_id):
@@ -321,6 +314,56 @@ async def get_measurements_single(project_id: str):
 
     return ORJSONResponse({'success': True, 'data': data})
 
+@app.get('/v1/timeline')
+async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, start_date: str | None = None, end_date: str | None = None, metrics: str | None = None, phase: str | None = None, sorting: str | None = None,):
+    if uri is None or uri.strip() == '':
+        return ORJSONResponse({'success': False, 'err': 'URI is empty'}, status_code=400)
+
+    query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_date=start_date, end_date=end_date, sorting=sorting)
+
+    data = DB().fetch_all(query, params=params)
+
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
+
+    return ORJSONResponse({'success': True, 'data': data})
+
+@app.get('/v1/badge/timeline')
+async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, metrics: str | None = None, phase: str | None = None):
+    if uri is None or uri.strip() == '':
+        return ORJSONResponse({'success': False, 'err': 'URI is empty'}, status_code=400)
+
+    if detail_name is None or detail_name.strip() == '':
+        return ORJSONResponse({'success': False, 'err': 'Detail Name is mandatory'}, status_code=400)
+
+    query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, phase, detail_name=detail_name, limit_365=True)
+
+    query = f"""
+        WITH trend_data AS (
+            {query}
+        ) SELECT
+          MAX(row_num::float),
+          regr_slope(value, row_num::float) AS trend_slope,
+          regr_intercept(value, row_num::float) AS trend_intercept,
+          MAX(unit)
+        FROM trend_data;
+    """
+
+    data = DB().fetch_one(query, params=params)
+
+    if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
+        return Response(status_code=204) # No-Content
+
+    cost = data[1]/data[0]
+    cost = f"+{round(float(cost), 2)}" if abs(cost) == cost else f"{round(float(cost), 2)}"
+
+    badge = anybadge.Badge(
+        label=xml_escape('Project Trend'),
+        value=xml_escape(f"{cost} {data[3]} per day"),
+        num_value_padding_chars=1,
+        default_color='orange')
+    return Response(content=str(badge), media_type="image/svg+xml")
+
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/badge/single/{project_id}')
@@ -361,7 +404,7 @@ async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
     params = (project_id, value)
     data = DB().fetch_one(query, params=params)
 
-    if data is None or data == [] or not data[1] :
+    if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         badge_value = 'No energy data yet'
     else:
         [energy_value, energy_unit] = rescale_energy_value(data[0], data[1])
@@ -402,7 +445,7 @@ async def post_project_add(project: Project):
 
     if project.machine_id == 0:
         project.machine_id = None
-    project = sanitize(project)
+    project = html_escape_multi(project)
 
     # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
     query = """
@@ -431,23 +474,12 @@ async def get_project(project_id: str):
     if project_id is None or not is_valid_uuid(project_id):
         return ORJSONResponse({'success': False, 'err': 'Project ID is not a valid UUID or empty'}, status_code=400)
 
-    query = """
-            SELECT
-                id, name, uri, branch, commit_hash,
-                (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements
-                    LEFT JOIN categories as t on t.id = elements) as categories,
-                filename, start_measurement, end_measurement,
-                measurement_config, machine_specs, machine_id, usage_scenario,
-                last_run, created_at, invalid_project, phases, logs
-            FROM projects
-            WHERE id = %s
-            """
-    params = (project_id,)
-    data = DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
+    data = get_project_info(project_id)
+
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    data = sanitize(data)
+    data = html_escape_multi(data)
 
     return ORJSONResponse({'success': True, 'data': data})
 
@@ -460,11 +492,12 @@ async def robots_txt():
 
 # pylint: disable=invalid-name
 class CI_Measurement(BaseModel):
-    value: int
-    unit: str
+    energy_value: int
+    energy_unit: str
     repo: str
     branch: str
     cpu: str
+    cpu_util_avg: float
     commit_hash: str
     workflow: str
     run_id: str
@@ -502,16 +535,17 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                     if value.strip() == '':
                         return ORJSONResponse({'success': False, 'err': f"{key} is empty"}, status_code=400)
 
-    measurement = sanitize(measurement)
+    measurement = html_escape_multi(measurement)
 
     query = """
         INSERT INTO
-            ci_measurements (value, unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash, duration)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ci_measurements (energy_value, energy_unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash, duration, cpu_util_avg)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
-    params = (measurement.value, measurement.unit, measurement.repo, measurement.branch,
+    params = (measurement.energy_value, measurement.energy_unit, measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id, measurement.project_id,
-            measurement.label, measurement.source, measurement.cpu, measurement.commit_hash, measurement.duration)
+            measurement.label, measurement.source, measurement.cpu, measurement.commit_hash,
+            measurement.duration, measurement.cpu_util_avg)
 
     DB().query(query=query, params=params)
     return ORJSONResponse({'success': True}, status_code=201)
@@ -519,7 +553,7 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 @app.get('/v1/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str):
     query = """
-        SELECT value, unit, run_id, created_at, label, cpu, commit_hash, duration, source
+        SELECT energy_value, energy_unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s
         ORDER BY run_id ASC, created_at ASC
@@ -549,7 +583,7 @@ async def get_ci_projects():
 @app.get('/v1/ci/badge/get')
 async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
-        SELECT SUM(value), MAX(unit), MAX(run_id)
+        SELECT SUM(energy_value), MAX(energy_unit), MAX(run_id)
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow = %s
         GROUP BY run_id
@@ -560,11 +594,11 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     params = (repo, branch, workflow)
     data = DB().fetch_one(query, params=params)
 
-    if data is None or data == []:
+    if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         return Response(status_code=204) # No-Content
 
-    energy_unit = data[1]
     energy_value = data[0]
+    energy_unit = data[1]
 
     [energy_value, energy_unit] = rescale_energy_value(energy_value, energy_unit)
     badge_value= f"{energy_value:.2f} {energy_unit}"

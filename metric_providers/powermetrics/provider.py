@@ -56,11 +56,12 @@ class PowermetricsProvider(BaseMetricProvider):
         # had time to flush everything to disk
         count = 0
         while self.is_powermetrics_running():
+            print(f"Waiting for powermetrics to shut down (try {count}/60). Please do not abort ...")
             time.sleep(1)
             count += 1
-            if count >= 5:
+            if count >= 60:
                 subprocess.check_output('sudo /usr/bin/killall -9 powermetrics', shell=True)
-                raise RuntimeError('powermetrics was stopped with kill -9. Values can not be trusted!')
+                raise RuntimeError('powermetrics had to be killed with kill -9. Values can not be trusted!')
 
         # We need to give the OS a second to flush
         time.sleep(1)
