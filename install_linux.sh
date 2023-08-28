@@ -98,12 +98,11 @@ sed -i -e "s|__METRICS_URL__|$metrics_url|" frontend/js/helpers/config.js
 print_message "Checking out further git submodules ..."
 git submodule update --init
 
-sudo apt-get update
-
 print_message "Installing needed binaries for building ..."
 if lsb_release -is | grep -q "Fedora"; then
     sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel
 else
+    sudo apt-get update
     sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev
 fi
 
@@ -132,7 +131,12 @@ PWD=$(pwd)
 echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
 
 print_message "Installing IPMI tools"
-sudo apt-get install -y freeipmi-tools ipmitool
+if lsb_release -is | grep -q "Fedora"; then
+    sudo dnf -y install ipmitool
+else
+    sudo apt-get install -y freeipmi-tools ipmitool
+fi
+
 
 print_message "Adding IPMI to sudoers file"
 echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/ipmi_get_machine_energy_stat
