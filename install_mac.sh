@@ -99,6 +99,10 @@ if [[ ${host_metrics_url} == *".green-coding.internal"* ]];then
     fi
 fi
 
+if ! command -v stdbuf &> /dev/null; then
+  brew install coreutils
+fi
+
 print_message "Building / Updating docker containers"
 docker compose -f docker/compose.yml down
 docker compose -f docker/compose.yml build
