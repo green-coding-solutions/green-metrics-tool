@@ -76,9 +76,9 @@ def run_until(runner, step):
     try:
         config = GlobalConfig().config
         runner.initialize_folder(runner._tmp_folder)
-        runner.import_metric_providers()
         runner.checkout_repository()
         runner.initial_parse()
+        runner.import_metric_providers()
         runner.populate_image_names()
         runner.check_running_containers()
         runner.check_system()
@@ -86,7 +86,6 @@ def run_until(runner, step):
         runner.download_dependencies()
         runner.register_machine_id()
         runner.update_and_insert_specs()
-        runner.import_metric_providers()
 
         runner.start_metric_providers(allow_other=True, allow_container=False)
         runner.custom_sleep(config['measurement']['idle-time-start'])

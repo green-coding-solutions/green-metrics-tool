@@ -78,6 +78,9 @@ def test_db_rows_are_written_and_presented():
     config = GlobalConfig(config_name='test-config.yml').config
     metric_providers = utils.get_metric_providers_names(config)
 
+    # The network connection proxy provider writes to a different DB so we need to remove it here
+    metric_providers.remove('NetworkConnectionsProxyContainerProvider')
+
     for d in data:
         d_provider = utils.get_pascal_case(d[0]) + 'Provider'
         d_count = d[1]
