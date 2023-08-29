@@ -1026,7 +1026,7 @@ class Runner:
             if isinstance(df, int):
                 print('Imported', TerminalColors.HEADER, df, TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
                 # If df returns an int the data has already been committed to the db
-                return
+                continue
 
             print('Imported', TerminalColors.HEADER, df.shape[0], TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
             if df is None or df.shape[0] == 0:
