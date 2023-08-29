@@ -7,14 +7,18 @@
 # It is possible for one of the checkers or metric providers to raise an exception if something should fail specifically
 # otherwise you can just return False and set the Status to ERROR for the program to abort.
 
+#pylint: disable=inconsistent-return-statements
+
+
 import sys
 import os
 from enum import Enum
+import subprocess
 import psutil
+import utils
 
 from global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
-import utils
 
 Status = Enum('Status', ['ERROR', 'INFO', 'WARN'])
 
@@ -23,9 +27,9 @@ class ConfigurationCheckError(Exception):
 
 ######## CHECK FUNCTIONS ########
 def check_metric_providers(runner):
-    for mp in runner._Runner__metric_providers:
-        if hasattr(mp, 'check_system'):
-            if mp.check_system() == False:
+    for metric_provider in runner._Runner__metric_providers:
+        if hasattr(metric_provider, 'check_system'):
+            if metric_provider.check_system() is False:
                 return False
 
 def check_one_psu_provider(_):
@@ -34,8 +38,8 @@ def check_one_psu_provider(_):
         return False
 
 def check_tmpfs_mount(_):
-    for mp in psutil.disk_partitions():
-        if mp.mountpoint == '/tmp' and mp.fstype != 'tmpfs':
+    for partition in psutil.disk_partitions():
+        if partition.mountpoint == '/tmp' and partition.fstype != 'tmpfs':
             return False
 
 def check_free_disk(percent):
@@ -57,6 +61,15 @@ def check_free_memory(_):
     if psutil.virtual_memory().percent >= 70:
         return False
 
+def check_containers_running(_):
+    result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            check=True, encoding='UTF-8')
+    if result.stdout:
+        return False
+
+
 ######## END CHECK FUNCTIONS ########
 
 checks = [
@@ -67,6 +80,7 @@ checks = [
     (check_free_disk_90, Status.WARN, '90% free disk space', 'We recommend to free up some disk space!!!!!!!'),
     (check_free_disk_95, Status.ERROR, '95% free disk space', 'No free disk space left. Please clean up some files'),
     (check_free_memory, Status.ERROR, '80% free memory', 'No free memory! Please kill some programs'),
+    (check_containers_running, Status.WARN, 'Running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See docs].')
 
 ]
 
@@ -79,11 +93,11 @@ def check_all(runner):
         retval = None
         try:
             retval = check[0](runner)
-        except ConfigurationCheckError as e:
-            raise e
+        except ConfigurationCheckError as exp:
+            raise exp
         finally:
             formatted_key = check[2].ljust(max_key_length)
-            if retval or retval == None:
+            if retval or retval is None:
                 output = f"{TerminalColors.OKGREEN}OK{TerminalColors.ENDC}"
             else:
                 if check[1] == Status.WARN:
@@ -99,6 +113,6 @@ def check_all(runner):
 
             print(f"Checking {formatted_key} : {output}")
 
-            if retval == False and check[1] == Status.ERROR:
+            if retval is False and check[1] == Status.ERROR:
                 # Error needs to raise
                 raise ConfigurationCheckError(check[3])

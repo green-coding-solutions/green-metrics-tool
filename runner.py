@@ -361,7 +361,7 @@ class Runner:
                                 stderr=subprocess.PIPE,
                                 check=True, encoding='UTF-8')
         for line in result.stdout.splitlines():
-            for running_container in line.split(','):
+            for running_container in line.split(','): # if docker container has multiple tags, they will be split by comma, so we only want to
                 for service_name in self._usage_scenario.get('services', []):
                     if 'container_name' in self._usage_scenario['services'][service_name]:
                         container_name = self._usage_scenario['services'][service_name]['container_name']
