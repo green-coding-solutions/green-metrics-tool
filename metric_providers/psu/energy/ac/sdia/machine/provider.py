@@ -13,7 +13,7 @@ from global_config import GlobalConfig
 from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
-    def __init__(self, resolution, CPUChips, TDP):
+    def __init__(self, *, resolution, CPUChips, TDP):
         super().__init__(
             metric_name='psu_energy_ac_sdia_machine',
             metrics={'time': int, 'value': int},

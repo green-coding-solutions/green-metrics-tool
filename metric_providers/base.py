@@ -89,7 +89,11 @@ class BaseMetricProvider:
 
     def start_profiling(self, containers=None):
 
-        call_string = f"{self._metric_provider_executable} -i {self._resolution}"
+        if self._resolution is None:
+            call_string = self._metric_provider_executable
+        else:
+            call_string = f"{self._metric_provider_executable} -i {self._resolution}"
+
 
         if self._metric_provider_executable[0] != '/':
             call_string = f"{self._current_dir}/{call_string}"

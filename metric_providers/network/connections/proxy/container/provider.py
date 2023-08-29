@@ -22,17 +22,22 @@ from metric_providers.base import MetricProviderConfigurationError, BaseMetricPr
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
-    def __init__(self, host_ip=None):
+    def __init__(self, *, host_ip=None):
         super().__init__(
             metric_name="network_connections_proxy_container_dockerproxy",
-            metrics=None,
+            metrics={},
             resolution=None,
             unit=None,
             current_dir=os.path.dirname(os.path.abspath(__file__)),
         )
+
         self._conf_file = f"{CURRENT_DIR}/proxy_conf.conf"
         self._filename = f"{self._tmp_folder}/proxy.log"
         self._host_ip = host_ip
+
+        tinyproxy_path = subprocess.getoutput('which tinyproxy')
+        self._metric_provider_executable = f"{tinyproxy_path} -d -c {self._conf_file} > {self._filename}"
+
 
     # This needs to be static as we want to check the system before we initialise all the providers
     def check_system(self):
@@ -59,8 +64,12 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
              proxy_addr = 'host.docker.internal'
 
         # See https://about.gitlab.com/blog/2021/01/27/we-need-to-talk-no-proxy/ for a discussion on the env vars
-        return ['--env', f"http_proxy=http://{proxy_addr}:8889",
+        # To be sure we include all variants
+        return ['--env', f"HTTP_PROXY=http://{proxy_addr}:8889",
+                '--env', f"HTTPS_PROXY=http://{proxy_addr}:8889",
+                '--env', f"http_proxy=http://{proxy_addr}:8889",
                 '--env', f"https_proxy=http://{proxy_addr}:8889",
+                '--env', f"NO_PROXY={no_proxy_list}",
                 '--env', f"no_proxy={no_proxy_list}"]
 
 
@@ -93,25 +102,3 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
                 records_added += 1
 
         return records_added
-
-
-    def start_profiling(self, *_):
-
-        call_string = f"stdbuf -o0 tinyproxy -d -c {self._conf_file} > {self._filename}"
-
-        print(call_string)
-
-        self._ps = subprocess.Popen(
-            [call_string],
-            shell=True,
-            preexec_fn=os.setsid,
-            stderr=subprocess.PIPE
-            # since we are launching the command with shell=True we cannot use ps.terminate() / ps.kill().
-            # This would just kill the executing shell, but not it's child and make the process an orphan.
-            # therefore we use os.setsid here and later call os.getpgid(pid) to get process group that the shell
-            # and the process are running in. These we then can send the signal to and kill them
-        )
-
-        # set_block False enables non-blocking reads on stderr.read(). Otherwise it would wait forever on empty
-        os.set_blocking(self._ps.stderr.fileno(), False)
-        self._has_started = True
