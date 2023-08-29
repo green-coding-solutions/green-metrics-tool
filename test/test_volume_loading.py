@@ -172,7 +172,7 @@ def test_load_volume_references():
 def test_volume_loading_subdirectories_root():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
     pid = Tests.insert_project(uri)
-    runner = Runner(uri=uri, uri_type='folder', pid=pid, skip_config_check=True)
+    runner = Runner(uri=uri, uri_type='folder', pid=pid, skip_system_checks=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -200,7 +200,7 @@ def test_volume_loading_subdirectories_root():
 def test_volume_loading_subdirectories_subdir():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
     pid = Tests.insert_project(uri)
-    runner = Runner(uri=uri, uri_type='folder', filename="subdir/usage_scenario_subdir.yml", pid=pid, skip_config_check=True)
+    runner = Runner(uri=uri, uri_type='folder', filename="subdir/usage_scenario_subdir.yml", pid=pid, skip_system_checks=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -219,7 +219,7 @@ def test_volume_loading_subdirectories_subdir():
 def test_volume_loading_subdirectories_subdir2():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
     pid = Tests.insert_project(uri)
-    runner = Runner(uri=uri, uri_type='folder', filename="subdir/subdir2/usage_scenario_subdir2.yml", pid=pid, skip_config_check=True)
+    runner = Runner(uri=uri, uri_type='folder', filename="subdir/subdir2/usage_scenario_subdir2.yml", pid=pid, skip_system_checks=True)
 
     out = io.StringIO()
     err = io.StringIO()

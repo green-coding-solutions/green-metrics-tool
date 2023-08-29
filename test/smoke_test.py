@@ -40,7 +40,7 @@ def setup_module(module):
                     (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(project_name, uri))[0]
 
         # Run the application
-        runner = Runner(uri=uri, uri_type='folder', pid=pid, dev_repeat_run=True, skip_config_check=True)
+        runner = Runner(uri=uri, uri_type='folder', pid=pid, dev_repeat_run=True, skip_system_checks=True)
         runner.run()
 
     global run_stderr, run_stdout
@@ -77,6 +77,10 @@ def test_db_rows_are_written_and_presented():
 
     config = GlobalConfig(config_name='test-config.yml').config
     metric_providers = utils.get_metric_providers_names(config)
+
+    # The network connection proxy provider writes to a different DB so we need to remove it here
+    if 'NetworkConnectionsProxyContainerProvider' in metric_providers:
+        metric_providers.remove('NetworkConnectionsProxyContainerProvider')
 
     for d in data:
         d_provider = utils.get_pascal_case(d[0]) + 'Provider'
