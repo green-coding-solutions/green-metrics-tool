@@ -174,6 +174,7 @@ if [[ $no_build != true ]] ; then
     docker compose -f docker/compose.yml build
 
     print_message "Updating python requirements"
+    python3 -m pip install --upgrade pip
     python3 -m pip install -r requirements.txt
 fi
 
