@@ -140,10 +140,8 @@ async def get_network(project_id):
             ORDER BY time
             """
     data = DB().fetch_all(query, (project_id,))
-    if data is None:
-        data == []
 
-    escaped_data = sanitize(data)
+    escaped_data = html_escape_multi(data)
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
 
