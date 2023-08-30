@@ -8,4 +8,3 @@ anybadge==1.14.0
 orjson==3.9.5
 scipy==1.11.2
 schema==0.7.5
-psutil==5.9.5

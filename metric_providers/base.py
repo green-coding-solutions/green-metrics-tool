@@ -24,6 +24,7 @@ class BaseMetricProvider:
         current_dir,
         metric_provider_executable='metric-provider-binary',
         sudo=False,
+        disable_buffer=True
     ):
         self._metric_name = metric_name
         self._metrics = metrics
@@ -33,6 +34,7 @@ class BaseMetricProvider:
         self._metric_provider_executable = metric_provider_executable
         self._sudo = sudo
         self._has_started = False
+        self._disable_buffer = disable_buffer
 
         self._tmp_folder = '/tmp/green-metrics-tool'
         self._ps = None
@@ -110,6 +112,9 @@ class BaseMetricProvider:
             call_string += ' -s '
             call_string += ','.join(containers.keys())
         call_string += f" > {self._filename}"
+
+        if self._disable_buffer:
+            call_string = f"stdbuf -o0 {call_string}"
 
         print(call_string)
 
