@@ -15,7 +15,6 @@ import error_helpers
 from db import DB
 from global_config import GlobalConfig
 from phase_stats import build_and_store_phase_stats
-from runner import Runner
 
 def insert_job(job_type, project_id=None, machine_id=None):
     query = """
@@ -83,6 +82,7 @@ def get_project(project_id):
 
 
 def process_job(job_id, job_type, project_id, skip_system_checks=False, docker_prune=False, full_docker_prune=False):
+
     try:
         if job_type == 'email':
             _do_email_job(job_id, project_id)
@@ -111,6 +111,9 @@ def _do_email_job(job_id, project_id):
 
 # should not be called without enclosing try-except block
 def _do_project_job(job_id, project_id, skip_system_checks=False, docker_prune=False, full_docker_prune=False):
+    #pylint: disable=import-outside-toplevel
+    from runner import Runner
+
     check_job_running('project', job_id)
 
     [_, uri, _, branch, filename, _] = get_project(project_id)
