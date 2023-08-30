@@ -99,11 +99,17 @@ if [[ ${host_metrics_url} == *".green-coding.internal"* ]];then
     fi
 fi
 
+if ! command -v stdbuf &> /dev/null; then
+    print_message "Trying to install 'coreutils' via homebew. If this fails (because you do not have brew or use another package manager), please install it manually ..."
+    brew install coreutils
+fi
+
 print_message "Building / Updating docker containers"
 docker compose -f docker/compose.yml down
 docker compose -f docker/compose.yml build
 
 print_message "Updating python requirements"
+python3 -m pip install --upgrade pip
 python3 -m pip install -r requirements.txt
 
 echo ""
