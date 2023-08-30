@@ -17,6 +17,8 @@ no_build=false
 no_hosts=false
 ask_tmpfs=true
 
+reboot_echo_flag=false
+
 while getopts "p:a:m:nht" o; do
     case "$o" in
         p)
@@ -56,7 +58,7 @@ if [[ -z "$db_pw" ]] ; then
     echo "" # force a newline, because print -sp will consume it
 fi
 
-if [[ $ask_tmpfs == true ]] ; then
+if ! mount | grep -E '\s/tmp\s' | grep -Eq '\stmpfs\s' && [[ $ask_tmpfs == true ]]; then
     read -p "We strongly recommend mounting /tmp on a tmpfs. Do you want to do that? (y/N)" tmpfs
     if [[ "$tmpfs" == "Y" || "$tmpfs" == "y" ]] ; then
         if lsb_release -is | grep -q "Fedora"; then
@@ -64,6 +66,7 @@ if [[ $ask_tmpfs == true ]] ; then
         else
             sudo systemctl enable /usr/share/systemd/tmp.mount
         fi
+        reboot_echo_flag=true
     fi
 fi
 
@@ -98,13 +101,12 @@ sed -i -e "s|__METRICS_URL__|$metrics_url|" frontend/js/helpers/config.js
 print_message "Checking out further git submodules ..."
 git submodule update --init
 
-sudo apt-get update
-
 print_message "Installing needed binaries for building ..."
 if lsb_release -is | grep -q "Fedora"; then
-    sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel
+    sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy
 else
-    sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev
+    sudo apt-get update
+    sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy
 fi
 
 print_message "Building binaries ..."
@@ -132,7 +134,12 @@ PWD=$(pwd)
 echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
 
 print_message "Installing IPMI tools"
-sudo apt-get install -y freeipmi-tools ipmitool
+if lsb_release -is | grep -q "Fedora"; then
+    sudo dnf -y install ipmitool
+else
+    sudo apt-get install -y freeipmi-tools ipmitool
+fi
+
 
 print_message "Adding IPMI to sudoers file"
 echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/ipmi_get_machine_energy_stat
@@ -172,4 +179,7 @@ fi
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
-echo -e "${GREEN}If you have newly requested to mount /tmp as tmpfs please reboot your system now.${NC}"
+
+if $reboot_echo_flag; then
+    echo -e "${GREEN}If you have newly requested to mount /tmp as tmpfs please reboot your system now.${NC}"
+fi

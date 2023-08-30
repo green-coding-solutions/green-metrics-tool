@@ -2,7 +2,7 @@
 from metric_providers.lm_sensors.abstract_provider import LmSensorsProvider
 
 class LmSensorsTemperatureComponentProvider(LmSensorsProvider):
-    def __init__(self, resolution):
+    def __init__(self, resolution, **_):
         self._provider_config_path = 'lm_sensors.temperature.component.provider.LmSensorsTemperatureComponentProvider'
         super().__init__(
             metric_name="lm_sensors_temperature_component",

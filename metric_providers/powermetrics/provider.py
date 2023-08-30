@@ -39,7 +39,6 @@ class PowermetricsProvider(BaseMetricProvider):
         try:
             output = subprocess.check_output('pgrep -x powermetrics', shell=True)
             return bool(output.strip())  # If the output is not empty, the process is running.
-
         except subprocess.CalledProcessError:  # If the process is not running, 'pgrep' returns non-zero exit code.
             return False
 

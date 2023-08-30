@@ -304,7 +304,7 @@ def test_uri_local_dir():
     project_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,'--config-override', 'test-config.yml',
-        '--skip-config-check', '--dev-repeat-run'],
+        '--skip-system-checks', '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -329,7 +329,7 @@ def test_uri_github_repo():
     project_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,'--config-override', 'test-config.yml',
-        '--skip-config-check', '--dev-repeat-run'],
+        '--skip-system-checks', '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -361,7 +361,7 @@ def test_uri_github_repo_branch():
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
         '--branch', 'test-branch' , '--filename', 'basic_stress.yml',
-        '--config-override', 'test-config.yml', '--skip-config-check', '--dev-repeat-run'],
+        '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -395,7 +395,7 @@ def test_name_is_in_db():
     project_name = 'test_' + utils.randomword(12)
     subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,'--config-override', 'test-config.yml',
-        '--skip-config-check'],
+        '--skip-system-checks'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -418,7 +418,7 @@ def test_different_filename():
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
          '--filename', 'basic_stress.yml', '--config-override', 'test-config.yml',
-         '--skip-config-check', '--dev-repeat-run'],
+         '--skip-system-checks', '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -436,7 +436,7 @@ def test_different_filename():
 def test_different_filename_missing():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, '..', 'stress-application/'))
     pid = Tests.insert_project(uri)
-    runner = Runner(uri=uri, uri_type='folder', pid=pid, filename='basic_stress.yml', skip_config_check=True)
+    runner = Runner(uri=uri, uri_type='folder', pid=pid, filename='basic_stress.yml', skip_system_checks=True)
 
     with pytest.raises(FileNotFoundError) as e:
         runner.run()
@@ -452,7 +452,7 @@ def test_no_file_cleanup():
     project_name = 'test_' + utils.randomword(12)
     subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
-         '--no-file-cleanup', '--config-override', 'test-config.yml', '--skip-config-check'],
+         '--no-file-cleanup', '--config-override', 'test-config.yml', '--skip-system-checks'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -475,7 +475,7 @@ def test_debug(monkeypatch):
     project_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
-         '--debug', '--config-override', 'test-config.yml', '--skip-config-check',
+         '--debug', '--config-override', 'test-config.yml', '--skip-system-checks',
           '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,

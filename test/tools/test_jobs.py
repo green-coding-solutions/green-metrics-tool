@@ -89,7 +89,7 @@ def test_simple_project_job():
 
     jobs.insert_job('project', pid)
     ps = subprocess.run(
-            ['python3', '../tools/jobs.py', 'project', '--config-override', 'test-config.yml', '--skip-config-check'],
+            ['python3', '../tools/jobs.py', 'project', '--config-override', 'test-config.yml', '--skip-system-checks'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -107,7 +107,7 @@ def test_simple_email_job():
     name = utils.randomword(12)
     uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
     email = 'fakeemailaddress'
-    filename = 'usage_scenario.yml' 
+    filename = 'usage_scenario.yml'
     pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","filename","last_run","created_at") \
                     VALUES \
                     (%s,%s,%s,%s,NULL,NOW()) RETURNING id;', params=(name, uri, email, filename))[0]

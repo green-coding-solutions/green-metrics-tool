@@ -42,6 +42,14 @@ CREATE UNIQUE INDEX measurements_get ON measurements(project_id ,metric ,detail_
 CREATE INDEX measurements_build_and_store_phase_stats ON measurements(project_id, metric, unit, detail_name);
 CREATE INDEX measurements_build_phases ON measurements(metric, unit, detail_name);
 
+CREATE TABLE network_intercepts (
+    id SERIAL PRIMARY KEY,
+    project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE ,
+    time bigint NOT NULL,
+    connection_type text NOT NULL,
+    protocol text NOT NULL,
+    created_at timestamp with time zone DEFAULT now()
+);
 
 CREATE TABLE categories (
     id SERIAL PRIMARY KEY,
