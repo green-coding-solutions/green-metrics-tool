@@ -448,7 +448,8 @@ class Runner:
 
         if len(hardware_info_root.get_root_list()) > 0:
             python_file = os.path.abspath(os.path.join(CURRENT_DIR, 'lib/hardware_info_root.py'))
-            ps = subprocess.run(['sudo', sys.executable, python_file], stdout=subprocess.PIPE, check=True, encoding='UTF-8')
+            ps = subprocess.run(['sudo', '/usr/bin/env python3', python_file],
+                                stdout=subprocess.PIPE, check=True, encoding='UTF-8')
             machine_specs_root = json.loads(ps.stdout)
 
             machine_specs.update(machine_specs_root)
