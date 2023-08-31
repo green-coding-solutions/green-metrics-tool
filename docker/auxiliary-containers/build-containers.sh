@@ -10,7 +10,7 @@ for subdir in "${subdirs[@]}"; do
   folder=$(basename "${subdir}")
   docker buildx build \
     --push \
-    --tag "ghcr.io/${GITHUB_REPOSITORY}/${folder}:latest" \
+    --tag "green-coding-berlin/${folder}:latest" \
     --platform linux/amd64,linux/arm64 \
     "${subdir}"
 done
