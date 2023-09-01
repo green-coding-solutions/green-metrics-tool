@@ -155,35 +155,91 @@ async def get_machines():
 
     return ORJSONResponse({'success': True, 'data': data})
 
-
-# A route to return all of the available entries in our catalog.
-@app.get('/v1/projects')
-async def get_projects(repo: str, filename: str):
+@app.get('/v1/repositories')
+async def get_repositories(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, ):
     query = """
-            SELECT a.id, a.name, a.uri, COALESCE(a.branch, 'main / master'), a.end_measurement, a.last_run, a.invalid_project, a.filename, b.description, a.commit_hash
-            FROM projects as a
-            LEFT JOIN machines as b on a.machine_id = b.id
+            SELECT DISTINCT(r.uri)
+            FROM projects as r
+            LEFT JOIN machines as m on r.machine_id = m.id
             WHERE 1=1
             """
     params = []
 
-    filename = filename.strip()
-    if filename not in ('', 'null'):
-        query = f"{query} AND a.filename LIKE %s  \n"
+    if uri:
+        query = f"{query} AND r.uri LIKE %s  \n"
+        params.append(f"%{uri}%")
+
+    if branch:
+        query = f"{query} AND r.branch LIKE %s  \n"
+        params.append(f"%{branch}%")
+
+    if filename:
+        query = f"{query} AND r.filename LIKE %s  \n"
         params.append(f"%{filename}%")
 
-    repo = repo.strip()
-    if repo not in ('', 'null'):
-        query = f"{query} AND a.uri LIKE %s \n"
-        params.append(f"%{repo}%")
+    if machine_id:
+        query = f"{query} AND m.id = %s \n"
+        params.append(machine_id)
 
-    query = f"{query} ORDER BY a.created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!"
+    if machine:
+        query = f"{query} AND m.description LIKE %s \n"
+        params.append(f"%{machine}%")
+
+
+    query = f"{query} ORDER BY r.uri ASC"
 
     data = DB().fetch_all(query, params=tuple(params))
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    escaped_data = [html_escape_multi(project) for project in data]
+    escaped_data = [html_escape_multi(run) for run in data]
+
+    return ORJSONResponse({'success': True, 'data': escaped_data})
+
+# A route to return all of the available entries in our catalog.
+@app.get('/v1/runs')
+async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None):
+    query = """
+            SELECT r.id, r.name, r.uri, COALESCE(r.branch, 'main / master'), r.last_run, r.invalid_project, r.filename, m.description, r.commit_hash
+            FROM projects as r
+            LEFT JOIN machines as m on r.machine_id = m.id
+            WHERE r.last_run IS NOT NULL
+            """
+    params = []
+
+    if uri:
+        query = f"{query} AND r.uri LIKE %s  \n"
+        params.append(f"%{uri}%")
+
+    if branch:
+        query = f"{query} AND r.branch LIKE %s  \n"
+        params.append(f"%{branch}%")
+
+    if filename:
+        query = f"{query} AND r.filename LIKE %s  \n"
+        params.append(f"%{filename}%")
+
+    if machine_id:
+        query = f"{query} AND m.id = %s \n"
+        params.append(machine_id)
+
+    if machine:
+        query = f"{query} AND m.description LIKE %s \n"
+        params.append(f"%{machine}%")
+
+
+    query = f"{query} ORDER BY r.last_run DESC"
+
+    if limit:
+        query = f"{query} LIMIT %s"
+        params.append(limit)
+
+
+    data = DB().fetch_all(query, params=tuple(params))
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
+
+    escaped_data = [html_escape_multi(run) for run in data]
 
     return ORJSONResponse({'success': True, 'data': escaped_data})
 

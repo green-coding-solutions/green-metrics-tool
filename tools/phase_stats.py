@@ -31,7 +31,7 @@ def build_and_store_phase_stats(project_id, sci=None):
 
     query = """
         SELECT phases
-        FROM projects
+        FROM runs
         WHERE id = %s
         """
     phases = DB().fetch_one(query, (project_id, ))

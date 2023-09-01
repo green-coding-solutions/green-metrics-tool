@@ -115,7 +115,7 @@ class Runner:
         self._dev_repeat_run = dev_repeat_run
         self._uri = uri
         self._uri_type = uri_type
-        self._project_id = pid
+        self._run_id = pid
         self._original_filename = filename
         self._branch = branch
         self._tmp_folder = '/tmp/green-metrics-tool'
@@ -156,7 +156,7 @@ class Runner:
 
     def save_notes_runner(self):
         print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
-        self.__notes_helper.save_to_db(self._project_id)
+        self.__notes_helper.save_to_db(self._run_id)
 
     def check_system(self):
         if self._skip_system_checks:
@@ -235,12 +235,12 @@ class Runner:
         parsed_timestamp = datetime.strptime(commit_timestamp, "%Y-%m-%d %H:%M:%S %z")
 
         DB().query("""
-            UPDATE projects
+            UPDATE runs
             SET
                 commit_hash=%s,
                 commit_timestamp=%s
             WHERE id = %s
-            """, params=(commit_hash, parsed_timestamp, self._project_id))
+            """, params=(commit_hash, parsed_timestamp, self._run_id))
 
     # This method loads the yml file and takes care that the includes work and are secure.
     # It uses the tagging infrastructure provided by https://pyyaml.org/wiki/PyYAMLDocumentation
@@ -405,7 +405,7 @@ class Runner:
     '''
         A machine will always register in the database on run.
         This means that it will write its machine_id and machine_descroption to the machines table
-        and then link itself in the projects table accordingly.
+        and then link itself in the runs table accordingly.
     '''
     def register_machine_id(self):
         config = GlobalConfig().config
@@ -459,7 +459,7 @@ class Runner:
 
         # Insert auxilary info for the run. Not critical.
         DB().query("""
-            UPDATE projects
+            UPDATE runs
             SET
                 machine_id=%s, machine_specs=%s, measurement_config=%s,
                 usage_scenario = %s, filename=%s, gmt_hash=%s, last_run = NOW()
@@ -471,7 +471,7 @@ class Runner:
             escape(json.dumps(self._usage_scenario), quote=False),
             self._original_filename,
             gmt_hash,
-            self._project_id)
+            self._run_id)
         )
 
     def import_metric_providers(self):
@@ -1022,7 +1022,7 @@ class Runner:
 
             metric_provider.stop_profiling()
 
-            df = metric_provider.read_metrics(self._project_id, self.__containers)
+            df = metric_provider.read_metrics(self._run_id, self.__containers)
             if isinstance(df, int):
                 print('Imported', TerminalColors.HEADER, df, TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
                 # If df returns an int the data has already been committed to the db
@@ -1088,10 +1088,10 @@ class Runner:
     def update_start_and_end_times(self):
         print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
         DB().query("""
-            UPDATE projects
+            UPDATE runs
             SET start_measurement=%s, end_measurement=%s
             WHERE id = %s
-            """, params=(self.__start_measurement, self.__end_measurement, self._project_id))
+            """, params=(self.__start_measurement, self.__end_measurement, self._run_id))
 
     def store_phases(self):
         print(TerminalColors.HEADER, '\nUpdating phases in DB', TerminalColors.ENDC)
@@ -1100,10 +1100,10 @@ class Runner:
         # We did not make this before, as we needed the duplicate checking of dicts
         self.__phases = list(self.__phases.values())
         DB().query("""
-            UPDATE projects
+            UPDATE runs
             SET phases=%s
             WHERE id = %s
-            """, params=(json.dumps(self.__phases), self._project_id))
+            """, params=(json.dumps(self.__phases), self._run_id))
 
     def read_container_logs(self):
         print(TerminalColors.HEADER, '\nCapturing container logs', TerminalColors.ENDC)
@@ -1140,10 +1140,10 @@ class Runner:
         logs_as_str = logs_as_str.replace('\x00','')
         if logs_as_str:
             DB().query("""
-                UPDATE projects
+                UPDATE runs
                 SET logs=%s
                 WHERE id = %s
-                """, params=(logs_as_str, self._project_id))
+                """, params=(logs_as_str, self._run_id))
 
 
     def cleanup(self):
@@ -1386,14 +1386,14 @@ if __name__ == '__main__':
             sys.exit(1)
         GlobalConfig(config_name=args.config_override)
 
-    # We issue a fetch_one() instead of a query() here, cause we want to get the project_id
-    project_id = DB().fetch_one("""
-                INSERT INTO "projects" ("name","uri","email","last_run","created_at", "branch")
+    # We issue a fetch_one() instead of a query() here, cause we want to get the run_id
+    run_id = DB().fetch_one("""
+                INSERT INTO runs (name,uri,email,last_run,created_at, branch)
                 VALUES
                 (%s,%s,'manual',NULL,NOW(),%s) RETURNING id;
                 """, params=(args.name, args.uri, args.branch))[0]
 
-    runner = Runner(uri=args.uri, uri_type=run_type, pid=project_id, filename=args.filename,
+    runner = Runner(uri=args.uri, uri_type=run_type, pid=run_id, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     no_file_cleanup=args.no_file_cleanup, skip_system_checks=args.skip_system_checks,
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
@@ -1412,22 +1412,22 @@ if __name__ == '__main__':
         # get all the metrics from the measurements table grouped by metric
         # loop over them issueing separate queries to the DB
         from phase_stats import build_and_store_phase_stats
-        build_and_store_phase_stats(project_id, runner._sci)
+        build_and_store_phase_stats(run_id, runner._sci)
 
 
         print(TerminalColors.OKGREEN,'\n\n####################################################################################')
-        print(f"Please access your report with the ID: {project_id}")
+        print(f"Please access your report with the ID: {run_id}")
         print('####################################################################################\n\n', TerminalColors.ENDC)
 
     except FileNotFoundError as e:
-        error_helpers.log_error('Docker command failed.', e, project_id)
+        error_helpers.log_error('Docker command failed.', e, run_id)
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error('Docker command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, project_id)
+        error_helpers.log_error('Docker command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, run_id)
     except KeyError as e:
-        error_helpers.log_error('Was expecting a value inside the usage_scenario.yml file, but value was missing: ', e, project_id)
+        error_helpers.log_error('Was expecting a value inside the usage_scenario.yml file, but value was missing: ', e, run_id)
     except RuntimeError as e:
-        error_helpers.log_error('RuntimeError occured in runner.py: ', e, project_id)
+        error_helpers.log_error('RuntimeError occured in runner.py: ', e, run_id)
     except BaseException as e:
-        error_helpers.log_error('Base exception occured in runner.py: ', e, project_id)
+        error_helpers.log_error('Base exception occured in runner.py: ', e, run_id)
     finally:
         if args.print_logs: print("Container logs:", runner.get_logs())

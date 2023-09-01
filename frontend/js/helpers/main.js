@@ -15,6 +15,9 @@ class GMTMenu extends HTMLElement {
             <a class="item" href="/index.html">
                 <b><i class="home icon"></i>Home</b>
             </a>
+            <a class="item" href="/repositories.html">
+                <b><i class="code branch icon"></i>Repositories</b>
+            </a>
             <a class="item" href="/request.html">
                 <b><i class="bullseye icon"></i>Measure software</b>
             </a>
