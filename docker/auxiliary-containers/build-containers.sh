@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+# The names of the folders within "auxiliary-containers" must match the repository name in dockerhub!
+
 # Get the list of subdirectories within "auxiliary-containers" directory containing a Dockerfile
 subdirs=($(find ./docker/auxiliary-containers -type f -name 'Dockerfile' -exec dirname {} \;))
 
