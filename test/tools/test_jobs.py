@@ -27,9 +27,9 @@ def cleanup_jobs():
     DB().query('DELETE FROM jobs')
 
 @pytest.fixture(autouse=True, scope='module')
-def cleanup_projects():
+def cleanup_runs():
     yield
-    DB().query('DELETE FROM projects')
+    DB().query('DELETE FROM runs')
 
 # This should be done once per module
 @pytest.fixture(autouse=True, scope="module")
@@ -50,9 +50,9 @@ def get_job(job_id):
 
     return data
 
-def test_no_project_job():
+def test_no_run_job():
     ps = subprocess.run(
-            ['python3', '../tools/jobs.py', 'project', '--config-override', 'test-config.yml'],
+            ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -79,17 +79,17 @@ def test_insert_job():
     job = get_job(job_id)
     assert job['type'] == 'test'
 
-def test_simple_project_job():
+def test_simple_run_job():
     name = utils.randomword(12)
     uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
-    pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","filename","email","last_run","created_at") \
+    pid = DB().fetch_one('INSERT INTO "runs" ("name","uri","filename","email","last_run","created_at") \
                     VALUES \
                     (%s,%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(name, uri, filename))[0]
 
-    jobs.insert_job('project', pid)
+    jobs.insert_job('run', pid)
     ps = subprocess.run(
-            ['python3', '../tools/jobs.py', 'project', '--config-override', 'test-config.yml', '--skip-system-checks'],
+            ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml', '--skip-system-checks'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -108,7 +108,7 @@ def test_simple_email_job():
     uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
     email = 'fakeemailaddress'
     filename = 'usage_scenario.yml'
-    pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","filename","last_run","created_at") \
+    pid = DB().fetch_one('INSERT INTO "runs" ("name","uri","email","filename","last_run","created_at") \
                     VALUES \
                     (%s,%s,%s,%s,NULL,NOW()) RETURNING id;', params=(name, uri, email, filename))[0]
 

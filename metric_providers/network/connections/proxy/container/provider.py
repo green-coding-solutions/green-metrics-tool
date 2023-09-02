@@ -5,11 +5,6 @@
 # In the future this might be implemented as a proper provider.
 
 import os
-from pathlib import Path
-import subprocess
-import signal
-import sys
-import time
 import re
 from datetime import datetime, timezone
 import platform
@@ -17,7 +12,6 @@ import subprocess
 from packaging.version import parse
 
 from db import DB
-from global_config import GlobalConfig
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -57,11 +51,11 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
             proxy_addr = self._host_ip
         elif platform.system() == 'Linux':
             # Under Linux there is no way to directly link to the host
-            cs =  "ip addr show dev $(ip route | grep default | awk '{print $5}') | grep 'inet '| awk '{print $2}'| cut -f1 -d'/'"
-            ps = subprocess.run(cs, shell=True, check=True, text=True, capture_output=True)
+            cmd =  "ip addr show dev $(ip route | grep default | awk '{print $5}') | grep 'inet '| awk '{print $2}'| cut -f1 -d'/'"
+            ps = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
             proxy_addr = ps.stdout.strip()
         else:
-             proxy_addr = 'host.docker.internal'
+            proxy_addr = 'host.docker.internal'
 
         # See https://about.gitlab.com/blog/2021/01/27/we-need-to-talk-no-proxy/ for a discussion on the env vars
         # To be sure we include all variants
@@ -73,7 +67,7 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
                 '--env', f"no_proxy={no_proxy_list}"]
 
 
-    def read_metrics(self, project_id, *_):
+    def read_metrics(self, run_id, *_):
         records_added = 0
         with open(self._filename, 'r', encoding='utf-8') as file:
             lines = file.readlines()
@@ -93,11 +87,11 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
                 time =  int(date.replace(tzinfo=timezone.utc).timestamp() * 1000)
 
                 query = """
-                    INSERT INTO network_intercepts (project_id, time, connection_type, protocol)
+                    INSERT INTO network_intercepts (run_id, time, connection_type, protocol)
                     VALUES (%s, %s, %s, %s)
                     RETURNING id
                     """
-                params = (project_id, time, connection_type, protocol)
+                params = (run_id, time, connection_type, protocol)
                 DB().fetch_one(query, params=params)
                 records_added += 1
 

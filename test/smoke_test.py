@@ -21,7 +21,7 @@ from runner import Runner
 run_stderr = None
 run_stdout = None
 
-project_name = 'test_' + utils.randomword(12)
+RUN_NAME = 'test_' + utils.randomword(12)
 
 
 # Runs once per file before any test(
@@ -35,12 +35,12 @@ def setup_module(module):
             CURRENT_DIR, 'stress-application/'))
         subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
-        pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
+        run_id = DB().fetch_one('INSERT INTO "runs" ("name","uri","email","last_run","created_at") \
                     VALUES \
-                    (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(project_name, uri))[0]
+                    (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(RUN_NAME, uri))[0]
 
         # Run the application
-        runner = Runner(uri=uri, uri_type='folder', pid=pid, dev_repeat_run=True, skip_system_checks=True)
+        runner = Runner(uri=uri, uri_type='folder', run_id=run_id, dev_repeat_run=True, skip_system_checks=True)
         runner.run()
 
     global run_stderr, run_stdout
@@ -61,18 +61,18 @@ def test_db_rows_are_written_and_presented():
     # also check (in the same test, to save on a DB call) that the output to STD.OUT
     # "Imported XXX metrics from {metric_provider}" displays the same count as in the DB
 
-    project_id = utils.get_project_data(project_name)['id']
-    assert(project_id is not None or project_id != '')
+    run_id = utils.get_run_data(RUN_NAME)['id']
+    assert(run_id is not None or run_id != '')
     query = """
             SELECT
                 metric, COUNT(*) as count
             FROM
                 measurements
-            WHERE project_id = %s
+            WHERE run_id = %s
             GROUP BY
                 metric
             """
-    data = DB().fetch_all(query, (project_id,))
+    data = DB().fetch_all(query, (run_id,))
     assert(data is not None or data != [])
 
     config = GlobalConfig(config_name='test-config.yml').config

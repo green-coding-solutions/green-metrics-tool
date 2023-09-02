@@ -18,11 +18,6 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
     margin-bottom: 26px !important;
 }
 
-#project-uri {
-    word-break: break-all;
-    overflow-wrap: break-all;
-}
-
 #chart-container {
     margin-top: 14px;
 }
@@ -60,11 +55,11 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
 }
 
 /* request.html: */
-#new-project-description>div {
+#new-software-description>div {
     margin-bottom: 10px;
 }
 
-#new-project-name-div {
+#new-software-name-div {
     margin-top: 10px;
 }
 

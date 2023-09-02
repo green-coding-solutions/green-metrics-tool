@@ -14,8 +14,8 @@ class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
             metric_provider_executable='ipmi-get-machine-energy-stat.sh',
         )
 
-    def read_metrics(self, project_id, containers):
-        df = super().read_metrics(project_id, containers)
+    def read_metrics(self, run_id, containers):
+        df = super().read_metrics(run_id, containers)
 
         # Conversion to Joules
         intervals = df['time'].diff()

@@ -59,7 +59,7 @@ def main(args):
 
     df = df.melt(id_vars=['time'], var_name='detail_name', value_name='value')
 
-    df['project_id'] = args.project_id
+    df['run_id'] = args.run_id
     df['metric'] = 'atx_energy_dc_channel'
 
     f = StringIO(df.to_csv(index=False, header=False))
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', type=str)
 
-    parser.add_argument('project_id', type=str)
+    parser.add_argument('run_id', type=str)
     parser.add_argument('db_host', type=str)
     parser.add_argument('db_pw', type=str)
 

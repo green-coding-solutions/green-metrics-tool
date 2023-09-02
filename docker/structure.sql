@@ -3,7 +3,7 @@ CREATE DATABASE "green-coding";
 
 CREATE EXTENSION "uuid-ossp";
 
-CREATE TABLE projects (
+CREATE TABLE runs (
     id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
     name text,
     uri text,
@@ -22,14 +22,14 @@ CREATE TABLE projects (
     end_measurement bigint,
     phases JSON DEFAULT null,
     logs text DEFAULT null,
-    invalid_project text,
+    invalid_run text,
     last_run timestamp with time zone,
     created_at timestamp with time zone DEFAULT now()
 );
 
 CREATE TABLE measurements (
     id SERIAL PRIMARY KEY,
-    project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE ,
+    run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE ,
     detail_name text NOT NULL,
     metric text NOT NULL,
     value bigint NOT NULL,
@@ -38,13 +38,13 @@ CREATE TABLE measurements (
     created_at timestamp with time zone DEFAULT now()
 );
 
-CREATE UNIQUE INDEX measurements_get ON measurements(project_id ,metric ,detail_name ,time );
-CREATE INDEX measurements_build_and_store_phase_stats ON measurements(project_id, metric, unit, detail_name);
+CREATE UNIQUE INDEX measurements_get ON measurements(run_id ,metric ,detail_name ,time );
+CREATE INDEX measurements_build_and_store_phase_stats ON measurements(run_id, metric, unit, detail_name);
 CREATE INDEX measurements_build_phases ON measurements(metric, unit, detail_name);
 
 CREATE TABLE network_intercepts (
     id SERIAL PRIMARY KEY,
-    project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE ,
+    run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE ,
     time bigint NOT NULL,
     connection_type text NOT NULL,
     protocol text NOT NULL,
@@ -68,7 +68,7 @@ CREATE TABLE machines (
 
 CREATE TABLE phase_stats (
     id SERIAL PRIMARY KEY,
-    project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
     metric text NOT NULL,
     detail_name text NOT NULL,
     phase text NOT NULL,
@@ -79,11 +79,11 @@ CREATE TABLE phase_stats (
     unit text NOT NULL,
     created_at timestamp with time zone DEFAULT now()
 );
-CREATE INDEX "phase_stats_project_id" ON "phase_stats" USING HASH ("project_id");
+CREATE INDEX "phase_stats_run_id" ON "phase_stats" USING HASH ("run_id");
 
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,
-    project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE DEFAULT null,
+    run_id uuid REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE DEFAULT null,
     type text,
     machine_id int REFERENCES machines(id) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT null,
     failed boolean DEFAULT false,
@@ -95,13 +95,13 @@ CREATE TABLE jobs (
 
 CREATE TABLE notes (
     id SERIAL PRIMARY KEY,
-    project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    run_id uuid REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
     detail_name text,
     note text,
     time bigint,
     created_at timestamp with time zone DEFAULT now()
 );
-CREATE INDEX "notes_project_id" ON "notes" USING HASH ("project_id");
+CREATE INDEX "notes_run_id" ON "notes" USING HASH ("run_id");
 
 
 CREATE TABLE ci_measurements (
@@ -118,7 +118,6 @@ CREATE TABLE ci_measurements (
     label text,
     duration bigint,
     source text,
-    project_id uuid REFERENCES projects(id) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT null,
     created_at timestamp with time zone DEFAULT now()
 );
 CREATE INDEX "ci_measurements_get" ON ci_measurements(repo, branch, workflow, run_id, created_at);
@@ -128,6 +127,6 @@ CREATE TABLE client_status (
 	status_code TEXT NOT NULL,
 	machine_id int REFERENCES machines(id) ON DELETE SET NULL ON UPDATE CASCADE DEFAULT null,
 	"data" TEXT,
-	project_id uuid REFERENCES projects(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	run_id uuid REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now()
 );

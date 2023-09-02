@@ -21,22 +21,22 @@ valid_test_data = [
 ]
 
 
-@pytest.mark.parametrize("project_id,note,detail,timestamp", invalid_test_data)
-def test_invalid_timestamp(project_id, note, detail, timestamp):
+@pytest.mark.parametrize("run_id,note,detail,timestamp", invalid_test_data)
+def test_invalid_timestamp(run_id, note, detail, timestamp):
     with pytest.raises(ValueError) as err:
         notes = Notes()
         notes.add_note({"note": note,"detail_name": detail,"timestamp": timestamp,})
-        notes.save_to_db(project_id)
+        notes.save_to_db(run_id)
     expected_exception = "invalid literal for int"
     assert expected_exception in str(err.value), \
         Tests.assertion_info(f"Exception: {expected_exception}", str(err.value))
 
-@pytest.mark.parametrize("project_id,note,detail,timestamp", valid_test_data)
-def test_valid_timestamp(project_id, note, detail, timestamp):
+@pytest.mark.parametrize("run_id,note,detail,timestamp", valid_test_data)
+def test_valid_timestamp(run_id, note, detail, timestamp):
     mock_db = DB()
     mock_db.query = MagicMock()
 
     notes = Notes()
     notes.add_note({"note": note,"detail_name": detail,"timestamp": timestamp,})
-    notes.save_to_db(project_id)
+    notes.save_to_db(run_id)
     mock_db.query.assert_called_once()

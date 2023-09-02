@@ -29,7 +29,7 @@ import anybadge
 from api_helpers import (add_phase_stats_statistics, determine_comparison_case,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value, get_timeline_query,
-                         get_project_info, get_machine_list)
+                         get_run_info, get_machine_list)
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic
@@ -57,7 +57,7 @@ async def log_exception(request: Request, body, exc):
     email_helpers.send_error_email(
         GlobalConfig().config['admin']['email'],
         error_helpers.format_error(error_message),
-        project_id=None,
+        run_id=None,
     )
 
 @app.exception_handler(RequestValidationError)
@@ -116,9 +116,9 @@ async def get_notes(run_id):
         return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
 
     query = """
-            SELECT project_id, detail_name, note, time
+            SELECT run_id, detail_name, note, time
             FROM notes
-            WHERE project_id = %s
+            WHERE run_id = %s
             ORDER BY created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
             """
     data = DB().fetch_all(query, (run_id,))
@@ -136,7 +136,7 @@ async def get_network(run_id):
     query = """
             SELECT *
             FROM network_intercepts
-            WHERE project_id = %s
+            WHERE run_id = %s
             ORDER BY time
             """
     data = DB().fetch_all(query, (run_id,))
@@ -159,7 +159,7 @@ async def get_machines():
 async def get_repositories(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, ):
     query = """
             SELECT DISTINCT(r.uri)
-            FROM projects as r
+            FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE 1=1
             """
@@ -201,7 +201,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
 async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None):
     query = """
             SELECT r.id, r.name, r.uri, COALESCE(r.branch, 'main / master'), r.last_run, r.invalid_run, r.filename, m.description, r.commit_hash
-            FROM projects as r
+            FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE r.last_run IS NOT NULL
             """
@@ -269,7 +269,7 @@ async def compare_in_repo(ids: str):
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
         phase_stats_object['common_info'] = {}
 
-        run_info = get_project_info(ids[0])
+        run_info = get_run_info(ids[0])
 
         machine_list = get_machine_list()
         machines = {machine[0]: machine[1] for machine in machine_list}
@@ -352,7 +352,7 @@ async def get_measurements_single(run_id: str):
             SELECT measurements.detail_name, measurements.time, measurements.metric,
                    measurements.value, measurements.unit
             FROM measurements
-            WHERE measurements.project_id = %s
+            WHERE measurements.run_id = %s
             """
 
     # extremely important to order here, cause the charting library in JS cannot do that automatically!
@@ -432,7 +432,7 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
         FROM
             phase_stats
         WHERE
-            project_id = %s
+            run_id = %s
             AND metric LIKE %s
             AND phase LIKE '%%_[RUNTIME]'
     '''
@@ -480,8 +480,8 @@ class Run(BaseModel):
     branch: str
     machine_id: int
 
-@app.post('/v1/project/add')
-async def post_run_add(run: Run):
+@app.post('/v1/software/add')
+async def software_add(run: Run):
     if run.url is None or run.url.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'URL is empty'}, status_code=400)
 
@@ -503,7 +503,7 @@ async def post_run_add(run: Run):
 
     # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
     query = """
-        INSERT INTO projects (uri,name,email,branch,filename)
+        INSERT INTO runs (uri,name,email,branch,filename)
         VALUES (%s, %s, %s, %s, %s)
         RETURNING id
         """
@@ -513,22 +513,22 @@ async def post_run_add(run: Run):
     # This order as selected on purpose. If the admin mail fails, we currently do
     # not want the job to be queued, as we want to monitor every run execution manually
     config = GlobalConfig().config
-    if (config['admin']['notify_admin_for_own_project_add'] or config['admin']['email'] != run.email):
+    if (config['admin']['notify_admin_for_own_software_add'] or config['admin']['email'] != run.email):
         email_helpers.send_admin_email(
             f"New run added from Web Interface: {run.name}", run
         )  # notify admin of new run
 
-    jobs.insert_job('project', run_id, run.machine_id)
+    jobs.insert_job('run', run_id, run.machine_id)
 
     return ORJSONResponse({'success': True}, status_code=202)
 
 
-@app.get('/v1/project/{run_id}')
+@app.get('/v1/run/{run_id}')
 async def get_run(run_id: str):
     if run_id is None or not is_valid_uuid(run_id):
         return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
 
-    data = get_project_info(run_id)
+    data = get_run_info(run_id)
 
     if data is None or data == []:
         return Response(status_code=204) # No-Content
@@ -554,7 +554,6 @@ class CI_Measurement(BaseModel):
     cpu_util_avg: float
     commit_hash: str
     workflow: str
-    run_id: str
     run_id: str
     source: str
     label: str
@@ -593,11 +592,11 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 
     query = """
         INSERT INTO
-            ci_measurements (energy_value, energy_unit, repo, branch, workflow, run_id, run_id, label, source, cpu, commit_hash, duration, cpu_util_avg)
+            ci_measurements (energy_value, energy_unit, repo, branch, workflow, run_id, label, source, cpu, commit_hash, duration, cpu_util_avg)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
     params = (measurement.energy_value, measurement.energy_unit, measurement.repo, measurement.branch,
-            measurement.workflow, measurement.run_id, measurement.run_id,
+            measurement.workflow, measurement.run_id,
             measurement.label, measurement.source, measurement.cpu, measurement.commit_hash,
             measurement.duration, measurement.cpu_util_avg)
 

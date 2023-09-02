@@ -15,14 +15,14 @@ if __name__ == '__main__':
     args = parser.parse_args()  # script will exit if arguments not present
 
     if args.all:
-        print("This will remove ALL projects and measurement data from the DB. Continue? (y/N)")
+        print("This will remove ALL runs and measurement data from the DB. Continue? (y/N)")
         answer = sys.stdin.readline()
         if answer.strip().lower() == 'y':
-            DB().query('DELETE FROM projects')
+            DB().query('DELETE FROM runs')
             print("Done")
     else:
-        print("This will remove all failed projects and measurement data from the DB. Continue? (y/N)")
+        print("This will remove all failed runs and measurement data from the DB. Continue? (y/N)")
         answer = sys.stdin.readline()
         if answer.strip().lower() == 'y':
-            DB().query('DELETE FROM projects WHERE end_measurement IS NULL')
+            DB().query('DELETE FROM runs WHERE end_measurement IS NULL')
             print("Done")

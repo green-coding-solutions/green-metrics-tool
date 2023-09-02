@@ -12,12 +12,12 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/..")
 sys.path.append(f"{CURRENT_DIR}/../lib")
 
+from contextlib import redirect_stdout, redirect_stderr
 import pytest
 import utils
-from contextlib import redirect_stdout, redirect_stderr
 from global_config import GlobalConfig
-from runner import Runner
 import test_functions as Tests
+from runner import Runner
 
 GlobalConfig().override_config(config_name='test-config.yml')
 
@@ -171,8 +171,8 @@ def test_load_volume_references():
 
 def test_volume_loading_subdirectories_root():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
-    pid = Tests.insert_project(uri)
-    runner = Runner(uri=uri, uri_type='folder', pid=pid, skip_system_checks=True)
+    run_id = Tests.insert_run(uri)
+    runner = Runner(uri=uri, uri_type='folder', run_id=run_id, skip_system_checks=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -199,8 +199,8 @@ def test_volume_loading_subdirectories_root():
 
 def test_volume_loading_subdirectories_subdir():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
-    pid = Tests.insert_project(uri)
-    runner = Runner(uri=uri, uri_type='folder', filename="subdir/usage_scenario_subdir.yml", pid=pid, skip_system_checks=True)
+    run_id = Tests.insert_run(uri)
+    runner = Runner(uri=uri, uri_type='folder', filename="subdir/usage_scenario_subdir.yml", run_id=run_id, skip_system_checks=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -218,8 +218,8 @@ def test_volume_loading_subdirectories_subdir():
 
 def test_volume_loading_subdirectories_subdir2():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
-    pid = Tests.insert_project(uri)
-    runner = Runner(uri=uri, uri_type='folder', filename="subdir/subdir2/usage_scenario_subdir2.yml", pid=pid, skip_system_checks=True)
+    run_id = Tests.insert_run(uri)
+    runner = Runner(uri=uri, uri_type='folder', filename="subdir/subdir2/usage_scenario_subdir2.yml", run_id=run_id, skip_system_checks=True)
 
     out = io.StringIO()
     err = io.StringIO()
