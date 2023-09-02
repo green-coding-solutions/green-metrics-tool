@@ -110,10 +110,10 @@ async def home():
 
 
 # A route to return all of the available entries in our catalog.
-@app.get('/v1/notes/{project_id}')
-async def get_notes(project_id):
-    if project_id is None or not is_valid_uuid(project_id):
-        return ORJSONResponse({'success': False, 'err': 'Project ID is not a valid UUID or empty'}, status_code=400)
+@app.get('/v1/notes/{run_id}')
+async def get_notes(run_id):
+    if run_id is None or not is_valid_uuid(run_id):
+        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
 
     query = """
             SELECT project_id, detail_name, note, time
@@ -121,17 +121,17 @@ async def get_notes(project_id):
             WHERE project_id = %s
             ORDER BY created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!
             """
-    data = DB().fetch_all(query, (project_id,))
+    data = DB().fetch_all(query, (run_id,))
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
     escaped_data = [html_escape_multi(note) for note in data]
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
-@app.get('/v1/network/{project_id}')
-async def get_network(project_id):
-    if project_id is None or not is_valid_uuid(project_id):
-        return ORJSONResponse({'success': False, 'err': 'Project ID is not a valid UUID or empty'}, status_code=400)
+@app.get('/v1/network/{run_id}')
+async def get_network(run_id):
+    if run_id is None or not is_valid_uuid(run_id):
+        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
 
     query = """
             SELECT *
@@ -139,7 +139,7 @@ async def get_network(project_id):
             WHERE project_id = %s
             ORDER BY time
             """
-    data = DB().fetch_all(query, (project_id,))
+    data = DB().fetch_all(query, (run_id,))
 
     escaped_data = html_escape_multi(data)
     return ORJSONResponse({'success': True, 'data': escaped_data})
@@ -155,35 +155,91 @@ async def get_machines():
 
     return ORJSONResponse({'success': True, 'data': data})
 
-
-# A route to return all of the available entries in our catalog.
-@app.get('/v1/projects')
-async def get_projects(repo: str, filename: str):
+@app.get('/v1/repositories')
+async def get_repositories(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, ):
     query = """
-            SELECT a.id, a.name, a.uri, COALESCE(a.branch, 'main / master'), a.end_measurement, a.last_run, a.invalid_project, a.filename, b.description, a.commit_hash
-            FROM projects as a
-            LEFT JOIN machines as b on a.machine_id = b.id
+            SELECT DISTINCT(r.uri)
+            FROM projects as r
+            LEFT JOIN machines as m on r.machine_id = m.id
             WHERE 1=1
             """
     params = []
 
-    filename = filename.strip()
-    if filename not in ('', 'null'):
-        query = f"{query} AND a.filename LIKE %s  \n"
+    if uri:
+        query = f"{query} AND r.uri LIKE %s  \n"
+        params.append(f"%{uri}%")
+
+    if branch:
+        query = f"{query} AND r.branch LIKE %s  \n"
+        params.append(f"%{branch}%")
+
+    if filename:
+        query = f"{query} AND r.filename LIKE %s  \n"
         params.append(f"%{filename}%")
 
-    repo = repo.strip()
-    if repo not in ('', 'null'):
-        query = f"{query} AND a.uri LIKE %s \n"
-        params.append(f"%{repo}%")
+    if machine_id:
+        query = f"{query} AND m.id = %s \n"
+        params.append(machine_id)
 
-    query = f"{query} ORDER BY a.created_at DESC  -- important to order here, the charting library in JS cannot do that automatically!"
+    if machine:
+        query = f"{query} AND m.description LIKE %s \n"
+        params.append(f"%{machine}%")
+
+
+    query = f"{query} ORDER BY r.uri ASC"
 
     data = DB().fetch_all(query, params=tuple(params))
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    escaped_data = [html_escape_multi(project) for project in data]
+    escaped_data = [html_escape_multi(run) for run in data]
+
+    return ORJSONResponse({'success': True, 'data': escaped_data})
+
+# A route to return all of the available entries in our catalog.
+@app.get('/v1/runs')
+async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None):
+    query = """
+            SELECT r.id, r.name, r.uri, COALESCE(r.branch, 'main / master'), r.last_run, r.invalid_run, r.filename, m.description, r.commit_hash
+            FROM projects as r
+            LEFT JOIN machines as m on r.machine_id = m.id
+            WHERE r.last_run IS NOT NULL
+            """
+    params = []
+
+    if uri:
+        query = f"{query} AND r.uri LIKE %s  \n"
+        params.append(f"%{uri}%")
+
+    if branch:
+        query = f"{query} AND r.branch LIKE %s  \n"
+        params.append(f"%{branch}%")
+
+    if filename:
+        query = f"{query} AND r.filename LIKE %s  \n"
+        params.append(f"%{filename}%")
+
+    if machine_id:
+        query = f"{query} AND m.id = %s \n"
+        params.append(machine_id)
+
+    if machine:
+        query = f"{query} AND m.description LIKE %s \n"
+        params.append(f"%{machine}%")
+
+
+    query = f"{query} ORDER BY r.last_run DESC"
+
+    if limit:
+        query = f"{query} LIMIT %s"
+        params.append(limit)
+
+
+    data = DB().fetch_all(query, params=tuple(params))
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
+
+    escaped_data = [html_escape_multi(run) for run in data]
 
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
@@ -195,10 +251,10 @@ async def get_projects(repo: str, filename: str):
 @app.get('/v1/compare')
 async def compare_in_repo(ids: str):
     if ids is None or not ids.strip():
-        return ORJSONResponse({'success': False, 'err': 'Project_id is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'run_id is empty'}, status_code=400)
     ids = ids.split(',')
     if not all(is_valid_uuid(id) for id in ids):
-        return ORJSONResponse({'success': False, 'err': 'One of Project IDs is not a valid UUID or empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'One of Run IDs is not a valid UUID or empty'}, status_code=400)
 
     try:
         case = determine_comparison_case(ids)
@@ -213,17 +269,17 @@ async def compare_in_repo(ids: str):
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
         phase_stats_object['common_info'] = {}
 
-        project_info = get_project_info(ids[0])
+        run_info = get_project_info(ids[0])
 
         machine_list = get_machine_list()
         machines = {machine[0]: machine[1] for machine in machine_list}
 
-        machine = machines[project_info['machine_id']]
-        uri = project_info['uri']
-        usage_scenario = project_info['usage_scenario']['name']
-        branch = project_info['branch'] if project_info['branch'] is not None else 'main / master'
-        commit = project_info['commit_hash']
-        filename = project_info['filename']
+        machine = machines[run_info['machine_id']]
+        uri = run_info['uri']
+        usage_scenario = run_info['usage_scenario']['name']
+        branch = run_info['branch'] if run_info['branch'] is not None else 'main / master'
+        commit = run_info['commit_hash']
+        filename = run_info['filename']
 
         match case:
             case 'Repeated Run':
@@ -270,13 +326,13 @@ async def compare_in_repo(ids: str):
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
 
-@app.get('/v1/phase_stats/single/{project_id}')
-async def get_phase_stats_single(project_id: str):
-    if project_id is None or not is_valid_uuid(project_id):
-        return ORJSONResponse({'success': False, 'err': 'Project ID is not a valid UUID or empty'}, status_code=400)
+@app.get('/v1/phase_stats/single/{run_id}')
+async def get_phase_stats_single(run_id: str):
+    if run_id is None or not is_valid_uuid(run_id):
+        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
 
     try:
-        phase_stats = get_phase_stats([project_id])
+        phase_stats = get_phase_stats([run_id])
         phase_stats_object = get_phase_stats_object(phase_stats, None)
         phase_stats_object = add_phase_stats_statistics(phase_stats_object)
 
@@ -287,10 +343,10 @@ async def get_phase_stats_single(project_id: str):
 
 
 # This route gets the measurements to be displayed in a timeline chart
-@app.get('/v1/measurements/single/{project_id}')
-async def get_measurements_single(project_id: str):
-    if project_id is None or not is_valid_uuid(project_id):
-        return ORJSONResponse({'success': False, 'err': 'Project ID is not a valid UUID or empty'}, status_code=400)
+@app.get('/v1/measurements/single/{run_id}')
+async def get_measurements_single(run_id: str):
+    if run_id is None or not is_valid_uuid(run_id):
+        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
 
     query = """
             SELECT measurements.detail_name, measurements.time, measurements.metric,
@@ -303,7 +359,7 @@ async def get_measurements_single(project_id: str):
 
     query = f" {query} ORDER BY measurements.metric ASC, measurements.detail_name ASC, measurements.time ASC"
 
-    params = params = (project_id, )
+    params = params = (run_id, )
 
     data = DB().fetch_all(query, params=params)
 
@@ -356,7 +412,7 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
     cost = f"+{round(float(cost), 2)}" if abs(cost) == cost else f"{round(float(cost), 2)}"
 
     badge = anybadge.Badge(
-        label=xml_escape('Project Trend'),
+        label=xml_escape('Run Trend'),
         value=xml_escape(f"{cost} {data[3]} per day"),
         num_value_padding_chars=1,
         default_color='orange')
@@ -364,11 +420,11 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
 
 
 # A route to return all of the available entries in our catalog.
-@app.get('/v1/badge/single/{project_id}')
-async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
+@app.get('/v1/badge/single/{run_id}')
+async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
 
-    if project_id is None or not is_valid_uuid(project_id):
-        return ORJSONResponse({'success': False, 'err': 'Project ID is not a valid UUID or empty'}, status_code=400)
+    if run_id is None or not is_valid_uuid(run_id):
+        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
 
     query = '''
         SELECT
@@ -399,7 +455,7 @@ async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
     else:
         return ORJSONResponse({'success': False, 'err': f"Unknown metric '{metric}' submitted"}, status_code=400)
 
-    params = (project_id, value)
+    params = (run_id, value)
     data = DB().fetch_one(query, params=params)
 
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
@@ -416,7 +472,7 @@ async def get_badge_single(project_id: str, metric: str = 'ml-estimated'):
     return Response(content=str(badge), media_type="image/svg+xml")
 
 
-class Project(BaseModel):
+class Run(BaseModel):
     name: str
     url: str
     email: str
@@ -425,25 +481,25 @@ class Project(BaseModel):
     machine_id: int
 
 @app.post('/v1/project/add')
-async def post_project_add(project: Project):
-    if project.url is None or project.url.strip() == '':
+async def post_run_add(run: Run):
+    if run.url is None or run.url.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'URL is empty'}, status_code=400)
 
-    if project.name is None or project.name.strip() == '':
+    if run.name is None or run.name.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'Name is empty'}, status_code=400)
 
-    if project.email is None or project.email.strip() == '':
+    if run.email is None or run.email.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'E-mail is empty'}, status_code=400)
 
-    if project.branch.strip() == '':
-        project.branch = None
+    if run.branch.strip() == '':
+        run.branch = None
 
-    if project.filename.strip() == '':
-        project.filename = 'usage_scenario.yml'
+    if run.filename.strip() == '':
+        run.filename = 'usage_scenario.yml'
 
-    if project.machine_id == 0:
-        project.machine_id = None
-    project = html_escape_multi(project)
+    if run.machine_id == 0:
+        run.machine_id = None
+    run = html_escape_multi(run)
 
     # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
     query = """
@@ -451,28 +507,28 @@ async def post_project_add(project: Project):
         VALUES (%s, %s, %s, %s, %s)
         RETURNING id
         """
-    params = (project.url, project.name, project.email, project.branch, project.filename)
-    project_id = DB().fetch_one(query, params=params)[0]
+    params = (run.url, run.name, run.email, run.branch, run.filename)
+    run_id = DB().fetch_one(query, params=params)[0]
 
     # This order as selected on purpose. If the admin mail fails, we currently do
-    # not want the job to be queued, as we want to monitor every project execution manually
+    # not want the job to be queued, as we want to monitor every run execution manually
     config = GlobalConfig().config
-    if (config['admin']['notify_admin_for_own_project_add'] or config['admin']['email'] != project.email):
+    if (config['admin']['notify_admin_for_own_project_add'] or config['admin']['email'] != run.email):
         email_helpers.send_admin_email(
-            f"New project added from Web Interface: {project.name}", project
-        )  # notify admin of new project
+            f"New run added from Web Interface: {run.name}", run
+        )  # notify admin of new run
 
-    jobs.insert_job('project', project_id, project.machine_id)
+    jobs.insert_job('project', run_id, run.machine_id)
 
     return ORJSONResponse({'success': True}, status_code=202)
 
 
-@app.get('/v1/project/{project_id}')
-async def get_project(project_id: str):
-    if project_id is None or not is_valid_uuid(project_id):
-        return ORJSONResponse({'success': False, 'err': 'Project ID is not a valid UUID or empty'}, status_code=400)
+@app.get('/v1/project/{run_id}')
+async def get_run(run_id: str):
+    if run_id is None or not is_valid_uuid(run_id):
+        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
 
-    data = get_project_info(project_id)
+    data = get_project_info(run_id)
 
     if data is None or data == []:
         return Response(status_code=204) # No-Content
@@ -499,7 +555,7 @@ class CI_Measurement(BaseModel):
     commit_hash: str
     workflow: str
     run_id: str
-    project_id: str
+    run_id: str
     source: str
     label: str
     duration: int
@@ -508,12 +564,12 @@ class CI_Measurement(BaseModel):
 async def post_ci_measurement_add(measurement: CI_Measurement):
     for key, value in measurement.model_dump().items():
         match key:
-            case 'project_id':
+            case 'run_id':
                 if value is None or value.strip() == '':
-                    measurement.project_id = None
+                    measurement.run_id = None
                     continue
                 if not is_valid_uuid(value.strip()):
-                    return ORJSONResponse({'success': False, 'err': f"project_id '{value}' is not a valid uuid"}, status_code=400)
+                    return ORJSONResponse({'success': False, 'err': f"run_id '{value}' is not a valid uuid"}, status_code=400)
                 continue
 
             case 'unit':
@@ -537,11 +593,11 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 
     query = """
         INSERT INTO
-            ci_measurements (energy_value, energy_unit, repo, branch, workflow, run_id, project_id, label, source, cpu, commit_hash, duration, cpu_util_avg)
+            ci_measurements (energy_value, energy_unit, repo, branch, workflow, run_id, run_id, label, source, cpu, commit_hash, duration, cpu_util_avg)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
     params = (measurement.energy_value, measurement.energy_unit, measurement.repo, measurement.branch,
-            measurement.workflow, measurement.run_id, measurement.project_id,
+            measurement.workflow, measurement.run_id, measurement.run_id,
             measurement.label, measurement.source, measurement.cpu, measurement.commit_hash,
             measurement.duration, measurement.cpu_util_avg)
 
@@ -563,8 +619,8 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str):
 
     return ORJSONResponse({'success': True, 'data': data})
 
-@app.get('/v1/ci/projects')
-async def get_ci_projects():
+@app.get('/v1/ci/runs')
+async def get_ci_runs():
     query = """
         SELECT repo, branch, workflow, source, MAX(created_at)
         FROM ci_measurements
