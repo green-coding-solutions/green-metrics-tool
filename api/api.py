@@ -472,6 +472,23 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
     return Response(content=str(badge), media_type="image/svg+xml")
 
 
+@app.get('/v1/jobs')
+async def get_jobs():
+    # Do not get the email jobs as they do not need to be display in the frontend atm
+    query = """
+        SELECT j.id, j.run_id, m.description, j.failed, j.running, j.last_run, j.created_at
+        FROM jobs as j
+        LEFT JOIN machines as m on m.id = j.machine_id
+        WHERE j.type = 'run'
+        ORDER BY j.created_at ASC
+    """
+    data = DB().fetch_all(query)
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
+
+    return ORJSONResponse({'success': True, 'data': data})
+
+
 class Run(BaseModel):
     name: str
     url: str
