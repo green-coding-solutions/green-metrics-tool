@@ -34,7 +34,8 @@ $(document).ready(function () {
                     <p><b>Machine: </b>${machine_description}</p>
                     <p><b>Schedule Mode: </b>${schedule_mode}</p>
                     <p><b>Last Run: </b>${last_run == '' ? '-' : dateToYMD(new Date(last_run))}</p>
-                    <h4>Badges</h4>`
+                    <h4>Selected Measurement Badges</h4>
+                    <hr>`
 
             metrics.forEach(metric => {
                 const [metric_name, detail_name] = metric
