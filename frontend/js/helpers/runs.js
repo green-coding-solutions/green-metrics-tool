@@ -132,7 +132,7 @@ const getRunsTable = (el, url, include_uri=true, include_button=true, searching=
 
     columns.push({ data: 6, title: '<i class="icon file alternate"></i>Filename', });
     columns.push({ data: 7, title: '<i class="icon laptop code"></i>Machine</th>' });
-    columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>' });
+    columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>', render: (data) => data == null ? '-' : dateToYMD(new Date(data)) });
 
     const button_title = include_button ? '<button id="compare-button" onclick="compareButton()" class="ui small button blue right">Compare: 0 Run(s)</button>' : '';
 

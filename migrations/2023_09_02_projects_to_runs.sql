@@ -7,6 +7,7 @@ ALTER TABLE runs DROP COLUMN "last_run";
 ALTER TABLE runs
   ADD COLUMN "job_id" int,
   ADD CONSTRAINT "job_fk" FOREIGN KEY ("job_id") REFERENCES jobs(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE runs ADD UNIQUE (job_id);
 
 
 ALTER TABLE measurements RENAME COLUMN "project_id" TO "run_id";

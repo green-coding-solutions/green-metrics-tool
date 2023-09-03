@@ -149,34 +149,33 @@ async function makeAPICall(path, values=null) {
     return json_response;
 };
 
-(() => {
-    /* Menu toggling */
-    let openMenu = function(e){
-        $(this).removeClass('closed').addClass('opened');
-        $(this).find('i').removeClass('right').addClass('left');
-        $('#menu').removeClass('closed').addClass('opened');
-        $('#main').removeClass('closed').addClass('opened');
-        setTimeout(function(){window.dispatchEvent(new Event('resize'))}, 500) // needed for the graphs to resize
-    }
+/* Menu toggling */
+let openMenu = function(e){
+    $(this).removeClass('closed').addClass('opened');
+    $(this).find('i').removeClass('right').addClass('left');
+    $('#menu').removeClass('closed').addClass('opened');
+    $('#main').removeClass('closed').addClass('opened');
+    setTimeout(function(){window.dispatchEvent(new Event('resize'))}, 500) // needed for the graphs to resize
+}
+
+let closeMenu = function(e){
+    $(this).removeClass('opened').addClass('closed');
+    $(this).find('i').removeClass('left').addClass('right');
+    $('#menu').removeClass('opened').addClass('closed');
+    $('#main').removeClass('opened').addClass('closed');
+    setTimeout(function(){window.dispatchEvent(new Event('resize'))}, 500) // needed for the graphs to resize
+}
+
+$(document).ready(function () {
     $(document).on('click','#menu-toggle.closed', openMenu);
-
-    let closeMenu = function(e){
-        $(this).removeClass('opened').addClass('closed');
-        $(this).find('i').removeClass('left').addClass('right');
-        $('#menu').removeClass('opened').addClass('closed');
-        $('#main').removeClass('opened').addClass('closed');
-        setTimeout(function(){window.dispatchEvent(new Event('resize'))}, 500) // needed for the graphs to resize
-    }
-
     $(document).on('click','#menu-toggle.opened', closeMenu);
-    $(document).ready(function () {
-        if ($(window).width() < 960) {
-            $('#menu-toggle').removeClass('opened').addClass('closed');
-        }
-    });
 
-    $(window).on('load', function() {
-      $("body").removeClass("preload"); // activate tranisition CSS properties again
-    });
+    if ($(window).width() < 960) {
+        $('#menu-toggle').removeClass('opened').addClass('closed');
+    }
+});
 
-})();
+$(window).on('load', function() {
+    $("body").removeClass("preload"); // activate tranisition CSS properties again
+});
+

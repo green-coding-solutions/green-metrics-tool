@@ -36,7 +36,7 @@ CREATE TRIGGER jobs_moddatetime
 
 CREATE TABLE runs (
     id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-    job_id integer REFERENCES jobs(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    job_id integer REFERENCES jobs(id) ON DELETE SET NULL ON UPDATE CASCADE UNIQUE,
     name text,
     uri text,
     branch text,

@@ -1421,6 +1421,7 @@ if __name__ == '__main__':
         # get all the metrics from the measurements table grouped by metric
         # loop over them issueing separate queries to the DB
         from phase_stats import build_and_store_phase_stats
+
         print("Run id is", successful_run_id)
         build_and_store_phase_stats(successful_run_id, runner._sci)
 

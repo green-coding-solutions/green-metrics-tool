@@ -202,6 +202,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/runs')
 async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None):
+
     query = """
             SELECT r.id, r.name, r.uri, COALESCE(r.branch, 'main / master'), r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement
             FROM runs as r
@@ -228,7 +229,6 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
     if machine:
         query = f"{query} AND m.description LIKE %s \n"
         params.append(f"%{machine}%")
-
 
     query = f"{query} ORDER BY r.created_at DESC"
 
@@ -483,7 +483,7 @@ async def get_timeline_projects():
             p.id, p.url,
             (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(p.categories) as elements
                     LEFT JOIN categories as t on t.id = elements) as categories,
-            p.branch, p.filename, m.description, p.schedule_mode,
+            p.branch, p.filename, p.machine_id, m.description, p.schedule_mode,
             p.last_scheduled, p.created_at, p.updated_at
         FROM timeline_projects as p
         LEFT JOIN machines as m on m.id = p.machine_id
@@ -661,8 +661,8 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str):
 
     return ORJSONResponse({'success': True, 'data': data})
 
-@app.get('/v1/ci/runs')
-async def get_ci_runs():
+@app.get('/v1/ci/projects')
+async def get_ci_projects():
     query = """
         SELECT repo, branch, workflow, source, MAX(created_at)
         FROM ci_measurements

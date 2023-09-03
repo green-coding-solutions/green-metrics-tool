@@ -39,7 +39,7 @@ class Job:
         self.run_id = run_id
 
     def check_measurement_job_running(self):
-        query = "SELECT id FROM jobs WHERE state = 'RUNNING' AND machine_id = %s"
+        query = "SELECT * FROM jobs WHERE state = 'RUNNING' AND machine_id = %s"
         params = (self.machine_id,)
         data = DB().fetch_one(query, params=params)
         if data:
@@ -49,7 +49,7 @@ class Job:
         return False
 
     def check_email_job_running(self):
-        query = "SELECT id FROM jobs WHERE state = 'NOTIFYING'"
+        query = "SELECT * FROM jobs WHERE state = 'NOTIFYING'"
         data = DB().fetch_one(query)
         if data:
             # No email here, only debug
@@ -80,6 +80,7 @@ class Job:
     def _do_email_job(self):
         if self.check_email_job_running():
             return
+        self.update_state('NOTIFYING')
 
         if GlobalConfig().config['admin']['no_emails'] is False and self.email:
             email_helpers.send_report_email(self.email, self.run_id, self.name, machine=self.machine_description)
@@ -91,6 +92,7 @@ class Job:
 
         if self.check_measurement_job_running():
             return
+        self.update_state('RUNNING')
 
         #pylint: disable=import-outside-toplevel
         from runner import Runner
@@ -134,9 +136,10 @@ class Job:
         query = """
             SELECT
                 j.id, j.state, j.name, j.email, j.url, j.branch,
-                j.filename, j.machine_id, j.run_id, m.description
+                j.filename, j.machine_id, m.description, r.id as run_id
             FROM jobs as j
             LEFT JOIN machines as m on m.id = j.machine_id
+            LEFT JOIN runs as r on r.job_id = j.id
             WHERE j.state = %s AND j.machine_id = %s
             ORDER BY j.created_at ASC
             LIMIT 1
