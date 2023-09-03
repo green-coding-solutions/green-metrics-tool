@@ -484,9 +484,27 @@ async def get_timeline_projects():
             (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(p.categories) as elements
                     LEFT JOIN categories as t on t.id = elements) as categories,
             p.branch, p.filename, p.machine_id, m.description, p.schedule_mode,
-            p.last_scheduled, p.created_at, p.updated_at
+            p.last_scheduled, p.created_at, p.updated_at, r.created_at as "last_run",
+            (
+                SELECT ARRAY_AGG(DISTINCT(metric, detail_name))
+                FROM phase_stats as ps
+                WHERE
+                    ps.run_id = r.id
+                    AND (metric LIKE '%%_energy_%%' OR metric = 'software_carbon_intensity_global')
+            ) as "metrics"
         FROM timeline_projects as p
-        LEFT JOIN machines as m on m.id = p.machine_id
+        LEFT JOIN machines as m ON m.id = p.machine_id
+        LEFT JOIN (
+                SELECT id, uri, branch, filename, machine_id, created_at
+                FROM runs
+                ORDER BY created_at DESC
+                LIMIT 1
+        ) as r
+        ON
+            p.url = r.uri
+            AND COALESCE(p.branch, 'main / master') = COALESCE(r.branch, 'main / master')
+            AND COALESCE(p.filename, 'usage_scenario.yml') = COALESCE(r.filename, 'usage_scenario.yml')
+            AND p.machine_id = r.machine_id
         ORDER BY p.url ASC
     """
     data = DB().fetch_all(query)

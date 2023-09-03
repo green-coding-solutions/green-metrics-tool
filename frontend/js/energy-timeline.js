@@ -1,4 +1,74 @@
 $(document).ready(function () {
+
+    (async () => {
+        try {
+            var measurements = await makeAPICall('/v1/timeline-projects');
+        } catch (err) {
+            showNotification('Could not get data from API', err);
+            return;
+        }
+        measurements.data.forEach(measurement => {
+            let [id, url, categories, branch, filename, machine_id, machine_description, schedule_mode, last_scheduled, created_at, updated_at, last_run, metrics] = measurement
+            filename = filename == null ? '': filename
+            branch = branch == null ? '': branch
+
+            const chart_node = document.createElement("div")
+            chart_node.classList.add("card");
+            chart_node.classList.add('ui')
+
+            const url_link = `${replaceRepoIcon(url)} <a href="${url}"><i class="icon external alternate"></i></a>`;
+            chart_node.innerHTML = `
+                <div class="content wordpress-card">
+                    <div class="header">Project #${id}</div>
+                    <div class="meta">
+                        <span>${url_link}</span>
+                    </div>
+                </div>
+                <a class="ui button blue" href="/timeline.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}">
+                    Show Timeline <i class="external alternate icon"></i>
+                </a>
+                <div class="content">
+                    <p><b>Monitoring since: </b>${dateToYMD(new Date(created_at), true)}</p>
+                    <p><b>Branch: </b> ${branch == '' ? '-': branch}</p>
+                    <p><b>Filename: </b> ${filename == '' ? '-': filename}</p>
+                    <p><b>Machine: </b>${machine_description}</p>
+                    <p><b>Schedule Mode: </b>${schedule_mode}</p>
+                    <p><b>Last Run: </b>${last_run == '' ? '-' : dateToYMD(new Date(last_run))}</p>
+                    <h4>Badges</h4>`
+
+            metrics.forEach(metric => {
+                const [metric_name, detail_name] = metric
+                chart_node.innerHTML = `${chart_node.innerHTML}
+                <fieldset style="border:none;">
+                        <div class="field">
+                            <div class="header title">
+                                <strong>${METRIC_MAPPINGS[metric_name]['clean_name']}</strong> via
+                                <strong>${METRIC_MAPPINGS[metric_name]['source']}</strong>
+                                 - ${detail_name}
+                                <i data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}" data-position="bottom center" data-inverted>
+                                    <i class="question circle icon link"></i>
+                                </i>
+                            </div>
+                            <span class="energy-badge-container"><a href="/timeline.html?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}"><img src="${API_URL}/v1/badge/timeline?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}"></a></span>
+                            <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                        </div>
+                        </div>
+                        <p></p>`
+            })
+
+            chart_node.innerHTML = `${chart_node.innerHTML}
+                </div>
+                <a class="ui button" href="/index.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}">
+                    Show All Measurements <i class="external alternate icon"></i>
+                </a>`
+
+            document.querySelector('#timeline-cards').appendChild(chart_node)
+        })
+    })();
+});
+
+
+/*
     $('#timeline-projects-table').DataTable({
         ajax: `${API_URL}/v1/timeline-projects`,
         columns: [
@@ -26,7 +96,7 @@ $(document).ready(function () {
                     return `<a href="/index.html?uri=${row[1]}&filename=${row[4]}&branch=${row[3]}&machine_id=${row[5]}">Show all measurements</a>`
                 },
             },
-/*            {
+            {
                 data: 0,
                 title: 'Badges',
                 render: function(name, type, row) {
@@ -47,7 +117,6 @@ $(document).ready(function () {
 
                 },
             },
-*/
 
 
         ],
@@ -55,5 +124,5 @@ $(document).ready(function () {
         order: [] // API determines order
     });
 
-});
+*/
 
