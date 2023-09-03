@@ -207,6 +207,7 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
             SELECT r.id, r.name, r.uri, COALESCE(r.branch, 'main / master'), r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
+            WHERE 1=1
             """
     params = []
 
