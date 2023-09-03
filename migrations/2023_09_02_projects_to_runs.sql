@@ -21,6 +21,7 @@ ALTER TABLE ci_measurements DROP COLUMN "project_id";
 -- create the timeline_projects table
 CREATE TABLE timeline_projects (
     id SERIAL PRIMARY KEY,
+    name text,
     url text,
     categories integer[],
     branch text DEFAULT 'NULL'::text,

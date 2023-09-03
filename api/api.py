@@ -480,7 +480,7 @@ async def get_timeline_projects():
     # Also do not get the email field for privacy
     query = """
         SELECT
-            p.id, p.url,
+            p.id, p.name, p.url,
             (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(p.categories) as elements
                     LEFT JOIN categories as t on t.id = elements) as categories,
             p.branch, p.filename, p.machine_id, m.description, p.schedule_mode,
@@ -546,6 +546,9 @@ async def software_add(software: Software):
 
     software = html_escape_multi(software)
 
+    if software.name is None or software.name.strip() == '':
+        return ORJSONResponse({'success': False, 'err': 'Name is empty'}, status_code=400)
+
     # Note that we use uri as the general identifier, however when adding through web interface we only allow urls
     if software.url is None or software.url.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'URL is empty'}, status_code=400)
@@ -579,7 +582,7 @@ async def software_add(software: Software):
         for _ in range(0,3):
             Job.insert(software.name, software.url,  software.email, software.branch, software.filename, software.machine_id)
     else:
-        TimelineProject.insert(software.url, software.branch, software.filename, software.machine_id, software.schedule_mode)
+        TimelineProject.insert(software.name, software.url, software.branch, software.filename, software.machine_id, software.schedule_mode)
 
     return ORJSONResponse({'success': True}, status_code=202)
 

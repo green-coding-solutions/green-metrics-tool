@@ -8,7 +8,7 @@ $(document).ready(function () {
             return;
         }
         measurements.data.forEach(measurement => {
-            let [id, url, categories, branch, filename, machine_id, machine_description, schedule_mode, last_scheduled, created_at, updated_at, last_run, metrics] = measurement
+            let [id, name, url, categories, branch, filename, machine_id, machine_description, schedule_mode, last_scheduled, created_at, updated_at, last_run, metrics] = measurement
             filename = filename == null ? '': filename
             branch = branch == null ? '': branch
 
@@ -18,8 +18,8 @@ $(document).ready(function () {
 
             const url_link = `${replaceRepoIcon(url)} <a href="${url}"><i class="icon external alternate"></i></a>`;
             chart_node.innerHTML = `
-                <div class="content wordpress-card">
-                    <div class="header">Project #${id}</div>
+                <div class="content">
+                    <div class="header">ID #${id} - ${name}</div>
                     <div class="meta">
                         <span>${url_link}</span>
                     </div>
@@ -37,26 +37,27 @@ $(document).ready(function () {
                     <h4>Selected Measurement Badges</h4>
                     <hr>`
 
-            metrics.forEach(metric => {
-                const [metric_name, detail_name] = metric
-                chart_node.innerHTML = `${chart_node.innerHTML}
-                <fieldset style="border:none;">
-                        <div class="field">
-                            <div class="header title">
-                                <strong>${METRIC_MAPPINGS[metric_name]['clean_name']}</strong> via
-                                <strong>${METRIC_MAPPINGS[metric_name]['source']}</strong>
-                                 - ${detail_name}
-                                <i data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}" data-position="bottom center" data-inverted>
-                                    <i class="question circle icon link"></i>
-                                </i>
+            if (metrics != null) {
+                metrics.forEach(metric => {
+                    const [metric_name, detail_name] = metric
+                    chart_node.innerHTML = `${chart_node.innerHTML}
+                    <fieldset style="border:none;">
+                            <div class="field">
+                                <div class="header title">
+                                    <strong>${METRIC_MAPPINGS[metric_name]['clean_name']}</strong> via
+                                    <strong>${METRIC_MAPPINGS[metric_name]['source']}</strong>
+                                     - ${detail_name}
+                                    <i data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}" data-position="bottom center" data-inverted>
+                                        <i class="question circle icon link"></i>
+                                    </i>
+                                </div>
+                                <span class="energy-badge-container"><a href="/timeline.html?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}"><img src="${API_URL}/v1/badge/timeline?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}"></a></span>
+                                <a href="#" class="copy-badge"><i class="copy icon"></i></a>
                             </div>
-                            <span class="energy-badge-container"><a href="/timeline.html?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}"><img src="${API_URL}/v1/badge/timeline?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}"></a></span>
-                            <a href="#" class="copy-badge"><i class="copy icon"></i></a>
-                        </div>
-                        </div>
-                        <p></p>`
-            })
-
+                            </div>
+                            <p></p>`
+                })
+            }
             chart_node.innerHTML = `${chart_node.innerHTML}
                 </div>
                 <a class="ui button" href="/index.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}">

@@ -21,16 +21,16 @@ from db import DB
 
 class TimelineProject():
     @classmethod
-    def insert(cls, url, branch, filename, machine_id, schedule_mode):
+    def insert(cls, name, url, branch, filename, machine_id, schedule_mode):
         # Timeline projects never insert / use emails as they are always premium and made by admin
         # So they need no notification on success / add
         insert_query = """
                 INSERT INTO
-                    timeline_projects (url, branch, filename, machine_id, schedule_mode, created_at)
+                    timeline_projects (name, url, branch, filename, machine_id, schedule_mode, created_at)
                 VALUES
-                    (%s, %s, %s, %s, %s, NOW()) RETURNING id;
+                    (%s, %s, %s, %s, %s, %s, NOW()) RETURNING id;
                 """
-        params = (url, branch, filename, machine_id, schedule_mode,)
+        params = (name, url, branch, filename, machine_id, schedule_mode,)
         return DB().fetch_one(insert_query, params=params)[0]
 
 
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     if args.mode == 'show':
         query = """
             SELECT
-                p.id, p.url,
+                p.id, p.name, p.url,
                 (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(p.categories) as elements
                         LEFT JOIN categories as t on t.id = elements) as categories,
                 p.branch, p.filename, m.description, p.last_scheduled, p.schedule_mode,
@@ -63,24 +63,24 @@ if __name__ == '__main__':
     else:
         query = """
             SELECT
-                id, url, branch, filename, machine_id, schedule_mode, last_scheduled,
+                id, name, url, branch, filename, machine_id, schedule_mode, last_scheduled,
                 DATE(last_scheduled) >= DATE(NOW()) as "scheduled_today"
             FROM timeline_projects
            """
         data = DB().fetch_all(query)
 
-        for [project_id, url, branch, filename, machine_id, schedule_mode, last_scheduled, scheduled_today] in data:
+        for [project_id, name, url, branch, filename, machine_id, schedule_mode, last_scheduled, scheduled_today] in data:
             if not last_scheduled:
                 print('Project was not scheduled yet ', url, branch, filename, machine_id)
                 DB().query('UPDATE timeline_projects SET last_scheduled = NOW() WHERE id = %s', params=(project_id,))
-                Job.insert('Timeline project', url,  None, branch, filename, machine_id)
+                Job.insert(name, url, None, branch, filename, machine_id)
                 print('\tInserted ')
             elif schedule_mode == 'time':
                 print('Project is on time schedule', url, branch, filename, machine_id)
                 if scheduled_today is False:
                     print('\tProject was not scheduled today', scheduled_today)
                     DB().query('UPDATE timeline_projects SET last_scheduled = NOW() WHERE id = %s', params=(project_id,))
-                    Job.insert('Timeline project', url,  None, branch, filename, machine_id)
+                    Job.insert(name, url, None, branch, filename, machine_id)
                     print('\tInserted')
             elif schedule_mode == 'commit':
                 print('Project is on time schedule', url, branch, filename, machine_id)

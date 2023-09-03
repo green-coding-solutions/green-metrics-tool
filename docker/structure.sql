@@ -191,6 +191,7 @@ CREATE TRIGGER client_status_moddatetime
 
 CREATE TABLE timeline_projects (
     id SERIAL PRIMARY KEY,
+    name text,
     url text,
     categories integer[],
     branch text DEFAULT 'NULL'::text,
