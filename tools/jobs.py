@@ -1,4 +1,4 @@
-#pylint: disable=import-error,wrong-import-position
+#pylint: disable=import-error,too-many-instance-attributes
 import sys
 import os
 import faulthandler
@@ -15,145 +15,180 @@ import error_helpers
 from db import DB
 from global_config import GlobalConfig
 from phase_stats import build_and_store_phase_stats
+from terminal_colors import TerminalColors
 
-def insert_job(job_type, run_id=None, machine_id=None):
-    query = """
-            INSERT INTO
-                jobs (type, failed, running, created_at, run_id, machine_id)
-            VALUES
-                (%s, FALSE, FALSE, NOW(), %s, %s) RETURNING id;
-            """
-    params = (job_type, run_id, machine_id,)
-    job_id = DB().fetch_one(query, params=params)[0]
-    return job_id
+"""
+    The jobs.py file is effectively a state machine that can insert a job in the 'WAITING'
+    state and then push it through the states 'RUNNING', 'FAILED/FINISHED', 'NOTIFYING'
+    and 'NOTIFIED'.
 
-# do the first job you get.
-def get_job(job_type):
-    clear_old_jobs()
-    query = """
-        SELECT id, type, run_id
-        FROM jobs
-        WHERE failed=false AND type=%s AND (machine_id IS NULL or machine_id = %s)
-        ORDER BY created_at ASC
-        LIMIT 1
-    """
+    After 14 days all FAILED and NOTIFIED jobs will be deleted.
+"""
 
-    return DB().fetch_one(query, (job_type, GlobalConfig().config['machine']['id']))
+class Job:
+    def __init__(self, state, name, email, url,  branch, filename, machine_id, run_id=None, job_id=None, machine_description=None):
+        self.id = job_id
+        self.state = state
+        self.name = name
+        self.email = email
+        self.url = url
+        self.branch = branch
+        self.filename = filename
+        self.machine_id = machine_id
+        self.machine_description = machine_description
+        self.run_id = run_id
 
+    def check_measurement_job_running(self):
+        query = "SELECT id FROM jobs WHERE state = 'RUNNING' AND machine_id = %s"
+        params = (self.machine_id,)
+        data = DB().fetch_one(query, params=params)
+        if data:
+            # No email here, only debug
+            error_helpers.log_error('Measurement-Job was still running: ', data)
+            return True
+        return False
 
-def delete_job(job_id):
-    query = "DELETE FROM jobs WHERE id=%s"
-    params = (job_id,)
-    DB().query(query, params=params)
+    def check_email_job_running(self):
+        query = "SELECT id FROM jobs WHERE state = 'NOTIFYING'"
+        data = DB().fetch_one(query)
+        if data:
+            # No email here, only debug
+            error_helpers.log_error('Notifying-Job was still running: ', data)
+            return True
+        return False
 
-# if there is no job of that type running, set this job to running
-
-
-def check_job_running(job_type, job_id):
-    query = "SELECT FROM jobs WHERE running=true AND type=%s"
-    params = (job_type,)
-    data = DB().fetch_one(query, params=params)
-    if data:
-        # No email here, only debug
-        error_helpers.log_error('Job was still running: ', job_type, job_id)
-        sys.exit(1)  # is this the right way to exit here?
-    else:
-        query_update = "UPDATE jobs SET running=true, last_run=NOW() WHERE id=%s"
-        params_update = (job_id,)
+    def update_state(self, state):
+        query_update = "UPDATE jobs SET state = %s WHERE id=%s"
+        params_update = (state, self.id,)
         DB().query(query_update, params=params_update)
 
 
-def clear_old_jobs():
-    query = "DELETE FROM jobs WHERE last_run < NOW() - INTERVAL '20 minutes' AND failed=false"
-    DB().query(query)
+    def process(self, skip_system_checks=False, docker_prune=False, full_docker_prune=False):
+        try:
+            if self.state == 'FINISHED':
+                self._do_email_job()
+            elif self.state == 'WAITING':
+                self._do_run_job(skip_system_checks, docker_prune, full_docker_prune)
+            else:
+                raise RuntimeError(
+                    f"Job w/ id {self.id} has unknown state: {self.state}.")
+        except Exception as exc:
+            self.update_state('FAILED')
+            raise exc
+
+    # should not be called without enclosing try-except block
+    def _do_email_job(self):
+        if self.check_email_job_running():
+            return
+
+        if GlobalConfig().config['admin']['no_emails'] is False and self.email:
+            email_helpers.send_report_email(self.email, self.run_id, self.name, machine=self.machine_description)
+
+        self.update_state('NOTIFIED')
+
+    # should not be called without enclosing try-except block
+    def _do_run_job(self, skip_system_checks=False, docker_prune=False, full_docker_prune=False):
+
+        if self.check_measurement_job_running():
+            return
+
+        #pylint: disable=import-outside-toplevel
+        from runner import Runner
+
+        runner = Runner(
+            name=self.name,
+            uri=self.url,
+            uri_type='URL',
+            filename=self.filename,
+            branch=self.branch,
+            skip_unsafe=True,
+            skip_system_checks=skip_system_checks,
+            full_docker_prune=full_docker_prune,
+            docker_prune=docker_prune,
+            job_id=self.id,
+        )
+        try:
+            # Start main code. Only URL is allowed for cron jobs
+            self.run_id = runner.run()
+            build_and_store_phase_stats(self.run_id, runner._sci)
+            self.update_state('FINISHED')
+        except Exception as exc:
+            raise exc
+
+    @classmethod
+    def insert(cls, name, url,  email, branch, filename, machine_id):
+        query = """
+                INSERT INTO
+                    jobs (name, url,  email, branch, filename, machine_id, state, created_at)
+                VALUES
+                    (%s, %s, %s, %s, %s, %s, 'WAITING', NOW()) RETURNING id;
+                """
+        params = (name, url,  email, branch, filename, machine_id,)
+        return DB().fetch_one(query, params=params)[0]
+
+    # A static method to get a job object
+    @classmethod
+    def get_job(cls, job_type):
+        cls.clear_old_jobs()
+        state = 'WAITING' if job_type == 'run' else 'FINISHED'
+        query = """
+            SELECT
+                j.id, j.state, j.name, j.email, j.url, j.branch,
+                j.filename, j.machine_id, j.run_id, m.description
+            FROM jobs as j
+            LEFT JOIN machines as m on m.id = j.machine_id
+            WHERE j.state = %s AND j.machine_id = %s
+            ORDER BY j.created_at ASC
+            LIMIT 1
+        """
+
+        job = DB().fetch_one(query, params=(state, GlobalConfig().config['machine']['id']))
+        if not job:
+            return False
+
+        return Job(
+            job_id=job[0],
+            state=job[1],
+            name=job[2],
+            email=job[3],
+            url=job[4],
+            branch=job[5],
+            filename=job[6],
+            machine_id=job[7],
+            run_id=job[8],
+            machine_description=job[9]
+        )
+
+    @classmethod
+    def clear_old_jobs(cls):
+        query = '''
+            DELETE FROM jobs
+            WHERE
+                (state = 'RUNNING' AND updated_at < NOW() - INTERVAL '60 minutes')
+                OR
+                (state = 'NOTIFIED' AND updated_at < NOW() - INTERVAL '14 DAYS')
+                OR
+                (state = 'FAILED' AND updated_at < NOW() - INTERVAL '14 DAYS')
+            '''
+        DB().query(query)
 
 
-def get_run(run_id):
-    data = DB().fetch_one(
-        """SELECT r.name, r.uri, r.email, r.branch, r.filename, m.description
-           FROM runs as r
-           LEFT JOIN machines AS m ON r.machine_id = m.id
-           WHERE r.id = %s LIMIT 1""", (run_id, ))
-
-    if data is None or data == []:
-        raise RuntimeError(f"couldn't find run w/ id: {run_id}")
-
-    return data
-
-
-def process_job(job_id, job_type, run_id, skip_system_checks=False, docker_prune=False, full_docker_prune=False):
-
-    try:
-        if job_type == 'email':
-            _do_email_job(job_id, run_id)
-        elif job_type == 'run':
-            _do_run_job(job_id, run_id, skip_system_checks, docker_prune, full_docker_prune)
-        else:
-            raise RuntimeError(
-                f"Job w/ id {job_id} has unknown type: {job_type}.")
-    except Exception as exc:
-        DB().query("UPDATE jobs SET failed=true, running=false WHERE id=%s", params=(job_id,))
-        raise exc
-
-
-# should not be called without enclosing try-except block
-def _do_email_job(job_id, run_id):
-    check_job_running('email', job_id)
-
-    [name, _, email, _, _, machine] = get_run(run_id)
-
-    config = GlobalConfig().config
-    if (config['admin']['notify_admin_for_own_software_ready'] or config['admin']['email'] != email):
-        email_helpers.send_report_email(email, run_id, name, machine=machine)
-
-    delete_job(job_id)
-
-
-# should not be called without enclosing try-except block
-def _do_run_job(job_id, run_id, skip_system_checks=False, docker_prune=False, full_docker_prune=False):
-    #pylint: disable=import-outside-toplevel
-    from runner import Runner
-
-    check_job_running('run', job_id)
-
-    [_, uri, _, branch, filename, _] = get_run(run_id)
-
-    runner = Runner(
-        uri=uri,
-        uri_type='URL',
-        run_id=run_id,
-        filename=filename,
-        branch=branch,
-        skip_unsafe=True,
-        skip_system_checks=skip_system_checks,
-        full_docker_prune=full_docker_prune,
-        docker_prune=docker_prune,
-    )
-    try:
-        # Start main code. Only URL is allowed for cron jobs
-        runner.run()
-        build_and_store_phase_stats(run_id, runner._sci)
-        insert_job('email', run_id=run_id)
-        delete_job(job_id)
-    except Exception as exc:
-        raise exc
-
-def handle_job_exception(exce, run_id):
-    run_name = None
-    client_mail = None
-    if run_id:
-        [run_name, _, client_mail, _, _, machine] = get_run(run_id)
-
+# a simple helper method unrelated to the class
+def handle_job_exception(exce, job):
     error_helpers.log_error('Base exception occurred in jobs.py: ', exce)
-    email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
-        'Base exception occurred in jobs.py: ', exce), run_id=run_id, name=run_name, machine=machine)
 
-    # reduced error message to client
-    if client_mail and GlobalConfig().config['admin']['email'] != client_mail:
-        email_helpers.send_error_email(client_mail, exce, run_id=run_id, name=run_name, machine=machine)
+    if GlobalConfig().config['admin']['no_emails'] is False:
+        email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
+        'Base exception occurred in jobs.py: ', exce), run_id=job.run_id, name=job.name, machine=job.machine_description)
+
+        # reduced error message to client
+        if job.email and GlobalConfig().config['admin']['email'] != job.email:
+            email_helpers.send_error_email(job.email, exce, run_id=job.run_id, name=job.name, machine=job.machine_description)
 
 if __name__ == '__main__':
     #pylint: disable=broad-except,invalid-name
+
+    print(TerminalColors.WARNING, '\nWarning: Calling Jobs.py directly is deprecated. Please do not use this functionality in a cronjob and only in CLI for testing\n', TerminalColors.ENDC)
 
     import argparse
     from pathlib import Path
@@ -179,14 +214,13 @@ if __name__ == '__main__':
             sys.exit(1)
         GlobalConfig(config_name=args.config_override)
 
-    run_id_main = None
+    job_main = None
     try:
-        job = get_job(args.type)
-        if job is None or job == []:
+        job_main = Job.get_job(args.type)
+        if not job_main:
             print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'No job to process. Exiting')
             sys.exit(0)
-        run_id_main = job[2]
-        process_job(job[0], job[1], job[2], args.skip_system_checks, args.docker_prune, args.full_docker_prune)
+        job_main.process(args.skip_system_checks, args.docker_prune, args.full_docker_prune)
         print('Successfully processed jobs queue item.')
     except Exception as exception:
-        handle_job_exception(exception, run_id_main)
+        handle_job_exception(exception, job_main)

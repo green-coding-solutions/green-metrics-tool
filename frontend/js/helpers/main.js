@@ -18,6 +18,9 @@ class GMTMenu extends HTMLElement {
             <a class="item" href="/repositories.html">
                 <b><i class="code branch icon"></i>Repositories</b>
             </a>
+            <a class="item" href="/energy-timeline.html">
+                <b><i class="history icon"></i>Energy Timeline</b>
+            </a>
             <a class="item" href="/request.html">
                 <b><i class="bullseye icon"></i>Measure software</b>
             </a>
@@ -27,8 +30,8 @@ class GMTMenu extends HTMLElement {
             <a class="item" href="/ci-index.html">
                 <b><i class="seedling icon"></i>Eco-CI</b>
             </a>
-            <a class="item" href="/jobs.html">
-                <b><i class="database icon"></i>Jobs</b>
+            <a class="item" href="/status.html">
+                <b><i class="database icon"></i>Status</b>
             </a>
             <a class="item" href="/settings.html">
                 <b><i class="cogs icon"></i>Settings</b>

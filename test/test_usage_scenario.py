@@ -434,8 +434,9 @@ def test_different_filename():
 # if that filename is missing...
 def test_different_filename_missing():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, '..', 'stress-application/'))
-    run_id = Tests.insert_run(uri)
-    runner = Runner(uri=uri, uri_type='folder', run_id=run_id, filename='basic_stress.yml', skip_system_checks=True)
+    RUN_NAME = 'test_' + utils.randomword(12)
+
+    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', filename='basic_stress.yml', skip_system_checks=True)
 
     with pytest.raises(FileNotFoundError) as e:
         runner.run()

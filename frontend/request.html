@@ -74,22 +74,23 @@
                             <input type="text" placeholder="Github-/Gitlab-/Bitbucket-URL" id="text-field-hero-input3" name="url">
                         </div>
                         <div class="ui fluid icon input">
-                            <input type="text" placeholder="Filename (optional)" id="text-field-hero-input4" name="filename">
+                            <input type="text" placeholder="Filename (optional - default: usage_scenario.yml)" id="text-field-hero-input4" name="filename">
                         </div>
                         <div class="ui fluid icon input">
-                            <input type="text" placeholder="Branch (optional)" id="text-field-hero-input5" name="branch">
+                            <input type="text" placeholder="Branch (optional - default: main/master)" id="text-field-hero-input5" name="branch">
                         </div>
                         <div class="ui fluid icon input">
                             <select name="machine_id" class="ui fluid dropdown">
-                                <option value=''>-- Select hardware for testing --</option>
+                                <option value='0'>-- Select hardware for testing --</option>
                             </select>
                         </div>
                         <div class="ui fluid icon input">
-                            <select name="interval" class="ui fluid dropdown">
+                            <select name="schedule_mode" class="ui fluid dropdown">
                                 <option value=''>-- Select measurement interval --</option>
-                                <option value='one-off'>One-Off [Free - Once per day per repo]</option>
+                                <option value='one-off'>One-Off [Free - Fair use]</option>
+                                <option value='time'>Once per day [Premium / Free open source tier]</option>
                                 <option value='commit'>On every commit [Premium]</option>
-                                <option value='variance'>Variance (3 measurements in a row) [Premium]</option>
+                                <option value='variance'>Variance test (3 measurements in a row) [Premium]</option>
                             </select>
                         </div>
                         <br>

@@ -37,14 +37,10 @@ def build_image():
 def run_runner():
     uri = os.path.abspath(os.path.join(
             CURRENT_DIR, 'stress-application/'))
-    run_id = DB().fetch_one('INSERT INTO "runs" ("name","uri","email","last_run","created_at") \
-                VALUES \
-                (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(RUN_NAME, uri))[0]
 
     # Run the application
-    runner = Runner(uri=uri, uri_type='folder', run_id=run_id, verbose_provider_boot=True, dev_repeat_run=True, skip_system_checks=True)
-    runner.run()
-    return run_id
+    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', verbose_provider_boot=True, dev_repeat_run=True, skip_system_checks=True)
+    return runner.run()
 
 # Rethink how to do this test entirely
 def wip_test_idle_start_time(reset_config):

@@ -159,7 +159,7 @@ const loadCharts = async () => {
     let prun_id = null
 
     phase_stats_data.forEach( (data) => {
-        let [run_id, run_name, last_run, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp] = data
+        let [run_id, run_name, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp] = data
 
 
         if (series[`${metric_name} - ${detail_name}`] == undefined) {
@@ -170,7 +170,7 @@ const loadCharts = async () => {
         series[`${metric_name} - ${detail_name}`].values.push({value: value, commit_hash: commit_hash})
         series[`${metric_name} - ${detail_name}`].notes.push({
             run_name: run_name,
-            last_run: last_run,
+            created_at: created_at,
             commit_timestamp: commit_timestamp,
             commit_hash: commit_hash,
             phase: phase,
@@ -225,7 +225,7 @@ const loadCharts = async () => {
             formatter: function (params, ticket, callback) {
                 if(params.componentType != 'series') return; // no notes for the MovingAverage
                 return `<strong>${series[params.seriesName].notes[params.dataIndex].run_name}</strong><br>
-                        date: ${series[params.seriesName].notes[params.dataIndex].last_run}<br>
+                        date: ${series[params.seriesName].notes[params.dataIndex].created_at}<br>
                         metric_name: ${params.seriesName}<br>
                         phase: ${series[params.seriesName].notes[params.dataIndex].phase}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>

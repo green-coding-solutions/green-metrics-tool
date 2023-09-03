@@ -97,7 +97,7 @@ const getRunsTable = (el, url, include_uri=true, include_button=true, searching=
             title: 'Name',
             render: function(name, type, row) {
 
-                if(row[4] == null) name = `${name} (no data yet 🔥)`;
+                if(row[9] == null) name = `${name} (in progress 🔥)`;
                 if(row[5] != null) name = `${name} <span class="ui yellow horizontal label" title="${row[5]}">invalidated</span>`;
                 return `<a href="/stats.html?id=${row[0]}">${name}</a>`
             },

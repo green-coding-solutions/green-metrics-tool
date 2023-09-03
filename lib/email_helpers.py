@@ -10,10 +10,6 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
 
 def send_email(message, receiver_email):
     config = GlobalConfig().config
-
-    if config['admin']['no_emails'] is True:
-        return
-
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL(config['smtp']['server'], config['smtp']['port'], context=context) as server:
         # No need to set server.auth manually. server.login will iterater over all available methods
@@ -23,7 +19,6 @@ def send_email(message, receiver_email):
 
 
 def send_admin_email(subject, body):
-    config = GlobalConfig().config
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
@@ -34,6 +29,7 @@ Subject: {subject}
 --
 {url}"""
 
+    config = GlobalConfig().config
     message = message.format(
         subject=subject,
         body=body,
@@ -44,7 +40,6 @@ Subject: {subject}
 
 
 def send_error_email(receiver_email, error, run_id=None, name=None, machine=None):
-    config = GlobalConfig().config
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
@@ -62,6 +57,7 @@ Link: {url}/stats.html?id={run_id}
 --
 {url}"""
 
+    config = GlobalConfig().config
     message = message.format(
         receiver_email=receiver_email,
         errors=error,
@@ -74,7 +70,6 @@ Link: {url}/stats.html?id={run_id}
 
 
 def send_report_email(receiver_email, report_id, name, machine=None):
-    config = GlobalConfig().config
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
@@ -88,6 +83,7 @@ Your report is now accessible under the URL: {url}/stats.html?id={report_id}
 --
 {url}"""
 
+    config = GlobalConfig().config
     message = message.format(
         receiver_email=receiver_email,
         report_id=report_id,

@@ -22,7 +22,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
 
 from global_config import GlobalConfig
 from db import DB
-import jobs
+from jobs import Job
+from timeline_projects import TimelineProject
 import email_helpers
 import error_helpers
 import anybadge
@@ -54,11 +55,13 @@ async def log_exception(request: Request, body, exc):
         Exception: {exc}
     """
     error_helpers.log_error(error_message)
-    email_helpers.send_error_email(
-        GlobalConfig().config['admin']['email'],
-        error_helpers.format_error(error_message),
-        run_id=None,
-    )
+
+    if GlobalConfig().config['admin']['no_emails'] is False:
+        email_helpers.send_error_email(
+            GlobalConfig().config['admin']['email'],
+            error_helpers.format_error(error_message),
+            run_id=None,
+        )
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -200,10 +203,9 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
 @app.get('/v1/runs')
 async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None):
     query = """
-            SELECT r.id, r.name, r.uri, COALESCE(r.branch, 'main / master'), r.last_run, r.invalid_run, r.filename, m.description, r.commit_hash
+            SELECT r.id, r.name, r.uri, COALESCE(r.branch, 'main / master'), r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
-            WHERE r.last_run IS NOT NULL
             """
     params = []
 
@@ -228,7 +230,7 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
         params.append(f"%{machine}%")
 
 
-    query = f"{query} ORDER BY r.last_run DESC"
+    query = f"{query} ORDER BY r.created_at DESC"
 
     if limit:
         query = f"{query} LIMIT %s"
@@ -472,14 +474,37 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
     return Response(content=str(badge), media_type="image/svg+xml")
 
 
+@app.get('/v1/timeline-projects')
+async def get_timeline_projects():
+    # Do not get the email jobs as they do not need to be display in the frontend atm
+    # Also do not get the email field for privacy
+    query = """
+        SELECT
+            p.id, p.url,
+            (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(p.categories) as elements
+                    LEFT JOIN categories as t on t.id = elements) as categories,
+            p.branch, p.filename, m.description, p.schedule_mode,
+            p.last_scheduled, p.created_at, p.updated_at
+        FROM timeline_projects as p
+        LEFT JOIN machines as m on m.id = p.machine_id
+        ORDER BY p.url ASC
+    """
+    data = DB().fetch_all(query)
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
+
+    return ORJSONResponse({'success': True, 'data': data})
+
+
 @app.get('/v1/jobs')
 async def get_jobs():
     # Do not get the email jobs as they do not need to be display in the frontend atm
     query = """
-        SELECT j.id, j.run_id, m.description, j.failed, j.running, j.last_run, j.created_at
+        SELECT j.id, j.name, j.url, j.filename, j.branch, m.description, j.state, r.created_at, j.created_at
         FROM jobs as j
         LEFT JOIN machines as m on m.id = j.machine_id
-        WHERE j.type = 'run'
+        LEFT JOIN runs as r on r.job_id = j.id
+        WHERE j.state IN ('WAITING', 'RUNNING')
         ORDER BY j.created_at ASC
     """
     data = DB().fetch_all(query)
@@ -489,53 +514,54 @@ async def get_jobs():
     return ORJSONResponse({'success': True, 'data': data})
 
 
-class Run(BaseModel):
+class Software(BaseModel):
     name: str
     url: str
     email: str
     filename: str
     branch: str
     machine_id: int
+    schedule_mode: str
 
 @app.post('/v1/software/add')
-async def software_add(run: Run):
-    if run.url is None or run.url.strip() == '':
+async def software_add(software: Software):
+
+    software = html_escape_multi(software)
+
+    # Note that we use uri as the general identifier, however when adding through web interface we only allow urls
+    if software.url is None or software.url.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'URL is empty'}, status_code=400)
 
-    if run.name is None or run.name.strip() == '':
+    if software.name is None or software.name.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'Name is empty'}, status_code=400)
 
-    if run.email is None or run.email.strip() == '':
+    if software.email is None or software.email.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'E-mail is empty'}, status_code=400)
 
-    if run.branch.strip() == '':
-        run.branch = None
+    if not DB().fetch_one('SELECT id FROM machines WHERE id=%s AND available=TRUE', params=(software.machine_id,)):
+        return ORJSONResponse({'success': False, 'err': 'Machine does not exist'}, status_code=400)
 
-    if run.filename.strip() == '':
-        run.filename = 'usage_scenario.yml'
 
-    if run.machine_id == 0:
-        run.machine_id = None
-    run = html_escape_multi(run)
+    if software.branch.strip() == '':
+        software.branch = None
 
-    # Note that we use uri here as the general identifier, however when adding through web interface we only allow urls
-    query = """
-        INSERT INTO runs (uri,name,email,branch,filename)
-        VALUES (%s, %s, %s, %s, %s)
-        RETURNING id
-        """
-    params = (run.url, run.name, run.email, run.branch, run.filename)
-    run_id = DB().fetch_one(query, params=params)[0]
+    if software.filename.strip() == '':
+        software.filename = 'usage_scenario.yml'
 
-    # This order as selected on purpose. If the admin mail fails, we currently do
-    # not want the job to be queued, as we want to monitor every run execution manually
-    config = GlobalConfig().config
-    if (config['admin']['notify_admin_for_own_software_add'] or config['admin']['email'] != run.email):
-        email_helpers.send_admin_email(
-            f"New run added from Web Interface: {run.name}", run
-        )  # notify admin of new run
+    if software.schedule_mode not in ['one-off', 'time', 'commit', 'variance']:
+        return ORJSONResponse({'success': False, 'err': f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown."}, status_code=400)
 
-    jobs.insert_job('run', run_id, run.machine_id)
+    # notify admin of new add
+    if GlobalConfig().config['admin']['no_emails'] is False:
+        email_helpers.send_admin_email(f"New run added from Web Interface: {software.name}", software)
+
+    if software.schedule_mode == 'one-off':
+        Job.insert(software.name, software.url,  software.email, software.branch, software.filename, software.machine_id)
+    elif software.schedule_mode == 'variance':
+        for _ in range(0,3):
+            Job.insert(software.name, software.url,  software.email, software.branch, software.filename, software.machine_id)
+    else:
+        TimelineProject.insert(software.url, software.branch, software.filename, software.machine_id, software.schedule_mode)
 
     return ORJSONResponse({'success': True}, status_code=202)
 

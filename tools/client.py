@@ -9,7 +9,7 @@ import subprocess
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
 
-from jobs import get_job, process_job, handle_job_exception
+from jobs import Job, handle_job_exception
 from global_config import GlobalConfig
 from db import DB
 
@@ -36,21 +36,20 @@ def set_status(status_code, data=None, run_id=None):
 if __name__ == '__main__':
 
     while True:
-        job = get_job('run')
+        job = Job.get_job('run')
 
-        if (job is None or job == []):
+        if not job:
             set_status('job_no')
             time.sleep(GlobalConfig().config['client']['sleep_time'])
         else:
-            run_id_main = job[2]
-            set_status('job_start', '', run_id_main)
+            set_status('job_start', '', job.run_id)
             try:
-                process_job(*job)
+                job.process()
             except Exception as exc:
-                set_status('job_error', str(exc), run_id_main)
-                handle_job_exception(exc, run_id_main)
+                set_status('job_error', str(exc), job.run_id)
+                handle_job_exception(exc, job)
             else:
-                set_status('job_end', '', run_id_main)
+                set_status('job_end', '', job.run_id)
 
             set_status('cleanup_start')
 

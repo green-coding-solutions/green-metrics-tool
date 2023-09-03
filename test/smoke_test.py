@@ -35,12 +35,8 @@ def setup_module(module):
             CURRENT_DIR, 'stress-application/'))
         subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
-        run_id = DB().fetch_one('INSERT INTO "runs" ("name","uri","email","last_run","created_at") \
-                    VALUES \
-                    (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(RUN_NAME, uri))[0]
-
         # Run the application
-        runner = Runner(uri=uri, uri_type='folder', run_id=run_id, dev_repeat_run=True, skip_system_checks=True)
+        runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_repeat_run=True, skip_system_checks=True)
         runner.run()
 
     global run_stderr, run_stdout

@@ -6,9 +6,10 @@ import uuid
 import faulthandler
 from functools import cache
 from html import escape as html_escape
-import psycopg
 import numpy as np
 import scipy.stats
+
+from psycopg.rows import dict_row as psycopg_rows_dict_row
 # pylint: disable=no-name-in-module
 from pydantic import BaseModel
 
@@ -102,12 +103,12 @@ def get_run_info(run_id):
                     LEFT JOIN categories as t on t.id = elements) as categories,
                 filename, start_measurement, end_measurement,
                 measurement_config, machine_specs, machine_id, usage_scenario,
-                last_run, created_at, invalid_run, phases, logs
+                created_at, invalid_run, phases, logs
             FROM runs
             WHERE id = %s
             """
     params = (run_id,)
-    return DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
+    return DB().fetch_one(query, params=params, row_factory=psycopg_rows_dict_row)
 
 
 def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, limit_365=False, sorting='run'):
@@ -136,12 +137,12 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
 
     start_date_condition = ''
     if start_date is not None and start_date.strip() != '':
-        start_date_condition =  "AND DATE(runs.last_run) >= TO_DATE(%s, 'YYYY-MM-DD')"
+        start_date_condition =  "AND DATE(runs.created_at) >= TO_DATE(%s, 'YYYY-MM-DD')"
         params.append(start_date)
 
     end_date_condition = ''
     if end_date is not None and end_date.strip() != '':
-        end_date_condition =  "AND DATE(runs.last_run) <= TO_DATE(%s, 'YYYY-MM-DD')"
+        end_date_condition =  "AND DATE(runs.created_at) <= TO_DATE(%s, 'YYYY-MM-DD')"
         params.append(end_date)
 
     detail_name_condition = ''
@@ -151,16 +152,16 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
 
     limit_365_condition = ''
     if limit_365:
-        limit_365_condition = "AND runs.last_run >= CURRENT_DATE - INTERVAL '365 days'"
+        limit_365_condition = "AND runs.created_at >= CURRENT_DATE - INTERVAL '365 days'"
 
-    sorting_condition = 'runs.commit_timestamp ASC, runs.last_run ASC'
+    sorting_condition = 'runs.commit_timestamp ASC, runs.created_at ASC'
     if sorting is not None and sorting.strip() == 'run':
-        sorting_condition = 'runs.last_run ASC, runs.commit_timestamp ASC'
+        sorting_condition = 'runs.created_at ASC, runs.commit_timestamp ASC'
 
 
     query = f"""
             SELECT
-                runs.id, runs.name, runs.last_run, phase_stats.metric, phase_stats.detail_name, phase_stats.phase,
+                runs.id, runs.name, runs.created_at, phase_stats.metric, phase_stats.detail_name, phase_stats.phase,
                 phase_stats.value, phase_stats.unit, runs.commit_hash, runs.commit_timestamp,
                 row_number() OVER () AS row_num
             FROM runs
@@ -170,7 +171,6 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
                 runs.uri = %s
                 AND runs.filename = %s
                 AND runs.end_measurement IS NOT NULL
-                AND runs.last_run IS NOT NULL
                 AND machine_id = %s
                 {metrics_condition}
                 {branch_condition}
