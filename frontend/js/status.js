@@ -10,7 +10,7 @@ $(document).ready(function () {
                 { data: 4, title: 'Branch'},
                 { data: 5, title: 'Machine'},
                 { data: 6, title: 'State'},
-                { data: 7, title: 'Last Run', render: (data) => data == null ? '-' : dateToYMD(new Date(data)) },
+                { data: 7, title: 'Last Update', render: (data) => data == null ? '-' : dateToYMD(new Date(data)) },
                 { data: 8, title: 'Created at', render: (data) => data == null ? '-' : dateToYMD(new Date(data)) },
             ],
             deferRender: true,

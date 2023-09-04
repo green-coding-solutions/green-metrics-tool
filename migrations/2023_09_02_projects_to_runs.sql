@@ -110,3 +110,8 @@ CREATE TRIGGER timeline_projects_moddatetime
     BEFORE UPDATE ON timeline_projects
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
+
+CREATE TRIGGER jobs_moddatetime
+    BEFORE UPDATE ON jobs
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);

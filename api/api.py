@@ -514,12 +514,10 @@ async def get_timeline_projects():
 async def get_jobs():
     # Do not get the email jobs as they do not need to be display in the frontend atm
     query = """
-        SELECT j.id, j.name, j.url, j.filename, j.branch, m.description, j.state, r.created_at, j.created_at
+        SELECT j.id, j.name, j.url, j.filename, j.branch, m.description, j.state, j.updated_at, j.created_at
         FROM jobs as j
         LEFT JOIN machines as m on m.id = j.machine_id
-        LEFT JOIN runs as r on r.job_id = j.id
-        WHERE j.state IN ('WAITING', 'RUNNING')
-        ORDER BY j.created_at ASC
+        ORDER BY j.updated_at, j.created_at ASC
     """
     data = DB().fetch_all(query)
     if data is None or data == []:
