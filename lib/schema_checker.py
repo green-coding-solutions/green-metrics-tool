@@ -2,7 +2,7 @@ import os
 import string
 import re
 from schema import Schema, SchemaError, Optional, Or, Use
-# https://docs.green-coding.berlin/docs/measuring/usage-scenario/
+#
 # networks documentation is different than what i see in the wild!
     # name: str
     # also isn't networks optional?
@@ -67,6 +67,19 @@ class SchemaChecker():
             raise SchemaError(f"{value} is not 'container'")
         return value
 
+    def validate_networks_no_invalid_chars(self, networks):
+        if isinstance(networks, list):
+            for item in networks:
+                if item is not None:
+                    self.contains_no_invalid_chars(item)
+        elif isinstance(networks, dict):
+            for key, value in networks.items():
+                self.contains_no_invalid_chars(key)
+                if value is not None:
+                    self.contains_no_invalid_chars(value)
+        else:
+            raise SchemaError("'networks' should be a list or a dictionary")
+
 
     def check_usage_scenario(self, usage_scenario):
         # Anything with Optional() is not needed, but if it exists must conform to the definition specified
@@ -75,9 +88,7 @@ class SchemaChecker():
             "author": str,
             "description": str,
 
-            Optional("networks"): {
-               Use(self.contains_no_invalid_chars): None
-            },
+            Optional("networks"): Or(list, dict),
 
             Optional("services"): {
                 Use(self.contains_no_invalid_chars): {
@@ -102,16 +113,27 @@ class SchemaChecker():
                     Optional("detach"): bool,
                     Optional("note"): str,
                     Optional("read-notes-stdout"): bool,
-                    Optional("ignore-errors"): bool
+                    Optional("ignore-errors"): bool,
+                    Optional("shell"): str,
+                    Optional("log-stdout"): bool,
+                    Optional("log-stderr"): bool,
                 }],
             }],
 
-            Optional("builds"): {
-                str:str
-            },
+            Optional("builds"): {str:str},
 
             Optional("compose-file"): Use(self.validate_compose_include)
         }, ignore_extra_keys=True)
+
+        # This check is necessary to do in a seperate pass. If tried to bake into the schema object above,
+        # it will not know how to handle the value passed when it could be either a dict or list
+        if 'networks' in usage_scenario:
+            self.validate_networks_no_invalid_chars(usage_scenario['networks'])
+
+        if "builds" not in usage_scenario and usage_scenario.get("services") is not None:
+            for service in usage_scenario["services"].values():
+                if "image" not in service:
+                    raise SchemaError("The 'image' key under services is required when 'builds' key is not present.")
 
         usage_scenario_schema.validate(usage_scenario)
 
@@ -120,7 +142,6 @@ class SchemaChecker():
 #     import yaml
 
 #     with open("test-file.yml", encoding='utf8') as f:
-#     # with open("test-file-2.yaml", encoding='utf8') as f:
 #         usage_scenario = yaml.safe_load(f)
 
 #     SchemaChecker = SchemaChecker(validate_compose_flag=True)

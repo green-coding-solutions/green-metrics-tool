@@ -3,8 +3,9 @@ name: Test
 author: Dan Mateas
 description: test
 
-networks: 
-  network-name:
+networks:
+  - network-a
+  - network-b
 
 services:
   test-container:
@@ -16,6 +17,9 @@ flow:
   - name: Stress
     container: test-container
     commands:
-      - type: console
-        command: stress-ng -c 1 -t 1 -q
+      - type: console 
+        command: stress-ng -c 1 -t 1 -q 
         note: Starting Stress
+        shell: bash 
+        log-stdout: true 
+        log-stderr: false
