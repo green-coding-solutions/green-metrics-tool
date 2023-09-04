@@ -158,8 +158,8 @@ class Job:
             branch=job[5],
             filename=job[6],
             machine_id=job[7],
-            run_id=job[8],
-            machine_description=job[9]
+            machine_description=job[8],
+            run_id=job[9]
         )
 
     @classmethod
