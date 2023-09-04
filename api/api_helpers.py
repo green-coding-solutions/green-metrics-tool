@@ -172,8 +172,8 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
                 AND runs.filename = %s
                 AND runs.end_measurement IS NOT NULL
                 AND machine_id = %s
-                {metrics_condition}
                 {branch_condition}
+                {metrics_condition}
                 {phase_condition}
                 {start_date_condition}
                 {end_date_condition}

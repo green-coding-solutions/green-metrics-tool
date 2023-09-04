@@ -260,3 +260,6 @@ a,
     float: right;
 }
 
+.wide.card {
+    width: 400px !important;
+}
