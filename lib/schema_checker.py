@@ -120,7 +120,7 @@ class SchemaChecker():
                 }],
             }],
 
-            Optional("builds"): {str:str},
+            Optional("build"): {str:str},
 
             Optional("compose-file"): Use(self.validate_compose_include)
         }, ignore_extra_keys=True)
@@ -130,10 +130,10 @@ class SchemaChecker():
         if 'networks' in usage_scenario:
             self.validate_networks_no_invalid_chars(usage_scenario['networks'])
 
-        if "builds" not in usage_scenario and usage_scenario.get("services") is not None:
+        if "build" not in usage_scenario and usage_scenario.get("services") is not None:
             for service in usage_scenario["services"].values():
                 if "image" not in service:
-                    raise SchemaError("The 'image' key under services is required when 'builds' key is not present.")
+                    raise SchemaError("The 'image' key under services is required when 'build' key is not present.")
 
         usage_scenario_schema.validate(usage_scenario)
 
