@@ -8,8 +8,7 @@ import pandas
 
 #pylint: disable=import-error
 from db import DB
-from metric_providers.base import BaseMetricProvider
-
+from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 
 class PowermetricsProvider(BaseMetricProvider):
     def __init__(self, resolution):
@@ -35,12 +34,15 @@ class PowermetricsProvider(BaseMetricProvider):
             '-o',
             self._filename]
 
+    def check_system(self):
+        if self.is_powermetrics_running():
+            raise MetricProviderConfigurationError('Another instance of powermetrics is already running on the system!\nPlease close it before running the Green Metrics Tool.')
+
     def is_powermetrics_running(self):
-        try:
-            output = subprocess.check_output('pgrep -x powermetrics', shell=True)
-            return bool(output.strip())  # If the output is not empty, the process is running.
-        except subprocess.CalledProcessError:  # If the process is not running, 'pgrep' returns non-zero exit code.
+        ps = subprocess.run(['pgrep', '-qx', 'powermetrics'], check=False)
+        if ps.returncode == 1:
             return False
+        return True
 
 
     def stop_profiling(self):

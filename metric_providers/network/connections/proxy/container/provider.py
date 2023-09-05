@@ -39,7 +39,6 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
         self._metric_provider_executable = f"{tinyproxy_path} -d -c {self._conf_file} > {self._filename}"
 
 
-    # This needs to be static as we want to check the system before we initialise all the providers
     def check_system(self):
 
         output = subprocess.check_output(["tinyproxy", "-v"], stderr=subprocess.STDOUT, text=True)
