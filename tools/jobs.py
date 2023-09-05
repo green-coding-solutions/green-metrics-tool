@@ -140,8 +140,7 @@ class Job:
         if config['machine']['jobs_processing'] == 'random':
             order_by = 'RANDOM()'
 
-
-        query = """
+        query = f"""
             SELECT
                 j.id, j.state, j.name, j.email, j.url, j.branch,
                 j.filename, j.machine_id, m.description, r.id as run_id
@@ -149,11 +148,11 @@ class Job:
             LEFT JOIN machines as m on m.id = j.machine_id
             LEFT JOIN runs as r on r.job_id = j.id
             WHERE j.state = %s AND j.machine_id = %s
-            ORDER BY %s
+            ORDER BY {order_by}
             LIMIT 1
         """
 
-        job = DB().fetch_one(query, params=(state, config['machine']['id'], order_by))
+        job = DB().fetch_one(query, params=(state, config['machine']['id']))
         if not job:
             return False
 
