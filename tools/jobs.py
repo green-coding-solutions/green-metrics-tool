@@ -133,6 +133,14 @@ class Job:
     def get_job(cls, job_type):
         cls.clear_old_jobs()
         state = 'WAITING' if job_type == 'run' else 'FINISHED'
+
+        config = GlobalConfig().config
+
+        order_by = 'j.created_at ASC' # default case == 'fifo'
+        if config['machine']['jobs_processing'] == 'random':
+            order_by = 'RANDOM()'
+
+
         query = """
             SELECT
                 j.id, j.state, j.name, j.email, j.url, j.branch,
@@ -141,11 +149,11 @@ class Job:
             LEFT JOIN machines as m on m.id = j.machine_id
             LEFT JOIN runs as r on r.job_id = j.id
             WHERE j.state = %s AND j.machine_id = %s
-            ORDER BY j.created_at ASC
+            ORDER BY %s
             LIMIT 1
         """
 
-        job = DB().fetch_one(query, params=(state, GlobalConfig().config['machine']['id']))
+        job = DB().fetch_one(query, params=(state, config['machine']['id'], order_by))
         if not job:
             return False
 
