@@ -386,14 +386,14 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
     return ORJSONResponse({'success': True, 'data': data})
 
 @app.get('/v1/badge/timeline')
-async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, metrics: str | None = None, phase: str | None = None):
+async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, metrics: str | None = None):
     if uri is None or uri.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'URI is empty'}, status_code=400)
 
     if detail_name is None or detail_name.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'Detail Name is mandatory'}, status_code=400)
 
-    query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, phase, detail_name=detail_name, limit_365=True)
+    query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, '[RUNTIME]', detail_name=detail_name, limit_365=True)
 
     query = f"""
         WITH trend_data AS (
