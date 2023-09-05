@@ -65,7 +65,7 @@ def test_schema_checker_invalid_image_req_when_no_build():
     with pytest.raises(SchemaError) as error:
         schema_checker.check_usage_scenario(usage_scenario)
 
-    expected_exception = "The 'image' key under services is required when 'builds' key is not present."
+    expected_exception = "The 'image' key under services is required when 'build' key is not present."
     assert expected_exception in str(error.value), \
         Tests.assertion_info(f"Exception: {expected_exception}", str(error.value))
 
