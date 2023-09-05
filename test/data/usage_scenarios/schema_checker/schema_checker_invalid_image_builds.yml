@@ -9,7 +9,6 @@ networks:
 services:
   test-container:
     type: container
-    build: .
 
 flow:
   - name: Stress
