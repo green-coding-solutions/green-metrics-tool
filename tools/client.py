@@ -43,7 +43,7 @@ if __name__ == '__main__':
         else:
             set_status('job_start', '', job.run_id)
             try:
-                job.process()
+                job.process(docker_prune=True)
             except Exception as exc:
                 set_status('job_error', str(exc), job.run_id)
                 handle_job_exception(exc, job)
