@@ -43,6 +43,7 @@ import process_helpers
 import hardware_info
 import hardware_info_root
 import error_helpers
+from machine import Machine
 from db import DB
 from global_config import GlobalConfig
 import utils
@@ -426,18 +427,8 @@ class Runner:
             or config['machine']['description'] == '':
             raise RuntimeError('You must set machine id and machine description')
 
-        DB().query("""
-             INSERT INTO machines
-                 ("id", "description", "available", "created_at")
-             VALUES
-                 (%s, %s, TRUE, 'NOW()')
-             ON CONFLICT (id) DO
-                 UPDATE SET description = %s -- no need to make where clause here for correct row
-            """, params=(config['machine']['id'],
-                    config['machine']['description'],
-                    config['machine']['description']
-                )
-        )
+        machine = Machine(machine_id=config['machine'].get('id'), description=config['machine'].get('description'))
+        machine.register()
 
     def update_and_insert_specs(self):
         config = GlobalConfig().config
