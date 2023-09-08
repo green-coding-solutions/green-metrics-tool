@@ -1,14 +1,3 @@
-const convertValue = (value, unit) => {
-    switch (unit) {
-        case 'mJ':
-            return [value / 1000, 'Joules'];
-            break;
-        default:
-            return [value, unit];        // no conversion in default calse
-    }
-
-}
-
 const calculateStats = (energy_measurements, time_measurements, cpu_util_measurements) => {
     let energyAverage = '--'
     let energyStdDeviation = '--'
@@ -182,7 +171,6 @@ const filterMeasurements = (measurements, start_date, end_date, selectedLegends)
         }
     });
 
-    displayStatsTable(filteredMeasurements); // Update stats table
     return filteredMeasurements;
 }
 
@@ -258,13 +246,6 @@ const displayGraph = (measurements) => {
         chart_instance.resize();
     }
 
-    chart_instance.on('legendselectchanged', function (params) {
-        const selectedLegends = params.selected;
-        const filteredMeasurements = measurements.filter(measurement => selectedLegends[measurement[5]]);
-
-        displayStatsTable(filteredMeasurements);
-    });
-
     return chart_instance;
 }
 
@@ -313,6 +294,9 @@ const displayStatsTable = (measurements) => {
 }
 
 const displayCITable = (measurements, url_params) => {
+
+    const repo_esc = escapeString(url_params.get('repo'))
+
     measurements.forEach(el => {
         const li_node = document.createElement("tr");
 
@@ -328,14 +312,17 @@ const displayCITable = (measurements, url_params) => {
         const cpu_avg = el[9] ? el[9] : '--';
 
         var run_link = ''
+        
+        const run_id_esc = escapeString(run_id)
+
         if(source == 'github') {
-            run_link = `https://github.com/${escapeString(url_params.get('repo'))}/actions/runs/${escapeString(run_id)}`;
+            run_link = `https://github.com/${repo_esc}/actions/runs/${run_id_esc}`;
         }
         else if (source == 'gitlab') {
-            run_link = `https://gitlab.com/${escapeString(url_params.get('repo'))}/-/pipelines/${escapeString(run_id)}`
+            run_link = `https://gitlab.com/${repo_esc}/-/pipelines/${run_id_esc}`
         }
 
-        const run_link_node = `<a href="${run_link}" target="_blank">${escapeString(run_id)}</a>`
+        const run_link_node = `<a href="${run_link}" target="_blank">${run_id_esc}</a>`
 
         const created_at = el[3]
 
@@ -399,7 +386,7 @@ $(document).ready((e) => {
         }
 
         try {
-            api_string=`/v1/ci/measurements?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`;
+            const api_string=`/v1/ci/measurements?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`;
             var measurements = await makeAPICall(api_string);
         } catch (err) {
             showNotification('Could not get data from API', err);
@@ -407,7 +394,7 @@ $(document).ready((e) => {
         }
 
         let repo_link = ''
-        let source = measurements.data[0][8]
+        const source = measurements.data[0][8]
 
         if(source == 'github') {
             repo_link = `https://github.com/${escapeString(url_params.get('repo'))}`;
@@ -417,23 +404,33 @@ $(document).ready((e) => {
         }
         //${repo_link}
         const repo_link_node = `<a href="${repo_link}" target="_blank">${escapeString(url_params.get('repo'))}</a>`
-        document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Repository:</strong></td><td>${repo_link_node}</td></tr>`)
-        document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params.get('branch'))}</td></tr>`)
-        document.querySelector('#ci-data').insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(url_params.get('workflow'))}</td></tr>`)
+        const ci_data_node = document.querySelector('#ci-data')
+        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Repository:</strong></td><td>${repo_link_node}</td></tr>`)
+        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params.get('branch'))}</td></tr>`)
+        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(url_params.get('workflow'))}</td></tr>`)
 
-        displayCITable(measurements.data, url_params);
+        displayCITable(measurements.data, url_params); // Iterates through data First
         
         chart_instance = displayGraph(measurements.data)
+
         displayStatsTable(measurements.data)
         dateTimePicker();
 
+        chart_instance.on('legendselectchanged', function (params) {
+            const selectedLegends = params.selected;
+            const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[5]]);
+
+            displayStatsTable(filteredMeasurements); // need to figure out something else here?
+        });
+
+        // When the user selects a subset of the measurement data via the date-picker
         $('#submit').on('click', function () {
             var startDate = new Date($('#rangestart input').val());
             var endDate = new Date($('#rangeend input').val());
 
             const selectedLegends = chart_instance.getOption().legend[0].selected;
             const filteredMeasurements = filterMeasurements(measurements.data, startDate, endDate, selectedLegends);
-
+            displayStatsTable(filteredMeasurements);
             options = getChartOptions(filteredMeasurements);
             chart_instance.clear();
             chart_instance.setOption(options);
