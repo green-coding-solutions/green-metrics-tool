@@ -124,7 +124,7 @@ class Runner:
         self._sci = {'R_d': None, 'R': 0}
         self._job_id = job_id
         self._arguments = locals()
-        del self._arguments['self']
+        del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
 
 
