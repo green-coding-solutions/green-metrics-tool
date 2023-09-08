@@ -10,7 +10,6 @@ sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from pathlib import Path
 from global_config import GlobalConfig
-from db import DB
 import utils
 
 #pylint:disable=import-error
@@ -69,9 +68,9 @@ def run_until(runner, step):
     try:
         config = GlobalConfig().config
         return_run_id = runner.initialize_run()
-        
+
         # do a meaningless operation on return_run_id so pylint doesn't complain
-        return_run_id = return_run_id
+        print(return_run_id)
 
         runner.initialize_folder(runner._tmp_folder)
         runner.checkout_repository()
