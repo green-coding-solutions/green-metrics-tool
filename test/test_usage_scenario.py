@@ -35,16 +35,16 @@ config = GlobalConfig().config
 # otherwise failing Tests will not run the runner.cleanup() properly
 
 # This should be done once per module
-@pytest.fixture(autouse=True, scope="module")
-def build_image():
+@pytest.fixture(autouse=True, scope="module", name="build_image")
+def build_image_fixture():
     uri = os.path.abspath(os.path.join(
             CURRENT_DIR, 'stress-application/'))
     subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
     GlobalConfig().override_config(config_name='test-config.yml')
 
 # cleanup test/tmp directory after every test run
-@pytest.fixture(autouse=True)
-def cleanup_tmp_directories():
+@pytest.fixture(autouse=True, name="cleanup_tmp_directories")
+def cleanup_tmp_directories_fixture():
     yield
     tmp_dir = os.path.join(CURRENT_DIR, 'tmp/')
     if os.path.exists(tmp_dir):

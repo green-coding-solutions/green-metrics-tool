@@ -21,19 +21,19 @@ from global_config import GlobalConfig
 GlobalConfig().override_config(config_name='test-config.yml')
 config = GlobalConfig().config
 
-@pytest.fixture(autouse=True, scope='module')
-def cleanup_jobs():
+@pytest.fixture(autouse=True, scope='module', name="cleanup_jobs")
+def cleanup_jobs_fixture():
     yield
     DB().query('DELETE FROM jobs')
 
-@pytest.fixture(autouse=True, scope='module')
-def cleanup_runs():
+@pytest.fixture(autouse=True, scope='module', name="cleanup_runs")
+def cleanup_runs_fixture():
     yield
     DB().query('DELETE FROM runs')
 
 # This should be done once per module
-@pytest.fixture(autouse=True, scope="module")
-def build_image():
+@pytest.fixture(autouse=True, scope="module", name="build_image")
+def build_image_fixture():
     subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/../stress-application/compose.yml", 'build'], check=True)
 
 def get_job(job_id):
