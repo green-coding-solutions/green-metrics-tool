@@ -9,7 +9,7 @@ sys.path.append(f"{current_dir}/../../api")
 
 import api_helpers
 
-class Project(BaseModel):
+class Run(BaseModel):
     name: str
     url: str
     email: str
@@ -25,7 +25,6 @@ class CI_Measurement(BaseModel):
     commit_hash: str
     workflow: str
     run_id: str
-    project_id: str
     source: str
     label: str
     duration: int
@@ -38,10 +37,10 @@ def test_escape_dict():
 
     assert escaped['link'] == escaped_link
 
-def test_escape_project():
-    messy_project = Project(name="test<?>", url='testURL', email='testEmail', branch='', machine_id=0)
+def test_escape_run():
+    messy_run = Run(name="test<?>", url='testURL', email='testEmail', branch='', machine_id=0)
     escaped_name = 'test&lt;?&gt;'
-    escaped = api_helpers.html_escape_multi(messy_project.model_copy())
+    escaped = api_helpers.html_escape_multi(messy_run.model_copy())
 
     assert escaped.name == escaped_name
 
@@ -55,7 +54,6 @@ def test_escape_measurement():
         commit_hash='',
         workflow='',
         run_id='',
-        project_id='',
         source='',
         label='',
         duration=13,

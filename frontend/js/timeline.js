@@ -156,10 +156,10 @@ const loadCharts = async () => {
     let legends = {};
     let series = {};
 
-    let pproject_id = null
+    let prun_id = null
 
     phase_stats_data.forEach( (data) => {
-        let [project_id, project_name, last_run, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp] = data
+        let [run_id, run_name, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp] = data
 
 
         if (series[`${metric_name} - ${detail_name}`] == undefined) {
@@ -169,16 +169,16 @@ const loadCharts = async () => {
         series[`${metric_name} - ${detail_name}`].labels.push(commit_timestamp)
         series[`${metric_name} - ${detail_name}`].values.push({value: value, commit_hash: commit_hash})
         series[`${metric_name} - ${detail_name}`].notes.push({
-            project_name: project_name,
-            last_run: last_run,
+            run_name: run_name,
+            created_at: created_at,
             commit_timestamp: commit_timestamp,
             commit_hash: commit_hash,
             phase: phase,
-            project_id: project_id,
-            pproject_id: pproject_id,
+            run_id: run_id,
+            prun_id: prun_id,
         })
 
-        pproject_id = project_id
+        prun_id = run_id
     })
 
     for(my_series in series) {
@@ -224,8 +224,8 @@ const loadCharts = async () => {
             trigger: 'item',
             formatter: function (params, ticket, callback) {
                 if(params.componentType != 'series') return; // no notes for the MovingAverage
-                return `<strong>${series[params.seriesName].notes[params.dataIndex].project_name}</strong><br>
-                        date: ${series[params.seriesName].notes[params.dataIndex].last_run}<br>
+                return `<strong>${series[params.seriesName].notes[params.dataIndex].run_name}</strong><br>
+                        date: ${series[params.seriesName].notes[params.dataIndex].created_at}<br>
                         metric_name: ${params.seriesName}<br>
                         phase: ${series[params.seriesName].notes[params.dataIndex].phase}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
@@ -239,7 +239,7 @@ const loadCharts = async () => {
 
         chart_instance.on('click', function (params) {
             if(params.componentType != 'series') return; // no notes for the MovingAverage
-            window.open(`/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].project_id},${series[params.seriesName].notes[params.dataIndex].pproject_id}`, '_blank');
+            window.open(`/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].run_id},${series[params.seriesName].notes[params.dataIndex].prun_id}`, '_blank');
 
         });
 
@@ -258,7 +258,7 @@ const loadCharts = async () => {
 
 $(document).ready( (e) => {
     (async () => {
-        $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.project-data-container'}); // activate tabs for project data
+        $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data
         $('#rangestart').calendar({
             type: 'date',
             endCalendar: $('#rangeend'),

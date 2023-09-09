@@ -14,7 +14,13 @@ class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
             metric_provider_executable='ipmi-get-machine-energy-stat.sh',
         )
 
-    '''
+
+    def read_metrics(self, run_id, containers):
+        df = super().read_metrics(run_id, containers)
+
+        '''
+        Conversion to Joules
+
         If ever in need to convert the database from Joules back to a power format:
 
         WITH times as (
@@ -26,13 +32,8 @@ class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
                     SELECT *, value / (diff / 1000) as power FROM times;
 
         One can see that the value only changes once per second
-    '''
+        '''
 
-
-    def read_metrics(self, project_id, containers):
-        df = super().read_metrics(project_id, containers)
-
-        # Conversion to Joules
         intervals = df['time'].diff()
         intervals[0] = intervals.mean()  # approximate first interval
         df['interval'] = intervals  # in microseconds

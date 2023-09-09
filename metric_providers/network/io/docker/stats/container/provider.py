@@ -29,6 +29,6 @@ class NetworkIoDockerStatsContainerProvider(BaseMetricProvider):
             encoding='UTF-8')
 
     #pylint: disable=unused-argument
-    def read_metrics(self, project_id, containers):
+    def read_metrics(self, run_id, containers):
         print('Read Metrics is overloaded for docker_stats, since values are not time-keyed. \
             Reporter is only for manual falsification. Never use in production!')

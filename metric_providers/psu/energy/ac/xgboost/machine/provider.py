@@ -11,6 +11,7 @@ sys.path.append(CURRENT_DIR)
 import model.xgb as mlmodel
 from metric_providers.base import BaseMetricProvider
 
+#pylint: disable=too-many-instance-attributes
 class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
     def __init__(self, *, resolution, HW_CPUFreq, CPUChips, CPUThreads, TDP,
                  HW_MemAmountGB, CPUCores=None, Hardware_Availability_Year=None):
@@ -37,7 +38,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
     def start_profiling(self, containers=None):
         self._has_started = True
 
-    def read_metrics(self, project_id, containers):
+    def read_metrics(self, run_id, containers):
 
         if not os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'):
             raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log file. \
@@ -58,7 +59,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
 
         df['detail_name'] = '[DEFAULT]'  # standard container name when no further granularity was measured
         df['metric'] = self._metric_name
-        df['project_id'] = project_id
+        df['run_id'] = run_id
 
         Z = df.loc[:, ['value']]
 

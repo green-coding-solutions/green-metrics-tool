@@ -13,18 +13,18 @@ if __name__ == '__main__':
     if answer.strip().lower() == 'y':
         print('Deleting old phase_stats ...')
         DB().query('DELETE FROM phase_stats')
-        print('Fetching projects ...')
+        print('Fetching runs ...')
         query = '''
             SELECT id
-            FROM projects
+            FROM runs
             WHERE
                 end_measurement IS NOT NULL AND phases IS NOT NULL
         '''
-        projects = DB().fetch_all(query)
+        runs = DB().fetch_all(query)
 
-        print(f"Fetched {len(projects)} projects. Commencing ...")
-        for idx, project_id in enumerate(projects):
+        print(f"Fetched {len(runs)} runs. Commencing ...")
+        for idx, run_id in enumerate(runs):
 
-            print(f"Rebuilding phase_stats for project #{idx} {project_id[0]}")
-            build_and_store_phase_stats(project_id[0])
+            print(f"Rebuilding phase_stats for run #{idx} {run_id[0]}")
+            build_and_store_phase_stats(run_id[0])
         print('Done')

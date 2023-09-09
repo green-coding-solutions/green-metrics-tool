@@ -20,8 +20,7 @@
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
-    <script src="/js/helpers/runs.js" defer></script>
-    <script src="/js/index.js" defer></script>
+    <script src="/js/status.js" defer></script>
 
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
@@ -32,29 +31,21 @@
     <div class="main ui container" id="main">
         <h1 class="ui header float left">
             <a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a>
-            Green Metrics Tool - Home
+            Green Metrics Tool - Status
         </h1>
         <div class="ui full-width-card segment card">
             <div class="content">
-                <div class="header">Welcome to the home page</div>
+                <div class="header">Status overview</div>
                 <div class="description">
-                    <p>The home page of the Green Metrics Tool shows you the last 50 runs
-                    </p>
-                    <p>From here you can go into the details for a specific measurement, or compare them.</p>
-                    <p>Comparing is possible for different repos, different branches and different runs as long as they are on the same machine. Also different machines are supported if you compare the same repo.
+                    <p>This page shows the database status. In the current version only the jobs in the database are shown.</p>
                 </p>
-                <p>Currently we do not support comparing different machines AND different repos at the same time. The tool will notifiy you if you attempt to do so :)</p>
+                <p>With it you can estimate the length of the jobs queue. Be aware of the the processing scheme configured (Random or FIFO).</p>
+                <p>In a future version this will also provide statistics such as jobs run per day, failed jobs, most measured software etc.</p>
                 </div>
             </div>
         </div>
-        <div class="ui warning message hidden">
-            <div class="header">
-                <i class="notched warning icon"></i> Filters are active
-            </div>
-            <ul></ul>
-        </div>
-
-        <table id="runs-table" class="ui sortable celled striped table"></table>
+        <h3>Jobs queue</h3>
+        <table id="jobs-table" class="ui sortable celled striped table"></table>
     </div>
 </body>
 </html>

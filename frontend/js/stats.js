@@ -72,67 +72,67 @@ class CO2Tangible extends HTMLElement {
 
 customElements.define('co2-tangible', CO2Tangible);
 
-const fillProjectData = (project_data, key = null) => {
+const fillRunData = (run_data, key = null) => {
 
 
-    for (item in project_data) {
+    for (item in run_data) {
         if (item == 'machine_specs') {
-            fillProjectTab('#machine-specs', project_data[item]); // recurse
+            fillRunTab('#machine-specs', run_data[item]); // recurse
         } else if(item == 'usage_scenario') {
-            document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<pre class="usage-scenario">${json2yaml(project_data?.[item])}</pre>`)
+            document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<pre class="usage-scenario">${json2yaml(run_data?.[item])}</pre>`)
         } else if(item == 'logs') {
-            document.querySelector("#logs").insertAdjacentHTML('beforeend', `<pre>${project_data?.[item]}</pre>`)
+            document.querySelector("#logs").insertAdjacentHTML('beforeend', `<pre>${run_data?.[item]}</pre>`)
         } else if(item == 'measurement_config') {
-            fillProjectTab('#measurement-config', project_data[item]); // recurse
+            fillRunTab('#measurement-config', run_data[item]); // recurse
         } else if(item == 'phases' || item == 'id') {
             // skip
         }  else if(item == 'commit_hash') {
-            if (project_data?.[item] == null) continue; // some old projects did not save it
-            let commit_link = buildCommitLink(project_data);
-            document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${commit_link}" target="_blank">${project_data?.[item]}</a></td></tr>`)
+            if (run_data?.[item] == null) continue; // some old runs did not save it
+            let commit_link = buildCommitLink(run_data);
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${commit_link}" target="_blank">${run_data?.[item]}</a></td></tr>`)
         } else if(item == 'name' || item == 'filename') {
-            document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project_data?.[item]}</td></tr>`)
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]}</td></tr>`)
         } else if(item == 'uri') {
-            let entry = project_data?.[item];
-            if(project_data?.[item].indexOf('http') === 0) entry = `<a href="${project_data?.[item]}">${project_data?.[item]}</a>`;
-            document.querySelector('#project-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${entry}</td></tr>`);
+            let entry = run_data?.[item];
+            if(run_data?.[item].indexOf('http') === 0) entry = `<a href="${run_data?.[item]}">${run_data?.[item]}</a>`;
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${entry}</td></tr>`);
         } else {
-            document.querySelector('#project-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${project_data?.[item]}</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]}</td></tr>`)
         }
     }
 
     // create new custom field
     // timestamp is in microseconds, therefore divide by 10**6
-    const measurement_duration_in_s = (project_data.end_measurement - project_data.start_measurement) / 1000000
-    document.querySelector('#project-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td>${measurement_duration_in_s} s</td></tr>`)
+    const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1000000
+    document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td>${measurement_duration_in_s} s</td></tr>`)
 
 
-    $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.project-data-container'}); // activate tabs for project data
+    $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data
     $('.ui.accordion').accordion();
 
-    if (project_data.invalid_project) {
-        showNotification('Project measurement has been marked as invalid', project_data.invalid_project);
+    if (run_data.invalid_run) {
+        showNotification('Run measurement has been marked as invalid', run_data.invalid_run);
         document.body.classList.add("invalidated-measurement")
     }
 
 }
 
-const buildCommitLink = (project_data) => {
+const buildCommitLink = (run_data) => {
     let commit_link;
-    commit_link = project_data['uri'].endsWith('.git') ? project_data['uri'].slice(0, -4) : project_data['uri']
-    if (project_data['uri'].includes('github')) {
-        commit_link = commit_link + '/tree/' + project_data['commit_hash']
+    commit_link = run_data['uri'].endsWith('.git') ? run_data['uri'].slice(0, -4) : run_data['uri']
+    if (run_data['uri'].includes('github')) {
+        commit_link = commit_link + '/tree/' + run_data['commit_hash']
     }
-    else if (project_data['uri'].includes('gitlab')) {
-        commit_link = commit_link + '/-/tree/' + project_data ['commit_hash']
+    else if (run_data['uri'].includes('gitlab')) {
+        commit_link = commit_link + '/-/tree/' + run_data ['commit_hash']
     }
     return commit_link;
 }
 
-const fillProjectTab = (selector, data, parent = '') => {
+const fillRunTab = (selector, data, parent = '') => {
     for (item in data) {
         if(typeof data[item] == 'object')
-            fillProjectTab(selector, data[item], `${item}.`)
+            fillRunTab(selector, data[item], `${item}.`)
         else
             document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${parent}${item}</strong></td><td>${data?.[item]}</td></tr>`)
 
@@ -285,9 +285,9 @@ const displayTimelineCharts = (metrics, notes) => {
 async function makeAPICalls(url_params) {
 
     try {
-        var project_data = await makeAPICall('/v1/project/' + url_params.get('id'))
+        var run_data = await makeAPICall('/v1/run/' + url_params.get('id'))
     } catch (err) {
-        showNotification('Could not get project data from API', err);
+        showNotification('Could not get run data from API', err);
     }
 
     try {
@@ -314,7 +314,7 @@ async function makeAPICalls(url_params) {
         showNotification('Could not get phase_stats data from API', err);
     }
 
-    return [project_data?.data, measurement_data?.data, notes_data?.data, phase_stats_data?.data, network_data?.data];
+    return [run_data?.data, measurement_data?.data, notes_data?.data, phase_stats_data?.data, network_data?.data];
 }
 
 const renderBadges = (url_params) => {
@@ -349,7 +349,7 @@ const getURLParams = () => {
     const url_params = (new URLSearchParams(query_string))
 
     if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
-        showNotification('No project id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
+        showNotification('No run id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
         throw "Error";
     }
     return url_params;
@@ -362,17 +362,17 @@ $(document).ready( (e) => {
 
         let url_params = getURLParams();
         if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
-            showNotification('No project id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
+            showNotification('No run id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
             return;
         }
 
-        let [project_data, measurements_data, notes_data, phase_stats_data, network_data] = await makeAPICalls(url_params);
+        let [run_data, measurements_data, notes_data, phase_stats_data, network_data] = await makeAPICalls(url_params);
 
-        if (project_data == undefined) return;
+        if (run_data == undefined) return;
 
         renderBadges(url_params);
 
-        fillProjectData(project_data);
+        fillRunData(run_data);
 
         if(phase_stats_data != null) {
             displayComparisonMetrics(phase_stats_data)

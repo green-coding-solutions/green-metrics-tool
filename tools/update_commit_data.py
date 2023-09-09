@@ -1,7 +1,7 @@
 #pylint: disable=import-error,wrong-import-position
 
 # This script will update the commit_timestamp field in the database
-# for old projects where only the commit_hash field was populated
+# for old runs where only the commit_hash field was populated
 
 
 import sys
@@ -27,7 +27,7 @@ if __name__ == '__main__':
         SELECT
             id, commit_hash
         FROM
-            projects
+            runs
         WHERE
             uri = %s
             AND commit_hash IS NOT NULL
@@ -37,7 +37,7 @@ if __name__ == '__main__':
         raise RuntimeError(f"No match found in DB for {args.uri}!")
 
     for row in data:
-        project_id = str(row[0])
+        run_id = str(row[0])
         commit_hash = row[1]
         commit_timestamp = subprocess.run(
             ['git', 'show', '-s', row[1], '--format=%ci'],
@@ -50,7 +50,7 @@ if __name__ == '__main__':
         parsed_timestamp = datetime.strptime(commit_timestamp, "%Y-%m-%d %H:%M:%S %z")
 
         DB().query(
-            'UPDATE projects SET commit_timestamp = %s WHERE id = %s',
-            params=(parsed_timestamp, project_id)
+            'UPDATE runs SET commit_timestamp = %s WHERE id = %s',
+            params=(parsed_timestamp, run_id)
         )
         print(parsed_timestamp)
