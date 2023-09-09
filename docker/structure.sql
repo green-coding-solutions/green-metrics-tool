@@ -47,6 +47,7 @@ CREATE TABLE runs (
     usage_scenario json,
     filename text,
     machine_specs jsonb,
+    runner_arguments json,
     machine_id int REFERENCES machines(id) ON DELETE SET NULL ON UPDATE CASCADE,
     gmt_hash text,
     measurement_config jsonb,
