@@ -10,7 +10,6 @@ sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from pathlib import Path
 from global_config import GlobalConfig
-from db import DB
 import utils
 
 #pylint:disable=import-error
@@ -68,6 +67,11 @@ def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='f
 def run_until(runner, step):
     try:
         config = GlobalConfig().config
+        return_run_id = runner.initialize_run()
+
+        # do a meaningless operation on return_run_id so pylint doesn't complain
+        print(return_run_id)
+
         runner.initialize_folder(runner._tmp_folder)
         runner.checkout_repository()
         runner.initial_parse()

@@ -7,18 +7,17 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/..")
 sys.path.append(f"{CURRENT_DIR}/../lib")
 
-#pylint: disable=import-error
+#pylint: disable=import-error, unused-argument # unused arguement off for now - because there are no running tests in this file
 from db import DB
 import utils
 import test_functions as Tests
 from global_config import GlobalConfig
 from runner import Runner
 
-RUN_NAME = 'test_' + utils.randomword(12)
 config = GlobalConfig(config_name='test-config.yml').config
 
-@pytest.fixture
-def reset_config():
+@pytest.fixture(name="reset_config")
+def reset_config_fixture():
     idle_start_time = config['measurement']['idle-time-start']
     idle_time_end = config['measurement']['idle-time-end']
     flow_process_runtime = config['measurement']['flow-process-runtime']
@@ -27,8 +26,8 @@ def reset_config():
     config['measurement']['idle-time-end'] = idle_time_end
     config['measurement']['flow-process-runtime'] = flow_process_runtime
 
-@pytest.fixture(autouse=True, scope="module")
-def build_image():
+@pytest.fixture(autouse=True, scope="module", name="build_image")
+def build_image_fixture():
     uri = os.path.abspath(os.path.join(
             CURRENT_DIR, 'stress-application/'))
     subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
@@ -39,6 +38,7 @@ def run_runner():
             CURRENT_DIR, 'stress-application/'))
 
     # Run the application
+    RUN_NAME = 'test_' + utils.randomword(12)
     runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', verbose_provider_boot=True, dev_repeat_run=True, skip_system_checks=True)
     return runner.run()
 

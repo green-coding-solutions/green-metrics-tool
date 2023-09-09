@@ -94,6 +94,7 @@ class SchemaChecker():
                 Use(self.contains_no_invalid_chars): {
                     Optional("type"): Use(self.valid_service_types),
                     Optional("image"): str,
+                    Optional("build"): Or(Or({str:str},list),str),
                     Optional("networks"): self.single_or_list(Use(self.contains_no_invalid_chars)),
                     Optional("environment"): self.single_or_list(Or(dict,str)),
                     Optional("ports"): self.single_or_list(Or(str, int)),
@@ -119,8 +120,6 @@ class SchemaChecker():
                     Optional("log-stderr"): bool,
                 }],
             }],
-
-            Optional("build"): {str:str},
 
             Optional("compose-file"): Use(self.validate_compose_include)
         }, ignore_extra_keys=True)

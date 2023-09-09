@@ -21,8 +21,8 @@ from runner import Runner
 
 GlobalConfig().override_config(config_name='test-config.yml')
 
-@pytest.fixture(autouse=True)
-def cleanup_tmp_directories():
+@pytest.fixture(autouse=True, name="cleanup_tmp_directories")
+def cleanup_tmp_directories_fixture():
     yield
     tmp_dir = os.path.join(CURRENT_DIR, 'tmp/')
     if os.path.exists(tmp_dir):

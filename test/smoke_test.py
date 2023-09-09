@@ -58,7 +58,7 @@ def test_db_rows_are_written_and_presented():
     # "Imported XXX metrics from {metric_provider}" displays the same count as in the DB
 
     run_id = utils.get_run_data(RUN_NAME)['id']
-    assert(run_id is not None or run_id != '')
+    assert(run_id is not None and run_id != '')
     query = """
             SELECT
                 metric, COUNT(*) as count
@@ -69,7 +69,7 @@ def test_db_rows_are_written_and_presented():
                 metric
             """
     data = DB().fetch_all(query, (run_id,))
-    assert(data is not None or data != [])
+    assert(data is not None and data != [])
 
     config = GlobalConfig(config_name='test-config.yml').config
     metric_providers = utils.get_metric_providers_names(config)

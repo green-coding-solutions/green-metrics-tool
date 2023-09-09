@@ -11,29 +11,38 @@ import psycopg
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(f"{CURRENT_DIR}/../../tools")
 sys.path.append(f"{CURRENT_DIR}/../../lib")
+sys.path.append(f"{CURRENT_DIR}/../../tools")
 
 #pylint: disable=import-error,wrong-import-position
 from db import DB
 from jobs import Job
+from machine import Machine
 import test_functions as Tests
 import utils
 from global_config import GlobalConfig
+
 GlobalConfig().override_config(config_name='test-config.yml')
 config = GlobalConfig().config
 
-@pytest.fixture(autouse=True, scope='module')
-def cleanup_jobs():
+@pytest.fixture(autouse=True, scope='module', name="cleanup_jobs")
+def cleanup_jobs_fixture():
     yield
     DB().query('DELETE FROM jobs')
 
-@pytest.fixture(autouse=True, scope='module')
-def cleanup_runs():
+@pytest.fixture(autouse=True, scope='module', name="cleanup_runs")
+def cleanup_runs_fixture():
     yield
     DB().query('DELETE FROM runs')
 
+@pytest.fixture(autouse=True, scope="module", name="register_machine")
+def register_machine_fixture():
+    machine = Machine(machine_id=0, description='test-machine')
+    machine.register()
+
+
 # This should be done once per module
-@pytest.fixture(autouse=True, scope="module")
-def build_image():
+@pytest.fixture(autouse=True, scope="module", name="build_image")
+def build_image_fixture():
     subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/../stress-application/compose.yml", 'build'], check=True)
 
 def get_job(job_id):
@@ -77,14 +86,14 @@ def test_insert_job():
     job_id = Job.insert('Test Name', 'Test URL',  'Test Email', 'Test Branch', 'Test filename', 1)
     assert job_id is not None
     job = Job.get_job('run')
-    assert job['state'] == 'WAITING'
+    assert job.state == 'WAITING'
 
-def todo_test_simple_run_job():
+def test_simple_run_job():
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
 
-    Job.insert(name, url,  'Test Email', 'Test Branch', filename, 1)
+    Job.insert(name, url,  'Test Email', 'main', filename, 1)
 
     ps = subprocess.run(
             ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml', '--skip-system-checks'],
@@ -101,13 +110,15 @@ def todo_test_simple_run_job():
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
 #pylint: disable=unused-variable # for the time being, until I get the mocking to work
+## This test doesn't really make sense anymore as is, since we don't have "email jobs" in the same way,
+## more that we send an email after a run job is finished.
 def todo_test_simple_email_job():
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
     email = 'fakeemailaddress'
     filename = 'usage_scenario.yml'
 
-    Job.insert(name, url, email, 'Test Branch', filename, 1)
+    Job.insert(name, url, email, 'main', filename, 1)
 
     # Why is this patch not working :-(
     with patch('email_helpers.send_report_email') as send_email:
@@ -120,5 +131,6 @@ def todo_test_simple_email_job():
             )
         #send_email.assert_called_with(email, pid)
     assert ps.stderr == '', Tests.assertion_info('No Error', ps.stderr)
-    assert ps.stdout == 'Successfully processed jobs queue item.\n',\
-        Tests.assertion_info('Successfully processed jobs queue item.', ps.stdout)
+    job_success_message = 'Successfully processed jobs queue item.'
+    assert job_success_message in ps.stdout,\
+       Tests.assertion_info('Successfully processed jobs queue item.', ps.stdout)
