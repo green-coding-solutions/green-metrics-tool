@@ -19,18 +19,13 @@ import test_functions as Tests
 config = GlobalConfig(config_name='test-config.yml').config
 API_URL = config['cluster']['api_url']
 
-# import software class from api.py
+# pylint: disable=no-name-in-module
 from api import Software
 
-@pytest.fixture(autouse=True, scope="module", name="register_machine")
+@pytest.fixture(autouse=True, name="register_machine")
 def register_machine_fixture():
-    machine = Machine(machine_id=0, description='test-machine')
+    machine = Machine(machine_id=1, description='test-machine')
     machine.register()
-
-@pytest.fixture(autouse=True, name='cleanup_runs')
-def cleanup_runs_fixture():
-    yield
-    DB().query('DELETE FROM runs')
 
 def get_job_id(run_name):
     query = """
@@ -47,7 +42,7 @@ def get_job_id(run_name):
 
 def test_post_run_add():
     run_name = 'test_' + utils.randomword(12)
-    run = Software(name=run_name, url='testURL', email='testEmail', branch='', filename='', machine_id=0, schedule_mode='one-off')
+    run = Software(name=run_name, url='testURL', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
     response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
