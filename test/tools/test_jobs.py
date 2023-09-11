@@ -24,19 +24,9 @@ from global_config import GlobalConfig
 GlobalConfig().override_config(config_name='test-config.yml')
 config = GlobalConfig().config
 
-@pytest.fixture(autouse=True, scope='module', name="cleanup_jobs")
-def cleanup_jobs_fixture():
-    yield
-    DB().query('DELETE FROM jobs')
-
-@pytest.fixture(autouse=True, scope='module', name="cleanup_runs")
-def cleanup_runs_fixture():
-    yield
-    DB().query('DELETE FROM runs')
-
-@pytest.fixture(autouse=True, scope="module", name="register_machine")
+@pytest.fixture(autouse=True, name="register_machine")
 def register_machine_fixture():
-    machine = Machine(machine_id=0, description='test-machine')
+    machine = Machine(machine_id=1, description='test-machine')
     machine.register()
 
 

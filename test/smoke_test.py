@@ -13,6 +13,7 @@ sys.path.append(f"{CURRENT_DIR}/..")
 sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from contextlib import redirect_stdout, redirect_stderr
+import pytest
 from db import DB
 import utils
 from global_config import GlobalConfig
@@ -23,6 +24,18 @@ run_stdout = None
 
 RUN_NAME = 'test_' + utils.randomword(12)
 
+
+# override per test cleanup, as the module setup requires writing to DB
+@pytest.fixture(autouse=False)
+def cleanup_after_test():
+    pass
+
+def cleanup_after_module(autouse=True, scope="module"):
+    yield
+    tables = DB().fetch_all("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+    for table in tables:
+        table_name = table[0]
+        DB().query(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE')
 
 # Runs once per file before any test(
 #pylint: disable=expression-not-assigned
