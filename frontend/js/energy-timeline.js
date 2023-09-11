@@ -66,7 +66,11 @@ $(document).ready(function () {
                 </a>`
 
             document.querySelector('#timeline-cards').appendChild(chart_node)
+        });
+        document.querySelectorAll(".copy-badge").forEach(el => {
+            el.addEventListener('click', copyToClipboard)
         })
+
     })();
 });
 
