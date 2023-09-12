@@ -12,21 +12,21 @@ const calculateStats = (energy_measurements, time_measurements, cpu_util_measure
     let cpuUtilStdDevPercent = '--'
 
     if (energy_measurements.length > 0) {
-        energyStdDeviation = Math.round(math.std(energy_measurements));
+        energyStdDeviation = Math.round(math.std(energy_measurements, normalization="uncorrected"));
         energyAverage = Math.round(math.mean(energy_measurements));
         energyStdDevPercent = Math.round((energyStdDeviation / energyAverage) * 100);
         energySum = Math.round(math.sum(energy_measurements));
     }
 
     if (time_measurements.length > 0) {
-        timeStdDeviation = Math.round(math.std(time_measurements));
+        timeStdDeviation = Math.round(math.std(time_measurements, normalization="uncorrected"));
         timeAverage = Math.round(math.mean(time_measurements));
         timeStdDevPercent = Math.round((timeStdDeviation / timeAverage) * 100);
         timeSum = Math.round(math.sum(time_measurements));
     }
 
     if (cpu_util_measurements.length > 0) {
-        cpuUtilStdDeviation = Math.round(math.std(cpu_util_measurements));
+        cpuUtilStdDeviation = Math.round(math.std(cpu_util_measurements, normalization="uncorrected"));
         cpuUtilAverage = Math.round(math.mean(cpu_util_measurements));
         cpuUtilStdDevPercent = Math.round((cpuUtilStdDeviation / cpuUtilAverage) * 100);
     }
@@ -52,7 +52,7 @@ const calculateStats = (energy_measurements, time_measurements, cpu_util_measure
     };
 };
 
-const createStatsArrays = (measurements) => {
+const createStatsArrays = (measurements) => {  // iterates 2n times (1 full, 1 by run ID)
     measurementsByRun = {}
     measurementsByLabel = {}
 
@@ -221,7 +221,7 @@ const getChartOptions = (measurements, chart_element) => {
 const displayGraph = (measurements) => {
     const element = createChartContainer("#chart-container", "run-energy");
 
-    const options = getChartOptions(measurements, element);
+    const options = getChartOptions(measurements, element); // iterates
 
     const chart_instance = echarts.init(element);
     chart_instance.setOption(options);
@@ -250,7 +250,7 @@ const displayGraph = (measurements) => {
 }
 
 const displayStatsTable = (measurements) => {
-    const [fullRunArray, labelsArray] = createStatsArrays(measurements);    
+    const [fullRunArray, labelsArray] = createStatsArrays(measurements); // iterates 2n times
 
     const tableBody = document.querySelector("#label-stats-table");
     tableBody.innerHTML = "";
@@ -402,20 +402,21 @@ $(document).ready((e) => {
         else if(source == 'gitlab') {
             repo_link = `https://gitlab.com/${escapeString(url_params.get('repo'))}`;
         }
-        //${repo_link}
+
         const repo_link_node = `<a href="${repo_link}" target="_blank">${escapeString(url_params.get('repo'))}</a>`
         const ci_data_node = document.querySelector('#ci-data')
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Repository:</strong></td><td>${repo_link_node}</td></tr>`)
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params.get('branch'))}</td></tr>`)
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(url_params.get('workflow'))}</td></tr>`)
 
-        displayCITable(measurements.data, url_params); // Iterates through data First
+        displayCITable(measurements.data, url_params); // Iterates I (total: 1)
         
-        chart_instance = displayGraph(measurements.data)
+        chart_instance = displayGraph(measurements.data) // iterates I (total: 2)
 
-        displayStatsTable(measurements.data)
+        displayStatsTable(measurements.data) // iterates II (total: 4)
         dateTimePicker();
 
+        // On legend change, recalculate stats table
         chart_instance.on('legendselectchanged', function (params) {
             const selectedLegends = params.selected;
             const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[5]]);
@@ -429,9 +430,9 @@ $(document).ready((e) => {
             var endDate = new Date($('#rangeend input').val());
 
             const selectedLegends = chart_instance.getOption().legend[0].selected;
-            const filteredMeasurements = filterMeasurements(measurements.data, startDate, endDate, selectedLegends);
-            displayStatsTable(filteredMeasurements);
-            options = getChartOptions(filteredMeasurements);
+            const filteredMeasurements = filterMeasurements(measurements.data, startDate, endDate, selectedLegends); // iterates I
+            displayStatsTable(filteredMeasurements); //iterates II
+            options = getChartOptions(filteredMeasurements); //iterates I
             chart_instance.clear();
             chart_instance.setOption(options);
         });
