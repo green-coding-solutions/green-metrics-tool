@@ -13,6 +13,7 @@ sys.path.append(f"{CURRENT_DIR}/..")
 sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from contextlib import redirect_stdout, redirect_stderr
+import pytest
 from db import DB
 import utils
 from global_config import GlobalConfig
@@ -21,8 +22,20 @@ from runner import Runner
 run_stderr = None
 run_stdout = None
 
-project_name = 'test_' + utils.randomword(12)
+RUN_NAME = 'test_' + utils.randomword(12)
 
+
+# override per test cleanup, as the module setup requires writing to DB
+@pytest.fixture(autouse=False)
+def cleanup_after_test():
+    pass
+
+def cleanup_after_module(autouse=True, scope="module"):
+    yield
+    tables = DB().fetch_all("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+    for table in tables:
+        table_name = table[0]
+        DB().query(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE')
 
 # Runs once per file before any test(
 #pylint: disable=expression-not-assigned
@@ -35,12 +48,8 @@ def setup_module(module):
             CURRENT_DIR, 'stress-application/'))
         subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
-        pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
-                    VALUES \
-                    (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(project_name, uri))[0]
-
         # Run the application
-        runner = Runner(uri=uri, uri_type='folder', pid=pid, dev_repeat_run=True, skip_system_checks=True)
+        runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_repeat_run=True, skip_system_checks=True)
         runner.run()
 
     global run_stderr, run_stdout
@@ -61,19 +70,19 @@ def test_db_rows_are_written_and_presented():
     # also check (in the same test, to save on a DB call) that the output to STD.OUT
     # "Imported XXX metrics from {metric_provider}" displays the same count as in the DB
 
-    project_id = utils.get_project_data(project_name)['id']
-    assert(project_id is not None or project_id != '')
+    run_id = utils.get_run_data(RUN_NAME)['id']
+    assert(run_id is not None and run_id != '')
     query = """
             SELECT
                 metric, COUNT(*) as count
             FROM
                 measurements
-            WHERE project_id = %s
+            WHERE run_id = %s
             GROUP BY
                 metric
             """
-    data = DB().fetch_all(query, (project_id,))
-    assert(data is not None or data != [])
+    data = DB().fetch_all(query, (run_id,))
+    assert(data is not None and data != [])
 
     config = GlobalConfig(config_name='test-config.yml').config
     metric_providers = utils.get_metric_providers_names(config)

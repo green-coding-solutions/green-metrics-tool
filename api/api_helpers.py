@@ -6,9 +6,10 @@ import uuid
 import faulthandler
 from functools import cache
 from html import escape as html_escape
-import psycopg
 import numpy as np
 import scipy.stats
+
+from psycopg.rows import dict_row as psycopg_rows_dict_row
 # pylint: disable=no-name-in-module
 from pydantic import BaseModel
 
@@ -94,20 +95,20 @@ def get_machine_list():
             """
     return DB().fetch_all(query)
 
-def get_project_info(project_id):
+def get_run_info(run_id):
     query = """
             SELECT
                 id, name, uri, branch, commit_hash,
-                (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(projects.categories) as elements
+                (SELECT STRING_AGG(t.name, ', ' ) FROM unnest(runs.categories) as elements
                     LEFT JOIN categories as t on t.id = elements) as categories,
                 filename, start_measurement, end_measurement,
                 measurement_config, machine_specs, machine_id, usage_scenario,
-                last_run, created_at, invalid_project, phases, logs
-            FROM projects
+                created_at, invalid_run, phases, logs
+            FROM runs
             WHERE id = %s
             """
-    params = (project_id,)
-    return DB().fetch_one(query, params=params, row_factory=psycopg.rows.dict_row)
+    params = (run_id,)
+    return DB().fetch_one(query, params=params, row_factory=psycopg_rows_dict_row)
 
 
 def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, limit_365=False, sorting='run'):
@@ -119,7 +120,7 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
 
     branch_condition = ''
     if branch is not None and branch.strip() != '':
-        branch_condition = 'AND projects.branch = %s'
+        branch_condition = 'AND runs.branch = %s'
         params.append(branch)
 
     metrics_condition = ''
@@ -136,12 +137,12 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
 
     start_date_condition = ''
     if start_date is not None and start_date.strip() != '':
-        start_date_condition =  "AND DATE(projects.last_run) >= TO_DATE(%s, 'YYYY-MM-DD')"
+        start_date_condition =  "AND DATE(runs.created_at) >= TO_DATE(%s, 'YYYY-MM-DD')"
         params.append(start_date)
 
     end_date_condition = ''
     if end_date is not None and end_date.strip() != '':
-        end_date_condition =  "AND DATE(projects.last_run) <= TO_DATE(%s, 'YYYY-MM-DD')"
+        end_date_condition =  "AND DATE(runs.created_at) <= TO_DATE(%s, 'YYYY-MM-DD')"
         params.append(end_date)
 
     detail_name_condition = ''
@@ -151,35 +152,34 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
 
     limit_365_condition = ''
     if limit_365:
-        limit_365_condition = "AND projects.last_run >= CURRENT_DATE - INTERVAL '365 days'"
+        limit_365_condition = "AND runs.created_at >= CURRENT_DATE - INTERVAL '365 days'"
 
-    sorting_condition = 'projects.commit_timestamp ASC, projects.last_run ASC'
+    sorting_condition = 'runs.commit_timestamp ASC, runs.created_at ASC'
     if sorting is not None and sorting.strip() == 'run':
-        sorting_condition = 'projects.last_run ASC, projects.commit_timestamp ASC'
+        sorting_condition = 'runs.created_at ASC, runs.commit_timestamp ASC'
 
 
     query = f"""
             SELECT
-                projects.id, projects.name, projects.last_run, phase_stats.metric, phase_stats.detail_name, phase_stats.phase,
-                phase_stats.value, phase_stats.unit, projects.commit_hash, projects.commit_timestamp,
+                runs.id, runs.name, runs.created_at, phase_stats.metric, phase_stats.detail_name, phase_stats.phase,
+                phase_stats.value, phase_stats.unit, runs.commit_hash, runs.commit_timestamp,
                 row_number() OVER () AS row_num
-            FROM projects
+            FROM runs
             LEFT JOIN phase_stats ON
-                projects.id = phase_stats.project_id
+                runs.id = phase_stats.run_id
             WHERE
-                projects.uri = %s
-                AND projects.filename = %s
-                AND projects.end_measurement IS NOT NULL
-                AND projects.last_run IS NOT NULL
+                runs.uri = %s
+                AND runs.filename = %s
+                AND runs.end_measurement IS NOT NULL
                 AND machine_id = %s
-                {metrics_condition}
                 {branch_condition}
+                {metrics_condition}
                 {phase_condition}
                 {start_date_condition}
                 {end_date_condition}
                 {detail_name_condition}
                 {limit_365_condition}
-                AND projects.commit_timestamp IS NOT NULL
+                AND runs.commit_timestamp IS NOT NULL
             ORDER BY
                 phase_stats.metric ASC, phase_stats.detail_name ASC,
                 phase_stats.phase ASC, {sorting_condition}
@@ -192,7 +192,7 @@ def determine_comparison_case(ids):
 
     query = '''
             WITH uniques as (
-                SELECT uri, filename, machine_id, commit_hash, COALESCE(branch, 'main / master') as branch FROM projects
+                SELECT uri, filename, machine_id, commit_hash, COALESCE(branch, 'main / master') as branch FROM runs
                 WHERE id = ANY(%s::uuid[])
                 GROUP BY uri, filename, machine_id, commit_hash, branch
             )
@@ -209,7 +209,7 @@ def determine_comparison_case(ids):
     [repos, usage_scenarios, machine_ids, commit_hashes, branches] = data
 
     # If we have one or more measurement in a phase_stat it will currently just be averaged
-    # however, when we allow comparing projects we will get same phase_stats but with different repo etc.
+    # however, when we allow comparing runs we will get same phase_stats but with different repo etc.
     # these cannot be just averaged. But they have to be split and then compared via t-test
     # For the moment I think it makes sense to restrict to two repositories. Comparing three is too much to handle I believe if we do not want to drill down to one specific metric
 
@@ -295,11 +295,11 @@ def get_phase_stats(ids):
                 a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.min_value, a.unit,
                 b.uri, c.description, b.filename, b.commit_hash, COALESCE(b.branch, 'main / master') as branch
             FROM phase_stats as a
-            LEFT JOIN projects as b on b.id = a.project_id
+            LEFT JOIN runs as b on b.id = a.run_id
             LEFT JOIN machines as c on c.id = b.machine_id
 
             WHERE
-                a.project_id = ANY(%s::uuid[])
+                a.run_id = ANY(%s::uuid[])
             ORDER BY
                 a.phase ASC,
                 a.metric ASC,
@@ -347,8 +347,8 @@ def get_phase_stats(ids):
 
                                         // although we can have 2 commits on 2 repos, we do not keep
                                         // track of the multiple commits here as key
-                                        // currently the system is limited to compare only two projects until we have
-                                        // figured out how big our StdDev is and how many projects we can run per day
+                                        // currently the system is limited to compare only two runs until we have
+                                        // figured out how big our StdDev is and how many runs we can run per day
                                         // at all (and how many repetitions are needed and possbile time-wise)
                                         repo/usage_scenarios/machine/commit/:
                                             mean: // mean per commit/repo etc.
@@ -361,10 +361,10 @@ def get_phase_stats(ids):
 
 
     data: dict -> key: repo/usage_scenarios/machine/commit/branch
-        project_1: dict
-        project_2: dict
+        run_1: dict
+        run_2: dict
         ...
-        project_x : dict  -> key: phase_name
+        run_x : dict  -> key: phase_name
             [BASELINE]: dict
             [INSTALLATION]: dict
             ....

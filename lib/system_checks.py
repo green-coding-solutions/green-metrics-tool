@@ -80,7 +80,7 @@ checks = [
     (check_free_disk_90, Status.WARN, '90% free disk space', 'We recommend to free up some disk space!!!!!!!'),
     (check_free_disk_95, Status.ERROR, '95% free disk space', 'No free disk space left. Please clean up some files'),
     (check_free_memory, Status.ERROR, '80% free memory', 'No free memory! Please kill some programs'),
-    (check_containers_running, Status.WARN, 'Running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See docs].')
+    (check_containers_running, Status.WARN, 'Running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.berlin/docs/installation/installation-cluster/].')
 
 ]
 

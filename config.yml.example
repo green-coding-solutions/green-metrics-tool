@@ -16,16 +16,10 @@ smtp:
   user: SMTP_AUTH_USER
 
 admin:
-  # This address will get an email, when a new project was added through the frontend
+  # This address will get an email, when a new software was added through the frontend
   email: myemail@dev.local
   # no_emails: True will suppress all emails. Helpful in development servers
   no_emails: True
-  # notifiy_admin_for_own_project_*: False will suppress an email if a project is added / ready with the
-  # same email address as the admin.
-  # If no_emails is set to True, this will have no effect
-  notify_admin_for_own_project_add: False
-  notify_admin_for_own_project_ready: False
-
 
 
 cluster:
@@ -39,6 +33,7 @@ machine:
   description: "Development machine for testing"
   # Takes a file path to log all the errors to it. This is disabled if False
   error_log_file: False
+  jobs_processing: random
 
 measurement:
   idle-time-start: 10

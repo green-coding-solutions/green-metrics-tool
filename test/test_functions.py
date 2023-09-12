@@ -10,7 +10,6 @@ sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from pathlib import Path
 from global_config import GlobalConfig
-from db import DB
 import utils
 
 #pylint:disable=import-error
@@ -30,14 +29,6 @@ def make_proj_dir(dir_name, usage_scenario_path, docker_compose_path=None):
         dockerfile = os.path.join(CURRENT_DIR, 'stress-application/Dockerfile')
         shutil.copy2(dockerfile, os.path.join(CURRENT_DIR, 'tmp' ,dir_name))
     return dir_name
-
-
-def insert_project(uri):
-    project_name = 'test_' + utils.randomword(12)
-    pid = DB().fetch_one('INSERT INTO "projects" ("name","uri","email","last_run","created_at") \
-                    VALUES \
-                    (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(project_name, uri))[0]
-    return pid
 
 def replace_include_in_usage_scenario(usage_scenario_path, docker_compose_filename):
     with open(usage_scenario_path, 'r', encoding='utf-8') as file:
@@ -63,8 +54,9 @@ def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='f
         make_proj_dir(dir_name=dir_name, usage_scenario_path=usage_scenario_path, docker_compose_path=docker_compose_path)
         uri = os.path.join(CURRENT_DIR, 'tmp/', dir_name)
 
-    pid = insert_project(uri)
-    return Runner(uri=uri, uri_type=uri_type, pid=pid, filename=usage_scenario, branch=branch,
+    RUN_NAME = 'test_' + utils.randomword(12)
+
+    return Runner(name=RUN_NAME, uri=uri, uri_type=uri_type, filename=usage_scenario, branch=branch,
         debug_mode=debug_mode, allow_unsafe=allow_unsafe, no_file_cleanup=no_file_cleanup,
         skip_unsafe=skip_unsafe, verbose_provider_boot=verbose_provider_boot, dev_repeat_run=dev_repeat_run,
         skip_system_checks=skip_system_checks)
@@ -75,6 +67,11 @@ def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='f
 def run_until(runner, step):
     try:
         config = GlobalConfig().config
+        return_run_id = runner.initialize_run()
+
+        # do a meaningless operation on return_run_id so pylint doesn't complain
+        print(return_run_id)
+
         runner.initialize_folder(runner._tmp_folder)
         runner.checkout_repository()
         runner.initial_parse()

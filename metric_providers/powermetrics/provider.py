@@ -69,7 +69,7 @@ class PowermetricsProvider(BaseMetricProvider):
         self._ps = None
 
     # pylint: disable=too-many-locals
-    def read_metrics(self, project_id, containers=None):
+    def read_metrics(self, run_id, containers=None):
 
         with open(self._filename, 'rb') as metrics_file:
             datas = metrics_file.read()
@@ -169,11 +169,11 @@ class PowermetricsProvider(BaseMetricProvider):
 
         df = pandas.DataFrame.from_records(dfs, columns=['time', 'value', 'metric', 'detail_name', 'unit'])
 
-        df['project_id'] = project_id
+        df['run_id'] = run_id
 
-        # Set the invalid project string to indicate, that it was mac and we can't rely on the data
+        # Set the invalid run string to indicate, that it was mac and we can't rely on the data
         invalid_message = 'Measurements are not reliable as they are done on a Mac. See our blog for details.'
-        DB().query('UPDATE projects SET invalid_project=%s WHERE id = %s', params=(invalid_message, project_id))
+        DB().query('UPDATE runs SET invalid_run=%s WHERE id = %s', params=(invalid_message, run_id))
 
         return df
 

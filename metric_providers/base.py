@@ -52,7 +52,7 @@ class BaseMetricProvider:
     def has_started(self):
         return self._has_started
 
-    def read_metrics(self, project_id, containers):
+    def read_metrics(self, run_id, containers):
         with open(self._filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
 
@@ -85,7 +85,7 @@ class BaseMetricProvider:
 
         df['unit'] = self._unit
         df['metric'] = self._metric_name
-        df['project_id'] = project_id
+        df['run_id'] = run_id
 
         return df
 

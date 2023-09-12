@@ -25,6 +25,9 @@ disable=missing-function-docstring,
     too-many-branches,
     too-many-statements,
     too-many-arguments,
+    invalid-name,
+    wrong-import-position,
+    too-many-return-statements,
 
 
 #    import-error
