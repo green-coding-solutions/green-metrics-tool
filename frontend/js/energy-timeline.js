@@ -47,7 +47,7 @@ $(document).ready(function () {
                                     <i class="question circle icon link"></i>
                                 </i>
                             </div>
-                            <span class="energy-badge-container"><a href="/timeline.html?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}"><img src="${API_URL}/v1/badge/timeline?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}" alt="Image Failed to Load" onerror="this.closest('.field').style.display='none'"></a></span>
+                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}"><img src="${API_URL}/v1/badge/timeline?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}" alt="Image Failed to Load" onerror="this.closest('.field').style.display='none'"></a></span>
                             <a href="#" class="copy-badge"><i class="copy icon"></i></a>
                         </div>
                         </div>
