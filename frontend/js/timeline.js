@@ -181,7 +181,7 @@ const loadCharts = async () => {
         prun_id = run_id
     })
 
-    for(my_series in series) {
+    for(const my_series in series) {
         let badge = `
                 <div class="field">
                     <div class="header title">
