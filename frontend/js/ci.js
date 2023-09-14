@@ -2,10 +2,12 @@ const calculateStats = (energy_measurements, time_measurements, cpu_util_measure
     let energyAverage = '--'
     let energyStdDeviation = '--'
     let energyStdDevPercent = '--'
+    let energySum = '--';
 
     let timeAverage = '--'
     let timeStdDeviation = '--'
     let timeStdDevPercent = '--'
+    let timeSum = '--';
 
     let cpuUtilStdDeviation = '--'
     let cpuUtilAverage = '--'
@@ -53,15 +55,15 @@ const calculateStats = (energy_measurements, time_measurements, cpu_util_measure
 };
 
 const createStatsArrays = (measurements) => {  // iterates 2n times (1 full, 1 by run ID)
-    measurementsByRun = {}
-    measurementsByLabel = {}
+    const measurementsByRun = {}
+    const measurementsByLabel = {}
 
     measurements.forEach(measurement => {
-        run_id = measurement[2]
-        energy = measurement[0]
-        time = measurement[7]
-        cpuUtil = measurement[9]
-        label = measurement[4]
+        const run_id = measurement[2]
+        const energy = measurement[0]
+        const time = measurement[7]
+        const cpuUtil = measurement[9]
+        const label = measurement[4]
 
         if (!measurementsByLabel[label]) {
             measurementsByLabel[label] = {
@@ -79,15 +81,15 @@ const createStatsArrays = (measurements) => {  // iterates 2n times (1 full, 1 b
             };
         }
 
-        if (energy) {
+        if (energy != null) {
             measurementsByLabel[label].energy.push(energy);
             measurementsByRun[run_id].energy += energy;
         } 
-        if (time) { 
+        if (time != null) {
             measurementsByLabel[label].time.push(time);
             measurementsByRun[run_id].time += time;
         }
-        if (cpuUtil) {
+        if (cpuUtil != null) {
             measurementsByLabel[label].cpu_util.push(cpuUtil);
             measurementsByRun[run_id].cpu_util.push(cpuUtil);
         }
@@ -157,12 +159,12 @@ const getEChartsOptions = () => {
 }
 
 const filterMeasurements = (measurements, start_date, end_date, selectedLegends) => {
-    let filteredMeasurements = [];
-    let discardMeasurements = [];
+    const filteredMeasurements = [];
+    const discardMeasurements = [];
 
     measurements.forEach(measurement => {
-        let run_id = measurement[2];
-        let timestamp = new Date(measurement[3]);
+        const run_id = measurement[2];
+        const timestamp = new Date(measurement[3]);
 
         if (timestamp >= start_date && timestamp <= end_date && selectedLegends[measurement[5]]) {
             filteredMeasurements.push(measurement);
@@ -175,11 +177,11 @@ const filterMeasurements = (measurements, start_date, end_date, selectedLegends)
 }
 
 const getChartOptions = (measurements, chart_element) => {
-    let options = getEChartsOptions();
+    const options = getEChartsOptions();
     options.title.text = `Workflow energy cost per run [mJ]`;
 
-    let legend = new Set()
-    let labels = []
+    const legend = new Set()
+    const labels = []
 
     measurements.forEach(measurement => { // iterate over all measurements, which are in row order
         let [value, unit, run_id, timestamp, label, cpu, commit_hash, duration, source, cpu_util] = measurement;
@@ -238,7 +240,7 @@ const displayGraph = (measurements) => {
     chart_instance.on('dataZoom', function (evt) {
         let sum = 0;
         if (!('startValue' in evt.batch[0])) return
-        for (var i = evt.batch[0].startValue; i <= evt.batch[0].endValue; i++) {
+        for (let i = evt.batch[0].startValue; i <= evt.batch[0].endValue; i++) {
             sum = sum + options.dataset.source[i].slice(1).reduce((partialSum, a) => partialSum + a, 0);
         }
     })
@@ -257,7 +259,7 @@ const displayStatsTable = (measurements) => {
 
     const full_run_stats_node = document.createElement("tr")
     full_run_stats = calculateStats(fullRunArray.energy, fullRunArray.time, fullRunArray.cpu_util)
-    console.log("LENGTH: " + fullRunArray.length)
+
     full_run_stats_node.innerHTML += `
                             <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)">Full Run <i class="question circle icon small"></i> </td>
                             <td class="td-index">${full_run_stats.energy.average} mJ</td>
@@ -274,7 +276,7 @@ const displayStatsTable = (measurements) => {
     tableBody.appendChild(full_run_stats_node);
 
     for (const label in labelsArray) {
-        label_stats = calculateStats(labelsArray[label].energy, labelsArray[label].time, labelsArray[label].cpu_util)
+        const label_stats = calculateStats(labelsArray[label].energy, labelsArray[label].time, labelsArray[label].cpu_util)
         const label_stats_node = document.createElement("tr")
         label_stats_node.innerHTML += `
                                         <td class="td-index" data-tooltip="stats for the series of steps represented by the ${label} label">${label}</td>
@@ -289,7 +291,7 @@ const displayStatsTable = (measurements) => {
                                         <td class="td-index">${label_stats.time.total}s</td>
                                         <td class="td-index">${labelsArray[label].count}</td>
                                         `
-    document.querySelector("#label-stats-table").appendChild(label_stats_node);
+        document.querySelector("#label-stats-table").appendChild(label_stats_node);
     };
 }
 
@@ -311,7 +313,7 @@ const displayCITable = (measurements, url_params) => {
         const source = el[8];
         const cpu_avg = el[9] ? el[9] : '--';
 
-        var run_link = ''
+        let run_link = '';
         
         const run_id_esc = escapeString(run_id)
 
@@ -426,13 +428,13 @@ $(document).ready((e) => {
 
         // When the user selects a subset of the measurement data via the date-picker
         $('#submit').on('click', function () {
-            var startDate = new Date($('#rangestart input').val());
-            var endDate = new Date($('#rangeend input').val());
+            const startDate = new Date($('#rangestart input').val());
+            const endDate = new Date($('#rangeend input').val());
 
             const selectedLegends = chart_instance.getOption().legend[0].selected;
             const filteredMeasurements = filterMeasurements(measurements.data, startDate, endDate, selectedLegends); // iterates I
             displayStatsTable(filteredMeasurements); //iterates II
-            options = getChartOptions(filteredMeasurements); //iterates I
+            const options = getChartOptions(filteredMeasurements); //iterates I
             chart_instance.clear();
             chart_instance.setOption(options);
         });
