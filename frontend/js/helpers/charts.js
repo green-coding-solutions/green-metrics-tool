@@ -98,7 +98,7 @@ const calculateMA = (series, factor) => {
       continue;
     }
     var sum = 0;
-    for (var j = 0; j < factor; j++) {
+    for (let j = 0; j < factor; j++) {
       sum += series[i - j].value;
     }
     result.push(sum / factor);
@@ -481,7 +481,7 @@ const displayTotalChart = (legend, labels, data) => {
     let myChart = echarts.init(chartDom);
 
     let series = [];
-    for (key in data) {
+    for (const key in data) {
         series.push({
               name: key,
               type: 'bar',
