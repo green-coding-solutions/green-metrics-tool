@@ -158,7 +158,7 @@ const getEChartsOptions = () => {
     };
 }
 
-const filterMeasurements = (measurements, start_date, end_date, selectedLegends) => {
+const filterMeasurements = (measurements, start_date, end_date) => {
     const filteredMeasurements = [];
     const discardMeasurements = [];
 
@@ -166,7 +166,7 @@ const filterMeasurements = (measurements, start_date, end_date, selectedLegends)
         const run_id = measurement[2];
         const timestamp = new Date(measurement[3]);
 
-        if (timestamp >= start_date && timestamp <= end_date && selectedLegends[measurement[5]]) {
+        if (timestamp >= start_date && timestamp <= end_date){
             filteredMeasurements.push(measurement);
         } else {
             discardMeasurements.push(run_id);
@@ -203,6 +203,12 @@ const getChartOptions = (measurements, chart_element) => {
     });
 
     options.legend.data = Array.from(legend)
+    // set options.legend.selected to true for all cpus
+    options.legend.selected = {}
+    options.legend.data.forEach(cpu => {
+        options.legend.selected[cpu] = true
+    })
+
     options.tooltip = {
         trigger: 'item',
         formatter: function (params, ticket, callback) {
@@ -236,6 +242,8 @@ const displayGraph = (measurements) => {
     // the dataZoom callback needs to walk the dataset.source everytime on zoom and only add up all values that
     // are >= startValue <=  endValue
     // either copying element or reducing it by checking if int or not
+
+    
 
     chart_instance.on('dataZoom', function (evt) {
         let sum = 0;
@@ -421,6 +429,7 @@ $(document).ready((e) => {
 
         // On legend change, recalculate stats table
         chart_instance.on('legendselectchanged', function (params) {
+            // get list of all legends that are on
             const selectedLegends = params.selected;
             const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[5]]);
 
@@ -432,10 +441,29 @@ $(document).ready((e) => {
             const startDate = new Date($('#rangestart input').val());
             const endDate = new Date($('#rangeend input').val());
 
-            const selectedLegends = chart_instance.getOption().legend[0].selected;
-            const filteredMeasurements = filterMeasurements(measurements.data, startDate, endDate, selectedLegends); // iterates I
+            const filteredMeasurements = filterMeasurements(measurements.data, startDate, endDate); // iterates I
             displayStatsTable(filteredMeasurements); //iterates II
             const options = getChartOptions(filteredMeasurements); //iterates I
+
+            /*   The following functionality is to "remember" a user's legend settings as they date switch
+            *    it is turned off because if the user selects a subset that doesn't contain a cpu
+            *    that cpu is treated as "off" even if the user didn't select it off themselves
+            *    and therefore it is "misremembered" from a user point of view
+            *
+            *    So for now, changing the date resets the legends to all true
+            *
+            // get the selected legends of the old chart instance, to remember what the user toggled on/off
+            const selectedLegends = chart_instance.getOption().legend[0].selected;
+            
+            // go through options and turn off all legends that are not selected
+            for(const legend in options.legend.selected) {
+                if (!selectedLegends[legend]) {
+                    options.legend.selected[legend] = false;
+                }
+            }
+            */
+
+            // set new chart instance options
             chart_instance.clear();
             chart_instance.setOption(options);
         });
