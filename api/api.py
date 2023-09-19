@@ -15,6 +15,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from starlette.responses import RedirectResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
 from pydantic import BaseModel
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
@@ -69,6 +71,14 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return ORJSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=jsonable_encoder({"detail": exc.errors(), "body": exc.body}),
+    )
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request, exc):
+    await log_exception(request, exc.detail, exc)
+    return ORJSONResponse(
+        status_code=exc.status_code,
+        content=jsonable_encoder({"detail": exc.detail}),
     )
 
 async def catch_exceptions_middleware(request: Request, call_next):
