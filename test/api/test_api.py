@@ -72,7 +72,10 @@ def test_ci_measurement_add():
     data = DB().fetch_one(query, (measurement.run_id, ), row_factory=psycopg.rows.dict_row)
     assert data is not None
     for key in measurement.model_dump().keys():
-        assert data[key] == measurement.model_dump()[key], Tests.assertion_info(f"{key}: {data[key]}", measurement.model_dump()[key])
+        if key == 'workflow':
+            assert data['workflow_id'] == measurement.model_dump()[key], Tests.assertion_info(f"workflow_id: {data['workflow_id']}", measurement.model_dump()[key])
+        else:
+            assert data[key] == measurement.model_dump()[key], Tests.assertion_info(f"{key}: {data[key]}", measurement.model_dump()[key])
 
 
 def todo_test_get_runs():
