@@ -185,7 +185,6 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
                 phase_stats.phase ASC, {sorting_condition}
 
             """
-    print(query)
     return (query, params)
 
 def determine_comparison_case(ids):
