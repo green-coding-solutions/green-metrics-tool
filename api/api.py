@@ -621,14 +621,6 @@ class CI_Measurement(BaseModel):
 async def post_ci_measurement_add(measurement: CI_Measurement):
     for key, value in measurement.model_dump().items():
         match key:
-            case 'run_id':
-                if value is None or value.strip() == '':
-                    measurement.run_id = None
-                    continue
-                if not is_valid_uuid(value.strip()):
-                    return ORJSONResponse({'success': False, 'err': f"run_id '{value}' is not a valid uuid"}, status_code=400)
-                continue
-
             case 'unit':
                 if value is None or value.strip() == '':
                     return ORJSONResponse({'success': False, 'err': f"{key} is empty"}, status_code=400)
@@ -651,7 +643,7 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
     query = """
         INSERT INTO
             ci_measurements (energy_value, energy_unit, repo, branch, workflow, run_id, label, source, cpu, commit_hash, duration, cpu_util_avg)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
     params = (measurement.energy_value, measurement.energy_unit, measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id,
