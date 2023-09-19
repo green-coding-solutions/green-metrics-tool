@@ -1,14 +1,8 @@
-import os
-import sys
 from unittest.mock import patch
 import pytest
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/../../lib")
-
-# pylint: disable=import-error,wrong-import-position
-from notes import Notes
-import test_functions as Tests
+from lib.notes import Notes
+from tests import test_functions as Tests
 
 invalid_test_data = [
     ("72e54687-ba3e-4ef6-a5a1-9f2d6af26239", "This is a note", "test", "string_instead_of_time"),

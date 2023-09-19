@@ -1,12 +1,7 @@
-import sys
-import os
 import smtplib
 import ssl
 
-from global_config import GlobalConfig
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__))+'/../lib')
-
+from lib.global_config import GlobalConfig
 
 def send_email(message, receiver_email):
     config = GlobalConfig().config

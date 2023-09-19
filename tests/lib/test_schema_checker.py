@@ -1,17 +1,13 @@
-#pylint: disable=import-error, wrong-import-position
-
 import os
-import sys
 import yaml
 import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/../..")
-sys.path.append(f"{CURRENT_DIR}/../../lib")
 
 from schema import SchemaError
-from schema_checker import SchemaChecker
-import test_functions as Tests
+
+from lib.schema_checker import SchemaChecker
+from tests import test_functions as Tests
 
 
 def test_schema_checker_valid():

@@ -4,3 +4,4 @@ psycopg[binary]==3.1.10
 pyserial==3.5
 psutil==5.9.5
 schema==0.7.5
+anybadge==1.14.0

@@ -52,7 +52,7 @@ class BaseMetricProvider:
     def has_started(self):
         return self._has_started
 
-    def read_metrics(self, run_id, containers):
+    def read_metrics(self, run_id, containers=None):
         with open(self._filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
 

@@ -1,6 +1,5 @@
 from contextlib import nullcontext as does_not_raise
 import os
-import sys
 from shutil import copy2
 
 import pytest
@@ -8,12 +7,10 @@ import pytest
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_DATA_CONFIG_DIR = os.path.join(CURRENT_DIR, "data", "config_files")
 REPO_ROOT = os.path.realpath(os.path.join(CURRENT_DIR, ".."))
-sys.path.append(f"{CURRENT_DIR}/../.")
-sys.path.append(f"{CURRENT_DIR}/../lib/")
 
 #pylint:disable=import-error, wrong-import-position, wrong-import-order
 from runner import Runner
-from global_config import GlobalConfig
+from lib.global_config import GlobalConfig
 from lib.system_checks import ConfigurationCheckError
 
 

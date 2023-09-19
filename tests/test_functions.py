@@ -2,17 +2,13 @@
 import os
 import re
 import shutil
-import sys
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/../.")
-sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from pathlib import Path
-from global_config import GlobalConfig
-import utils
 
-#pylint:disable=import-error
+from lib.global_config import GlobalConfig
+from lib import utils
 from runner import Runner
 
 #create test/tmp directory with specified usage_scenario to be passed as uri to runner

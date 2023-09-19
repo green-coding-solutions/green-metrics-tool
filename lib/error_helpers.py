@@ -1,7 +1,8 @@
 import sys
 import traceback
-from terminal_colors import TerminalColors
-from global_config import GlobalConfig
+
+from lib.terminal_colors import TerminalColors
+from lib.global_config import GlobalConfig
 
 
 def end_error(*errors):

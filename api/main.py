@@ -1,11 +1,4 @@
-
-# pylint: disable=import-error
-# pylint: disable=no-name-in-module
-# pylint: disable=wrong-import-position
-
 import faulthandler
-import sys
-import os
 
 from xml.sax.saxutils import escape as xml_escape
 from fastapi import FastAPI, Request, Response, status
@@ -19,24 +12,24 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from pydantic import BaseModel
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
-
-from global_config import GlobalConfig
-from db import DB
-from jobs import Job
-from timeline_projects import TimelineProject
-import email_helpers
-import error_helpers
 import anybadge
-from api_helpers import (add_phase_stats_statistics, determine_comparison_case,
-                         html_escape_multi, get_phase_stats, get_phase_stats_object,
-                         is_valid_uuid, rescale_energy_value, get_timeline_query,
-                         get_run_info, get_machine_list)
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic
 faulthandler.enable()  # will catch segfaults and write to STDERR
+
+from api.api_helpers import (add_phase_stats_statistics, determine_comparison_case,
+                         html_escape_multi, get_phase_stats, get_phase_stats_object,
+                         is_valid_uuid, rescale_energy_value, get_timeline_query,
+                         get_run_info, get_machine_list)
+
+from lib.global_config import GlobalConfig
+from lib.db import DB
+from lib import email_helpers
+from lib import error_helpers
+from tools.jobs import Job
+from tools.timeline_projects import TimelineProject
+
 
 app = FastAPI()
 

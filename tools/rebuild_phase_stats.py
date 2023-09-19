@@ -1,11 +1,11 @@
-#pylint: disable=import-error,wrong-import-position
-
 import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
-from phase_stats import build_and_store_phase_stats
+import faulthandler
 
-from db import DB
+faulthandler.enable()  # will catch segfaults and write to STDERR
+
+from tools.phase_stats import build_and_store_phase_stats
+
+from lib.db import DB
 
 if __name__ == '__main__':
     print('This will remove ALL phase_stats and completely rebuild them. No data will get lost, but it will take some time. Continue? (y/N)')

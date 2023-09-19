@@ -1,7 +1,3 @@
-#pylint: disable=fixme, import-error, wrong-import-position
-
-import sys
-import os
 import uuid
 import faulthandler
 from functools import cache
@@ -10,15 +6,12 @@ import numpy as np
 import scipy.stats
 
 from psycopg.rows import dict_row as psycopg_rows_dict_row
-# pylint: disable=no-name-in-module
+
 from pydantic import BaseModel
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
-
-from db import DB
+from lib.db import DB
 
 def rescale_energy_value(value, unit):
     # We only expect values to be mJ for energy!
@@ -281,7 +274,6 @@ def determine_comparison_case(ids):
             raise RuntimeError('Less than 1 or more than 2 Usage scenarios per repo not supported.')
 
     else:
-        # TODO: Metric drilldown has to be implemented at some point ...
         # The functionality I imagine here is, because comparing more than two repos is very complex with
         # multiple t-tests / ANOVA etc. and hard to grasp, only a focus on one metric shall be provided.
         raise RuntimeError('Less than 1 or more than 2 repos not supported for overview. Please apply metric filter.')
@@ -315,7 +307,6 @@ def get_phase_stats(ids):
         raise RuntimeError('Data is empty')
     return data
 
-# TODO: This method needs proper database caching
 # Would be interesting to know if in an application server like gunicor @cache
 # Will also work for subsequent requests ...?
 '''  Object structure

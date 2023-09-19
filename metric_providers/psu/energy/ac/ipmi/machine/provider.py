@@ -1,6 +1,5 @@
 import os
 
-#pylint: disable=import-error, invalid-name
 from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
@@ -15,7 +14,7 @@ class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
         )
 
 
-    def read_metrics(self, run_id, containers):
+    def read_metrics(self, run_id, containers=None):
         df = super().read_metrics(run_id, containers)
 
         '''

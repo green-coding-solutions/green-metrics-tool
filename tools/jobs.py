@@ -1,4 +1,3 @@
-#pylint: disable=import-error,too-many-instance-attributes
 import sys
 import os
 import faulthandler
@@ -7,15 +6,13 @@ from datetime import datetime
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/..")
-sys.path.append(f"{CURRENT_DIR}/../lib")
 
-import email_helpers
-import error_helpers
-from db import DB
-from global_config import GlobalConfig
-from phase_stats import build_and_store_phase_stats
-from terminal_colors import TerminalColors
+from lib import email_helpers
+from lib import error_helpers
+from lib.db import DB
+from lib.global_config import GlobalConfig
+from lib.terminal_colors import TerminalColors
+from tools.phase_stats import build_and_store_phase_stats
 
 """
     The jobs.py file is effectively a state machine that can insert a job in the 'WAITING'

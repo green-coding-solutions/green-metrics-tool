@@ -1,16 +1,12 @@
-#pylint: disable=import-error,wrong-import-position
-
 # This script will update the commit_timestamp field in the database
 # for old runs where only the commit_hash field was populated
-
-
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
-
 import subprocess
+import faulthandler
 from datetime import datetime
-from db import DB
+
+faulthandler.enable()  # will catch segfaults and write to STDERR
+
+from lib.db import DB
 
 if __name__ == '__main__':
 

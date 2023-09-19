@@ -1,22 +1,18 @@
-#pylint: disable=wrong-import-position, import-error, invalid-name
-# disabling subprocess-run-check because for some of them we *want* the check to fail
-#pylint: disable=subprocess-run-check
 import os
 import re
 import shutil
-import sys
 import subprocess
 import io
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/..")
-sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from contextlib import redirect_stdout, redirect_stderr
 import pytest
-import utils
-from global_config import GlobalConfig
-import test_functions as Tests
+
+from tests import test_functions as Tests
+
+from lib import utils
+from lib.global_config import GlobalConfig
 from runner import Runner
 
 GlobalConfig().override_config(config_name='test-config.yml')
@@ -33,7 +29,8 @@ def check_if_container_running(container_name):
             ['docker', 'container', 'inspect', '-f', '{{.State.Running}}', container_name],
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            encoding='UTF-8'
+            encoding='UTF-8',
+            check=False,
         )
     if ps.returncode != 0:
         return False
@@ -97,7 +94,8 @@ def test_load_files_from_within_gmt():
             '-c', 'test -f /tmp/test-file && echo "File mounted"'],
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            encoding='UTF-8'
+            encoding='UTF-8',
+            check=False,
         )
         out = ps.stdout
         err = ps.stderr
@@ -161,7 +159,8 @@ def test_load_volume_references():
             '-c', 'test -f /tmp/test-file && echo "File mounted"'],
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            encoding='UTF-8'
+            encoding='UTF-8',
+            check=False,
         )
         out = ps.stdout
         err = ps.stderr

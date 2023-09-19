@@ -1,25 +1,17 @@
-# test all functions in jobs.py
-#pylint: disable=invalid-name,missing-docstring,too-many-statements,fixme
-
 import os
-import sys
 import subprocess
 from unittest.mock import patch
 import pytest
 import psycopg
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/../../tools")
-sys.path.append(f"{CURRENT_DIR}/../../lib")
-sys.path.append(f"{CURRENT_DIR}/../../tools")
 
-#pylint: disable=import-error,wrong-import-position
-from db import DB
-from jobs import Job
-from machine import Machine
-import test_functions as Tests
-import utils
-from global_config import GlobalConfig
+from lib.db import DB
+from lib import utils
+from lib.global_config import GlobalConfig
+from tools.machine import Machine
+from tools.jobs import Job
+from tests import test_functions as Tests
 
 GlobalConfig().override_config(config_name='test-config.yml')
 config = GlobalConfig().config
