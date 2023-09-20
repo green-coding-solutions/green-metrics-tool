@@ -25,8 +25,10 @@ admin:
 cluster:
   api_url: __API_URL__
   metrics_url: __METRICS_URL__
+
 client:
-  sleep_time: 300
+  sleep_time_no_job: 300
+  sleep_time_after_job: 300
 
 machine:
   id: 1
