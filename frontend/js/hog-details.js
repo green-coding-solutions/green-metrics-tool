@@ -215,6 +215,8 @@ $(document).ready(function () {
                             },
                             { data: 4, title: 'Intr Wakeups',className: "dt-body-right"},
                             { data: 5, title: 'Idle Wakeups', className: "dt-body-right"},
+                            { data: 6, title: 'Avg cpu time %', className: "dt-body-right"},
+
                             {
                                 data: null,
                                 title: '',

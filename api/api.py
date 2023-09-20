@@ -572,8 +572,17 @@ async def hog_add(measurements: List[HogMeasurement]):
             # failed in the client.
             return ORJSONResponse({'success': False}, status_code=400)
 
+        coalitions = []
+        for coalition in measurement_data['coalitions']:
+            if coalition['name'] == 'com.googlecode.iterm2' or coalition['name'].strip() == '':
+                tmp = coalition['tasks']
+                for t in tmp:
+                    t['tasks'] = []
+                coalitions.extend(tmp)
+            else:
+                coalitions.append(coalition)
+
         # We remove the coalitions as we don't want to save all the data in hog_measurements
-        coalitions = measurement_data['coalitions'].copy()
         del measurement_data['coalitions']
         del measurement.data
 
@@ -648,19 +657,21 @@ async def hog_add(measurements: List[HogMeasurement]):
                         measurement,
                         name,
                         cputime_ns,
+                        cputime_per,
                         energy_impact,
                         diskio_bytesread,
                         diskio_byteswritten,
                         intr_wakeups,
                         idle_wakeups,
                         data)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """
             params = (
                 measurement_db_id,
                 c['name'],
                 c['cputime_ns'],
+                int(c['cputime_ns'] / measurement_data['elapsed_ns'] * 100),
                 c['energy_impact'],
                 c['diskio_bytesread'],
                 c['diskio_byteswritten'],
@@ -678,6 +689,7 @@ async def hog_add(measurements: List[HogMeasurement]):
                             coalition,
                             name,
                             cputime_ns,
+                            cputime_per,
                             energy_impact,
                             bytes_received,
                             bytes_sent,
@@ -686,13 +698,14 @@ async def hog_add(measurements: List[HogMeasurement]):
                             intr_wakeups,
                             idle_wakeups,
                             data)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                     """
                 params = (
                     coaltion_db_id,
                     t['name'],
                     t['cputime_ns'],
+                    int(t['cputime_ns'] / measurement_data['elapsed_ns'] * 100),
                     t['energy_impact'],
                     t.get('bytes_received', 0),
                     t.get('bytes_sent', 0),
@@ -713,7 +726,8 @@ async def hog_get_top_processes():
     query = """
         SELECT
             name,
-            (SUM(energy_impact)::bigint) AS total_energy_impact
+            (SUM(energy_impact)::bigint) AS total_energy_impact,
+            (AVG(cputime_per)::integer) AS average_cputime_per
         FROM
             hog_coalitions
         GROUP BY
@@ -779,7 +793,8 @@ async def hog_get_coalitions_tasks(measurements_id_start: int, measurements_id_e
             (SUM(diskio_bytesread)::bigint) AS total_diskio_bytesread,
             (SUM(diskio_byteswritten)::bigint) AS total_diskio_byteswritten,
             (SUM(intr_wakeups)::bigint) AS total_intr_wakeups,
-            (SUM(idle_wakeups)::bigint) AS total_idle_wakeups
+            (SUM(idle_wakeups)::bigint) AS total_idle_wakeups,
+            (AVG(cputime_per)::integer) AS avg_cpu_per
         FROM
             hog_coalitions
         WHERE measurement BETWEEN %s AND %s
