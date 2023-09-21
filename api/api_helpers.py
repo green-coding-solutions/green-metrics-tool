@@ -118,60 +118,60 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
 
     params = [uri, filename, machine_id]
 
-    branch_condition = 'AND runs.branch IS NULL'
+    branch_condition = 'AND r.branch IS NULL'
     if branch is not None and branch.strip() != '':
-        branch_condition = 'AND runs.branch = %s'
+        branch_condition = 'AND r.branch = %s'
         params.append(branch)
 
     metrics_condition = ''
     if metrics is None or metrics.strip() == '' or metrics.strip() == 'key':
-        metrics_condition =  "AND (metric LIKE '%%_energy_%%' OR metric = 'software_carbon_intensity_global')"
+        metrics_condition =  "AND (p.metric LIKE '%%_energy_%%' OR metric = 'software_carbon_intensity_global')"
     elif metrics.strip() != 'all':
-        metrics_condition =  "AND metric = %s"
+        metrics_condition =  "AND p.metric = %s"
         params.append(metrics)
 
-    phase_condition = ''
+    phase_condition = "AND p.phase = '004_[RUNTIME]'"
     if phase is not None and phase.strip() != '':
-        phase_condition =  "AND (phase LIKE %s)"
+        phase_condition =  "AND p.phase LIKE %s"
         params.append(f"%{phase}")
 
     start_date_condition = ''
     if start_date is not None and start_date.strip() != '':
-        start_date_condition =  "AND DATE(runs.created_at) >= TO_DATE(%s, 'YYYY-MM-DD')"
+        start_date_condition =  "AND DATE(r.created_at) >= TO_DATE(%s, 'YYYY-MM-DD')"
         params.append(start_date)
 
     end_date_condition = ''
     if end_date is not None and end_date.strip() != '':
-        end_date_condition =  "AND DATE(runs.created_at) <= TO_DATE(%s, 'YYYY-MM-DD')"
+        end_date_condition =  "AND DATE(r.created_at) <= TO_DATE(%s, 'YYYY-MM-DD')"
         params.append(end_date)
 
     detail_name_condition = ''
     if detail_name is not None and detail_name.strip() != '':
-        detail_name_condition =  "AND phase_stats.detail_name = %s"
+        detail_name_condition =  "AND p.detail_name = %s"
         params.append(detail_name)
 
     limit_365_condition = ''
     if limit_365:
-        limit_365_condition = "AND runs.created_at >= CURRENT_DATE - INTERVAL '365 days'"
+        limit_365_condition = "AND r.created_at >= CURRENT_DATE - INTERVAL '365 days'"
 
-    sorting_condition = 'runs.commit_timestamp ASC, runs.created_at ASC'
+    sorting_condition = 'r.commit_timestamp ASC, r.created_at ASC'
     if sorting is not None and sorting.strip() == 'run':
-        sorting_condition = 'runs.created_at ASC, runs.commit_timestamp ASC'
+        sorting_condition = 'r.created_at ASC, r.commit_timestamp ASC'
 
 
     query = f"""
             SELECT
-                runs.id, runs.name, runs.created_at, phase_stats.metric, phase_stats.detail_name, phase_stats.phase,
-                phase_stats.value, phase_stats.unit, runs.commit_hash, runs.commit_timestamp,
+                r.id, r.name, r.created_at, p.metric, p.detail_name, p.phase,
+                p.value, p.unit, r.commit_hash, r.commit_timestamp,
                 row_number() OVER () AS row_num
-            FROM runs
-            LEFT JOIN phase_stats ON
-                runs.id = phase_stats.run_id
+            FROM runs as r
+            LEFT JOIN phase_stats as p ON
+                r.id = p.run_id
             WHERE
-                runs.uri = %s
-                AND runs.filename = %s
-                AND runs.end_measurement IS NOT NULL
-                AND machine_id = %s
+                r.uri = %s
+                AND r.filename = %s
+                AND r.end_measurement IS NOT NULL
+                AND r.machine_id = %s
                 {branch_condition}
                 {metrics_condition}
                 {phase_condition}
@@ -179,10 +179,10 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
                 {end_date_condition}
                 {detail_name_condition}
                 {limit_365_condition}
-                AND runs.commit_timestamp IS NOT NULL
+                AND r.commit_timestamp IS NOT NULL
             ORDER BY
-                phase_stats.metric ASC, phase_stats.detail_name ASC,
-                phase_stats.phase ASC, {sorting_condition}
+                p.metric ASC, p.detail_name ASC,
+                p.phase ASC, {sorting_condition}
 
             """
     return (query, params)
