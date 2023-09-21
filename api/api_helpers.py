@@ -116,7 +116,7 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
 
-    params = [uri, filename, machine_id]
+    params = [uri, filename, machine_id, phase]
 
     branch_condition = 'AND r.branch IS NULL'
     if branch is not None and branch.strip() != '':
@@ -129,11 +129,6 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
     elif metrics.strip() != 'all':
         metrics_condition =  "AND p.metric = %s"
         params.append(metrics)
-
-    phase_condition = "AND p.phase = '004_[RUNTIME]'"
-    if phase is not None and phase.strip() != '':
-        phase_condition =  "AND p.phase LIKE %s"
-        params.append(f"%{phase}")
 
     start_date_condition = ''
     if start_date is not None and start_date.strip() != '':
@@ -172,9 +167,9 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
                 AND r.filename = %s
                 AND r.end_measurement IS NOT NULL
                 AND r.machine_id = %s
+                AND p.phase = %s
                 {branch_condition}
                 {metrics_condition}
-                {phase_condition}
                 {start_date_condition}
                 {end_date_condition}
                 {detail_name_condition}
