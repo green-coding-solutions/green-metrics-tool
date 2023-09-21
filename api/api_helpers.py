@@ -118,7 +118,7 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
 
     params = [uri, filename, machine_id]
 
-    branch_condition = ''
+    branch_condition = 'AND runs.branch IS NULL'
     if branch is not None and branch.strip() != '':
         branch_condition = 'AND runs.branch = %s'
         params.append(branch)
