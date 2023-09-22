@@ -8,7 +8,7 @@ import sys
 import os
 
 from xml.sax.saxutils import escape as xml_escape
-from fastapi import FastAPI, Request, Response, status
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -58,6 +58,14 @@ async def log_exception(request: Request, body, exc):
     """
     error_helpers.log_error(error_message)
 
+    # This saves us from crawler requests to the IP directly, or to our DNS reverse PTR etc.
+    # which would create email noise
+    request_url = str(request.url).replace('https://', '').replace('http://', '')
+    api_url = GlobalConfig().config['cluster']['api_url'].replace('https://', '').replace('http://', '')
+
+    if not request_url.startswith(api_url):
+        return
+
     if GlobalConfig().config['admin']['no_emails'] is False:
         email_helpers.send_error_email(
             GlobalConfig().config['admin']['email'],
@@ -69,7 +77,7 @@ async def log_exception(request: Request, body, exc):
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     await log_exception(request, exc.body, exc)
     return ORJSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=422, # HTTP_422_UNPROCESSABLE_ENTITY
         content=jsonable_encoder({"detail": exc.errors(), "body": exc.body}),
     )
 
