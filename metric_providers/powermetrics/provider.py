@@ -6,7 +6,7 @@ import time
 import xml
 import pandas
 
-from db import DB
+from lib.db import DB
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 
 class PowermetricsProvider(BaseMetricProvider):

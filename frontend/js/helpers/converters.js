@@ -4,7 +4,7 @@ const convertValue = (value, unit) => {
 
     if (value == null) return [value, unit];
 
-    if(unit.startsWith('ugCO2e/')) return [(value/(10**6)).toFixed(2), unit.substr(1)]
+    if(unit.startsWith('ugCO2e/')) return [(value/(10**3)).toFixed(2), `m${unit.substr(1)}`]
 
     switch (unit) {
     case 'mJ':
@@ -29,7 +29,7 @@ const convertValue = (value, unit) => {
         return [(value / 1_000_000).toFixed(2), 's'];
         break;
     case 'ug':
-        return [(value/(10**6)).toFixed(2), 'g']
+        return [(value/(10**3)).toFixed(2), 'mg']
         break;
     case 'Bytes':
         return [(value / 1_000_000).toFixed(2), 'MB'];

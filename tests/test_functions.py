@@ -1,4 +1,3 @@
-#pylint: disable=wrong-import-position, import-error, no-name-in-module
 import os
 import re
 import shutil

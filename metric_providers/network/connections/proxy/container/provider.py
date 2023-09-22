@@ -1,5 +1,3 @@
-# pylint: disable=consider-using-with,subprocess-popen-preexec-fn
-
 # This code handles the setup of the proxy we use to monitor the network connections in the docker containers.
 # Structurally it is a copy of the BaseMetricProvider but because we need to do things slightly different it is a copy.
 # In the future this might be implemented as a proper provider.
@@ -11,7 +9,7 @@ import platform
 import subprocess
 from packaging.version import parse
 
-from db import DB
+from lib.db import DB
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 

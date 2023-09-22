@@ -8,7 +8,6 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_DATA_CONFIG_DIR = os.path.join(CURRENT_DIR, "data", "config_files")
 REPO_ROOT = os.path.realpath(os.path.join(CURRENT_DIR, ".."))
 
-#pylint:disable=import-error, wrong-import-position, wrong-import-order
 from runner import Runner
 from lib.global_config import GlobalConfig
 from lib.system_checks import ConfigurationCheckError

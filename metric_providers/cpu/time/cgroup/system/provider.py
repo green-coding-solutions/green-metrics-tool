@@ -1,6 +1,5 @@
 import os
 
-#pylint: disable=import-error
 from metric_providers.base import BaseMetricProvider
 
 class CpuTimeCgroupSystemProvider(BaseMetricProvider):

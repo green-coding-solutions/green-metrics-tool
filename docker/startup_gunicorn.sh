@@ -13,4 +13,4 @@ source /var/www/startup/venv/bin/activate
 --user www-data \
 --chdir /var/www/green-metrics-tool/api \
 -k uvicorn.workers.UvicornWorker \
-start:app
+main:app
