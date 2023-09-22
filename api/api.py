@@ -414,7 +414,7 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
     if detail_name is None or detail_name.strip() == '':
         return ORJSONResponse({'success': False, 'err': 'Detail Name is mandatory'}, status_code=400)
 
-    query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, '004_[RUNTIME]', detail_name=detail_name, limit_365=True)
+    query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, '[RUNTIME]', detail_name=detail_name, limit_365=True)
 
     query = f"""
         WITH trend_data AS (

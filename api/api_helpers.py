@@ -116,7 +116,7 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
 
-    params = [uri, filename, machine_id, phase]
+    params = [uri, filename, machine_id, f"%{phase}"]
 
     branch_condition = 'AND r.branch IS NULL'
     if branch is not None and branch.strip() != '':
@@ -153,7 +153,6 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
     if sorting is not None and sorting.strip() == 'run':
         sorting_condition = 'r.created_at ASC, r.commit_timestamp ASC'
 
-
     query = f"""
             SELECT
                 r.id, r.name, r.created_at, p.metric, p.detail_name, p.phase,
@@ -167,7 +166,7 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
                 AND r.filename = %s
                 AND r.end_measurement IS NOT NULL
                 AND r.machine_id = %s
-                AND p.phase = %s
+                AND p.phase = LIKE %s
                 {branch_condition}
                 {metrics_condition}
                 {start_date_condition}
