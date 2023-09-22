@@ -78,7 +78,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     await log_exception(request, exc.body, exc)
     return ORJSONResponse(
         status_code=422, # HTTP_422_UNPROCESSABLE_ENTITY
-        content=jsonable_encoder({"detail": exc.errors(), "body": exc.body}),
+        content=jsonable_encoder({'success': False, 'err': exc.errors(), 'body': exc.body}),
     )
 
 @app.exception_handler(StarletteHTTPException)
@@ -86,7 +86,7 @@ async def http_exception_handler(request, exc):
     await log_exception(request, exc.detail, exc)
     return ORJSONResponse(
         status_code=exc.status_code,
-        content=jsonable_encoder({"detail": exc.detail}),
+        content=jsonable_encoder({'success': False, 'err': exc.detail}),
     )
 
 async def catch_exceptions_middleware(request: Request, call_next):
@@ -134,7 +134,7 @@ async def home():
 @app.get('/v1/notes/{run_id}')
 async def get_notes(run_id):
     if run_id is None or not is_valid_uuid(run_id):
-        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
 
     query = """
             SELECT run_id, detail_name, note, time
@@ -152,7 +152,7 @@ async def get_notes(run_id):
 @app.get('/v1/network/{run_id}')
 async def get_network(run_id):
     if run_id is None or not is_valid_uuid(run_id):
-        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
 
     query = """
             SELECT *
@@ -272,15 +272,15 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
 @app.get('/v1/compare')
 async def compare_in_repo(ids: str):
     if ids is None or not ids.strip():
-        return ORJSONResponse({'success': False, 'err': 'run_id is empty'}, status_code=400)
+        raise RequestValidationError('run_id is empty')
     ids = ids.split(',')
     if not all(is_valid_uuid(id) for id in ids):
-        return ORJSONResponse({'success': False, 'err': 'One of Run IDs is not a valid UUID or empty'}, status_code=400)
+        raise RequestValidationError('One of Run IDs is not a valid UUID or empty')
 
     try:
         case = determine_comparison_case(ids)
     except RuntimeError as err:
-        return ORJSONResponse({'success': False, 'err': str(err)}, status_code=400)
+        raise RequestValidationError(str(err)) from err
     try:
         phase_stats = get_phase_stats(ids)
     except RuntimeError:
@@ -342,7 +342,7 @@ async def compare_in_repo(ids: str):
                 phase_stats_object['common_info']['Machine'] = machine
 
     except RuntimeError as err:
-        return ORJSONResponse({'success': False, 'err': str(err)}, status_code=500)
+        raise RequestValidationError(str(err)) from err
 
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
@@ -350,7 +350,7 @@ async def compare_in_repo(ids: str):
 @app.get('/v1/phase_stats/single/{run_id}')
 async def get_phase_stats_single(run_id: str):
     if run_id is None or not is_valid_uuid(run_id):
-        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
 
     try:
         phase_stats = get_phase_stats([run_id])
@@ -367,7 +367,7 @@ async def get_phase_stats_single(run_id: str):
 @app.get('/v1/measurements/single/{run_id}')
 async def get_measurements_single(run_id: str):
     if run_id is None or not is_valid_uuid(run_id):
-        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
 
     query = """
             SELECT measurements.detail_name, measurements.time, measurements.metric,
@@ -392,10 +392,10 @@ async def get_measurements_single(run_id: str):
 @app.get('/v1/timeline')
 async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, start_date: str | None = None, end_date: str | None = None, metrics: str | None = None, phase: str | None = None, sorting: str | None = None,):
     if uri is None or uri.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'URI is empty'}, status_code=400)
+        raise RequestValidationError('URI is empty')
 
     if phase is None or phase.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'Phase is empty'}, status_code=400)
+        raise RequestValidationError('Phase is empty')
 
     query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_date=start_date, end_date=end_date, sorting=sorting)
 
@@ -409,10 +409,10 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
 @app.get('/v1/badge/timeline')
 async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, metrics: str | None = None):
     if uri is None or uri.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'URI is empty'}, status_code=400)
+        raise RequestValidationError('URI is empty')
 
     if detail_name is None or detail_name.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'Detail Name is mandatory'}, status_code=400)
+        raise RequestValidationError('Detail Name is mandatory')
 
     query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, '[RUNTIME]', detail_name=detail_name, limit_365=True)
 
@@ -448,7 +448,7 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
 async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
 
     if run_id is None or not is_valid_uuid(run_id):
-        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
 
     query = '''
         SELECT
@@ -477,7 +477,7 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
         label = 'SCI'
         value = 'software_carbon_intensity_global'
     else:
-        return ORJSONResponse({'success': False, 'err': f"Unknown metric '{metric}' submitted"}, status_code=400)
+        raise RequestValidationError(f"Unknown metric '{metric}' submitted")
 
     params = (run_id, value)
     data = DB().fetch_one(query, params=params)
@@ -562,20 +562,20 @@ async def software_add(software: Software):
     software = html_escape_multi(software)
 
     if software.name is None or software.name.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'Name is empty'}, status_code=400)
+        raise RequestValidationError('Name is empty')
 
     # Note that we use uri as the general identifier, however when adding through web interface we only allow urls
     if software.url is None or software.url.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'URL is empty'}, status_code=400)
+        raise RequestValidationError('URL is empty')
 
     if software.name is None or software.name.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'Name is empty'}, status_code=400)
+        raise RequestValidationError('Name is empty')
 
     if software.email is None or software.email.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'E-mail is empty'}, status_code=400)
+        raise RequestValidationError('E-mail is empty')
 
     if not DB().fetch_one('SELECT id FROM machines WHERE id=%s AND available=TRUE', params=(software.machine_id,)):
-        return ORJSONResponse({'success': False, 'err': 'Machine does not exist'}, status_code=400)
+        raise RequestValidationError('Machine does not exist')
 
 
     if software.branch.strip() == '':
@@ -585,7 +585,7 @@ async def software_add(software: Software):
         software.filename = 'usage_scenario.yml'
 
     if software.schedule_mode not in ['one-off', 'time', 'commit', 'variance']:
-        return ORJSONResponse({'success': False, 'err': f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown."}, status_code=400)
+        raise RequestValidationError(f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")
 
     # notify admin of new add
     if GlobalConfig().config['admin']['no_emails'] is False:
@@ -605,7 +605,7 @@ async def software_add(software: Software):
 @app.get('/v1/run/{run_id}')
 async def get_run(run_id: str):
     if run_id is None or not is_valid_uuid(run_id):
-        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
 
     data = get_run_info(run_id)
 
@@ -644,9 +644,9 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
         match key:
             case 'unit':
                 if value is None or value.strip() == '':
-                    return ORJSONResponse({'success': False, 'err': f"{key} is empty"}, status_code=400)
+                    raise RequestValidationError(f"{key} is empty")
                 if value != 'mJ':
-                    return ORJSONResponse({'success': False, 'err': "Unit is unsupported - only mJ currently accepted"}, status_code=400)
+                    raise RequestValidationError("Unit is unsupported - only mJ currently accepted")
                 continue
 
             case 'label':  # Optional fields
@@ -654,10 +654,10 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 
             case _:
                 if value is None:
-                    return ORJSONResponse({'success': False, 'err': f"{key} is empty"}, status_code=400)
+                    raise RequestValidationError(f"{key} is empty")
                 if isinstance(value, str):
                     if value.strip() == '':
-                        return ORJSONResponse({'success': False, 'err': f"{key} is empty"}, status_code=400)
+                        raise RequestValidationError(f"{key} is empty")
 
     measurement = html_escape_multi(measurement)
 
