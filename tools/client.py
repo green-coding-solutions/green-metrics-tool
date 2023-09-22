@@ -35,6 +35,7 @@ if __name__ == '__main__':
 
         if not job:
             set_status('job_no')
+            time.sleep(GlobalConfig().config['client']['sleep_time_no_job'])
         else:
             set_status('job_start', '', job.run_id)
             try:
@@ -55,4 +56,4 @@ if __name__ == '__main__':
 
             set_status('cleanup_stop', f"stdout: {result.stdout}, stderr: {result.stderr}")
 
-            time.sleep(GlobalConfig().config['client']['sleep_time'])
+            time.sleep(GlobalConfig().config['client']['sleep_time_after_job'])
