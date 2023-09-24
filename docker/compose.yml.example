@@ -1,5 +1,8 @@
 services:
   green-coding-postgres:
+    # No need to fix version anymore than major version here
+    # for measurement accuracy the db container is not relevant as it
+    # should not run on the measurement node anyway
     image: postgres:15
     shm_size: 256MB
     container_name: green-coding-postgres-container
@@ -24,6 +27,9 @@ services:
       -p 9573
 # This option can potentially speed up big queries: https://www.twilio.com/blog/sqlite-postgresql-complicated
   green-coding-nginx:
+    # No need to fix the version here, as we just waant to use latest, never have experienced
+    # incompatibilities and for measurement accuracy the web container is not relevant as it
+    # should not run on the measurement node anyway
     image: nginx
     container_name: green-coding-nginx-container
     depends_on:
