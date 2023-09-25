@@ -14,6 +14,11 @@ updates:
     directory: "/docker/"
     target-branch: "main"
     schedule:
+      interval: "weekly"  
+  - package-ecosystem: "docker"
+    directory: "/docker/auxiliary-containers/gcb_playwright"
+    target-branch: "main"
+    schedule:
       interval: "weekly"
   - package-ecosystem: "github-actions"
     directory: "/"
