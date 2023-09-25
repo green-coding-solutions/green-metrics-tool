@@ -24,7 +24,7 @@ def test_invalid_timestamp(run_id, note, detail, timestamp):
         Tests.assertion_info(f"Exception: {expected_exception}", str(err.value))
 
 @pytest.mark.parametrize("run_id,note,detail,timestamp", valid_test_data)
-@patch('db.DB.query')
+@patch('lib.db.DB.query')
 def test_valid_timestamp(mock_query, run_id, note, detail, timestamp):
     mock_query.return_value = None  # Replace with the desired return value
 
