@@ -89,7 +89,7 @@ def edit_compose_file():
                 volume = volume.replace(k, f'test-{k}')
             volume = volume.replace('PATH_TO_GREEN_METRICS_TOOL_REPO',
                           f'{current_dir}/../')
-            volume = volume.replace('./structure.sql', '../test/structure.sql')
+            volume = volume.replace('./structure.sql', '../tests/structure.sql')
             new_vol_list.append(volume)
 
         # Change the depends on: in services as well
