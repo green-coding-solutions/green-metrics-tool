@@ -1,6 +1,10 @@
 import os
+import sys
 from io import StringIO
 import pandas
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(CURRENT_DIR)
 
 import model.xgb as mlmodel
 from metric_providers.base import BaseMetricProvider
