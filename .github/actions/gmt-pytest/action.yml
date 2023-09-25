@@ -42,6 +42,7 @@ runs:
       working-directory: ${{ inputs.gmt-directory }}
       run: |
         ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -t -w
+        source venv/bin/activate
         python3 disable_metric_providers.py ${{ inputs.metrics-to-turn-off }}
         cd tests && python3 setup-test-env.py --no-docker-build
 
@@ -78,6 +79,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.tests-directory }}
       run: |
+        source ../venv/bin/activate
         ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
 
     - name: Display Results
