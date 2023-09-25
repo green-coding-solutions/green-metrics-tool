@@ -12,7 +12,7 @@ inputs:
   tests-directory:
     description: 'The directory where to run the tests from'
     required: false
-    default: './test'
+    default: './tests'
   tests-command:
     description: 'The command to run the tests'
     required: false
@@ -43,7 +43,7 @@ runs:
       run: |
         ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -t -w
         python3 disable_metric_providers.py ${{ inputs.metrics-to-turn-off }}
-        cd test && python3 setup-test-env.py --no-docker-build
+        cd tests && python3 setup-test-env.py --no-docker-build
 
     - name: Set up Docker Buildx
       id: buildx
@@ -61,9 +61,12 @@ runs:
       working-directory: ${{ inputs.gmt-directory }}/docker
       run: docker buildx bake --file test-compose.yml --file docker-compose-cache.json
 
+      # the working directory here is explicit, instead of using ${{ inputs.tests-directory }}
+      # the reason for this is because ${{ inputs.tests-directory }} is mainly used by Examples Applications repo (which uses this action)
+      # to run their tests, but they still need the GMT containers running
     - name: Start Test container
       shell: bash
-      working-directory: ${{ inputs.gmt-directory }}/test
+      working-directory: ${{ inputs.gmt-directory }}/tests
       run: |
         ./start-test-containers.sh -d
    
@@ -87,6 +90,6 @@ runs:
     - name: Stop Containers
       shell: bash
       if: always()
-      working-directory: ${{ inputs.gmt-directory }}/test
+      working-directory: ${{ inputs.gmt-directory }}/tests
       run: |
         ./stop-test-containers.sh
