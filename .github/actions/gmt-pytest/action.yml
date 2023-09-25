@@ -29,22 +29,18 @@ runs:
       with:
         python-version: '3.10'
         cache: 'pip'
-    
-    - name: pip install
-      working-directory: ${{ inputs.gmt-directory }}
-      shell: bash
-      run: |
-        pip install -r requirements-dev.txt
-        pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 
-    - name: Run Install / Setup scripts
+    - name: GMT setup
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
         ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -t -w
         source venv/bin/activate
+        pip install -r requirements-dev.txt
+        pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
         python3 disable_metric_providers.py ${{ inputs.metrics-to-turn-off }}
         cd tests && python3 setup-test-env.py --no-docker-build
+        echo "GMT setup complete"
 
     - name: Set up Docker Buildx
       id: buildx
