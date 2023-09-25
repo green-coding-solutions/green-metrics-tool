@@ -2,7 +2,7 @@ gunicorn==21.2.0
 psycopg[binary]==3.1.11
 fastapi==0.103.1
 uvicorn[standard]==0.23.2
-pandas==2.1.0
+pandas==2.1.1
 PyYAML==6.0.1
 anybadge==1.14.0
 orjson==3.9.7
