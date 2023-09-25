@@ -553,7 +553,7 @@ class HogMeasurement(BaseModel):
     time: int
     data: str
     settings: str
-    machine_id: str
+    machine_uuid: str
 
 @app.post('/v1/hog/add')
 async def hog_add(measurements: List[HogMeasurement]):
@@ -566,11 +566,9 @@ async def hog_add(measurements: List[HogMeasurement]):
         try:
             _ = Measurement(**measurement_data)
         except ValidationError as e:
-            print("Data does not match the specification!")
-            print(e)
             # This will need some work. As in theory this could error on the n'th item and then the whole commit is
             # failed in the client.
-            return ORJSONResponse({'success': False}, status_code=400)
+            return ORJSONResponse({'success': False, 'data': e}, status_code=400)
 
         coalitions = []
         for coalition in measurement_data['coalitions']:
@@ -589,16 +587,16 @@ async def hog_add(measurements: List[HogMeasurement]):
         cpu_energy_data = {}
         if 'ane_energy' in measurement_data['processor']:
             cpu_energy_data = {
-                'combined_power': int(measurement_data['processor'].get('combined_power', 0) * measurement_data['elapsed_ns'] / 1_000_000_000.0),
+                'combined_energy': int(measurement_data['processor'].get('combined_power', 0) * measurement_data['elapsed_ns'] / 1_000_000_000.0),
                 'cpu_energy': int(measurement_data['processor'].get('cpu_energy', 0)),
                 'gpu_energy': int(measurement_data['processor'].get('gpu_energy', 0)),
                 'ane_energy': int(measurement_data['processor'].get('ane_energy', 0)),
                 'energy_impact': measurement_data['all_tasks'].get('energy_impact'),
             }
         elif 'package_joules' in measurement_data['processor']:
-            # Intel processors report in joules/ watts and not mJ
+            # Intel processors report in joules/ watts and not mJ (millijoule)
             cpu_energy_data = {
-                'combined_power': int(measurement_data['processor'].get('package_joules', 0) * 1_000),
+                'combined_energy': int(measurement_data['processor'].get('package_joules', 0) * 1_000),
                 'cpu_energy': int(measurement_data['processor'].get('cpu_joules', 0) * 1_000),
                 'gpu_energy': int(measurement_data['processor'].get('igpu_watts', 0) * measurement_data['elapsed_ns'] / 1_000_000_000.0 * 1_000),
                 'ane_energy': 0,
@@ -611,7 +609,7 @@ async def hog_add(measurements: List[HogMeasurement]):
             INSERT INTO
                 hog_measurements (
                     time,
-                    machine_id,
+                    machine_uuid,
                     elapsed_ns,
                     combined_energy,
                     cpu_energy,
@@ -626,9 +624,9 @@ async def hog_add(measurements: List[HogMeasurement]):
             """
         params = (
             measurement.time,
-            measurement.machine_id,
+            measurement.machine_uuid,
             measurement_data['elapsed_ns'],
-            cpu_energy_data['combined_power'],
+            cpu_energy_data['combined_energy'],
             cpu_energy_data['cpu_energy'],
             cpu_energy_data['gpu_energy'],
             cpu_energy_data['ane_energy'],
@@ -718,7 +716,7 @@ async def hog_add(measurements: List[HogMeasurement]):
                 )
                 DB().fetch_one(query=query, params=params)
 
-    return ORJSONResponse({'success': True}, status_code=200)
+        return Response(status_code=204) # No-Content
 
 
 @app.get('/v1/hog/top_processes')
@@ -737,11 +735,9 @@ async def hog_get_top_processes():
         LIMIT 100;
     """
     data = DB().fetch_all(query)
-    if data is None or data == []:
-        return Response(status_code=204) # No-Content
 
     query = """
-        SELECT COUNT(DISTINCT machine_id) FROM hog_measurements;
+        SELECT COUNT(DISTINCT machine_uuid) FROM hog_measurements;
     """
 
     machine_count = DB().fetch_one(query)[0]
@@ -749,11 +745,11 @@ async def hog_get_top_processes():
     return ORJSONResponseDecimal({'success': True, 'process_data': data, 'machine_count': machine_count})
 
 
-@app.get('/v1/hog/machine_details/{machine_id}', response_class=ORJSONResponseDecimal)
-async def hog_get_machine_details(machine_id: str):
+@app.get('/v1/hog/machine_details/{machine_uuid}', response_class=ORJSONResponseDecimal)
+async def hog_get_machine_details(machine_uuid: str):
 
-    if machine_id is None or not is_valid_uuid(machine_id):
-        return ORJSONResponse({'success': False, 'err': 'machine_id is empty or malformed'}, status_code=400)
+    if machine_uuid is None or not is_valid_uuid(machine_uuid):
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty or malformed'}, status_code=400)
 
     query = """
         SELECT
@@ -767,15 +763,12 @@ async def hog_get_machine_details(machine_id: str):
         FROM
             hog_measurements
         WHERE
-            machine_id = %s
+            machine_uuid = %s
         ORDER BY
             time
     """
 
-    data = DB().fetch_all(query, (machine_id,))
-
-    if data is None or data == []:
-        return Response(status_code=204) # No-Content
+    data = DB().fetch_all(query, (machine_uuid,))
 
     return ORJSONResponseDecimal({'success': True, 'data': data})
 
@@ -786,7 +779,7 @@ async def hog_get_coalitions_tasks(measurements_id_start: int, measurements_id_e
     if not measurements_id_start or not measurements_id_end:
         return ORJSONResponse({'success': False, 'err': 'hog_measurements_id is empty or malformed'}, status_code=400)
 
-    query = """
+    coalitions_query = """
         SELECT
             name,
             (SUM(energy_impact)::bigint) AS total_energy_impact,
@@ -805,12 +798,7 @@ async def hog_get_coalitions_tasks(measurements_id_start: int, measurements_id_e
         LIMIT 100;
     """
 
-    data = DB().fetch_all(query, (measurements_id_start, measurements_id_end,))
-
-    if data is None:
-        data == []
-
-    query = """
+    measurements_query = """
         SELECT
             (SUM(combined_energy)::bigint),
             (SUM(cpu_energy)::bigint),
@@ -822,13 +810,11 @@ async def hog_get_coalitions_tasks(measurements_id_start: int, measurements_id_e
         WHERE id BETWEEN %s AND %s
     """
 
-    energy_data = DB().fetch_all(query, (measurements_id_start, measurements_id_end,))[0]
+    coalitions_data = DB().fetch_all(coalitions_query, (measurements_id_start, measurements_id_end,))
 
-    if energy_data is None:
-        energy_data == []
+    energy_data = DB().fetch_all(measurements_query, (measurements_id_start, measurements_id_end,))[0]
 
-
-    return ORJSONResponseDecimal({'success': True, 'data': data, 'energy_data': energy_data})
+    return ORJSONResponseDecimal({'success': True, 'data': coalitions_data, 'energy_data': energy_data})
 
 @app.get('/v1/hog/tasks_details/{measurements_id_start}/{measurements_id_end}/{coalition_name}', response_class=ORJSONResponseDecimal)
 async def hog_get_coalitions_tasks(measurements_id_start: int, measurements_id_end: int, coalition_name: str):
@@ -836,7 +822,7 @@ async def hog_get_coalitions_tasks(measurements_id_start: int, measurements_id_e
     if coalition_name is None or not coalition_name.strip():
         return ORJSONResponse({'success': False, 'err': 'coalition_name is empty'}, status_code=400)
 
-    query = """
+    tasks_query = """
         SELECT
             t.name,
             COUNT(t.id) AS number_of_tasks,
@@ -860,12 +846,7 @@ async def hog_get_coalitions_tasks(measurements_id_start: int, measurements_id_e
             total_energy_impact DESC;
     """
 
-    tasks_data = DB().fetch_all(query, (coalition_name, measurements_id_start,measurements_id_end,))
-
-    if tasks_data is None:
-        tasks_data == []
-
-    query = """
+    coalitions_query = """
         SELECT
             name,
             (SUM(energy_impact)::bigint) AS total_energy_impact,
@@ -885,11 +866,8 @@ async def hog_get_coalitions_tasks(measurements_id_start: int, measurements_id_e
         LIMIT 100;
     """
 
-    coalitions_data = DB().fetch_all(query, (coalition_name, measurements_id_start, measurements_id_end,))[0]
-
-    if coalitions_data is None:
-        coalitions_data = []
-
+    tasks_data = DB().fetch_all(tasks_query, (coalition_name, measurements_id_start,measurements_id_end,))
+    coalitions_data = DB().fetch_all(coalitions_query, (coalition_name, measurements_id_start, measurements_id_end,))[0]
 
     return ORJSONResponseDecimal({'success': True, 'tasks_data': tasks_data, 'coalitions_data': coalitions_data})
 

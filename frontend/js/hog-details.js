@@ -1,10 +1,10 @@
 $(document).ready(function () {
-    var mData
     function getURLParameter(name) {
         return new URLSearchParams(window.location.search).get(name);
     }
 
     (async () => {
+        var mData
 
         try {
             var machine_id = getURLParameter('machine_id')
@@ -19,11 +19,9 @@ $(document).ready(function () {
         });
         mData.unshift(['time', 'combined_energy', 'cpu_energy', 'gpu_energy','ane_energy','energy_impact', 'id'])
 
-        var myChart = echarts.init(document.getElementById('chart-container'));
+        const myChart = echarts.init(document.getElementById('chart-container'));
 
-        var myChart = echarts.init(document.getElementById('chart-container'));
-
-        option = {
+        options = {
             legend: {
                 orient: 'horizontal',
                 top: 'top',
@@ -122,12 +120,12 @@ $(document).ready(function () {
             clearTimeout(zoomTimeout);
 
             zoomTimeout = setTimeout(async function() {
-                let dataZoomOption = myChart.getOption().dataZoom[0];
-                let startPercent = dataZoomOption.start;
-                let endPercent = dataZoomOption.end;
-                let totalDataPoints = mData.length;
-                let startIndex = Math.floor(startPercent / 100 * totalDataPoints);
-                let endIndex = Math.ceil(endPercent / 100 * totalDataPoints) - 1;
+                const dataZoomOption = myChart.getOption().dataZoom[0];
+                const startPercent = dataZoomOption.start;
+                const endPercent = dataZoomOption.end;
+                const totalDataPoints = mData.length;
+                const startIndex = Math.floor(startPercent / 100 * totalDataPoints);
+                const endIndex = Math.ceil(endPercent / 100 * totalDataPoints) - 1;
                 let firstValue = mData[startIndex];
                 let lastValue = mData[endIndex];
                 if (firstValue[6] == 'id'){
@@ -284,10 +282,10 @@ $(document).ready(function () {
         }
 
         function focusOnBar(dataIndex) {
-            let zoomFactor = 4;
-            let dataLength = mData.length -1 ;
-            let startPercent = (dataIndex - zoomFactor / 2) / dataLength * 100;
-            let endPercent = (dataIndex + zoomFactor / 2) / dataLength * 100;
+            const zoomFactor = 8;
+            const dataLength = mData.length -1 ;
+            const startPercent = (dataIndex - zoomFactor / 2) / dataLength * 100;
+            const endPercent = (dataIndex + zoomFactor / 2) / dataLength * 100;
 
             myChart.setOption({
                 dataZoom: [{
@@ -296,7 +294,7 @@ $(document).ready(function () {
                 }]
             });
         }
-        myChart.setOption(option);
+        myChart.setOption(options);
         handleZoomEvent();
 
         myChart.on('click', function(params) {

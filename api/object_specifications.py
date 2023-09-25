@@ -2,11 +2,13 @@ from pydantic import BaseModel
 from typing import List, Dict, Optional
 
 class Task(BaseModel):
+    # We need to set the optional to a value as otherwise the key is required in the input
+    # https://docs.pydantic.dev/latest/migration/#required-optional-and-nullable-fields
     name: str
     cputime_ns: int
     timer_wakeups: List
-    diskio_bytesread: int = 0
-    diskio_byteswritten: int = 0
+    diskio_bytesread: Optional[int] = 0
+    diskio_byteswritten: Optional[int] = 0
     packets_received: int
     packets_sent: int
     bytes_received: int

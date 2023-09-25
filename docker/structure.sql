@@ -210,7 +210,7 @@ CREATE TRIGGER timeline_projects_moddatetime
 CREATE TABLE hog_measurements (
     id SERIAL PRIMARY KEY,
     time bigint NOT NULL,
-    machine_id uuid NOT NULL,
+    machine_uuid uuid NOT NULL,
     elapsed_ns bigint NOT NULL,
     combined_energy int,
     cpu_energy int,
@@ -228,7 +228,7 @@ CREATE TRIGGER hog_measurements_moddatetime
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
 
-CREATE INDEX idx_hog_measurements_machine_id ON hog_measurements (machine_id);
+CREATE INDEX idx_hog_measurements_machine_uuid ON hog_measurements USING hash (machine_uuid);
 CREATE INDEX idx_hog_measurements_time ON hog_measurements (time);
 
 
