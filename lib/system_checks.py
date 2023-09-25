@@ -7,6 +7,7 @@
 # It is possible for one of the checkers or metric providers to raise an exception if something should fail specifically
 # otherwise you can just return False and set the Status to ERROR for the program to abort.
 
+#pylint: disable=inconsistent-return-statements
 
 
 import sys
@@ -25,26 +26,22 @@ class ConfigurationCheckError(Exception):
     pass
 
 ######## CHECK FUNCTIONS ########
-#pylint: disable=inconsistent-return-statements
 def check_metric_providers(runner):
     for metric_provider in runner._Runner__metric_providers:
         if hasattr(metric_provider, 'check_system'):
             if metric_provider.check_system() is False:
                 return False
 
-#pylint: disable=inconsistent-return-statements
 def check_one_psu_provider(_):
     metric_providers = list(utils.get_metric_providers(GlobalConfig().config).keys())
     if sum(True for provider in metric_providers if ".energy" in provider and ".machine" in provider) > 1:
         return False
 
-#pylint: disable=inconsistent-return-statements
 def check_tmpfs_mount(_):
     for partition in psutil.disk_partitions():
         if partition.mountpoint == '/tmp' and partition.fstype != 'tmpfs':
             return False
 
-#pylint: disable=inconsistent-return-statements
 def check_free_disk(percent):
     # We are assuming that the GMT is installed on the system partition!
     usage = psutil.disk_usage(os.path.abspath(__file__))
@@ -60,12 +57,10 @@ def check_free_disk_90(_):
 def check_free_disk_95(_):
     return check_free_disk(95)
 
-#pylint: disable=inconsistent-return-statements
 def check_free_memory(_):
     if psutil.virtual_memory().percent >= 70:
         return False
 
-#pylint: disable=inconsistent-return-statements
 def check_containers_running(_):
     result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
                             stdout=subprocess.PIPE,
