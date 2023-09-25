@@ -11,7 +11,7 @@ updates:
     schedule:
       interval: "daily"
   - package-ecosystem: "docker"
-    directory: "/*"
+    directory: "/docker/"
     target-branch: "main"
     schedule:
       interval: "weekly"
