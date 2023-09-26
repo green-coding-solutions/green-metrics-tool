@@ -32,5 +32,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+        # ${{ github.run_number }} increments with each urn (stays the same if you re-run a failed/stalled job)
+        # build-containers script takes the first arguement as the tag in the format: v1.x , where x is run_number
       - name: Build and Push Containers
-        run: bash ./docker/auxiliary-containers/build-containers.sh
+        run: bash ./docker/auxiliary-containers/build-containers.sh ${{ github.run_number }}
