@@ -126,7 +126,8 @@ done
 print_message "Setting up python venv"
 python3 -m venv venv
 source venv/bin/activate
-# This will set the include path for the project
+
+print_message "Setting GMT in include path for python via .pth file"
 find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
 print_message "Building sgx binaries"

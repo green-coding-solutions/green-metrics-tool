@@ -91,6 +91,8 @@ class Job:
             return
         self.update_state('RUNNING')
 
+        # We need this exclusion here, as the jobs.py is also included in the API and there the
+        # import of the Runner will lead to import conflicts. It is also not used there, so this is acceptable.
         #pylint: disable=import-outside-toplevel
         from runner import Runner
 

@@ -33,7 +33,6 @@ def replace_include_in_usage_scenario(usage_scenario_path, docker_compose_filena
         file.write(data)
 
 
-#pylint: disable=too-many-arguments
 def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='folder', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False,
         skip_unsafe=False, verbose_provider_boot=False, dir_name=None, dev_repeat_run=True, skip_system_checks=True):

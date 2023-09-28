@@ -14,7 +14,6 @@ class PsuEnergyAcGudeMachineProvider(BaseMetricProvider):
             current_dir=os.path.dirname(os.path.abspath(__file__)),
         )
 
-    #pylint: disable=unused-argument
     def start_profiling(self, containers=None):
         call_string = f"{self._current_dir}/check_gude_modified.py -i {self._resolution}"
 
@@ -22,7 +21,7 @@ class PsuEnergyAcGudeMachineProvider(BaseMetricProvider):
 
         print(call_string)
 
-        #pylint:disable=subprocess-popen-preexec-fn,consider-using-with,attribute-defined-outside-init
+        #pylint:disable=subprocess-popen-preexec-fn,consider-using-with
         self._ps = subprocess.Popen(
             [call_string],
             shell=True,

@@ -69,7 +69,6 @@ class PowermetricsProvider(BaseMetricProvider):
 
         self._ps = None
 
-    # pylint: disable=too-many-locals
     def read_metrics(self, run_id, containers=None):
 
         with open(self._filename, 'rb') as metrics_file:

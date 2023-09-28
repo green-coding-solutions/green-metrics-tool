@@ -24,7 +24,6 @@ def rescale_energy_value(value, unit):
         value = value / (10**3)
         unit = f"m{unit_type}"
 
-    # pylint: disable=multiple-statements
     if value > 1_000_000_000: return [value/(10**12), f"G{unit_type}"]
     if value > 1_000_000_000: return [value/(10**9), f"M{unit_type}"]
     if value > 1_000_000: return [value/(10**6), f"k{unit_type}"]

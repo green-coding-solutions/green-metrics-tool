@@ -32,7 +32,6 @@ class TimelineProject():
         return DB().fetch_one(insert_query, params=params)[0]
 
 
-# pylint: disable=broad-exception-caught
 if __name__ == '__main__':
 
     import argparse
