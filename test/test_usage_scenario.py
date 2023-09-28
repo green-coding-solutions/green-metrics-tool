@@ -3,9 +3,8 @@
 #  docker port CONTAINER [PRIVATE_PORT[/PROTO]]
 
 
-#pylint: disable=fixme,import-error,wrong-import-position, global-statement, unused-argument, invalid-name, redefined-outer-name
+#pylint: disable=fixme,import-error,global-statement
 # unused-argument because its not happy with 'module', which is unfortunately necessary for pytest
-# also disabled invalid-name because its not happy with single word for d in data , for example
 
 import io
 import os
@@ -36,16 +35,16 @@ config = GlobalConfig().config
 # otherwise failing Tests will not run the runner.cleanup() properly
 
 # This should be done once per module
-@pytest.fixture(autouse=True, scope="module")
-def build_image():
+@pytest.fixture(autouse=True, scope="module", name="build_image")
+def build_image_fixture():
     uri = os.path.abspath(os.path.join(
             CURRENT_DIR, 'stress-application/'))
     subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
     GlobalConfig().override_config(config_name='test-config.yml')
 
 # cleanup test/tmp directory after every test run
-@pytest.fixture(autouse=True)
-def cleanup_tmp_directories():
+@pytest.fixture(autouse=True, name="cleanup_tmp_directories")
+def cleanup_tmp_directories_fixture():
     yield
     tmp_dir = os.path.join(CURRENT_DIR, 'tmp/')
     if os.path.exists(tmp_dir):
@@ -301,17 +300,17 @@ def test_cmd_ran():
 def test_uri_local_dir():
     uri = os.path.abspath(os.path.join(
             CURRENT_DIR, 'stress-application/'))
-    project_name = 'test_' + utils.randomword(12)
+    RUN_NAME = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', project_name, '--uri', uri ,'--config-override', 'test-config.yml',
-        '--skip-config-check', '--dev-repeat-run'],
+        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,'--config-override', 'test-config.yml',
+        '--skip-system-checks', '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
 
-    uri_in_db = utils.get_project_data(project_name)['uri']
+    uri_in_db = utils.get_run_data(RUN_NAME)['uri']
     assert uri_in_db == uri, Tests.assertion_info(f"uri: {uri}", uri_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
@@ -326,17 +325,17 @@ def test_uri_local_dir_missing():
     # basic positive case
 def test_uri_github_repo():
     uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
-    project_name = 'test_' + utils.randomword(12)
+    RUN_NAME = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', project_name, '--uri', uri ,'--config-override', 'test-config.yml',
-        '--skip-config-check', '--dev-repeat-run'],
+        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,'--config-override', 'test-config.yml',
+        '--skip-system-checks', '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
 
-    uri_in_db = utils.get_project_data(project_name)['uri']
+    uri_in_db = utils.get_run_data(RUN_NAME)['uri']
     assert uri_in_db == uri, Tests.assertion_info(f"uri: {uri}", uri_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
@@ -357,18 +356,18 @@ def test_uri_local_branch():
     # that makes sure that it really is pulling a different branch
 def test_uri_github_repo_branch():
     uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
-    project_name = 'test_' + utils.randomword(12)
+    RUN_NAME = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
+        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
         '--branch', 'test-branch' , '--filename', 'basic_stress.yml',
-        '--config-override', 'test-config.yml', '--skip-config-check', '--dev-repeat-run'],
+        '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
 
-    branch_in_db = utils.get_project_data(project_name)['branch']
+    branch_in_db = utils.get_run_data(RUN_NAME)['branch']
     assert branch_in_db == 'test-branch', Tests.assertion_info('branch: test-branch', branch_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
@@ -392,17 +391,17 @@ def test_uri_github_repo_branch_missing():
 def test_name_is_in_db():
     uri = os.path.abspath(os.path.join(
             CURRENT_DIR, 'stress-application/'))
-    project_name = 'test_' + utils.randomword(12)
+    RUN_NAME = 'test_' + utils.randomword(12)
     subprocess.run(
-        ['python3', '../runner.py', '--name', project_name, '--uri', uri ,'--config-override', 'test-config.yml',
-        '--skip-config-check'],
+        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,'--config-override', 'test-config.yml',
+        '--skip-system-checks'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
-    name_in_db = utils.get_project_data(project_name)['name']
-    assert name_in_db == project_name, Tests.assertion_info(f"name: {project_name}", name_in_db)
+    name_in_db = utils.get_run_data(RUN_NAME)['name']
+    assert name_in_db == RUN_NAME, Tests.assertion_info(f"name: {RUN_NAME}", name_in_db)
 
 # --filename FILENAME
 #    An optional alternative filename if you do not want to use "usage_scenario.yml"
@@ -413,12 +412,12 @@ def test_different_filename():
     compose_path = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/compose.yml'))
     Tests.make_proj_dir(dir_name=dir_name, usage_scenario_path=usage_scenario_path, docker_compose_path=compose_path)
     uri = os.path.join(CURRENT_DIR, 'tmp/', dir_name)
-    project_name = 'test_' + utils.randomword(12)
+    RUN_NAME = 'test_' + utils.randomword(12)
 
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
+        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
          '--filename', 'basic_stress.yml', '--config-override', 'test-config.yml',
-         '--skip-config-check', '--dev-repeat-run'],
+         '--skip-system-checks', '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -427,7 +426,7 @@ def test_different_filename():
 
     with open(usage_scenario_path, 'r', encoding='utf-8') as f:
         usage_scenario_contents = yaml.safe_load(f)
-    usage_scenario_in_db = utils.get_project_data(project_name)['usage_scenario']
+    usage_scenario_in_db = utils.get_run_data(RUN_NAME)['usage_scenario']
     assert usage_scenario_in_db == usage_scenario_contents,\
         Tests.assertion_info(usage_scenario_contents, usage_scenario_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
@@ -435,8 +434,9 @@ def test_different_filename():
 # if that filename is missing...
 def test_different_filename_missing():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, '..', 'stress-application/'))
-    pid = Tests.insert_project(uri)
-    runner = Runner(uri=uri, uri_type='folder', pid=pid, filename='basic_stress.yml', skip_config_check=True)
+    RUN_NAME = 'test_' + utils.randomword(12)
+
+    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', filename='basic_stress.yml', skip_system_checks=True)
 
     with pytest.raises(FileNotFoundError) as e:
         runner.run()
@@ -449,10 +449,10 @@ def test_different_filename_missing():
 def test_no_file_cleanup():
     uri = os.path.abspath(os.path.join(
             CURRENT_DIR, 'stress-application/'))
-    project_name = 'test_' + utils.randomword(12)
+    RUN_NAME = 'test_' + utils.randomword(12)
     subprocess.run(
-        ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
-         '--no-file-cleanup', '--config-override', 'test-config.yml', '--skip-config-check'],
+        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
+         '--no-file-cleanup', '--config-override', 'test-config.yml', '--skip-system-checks'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -472,10 +472,10 @@ def test_debug(monkeypatch):
     monkeypatch.setattr('sys.stdin', io.StringIO('Enter'))
     uri = os.path.abspath(os.path.join(
             CURRENT_DIR, 'stress-application/'))
-    project_name = 'test_' + utils.randomword(12)
+    RUN_NAME = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
-         '--debug', '--config-override', 'test-config.yml', '--skip-config-check',
+        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
+         '--debug', '--config-override', 'test-config.yml', '--skip-system-checks',
           '--dev-repeat-run'],
         check=True,
         stderr=subprocess.PIPE,
@@ -494,9 +494,9 @@ def test_debug(monkeypatch):
 def wip_test_verbose_provider_boot():
     uri = os.path.abspath(os.path.join(
             CURRENT_DIR, 'stress-application/'))
-    project_name = 'test_' + utils.randomword(12)
+    RUN_NAME = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', project_name, '--uri', uri ,
+        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
          '--verbose-provider-boot', '--config-override', 'test-config.yml',
          '--dev-repeat-run'],
         check=True,
@@ -504,20 +504,20 @@ def wip_test_verbose_provider_boot():
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
-    pid = utils.get_project_data(project_name)['id']
+    run_id = utils.get_run_data(RUN_NAME)['id']
     query = """
             SELECT
                 time, note
             FROM
                 notes
             WHERE
-                project_id = %s
+                run_id = %s
                 AND note LIKE %s
             ORDER BY
                 time
             """
 
-    notes = DB().fetch_all(query, (pid,'Booting%',))
+    notes = DB().fetch_all(query, (run_id,'Booting%',))
     metric_providers = utils.get_metric_providers_names(config)
 
     #for each metric provider, assert there is an an entry in notes

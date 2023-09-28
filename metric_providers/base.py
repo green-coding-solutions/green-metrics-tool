@@ -8,6 +8,10 @@ import sys
 from io import StringIO
 import pandas
 
+from lib.system_checks import ConfigurationCheckError
+
+class MetricProviderConfigurationError(ConfigurationCheckError):
+    pass
 
 class BaseMetricProvider:
 
@@ -20,6 +24,7 @@ class BaseMetricProvider:
         current_dir,
         metric_provider_executable='metric-provider-binary',
         sudo=False,
+        disable_buffer=True
     ):
         self._metric_name = metric_name
         self._metrics = metrics
@@ -29,6 +34,7 @@ class BaseMetricProvider:
         self._metric_provider_executable = metric_provider_executable
         self._sudo = sudo
         self._has_started = False
+        self._disable_buffer = disable_buffer
 
         self._tmp_folder = '/tmp/green-metrics-tool'
         self._ps = None
@@ -46,7 +52,7 @@ class BaseMetricProvider:
     def has_started(self):
         return self._has_started
 
-    def read_metrics(self, project_id, containers):
+    def read_metrics(self, run_id, containers):
         with open(self._filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
 
@@ -79,13 +85,17 @@ class BaseMetricProvider:
 
         df['unit'] = self._unit
         df['metric'] = self._metric_name
-        df['project_id'] = project_id
+        df['run_id'] = run_id
 
         return df
 
     def start_profiling(self, containers=None):
 
-        call_string = f"{self._metric_provider_executable} -i {self._resolution}"
+        if self._resolution is None:
+            call_string = self._metric_provider_executable
+        else:
+            call_string = f"{self._metric_provider_executable} -i {self._resolution}"
+
 
         if self._metric_provider_executable[0] != '/':
             call_string = f"{self._current_dir}/{call_string}"
@@ -102,6 +112,9 @@ class BaseMetricProvider:
             call_string += ' -s '
             call_string += ','.join(containers.keys())
         call_string += f" > {self._filename}"
+
+        if self._disable_buffer:
+            call_string = f"stdbuf -o0 {call_string}"
 
         print(call_string)
 
