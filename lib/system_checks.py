@@ -69,6 +69,15 @@ def check_containers_running(_):
     if result.stdout:
         return False
 
+def check_docker_daemon(_):
+    result = subprocess.run(['docker', 'version'],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            check=False, encoding='UTF-8')
+    if result.returncode == 0:
+        return True
+    return False
+
 
 ######## END CHECK FUNCTIONS ########
 
@@ -80,7 +89,8 @@ checks = [
     (check_free_disk_90, Status.WARN, '90% free disk space', 'We recommend to free up some disk space!!!!!!!'),
     (check_free_disk_95, Status.ERROR, '95% free disk space', 'No free disk space left. Please clean up some files'),
     (check_free_memory, Status.ERROR, '80% free memory', 'No free memory! Please kill some programs'),
-    (check_containers_running, Status.WARN, 'Running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.berlin/docs/installation/installation-cluster/].')
+    (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.berlin/docs/installation/]'),
+    (check_containers_running, Status.WARN, 'Running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.berlin/docs/installation/installation-cluster/].'),
 
 ]
 

@@ -1194,6 +1194,7 @@ class Runner:
         return_run_id = None
         try:
             config = GlobalConfig().config
+            self.check_system()
             return_run_id = self.initialize_run()
             self.initialize_folder(self._tmp_folder)
             self.checkout_repository()
@@ -1201,7 +1202,6 @@ class Runner:
             self.import_metric_providers()
             self.populate_image_names()
             self.check_running_containers()
-            self.check_system()
             self.remove_docker_images()
             self.download_dependencies()
             self.register_machine_id()
