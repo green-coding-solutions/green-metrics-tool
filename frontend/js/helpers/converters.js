@@ -45,3 +45,4 @@ const rescaleCO2Value = (value,unit) => {
     else if(value > 1_000) return [(value/(10**3)).toFixed(2), 'mg'];
     return [value.toFixed(2) , unit];
 }
+

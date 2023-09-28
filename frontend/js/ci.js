@@ -1,3 +1,8 @@
+const numberFormatter = new Intl.NumberFormat('en-US', {
+  style: 'decimal',
+  maximumFractionDigits: 2,
+});
+
 const calculateStats = (energy_measurements, time_measurements, cpu_util_measurements) => {
     let energyAverage = '--'
     let energyStdDeviation = '--'
@@ -212,13 +217,13 @@ const getChartOptions = (measurements, chart_element) => {
     options.tooltip = {
         trigger: 'item',
         formatter: function (params, ticket, callback) {
-            return `<strong>${labels[params.componentIndex].labels[params.dataIndex]}</strong><br>
-                    run_id: ${labels[params.componentIndex].run_id}<br>
+            return `<strong>${escapeString(labels[params.componentIndex].labels[params.dataIndex])}</strong><br>
+                    run_id: ${escapeString(labels[params.componentIndex].run_id)}<br>
                     timestamp: ${labels[params.componentIndex].timestamp}<br>
-                    commit_hash: ${labels[params.componentIndex].commit_hash}<br>
-                    value: ${labels[params.componentIndex].value} ${labels[params.componentIndex].unit}<br>
-                    duration: ${labels[params.componentIndex].duration} seconds<br>
-                    avg. cpu. utilization: ${labels[params.componentIndex].cpu_util}%<br>
+                    commit_hash: ${escapeString(labels[params.componentIndex].commit_hash)}<br>
+                    value: ${escapeString(labels[params.componentIndex].value)} ${escapeString(labels[params.componentIndex].unit)}<br>
+                    duration: ${escapeString(labels[params.componentIndex].duration)} seconds<br>
+                    avg. cpu. utilization: ${escapeString(labels[params.componentIndex].cpu_util)}%<br>
                     `;
         }
     };
@@ -270,16 +275,16 @@ const displayStatsTable = (measurements) => {
 
     full_run_stats_node.innerHTML += `
                             <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)">Full Run <i class="question circle icon small"></i> </td>
-                            <td class="td-index">${full_run_stats.energy.average} mJ</td>
-                            <td class="td-index">${full_run_stats.energy.stdDeviation} mJ</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.energy.average)} mJ</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.energy.stdDeviation)} mJ</td>
                             <td class="td-index">${full_run_stats.energy.stdDevPercent}%</td>
-                            <td class="td-index">${full_run_stats.time.average}s</td>
-                            <td class="td-index">${full_run_stats.time.stdDeviation}s</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.time.average)}s</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.time.stdDeviation)}s</td>
                             <td class="td-index">${full_run_stats.time.stdDevPercent}%</td>
-                            <td class="td-index">${full_run_stats.cpu_util.average}%</td>
-                            <td class="td-index">${full_run_stats.energy.total} mJ</td>
-                            <td class="td-index">${full_run_stats.time.total}s</td>
-                            <td class="td-index">${fullRunArray.count}</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.cpu_util.average)}%</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.energy.total)} mJ</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.time.total)}s</td>
+                            <td class="td-index">${numberFormatter.format(fullRunArray.count)}</td>
                             `
     tableBody.appendChild(full_run_stats_node);
 
@@ -288,16 +293,16 @@ const displayStatsTable = (measurements) => {
         const label_stats_node = document.createElement("tr")
         label_stats_node.innerHTML += `
                                         <td class="td-index" data-tooltip="stats for the series of steps represented by the ${label} label">${label}</td>
-                                        <td class="td-index">${label_stats.energy.average} mJ</td>
-                                        <td class="td-index">${label_stats.energy.stdDeviation} mJ</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.energy.average)} mJ</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.energy.stdDeviation)} mJ</td>
                                         <td class="td-index">${label_stats.energy.stdDevPercent}%</td>
-                                        <td class="td-index">${label_stats.time.average}s</td>
-                                        <td class="td-index">${label_stats.time.stdDeviation}s</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.time.average)}s</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.time.stdDeviation)}s</td>
                                         <td class="td-index">${label_stats.time.stdDevPercent}%</td>
-                                        <td class="td-index">${label_stats.cpu_util.average}%</td>
-                                        <td class="td-index">${label_stats.energy.total} mJ</td>
-                                        <td class="td-index">${label_stats.time.total}s</td>
-                                        <td class="td-index">${labelsArray[label].count}</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.cpu_util.average)}%</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.energy.total)} mJ</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.time.total)}s</td>
+                                        <td class="td-index">${numberFormatter.format(labelsArray[label].count)}</td>
                                         `
         document.querySelector("#label-stats-table").appendChild(label_stats_node);
     };
@@ -310,7 +315,7 @@ const displayCITable = (measurements, url_params) => {
     measurements.forEach(el => {
         const li_node = document.createElement("tr");
 
-        [energy_value, energy_unit] = convertValue(el[0], el[1])
+        const [energy_value, energy_unit] = convertValue(el[0], el[1])
         const value = `${energy_value} ${energy_unit}`;
 
         const run_id = el[2];
@@ -343,10 +348,10 @@ const displayCITable = (measurements, url_params) => {
                             <td class="td-index">${run_link_node}</td>\
                             <td class="td-index">${escapeString(label)}</td>\
                             <td class="td-index"><span title="${escapeString(created_at)}">${dateToYMD(new Date(created_at))}</span></td>\
-                            <td class="td-index">${escapeString(value)}</td>\
+                            <td class="td-index">${escapeString(numberFormatter.format(value))}</td>\
                             <td class="td-index">${escapeString(cpu)}</td>\
-                            <td class="td-index">${cpu_avg}%</td>
-                            <td class="td-index">${duration} seconds</td>
+                            <td class="td-index">${escapeString(cpu_avg)}%</td>
+                            <td class="td-index">${escapeString(duration)} seconds</td>
                             <td class="td-index" ${escapeString(tooltip)}>${escapeString(short_hash)}</td>\
                             `;
         document.querySelector("#ci-table").appendChild(li_node);
@@ -406,6 +411,12 @@ $(document).ready((e) => {
 
         let repo_link = ''
         const source = measurements.data[0][8]
+        const workflow_id = escapeString(url_params.get('workflow'))
+        let workflow_name = measurements.data[0][10]
+
+        if (workflow_name == '' || workflow_name == null) {
+            workflow_name = workflow_id ;
+        }
 
         if(source == 'github') {
             repo_link = `https://github.com/${escapeString(url_params.get('repo'))}`;
@@ -418,7 +429,8 @@ $(document).ready((e) => {
         const ci_data_node = document.querySelector('#ci-data')
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Repository:</strong></td><td>${repo_link_node}</td></tr>`)
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params.get('branch'))}</td></tr>`)
-        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(url_params.get('workflow'))}</td></tr>`)
+        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow ID:</strong></td><td>${escapeString(workflow_id)}</td></tr>`)
+        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(workflow_name)}</td></tr>`)
 
         displayCITable(measurements.data, url_params); // Iterates I (total: 1)
         
@@ -433,7 +445,7 @@ $(document).ready((e) => {
             const selectedLegends = params.selected;
             const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[5]]);
 
-            displayStatsTable(filteredMeasurements); // need to figure out something else here?
+            displayStatsTable(filteredMeasurements);
         });
 
         // When the user selects a subset of the measurement data via the date-picker
