@@ -162,12 +162,15 @@ class Runner:
         print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
         self.__notes_helper.save_to_db(self.__run_id)
 
-    def check_system(self):
+    def check_system(self, mode='start'):
         if self._skip_system_checks:
             print("System check skipped")
             return
 
-        system_checks.check_all(self)
+        if mode =='start':
+            system_checks.check_start()
+        else:
+            raise RuntimeError('Unknown mode for system check:', mode)
 
 
     def checkout_repository(self):
@@ -1194,7 +1197,7 @@ class Runner:
         return_run_id = None
         try:
             config = GlobalConfig().config
-            self.check_system()
+            self.check_system('start')
             return_run_id = self.initialize_run()
             self.initialize_folder(self._tmp_folder)
             self.checkout_repository()

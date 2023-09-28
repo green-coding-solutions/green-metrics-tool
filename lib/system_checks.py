@@ -26,18 +26,12 @@ class ConfigurationCheckError(Exception):
     pass
 
 ######## CHECK FUNCTIONS ########
-def check_metric_providers(runner):
-    for metric_provider in runner._Runner__metric_providers:
-        if hasattr(metric_provider, 'check_system'):
-            if metric_provider.check_system() is False:
-                return False
-
-def check_one_psu_provider(_):
+def check_one_psu_provider():
     metric_providers = list(utils.get_metric_providers(GlobalConfig().config).keys())
     if sum(True for provider in metric_providers if ".energy" in provider and ".machine" in provider) > 1:
         return False
 
-def check_tmpfs_mount(_):
+def check_tmpfs_mount():
     for partition in psutil.disk_partitions():
         if partition.mountpoint == '/tmp' and partition.fstype != 'tmpfs':
             return False
@@ -48,20 +42,20 @@ def check_free_disk(percent):
     if usage.percent >= percent:
         return False
 
-def check_free_disk_80(_):
+def check_free_disk_80():
     return check_free_disk(80)
 
-def check_free_disk_90(_):
+def check_free_disk_90():
     return check_free_disk(90)
 
-def check_free_disk_95(_):
+def check_free_disk_95():
     return check_free_disk(95)
 
-def check_free_memory(_):
+def check_free_memory():
     if psutil.virtual_memory().percent >= 70:
         return False
 
-def check_containers_running(_):
+def check_containers_running():
     result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
@@ -69,7 +63,7 @@ def check_containers_running(_):
     if result.stdout:
         return False
 
-def check_docker_daemon(_):
+def check_docker_daemon():
     result = subprocess.run(['docker', 'version'],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
@@ -81,8 +75,7 @@ def check_docker_daemon(_):
 
 ######## END CHECK FUNCTIONS ########
 
-checks = [
-    (check_metric_providers, Status.ERROR, 'metric providers', 'Metric provider failed'),
+start_checks = [
     (check_one_psu_provider, Status.ERROR, 'single PSU provider', 'Please only select one PSU provider'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
     (check_free_disk_80, Status.INFO, '80% free disk space', 'We recommend to free up some disk space'),
@@ -95,14 +88,14 @@ checks = [
 ]
 
 
-def check_all(runner):
+def check_start():
     print(TerminalColors.HEADER, '\nRunning System Checks', TerminalColors.ENDC)
-    max_key_length = max(len(key[2]) for key in checks)
+    max_key_length = max(len(key[2]) for key in start_checks)
 
-    for check in checks:
+    for check in start_checks:
         retval = None
         try:
-            retval = check[0](runner)
+            retval = check[0]()
         except ConfigurationCheckError as exp:
             raise exp
         finally:

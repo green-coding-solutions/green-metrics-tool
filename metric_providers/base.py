@@ -42,6 +42,12 @@ class BaseMetricProvider:
 
         self._filename = f"{self._tmp_folder}/{self._metric_name}.log"
 
+        self.check_system()
+
+    # this is the default function that will be overridden in the children
+    def check_system(self):
+        pass
+
     # implemented as getter function and not direct access, so it can be overloaded
     # some child classes might not actually have _ps attribute set
     def get_stderr(self):
