@@ -5,13 +5,17 @@ $(document).ready(function () {
 
     (async () => {
         var mData
-
+        var machine_uuid = getURLParameter('machine_uuid')
         try {
-            var machine_id = getURLParameter('machine_id')
-            var measurements = await makeAPICall(`/v1/hog/machine_details/${machine_id}`);
+
+            var measurements = await makeAPICall(`/v1/hog/machine_details/${machine_uuid}`);
         } catch (err) {
             showNotification('Could not get data from API', err);
             return;
+        }
+        if (measurements.data.length == 0){
+            showNotification('No data', 'We could not find any data. Did you follow a correct URL?')
+            return
         }
         mData = measurements.data.map(item => {
             item[0] = new Date(item[0]);
@@ -129,14 +133,14 @@ $(document).ready(function () {
                 let firstValue = mData[startIndex];
                 let lastValue = mData[endIndex];
                 if (firstValue[6] == 'id'){
-                    firstValue[6] = 1;
+                    firstValue = mData[1];
                 }
                 if(typeof lastValue === "undefined"){
-                    lastValue =[1,1,1,1,1,1,1];
+                    lastValue = mData[mData.length];
                 }
                 try {
 
-                    var coalitions = await makeAPICall(`/v1/hog/coalitions_tasks/${firstValue[6]}/${lastValue[6]}`);
+                    var coalitions = await makeAPICall(`/v1/hog/coalitions_tasks/${machine_uuid}/${firstValue[6]}/${lastValue[6]}`);
                     energy_html = `
                         <div class="ui relaxed horizontal divided list">
                             <div class="item">
@@ -237,33 +241,93 @@ $(document).ready(function () {
 
                         $('#task-details').modal('show');
 
-                        var tasks = await makeAPICall(`/v1/hog/tasks_details/${$(this).data('start')}/${$(this).data('end')}/${$(this).data('name')}`);
+                        var tasks = await makeAPICall(`/v1/hog/tasks_details/${machine_uuid}/${$(this).data('start')}/${$(this).data('end')}/${$(this).data('name')}`);
 
                         coalition_string=`
-                        <h3>${tasks.coalitions_data[0]}</h3>
-                        <div class="ui list">
-                            <div class="item"><b>total_energy_impact</b>:${tasks.coalitions_data[1]}</div>
-                            <div class="item"><b>total_diskio_bytesread</b>:${tasks.coalitions_data[2]}</div>
-                            <div class="item"><b>total_diskio_byteswritten</b>:${tasks.coalitions_data[3]}</div>
-                            <div class="item"><b>total_intr_wakeups</b>:${tasks.coalitions_data[4]}</div>
-                            <div class="item"><b>total_idle_wakeups</b>:${tasks.coalitions_data[5]}</div>
-                        </div>
-                        `
+                            <h3>${tasks.coalitions_data[0]}</h3>
+                            <table class="ui table">
+                            <thead>
+                                <tr>
+                                    <th>Attribute</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><b>total_energy_impact</b></td>
+                                    <td>${tasks.coalitions_data[1]}</td>
+                                </tr>
+                                <tr>
+                                    <td><b>total_diskio_bytesread</b></td>
+                                    <td>${tasks.coalitions_data[2]}</td>
+                                </tr>
+                                <tr>
+                                    <td><b>total_diskio_byteswritten</b></td>
+                                    <td>${tasks.coalitions_data[3]}</td>
+                                </tr>
+                                <tr>
+                                    <td><b>total_intr_wakeups</b></td>
+                                    <td>${tasks.coalitions_data[4]}</td>
+                                </tr>
+                                <tr>
+                                    <td><b>total_idle_wakeups</b></td>
+                                    <td>${tasks.coalitions_data[5]}</td>
+                                </tr>
+                            </tbody>
+                        </table>`
                         const tasks_string = tasks.tasks_data.map(subArr => `
                         <h3>${subArr[0]}</h3>
-                        <div class="ui list">
-                            <div class="item"><b>Name</b>:${subArr[1]}</div>
-                            <div class="item"><b>Occurrence</b>:${subArr[2]}</div>
-                            <div class="item"><b>total_energy_impact</b>:${subArr[3]}</div>
-                            <div class="item"><b>cputime_ns</b>:${subArr[4]}</div>
-                            <div class="item"><b>bytes_received</b>:${subArr[5]}</div>
-                            <div class="item"><b>bytes_sent</b>:${subArr[6]}</div>
-                            <div class="item"><b>diskio_bytesread</b>:${subArr[7]}</div>
-                            <div class="item"><b>diskio_byteswritten</b>:${subArr[8]}</div>
-                            <div class="item"><b>intr_wakeups</b>:${subArr[9]}</div>
-                            <div class="item"><b>idle_wakeups</b>:${subArr[10]}</div>
-                        </div>
-                        `).join(' ');
+                            <table class="ui table">
+                            <thead>
+                                <tr>
+                                    <th>Attribute</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><b>Name</b></td>
+                                    <td>${subArr[1]}</td>
+                                </tr>
+                                <tr>
+                                    <td><b>Occurrence</b></td>
+                                    <td>${subArr[2]}</td>
+                                </tr>
+                                <tr>
+                                    <td><b>total_energy_impact</b></td>
+                                    <td>${subArr[3]}</td>
+                                </tr>
+                                <tr>
+                                    <td><b>cputime_ns</b></td>
+                                    <td>${subArr[4]}</td>
+                                </tr>
+                                <tr>
+                                    <td><b>bytes_received</b></td>
+                                    <td>${subArr[5]}</td>
+                                </tr>
+                                <tr>
+                                    <td><b>bytes_sent</b></td>
+                                    <td>${subArr[6]}</td>
+                                </tr>
+                                <tr>
+                                    <td><b>diskio_bytesread</b></td>
+                                    <td>${subArr[7]}</td>
+                                </tr>
+                                <tr>
+                                    <td><b>diskio_byteswritten</b></td>
+                                    <td>${subArr[8]}</td>
+                                </tr>
+                                <tr>
+                                    <td><b>intr_wakeups</b></td>
+                                    <td>${subArr[9]}</td>
+                                </tr>
+                                <tr>
+                                    <td><b>idle_wakeups</b></td>
+                                    <td>${subArr[10]}</td>
+                                </tr>
+                            </tbody>
+                            </table>
+                    `).join(' ');
                         $("#coaliton-segment").html(coalition_string)
                         $("#coaliton-segment").removeClass("loading")
 

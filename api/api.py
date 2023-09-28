@@ -563,12 +563,8 @@ async def hog_add(measurements: List[HogMeasurement]):
         decompressed_data = zlib.decompress(decoded_data)
         measurement_data = json.loads(decompressed_data.decode())
 
-        try:
-            _ = Measurement(**measurement_data)
-        except ValidationError as e:
-            # This will need some work. As in theory this could error on the n'th item and then the whole commit is
-            # failed in the client.
-            return ORJSONResponse({'success': False, 'data': e}, status_code=400)
+        #Check if the data is valid, if not this will throw an exception and converted into a request by the middleware
+        _ = Measurement(**measurement_data)
 
         coalitions = []
         for coalition in measurement_data['coalitions']:
@@ -585,22 +581,23 @@ async def hog_add(measurements: List[HogMeasurement]):
         del measurement.data
 
         cpu_energy_data = {}
+        energy_impact = round(measurement_data['all_tasks'].get('energy_impact_per_s') * measurement_data['elapsed_ns'] / 1_000_000_000)
         if 'ane_energy' in measurement_data['processor']:
             cpu_energy_data = {
-                'combined_energy': int(measurement_data['processor'].get('combined_power', 0) * measurement_data['elapsed_ns'] / 1_000_000_000.0),
-                'cpu_energy': int(measurement_data['processor'].get('cpu_energy', 0)),
-                'gpu_energy': int(measurement_data['processor'].get('gpu_energy', 0)),
-                'ane_energy': int(measurement_data['processor'].get('ane_energy', 0)),
-                'energy_impact': measurement_data['all_tasks'].get('energy_impact'),
+                'combined_energy': round(measurement_data['processor'].get('combined_power', 0) * measurement_data['elapsed_ns'] / 1_000_000_000.0),
+                'cpu_energy': round(measurement_data['processor'].get('cpu_energy', 0)),
+                'gpu_energy': round(measurement_data['processor'].get('gpu_energy', 0)),
+                'ane_energy': round(measurement_data['processor'].get('ane_energy', 0)),
+                'energy_impact': energy_impact,
             }
         elif 'package_joules' in measurement_data['processor']:
-            # Intel processors report in joules/ watts and not mJ (millijoule)
+            # Intel processors report in joules/ watts and not mJ
             cpu_energy_data = {
-                'combined_energy': int(measurement_data['processor'].get('package_joules', 0) * 1_000),
-                'cpu_energy': int(measurement_data['processor'].get('cpu_joules', 0) * 1_000),
-                'gpu_energy': int(measurement_data['processor'].get('igpu_watts', 0) * measurement_data['elapsed_ns'] / 1_000_000_000.0 * 1_000),
+                'combined_energy': round(measurement_data['processor'].get('package_joules', 0) * 1_000),
+                'cpu_energy': round(measurement_data['processor'].get('cpu_joules', 0) * 1_000),
+                'gpu_energy': round(measurement_data['processor'].get('igpu_watts', 0) * measurement_data['elapsed_ns'] / 1_000_000_000.0 * 1_000),
                 'ane_energy': 0,
-                'energy_impact': measurement_data['all_tasks'].get('energy_impact'),
+                'energy_impact': energy_impact,
             }
         else:
             raise ValidationError("input not valid")
@@ -649,6 +646,9 @@ async def hog_add(measurements: List[HogMeasurement]):
             c_tasks = c['tasks'].copy()
             del c['tasks']
 
+            c_energy_impact = round((c['energy_impact_per_s'] / 1_000_000_000) * measurement_data['elapsed_ns'])
+            c_cputime_ns = ((c['cputime_ms_per_s'] * 1_000_000)  / 1_000_000_000) * measurement_data['elapsed_ns']
+
             query = """
                 INSERT INTO
                     hog_coalitions (
@@ -668,9 +668,9 @@ async def hog_add(measurements: List[HogMeasurement]):
             params = (
                 measurement_db_id,
                 c['name'],
-                c['cputime_ns'],
-                int(c['cputime_ns'] / measurement_data['elapsed_ns'] * 100),
-                c['energy_impact'],
+                c_cputime_ns,
+                int(c_cputime_ns / measurement_data['elapsed_ns'] * 100),
+                c_energy_impact,
                 c['diskio_bytesread'],
                 c['diskio_byteswritten'],
                 c['intr_wakeups'],
@@ -681,6 +681,9 @@ async def hog_add(measurements: List[HogMeasurement]):
             coaltion_db_id = DB().fetch_one(query=query, params=params)[0]
 
             for t in c_tasks:
+                t_energy_impact = round((t['energy_impact_per_s'] / 1_000_000_000) * measurement_data['elapsed_ns'])
+                t_cputime_ns = ((t['cputime_ms_per_s'] * 1_000_000)  / 1_000_000_000) * measurement_data['elapsed_ns']
+
                 query = """
                     INSERT INTO
                         hog_tasks (
@@ -702,9 +705,9 @@ async def hog_add(measurements: List[HogMeasurement]):
                 params = (
                     coaltion_db_id,
                     t['name'],
-                    t['cputime_ns'],
-                    int(t['cputime_ns'] / measurement_data['elapsed_ns'] * 100),
-                    t['energy_impact'],
+                    t_cputime_ns,
+                    int(t_cputime_ns / measurement_data['elapsed_ns'] * 100),
+                    t_energy_impact,
                     t.get('bytes_received', 0),
                     t.get('bytes_sent', 0),
                     t.get('diskio_bytesread', 0),
@@ -724,8 +727,7 @@ async def hog_get_top_processes():
     query = """
         SELECT
             name,
-            (SUM(energy_impact)::bigint) AS total_energy_impact,
-            (AVG(cputime_per)::integer) AS average_cputime_per
+            (SUM(energy_impact)::bigint) AS total_energy_impact
         FROM
             hog_coalitions
         GROUP BY
@@ -735,6 +737,9 @@ async def hog_get_top_processes():
         LIMIT 100;
     """
     data = DB().fetch_all(query)
+
+    if data is None:
+        data = []
 
     query = """
         SELECT COUNT(DISTINCT machine_uuid) FROM hog_measurements;
@@ -773,8 +778,8 @@ async def hog_get_machine_details(machine_uuid: str):
     return ORJSONResponseDecimal({'success': True, 'data': data})
 
 
-@app.get('/v1/hog/coalitions_tasks/{measurements_id_start}/{measurements_id_end}', response_class=ORJSONResponseDecimal)
-async def hog_get_coalitions_tasks(measurements_id_start: int, measurements_id_end: int):
+@app.get('/v1/hog/coalitions_tasks/{machine_uuid}/{measurements_id_start}/{measurements_id_end}', response_class=ORJSONResponseDecimal)
+async def hog_get_coalitions_tasks(machine_uuid: str, measurements_id_start: int, measurements_id_end: int):
 
     if not measurements_id_start or not measurements_id_end:
         return ORJSONResponse({'success': False, 'err': 'hog_measurements_id is empty or malformed'}, status_code=400)
@@ -782,15 +787,19 @@ async def hog_get_coalitions_tasks(measurements_id_start: int, measurements_id_e
     coalitions_query = """
         SELECT
             name,
-            (SUM(energy_impact)::bigint) AS total_energy_impact,
-            (SUM(diskio_bytesread)::bigint) AS total_diskio_bytesread,
-            (SUM(diskio_byteswritten)::bigint) AS total_diskio_byteswritten,
-            (SUM(intr_wakeups)::bigint) AS total_intr_wakeups,
-            (SUM(idle_wakeups)::bigint) AS total_idle_wakeups,
-            (AVG(cputime_per)::integer) AS avg_cpu_per
+            (SUM(hc.energy_impact)::bigint) AS total_energy_impact,
+            (SUM(hc.diskio_bytesread)::bigint) AS total_diskio_bytesread,
+            (SUM(hc.diskio_byteswritten)::bigint) AS total_diskio_byteswritten,
+            (SUM(hc.intr_wakeups)::bigint) AS total_intr_wakeups,
+            (SUM(hc.idle_wakeups)::bigint) AS total_idle_wakeups,
+            (AVG(hc.cputime_per)::integer) AS avg_cpu_per
         FROM
-            hog_coalitions
-        WHERE measurement BETWEEN %s AND %s
+            hog_coalitions AS hc
+        JOIN
+            hog_measurements AS hm ON hc.measurement = hm.id
+        WHERE
+            hc.measurement BETWEEN %s AND %s
+            AND hm.machine_uuid = %s
         GROUP BY
             name
         ORDER BY
@@ -800,24 +809,27 @@ async def hog_get_coalitions_tasks(measurements_id_start: int, measurements_id_e
 
     measurements_query = """
         SELECT
-            (SUM(combined_energy)::bigint),
-            (SUM(cpu_energy)::bigint),
-            (SUM(gpu_energy)::bigint),
-            (SUM(ane_energy)::bigint),
-            (SUM(energy_impact)::bigint)
+            (SUM(combined_energy)::bigint) AS total_combined_energy,
+            (SUM(cpu_energy)::bigint) AS total_cpu_energy,
+            (SUM(gpu_energy)::bigint) AS total_gpu_energy,
+            (SUM(ane_energy)::bigint) AS total_ane_energy,
+            (SUM(energy_impact)::bigint) AS total_energy_impact
         FROM
             hog_measurements
-        WHERE id BETWEEN %s AND %s
+        WHERE
+            id BETWEEN %s AND %s
+            AND machine_uuid = %s
+
     """
 
-    coalitions_data = DB().fetch_all(coalitions_query, (measurements_id_start, measurements_id_end,))
+    coalitions_data = DB().fetch_all(coalitions_query, (measurements_id_start, measurements_id_end, machine_uuid))
 
-    energy_data = DB().fetch_all(measurements_query, (measurements_id_start, measurements_id_end,))[0]
+    energy_data = DB().fetch_one(measurements_query, (measurements_id_start, measurements_id_end, machine_uuid))
 
     return ORJSONResponseDecimal({'success': True, 'data': coalitions_data, 'energy_data': energy_data})
 
-@app.get('/v1/hog/tasks_details/{measurements_id_start}/{measurements_id_end}/{coalition_name}', response_class=ORJSONResponseDecimal)
-async def hog_get_coalitions_tasks(measurements_id_start: int, measurements_id_end: int, coalition_name: str):
+@app.get('/v1/hog/tasks_details/{machine_uuid}/{measurements_id_start}/{measurements_id_end}/{coalition_name}', response_class=ORJSONResponseDecimal)
+async def hog_get_coalitions_tasks(machine_uuid: str, measurements_id_start: int, measurements_id_end: int, coalition_name: str):
 
     if coalition_name is None or not coalition_name.strip():
         return ORJSONResponse({'success': False, 'err': 'coalition_name is empty'}, status_code=400)
@@ -837,9 +849,11 @@ async def hog_get_coalitions_tasks(measurements_id_start: int, measurements_id_e
         FROM
             hog_tasks t
         JOIN hog_coalitions c ON t.coalition = c.id
+        JOIN hog_measurements m ON c.measurement = m.id
         WHERE
             c.name = %s
             AND c.measurement BETWEEN %s AND %s
+            AND m.machine_uuid = %s
         GROUP BY
             t.name
         ORDER BY
@@ -848,26 +862,28 @@ async def hog_get_coalitions_tasks(measurements_id_start: int, measurements_id_e
 
     coalitions_query = """
         SELECT
-            name,
-            (SUM(energy_impact)::bigint) AS total_energy_impact,
-            (SUM(diskio_bytesread)::bigint) AS total_diskio_bytesread,
-            (SUM(diskio_byteswritten)::bigint) AS total_diskio_byteswritten,
-            (SUM(intr_wakeups)::bigint) AS total_intr_wakeups,
-            (SUM(idle_wakeups)::bigint) AS total_idle_wakeups
+            c.name,
+            (SUM(c.energy_impact)::bigint) AS total_energy_impact,
+            (SUM(c.diskio_bytesread)::bigint) AS total_diskio_bytesread,
+            (SUM(c.diskio_byteswritten)::bigint) AS total_diskio_byteswritten,
+            (SUM(c.intr_wakeups)::bigint) AS total_intr_wakeups,
+            (SUM(c.idle_wakeups)::bigint) AS total_idle_wakeups
         FROM
-            hog_coalitions
+            hog_coalitions c
+        JOIN hog_measurements m ON c.measurement = m.id
         WHERE
-            name = %s
-            AND measurement BETWEEN %s AND %s
+            c.name = %s
+            AND c.measurement BETWEEN %s AND %s
+            AND m.machine_uuid = %s
         GROUP BY
-            name
+            c.name
         ORDER BY
             total_energy_impact DESC
         LIMIT 100;
     """
 
-    tasks_data = DB().fetch_all(tasks_query, (coalition_name, measurements_id_start,measurements_id_end,))
-    coalitions_data = DB().fetch_all(coalitions_query, (coalition_name, measurements_id_start, measurements_id_end,))[0]
+    tasks_data = DB().fetch_all(tasks_query, (coalition_name, measurements_id_start,measurements_id_end, machine_uuid))
+    coalitions_data = DB().fetch_one(coalitions_query, (coalition_name, measurements_id_start, measurements_id_end, machine_uuid))
 
     return ORJSONResponseDecimal({'success': True, 'tasks_data': tasks_data, 'coalitions_data': coalitions_data})
 

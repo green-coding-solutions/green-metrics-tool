@@ -23,7 +23,6 @@ $(document).ready(function () {
                         return data;
                     }
                 },
-                { data: 2, title: 'AVG cpu time %', className: "dt-body-right"},
             ],
             deferRender: true,
             order: [] // API determines order
