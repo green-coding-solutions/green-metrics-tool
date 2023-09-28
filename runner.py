@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# We disable naming convention to allow names like p,kv etc. Even if it is not 'allowed' it makes the code more readable
-#pylint: disable=invalid-name
+import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
 
-# As pretty much everything is done in one big flow we trigger all the too-many-* checks. Which normally makes sense
-# but in this case it would make the code a lot more complicated separating this out into loads of sub-functions
-#pylint: disable=too-many-branches,too-many-statements,too-many-arguments,too-many-instance-attributes
-
-# Using a very broad exception makes sense in this case as we have excepted all the specific ones before
-#pylint: disable=broad-except
-
-# I can't make these go away, but the imports all work fine on my system >.<
+from lib.venv_checker import check_venv
+check_venv() # this check must even run before __main__ as imports might not get resolved
 
 import subprocess
 import json
@@ -21,7 +15,6 @@ from datetime import datetime
 from html import escape
 import sys
 import importlib
-import faulthandler
 import re
 from io import StringIO
 from pathlib import Path
@@ -29,7 +22,6 @@ import random
 import shutil
 import yaml
 
-faulthandler.enable()  # will catch segfaults and write to stderr
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -1278,6 +1270,7 @@ class Runner:
             self.custom_sleep(config['measurement']['idle-time-end'])
             self.store_phases()
             self.update_start_and_end_times()
+
         except BaseException as exc:
             self.add_to_log(exc.__class__.__name__, str(exc))
             raise exc
@@ -1399,6 +1392,9 @@ if __name__ == '__main__':
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                     full_docker_prune=args.full_docker_prune, dry_run=args.dry_run,
                     dev_repeat_run=args.dev_repeat_run, docker_prune=args.docker_prune)
+
+    # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
+    #pylint: disable=broad-except
     try:
         successful_run_id = runner.run()  # Start main code
 

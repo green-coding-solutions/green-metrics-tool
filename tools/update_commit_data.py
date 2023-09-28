@@ -1,10 +1,18 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
+
+from lib.venv_checker import check_venv
+check_venv() # this check must even run before __main__ as imports might not get resolved
+
+
 # This script will update the commit_timestamp field in the database
 # for old runs where only the commit_hash field was populated
 import subprocess
-import faulthandler
 from datetime import datetime
 
-faulthandler.enable()  # will catch segfaults and write to STDERR
 
 from lib.db import DB
 

@@ -1,9 +1,15 @@
-import os
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
+
+from lib.venv_checker import check_venv
+check_venv() # this check must even run before __main__ as imports might not get resolved
+
+import os
 import pprint
 from psycopg.rows import dict_row as psycopg_rows_dict_row
-
-faulthandler.enable()  # will catch segfaults and write to STDERR
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 

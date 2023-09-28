@@ -1,6 +1,11 @@
-import faulthandler
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-faulthandler.enable()  # will catch segfaults and write to STDERR
+import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
+
+from lib.venv_checker import check_venv
+check_venv() # this check must even run before __main__ as imports might not get resolved
 
 from lib.db import DB
 

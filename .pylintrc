@@ -29,6 +29,8 @@ disable=missing-function-docstring,
     too-many-instance-attributes,
     invalid-name,
     wrong-import-position,
+    wrong-import-order,
+    ungrouped-imports
 
 [MASTER]
 ignore=env
