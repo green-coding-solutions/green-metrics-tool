@@ -21,17 +21,18 @@
             workflow_name = workflow_id;
         }
 
+        const repo_esc = escapeString(repo);
         // Check if it's a new repository
-        if (currentRepoRow === null || currentRepoRow.repo !== repo) {
+        if (currentRepoRow === null || currentRepoRow.repo !== repo_esc) {
             // Create a row for the repository with an accordion
             currentRepoRow = projectsTableBody.insertRow();
-            currentRepoRow.repo = repo;
+            currentRepoRow.repo = repo_esc;
             currentRepoRow.innerHTML = `
                 <td>
                     <div class="ui accordion" style="width: 100%;">
                         <div class="title">
                             <i class="dropdown icon"></i>
-                            ${getRepoLink(repo, source)}
+                            ${getRepoLink(repo_esc, source)}
                         </div>
                         <div class="content">
                             <table class="ui sortable celled striped table">
@@ -57,11 +58,11 @@
         // Add branch as a row within the accordion content
         const branchRow = content.insertRow();
         branchRow.innerHTML = `
-            <td class="td-index"><a href="/ci.html?repo=${repo}&branch=${branch}&workflow=${workflow_id}">${workflow_name}</a></td>
-            <td>${branch}</td>
+            <td class="td-index"><a href="/ci.html?repo=${repo}&branch=${branch}&workflow=${workflow_id}">${escapeString(workflow_name)}</a></td>
+            <td>${escapeString(branch)}</td>
             <td class="td-index" style="width: 120px">${dateToYMD(new Date(last_run))}</td>
-            <td class="td-index">${workflow_id}</td>
-            <td class="td-index" title="${source}">${source}</td>
+            <td class="td-index">${escapeString(workflow_id)}</td>
+            <td class="td-index" title="${escapeString(source)}">${escapeString(source)}</td>
         `;
     });
 
@@ -80,6 +81,7 @@ function getRepoLink(repo, source) {
         iconClass = 'bitbucket';
     }
 
+    // Assumes the repo var is sanitized before being sent to this function
     return `<i class="icon ${iconClass}"></i>${repo} <a href="${getRepoUri(repo, source)}"><i class="icon external alternate"></i></a>`;
 }
 

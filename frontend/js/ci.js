@@ -217,13 +217,13 @@ const getChartOptions = (measurements, chart_element) => {
     options.tooltip = {
         trigger: 'item',
         formatter: function (params, ticket, callback) {
-            return `<strong>${labels[params.componentIndex].labels[params.dataIndex]}</strong><br>
-                    run_id: ${labels[params.componentIndex].run_id}<br>
+            return `<strong>${escapeString(labels[params.componentIndex].labels[params.dataIndex])}</strong><br>
+                    run_id: ${escapeString(labels[params.componentIndex].run_id)}<br>
                     timestamp: ${labels[params.componentIndex].timestamp}<br>
-                    commit_hash: ${labels[params.componentIndex].commit_hash}<br>
-                    value: ${labels[params.componentIndex].value} ${labels[params.componentIndex].unit}<br>
-                    duration: ${labels[params.componentIndex].duration} seconds<br>
-                    avg. cpu. utilization: ${labels[params.componentIndex].cpu_util}%<br>
+                    commit_hash: ${escapeString(labels[params.componentIndex].commit_hash)}<br>
+                    value: ${escapeString(labels[params.componentIndex].value)} ${escapeString(labels[params.componentIndex].unit)}<br>
+                    duration: ${escapeString(labels[params.componentIndex].duration)} seconds<br>
+                    avg. cpu. utilization: ${escapeString(labels[params.componentIndex].cpu_util)}%<br>
                     `;
         }
     };
@@ -348,10 +348,10 @@ const displayCITable = (measurements, url_params) => {
                             <td class="td-index">${run_link_node}</td>\
                             <td class="td-index">${escapeString(label)}</td>\
                             <td class="td-index"><span title="${escapeString(created_at)}">${dateToYMD(new Date(created_at))}</span></td>\
-                            <td class="td-index">${numberFormatter.format(value)}</td>\
+                            <td class="td-index">${escapeString(numberFormatter.format(value))}</td>\
                             <td class="td-index">${escapeString(cpu)}</td>\
-                            <td class="td-index">${cpu_avg}%</td>
-                            <td class="td-index">${duration} seconds</td>
+                            <td class="td-index">${escapeString(cpu_avg)}%</td>
+                            <td class="td-index">${escapeString(duration)} seconds</td>
                             <td class="td-index" ${escapeString(tooltip)}>${escapeString(short_hash)}</td>\
                             `;
         document.querySelector("#ci-table").appendChild(li_node);
@@ -429,8 +429,8 @@ $(document).ready((e) => {
         const ci_data_node = document.querySelector('#ci-data')
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Repository:</strong></td><td>${repo_link_node}</td></tr>`)
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params.get('branch'))}</td></tr>`)
-        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow ID:</strong></td><td>${workflow_id}</td></tr>`)
-        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${workflow_name}</td></tr>`)
+        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow ID:</strong></td><td>${escapeString(workflow_id)}</td></tr>`)
+        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(workflow_name)}</td></tr>`)
 
         displayCITable(measurements.data, url_params); // Iterates I (total: 1)
         
