@@ -4,9 +4,6 @@
 import faulthandler
 faulthandler.enable()  # will catch segfaults and write to stderr
 
-from lib.venv_checker import check_venv
-check_venv() # this check must even run before __main__ as imports might not get resolved
-
 import os
 import time
 import subprocess
@@ -14,8 +11,6 @@ import subprocess
 from tools.jobs import Job, handle_job_exception
 from lib.global_config import GlobalConfig
 from lib.db import DB
-
-
 
 # We currently have this dynamically as it will probably change quite a bit
 STATUS_LIST = ['job_no', 'job_start', 'job_error', 'job_end', 'cleanup_start', 'cleanup_stop']
