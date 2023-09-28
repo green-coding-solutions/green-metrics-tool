@@ -1,3 +1,8 @@
+const numberFormatter = new Intl.NumberFormat('en-US', {
+  style: 'decimal',
+  maximumFractionDigits: 2,
+});
+
 const calculateStats = (energy_measurements, time_measurements, cpu_util_measurements) => {
     let energyAverage = '--'
     let energyStdDeviation = '--'
@@ -270,16 +275,16 @@ const displayStatsTable = (measurements) => {
 
     full_run_stats_node.innerHTML += `
                             <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)">Full Run <i class="question circle icon small"></i> </td>
-                            <td class="td-index">${formatLongValue(full_run_stats.energy.average)} mJ</td>
-                            <td class="td-index">${formatLongValue(full_run_stats.energy.stdDeviation)} mJ</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.energy.average)} mJ</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.energy.stdDeviation)} mJ</td>
                             <td class="td-index">${full_run_stats.energy.stdDevPercent}%</td>
-                            <td class="td-index">${formatLongValue(full_run_stats.time.average)}s</td>
-                            <td class="td-index">${formatLongValue(full_run_stats.time.stdDeviation)}s</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.time.average)}s</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.time.stdDeviation)}s</td>
                             <td class="td-index">${full_run_stats.time.stdDevPercent}%</td>
-                            <td class="td-index">${formatLongValue(full_run_stats.cpu_util.average)}%</td>
-                            <td class="td-index">${formatLongValue(full_run_stats.energy.total)} mJ</td>
-                            <td class="td-index">${formatLongValue(full_run_stats.time.total)}s</td>
-                            <td class="td-index">${formatLongValue(fullRunArray.count)}</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.cpu_util.average)}%</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.energy.total)} mJ</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.time.total)}s</td>
+                            <td class="td-index">${numberFormatter.format(fullRunArray.count)}</td>
                             `
     tableBody.appendChild(full_run_stats_node);
 
@@ -288,16 +293,16 @@ const displayStatsTable = (measurements) => {
         const label_stats_node = document.createElement("tr")
         label_stats_node.innerHTML += `
                                         <td class="td-index" data-tooltip="stats for the series of steps represented by the ${label} label">${label}</td>
-                                        <td class="td-index">${formatLongValue(label_stats.energy.average)} mJ</td>
-                                        <td class="td-index">${formatLongValue(label_stats.energy.stdDeviation)} mJ</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.energy.average)} mJ</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.energy.stdDeviation)} mJ</td>
                                         <td class="td-index">${label_stats.energy.stdDevPercent}%</td>
-                                        <td class="td-index">${formatLongValue(label_stats.time.average)}s</td>
-                                        <td class="td-index">${formatLongValue(label_stats.time.stdDeviation)}s</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.time.average)}s</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.time.stdDeviation)}s</td>
                                         <td class="td-index">${label_stats.time.stdDevPercent}%</td>
-                                        <td class="td-index">${formatLongValue(label_stats.cpu_util.average)}%</td>
-                                        <td class="td-index">${formatLongValue(label_stats.energy.total)} mJ</td>
-                                        <td class="td-index">${formatLongValue(label_stats.time.total)}s</td>
-                                        <td class="td-index">${formatLongValue(labelsArray[label].count)}</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.cpu_util.average)}%</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.energy.total)} mJ</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.time.total)}s</td>
+                                        <td class="td-index">${numberFormatter.format(labelsArray[label].count)}</td>
                                         `
         document.querySelector("#label-stats-table").appendChild(label_stats_node);
     };
@@ -343,7 +348,7 @@ const displayCITable = (measurements, url_params) => {
                             <td class="td-index">${run_link_node}</td>\
                             <td class="td-index">${escapeString(label)}</td>\
                             <td class="td-index"><span title="${escapeString(created_at)}">${dateToYMD(new Date(created_at))}</span></td>\
-                            <td class="td-index">${formatLongValue(value)}</td>\
+                            <td class="td-index">${numberFormatter.format(value)}</td>\
                             <td class="td-index">${escapeString(cpu)}</td>\
                             <td class="td-index">${cpu_avg}%</td>
                             <td class="td-index">${duration} seconds</td>

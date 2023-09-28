@@ -46,7 +46,3 @@ const rescaleCO2Value = (value,unit) => {
     return [value.toFixed(2) , unit];
 }
 
-// Function to format 1000000 to 1,000,000
-const formatLongValue = (value, delimiter=",") => {
-    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, delimiter);
-}
