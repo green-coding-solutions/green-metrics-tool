@@ -1,7 +1,4 @@
-import os
 import pytest
-
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.db import DB
 
