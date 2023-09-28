@@ -632,11 +632,12 @@ class CI_Measurement(BaseModel):
     cpu: str
     cpu_util_avg: float
     commit_hash: str
-    workflow: str
+    workflow: str   # workflow_id, change when we make API change of workflow_name being mandatory
     run_id: str
     source: str
     label: str
     duration: int
+    workflow_name: str
 
 @app.post('/v1/ci/measurement/add')
 async def post_ci_measurement_add(measurement: CI_Measurement):
@@ -649,7 +650,7 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                     raise RequestValidationError("Unit is unsupported - only mJ currently accepted")
                 continue
 
-            case 'label':  # Optional fields
+            case 'label' | 'workflow_name':  # Optional fields
                 continue
 
             case _:
@@ -663,13 +664,12 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 
     query = """
         INSERT INTO
-            ci_measurements (energy_value, energy_unit, repo, branch, workflow, run_id, label, source, cpu, commit_hash, duration, cpu_util_avg)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ci_measurements (energy_value, energy_unit, repo, branch, workflow_id, run_id, label, source, cpu, commit_hash, duration, cpu_util_avg, workflow_name)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
     params = (measurement.energy_value, measurement.energy_unit, measurement.repo, measurement.branch,
-            measurement.workflow, measurement.run_id,
-            measurement.label, measurement.source, measurement.cpu, measurement.commit_hash,
-            measurement.duration, measurement.cpu_util_avg)
+            measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
+            measurement.commit_hash, measurement.duration, measurement.cpu_util_avg, measurement.workflow_name)
 
     DB().query(query=query, params=params)
     return ORJSONResponse({'success': True}, status_code=201)
@@ -677,24 +677,37 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 @app.get('/v1/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str):
     query = """
-        SELECT energy_value, energy_unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg
+        SELECT energy_value, energy_unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg,
+               (SELECT workflow_name FROM ci_measurements AS latest_workflow
+                WHERE latest_workflow.repo = ci_measurements.repo
+                AND latest_workflow.branch = ci_measurements.branch
+                AND latest_workflow.workflow_id = ci_measurements.workflow_id
+                ORDER BY latest_workflow.created_at DESC
+                LIMIT 1) AS workflow_name
         FROM ci_measurements
-        WHERE repo = %s AND branch = %s AND workflow = %s
+        WHERE repo = %s AND branch = %s AND workflow_id = %s
         ORDER BY run_id ASC, created_at ASC
     """
     params = (repo, branch, workflow)
     data = DB().fetch_all(query, params=params)
+
     if data is None or data == []:
-        return Response(status_code=204) # No-Content
+        return Response(status_code=204)  # No-Content
 
     return ORJSONResponse({'success': True, 'data': data})
 
 @app.get('/v1/ci/projects')
 async def get_ci_projects():
     query = """
-        SELECT repo, branch, workflow, source, MAX(created_at)
+        SELECT repo, branch, workflow_id, source, MAX(created_at),
+                (SELECT workflow_name FROM ci_measurements AS latest_workflow
+                WHERE latest_workflow.repo = ci_measurements.repo
+                AND latest_workflow.branch = ci_measurements.branch
+                AND latest_workflow.workflow_id = ci_measurements.workflow_id
+                ORDER BY latest_workflow.created_at DESC
+                LIMIT 1) AS workflow_name
         FROM ci_measurements
-        GROUP BY repo, branch, workflow, source
+        GROUP BY repo, branch, workflow_id, source
         ORDER BY repo ASC
     """
 
@@ -709,7 +722,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
         SELECT SUM(energy_value), MAX(energy_unit), MAX(run_id)
         FROM ci_measurements
-        WHERE repo = %s AND branch = %s AND workflow = %s
+        WHERE repo = %s AND branch = %s AND workflow_id = %s
         GROUP BY run_id
         ORDER BY MAX(created_at) DESC
         LIMIT 1
