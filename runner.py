@@ -589,7 +589,7 @@ class Runner:
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
-                    raise OSError("Docker build failed")
+                    raise OSError(f"Docker build failed\nStderr: {ps.stderr}\nStdout: {ps.stdout}")
 
                 # import the docker image locally
                 image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{tmp_img_name}.tar"]
