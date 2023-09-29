@@ -102,6 +102,9 @@ runs:
       run: sleep 10s
       shell: bash
         
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@
+      
     - name: Run Tests
       shell: bash
       working-directory: ${{ inputs.tests-directory }}
