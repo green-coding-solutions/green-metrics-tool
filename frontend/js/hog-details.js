@@ -4,8 +4,8 @@ $(document).ready(function () {
     }
 
     (async () => {
-        var mData
-        var machine_uuid = getURLParameter('machine_uuid')
+        let mData
+        const machine_uuid = getURLParameter('machine_uuid')
         try {
 
             var measurements = await makeAPICall(`/v1/hog/machine_details/${machine_uuid}`);

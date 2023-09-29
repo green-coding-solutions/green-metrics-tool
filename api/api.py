@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from starlette.responses import RedirectResponse
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 from typing import List
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
@@ -568,7 +568,10 @@ async def hog_add(measurements: List[HogMeasurement]):
 
         coalitions = []
         for coalition in measurement_data['coalitions']:
-            if coalition['name'] == 'com.googlecode.iterm2' or coalition['name'].strip() == '':
+            if coalition['name'] == 'com.googlecode.iterm2' or \
+                coalition['name'] == 'com.apple.Terminal' or \
+                coalition['name'] == 'com.vix.cron' or \
+                coalition['name'].strip() == '':
                 tmp = coalition['tasks']
                 for t in tmp:
                     t['tasks'] = []
@@ -600,7 +603,7 @@ async def hog_add(measurements: List[HogMeasurement]):
                 'energy_impact': energy_impact,
             }
         else:
-            raise ValidationError("input not valid")
+            raise RequestValidationError("input not valid")
 
         query = """
             INSERT INTO
@@ -781,8 +784,15 @@ async def hog_get_machine_details(machine_uuid: str):
 @app.get('/v1/hog/coalitions_tasks/{machine_uuid}/{measurements_id_start}/{measurements_id_end}', response_class=ORJSONResponseDecimal)
 async def hog_get_coalitions_tasks(machine_uuid: str, measurements_id_start: int, measurements_id_end: int):
 
-    if not measurements_id_start or not measurements_id_end:
-        return ORJSONResponse({'success': False, 'err': 'hog_measurements_id is empty or malformed'}, status_code=400)
+    if machine_uuid is None or not machine_uuid.strip():
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty'}, status_code=400)
+
+    if measurements_id_start is None or not measurements_id_start.strip():
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_start is empty'}, status_code=400)
+
+    if measurements_id_end is None or not measurements_id_end.strip():
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_end is empty'}, status_code=400)
+
 
     coalitions_query = """
         SELECT
@@ -830,6 +840,15 @@ async def hog_get_coalitions_tasks(machine_uuid: str, measurements_id_start: int
 
 @app.get('/v1/hog/tasks_details/{machine_uuid}/{measurements_id_start}/{measurements_id_end}/{coalition_name}', response_class=ORJSONResponseDecimal)
 async def hog_get_coalitions_tasks(machine_uuid: str, measurements_id_start: int, measurements_id_end: int, coalition_name: str):
+
+    if machine_uuid is None or not machine_uuid.strip():
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty'}, status_code=400)
+
+    if measurements_id_start is None or not measurements_id_start.strip():
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_start is empty'}, status_code=400)
+
+    if measurements_id_end is None or not measurements_id_end.strip():
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_end is empty'}, status_code=400)
 
     if coalition_name is None or not coalition_name.strip():
         return ORJSONResponse({'success': False, 'err': 'coalition_name is empty'}, status_code=400)
