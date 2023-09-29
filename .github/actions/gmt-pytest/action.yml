@@ -83,7 +83,7 @@ runs:
         source ../venv/bin/activate
         echo "DMM: DEBUG:"
         echo $VIRTUAL_ENV
-        echo $(find venv -type f -path "*/site-packages/gmt-lib.pth")
+        echo $(find ../venv -type f -path "*/site-packages/gmt-lib.pth")
         echo "DMM"
         ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
 
