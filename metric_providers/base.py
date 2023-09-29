@@ -33,6 +33,7 @@ class BaseMetricProvider:
         self._sudo = sudo
         self._has_started = False
         self._disable_buffer = disable_buffer
+        self._rootless = None
 
         self._tmp_folder = '/tmp/green-metrics-tool'
         self._ps = None
@@ -115,6 +116,10 @@ class BaseMetricProvider:
         if self._metrics.get('container_id') is not None:
             call_string += ' -s '
             call_string += ','.join(containers.keys())
+
+        if self._rootless is True:
+            call_string += ' --rootless '
+
         call_string += f" > {self._filename}"
 
         if self._disable_buffer:

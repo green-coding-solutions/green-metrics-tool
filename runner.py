@@ -482,11 +482,18 @@ class Runner:
             print(TerminalColors.WARNING, arrows('No metric providers were configured in config.yml. Was this intentional?'), TerminalColors.ENDC)
             return
 
-        # will iterate over keys
-        for metric_provider in metric_providers:
+        docker_ps = subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='UTF-8', check=True)
+        rootless = False
+        if 'rootless' in docker_ps.stdout:
+            rootless = True
+
+        for metric_provider in metric_providers: # will iterate over keys
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
             conf = metric_providers[metric_provider] or {}
+
+            if rootless and '.cgroup.' in module_path:
+                conf['rootless'] = True
 
             print(f"Importing {class_name} from {module_path}")
             print(f"Configuration is {conf}")
