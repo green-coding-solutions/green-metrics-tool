@@ -23,8 +23,8 @@ static long int get_memory_cgroup(char* filename) {
 
     FILE * fd = fopen(filename, "r");
     if ( fd == NULL) {
-            fprintf(stderr, "Error - file %s failed to open: errno: %d\n", filename, errno);
-            exit(1);
+        fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Are you using --rootless mode? Errno: %d\n", filename, errno);
+        exit(1);
     }
 
     fscanf(fd, "%ld", &memory);
@@ -33,7 +33,7 @@ static long int get_memory_cgroup(char* filename) {
         return memory;
     }
     else {
-        fprintf(stderr, "Error - memory.current could not be read");
+        fprintf(stderr, "Error - memory.current could not be read or was < 0.");
         fclose(fd);
         exit(1);
     }
@@ -116,6 +116,9 @@ int main(int argc, char **argv) {
             exit(0);
         case 'i':
             msleep_time = atoi(optarg);
+            break;
+        case 'r':
+            rootless_mode = 1;
             break;
         case 's':
             containers_string = (char *)malloc(strlen(optarg) + 1);  // Allocate memory

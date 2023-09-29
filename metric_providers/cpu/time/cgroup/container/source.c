@@ -23,7 +23,11 @@ static unsigned int msleep_time=1000;
 static long int read_cpu_cgroup(char* filename) {
     long int cpu_usage = -1;
     FILE* fd = NULL;
-    fd = fopen(filename, "r"); // check for general readability only once
+    fd = fopen(filename, "r");
+    if ( fd == NULL) {
+        fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Are you using --rootless mode? Errno: %d\n", filename, errno);
+        exit(1);
+    }
     fscanf(fd, "usage_usec %ld", &cpu_usage);
     fclose(fd);
     return cpu_usage;
@@ -115,6 +119,11 @@ int main(int argc, char **argv) {
         case 'i':
             msleep_time = atoi(optarg);
             break;
+        case 'r':
+            rootless_mode = 1;
+            break;
+
+
         case 's':
             containers_string = (char *)malloc(strlen(optarg) + 1);  // Allocate memory
             strncpy(containers_string, optarg, strlen(optarg));

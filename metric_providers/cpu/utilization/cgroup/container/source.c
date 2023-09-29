@@ -48,8 +48,7 @@ static long int get_cpu_stat(char* filename, int mode) {
 
     if ( fd == NULL) {
         fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Are you using --rootless mode? Errno: %d\n", filename, errno);
-
-            exit(1);
+        exit(1);
     }
     if(mode == 1) {
         result = read_cpu_cgroup(fd);

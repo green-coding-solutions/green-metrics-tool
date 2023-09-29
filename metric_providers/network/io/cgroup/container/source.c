@@ -52,14 +52,14 @@ static unsigned long int get_network_cgroup(unsigned int pid) {
 
     int fd_ns = open(ns_path, O_RDONLY);   /* Get descriptor for namespace */
     if (fd_ns == -1) {
-        fprintf(stderr, "open failed");
+        fprintf(stderr, "open namespace failed for pid %u", pid);
         exit(1);
     }
 
     // printf("Entering namespace /proc/%u/ns/net \n", pid);
 
    if (setns(fd_ns, 0) == -1) { // argument 0 means that any type of NS (IPC, Network, UTS) is allowed
-        fprintf(stderr, "setns failed");
+        fprintf(stderr, "setns failed for pid %u", pid);
         exit(1);
     }
 
@@ -68,8 +68,8 @@ static unsigned long int get_network_cgroup(unsigned int pid) {
     // by testing on our machine though ip link also returned significantly smaller values (~50% less)
     FILE * fd = fopen("/proc/net/dev", "r");
     if ( fd == NULL) {
-            fprintf(stderr, "Error - file %s failed to open: errno: %d\n", "/proc/net/dev", errno);
-            exit(1);
+        fprintf(stderr, "Error - file %s failed to open. Is the container still running? Errno: %d\n", "/proc/net/dev", errno);
+        exit(1);
     }
 
     // skip first two lines
@@ -134,6 +134,14 @@ static int parse_containers(container_t** containers, char* containers_string, i
                 "/sys/fs/cgroup/system.slice/docker-%s.scope/cgroup.procs",
                 id);
         }
+        FILE* fd = NULL;
+        fd = fopen((*containers)[length-1].path, "r"); // check for general readability only once
+        if ( fd == NULL) {
+                fprintf(stderr, "Error - cgroup.procs file %s failed to open: errno: %d\n", (*containers)[length-1].path, errno);
+                exit(1);
+        }
+        fscanf(fd, "%u", &(containers[length-1]->pid));
+        fclose(fd);
     }
 
     if(length == 0) {
@@ -172,6 +180,9 @@ int main(int argc, char **argv) {
             exit(0);
         case 'i':
             msleep_time = atoi(optarg);
+            break;
+        case 'r':
+            rootless_mode = 1;
             break;
         case 's':
             containers_string = (char *)malloc(strlen(optarg) + 1);  // Allocate memory
