@@ -16,7 +16,11 @@ from enum import Enum
 import subprocess
 import psutil
 
+from psycopg import OperationalError as psycopg_OperationalError
+
 from lib import utils
+from lib import error_helpers
+from lib.db import DB
 from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
 
@@ -26,6 +30,14 @@ class ConfigurationCheckError(Exception):
     pass
 
 ######## CHECK FUNCTIONS ########
+def check_db():
+    try:
+        DB()
+    except psycopg_OperationalError:
+        error_helpers.log_error('DB is not available. Did you start the docker containers?')
+        os._exit(1)
+    return True
+
 def check_one_psu_provider():
     metric_providers = list(utils.get_metric_providers(GlobalConfig().config).keys())
     if sum(True for provider in metric_providers if ".energy" in provider and ".machine" in provider) > 1:
@@ -76,6 +88,7 @@ def check_docker_daemon():
 ######## END CHECK FUNCTIONS ########
 
 start_checks = [
+    (check_db, Status.ERROR, 'db offline', 'This text will never be triggered, please look in the function itself'),
     (check_one_psu_provider, Status.ERROR, 'single PSU provider', 'Please only select one PSU provider'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
     (check_free_disk_80, Status.INFO, '80% free disk space', 'We recommend to free up some disk space'),
