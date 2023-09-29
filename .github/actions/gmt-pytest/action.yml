@@ -60,7 +60,8 @@ runs:
     - name: Build docker-compose
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/docker
-      run: docker buildx bake --file test-compose.yml --file docker-compose-cache.json
+      # run: docker buildx bake --file test-compose.yml --file docker-compose-cache.json
+      run: docker buildx bake --file test-compose.yml
 
       # the working directory here is explicit, instead of using ${{ inputs.tests-directory }}
       # the reason for this is because ${{ inputs.tests-directory }} is mainly used by Examples Applications repo (which uses this action)
