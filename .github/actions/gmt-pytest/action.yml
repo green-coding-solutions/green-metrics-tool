@@ -24,27 +24,45 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: setup python
+    - name: setup_python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
-        cache: 'pip'
 
-    - name: GMT setup
+    - id: python_cache
+      uses: actions/cache@v3
+      with:
+        path: venv
+        key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}--${{ hashFiles('requirements-dev.txt') }-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}}
+
+    - name: install script
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
         ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -t -w
+
+    - if: steps.python_cache.outputs.cache-hit != 'true'
+      name: install python packages
+      shell: bash
+      working-directory: ${{ inputs.gmt-directory }}
+      run: |
         source venv/bin/activate
         echo "DMM: DEBUG:"
+        echo "DMM: VIRTUAL_ENV:"
         echo $VIRTUAL_ENV
+        echo "DMM: find gmt-lib.pth:"
         echo $(find venv -type f -path "*/site-packages/gmt-lib.pth")
-        echo "DMM"
+        echo "DMM -- END DEBUG"
         pip install -r requirements-dev.txt
         pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
+      
+    - name: disable unneeded metric providers and run test setup script
+      shell: bash
+      working-direcotry: ${{ inputs.gmt-directory }}
+      run: |
+        source venv/bin/activate
         python3 disable_metric_providers.py ${{ inputs.metrics-to-turn-off }}
         cd tests && python3 setup-test-env.py --no-docker-build
-        echo "GMT setup complete"
 
     - name: Set up Docker Buildx
       id: buildx
