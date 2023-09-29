@@ -75,7 +75,7 @@ customElements.define('co2-tangible', CO2Tangible);
 const fillRunData = (run_data, key = null) => {
 
 
-    for (item in run_data) {
+    for (const item in run_data) {
         if (item == 'machine_specs') {
             fillRunTab('#machine-specs', run_data[item]); // recurse
         } else if(item == 'usage_scenario') {
@@ -220,14 +220,14 @@ const displayTimelineCharts = (metrics, notes) => {
     const chart_instances = [];
     const t0 = performance.now();
 
-    for ( metric_name in metrics) {
+    for (const metric_name in metrics) {
 
         const element = createChartContainer("#chart-container", `${METRIC_MAPPINGS[metric_name]['clean_name']} via ${METRIC_MAPPINGS[metric_name]['source']} <i data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
 
         let legend = [];
         let series = [];
 
-        for (detail_name in metrics[metric_name].series) {
+        for (const detail_name in metrics[metric_name].series) {
             legend.push(detail_name)
             series.push({
                 name: detail_name,
@@ -336,7 +336,7 @@ const displayNetworkIntercepts = (network_data) => {
     if (network_data.length === 0) {
         document.querySelector("#network-divider").insertAdjacentHTML('afterEnd', '<p>No external network connections were detected.</p>')
     } else {
-        for (item of network_data) {
+        for (const item of network_data) {
             date = new Date(Number(item[2]));
             date = date.toLocaleString();
             document.querySelector("#network-intercepts").insertAdjacentHTML('beforeend', `<tr><td><strong>${date}</strong></td><td>${item[3]}</td><td>${item[4]}</td></tr>`)

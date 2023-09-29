@@ -124,6 +124,8 @@ class Runner:
         self._architecture = utils.get_architecture()
         self._sci = {'R_d': None, 'R': 0}
         self._job_id = job_id
+        self._arguments = locals()
+        del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
 
         # transient variables that are created by the runner itself
@@ -156,10 +158,10 @@ class Runner:
     def initialize_run(self):
             # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self.__run_id = DB().fetch_one("""
-                INSERT INTO runs (job_id, name, uri, email, branch, created_at)
-                VALUES (%s, %s, %s, 'manual', %s, NOW())
+                INSERT INTO runs (job_id, name, uri, email, branch, runner_arguments, created_at)
+                VALUES (%s, %s, %s, 'manual', %s, %s, NOW())
                 RETURNING id
-                """, params=(self._job_id, self._name, self._uri, self._branch))[0]
+                """, params=(self._job_id, self._name, self._uri, self._branch, json.dumps(self._arguments)))[0]
         return self.__run_id
 
     def initialize_folder(self, path):
@@ -587,7 +589,7 @@ class Runner:
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
-                    raise OSError("Docker build failed")
+                    raise OSError(f"Docker build failed\nStderr: {ps.stderr}\nStdout: {ps.stdout}")
 
                 # import the docker image locally
                 image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{tmp_img_name}.tar"]

@@ -19,18 +19,14 @@ import test_functions as Tests
 config = GlobalConfig(config_name='test-config.yml').config
 API_URL = config['cluster']['api_url']
 
-# import software class from api.py
+# pylint: disable=no-name-in-module
 from api import Software
+from api import CI_Measurement
 
-@pytest.fixture(autouse=True, scope="module", name="register_machine")
+@pytest.fixture(autouse=True, name="register_machine")
 def register_machine_fixture():
-    machine = Machine(machine_id=0, description='test-machine')
+    machine = Machine(machine_id=1, description='test-machine')
     machine.register()
-
-@pytest.fixture(autouse=True, name='cleanup_runs')
-def cleanup_runs_fixture():
-    yield
-    DB().query('DELETE FROM runs')
 
 def get_job_id(run_name):
     query = """
@@ -47,12 +43,40 @@ def get_job_id(run_name):
 
 def test_post_run_add():
     run_name = 'test_' + utils.randomword(12)
-    run = Software(name=run_name, url='testURL', email='testEmail', branch='', filename='', machine_id=0, schedule_mode='one-off')
+    run = Software(name=run_name, url='testURL', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
     response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
     job_id = get_job_id(run_name)
     assert job_id is not None
+
+def test_ci_measurement_add():
+    measurement = CI_Measurement(energy_value=123,
+                        energy_unit='mJ',
+                        repo='testRepo',
+                        branch='testBranch',
+                        cpu='testCPU',
+                        cpu_util_avg=50,
+                        commit_hash='1234asdf',
+                        workflow='testWorkflow',
+                        run_id='testRunID',
+                        source='testSource',
+                        label='testLabel',
+                        duration=20,
+                        workflow_name='testWorkflowName')
+    response = requests.post(f"{API_URL}/v1/ci/measurement/add", json=measurement.model_dump(), timeout=15)
+    assert response.status_code == 201, Tests.assertion_info('success', response.text)
+    query = """
+            SELECT * FROM ci_measurements WHERE run_id = %s
+            """
+    data = DB().fetch_one(query, (measurement.run_id, ), row_factory=psycopg.rows.dict_row)
+    assert data is not None
+    for key in measurement.model_dump().keys():
+        if key == 'workflow':
+            assert data['workflow_id'] == measurement.model_dump()[key], Tests.assertion_info(f"workflow_id: {data['workflow_id']}", measurement.model_dump()[key])
+        else:
+            assert data[key] == measurement.model_dump()[key], Tests.assertion_info(f"{key}: {data[key]}", measurement.model_dump()[key])
+
 
 def todo_test_get_runs():
     run_name = 'test_' + utils.randomword(12)

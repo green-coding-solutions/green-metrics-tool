@@ -20,7 +20,7 @@ $(document).ready(function () {
             const url_link = `${replaceRepoIcon(url)} <a href="${url}"><i class="icon external alternate"></i></a>`;
             chart_node.innerHTML = `
                 <div class="content">
-                    <div class="header">ID #${id} - ${name}</div>
+                    <div class="header">${name}</div>
                     <div class="meta">
                         <span>${url_link}</span>
                     </div>
@@ -32,8 +32,7 @@ $(document).ready(function () {
                     <p><b>Machine: </b>${machine_description}</p>
                     <p><b>Schedule Mode: </b>${schedule_mode}</p>
                     <p><b>Last Run: </b>${last_run == '' ? '-' : dateToYMD(new Date(last_run))}</p>
-                    <h4>Selected Measurement Badges</h4>
-                    <hr>`
+                    `
 
             DEFAULT_ENERGY_TIMELINE_BADGE_METRICS.forEach(metric => {
                 const [metric_name, detail_name] = metric
@@ -48,25 +47,30 @@ $(document).ready(function () {
                                     <i class="question circle icon link"></i>
                                 </i>
                             </div>
-                            <span class="energy-badge-container"><a href="/timeline.html?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}"><img src="${API_URL}/v1/badge/timeline?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}" alt="Image Failed to Load" onerror="this.closest('.field').style.display='none'"></a></span>
+                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}"><img src="${API_URL}/v1/badge/timeline?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}" alt="Image Failed to Load" onerror="this.closest('.field').style.display='none'"></a></span>
                             <a href="#" class="copy-badge"><i class="copy icon"></i></a>
                         </div>
                         </div>
-                        <p></p>`
+                        <p></p><hr>`
             })
 
             chart_node.innerHTML = `${chart_node.innerHTML}
                 </div>
+		<hr>
                 <a class="ui button blue" href="/timeline.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}">
                     Show Timeline <i class="external alternate icon"></i>
                 </a>
                 <hr>
-                <a class="ui button orange" href="/index.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}">
+                <a class="ui button grey" href="/index.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}">
                     Show All Measurements <i class="external alternate icon"></i>
                 </a>`
 
             document.querySelector('#timeline-cards').appendChild(chart_node)
+        });
+        document.querySelectorAll(".copy-badge").forEach(el => {
+            el.addEventListener('click', copyToClipboard)
         })
+
     })();
 });
 

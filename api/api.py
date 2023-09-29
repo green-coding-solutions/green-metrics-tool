@@ -15,7 +15,7 @@ import orjson
 
 from xml.sax.saxutils import escape as xml_escape
 from object_specifications import Measurement
-from fastapi import FastAPI, Request, Response, status
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -23,6 +23,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from starlette.responses import RedirectResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
 from pydantic import BaseModel
 from typing import List
 
@@ -78,6 +80,14 @@ async def log_exception(request: Request, body, exc):
     """
     error_helpers.log_error(error_message)
 
+    # This saves us from crawler requests to the IP directly, or to our DNS reverse PTR etc.
+    # which would create email noise
+    request_url = str(request.url).replace('https://', '').replace('http://', '')
+    api_url = GlobalConfig().config['cluster']['api_url'].replace('https://', '').replace('http://', '')
+
+    if not request_url.startswith(api_url):
+        return
+
     if GlobalConfig().config['admin']['no_emails'] is False:
         email_helpers.send_error_email(
             GlobalConfig().config['admin']['email'],
@@ -89,8 +99,16 @@ async def log_exception(request: Request, body, exc):
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     await log_exception(request, exc.body, exc)
     return ORJSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=jsonable_encoder({"detail": exc.errors(), "body": exc.body}),
+        status_code=422, # HTTP_422_UNPROCESSABLE_ENTITY
+        content=jsonable_encoder({'success': False, 'err': exc.errors(), 'body': exc.body}),
+    )
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request, exc):
+    await log_exception(request, exc.detail, exc)
+    return ORJSONResponse(
+        status_code=exc.status_code,
+        content=jsonable_encoder({'success': False, 'err': exc.detail}),
     )
 
 async def catch_exceptions_middleware(request: Request, call_next):
@@ -138,7 +156,7 @@ async def home():
 @app.get('/v1/notes/{run_id}')
 async def get_notes(run_id):
     if run_id is None or not is_valid_uuid(run_id):
-        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
 
     query = """
             SELECT run_id, detail_name, note, time
@@ -156,7 +174,7 @@ async def get_notes(run_id):
 @app.get('/v1/network/{run_id}')
 async def get_network(run_id):
     if run_id is None or not is_valid_uuid(run_id):
-        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
 
     query = """
             SELECT *
@@ -276,15 +294,15 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
 @app.get('/v1/compare')
 async def compare_in_repo(ids: str):
     if ids is None or not ids.strip():
-        return ORJSONResponse({'success': False, 'err': 'run_id is empty'}, status_code=400)
+        raise RequestValidationError('run_id is empty')
     ids = ids.split(',')
     if not all(is_valid_uuid(id) for id in ids):
-        return ORJSONResponse({'success': False, 'err': 'One of Run IDs is not a valid UUID or empty'}, status_code=400)
+        raise RequestValidationError('One of Run IDs is not a valid UUID or empty')
 
     try:
         case = determine_comparison_case(ids)
     except RuntimeError as err:
-        return ORJSONResponse({'success': False, 'err': str(err)}, status_code=400)
+        raise RequestValidationError(str(err)) from err
     try:
         phase_stats = get_phase_stats(ids)
     except RuntimeError:
@@ -346,7 +364,7 @@ async def compare_in_repo(ids: str):
                 phase_stats_object['common_info']['Machine'] = machine
 
     except RuntimeError as err:
-        return ORJSONResponse({'success': False, 'err': str(err)}, status_code=500)
+        raise RequestValidationError(str(err)) from err
 
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
@@ -354,7 +372,7 @@ async def compare_in_repo(ids: str):
 @app.get('/v1/phase_stats/single/{run_id}')
 async def get_phase_stats_single(run_id: str):
     if run_id is None or not is_valid_uuid(run_id):
-        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
 
     try:
         phase_stats = get_phase_stats([run_id])
@@ -371,7 +389,7 @@ async def get_phase_stats_single(run_id: str):
 @app.get('/v1/measurements/single/{run_id}')
 async def get_measurements_single(run_id: str):
     if run_id is None or not is_valid_uuid(run_id):
-        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
 
     query = """
             SELECT measurements.detail_name, measurements.time, measurements.metric,
@@ -396,7 +414,10 @@ async def get_measurements_single(run_id: str):
 @app.get('/v1/timeline')
 async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, start_date: str | None = None, end_date: str | None = None, metrics: str | None = None, phase: str | None = None, sorting: str | None = None,):
     if uri is None or uri.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'URI is empty'}, status_code=400)
+        raise RequestValidationError('URI is empty')
+
+    if phase is None or phase.strip() == '':
+        raise RequestValidationError('Phase is empty')
 
     query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_date=start_date, end_date=end_date, sorting=sorting)
 
@@ -410,10 +431,10 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
 @app.get('/v1/badge/timeline')
 async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, metrics: str | None = None):
     if uri is None or uri.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'URI is empty'}, status_code=400)
+        raise RequestValidationError('URI is empty')
 
     if detail_name is None or detail_name.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'Detail Name is mandatory'}, status_code=400)
+        raise RequestValidationError('Detail Name is mandatory')
 
     query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, '[RUNTIME]', detail_name=detail_name, limit_365=True)
 
@@ -449,7 +470,7 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
 async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
 
     if run_id is None or not is_valid_uuid(run_id):
-        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
 
     query = '''
         SELECT
@@ -478,7 +499,7 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
         label = 'SCI'
         value = 'software_carbon_intensity_global'
     else:
-        return ORJSONResponse({'success': False, 'err': f"Unknown metric '{metric}' submitted"}, status_code=400)
+        raise RequestValidationError(f"Unknown metric '{metric}' submitted")
 
     params = (run_id, value)
     data = DB().fetch_one(query, params=params)
@@ -925,20 +946,20 @@ async def software_add(software: Software):
     software = html_escape_multi(software)
 
     if software.name is None or software.name.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'Name is empty'}, status_code=400)
+        raise RequestValidationError('Name is empty')
 
     # Note that we use uri as the general identifier, however when adding through web interface we only allow urls
     if software.url is None or software.url.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'URL is empty'}, status_code=400)
+        raise RequestValidationError('URL is empty')
 
     if software.name is None or software.name.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'Name is empty'}, status_code=400)
+        raise RequestValidationError('Name is empty')
 
     if software.email is None or software.email.strip() == '':
-        return ORJSONResponse({'success': False, 'err': 'E-mail is empty'}, status_code=400)
+        raise RequestValidationError('E-mail is empty')
 
     if not DB().fetch_one('SELECT id FROM machines WHERE id=%s AND available=TRUE', params=(software.machine_id,)):
-        return ORJSONResponse({'success': False, 'err': 'Machine does not exist'}, status_code=400)
+        raise RequestValidationError('Machine does not exist')
 
 
     if software.branch.strip() == '':
@@ -948,7 +969,7 @@ async def software_add(software: Software):
         software.filename = 'usage_scenario.yml'
 
     if software.schedule_mode not in ['one-off', 'time', 'commit', 'variance']:
-        return ORJSONResponse({'success': False, 'err': f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown."}, status_code=400)
+        raise RequestValidationError(f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")
 
     # notify admin of new add
     if GlobalConfig().config['admin']['no_emails'] is False:
@@ -968,7 +989,7 @@ async def software_add(software: Software):
 @app.get('/v1/run/{run_id}')
 async def get_run(run_id: str):
     if run_id is None or not is_valid_uuid(run_id):
-        return ORJSONResponse({'success': False, 'err': 'Run ID is not a valid UUID or empty'}, status_code=400)
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
 
     data = get_run_info(run_id)
 
@@ -995,52 +1016,44 @@ class CI_Measurement(BaseModel):
     cpu: str
     cpu_util_avg: float
     commit_hash: str
-    workflow: str
+    workflow: str   # workflow_id, change when we make API change of workflow_name being mandatory
     run_id: str
     source: str
     label: str
     duration: int
+    workflow_name: str
 
 @app.post('/v1/ci/measurement/add')
 async def post_ci_measurement_add(measurement: CI_Measurement):
     for key, value in measurement.model_dump().items():
         match key:
-            case 'run_id':
-                if value is None or value.strip() == '':
-                    measurement.run_id = None
-                    continue
-                if not is_valid_uuid(value.strip()):
-                    return ORJSONResponse({'success': False, 'err': f"run_id '{value}' is not a valid uuid"}, status_code=400)
-                continue
-
             case 'unit':
                 if value is None or value.strip() == '':
-                    return ORJSONResponse({'success': False, 'err': f"{key} is empty"}, status_code=400)
+                    raise RequestValidationError(f"{key} is empty")
                 if value != 'mJ':
-                    return ORJSONResponse({'success': False, 'err': "Unit is unsupported - only mJ currently accepted"}, status_code=400)
+                    raise RequestValidationError("Unit is unsupported - only mJ currently accepted")
                 continue
 
-            case 'label':  # Optional fields
+            case 'label' | 'workflow_name':  # Optional fields
                 continue
 
             case _:
                 if value is None:
-                    return ORJSONResponse({'success': False, 'err': f"{key} is empty"}, status_code=400)
+                    raise RequestValidationError(f"{key} is empty")
                 if isinstance(value, str):
                     if value.strip() == '':
-                        return ORJSONResponse({'success': False, 'err': f"{key} is empty"}, status_code=400)
+                        raise RequestValidationError(f"{key} is empty")
 
     measurement = html_escape_multi(measurement)
 
     query = """
         INSERT INTO
-            ci_measurements (energy_value, energy_unit, repo, branch, workflow, run_id, label, source, cpu, commit_hash, duration, cpu_util_avg)
+            ci_measurements (energy_value, energy_unit, repo, branch, workflow_id, run_id, label, source, cpu, commit_hash, duration, cpu_util_avg, workflow_name)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
     params = (measurement.energy_value, measurement.energy_unit, measurement.repo, measurement.branch,
-            measurement.workflow, measurement.run_id,
-            measurement.label, measurement.source, measurement.cpu, measurement.commit_hash,
-            measurement.duration, measurement.cpu_util_avg)
+            measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
+            measurement.commit_hash, measurement.duration, measurement.cpu_util_avg, measurement.workflow_name)
 
     DB().query(query=query, params=params)
     return ORJSONResponse({'success': True}, status_code=201)
@@ -1048,24 +1061,37 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 @app.get('/v1/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str):
     query = """
-        SELECT energy_value, energy_unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg
+        SELECT energy_value, energy_unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg,
+               (SELECT workflow_name FROM ci_measurements AS latest_workflow
+                WHERE latest_workflow.repo = ci_measurements.repo
+                AND latest_workflow.branch = ci_measurements.branch
+                AND latest_workflow.workflow_id = ci_measurements.workflow_id
+                ORDER BY latest_workflow.created_at DESC
+                LIMIT 1) AS workflow_name
         FROM ci_measurements
-        WHERE repo = %s AND branch = %s AND workflow = %s
+        WHERE repo = %s AND branch = %s AND workflow_id = %s
         ORDER BY run_id ASC, created_at ASC
     """
     params = (repo, branch, workflow)
     data = DB().fetch_all(query, params=params)
+
     if data is None or data == []:
-        return Response(status_code=204) # No-Content
+        return Response(status_code=204)  # No-Content
 
     return ORJSONResponse({'success': True, 'data': data})
 
 @app.get('/v1/ci/projects')
 async def get_ci_projects():
     query = """
-        SELECT repo, branch, workflow, source, MAX(created_at)
+        SELECT repo, branch, workflow_id, source, MAX(created_at),
+                (SELECT workflow_name FROM ci_measurements AS latest_workflow
+                WHERE latest_workflow.repo = ci_measurements.repo
+                AND latest_workflow.branch = ci_measurements.branch
+                AND latest_workflow.workflow_id = ci_measurements.workflow_id
+                ORDER BY latest_workflow.created_at DESC
+                LIMIT 1) AS workflow_name
         FROM ci_measurements
-        GROUP BY repo, branch, workflow, source
+        GROUP BY repo, branch, workflow_id, source
         ORDER BY repo ASC
     """
 
@@ -1080,7 +1106,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
         SELECT SUM(energy_value), MAX(energy_unit), MAX(run_id)
         FROM ci_measurements
-        WHERE repo = %s AND branch = %s AND workflow = %s
+        WHERE repo = %s AND branch = %s AND workflow_id = %s
         GROUP BY run_id
         ORDER BY MAX(created_at) DESC
         LIMIT 1
