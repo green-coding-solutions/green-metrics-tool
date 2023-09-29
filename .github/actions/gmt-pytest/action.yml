@@ -80,15 +80,15 @@ runs:
       shell: bash
       working-directory: ${{ inputs.tests-directory }}
       run: |
-        echo "DMM: inputs.tests-directory:"
-        echo ${{ inputs.tests-directory }}
+        echo "DMM: current location:"
+        pwd
         echo "DMM: DEBUG:"
         echo "DMM: Before source:"
         python -c "import sys; print(sys.executable, '\n', sys.path)"
         echo $VIRTUAL_ENV
         source ../venv/bin/activate
         echo "DMM: After source:"
-        echo "DMM: python -c "import sys command:"
+        echo "DMM: python import sys command:"
         python -c "import sys; print(sys.executable, '\n', sys.path)"
         echo "DMM: VIRTUAL_ENV:"
         echo $VIRTUAL_ENV
@@ -96,6 +96,8 @@ runs:
         echo $(find ../venv -type f -path "*/site-packages/gmt-lib.pth")
         echo "DMM: cat gmt-lib.pth:"
         cat ../venv/lib/python3.10/site-packages/gmt-lib.pth
+        echo "DMM: which pytest"
+        which pytest
         echo "DMM"
         ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
 
