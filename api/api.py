@@ -1021,7 +1021,7 @@ class CI_Measurement(BaseModel):
     source: str
     label: str
     duration: int
-    workflow_name: str
+    workflow_name: str = None
 
 @app.post('/v1/ci/measurement/add')
 async def post_ci_measurement_add(measurement: CI_Measurement):
