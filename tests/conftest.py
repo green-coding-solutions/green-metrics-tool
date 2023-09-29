@@ -10,7 +10,6 @@ from lib.db import DB
 from lib.global_config import GlobalConfig
 GlobalConfig().override_config(config_name='test-config.yml')
 
-#pylint: disable=undefined-variable
 def pytest_collection_modifyitems(items):
     for item in items:
         if item.fspath.basename == 'test_functions.py':
