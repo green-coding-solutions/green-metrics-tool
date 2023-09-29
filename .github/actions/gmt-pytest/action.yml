@@ -80,7 +80,12 @@ runs:
       shell: bash
       working-directory: ${{ inputs.tests-directory }}
       run: |
-        source ../venv/bin/activate && ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
+        source ../venv/bin/activate
+        echo "DMM: DEBUG:"
+        echo $VIRTUAL_ENV
+        echo $(find venv -type f -path "*/site-packages/gmt-lib.pth")
+        echo "DMM"
+        ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
 
     - name: Display Results
       shell: bash
