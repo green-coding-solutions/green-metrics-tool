@@ -58,7 +58,7 @@ runs:
       
     - name: disable unneeded metric providers and run test setup script
       shell: bash
-      working-direcotry: ${{ inputs.gmt-directory }}
+      working-directory: ${{ inputs.gmt-directory }}
       run: |
         source venv/bin/activate
         python3 disable_metric_providers.py ${{ inputs.metrics-to-turn-off }}
