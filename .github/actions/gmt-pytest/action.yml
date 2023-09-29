@@ -116,7 +116,9 @@ runs:
         cat ../venv/lib/python3.10/site-packages/gmt-lib.pth
         echo "DMM: which pytest"
         which pytest
-        echo "DMM"
+        echo "DMM: ls -l of venv bin"
+        ls -l $VIRTUAL_ENV/bin
+        echo "DMM: END DEBUG"
         ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
 
     - name: Display Results
