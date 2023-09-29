@@ -75,6 +75,8 @@ runs:
       shell: bash
       working-directory: ${{ inputs.tests-directory }}
       run: |
+        cat ../test-config.yml
+        echo $(cat ../test-config.yml)
         ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
 
     - name: Display Results
