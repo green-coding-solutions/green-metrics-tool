@@ -40,7 +40,13 @@ runs:
       working-directory: ${{ inputs.gmt-directory }}
       run: |
         ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -t
-
+        echo "DMM: DEBUG:"
+        echo "DMM: VIRTUAL_ENV:"
+        echo $VIRTUAL_ENV
+        echo "DMM: find gmt-lib.pth:"
+        echo $(find venv -type f -path "*/site-packages/gmt-lib.pth")
+        echo "DMM -- END DEBUG"
+        
     - if: steps.python_cache.outputs.cache-hit != 'true'
       name: install python packages
       shell: bash
@@ -54,9 +60,9 @@ runs:
         echo $(find venv -type f -path "*/site-packages/gmt-lib.pth")
         echo "DMM -- END DEBUG"
         python3 -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
-        pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
+        python3 -m pip install -r requirements.txt
+        python3 -m pip install -r requirements-dev.txt
+        python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
       
     - name: disable unneeded metric providers and run test setup script
       shell: bash
@@ -116,10 +122,10 @@ runs:
         echo $(find ../venv -type f -path "*/site-packages/gmt-lib.pth")
         echo "DMM: cat gmt-lib.pth:"
         cat ../venv/lib/python3.10/site-packages/gmt-lib.pth
-        echo "DMM: which pytest"
-        which pytest
         echo "DMM: ls -l of venv bin"
         ls -l $VIRTUAL_ENV/bin
+        echo "DMM: which pytest"
+        which pytest
         echo "DMM: END DEBUG"
         ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
 
