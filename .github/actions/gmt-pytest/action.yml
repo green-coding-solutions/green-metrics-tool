@@ -65,28 +65,12 @@ runs:
       # the working directory here is explicit, instead of using ${{ inputs.tests-directory }}
       # the reason for this is because ${{ inputs.tests-directory }} is mainly used by Examples Applications repo (which uses this action)
       # to run their tests, but they still need the GMT containers running
-    - name: Debug
-      shell: bash
-      working-directory: ${{ inputs.gmt-directory }}
-      run: |
-        echo "DMM: DEBUG2:"
-        echo $VIRTUAL_ENV
-        echo $(find venv -type f -path "*/site-packages/gmt-lib.pth")
-        echo "DMM"
 
     - name: Start Test container
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/tests
       run: |
-        echo "DMM: VIRTUAL_ENV:"
-        echo $VIRTUAL_ENV
-        echo "DMM: find gmt-lib.pth:"
-        echo $(find ../venv -type f -path "*/site-packages/gmt-lib.pth")
-        echo "DMM: Activate venv again"
-        source ../venv/bin/activate
-        echo "DMM: VIRTUAL_ENV:"
-        echo $VIRTUAL_ENV
-        ./start-test-containers.sh -d
+        source ../venv/bin/activate && ./start-test-containers.sh -d
    
     - name: Sleep for 10 seconds
       run: sleep 10s
@@ -96,8 +80,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.tests-directory }}
       run: |
-        source ../venv/bin/activate
-        ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
+        source ../venv/bin/activate && ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
 
     - name: Display Results
       shell: bash
