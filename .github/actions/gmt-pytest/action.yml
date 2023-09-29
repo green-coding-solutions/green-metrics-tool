@@ -103,7 +103,7 @@ runs:
       shell: bash
         
     - name: Setup upterm session
-      uses: lhotari/action-upterm@1
+      uses: lhotari/action-upterm@v1
 
     - name: Run Tests
       shell: bash
