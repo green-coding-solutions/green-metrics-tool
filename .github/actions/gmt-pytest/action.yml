@@ -36,6 +36,10 @@ runs:
       run: |
         ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -t -w
         source venv/bin/activate
+        echo "DMM: DEBUG:"
+        echo $VIRTUAL_ENV
+        echo $(find venv -type f -path "*/site-packages/gmt-lib.pth")
+        echo "DMM"
         pip install -r requirements-dev.txt
         pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
         python3 disable_metric_providers.py ${{ inputs.metrics-to-turn-off }}
