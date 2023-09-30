@@ -1,20 +1,17 @@
-
-# pylint: disable=import-error
-# pylint: disable=no-name-in-module
-# pylint: disable=wrong-import-position
-
 import faulthandler
-import sys
-import os
+
+# It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
+# Is the redundant call problematic
+faulthandler.enable()  # will catch segfaults and write to STDERR
+
 import zlib
 import base64
 import json
 from decimal import Decimal
-
+from typing import List
+from xml.sax.saxutils import escape as xml_escape
 import orjson
 
-from xml.sax.saxutils import escape as xml_escape
-from object_specifications import Measurement
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -26,26 +23,22 @@ from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from pydantic import BaseModel
-from typing import List
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
-
-from global_config import GlobalConfig
-from db import DB
-from jobs import Job
-from timeline_projects import TimelineProject
-import email_helpers
-import error_helpers
 import anybadge
-from api_helpers import (add_phase_stats_statistics, determine_comparison_case,
+
+from api.object_specifications import Measurement
+from api.api_helpers import (add_phase_stats_statistics, determine_comparison_case,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value, get_timeline_query,
                          get_run_info, get_machine_list)
 
-# It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
-# Is the redundant call problematic
-faulthandler.enable()  # will catch segfaults and write to STDERR
+from lib.global_config import GlobalConfig
+from lib.db import DB
+from lib import email_helpers
+from lib import error_helpers
+from tools.jobs import Job
+from tools.timeline_projects import TimelineProject
+
 
 app = FastAPI()
 
@@ -594,8 +587,8 @@ async def hog_add(measurements: List[HogMeasurement]):
                 coalition['name'] == 'com.vix.cron' or \
                 coalition['name'].strip() == '':
                 tmp = coalition['tasks']
-                for t in tmp:
-                    t['tasks'] = []
+                for tmp_el in tmp:
+                    tmp_el['tasks'] = []
                 coalitions.extend(tmp)
             else:
                 coalitions.append(coalition)
@@ -661,17 +654,17 @@ async def hog_add(measurements: List[HogMeasurement]):
 
 
         # Save hog_measurements
-        for c in coalitions:
+        for coalition in coalitions:
 
-            if c['energy_impact'] < 1.0:
+            if coalition['energy_impact'] < 1.0:
                 # If the energy_impact is too small we just skip the coalition.
                 continue
 
-            c_tasks = c['tasks'].copy()
-            del c['tasks']
+            c_tasks = coalition['tasks'].copy()
+            del coalition['tasks']
 
-            c_energy_impact = round((c['energy_impact_per_s'] / 1_000_000_000) * measurement_data['elapsed_ns'])
-            c_cputime_ns = ((c['cputime_ms_per_s'] * 1_000_000)  / 1_000_000_000) * measurement_data['elapsed_ns']
+            c_energy_impact = round((coalition['energy_impact_per_s'] / 1_000_000_000) * measurement_data['elapsed_ns'])
+            c_cputime_ns = ((coalition['cputime_ms_per_s'] * 1_000_000)  / 1_000_000_000) * measurement_data['elapsed_ns']
 
             query = """
                 INSERT INTO
@@ -691,22 +684,22 @@ async def hog_add(measurements: List[HogMeasurement]):
                 """
             params = (
                 measurement_db_id,
-                c['name'],
+                coalition['name'],
                 c_cputime_ns,
                 int(c_cputime_ns / measurement_data['elapsed_ns'] * 100),
                 c_energy_impact,
-                c['diskio_bytesread'],
-                c['diskio_byteswritten'],
-                c['intr_wakeups'],
-                c['idle_wakeups'],
-                json.dumps(c)
+                coalition['diskio_bytesread'],
+                coalition['diskio_byteswritten'],
+                coalition['intr_wakeups'],
+                coalition['idle_wakeups'],
+                json.dumps(coalition)
             )
 
             coaltion_db_id = DB().fetch_one(query=query, params=params)[0]
 
-            for t in c_tasks:
-                t_energy_impact = round((t['energy_impact_per_s'] / 1_000_000_000) * measurement_data['elapsed_ns'])
-                t_cputime_ns = ((t['cputime_ms_per_s'] * 1_000_000)  / 1_000_000_000) * measurement_data['elapsed_ns']
+            for task in c_tasks:
+                t_energy_impact = round((task['energy_impact_per_s'] / 1_000_000_000) * measurement_data['elapsed_ns'])
+                t_cputime_ns = ((task['cputime_ms_per_s'] * 1_000_000)  / 1_000_000_000) * measurement_data['elapsed_ns']
 
                 query = """
                     INSERT INTO
@@ -728,17 +721,17 @@ async def hog_add(measurements: List[HogMeasurement]):
                     """
                 params = (
                     coaltion_db_id,
-                    t['name'],
+                    task['name'],
                     t_cputime_ns,
                     int(t_cputime_ns / measurement_data['elapsed_ns'] * 100),
                     t_energy_impact,
-                    t.get('bytes_received', 0),
-                    t.get('bytes_sent', 0),
-                    t.get('diskio_bytesread', 0),
-                    t.get('diskio_byteswritten', 0),
-                    t.get('intr_wakeups', 0),
-                    t.get('idle_wakeups', 0),
-                    json.dumps(t)
+                    task.get('bytes_received', 0),
+                    task.get('bytes_sent', 0),
+                    task.get('diskio_bytesread', 0),
+                    task.get('diskio_byteswritten', 0),
+                    task.get('intr_wakeups', 0),
+                    task.get('idle_wakeups', 0),
+                    json.dumps(task)
 
                 )
                 DB().fetch_one(query=query, params=params)
@@ -860,7 +853,7 @@ async def hog_get_coalitions_tasks(machine_uuid: str, measurements_id_start: int
     return ORJSONResponseDecimal({'success': True, 'data': coalitions_data, 'energy_data': energy_data})
 
 @app.get('/v1/hog/tasks_details/{machine_uuid}/{measurements_id_start}/{measurements_id_end}/{coalition_name}', response_class=ORJSONResponseDecimal)
-async def hog_get_coalitions_tasks(machine_uuid: str, measurements_id_start: int, measurements_id_end: int, coalition_name: str):
+async def hog_get_task_details(machine_uuid: str, measurements_id_start: int, measurements_id_end: int, coalition_name: str):
 
     if machine_uuid is None or not is_valid_uuid(machine_uuid):
         return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty'}, status_code=400)

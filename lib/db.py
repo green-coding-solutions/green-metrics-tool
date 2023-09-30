@@ -1,5 +1,6 @@
 import psycopg
-from global_config import GlobalConfig
+
+from lib.global_config import GlobalConfig
 
 class DB:
 

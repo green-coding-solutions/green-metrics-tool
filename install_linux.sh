@@ -123,6 +123,13 @@ while IFS= read -r subdir; do
     fi
 done
 
+print_message "Setting up python venv"
+python3 -m venv venv
+source venv/bin/activate
+
+print_message "Setting GMT in include path for python via .pth file"
+find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
+
 print_message "Building sgx binaries"
 make -C lib/sgx-software-enable
 mv lib/sgx-software-enable/sgx_enable tools/
@@ -180,6 +187,7 @@ fi
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
+echo -e "Please remember to always activate your venv when using the GMT with 'source venv/bin/activate'"
 
 if $reboot_echo_flag; then
     echo -e "${GREEN}If you have newly requested to mount /tmp as tmpfs please reboot your system now.${NC}"

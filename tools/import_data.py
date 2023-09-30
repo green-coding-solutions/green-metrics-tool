@@ -1,10 +1,8 @@
-#pylint: disable=import-error,wrong-import-position
+import faulthandler
 
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
+faulthandler.enable()  # will catch segfaults and write to STDERR
 
-from db import DB
+from lib.db import DB
 
 if __name__ == '__main__':
     import argparse

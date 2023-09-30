@@ -1,11 +1,9 @@
-#pylint: disable=no-member
-#pylint: disable=invalid-name
 import random
 import string
 import subprocess
 import psycopg
 
-from db import DB
+from lib.db import DB
 
 def randomword(length):
     letters = string.ascii_lowercase

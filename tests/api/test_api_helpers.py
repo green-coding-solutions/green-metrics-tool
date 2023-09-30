@@ -1,13 +1,6 @@
-#pylint: disable=wrong-import-position,import-error,invalid-name
-import os
-import sys
-
 from pydantic import BaseModel
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{current_dir}/../../api")
-
-import api_helpers
+from api import api_helpers
 
 class Run(BaseModel):
     name: str

@@ -15,9 +15,9 @@ import os
 from enum import Enum
 import subprocess
 import psutil
-import utils
 
-from global_config import GlobalConfig
+from lib import utils
+from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
 
 Status = Enum('Status', ['ERROR', 'INFO', 'WARN'])

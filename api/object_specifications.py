@@ -1,5 +1,5 @@
-from pydantic import BaseModel
 from typing import List, Dict, Optional
+from pydantic import BaseModel
 
 class Task(BaseModel):
     # We need to set the optional to a value as otherwise the key is required in the input

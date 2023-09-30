@@ -12,7 +12,6 @@
 #pylint: disable=broad-except
 
 # I can't make these go away, but the imports all work fine on my system >.<
-#pylint: disable=wrong-import-position, import-error
 
 import subprocess
 import json
@@ -33,22 +32,21 @@ import yaml
 faulthandler.enable()  # will catch segfaults and write to stderr
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/lib")
-sys.path.append(f"{CURRENT_DIR}/tools")
 
-from debug_helper import DebugHelper
-from terminal_colors import TerminalColors
-from schema_checker import SchemaChecker
-import process_helpers
-import hardware_info
-import hardware_info_root
-import error_helpers
-from machine import Machine
-from db import DB
-from global_config import GlobalConfig
-import utils
-from notes import Notes
+from lib import utils
+from lib import process_helpers
+from lib import hardware_info
+from lib import hardware_info_root
+from lib import error_helpers
+from lib.debug_helper import DebugHelper
+from lib.terminal_colors import TerminalColors
+from lib.schema_checker import SchemaChecker
+from lib.db import DB
+from lib.global_config import GlobalConfig
+from lib.notes import Notes
 from lib import system_checks
+
+from tools.machine import Machine
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -1413,7 +1411,7 @@ if __name__ == '__main__':
 
         # get all the metrics from the measurements table grouped by metric
         # loop over them issueing separate queries to the DB
-        from phase_stats import build_and_store_phase_stats
+        from tools.phase_stats import build_and_store_phase_stats
 
         print("Run id is", successful_run_id)
         build_and_store_phase_stats(successful_run_id, runner._sci)

@@ -1,5 +1,3 @@
-# pylint: disable=no-member,consider-using-with,subprocess-popen-preexec-fn,import-error,too-many-instance-attributes,too-many-arguments
-
 import os
 from pathlib import Path
 import subprocess
@@ -52,7 +50,7 @@ class BaseMetricProvider:
     def has_started(self):
         return self._has_started
 
-    def read_metrics(self, run_id, containers):
+    def read_metrics(self, run_id, containers=None):
         with open(self._filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
 
@@ -118,6 +116,7 @@ class BaseMetricProvider:
 
         print(call_string)
 
+        #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
         self._ps = subprocess.Popen(
             [call_string],
             shell=True,

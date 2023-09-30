@@ -1,9 +1,7 @@
-#pylint: disable=import-error,wrong-import-position
-
 from html import escape
 from re import fullmatch
 
-from db import DB
+from lib.db import DB
 
 class Notes():
 
