@@ -11,7 +11,7 @@ from decimal import Decimal
 from typing import List
 from xml.sax.saxutils import escape as xml_escape
 import orjson
-
+import math
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -569,6 +569,24 @@ class HogMeasurement(BaseModel):
     settings: str
     machine_uuid: str
 
+def replace_nan_with_zero(obj):
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(v, (dict, list)):
+                replace_nan_with_zero(v)
+            else:
+                if isinstance(v, float) and math.isnan(v):
+                    obj[k] = 0
+    elif isinstance(obj, list):
+        for i in range(len(obj)):
+            if isinstance(obj[i], (dict, list)):
+                replace_nan_with_zero(obj[i])
+            else:
+                if isinstance(obj[i], float) and math.isnan(obj[i]):
+                    obj[i] = 0
+    return obj
+
+
 @app.post('/v1/hog/add')
 async def hog_add(measurements: List[HogMeasurement]):
 
@@ -576,6 +594,9 @@ async def hog_add(measurements: List[HogMeasurement]):
         decoded_data = base64.b64decode(measurement.data)
         decompressed_data = zlib.decompress(decoded_data)
         measurement_data = json.loads(decompressed_data.decode())
+
+        # For some reason we sometimes get NaN in the data.
+        measurement_data = replace_nan_with_zero(measurement_data)
 
         #Check if the data is valid, if not this will throw an exception and converted into a request by the middleware
         _ = Measurement(**measurement_data)
