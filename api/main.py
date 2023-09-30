@@ -12,7 +12,6 @@ from typing import List
 from xml.sax.saxutils import escape as xml_escape
 import orjson
 
-from object_specifications import Measurement
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -27,7 +26,7 @@ from pydantic import BaseModel
 
 import anybadge
 
-
+from api.object_specifications import Measurement
 from api.api_helpers import (add_phase_stats_statistics, determine_comparison_case,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value, get_timeline_query,
