@@ -55,8 +55,6 @@ measurement:
     #--- Always-On - We recommend these providers to be always enabled
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
         resolution: 100
-      cpu.frequency.sysfs.core.provider.CpuFrequencySysfsCoreProvider:
-        resolution: 100
     #--- CGroupV2 - Turn these on if you have CGroupsV2 working on your machine
       cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
         resolution: 100
@@ -76,7 +74,7 @@ measurement:
 #        resolution: 250
 #      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
 #        resolution: 100
-    #--- Sensors
+    #--- Sensors - these providers need the lm-sensors package installed
 #      lm_sensors.temperature.component.provider.LmSensorsTemperatureComponentProvider:
 #        resolution: 100
       # Please change these values according to the names in '$ sensors'
@@ -87,7 +85,9 @@ measurement:
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000']
 #        features: ['fan1', 'fan2']
-    #--- Debug - These providers are just for development of the tool itself
+    #--- Debug - These providers should only be needed for debugging and introspection purposes
+#      cpu.frequency.sysfs.core.provider.CpuFrequencySysfsCoreProvider:
+#        resolution: 100
 #      cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
 #        resolution: 100
 #      cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider:
@@ -96,14 +96,14 @@ measurement:
 #        resolution: 100
     #--- Architecture - MacOS
     macos:
-    #--- MacOS: On Mac you only need this provider. Please delete all others!
+    #--- MacOS: On Mac you only need this provider. Please remove all others!
       powermetrics.provider.PowermetricsProvider:
         resolution: 100
     #--- Architecture - Common
     common:
-      #network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
-        # host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails
-    #--- Model based
+#      network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
+#        host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails
+    #--- Model based - These providers estimate rather than measure. Helpful where measuring is not possible, like in VMs
 #      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
 #        resolution: 100
       #-- This is a default configuration. Please change this to your system!
