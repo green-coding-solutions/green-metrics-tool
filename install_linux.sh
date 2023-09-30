@@ -194,6 +194,7 @@ fi
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
+echo -e "Please remember to always activate your venv when using the GMT with 'source venv/bin/activate'"
 
 if $reboot_echo_flag; then
     echo -e "${GREEN}If you have newly requested to mount /tmp as tmpfs please reboot your system now.${NC}"

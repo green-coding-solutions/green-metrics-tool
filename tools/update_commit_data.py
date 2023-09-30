@@ -9,7 +9,6 @@ faulthandler.enable()  # will catch segfaults and write to stderr
 import subprocess
 from datetime import datetime
 
-
 from lib.db import DB
 
 if __name__ == '__main__':
