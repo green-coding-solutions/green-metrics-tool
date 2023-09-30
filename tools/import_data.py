@@ -1,6 +1,8 @@
-import faulthandler
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-faulthandler.enable()  # will catch segfaults and write to STDERR
+import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
 
 from lib.db import DB
 

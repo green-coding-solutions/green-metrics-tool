@@ -1,9 +1,12 @@
-import os
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
+
+import os
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-faulthandler.enable()  # will catch segfaults and write to STDERR
 
 from lib.db import DB
 

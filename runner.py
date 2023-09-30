@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# We disable naming convention to allow names like p,kv etc. Even if it is not 'allowed' it makes the code more readable
-#pylint: disable=invalid-name
+import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
 
-# As pretty much everything is done in one big flow we trigger all the too-many-* checks. Which normally makes sense
-# but in this case it would make the code a lot more complicated separating this out into loads of sub-functions
-#pylint: disable=too-many-branches,too-many-statements,too-many-arguments,too-many-instance-attributes
-
-# Using a very broad exception makes sense in this case as we have excepted all the specific ones before
-#pylint: disable=broad-except
-
-# I can't make these go away, but the imports all work fine on my system >.<
+from lib.venv_checker import check_venv
+check_venv() # this check must even run before __main__ as imports might not get resolved
 
 import subprocess
 import json
@@ -21,7 +15,6 @@ from datetime import datetime
 from html import escape
 import sys
 import importlib
-import faulthandler
 import re
 from io import StringIO
 from pathlib import Path
@@ -29,7 +22,6 @@ import random
 import shutil
 import yaml
 
-faulthandler.enable()  # will catch segfaults and write to stderr
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -170,12 +162,15 @@ class Runner:
         print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
         self.__notes_helper.save_to_db(self.__run_id)
 
-    def check_system(self):
+    def check_system(self, mode='start'):
         if self._skip_system_checks:
             print("System check skipped")
             return
 
-        system_checks.check_all(self)
+        if mode =='start':
+            system_checks.check_start()
+        else:
+            raise RuntimeError('Unknown mode for system check:', mode)
 
 
     def checkout_repository(self):
@@ -487,11 +482,18 @@ class Runner:
             print(TerminalColors.WARNING, arrows('No metric providers were configured in config.yml. Was this intentional?'), TerminalColors.ENDC)
             return
 
-        # will iterate over keys
-        for metric_provider in metric_providers:
+        docker_ps = subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='UTF-8', check=True)
+        rootless = False
+        if 'rootless' in docker_ps.stdout:
+            rootless = True
+
+        for metric_provider in metric_providers: # will iterate over keys
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
             conf = metric_providers[metric_provider] or {}
+
+            if rootless and '.cgroup.' in module_path:
+                conf['rootless'] = True
 
             print(f"Importing {class_name} from {module_path}")
             print(f"Configuration is {conf}")
@@ -1202,6 +1204,7 @@ class Runner:
         return_run_id = None
         try:
             config = GlobalConfig().config
+            self.check_system('start')
             return_run_id = self.initialize_run()
             self.initialize_folder(self._tmp_folder)
             self.checkout_repository()
@@ -1209,7 +1212,6 @@ class Runner:
             self.import_metric_providers()
             self.populate_image_names()
             self.check_running_containers()
-            self.check_system()
             self.remove_docker_images()
             self.download_dependencies()
             self.register_machine_id()
@@ -1278,6 +1280,7 @@ class Runner:
             self.custom_sleep(config['measurement']['idle-time-end'])
             self.store_phases()
             self.update_start_and_end_times()
+
         except BaseException as exc:
             self.add_to_log(exc.__class__.__name__, str(exc))
             raise exc
@@ -1399,6 +1402,9 @@ if __name__ == '__main__':
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                     full_docker_prune=args.full_docker_prune, dry_run=args.dry_run,
                     dev_repeat_run=args.dev_repeat_run, docker_prune=args.docker_prune)
+
+    # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
+    #pylint: disable=broad-except
     try:
         successful_run_id = runner.run()  # Start main code
 

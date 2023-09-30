@@ -1,8 +1,11 @@
-import decimal
-import faulthandler
-from io import StringIO
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-faulthandler.enable()  # will catch segfaults and write to STDERR
+import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
+
+import decimal
+from io import StringIO
 
 from lib.global_config import GlobalConfig
 from lib.db import DB

@@ -1,15 +1,16 @@
-import os
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
+
+import os
 import time
 import subprocess
-
-faulthandler.enable()  # will catch segfaults and write to STDERR
 
 from tools.jobs import Job, handle_job_exception
 from lib.global_config import GlobalConfig
 from lib.db import DB
-
-
 
 # We currently have this dynamically as it will probably change quite a bit
 STATUS_LIST = ['job_no', 'job_start', 'job_error', 'job_end', 'cleanup_start', 'cleanup_stop']

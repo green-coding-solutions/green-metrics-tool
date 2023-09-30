@@ -1,12 +1,15 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
+
 import sys
 import argparse
-import faulthandler
 from io import StringIO
 
 import psycopg
 import pandas as pd
-
-faulthandler.enable()  # will catch segfaults and write to STDERR
 
 def main(args):
     conn = psycopg.connect(f"host={args.db_host} user=postgres dbname=green-coding password={args.db_pw}")

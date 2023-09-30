@@ -177,8 +177,15 @@ fi
 
 if [[ $no_build != true ]] ; then
     print_message "Building / Updating docker containers"
-    docker compose -f docker/compose.yml down
-    docker compose -f docker/compose.yml build
+    if docker info 2>/dev/null | grep rootless; then
+        print_message "Docker is running in rootless mode. Using non-sudo call ..."
+        docker compose -f docker/compose.yml down
+        docker compose -f docker/compose.yml build
+    else
+        print_message "Docker is running in default root mode. Using sudo call ..."
+        sudo docker compose -f docker/compose.yml down
+        sudo docker compose -f docker/compose.yml build
+    fi
 
     print_message "Updating python requirements"
     python3 -m pip install --upgrade pip
