@@ -14,42 +14,38 @@
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <meta name="description" content="Measuring the energy of your software" />
     <script src="/dist/js/jquery.min.js" defer></script>
+    <script src="/dist/js/datatables.min.js" defer></script>
     <script src="/dist/js/accordion.min.js" defer></script>
-    <script src="/dist/js/tablesort.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
-    <script src="/js/ci-index.js" defer></script>
+    <script src="/js/hog.js" defer></script>
+
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
+    <link rel="stylesheet" type="text/css" href="/dist/css/datatables.min.css">
 </head>
 <body class="preload">
     <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
         <h1 class="ui header float left">
             <a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a>
-            CI Projects
+            Green Metrics Tool - Power HOG
         </h1>
-<!--
-        <div class="ui search">
-            <div class="ui icon input float right">
-                <input class="prompt" type="text" placeholder="Search tests...">
-                <i class="search icon"></i>
+        <div class="ui full-width-card segment card">
+            <div class="content">
+                <div class="header">Status overview</div>
+                <div class="description">
+                    <p>This list shows you all processes we have monitored on the machines that run the power hog.</p>
+                    <p>If you are looking for the data from your install please click on "Details" in the power hog desktop app.</p>
+                    <p>Number of Machines this data is based on: <span id="machine_count">0</span></p>
+                </p>
+                </div>
             </div>
-            <div class="results"></div>
         </div>
--->
-        <table id="projects-table" class="ui sortable celled striped table">
-            <thead>
-                <tr>
-                    <th>Repository (<i class="icon code github"></i> / <i class="icon code gitlab"></i>)</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-        <div class="clearing" style="display:block; height: 10px;"></div>
+        <h3>Processes</h3>
+        <table id="process-table" class="ui sortable celled striped table"></table>
     </div>
-
 </body>
 </html>

@@ -1,5 +1,3 @@
-# pylint: disable=no-member,consider-using-with,subprocess-popen-preexec-fn,import-error,too-many-instance-attributes,too-many-arguments
-
 # This code handles the setup of the proxy we use to monitor the network connections in the docker containers.
 # Structurally it is a copy of the BaseMetricProvider but because we need to do things slightly different it is a copy.
 # In the future this might be implemented as a proper provider.
@@ -11,14 +9,14 @@ import platform
 import subprocess
 from packaging.version import parse
 
-from db import DB
+from lib.db import DB
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
     def __init__(self, *, host_ip=None):
         super().__init__(
-            metric_name="network_connections_proxy_container_dockerproxy",
+            metric_name='network_connections_proxy_container_dockerproxy',
             metrics={},
             resolution=None,
             unit=None,
@@ -35,9 +33,9 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
 
     def check_system(self):
 
-        output = subprocess.check_output(["tinyproxy", "-v"], stderr=subprocess.STDOUT, text=True)
+        output = subprocess.check_output(['tinyproxy', '-v'], stderr=subprocess.STDOUT, text=True)
         version_string = output.strip().split()[1].split('-')[0]
-        if parse(version_string) >= parse("1.11"):
+        if parse(version_string) >= parse('1.11'):
             return True
 
         raise MetricProviderConfigurationError('Tinyproxy needs to be version 1.11 or greater.')
@@ -66,7 +64,7 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
                 '--env', f"no_proxy={no_proxy_list}"]
 
 
-    def read_metrics(self, run_id, *_):
+    def read_metrics(self, run_id, containers=None):
         records_added = 0
         with open(self._filename, 'r', encoding='utf-8') as file:
             lines = file.readlines()
@@ -85,11 +83,11 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
 
                 time =  int(date.replace(tzinfo=timezone.utc).timestamp() * 1000)
 
-                query = """
+                query = '''
                     INSERT INTO network_intercepts (run_id, time, connection_type, protocol)
                     VALUES (%s, %s, %s, %s)
                     RETURNING id
-                    """
+                    '''
                 params = (run_id, time, connection_type, protocol)
                 DB().fetch_one(query, params=params)
                 records_added += 1

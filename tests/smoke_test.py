@@ -1,22 +1,16 @@
-#pylint: disable=fixme,import-error,wrong-import-position, global-statement, unused-argument, invalid-name
-# unused-argument because its not happy with 'module', which is unfortunately necessary for pytest
-# also disabled invalid-name because its not happy with single word for d in data , for example
-
 import io
 import os
-import sys
 import subprocess
 import re
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/..")
-sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from contextlib import redirect_stdout, redirect_stderr
 import pytest
-from db import DB
-import utils
-from global_config import GlobalConfig
+
+from lib.db import DB
+from lib import utils
+from lib.global_config import GlobalConfig
 from runner import Runner
 
 run_stderr = None
@@ -30,6 +24,7 @@ RUN_NAME = 'test_' + utils.randomword(12)
 def cleanup_after_test():
     pass
 
+#pylint: disable=unused-argument # unused arguement off for now - because there are no running tests in this file
 def cleanup_after_module(autouse=True, scope="module"):
     yield
     tables = DB().fetch_all("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
@@ -52,6 +47,7 @@ def setup_module(module):
         runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_repeat_run=True, skip_system_checks=True)
         runner.run()
 
+    #pylint: disable=global-statement
     global run_stderr, run_stdout
     run_stderr = err.getvalue()
     run_stdout = out.getvalue()

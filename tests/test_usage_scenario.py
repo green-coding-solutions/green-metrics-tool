@@ -2,29 +2,23 @@
 # List port mappings or a specific mapping for the container
 #  docker port CONTAINER [PRIVATE_PORT[/PROTO]]
 
-
-#pylint: disable=fixme,import-error,global-statement
-# unused-argument because its not happy with 'module', which is unfortunately necessary for pytest
-
 import io
 import os
 import re
 import shutil
-import sys
 import subprocess
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/..")
-sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
-from db import DB
 import pytest
-import utils
 import yaml
-from global_config import GlobalConfig
-import test_functions as Tests
+
+from lib.db import DB
+from lib import utils
+from lib.global_config import GlobalConfig
+from tests import test_functions as Tests
 from runner import Runner
 
 GlobalConfig().override_config(config_name='test-config.yml')

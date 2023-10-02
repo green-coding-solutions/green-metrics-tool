@@ -1,17 +1,14 @@
-#pylint: disable=import-error,wrong-import-position
-from io import StringIO
-import sys
-import os
-import decimal
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import faulthandler
-faulthandler.enable()  # will catch segfaults and write to STDERR
+faulthandler.enable()  # will catch segfaults and write to stderr
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/..")
-sys.path.append(f"{CURRENT_DIR}/../lib")
+import decimal
+from io import StringIO
 
-from db import DB
-from global_config import GlobalConfig
+from lib.global_config import GlobalConfig
+from lib.db import DB
 
 
 def generate_csv_line(run_id, metric, detail_name, phase_name, value, value_type, max_value, min_value, unit):
@@ -146,8 +143,6 @@ def build_and_store_phase_stats(run_id, sci=None):
 
 
 if __name__ == '__main__':
-    #pylint: disable=broad-except,invalid-name
-
     import argparse
 
     parser = argparse.ArgumentParser()

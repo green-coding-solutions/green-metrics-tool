@@ -1,22 +1,18 @@
-#pylint: disable=import-error,wrong-import-position,protected-access
 import os
-import sys
 import unittest
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{current_dir}/../tools")
-sys.path.append(f"{current_dir}/../lib")
-sys.path.append(f"{current_dir}/..")
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-import utils
-from global_config import GlobalConfig
+from lib import utils
+from lib.global_config import GlobalConfig
 from runner import Runner
+
 GlobalConfig().override_config(config_name='test-config.yml')
 
 class TestYML(unittest.TestCase):
 
     def test_includes(self):
-        test_dir = os.path.join(current_dir, 'data/usage_scenarios/')
+        test_dir = os.path.join(CURRENT_DIR, 'data/usage_scenarios/')
         test_root_file = 'import_one_root.yml'
         name = 'test_' + utils.randomword(12)
 
@@ -32,7 +28,7 @@ class TestYML(unittest.TestCase):
         self.assertEqual(result_obj, runner._usage_scenario)
 
     def test_(self):
-        test_dir = os.path.join(current_dir, 'data/usage_scenarios/')
+        test_dir = os.path.join(CURRENT_DIR, 'data/usage_scenarios/')
         test_root_file = 'import_two_root.yml'
         name = 'test_' + utils.randomword(12)
 
@@ -55,7 +51,7 @@ class TestYML(unittest.TestCase):
 
     def test_invalid_path(self):
         name = 'test_' + utils.randomword(12)
-        test_dir = os.path.join(current_dir, 'data/usage_scenarios/')
+        test_dir = os.path.join(CURRENT_DIR, 'data/usage_scenarios/')
         test_root_file = 'import_error.yml'
         runner = Runner(name=name, uri=test_dir, uri_type='folder', filename=test_root_file)
         runner.checkout_repository() # We need to do this to setup the file paths correctly

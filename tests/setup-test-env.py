@@ -1,15 +1,11 @@
-#pylint: disable=invalid-name,wrong-import-position,import-error
-
-import sys
 import os
 from copy import deepcopy
 import subprocess
 import yaml
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/../lib/")
 
-import utils
+from lib import utils
 
 BASE_CONFIG_NAME = 'config.yml'
 BASE_COMPOSE_NAME = 'compose.yml.example'
@@ -93,7 +89,7 @@ def edit_compose_file():
                 volume = volume.replace(k, f'test-{k}')
             volume = volume.replace('PATH_TO_GREEN_METRICS_TOOL_REPO',
                           f'{current_dir}/../')
-            volume = volume.replace('./structure.sql', '../test/structure.sql')
+            volume = volume.replace('./structure.sql', '../tests/structure.sql')
             new_vol_list.append(volume)
 
         # Change the depends on: in services as well

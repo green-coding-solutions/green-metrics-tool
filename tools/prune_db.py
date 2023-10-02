@@ -1,10 +1,12 @@
-#pylint: disable=import-error,wrong-import-position
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
 
 import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
-from db import DB
+from lib.db import DB
 
 if __name__ == '__main__':
     import argparse

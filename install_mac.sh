@@ -72,7 +72,14 @@ sed -i '' -e "s|__METRICS_URL__|$metrics_url|" frontend/js/helpers/config.js
 print_message "Checking out further git submodules ..."
 git submodule update --init
 
-print_message "Adding hardware_info_root.py to sudoers file"
+print_message "Setting up python venv"
+python3 -m venv venv
+source venv/bin/activate
+# This will set the include path for the project
+find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
+
+
+print_message "Adding powermetrics to sudoers file"
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/powermetrics" | sudo tee /etc/sudoers.d/green_coding_powermetrics
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall -9 powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics_sigkill
@@ -114,3 +121,4 @@ python3 -m pip install -r requirements.txt
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
+echo -e "Please remember to always activate your venv when using the GMT with 'source venv/bin/activate'"

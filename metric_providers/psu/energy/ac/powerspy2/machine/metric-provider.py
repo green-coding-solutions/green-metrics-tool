@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-#pylint: disable=invalid-name
 
-from powerspy2 import PowerSpy2
+from metric_providers.psu.energy.ac.powerspy2.machine.powerspy2 import PowerSpy2
 
 if __name__ == '__main__':
     import argparse

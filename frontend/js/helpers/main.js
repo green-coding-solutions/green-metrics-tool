@@ -33,6 +33,9 @@ class GMTMenu extends HTMLElement {
             <a class="item" href="/status.html">
                 <b><i class="database icon"></i>Status</b>
             </a>
+            <a class="item" href="/hog.html">
+            <b><i class="piggy bank icon"></i>Power Hog</b>
+        </a>
             <a class="item" href="/settings.html">
                 <b><i class="cogs icon"></i>Settings</b>
             </a>
