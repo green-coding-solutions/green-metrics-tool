@@ -140,7 +140,7 @@ static int parse_containers(container_t** containers, char* containers_string, i
                 fprintf(stderr, "Error - cgroup.procs file %s failed to open: errno: %d\n", (*containers)[length-1].path, errno);
                 exit(1);
         }
-        fscanf(fd, "%u", &(containers[length-1]->pid));
+        fscanf(fd, "%u", &(*containers)[length-1].pid);
         fclose(fd);
     }
 
@@ -148,6 +148,7 @@ static int parse_containers(container_t** containers, char* containers_string, i
         fprintf(stderr, "Please supply at least one container id with -s XXXX\n");
         exit(1);
     }
+
     return length;
 }
 
