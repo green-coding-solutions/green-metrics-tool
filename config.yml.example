@@ -102,7 +102,7 @@ measurement:
     #--- Architecture - Common
     common:
 #      network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
-#        host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails
+##        host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails
     #--- Model based - These providers estimate rather than measure. Helpful where measuring is not possible, like in VMs
 #      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
 #        resolution: 100
