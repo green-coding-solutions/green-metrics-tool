@@ -9,10 +9,6 @@ inputs:
     description: 'The root directory of the gmt repository'
     required: false
     default: '.'
-  tests-directory:
-    description: 'The directory where to run the tests from'
-    required: false
-    default: './tests'
   tests-command:
     description: 'The command to run the tests'
     required: false
@@ -68,10 +64,6 @@ runs:
       working-directory: ${{ inputs.gmt-directory }}/docker
       run: docker buildx bake --file test-compose.yml --file docker-compose-cache.json
 
-      # the working directory here is explicit, instead of using ${{ inputs.tests-directory }}
-      # the reason for this is because ${{ inputs.tests-directory }} is mainly used by Examples Applications repo (which uses this action)
-      # to run their tests, but they still need the GMT containers running
-
     - name: Start Test container
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/tests
@@ -84,17 +76,14 @@ runs:
 
     - name: Run Tests
       shell: bash
-      working-directory: ${{ inputs.tests-directory }}
+      working-directory: ${{ inputs.gmt-directory }}/tests
       run: |
-        if [[ ${{ inputs.gmt-directory }} == '.' ]]; then
-          source ../venv/bin/activate
-        fi
+        source ../venv/bin/activate
         python3 -m ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
 
     - name: Display Results
       shell: bash
       if: always()
-      working-directory: ${{ inputs.tests-directory }}
       run: |
         cat /tmp/test-results.txt | grep -oPz '(=*) short test summary(.*\n)*' >> $GITHUB_STEP_SUMMARY
 
