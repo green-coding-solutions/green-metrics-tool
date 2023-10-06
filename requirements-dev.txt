@@ -2,7 +2,7 @@
 pydantic==2.4.2
 pytest==7.4.2
 requests==2.31.0
-pylint==2.17.6
+pylint==3.0.1
 fastapi==0.103.2
 anybadge==1.14.0
 
