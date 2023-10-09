@@ -55,7 +55,7 @@ class ORJSONResponseDecimal(JSONResponse):
             content, option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY, default=default_json_handler
         )
 
-async def log_exception(request: Request, body, exc):
+async def log_exception(request: Request, exc, body=None, details=None):
     error_message = f"""
         Error in API call
 
@@ -68,6 +68,8 @@ async def log_exception(request: Request, body, exc):
         Headers: {str(request.headers)}
 
         Body: {body}
+
+        Optional details: {details}
 
         Exception: {exc}
     """
@@ -90,7 +92,7 @@ async def log_exception(request: Request, body, exc):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    await log_exception(request, exc.body, exc)
+    await log_exception(request, exc, body=exc.body, details=exc.errors())
     return ORJSONResponse(
         status_code=422, # HTTP_422_UNPROCESSABLE_ENTITY
         content=jsonable_encoder({'success': False, 'err': exc.errors(), 'body': exc.body}),
@@ -98,7 +100,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
-    await log_exception(request, exc.detail, exc)
+    await log_exception(request, exc, body='Exception handler cannot access body ....? Please recheck!', details=exc.detail)
     return ORJSONResponse(
         status_code=exc.status_code,
         content=jsonable_encoder({'success': False, 'err': exc.detail}),
@@ -116,7 +118,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
         # https://github.com/encode/starlette/pull/1692
         # However FastAPI does not support the new Starlette 0.31.1
         # The PR relevant here is: https://github.com/tiangolo/fastapi/pull/9939
-        await log_exception(request, None, exc)
+        await log_exception(request, exc, body='Middleware cannot read body atm. Waiting for FastAPI upgrade')
         return ORJSONResponse(
             content={
                 'success': False,
@@ -607,7 +609,12 @@ async def hog_add(measurements: List[HogMeasurement]):
         print("Measuerement data currently is: ", measurement_data)
 
         #Check if the data is valid, if not this will throw an exception and converted into a request by the middleware
-        _ = Measurement(**measurement_data)
+        try:
+            _ = Measurement(**measurement_data)
+        except Exception as exc:
+            print(f"Caught Exception {exc}")
+            print(f"Errors are: {exc.errors()}")
+            raise exc
 
         coalitions = []
         for coalition in measurement_data['coalitions']:
