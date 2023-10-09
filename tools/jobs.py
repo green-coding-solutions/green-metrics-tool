@@ -190,8 +190,12 @@ def handle_job_exception(exce, job):
     error_helpers.log_error('Base exception occurred in jobs.py: ', exce)
 
     if GlobalConfig().config['admin']['no_emails'] is False:
-        email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
-        'Base exception occurred in jobs.py: ', exce), run_id=job.run_id, name=job.name, machine=job.machine_description)
+        if job is not None:
+            email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
+            'Base exception occurred in jobs.py: ', exce), run_id=job.run_id, name=job.name, machine=job.machine_description)
+        else:
+            email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
+            'Base exception occurred in jobs.py: ', exce))
 
         # reduced error message to client
         if job.email and GlobalConfig().config['admin']['email'] != job.email:
