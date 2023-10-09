@@ -553,7 +553,7 @@ async def get_jobs():
         SELECT j.id, j.name, j.url, j.filename, j.branch, m.description, j.state, j.updated_at, j.created_at
         FROM jobs as j
         LEFT JOIN machines as m on m.id = j.machine_id
-        ORDER BY j.updated_at, j.created_at ASC
+        ORDER BY j.updated_at DESC, j.created_at ASC
     """
     data = DB().fetch_all(query)
     if data is None or data == []:
