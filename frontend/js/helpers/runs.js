@@ -160,6 +160,6 @@ const getRunsTable = (el, url, include_uri=true, include_button=true, searching=
             allow_group_select_checkboxes('input[type="checkbox"]');
             updateCompareCount();
         },
-        order: [] // API determines order
+        order: [[columns.length-2, 'desc']] // API also orders, but we need to indicate order for the user
     });
 }

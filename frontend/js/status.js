@@ -14,7 +14,7 @@ $(document).ready(function () {
                 { data: 8, title: 'Created at', render: (data) => data == null ? '-' : dateToYMD(new Date(data)) },
             ],
             deferRender: true,
-            order: [] // API determines order
+            order: [[7, 'desc']] // API also orders, but we need to indicate order for the user
         });
     })();
 });
