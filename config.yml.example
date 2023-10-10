@@ -40,7 +40,7 @@ machine:
 measurement:
   idle-time-start: 10
   idle-time-end: 5
-  flow-process-runtime: 1800
+  flow-process-runtime: 3800
   phase-transition-time: 1
   metric-providers:
 
