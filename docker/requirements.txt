@@ -5,6 +5,6 @@ uvicorn[standard]==0.23.2
 pandas==2.1.1
 PyYAML==6.0.1
 anybadge==1.14.0
-orjson==3.9.7
+orjson==3.9.8
 scipy==1.11.3
 schema==0.7.5
