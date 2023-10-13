@@ -11,7 +11,7 @@ function print_message {
 
 function generate_random_password() {
     local length=$1
-    tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length"
+    LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length"
     echo
 }
 
