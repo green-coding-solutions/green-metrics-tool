@@ -10,6 +10,12 @@ function print_message {
     echo "$1"
 }
 
+function generate_random_password() {
+    local length=$1
+    LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length"
+    echo
+}
+
 db_pw=''
 api_url=''
 metrics_url=''
@@ -53,9 +59,16 @@ if [[ -z $metrics_url ]] ; then
     metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
 fi
 
+if [[ -f config.yml ]]; then
+    password_from_file=$(awk '/postgresql:/ {flag=1; next} flag && /password:/ {print $2; exit}' config.yml)
+fi
+
+default_password=${password_from_file:-$(generate_random_password 12)}
+
 if [[ -z "$db_pw" ]] ; then
-    read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
-    echo "" # force a newline, because print -sp will consume it
+    read -sp "Please enter the new password to be set for the PostgreSQL DB (default: $default_password): " db_pw
+    echo "" # force a newline, because read -sp will consume it
+    db_pw=${db_pw:-"$default_password"}
 fi
 
 if ! mount | grep -E '\s/tmp\s' | grep -Eq '\stmpfs\s' && [[ $ask_tmpfs == true ]]; then
