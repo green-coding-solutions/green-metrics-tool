@@ -100,7 +100,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
-    await log_exception(request, exc, body='Exception handler cannot access body ....? Please recheck!', details=exc.detail)
+    await log_exception(request, exc, body='StarletteHTTPException handler cannot read body atm. Waiting for FastAPI upgrade.', details=exc.detail)
     return ORJSONResponse(
         status_code=exc.status_code,
         content=jsonable_encoder({'success': False, 'err': exc.detail}),
@@ -611,7 +611,7 @@ async def hog_add(measurements: List[HogMeasurement]):
         #Check if the data is valid, if not this will throw an exception and converted into a request by the middleware
         try:
             _ = Measurement(**measurement_data)
-        except Exception as exc:
+        except RequestValidationError as exc:
             print(f"Caught Exception {exc}")
             print(f"Errors are: {exc.errors()}")
             raise exc
