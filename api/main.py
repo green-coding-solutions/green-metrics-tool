@@ -7,17 +7,14 @@ faulthandler.enable()  # will catch segfaults and write to STDERR
 import zlib
 import base64
 import json
-from decimal import Decimal
 from typing import List
 from xml.sax.saxutils import escape as xml_escape
-import orjson
 import math
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -41,19 +38,6 @@ from tools.timeline_projects import TimelineProject
 
 
 app = FastAPI()
-
-## Wr need to create our own JSONResponse as the std orjson does not support Decimal
-def default_json_handler(obj):
-    if isinstance(obj, Decimal):
-        return float(obj)
-    raise TypeError
-
-class ORJSONResponseDecimal(JSONResponse):
-    def render(self, content):
-        assert orjson is not None, "orjson must be installed to use ORJSONResponse"
-        return orjson.dumps(
-            content, option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY, default=default_json_handler
-        )
 
 async def log_exception(request: Request, exc, body=None, details=None):
     error_message = f"""
@@ -580,17 +564,16 @@ def replace_nan_with_zero(obj):
         for k, v in obj.items():
             if isinstance(v, (dict, list)):
                 replace_nan_with_zero(v)
-            else:
-                if isinstance(v, float) and math.isnan(v):
-                    obj[k] = 0
+            elif isinstance(v, float) and math.isnan(v):
+                obj[k] = 0
     elif isinstance(obj, list):
-        for i in range(len(obj)):
-            if isinstance(obj[i], (dict, list)):
-                replace_nan_with_zero(obj[i])
-            else:
-                if isinstance(obj[i], float) and math.isnan(obj[i]):
-                    obj[i] = 0
+        for i, item in enumerate(obj):
+            if isinstance(item, (dict, list)):
+                replace_nan_with_zero(item)
+            elif isinstance(item, float) and math.isnan(item):
+                obj[i] = 0
     return obj
+
 
 
 @app.post('/v1/hog/add')
@@ -800,10 +783,10 @@ async def hog_get_top_processes():
 
     machine_count = DB().fetch_one(query)[0]
 
-    return ORJSONResponseDecimal({'success': True, 'process_data': data, 'machine_count': machine_count})
+    return ORJSONResponse({'success': True, 'process_data': data, 'machine_count': machine_count})
 
 
-@app.get('/v1/hog/machine_details/{machine_uuid}', response_class=ORJSONResponseDecimal)
+@app.get('/v1/hog/machine_details/{machine_uuid}')
 async def hog_get_machine_details(machine_uuid: str):
 
     if machine_uuid is None or not is_valid_uuid(machine_uuid):
@@ -828,10 +811,10 @@ async def hog_get_machine_details(machine_uuid: str):
 
     data = DB().fetch_all(query, (machine_uuid,))
 
-    return ORJSONResponseDecimal({'success': True, 'data': data})
+    return ORJSONResponse({'success': True, 'data': data})
 
 
-@app.get('/v1/hog/coalitions_tasks/{machine_uuid}/{measurements_id_start}/{measurements_id_end}', response_class=ORJSONResponseDecimal)
+@app.get('/v1/hog/coalitions_tasks/{machine_uuid}/{measurements_id_start}/{measurements_id_end}')
 async def hog_get_coalitions_tasks(machine_uuid: str, measurements_id_start: int, measurements_id_end: int):
 
     if machine_uuid is None or not is_valid_uuid(machine_uuid):
@@ -886,9 +869,9 @@ async def hog_get_coalitions_tasks(machine_uuid: str, measurements_id_start: int
 
     energy_data = DB().fetch_one(measurements_query, (measurements_id_start, measurements_id_end, machine_uuid))
 
-    return ORJSONResponseDecimal({'success': True, 'data': coalitions_data, 'energy_data': energy_data})
+    return ORJSONResponse({'success': True, 'data': coalitions_data, 'energy_data': energy_data})
 
-@app.get('/v1/hog/tasks_details/{machine_uuid}/{measurements_id_start}/{measurements_id_end}/{coalition_name}', response_class=ORJSONResponseDecimal)
+@app.get('/v1/hog/tasks_details/{machine_uuid}/{measurements_id_start}/{measurements_id_end}/{coalition_name}')
 async def hog_get_task_details(machine_uuid: str, measurements_id_start: int, measurements_id_end: int, coalition_name: str):
 
     if machine_uuid is None or not is_valid_uuid(machine_uuid):
@@ -954,7 +937,7 @@ async def hog_get_task_details(machine_uuid: str, measurements_id_start: int, me
     tasks_data = DB().fetch_all(tasks_query, (coalition_name, measurements_id_start,measurements_id_end, machine_uuid))
     coalitions_data = DB().fetch_one(coalitions_query, (coalition_name, measurements_id_start, measurements_id_end, machine_uuid))
 
-    return ORJSONResponseDecimal({'success': True, 'tasks_data': tasks_data, 'coalitions_data': coalitions_data})
+    return ORJSONResponse({'success': True, 'tasks_data': tasks_data, 'coalitions_data': coalitions_data})
 
 
 
