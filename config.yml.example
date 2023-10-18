@@ -18,6 +18,8 @@ smtp:
 admin:
   # This address will get an email, when a new software was added through the frontend
   email: myemail@dev.local
+  # This email will always get a copy of every email. Put an empty string if you do not want that: ""
+  bcc_email: ""
   # no_emails: True will suppress all emails. Helpful in development servers
   no_emails: True
 
