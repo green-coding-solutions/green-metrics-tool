@@ -16,8 +16,10 @@ smtp:
   user: SMTP_AUTH_USER
 
 admin:
-  # This address will get an email, when a new software was added through the frontend
+  # This address will get an email, for any error or new project added etc.
   email: myemail@dev.local
+  # This email will always get a copy of every email sent, even for user-only mails like the "Your report is ready" mail. Put an empty string if you do not want that: ""
+  bcc_email: ""
   # no_emails: True will suppress all emails. Helpful in development servers
   no_emails: True
 
