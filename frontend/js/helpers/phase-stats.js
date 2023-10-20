@@ -105,7 +105,7 @@ const displayComparisonMetrics = (phase_stats_object) => {
     let total_chart_bottom_legend =  {};
     let total_chart_bottom_labels = [];
 
-    for (phase in phase_stats_object['data']) {
+    for (const phase in phase_stats_object['data']) {
         createPhaseTab(phase); // will not create already existing phase tabs
         createTableHeader(
             phase,
@@ -131,11 +131,11 @@ const displayComparisonMetrics = (phase_stats_object) => {
         let found_bottom_chart_metric = false;
         const bottom_chart_present_keys = Object.fromEntries(phase_stats_object.comparison_details.map(e => [e, false]))
 
-        for (metric_name in phase_data) {
+        for (const metric_name in phase_data) {
             let metric_data = phase_data[metric_name]
             let found_radar_chart_item = false;
 
-            for (detail_name in metric_data['data']) {
+            for (const detail_name in metric_data['data']) {
                 let detail_data = metric_data['data'][detail_name]
 
                 /*
@@ -230,7 +230,7 @@ const displayComparisonMetrics = (phase_stats_object) => {
 
         // a phase had no bottom chart metric and must be null-filled
         // this can for instance happen if a phase is too short and no metric was reported in the timespan
-        for (key in bottom_chart_present_keys) {
+        for (const key in bottom_chart_present_keys) {
             if(bottom_chart_present_keys[key] == false) {
                 if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
                     total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] = []

@@ -1,19 +1,17 @@
-import sys
 import os
+import sys
 from io import StringIO
 import pandas
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/../../../../../../lib")
 sys.path.append(CURRENT_DIR)
 
-#pylint: disable=import-error, wrong-import-position
 import model.xgb as mlmodel
-from global_config import GlobalConfig
 from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
-    def __init__(self, resolution):
+    def __init__(self, *, resolution, HW_CPUFreq, CPUChips, CPUThreads, TDP,
+                 HW_MemAmountGB, CPUCores=None, Hardware_Availability_Year=None):
         super().__init__(
             metric_name="psu_energy_ac_xgboost_machine",
             metrics={"time": int, "value": int},
@@ -21,6 +19,13 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
             unit="mJ",
             current_dir=os.path.dirname(os.path.abspath(__file__)),
         )
+        self.HW_CPUFreq = HW_CPUFreq
+        self.CPUChips = CPUChips
+        self.CPUThreads = CPUThreads
+        self.TDP = TDP
+        self.HW_MemAmountGB = HW_MemAmountGB
+        self.CPUCores = CPUCores
+        self.Hardware_Availability_Year=Hardware_Availability_Year
 
     # Since no process is ever started we just return None
     def get_stderr(self):
@@ -30,7 +35,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
     def start_profiling(self, containers=None):
         self._has_started = True
 
-    def read_metrics(self, project_id, containers):
+    def read_metrics(self, run_id, containers=None):
 
         if not os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'):
             raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log file. \
@@ -51,45 +56,26 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
 
         df['detail_name'] = '[DEFAULT]'  # standard container name when no further granularity was measured
         df['metric'] = self._metric_name
-        df['project_id'] = project_id
+        df['run_id'] = run_id
 
         Z = df.loc[:, ['value']]
 
-        provider_config = GlobalConfig().config['measurement']['metric-providers']['common']\
-        ['psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider']
-
-        if 'HW_CPUFreq' not in provider_config:
-            raise RuntimeError(
-                'Please set the HW_CPUFreq config option for PsuEnergyAcXgboostMachineProvider in the config.yml')
-        if 'CPUChips' not in provider_config:
-            raise RuntimeError(
-                'Please set the CPUChips config option for PsuEnergyAcXgboostMachineProvider in the config.yml')
-        if 'CPUThreads' not in provider_config:
-            raise RuntimeError(
-                'Please set the CPUThreads config option for PsuEnergyAcXgboostMachineProvider in the config.yml')
-        if 'TDP' not in provider_config:
-            raise RuntimeError('Please set the TDP config option for \
-                PsuEnergyAcXgboostMachineProvider in the config.yml')
-        if 'HW_MemAmountGB' not in provider_config:
-            raise RuntimeError(
-                'Please set the HW_MemAmountGB config option for PsuEnergyAcXgboostMachineProvider in the config.yml')
-
-        Z['HW_CPUFreq'] = provider_config['HW_CPUFreq']
-        Z['CPUThreads'] = provider_config['CPUThreads']
-        Z['TDP'] = provider_config['TDP']
-        Z['HW_MemAmountGB'] = provider_config['HW_MemAmountGB']
+        Z['HW_CPUFreq'] = self.HW_CPUFreq
+        Z['CPUThreads'] = self.CPUThreads
+        Z['TDP'] = self.TDP
+        Z['HW_MemAmountGB'] = self.HW_MemAmountGB
 
         # now we process the optional parameters
-        if 'CPUCores' in provider_config:
-            Z['CPUCores'] = provider_config['CPUCores']
+        if self.CPUCores:
+            Z['CPUCores'] = self.CPUCores
 
-        if 'Hardware_Availability_Year' in provider_config:
-            Z['Hardware_Availability_Year'] = provider_config['Hardware_Availability_Year']
+        if self.Hardware_Availability_Year:
+            Z['Hardware_Availability_Year'] = self.Hardware_Availability_Year
 
 
         Z = Z.rename(columns={'value': 'utilization'})
         Z.utilization = Z.utilization / 100
-        model = mlmodel.train_model(provider_config['CPUChips'], Z)
+        model = mlmodel.train_model(self.CPUChips, Z)
 
         inferred_predictions = mlmodel.infer_predictions(model, Z)
         interpolated_predictions = mlmodel.interpolate_predictions(inferred_predictions)

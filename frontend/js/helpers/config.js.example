@@ -235,6 +235,19 @@ METRIC_MAPPINGS = {
     },
 }
 
+// Here you can statically define the badges that shall be shown in the timeline view
+// although this could also be done dynamically it would be a slightly more heavy lifting for the database and
+// only reflect the latest run.
+// This gives you a more fixed picture of what you want to show for the user and does not always change if you try out
+// some configurations in your machine setups
+const DEFAULT_ENERGY_TIMELINE_BADGE_METRICS = [
+    // ['cpu_energy_rapl_msr_component','Package_0'], // uncomment if you want RAPL CPU energy in timeline overview
+    // ['memory_energy_rapl_msr_component','Package_0'], // uncomment if you want RAPL DRAM energy in timeline overview
+    // ['network_energy_formula_global','[FORMULA]'], // uncomment if you want network in timeline overview
+    ['psu_energy_ac_mcp_machine','[machine]'],
+    // ['software_carbon_intensity_global','[SYSTEM]'] // uncomment if you want SCI as badge in timeline overview
+]
+
 // title and filter function for the top left most chart in the Detailed Metrics / Compare view
 const TOTAL_CHART_BOTTOM_TITLE = 'Total energy consumption';
 const TOTAL_CHART_BOTTOM_LABEL = 'Machine Energy';

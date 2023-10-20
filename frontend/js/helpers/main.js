@@ -15,6 +15,12 @@ class GMTMenu extends HTMLElement {
             <a class="item" href="/index.html">
                 <b><i class="home icon"></i>Home</b>
             </a>
+            <a class="item" href="/repositories.html">
+                <b><i class="code branch icon"></i>Repositories</b>
+            </a>
+            <a class="item" href="/energy-timeline.html">
+                <b><i class="history icon"></i>Energy Timeline</b>
+            </a>
             <a class="item" href="/request.html">
                 <b><i class="bullseye icon"></i>Measure software</b>
             </a>
@@ -24,6 +30,12 @@ class GMTMenu extends HTMLElement {
             <a class="item" href="/ci-index.html">
                 <b><i class="seedling icon"></i>Eco-CI</b>
             </a>
+            <a class="item" href="/status.html">
+                <b><i class="database icon"></i>Status</b>
+            </a>
+            <a class="item" href="/hog.html">
+            <b><i class="piggy bank icon"></i>Power Hog</b>
+        </a>
             <a class="item" href="/settings.html">
                 <b><i class="cogs icon"></i>Settings</b>
             </a>
@@ -75,8 +87,10 @@ const showNotification = (message_title, message_text, type='warning') => {
 }
 
 const copyToClipboard = (e) => {
+  e.preventDefault();
   if (navigator && navigator.clipboard && navigator.clipboard.writeText)
-    return navigator.clipboard.writeText(e.currentTarget.closest('.field').querySelector('span').innerHTML)
+    navigator.clipboard.writeText(e.currentTarget.previousElementSibling.innerHTML)
+    return false
 
   alert('Copying badge on local is not working due to browser security models')
   return Promise.reject('The Clipboard API is not available.');
@@ -140,34 +154,33 @@ async function makeAPICall(path, values=null) {
     return json_response;
 };
 
-(() => {
-    /* Menu toggling */
-    let openMenu = function(e){
-        $(this).removeClass('closed').addClass('opened');
-        $(this).find('i').removeClass('right').addClass('left');
-        $('#menu').removeClass('closed').addClass('opened');
-        $('#main').removeClass('closed').addClass('opened');
-        setTimeout(function(){window.dispatchEvent(new Event('resize'))}, 500) // needed for the graphs to resize
-    }
+/* Menu toggling */
+let openMenu = function(e){
+    $(this).removeClass('closed').addClass('opened');
+    $(this).find('i').removeClass('right').addClass('left');
+    $('#menu').removeClass('closed').addClass('opened');
+    $('#main').removeClass('closed').addClass('opened');
+    setTimeout(function(){window.dispatchEvent(new Event('resize'))}, 500) // needed for the graphs to resize
+}
+
+let closeMenu = function(e){
+    $(this).removeClass('opened').addClass('closed');
+    $(this).find('i').removeClass('left').addClass('right');
+    $('#menu').removeClass('opened').addClass('closed');
+    $('#main').removeClass('opened').addClass('closed');
+    setTimeout(function(){window.dispatchEvent(new Event('resize'))}, 500) // needed for the graphs to resize
+}
+
+$(document).ready(function () {
     $(document).on('click','#menu-toggle.closed', openMenu);
-
-    let closeMenu = function(e){
-        $(this).removeClass('opened').addClass('closed');
-        $(this).find('i').removeClass('left').addClass('right');
-        $('#menu').removeClass('opened').addClass('closed');
-        $('#main').removeClass('opened').addClass('closed');
-        setTimeout(function(){window.dispatchEvent(new Event('resize'))}, 500) // needed for the graphs to resize
-    }
-
     $(document).on('click','#menu-toggle.opened', closeMenu);
-    $(document).ready(function () {
-        if ($(window).width() < 960) {
-            $('#menu-toggle').removeClass('opened').addClass('closed');
-        }
-    });
 
-    $(window).on('load', function() {
-      $("body").removeClass("preload"); // activate tranisition CSS properties again
-    });
+    if ($(window).width() < 960) {
+        $('#menu-toggle').removeClass('opened').addClass('closed');
+    }
+});
 
-})();
+$(window).on('load', function() {
+    $("body").removeClass("preload"); // activate tranisition CSS properties again
+});
+

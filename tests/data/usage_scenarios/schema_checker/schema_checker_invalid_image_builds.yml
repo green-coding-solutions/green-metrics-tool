@@ -1,0 +1,19 @@
+---
+name: Test
+author: Dan Mateas
+description: "test that image is required when build is not specified"
+
+networks: 
+  networkname:
+
+services:
+  test-container:
+    type: container
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1 -q
+        note: Starting Stress

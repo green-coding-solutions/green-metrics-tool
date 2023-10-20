@@ -3,6 +3,7 @@ import yaml
 
 class GlobalConfig:
 
+    # for unknown reasons pylint needs this argument set, although we don't use it. Only in __init__
     # pylint: disable=unused-argument
     def __new__(cls, config_name='config.yml'):
         if not hasattr(cls, 'instance'):

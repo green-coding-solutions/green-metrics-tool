@@ -20,13 +20,13 @@ jobs:
 
       - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
         name: 'Checkout repository'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: 'main'
           submodules: 'true'
 
       - name: Eco CI Energy Estimation - Initialize
-        uses: green-coding-berlin/eco-ci-energy-estimation@701b5f2f4ba601be587823cd0786f07cb6ae2ee6
+        uses: green-coding-berlin/eco-ci-energy-estimation@v2
         with:
           task: start-measurement
 
@@ -34,17 +34,17 @@ jobs:
         name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
-         metrics-to-turn-off: '--categories RAPL Machine Sensors Debug CGroupV2 MacOS --providers CpuFrequencySysfsCoreProvider'
+         metrics-to-turn-off: '--categories RAPL Machine Sensors Debug CGroupV2 MacOS'
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Eco CI Energy Estimation - Get Measurement
-        uses: green-coding-berlin/eco-ci-energy-estimation@701b5f2f4ba601be587823cd0786f07cb6ae2ee6
+        uses: green-coding-berlin/eco-ci-energy-estimation@v2
         with:
           task: get-measurement
           branch: main
 
       - name: Eco CI Energy Estimation - End Measurement
-        uses: green-coding-berlin/eco-ci-energy-estimation@701b5f2f4ba601be587823cd0786f07cb6ae2ee6
+        uses: green-coding-berlin/eco-ci-energy-estimation@v2
         with:
           task: display-results
           branch: main

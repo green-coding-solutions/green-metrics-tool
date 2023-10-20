@@ -1,9 +1,7 @@
-#pylint: disable=import-error,wrong-import-position
-
 from html import escape
 from re import fullmatch
 
-from db import DB
+from lib.db import DB
 
 class Notes():
 
@@ -14,16 +12,16 @@ class Notes():
         return self.__notes
 
 
-    def save_to_db(self, project_id):
+    def save_to_db(self, run_id):
 
         for note in self.__notes:
             DB().query("""
                     INSERT INTO notes
-                    ("project_id", "detail_name", "note", "time", "created_at")
+                    ("run_id", "detail_name", "note", "time", "created_at")
                     VALUES
                     (%s, %s, %s, %s, NOW())
                     """,
-                       params=(project_id, escape(note['detail_name']), escape(note['note']), int(note['timestamp']))
+                       params=(run_id, escape(note['detail_name']), escape(note['note']), int(note['timestamp']))
                        )
 
     def parse_note(self, line):
@@ -39,7 +37,7 @@ if __name__ == '__main__':
     import time
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('project_id', help='Please supply a project_id to attribute the measurements to')
+    parser.add_argument('run_id', help='Please supply a run_id to attribute the measurements to')
 
     args = parser.parse_args()  # script will exit if arguments not present
 
@@ -47,4 +45,4 @@ if __name__ == '__main__':
     notes.add_note({'note': 'This is my note',
                  'timestamp': int(time.time_ns() / 1000),
                  'detail_name': 'Arnes_ Container'})
-    notes.save_to_db(args.project_id)
+    notes.save_to_db(args.run_id)

@@ -1,5 +1,3 @@
-# pylint: disable=no-member,consider-using-with,subprocess-popen-preexec-fn,import-error,too-many-instance-attributes,too-many-arguments
-
 import os
 from pathlib import Path
 import subprocess
@@ -8,6 +6,10 @@ import sys
 from io import StringIO
 import pandas
 
+from lib.system_checks import ConfigurationCheckError
+
+class MetricProviderConfigurationError(ConfigurationCheckError):
+    pass
 
 class BaseMetricProvider:
 
@@ -20,6 +22,7 @@ class BaseMetricProvider:
         current_dir,
         metric_provider_executable='metric-provider-binary',
         sudo=False,
+        disable_buffer=True
     ):
         self._metric_name = metric_name
         self._metrics = metrics
@@ -29,6 +32,8 @@ class BaseMetricProvider:
         self._metric_provider_executable = metric_provider_executable
         self._sudo = sudo
         self._has_started = False
+        self._disable_buffer = disable_buffer
+        self._rootless = None
 
         self._tmp_folder = '/tmp/green-metrics-tool'
         self._ps = None
@@ -38,6 +43,12 @@ class BaseMetricProvider:
 
         self._filename = f"{self._tmp_folder}/{self._metric_name}.log"
 
+        self.check_system()
+
+    # this is the default function that will be overridden in the children
+    def check_system(self):
+        pass
+
     # implemented as getter function and not direct access, so it can be overloaded
     # some child classes might not actually have _ps attribute set
     def get_stderr(self):
@@ -46,7 +57,7 @@ class BaseMetricProvider:
     def has_started(self):
         return self._has_started
 
-    def read_metrics(self, project_id, containers):
+    def read_metrics(self, run_id, containers=None):
         with open(self._filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
 
@@ -79,13 +90,17 @@ class BaseMetricProvider:
 
         df['unit'] = self._unit
         df['metric'] = self._metric_name
-        df['project_id'] = project_id
+        df['run_id'] = run_id
 
         return df
 
     def start_profiling(self, containers=None):
 
-        call_string = f"{self._metric_provider_executable} -i {self._resolution}"
+        if self._resolution is None:
+            call_string = self._metric_provider_executable
+        else:
+            call_string = f"{self._metric_provider_executable} -i {self._resolution}"
+
 
         if self._metric_provider_executable[0] != '/':
             call_string = f"{self._current_dir}/{call_string}"
@@ -101,10 +116,18 @@ class BaseMetricProvider:
         if self._metrics.get('container_id') is not None:
             call_string += ' -s '
             call_string += ','.join(containers.keys())
+
+        if self._rootless is True:
+            call_string += ' --rootless '
+
         call_string += f" > {self._filename}"
+
+        if self._disable_buffer:
+            call_string = f"stdbuf -o0 {call_string}"
 
         print(call_string)
 
+        #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
         self._ps = subprocess.Popen(
             [call_string],
             shell=True,

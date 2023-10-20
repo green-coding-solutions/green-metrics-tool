@@ -7,6 +7,8 @@
 
 The Green Metrics Tool is a developer tool is indented for measuring the energy consumption of software and doing life-cycle-analysis.
 
+One of it's key features is the detailed statistical dashboard and the measurement cluster for making reproducible measurements.
+
 It is designed to re-use existing infrastructure and testing files as much as possible to be easily integrateable into every software repository and create transparency around software energy consumption.
 
 It can orchestrate Docker containers according to a given specificaion in a `usage_scenario.yml` file.
@@ -27,15 +29,18 @@ as well as a web interface to view the measured metrics in some nice charts.
 # Frontend
 To see the frontend in action and get an idea of what kind of metrics the tool can collect and display go to out [Green Metrics Frontend](https://metrics.green-coding.berlin)
 
-
 # Documentation
 
 To see the the documentation and how to install and use the tool please go to [Green Metrics Tool Documentation](https://docs.green-coding.berlin)
 
-# Screenshots
+# Screenshots of Single Run View
 
-![Web Flow Demo with CPU measurement provider](https://www.green-coding.berlin/img/projects/gmt-screenshot-1.webp "Web Charts demo with docker stats provider instead of energy")
-> Web Flow Demo with CPU measurement provider
+![](https://www.green-coding.berlin/img/projects/gmt-screenshot-1.webp)
+![](https://www.green-coding.berlin/img/projects/gmt-screenshot-2.webp)
+![](https://www.green-coding.berlin/img/projects/gmt-screenshot-3.webp)
+![](https://www.green-coding.berlin/img/projects/gmt-screenshot-4.webp)
  
-![Web Flow Demo with energy measurement provider](https://www.green-coding.berlin/img/projects/gmt-screenshot-2.webp "Web Charts demo with docker stats provider instead of energy")
-> Web Flow Demo with energy measurement provider
+
+# Screenshots of Comparison View
+![](https://www.green-coding.berlin/img/projects/gmt-screenshot-5.webp)
+![](https://www.green-coding.berlin/img/projects/gmt-screenshot-6.webp)

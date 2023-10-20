@@ -6,18 +6,16 @@ import time
 import xml
 import pandas
 
-#pylint: disable=import-error
-from db import DB
-from metric_providers.base import BaseMetricProvider
-
+from lib.db import DB
+from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 
 class PowermetricsProvider(BaseMetricProvider):
     def __init__(self, resolution):
         super().__init__(
-            metric_name="powermetrics",
+            metric_name='powermetrics',
             metrics={'time': int, 'value': int},
             resolution=resolution,
-            unit="mJ",
+            unit='mJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='/usr/bin/powermetrics',
             sudo=True,
@@ -25,23 +23,25 @@ class PowermetricsProvider(BaseMetricProvider):
 
         # We can't use --show-all here as this sometimes triggers output on stderr
         self._extra_switches = [
-            "--show-process-io",
-            "--show-process-gpu",
-            "--show-process-netstats",
-            "--show-process-energy",
-            "--show-process-coalition",
+            '--show-process-io',
+            '--show-process-gpu',
+            '--show-process-netstats',
+            '--show-process-energy',
+            '--show-process-coalition',
             '-f',
             'plist',
             '-o',
             self._filename]
 
-    def is_powermetrics_running(self):
-        try:
-            output = subprocess.check_output('pgrep -x powermetrics', shell=True)
-            return bool(output.strip())  # If the output is not empty, the process is running.
+    def check_system(self):
+        if self.is_powermetrics_running():
+            raise MetricProviderConfigurationError('Another instance of powermetrics is already running on the system!\nPlease close it before running the Green Metrics Tool.')
 
-        except subprocess.CalledProcessError:  # If the process is not running, 'pgrep' returns non-zero exit code.
+    def is_powermetrics_running(self):
+        ps = subprocess.run(['pgrep', '-qx', 'powermetrics'], check=False)
+        if ps.returncode == 1:
             return False
+        return True
 
 
     def stop_profiling(self):
@@ -69,8 +69,7 @@ class PowermetricsProvider(BaseMetricProvider):
 
         self._ps = None
 
-    # pylint: disable=too-many-locals
-    def read_metrics(self, project_id, containers=None):
+    def read_metrics(self, run_id, containers=None):
 
         with open(self._filename, 'rb') as metrics_file:
             datas = metrics_file.read()
@@ -170,11 +169,11 @@ class PowermetricsProvider(BaseMetricProvider):
 
         df = pandas.DataFrame.from_records(dfs, columns=['time', 'value', 'metric', 'detail_name', 'unit'])
 
-        df['project_id'] = project_id
+        df['run_id'] = run_id
 
-        # Set the invalid project string to indicate, that it was mac and we can't rely on the data
+        # Set the invalid run string to indicate, that it was mac and we can't rely on the data
         invalid_message = 'Measurements are not reliable as they are done on a Mac. See our blog for details.'
-        DB().query('UPDATE projects SET invalid_project=%s WHERE id = %s', params=(invalid_message, project_id))
+        DB().query('UPDATE runs SET invalid_run=%s WHERE id = %s', params=(invalid_message, run_id))
 
         return df
 
