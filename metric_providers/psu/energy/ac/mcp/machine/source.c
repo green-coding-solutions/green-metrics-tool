@@ -193,14 +193,21 @@ int f511_init(const char *port)
 {
     unsigned char reply[80];
     int res;
+    int fd;
 
-    if (init_serial(port, B115200) < 0) {
+    fd = init_serial(port, B115200);
+
+    if (fd < 0) {
+        fprintf(stderr, "Error. init_serial was not 0 but %d\n", fd);
         return -1;
     }
     res = mcp_cmd((unsigned char *)f511_set_accumulation_interval,
             sizeof(f511_set_accumulation_interval),
             (unsigned char *)&reply, fd);
-    if(res < 0) return res;
+    if(res < 0) {
+        fprintf(stderr, "Error. res was not 0 but %d\n", res);
+        return -1;
+    }
     return fd;
 }
 
@@ -234,6 +241,10 @@ int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
 
     fd = f511_init("/dev/ttyACM0");
+    if(fd < 0) {
+        fprintf(stderr, "Error. Connection could not be opened\n");
+        return -1;
+    }
 
     while (1) {
         result = f511_get_power(&data[0], &data[1], fd);
