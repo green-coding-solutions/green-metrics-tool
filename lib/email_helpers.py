@@ -58,7 +58,7 @@ Link: {url}/stats.html?id={run_id}
         errors=error,
         name=name,
         machine=machine,
-        bcc_mail=config['admin']['bcc_email'],
+        bcc_email=config['admin']['bcc_email'],
         url=config['cluster']['metrics_url'],
         run_id=run_id,
         smtp_sender=config['smtp']['sender'])
@@ -69,7 +69,7 @@ def send_report_email(receiver_email, report_id, name, machine=None):
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
-Bcc: {bcc_mail}
+Bcc: {bcc_email}
 Subject: Your Green Metric report is ready
 
 Run Name: {name}
@@ -86,7 +86,7 @@ Your report is now accessible under the URL: {url}/stats.html?id={report_id}
         report_id=report_id,
         machine=machine,
         name=name,
-        bcc_mail=config['admin']['bcc_email'],
+        bcc_email=config['admin']['bcc_email'],
         url=config['cluster']['metrics_url'],
         smtp_sender=config['smtp']['sender'])
     send_email(message, [receiver_email, config['admin']['bcc_email']])
