@@ -36,17 +36,17 @@ const unsigned char f511_read_active_power2[] = { 0x41, 0x0, 0x1a, 0x4E, 4 };
 const unsigned char f511_set_accumulation_interval[] =
     { 0x41, 0x00, 0xA8, 0x4D, 2, 0x00, 0x00 };
 
+/* This variable ist just global for consitency with our other metric_provider source files */
 static unsigned int msleep_time=1000;
 
 enum mcp_states { init, wait_ack, get_len, get_data, validate_checksum };
 
 enum mcp_states mcp_state = wait_ack;
 
-int fd;
-
 int init_serial(const char *port, int baud)
 {
     struct termios tty;
+    int fd;
 
     fd = open(port, O_RDWR | O_NOCTTY | O_SYNC);
     if (fd < 0) {
@@ -80,27 +80,39 @@ int init_serial(const char *port, int baud)
     if (tcsetattr(fd, TCSANOW, &tty) != 0) {
         return -1;
     }
-    return 0;
+    return fd;
 }
 
 int mcp_cmd(unsigned char *cmd, unsigned int cmd_length, unsigned char *reply, int fd)
 {
+    int CMD_MAX_PACKET_LEN = 80;
     unsigned char buf[80];
-    unsigned char command_packet[80];
+    unsigned char command_packet[CMD_MAX_PACKET_LEN];
     int rdlen;
     uint8_t len;
     uint8_t i;
     uint8_t checksum = 0;
     uint8_t datap = 0;
 
+    // the cmd has a length. Now we create a command_packet with an initializer (0xa5 + length + cmd + checksum), which
+    // makes it in the end cmd_length + 3
     command_packet[0] = 0xa5;
-    command_packet[1] = cmd_length + 3;
+    command_packet[1] = cmd_length + 3; // cmd_length gets extended by 3 byte for the command packet
+
+    if (cmd_length > CMD_MAX_PACKET_LEN - 3) {
+        fprintf(stderr, "Error: cmd_length was %d but should be < %d\n", cmd_length, CMD_MAX_PACKET_LEN);
+        return -1;
+    }
+
+    // only write here cmd_length lenght as this is the actual length we have
+    // copy it in starting from the 2nd position in the char array, since first two are taken for initialize and length
     memcpy(command_packet + 2, cmd, cmd_length);
-    for (i = 0; i < cmd_length + 2; i++) {
+    for (i = 0; i < cmd_length + 2; i++) { // here we do not need to iterate to cmd_length+3 since we are just bulding the last element
         checksum += command_packet[i];
     }
     command_packet[i] = checksum;
     tcflush(fd, TCIOFLUSH);
+    // here we still have to write the +3 lenght, as this is how we now sized the command_packet
     len = write(fd, command_packet, cmd_length + 3);
     if (len != cmd_length + 3) {
         return -1;
@@ -164,8 +176,7 @@ int f511_get_power(int *ch1, int *ch2, int fd)
 {
     int res;
     unsigned char reply[40];
-    res =
-        mcp_cmd((unsigned char *)&f511_read_active_power,
+    res = mcp_cmd((unsigned char *)&f511_read_active_power,
             sizeof(f511_read_active_power), (unsigned char *)&reply, fd);
     if (res > 0) {
         *ch1 = (reply[3] << 24) + (reply[2] << 16)
@@ -186,8 +197,7 @@ int f511_init(const char *port)
     if (init_serial(port, B115200) < 0) {
         return -1;
     }
-    res =
-        mcp_cmd((unsigned char *)f511_set_accumulation_interval,
+    res = mcp_cmd((unsigned char *)f511_set_accumulation_interval,
             sizeof(f511_set_accumulation_interval),
             (unsigned char *)&reply, fd);
     if(res < 0) return res;
@@ -200,6 +210,10 @@ int main(int argc, char **argv) {
 
     int c;
     struct timeval now;
+    int fd;
+    int result;
+    int data[2]; // The MCP has two outlets where you can measure.
+
 
     while ((c = getopt (argc, argv, "hi:d")) != -1) {
         switch (c) {
@@ -219,13 +233,12 @@ int main(int argc, char **argv) {
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    long fd = f511_init("/dev/ttyACM0");
-    int data[2]; // The MCP has two outlets where you can measure.
+    fd = f511_init("/dev/ttyACM0");
 
     while (1) {
-        int result = f511_get_power(&data[0], &data[1], fd);
+        result = f511_get_power(&data[0], &data[1], fd);
         if(result != 0) {
-            printf("Error. Result was not 0\n");
+            fprintf(stderr, "Error. Result was not 0 but %d\n", result);
             break;
         }
         // The MCP returns the current power consumption in 10mW steps.
