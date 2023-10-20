@@ -587,10 +587,6 @@ async def hog_add(measurements: List[HogMeasurement]):
         # For some reason we sometimes get NaN in the data.
         measurement_data = replace_nan_with_zero(measurement_data)
 
-
-        #TODO: This is a patch for the moment, because we are waiting for Starlette 0.31.1 to be available via FastAPI
-        print("Measuerement data currently is: ", measurement_data)
-
         #Check if the data is valid, if not this will throw an exception and converted into a request by the middleware
         try:
             _ = Measurement(**measurement_data)
