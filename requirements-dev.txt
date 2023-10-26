@@ -12,3 +12,4 @@ orjson==3.9.9
 
 # calibration script dep
 tqdm==4.66.1
+plotext==5.2.8

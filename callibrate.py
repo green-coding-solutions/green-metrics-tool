@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+#pylint: disable=logging-fstring-interpolation
+
+
 import argparse
 import importlib
 import logging
@@ -9,8 +12,11 @@ import shutil
 import sys
 import time
 from pathlib import Path
+import random
 
 from tqdm import tqdm
+import plotext as plt
+import pandas as pd
 
 from lib.global_config import GlobalConfig
 from lib import utils
@@ -62,7 +68,7 @@ def start_metric_providers():
         metric_provider.start_profiling()
 
     logging.info('Waiting for Metric Providers to boot ...')
-    #countdown_bar(len(metric_providers) * 2, 'Booting')
+    countdown_bar(len(metric_providers) * 2, 'Booting')
 
     for metric_provider in metric_providers:
         stderr_read = metric_provider.get_stderr()
@@ -77,13 +83,13 @@ def stop_metric_providers():
     for metric_provider in metric_providers:
 
         if stderr_read := metric_provider.get_stderr() is not None:
-            RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
+            raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
         metric_provider.stop_profiling()
 
         data[metric_provider.__class__.__name__] = metric_provider.read_metrics(1)
         if data[metric_provider.__class__.__name__] is None or data[metric_provider.__class__.__name__].shape[0] == 0:
-            RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
+            raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
 
     return data
 
@@ -113,7 +119,7 @@ def main(idle_time,
         return check_provider(mp, ['.energy', '.machine'])
 
     def rapl_provider(mp):
-        return check_provider(mp, ['cpu', '.energy' '.RAPL'])
+        return check_provider(mp, ['cpu', '.energy', '.RAPL'])
 
     def temp_provider(mp):
         return check_provider(mp, ['lm_sensors', '.temperature'])
@@ -159,8 +165,8 @@ def main(idle_time,
 
         for name, group in grouped:
 
-            # Remove first value as RAPL is an aggregate value and the first is not representative.
-            group = group.iloc[1:]
+            # Remove first values as RAPL is an aggregate value and the first is not representative.
+            group = group.iloc[2:]
 
             # make sure that there are no massive peaks in standard deviation. If so exit with notification
             mean_value = group['value'].mean()
@@ -199,12 +205,12 @@ def main(idle_time,
     start_metric_providers()
 
     def run_stress(stress_command, stress_time):
-        process = subprocess.Popen(stress_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        countdown_bar(stress_time, 'Stressing')
-        return_code = process.wait()
-        if return_code != 0:
-            logging.error(f"{stress_command} failed with return code: {return_code}")
-            sys.exit(2)
+        with subprocess.Popen(stress_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as process:
+            countdown_bar(stress_time, 'Stressing')
+            return_code = process.wait()
+            if return_code != 0:
+                logging.error(f"{stress_command} failed with return code: {return_code}")
+                sys.exit(2)
 
 
     logging.info('Starting stress')
@@ -238,6 +244,9 @@ def main(idle_time,
                 norm_times[name] = group['time'].loc[tmp_id]
             else:
                 logging.error(f"The temperature value never falls below idle mean for {name}.")
+                logging.info(grouped)
+                logging.info(f"Mean: {tmp_mean[name]}")
+                logging.info(f"Window: {RELIABLE_DURATION}")
                 sys.exit(3)
 
         return norm_times
@@ -273,22 +282,47 @@ def main(idle_time,
 
             return modified_lines
 
-        with open(CONF_FILE, 'r') as file:
+        with open(CONF_FILE, 'r', encoding='utf-8') as file:
             lines = file.readlines()
 
         modified_lines = modify_sleep_time_in_client_section(lines, cdt_seconds)
 
-        with open(CONF_FILE, 'w') as file:
+        with open(CONF_FILE, 'w', encoding='utf-8') as file:
             logging.debug('Writing config file')
             file.writelines(modified_lines)
 
     if write_config or input("Do you want to save the values in the config.yml? [Y/n] ").lower() in ('y', ''):
         save_value()
 
-    # Create a little report
+    if input('Do you want to see a summary? [Y/n]').lower() in ('y', ''):
 
+        def plot_data(data_source, xside, yside, label_prefix, mean_values):
+            data_mask = (data_source['time'] >= timings['start_idle']) & (data_source['time'] <= timings['end_cooldown'])
+            filtered_data = data_source[data_mask]
 
-    logging.info('Removing temporary files')
+            for n, g in filtered_data.groupby('detail_name'):
+                g = g.iloc[1:]
+                chosen_color = random.choice(allowed_colors)
+                allowed_colors.remove(chosen_color)
+
+                plt.plot(g['time'].tolist(), g['value'].tolist(), xside=xside, yside=yside, label=f"{label_prefix}: {n}", color=chosen_color)
+                plt.hline(mean_values[n], chosen_color)
+
+        allowed_colors = ["red", "green", "yellow", "blue", "magenta", "cyan", "white"]
+
+        tmp_data = pd.concat([data_idle[temp_provider_name], data_stress[temp_provider_name]], ignore_index=True)
+        tmp_data = tmp_data.sort_values(by='time')
+
+        pow_data = pd.concat([data_idle[power_provider_name], data_stress[power_provider_name]], ignore_index=True)
+        pow_data = pow_data.sort_values(by='time')
+
+        plot_data(tmp_data, "lower", "left", "Temperature (left, bottom)", tmp_mean)
+        plot_data(pow_data, "upper", "right", "Power (right, top)", power_mean)
+
+        plt.title("Temperature/ Energy Plot")
+        plt.theme('clear')
+        plt.show()
+
     shutil.rmtree(TMP_FOLDER, ignore_errors=True)
 
 
@@ -310,9 +344,9 @@ if __name__ == '__main__':
 
     parser.add_argument('-it', '--idle-time', type=int, default=60*5, help='The seconds the system should wait in idle mode. Defaults to 5 minutes')
     parser.add_argument('-st', '--stress-time', type=int, default=60*2, help='The seconds the system should stress the system. Defaults to 2 minutes')
-    parser.add_argument('-ct', '--cooldown-time', type=int, default=60*2, help='The seconds the system should wait to be back to normal temperature. Defaults to 5 minutes')
+    parser.add_argument('-ct', '--cooldown-time', type=int, default=60*5, help='The seconds the system should wait to be back to normal temperature. Defaults to 5 minutes')
 
-    parser.add_argument('-pi', '--provider-interval', type=int, default=5000, help='The interval in milliseconds for the providers . Defaults to 5000')
+    parser.add_argument('-pi', '--provider-interval', type=int, default=2000, help='The interval in milliseconds for the providers . Defaults to 5000')
 
     parser.add_argument('-s', '--stress-command', type=str, help='The command to stress the system with. Defaults to stress-ng')
 
@@ -322,12 +356,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.dev:
-        args.idle_time = 15
+        args.idle_time = 5
         args.stress_time = 1
-        args.cooldown_time = 15
+        args.cooldown_time = 10
+        args.provider_interval = 1000
         args.log_level = 'debug'
-
-
+        RELIABLE_DURATION = 2
 
     log_level = getattr(logging, args.log_level.upper())
 
