@@ -1,18 +1,35 @@
 #!/bin/bash
-
 set -euo pipefail
 
-# The names of the folders within "auxiliary-containers" must match the repository name in dockerhub!
+# get list of changed folders
+changed_folders=()
+for arg in "$@"; do
+  changed_folders+=("$arg")
+done
 
-# Get the list of subdirectories within "auxiliary-containers" directory containing a Dockerfile
-subdirs=($(find ./docker/auxiliary-containers -type f -name 'Dockerfile' -exec dirname {} \;))
+echo "Images to update: ${changed_folders[@]}"
 
-# Loop through each subdirectory, build and push the Docker image
-for subdir in "${subdirs[@]}"; do
-  folder=$(basename "${subdir}")
-  docker buildx build \
-    --push \
-    --tag "greencoding/${folder}:latest" \
-    --platform linux/amd64,linux/arm64 \
-    "${subdir}"
+## loop through all the changed folders
+for folder in "${changed_folders[@]}"; do
+    response=$(curl -s "https://hub.docker.com/v2/repositories/greencoding/${folder}/tags/?page_size=2")
+    # echo "${response}" | jq .
+    latest_version=$(echo "${response}" | jq -r '.results[0].name')
+    echo "Last version for ${folder} is ${latest_version}"
+    if [ "$latest_version" = "null" ]; then
+        new_version="v1"
+    elif [[ "$latest_version" =~ ^v[0-9]+$ ]]; then
+        latest_version_number=$(echo "$latest_version" | sed 's/v//')  # Remove 'v' from the version
+        new_version="v$((latest_version_number + 1))"
+    else
+        new_version="latest"
+    fi
+
+
+    echo "Building new version: greencoding/${folder}:${new_version}"
+    docker buildx build \
+        --push \
+        --tag "greencoding/${folder}:${new_version}" \
+        --platform linux/amd64,linux/arm64 \
+        ./docker/auxiliary-containers/"${folder}"
+    echo "Image pushed"
 done
