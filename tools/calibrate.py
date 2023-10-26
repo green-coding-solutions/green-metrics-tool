@@ -394,7 +394,7 @@ if __name__ == '__main__':
     if not args.stress_command:
         # Currently we are only interested in how hot the CPU gets so we use the matrix stress
         # In the future we might also want to see how much energy components.
-        args.stress_command = f"stress-ng --matrix 0 -t {args.stress_time}s"
+        args.stress_command = f"stress-ng --matrix 0 -t {args.stress_time}s --maximize"
 
     if args.output_file:
         logging.basicConfig(filename=args.output_file, level=log_level, format='[%(levelname)s] %(asctime)s - %(message)s')
