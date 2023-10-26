@@ -1,29 +1,33 @@
 #!/bin/bash
-
 set -euo pipefail
 
-# the first arguement should be the version number
+# get list of changed folders
+changed_folders=()
+for arg in "$@"; do
+  changed_folders+=("$arg")
+done
 
-version=$1
+echo "Images to update: ${changed_folders[@]}"
 
-# check that version is a non-empty string representing a number
-if ! [[ ${version} =~ ^[0-9]+$ ]]; then
-  echo "Usage: $0 <version-number>"
-  echo "Example: $0 1"
-  exit 1
-fi
+## loop through all the changed folders
+for folder in "${changed_folders[@]}"; do
+    response=$(curl -s "https://hub.docker.com/v2/repositories/greencoding/${folder}/tags/?page_size=2")
+    # echo "${response}" | jq .
+    latest_version=$(echo "${response}" | jq -r '.results[0].name')
+    echo "Last version for ${folder} is ${latest_version}"
+    if [ "$latest_version" = "null" ]; then
+        new_version=1
+    elif [[ "$latest_version" =~ ^[0-9]+$ ]]; then
+        new_version=$((latest_version+1))
+    else
+        new_version="latest"
+    fi
 
-# The names of the folders within "auxiliary-containers" must match the repository name in dockerhub!
-
-# Get the list of subdirectories within "auxiliary-containers" directory containing a Dockerfile
-subdirs=($(find ./docker/auxiliary-containers -type f -name 'Dockerfile' -exec dirname {} \;))
-
-# Loop through each subdirectory, build and push the Docker image
-for subdir in "${subdirs[@]}"; do
-  folder=$(basename "${subdir}")
-  docker buildx build \
-    --push \
-    --tag "greencoding/${folder}:v1.${version}" \
-    --platform linux/amd64,linux/arm64 \
-    "${subdir}"
+    echo "Building new version: greencoding/${folder}:v${version}"
+    docker buildx build \
+        --push \
+        --tag "greencoding/${folder}:v${version}" \
+        --platform linux/amd64,linux/arm64 \
+        ./docker/auxiliary-containers/"${folder}"
+    echo "Image pushed"
 done

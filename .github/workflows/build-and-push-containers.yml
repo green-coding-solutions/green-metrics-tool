@@ -32,7 +32,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-        # ${{ github.run_number }} increments with each urn (stays the same if you re-run a failed/stalled job)
-        # build-containers script takes the first arguement as the tag in the format: v1.x , where x is run_number
-      - name: Build and Push Containers
-        run: bash ./docker/auxiliary-containers/build-containers.sh ${{ github.run_number }}
+      - name: Build and Push auxiliary-containers
+        shell: bash
+        run: |
+          PR_FILES=$(curl -s "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" | jq -r '.[] | .filename')
+          CHANGED_SUBFOLDERS=$(echo "$PR_FILES" | grep -E '^docker/auxiliary-containers/[^/]+/' | sed -r 's|^docker/auxiliary-containers/([^/]+)/.*|\1|' | sort -u)
+
+          echo $CHANGED_SUBFOLDERS
+          ./docker/auxiliary-containers/build-containers.sh $CHANGED_SUBFOLDERS
