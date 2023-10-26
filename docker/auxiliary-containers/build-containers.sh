@@ -16,7 +16,7 @@ for folder in "${changed_folders[@]}"; do
     latest_version=$(echo "${response}" | jq -r '.results[0].name')
     echo "Last version for ${folder} is ${latest_version}"
     if [ "$latest_version" = "null" ]; then
-        new_version=1
+        new_version="v1"
     elif [[ "$latest_version" =~ ^v[0-9]+$ ]]; then
         latest_version_number=$(echo "$latest_version" | sed 's/v//')  # Remove 'v' from the version
         new_version="v$((latest_version_number + 1))"
