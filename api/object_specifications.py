@@ -47,7 +47,7 @@ class Measurement(BaseModel):
     timestamp: int
     coalitions: List[Coalition]
     all_tasks: Dict
-    network: Dict
+    network: Optional[Dict] = None # network is optional when system is in flight mode / network turned off
     disk: Dict
     interrupts: List
     processor: Processor

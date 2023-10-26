@@ -16,8 +16,10 @@ smtp:
   user: SMTP_AUTH_USER
 
 admin:
-  # This address will get an email, when a new software was added through the frontend
+  # This address will get an email, for any error or new project added etc.
   email: myemail@dev.local
+  # This email will always get a copy of every email sent, even for user-only mails like the "Your report is ready" mail. Put an empty string if you do not want that: ""
+  bcc_email: ""
   # no_emails: True will suppress all emails. Helpful in development servers
   no_emails: True
 
@@ -40,7 +42,7 @@ machine:
 measurement:
   idle-time-start: 10
   idle-time-end: 5
-  flow-process-runtime: 1800
+  flow-process-runtime: 3800
   phase-transition-time: 1
   metric-providers:
 
@@ -72,6 +74,8 @@ measurement:
 #        resolution: 100
 #      psu.energy.ac.powerspy2.machine.provider.PsuEnergyAcPowerspy2MachineProvider:
 #        resolution: 250
+#      psu.energy.ac.mcp.machine.provider.PsuEnergyAcMcpMachineProvider:
+#        resolution: 100
 #      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
 #        resolution: 100
     #--- Sensors - these providers need the lm-sensors package installed

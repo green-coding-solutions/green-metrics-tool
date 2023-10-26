@@ -68,10 +68,10 @@
                             <input type="text" placeholder="Name (optional)" id="text-field-hero-input1" name="name">
                         </div>
                         <div class="ui fluid icon input">
-                            <input type="text" placeholder="E-Mail" id="text-field-hero-input2" name="email">
+                            <input type="text" placeholder="E-Mail" id="text-field-hero-input2" name="email" required>
                         </div>
                         <div class="ui fluid icon input">
-                            <input type="text" placeholder="Github-/Gitlab-/Bitbucket-URL" id="text-field-hero-input3" name="url">
+                            <input type="text" placeholder="Github-/Gitlab-/Bitbucket-URL" id="text-field-hero-input3" name="url" required>
                         </div>
                         <div class="ui fluid icon input">
                             <input type="text" placeholder="Filename (optional - default: usage_scenario.yml)" id="text-field-hero-input4" name="filename">
@@ -80,12 +80,12 @@
                             <input type="text" placeholder="Branch (optional - default: main/master)" id="text-field-hero-input5" name="branch">
                         </div>
                         <div class="ui fluid icon input">
-                            <select name="machine_id" class="ui fluid dropdown">
-                                <option value='0'>-- Select hardware for testing --</option>
+                            <select name="machine_id" class="ui fluid dropdown" required>
+                                <option value=''>-- Select hardware for testing --</option>
                             </select>
                         </div>
                         <div class="ui fluid icon input">
-                            <select name="schedule_mode" class="ui fluid dropdown">
+                            <select name="schedule_mode" class="ui fluid dropdown" required>
                                 <option value=''>-- Select measurement interval --</option>
                                 <option value='one-off'>One-Off [Free - Fair use]</option>
                                 <option value='time'>Once per day [Premium / Free open source tier]</option>

@@ -12,7 +12,6 @@ def send_email(message, receiver_email):
         server.login(config['smtp']['user'], config['smtp']['password'])
         server.sendmail(config['smtp']['sender'], receiver_email, message.encode('utf-8'))
 
-
 def send_admin_email(subject, body):
     message = """\
 From: {smtp_sender}
@@ -31,13 +30,14 @@ Subject: {subject}
         url=config['cluster']['metrics_url'],
         receiver_email=config['admin']['email'],
         smtp_sender=config['smtp']['sender'])
-    send_email(message, config['admin']['email'])
+    send_email(message, [config['admin']['email'], config['admin']['bcc_email']])
 
 
 def send_error_email(receiver_email, error, run_id=None, name=None, machine=None):
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
+Bcc: {bcc_email}
 Subject: Your Green Metrics analysis has encountered problems
 
 Unfortunately, your Green Metrics analysis has run into some issues and could not be completed.
@@ -58,16 +58,18 @@ Link: {url}/stats.html?id={run_id}
         errors=error,
         name=name,
         machine=machine,
+        bcc_email=config['admin']['bcc_email'],
         url=config['cluster']['metrics_url'],
         run_id=run_id,
         smtp_sender=config['smtp']['sender'])
-    send_email(message, receiver_email)
+    send_email(message, [receiver_email, config['admin']['bcc_email']])
 
 
 def send_report_email(receiver_email, report_id, name, machine=None):
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
+Bcc: {bcc_email}
 Subject: Your Green Metric report is ready
 
 Run Name: {name}
@@ -84,9 +86,10 @@ Your report is now accessible under the URL: {url}/stats.html?id={report_id}
         report_id=report_id,
         machine=machine,
         name=name,
+        bcc_email=config['admin']['bcc_email'],
         url=config['cluster']['metrics_url'],
         smtp_sender=config['smtp']['sender'])
-    send_email(message, receiver_email)
+    send_email(message, [receiver_email, config['admin']['bcc_email']])
 
 
 if __name__ == '__main__':
