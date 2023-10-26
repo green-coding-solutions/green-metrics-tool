@@ -32,7 +32,7 @@ RELIABLE_DURATION = 4
 # You should never need to change in the usual case
 TMP_FOLDER = '/tmp/green-metrics-tool'
 LOG_LEVELS = ['debug', 'info', 'warning', 'error', 'critical']
-CONF_FILE = 'config.yml'
+CONF_FILE = '../config.yml'
 
 # Globals
 metric_providers= []
