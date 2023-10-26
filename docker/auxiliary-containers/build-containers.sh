@@ -25,7 +25,7 @@ for folder in "${changed_folders[@]}"; do
     fi
 
 
-    echo "Building new version: greencoding/${folder}:v${new_version}"
+    echo "Building new version: greencoding/${folder}:${new_version}"
     docker buildx build \
         --push \
         --tag "greencoding/${folder}:${new_version}" \
