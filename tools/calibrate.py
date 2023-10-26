@@ -17,6 +17,7 @@ import random
 from tqdm import tqdm
 import plotext as plt
 import pandas as pd
+import yaml
 
 from lib.global_config import GlobalConfig
 from lib import utils
@@ -162,12 +163,12 @@ def main(idle_time,
         grouped = data.groupby('detail_name')
 
         mean_values = {}
+        std_values = {}
 
         for name, group in grouped:
 
             # Remove first values as RAPL is an aggregate value and the first is not representative.
             group = group.iloc[2:]
-
             # make sure that there are no massive peaks in standard deviation. If so exit with notification
             mean_value = group['value'].mean()
             std_value = group['value'].std()
@@ -183,19 +184,21 @@ def main(idle_time,
                 logging.debug('\n%s', group)
                 logging.debug('Mean Val: %s', mean_value)
                 logging.debug('Std. Dev: %s', std_value)
+
                 sys.exit(4)
 
             mean_values[name] = mean_value
+            std_values[name] = std_value
 
-        return mean_values
+        return mean_values, std_values
 
     logging.info('Checking for consistent data')
 
     power_provider_name = power_provider.rsplit('.', 1)[-1]
     temp_provider_name = tmp_provider.rsplit('.', 1)[-1]
 
-    power_mean = check_values(data_idle[power_provider_name])
-    tmp_mean = check_values(data_idle[temp_provider_name])
+    power_mean, power_std = check_values(data_idle[power_provider_name])
+    tmp_mean, tmp_std = check_values(data_idle[temp_provider_name])
 
     logging.debug('Power mean is %s', power_mean)
     logging.debug('Temperature means are %s', tmp_mean)
@@ -235,7 +238,7 @@ def main(idle_time,
 
         norm_times = {}
         for name, group in grouped:
-            under_checker = group['value'] <= tmp_mean[name]
+            under_checker = group['value'] <= tmp_mean[name] + (tmp_std[name] * STD_THRESHOLD_MULTI)
             consecutive_under = under_checker.rolling(window=RELIABLE_DURATION).sum() == RELIABLE_DURATION
 
             if consecutive_under.any():
@@ -244,9 +247,10 @@ def main(idle_time,
                 norm_times[name] = group['time'].loc[tmp_id]
             else:
                 logging.error(f"The temperature value never falls below idle mean for {name}.")
-                logging.info(grouped)
-                logging.info(f"Mean: {tmp_mean[name]}")
-                logging.info(f"Window: {RELIABLE_DURATION}")
+                logging.info(data)
+                logging.info(f"Mean    : {tmp_mean[name]}")
+                logging.info(f"Mean+std: {tmp_mean[name] + (tmp_std[name] * STD_THRESHOLD_MULTI)}")
+                logging.info(f"Window  : {RELIABLE_DURATION}")
                 sys.exit(3)
 
         return norm_times
@@ -282,10 +286,29 @@ def main(idle_time,
 
             return modified_lines
 
+        def add_calibration(modified_lines):
+            lines_to_add = []
+            yml_data = {
+                'calibration': {
+                    'power_mean': [{k: str(v)} for k, v in power_mean.items()],
+                    'power_std': [{k: str(v)} for k, v in power_std.items()],
+                    'temp_mean': [{k: str(v)} for k, v in tmp_mean.items()],
+                    'temp_std': [{k: str(v)} for k, v in tmp_std.items()]
+                }
+            }
+
+            yml_string = yaml.dump(yml_data).split('\n')
+            lines_to_add.extend(['', '', '#This was written by the calibrate.py script'])
+            lines_to_add.extend(yml_string)
+            lines_to_add = [f"{i}\n" for i in lines_to_add]
+            modified_lines.extend(lines_to_add)
+            return modified_lines
+
         with open(CONF_FILE, 'r', encoding='utf-8') as file:
             lines = file.readlines()
 
         modified_lines = modify_sleep_time_in_client_section(lines, cdt_seconds)
+        modified_lines = add_calibration(modified_lines)
 
         with open(CONF_FILE, 'w', encoding='utf-8') as file:
             logging.debug('Writing config file')
