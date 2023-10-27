@@ -7,6 +7,13 @@ on:
       - 'docker/auxiliary-containers/**/Dockerfile'
 
   workflow_dispatch:
+    inputs:
+      container:
+        type: choice
+        description: The tag to update
+        required: true
+        options:
+          - gcb_playwright
 
 jobs:
   build-and-push-containers:
@@ -32,7 +39,8 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push auxiliary-containers
+      - if: github.event_name == 'pull_request'
+        name: Build and Push auxiliary-containers (PR)
         shell: bash
         run: |
           PR_FILES=$(curl -s "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" | jq -r '.[] | .filename')
@@ -40,3 +48,9 @@ jobs:
 
           echo $CHANGED_SUBFOLDERS
           ./docker/auxiliary-containers/build-containers.sh $CHANGED_SUBFOLDERS
+
+      - if: github.event_name == 'workflow_dispatch'
+        name: Build and Push auxiliary-containers (manual)
+        shell: bash
+        run: |
+          ./docker/auxiliary-containers/build-containers.sh ${{ github.event.inputs.container }}
