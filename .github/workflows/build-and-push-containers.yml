@@ -17,7 +17,6 @@ on:
 
 jobs:
   build-and-push-containers:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -39,7 +38,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - if: github.event_name == 'pull_request'
+      - if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
         name: Build and Push auxiliary-containers (PR)
         shell: bash
         run: |
