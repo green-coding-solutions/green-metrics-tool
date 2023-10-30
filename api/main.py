@@ -886,15 +886,15 @@ async def hog_get_task_details(machine_uuid: str, measurements_id_start: int, me
     tasks_query = """
         SELECT
             t.name,
-            COUNT(t.id) AS number_of_tasks,
-            (SUM(t.energy_impact)::bigint) AS total_energy_impact,
-            SUM(t.cputime_ns) AS total_cputime_ns,
-            SUM(t.bytes_received) AS total_bytes_received,
-            SUM(t.bytes_sent) AS total_bytes_sent,
-            SUM(t.diskio_bytesread) AS total_diskio_bytesread,
-            SUM(t.diskio_byteswritten) AS total_diskio_byteswritten,
-            SUM(t.intr_wakeups) AS total_intr_wakeups,
-            SUM(t.idle_wakeups) AS total_idle_wakeups
+            COUNT(t.id)::bigint AS number_of_tasks,
+            SUM(t.energy_impact)::bigint AS total_energy_impact,
+            SUM(t.cputime_ns)::bigint AS total_cputime_ns,
+            SUM(t.bytes_received)::bigint AS total_bytes_received,
+            SUM(t.bytes_sent)::bigint AS total_bytes_sent,
+            SUM(t.diskio_bytesread)::bigint AS total_diskio_bytesread,
+            SUM(t.diskio_byteswritten)::bigint AS total_diskio_byteswritten,
+            SUM(t.intr_wakeups)::bigint AS total_intr_wakeups,
+            SUM(t.idle_wakeups)::bigint AS total_idle_wakeups
         FROM
             hog_tasks t
         JOIN hog_coalitions c ON t.coalition = c.id
