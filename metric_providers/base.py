@@ -163,3 +163,4 @@ class BaseMetricProvider:
                     file=sys.stderr)  # process/-group may have already closed
 
         self._ps = None
+        self._has_started = False

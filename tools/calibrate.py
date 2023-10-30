@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-#pylint: disable=logging-fstring-interpolation
+#pylint: disable=logging-fstring-interpolation, broad-exception-caught
 
 
 import argparse
@@ -9,7 +9,6 @@ import importlib
 import logging
 import subprocess
 import shutil
-import sys
 import time
 from pathlib import Path
 import random
@@ -82,6 +81,8 @@ def stop_metric_providers():
 
     data = {}
     for metric_provider in metric_providers:
+        if metric_provider.has_started() is False:
+            continue
 
         if stderr_read := metric_provider.get_stderr() is not None:
             raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
@@ -93,6 +94,11 @@ def stop_metric_providers():
             raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
 
     return data
+
+
+def cleanup():
+    stop_metric_providers()
+    shutil.rmtree(TMP_FOLDER, ignore_errors=True)
 
 
 def main(idle_time,
@@ -133,13 +139,13 @@ def main(idle_time,
             logging.info('Using rapl provider.')
         else:
             logging.error('We need at least one psu/ rapl provider configured!')
-            sys.exit(1)
+            raise SystemExit(1)
 
     # Warn and exit if there is no temperature or system energy provider configured
     tmp_provider = temp_provider(mp)
     if not tmp_provider:
         logging.error('We need at least one temperature provider configured!')
-        sys.exit(1)
+        raise SystemExit(1)
 
     load_metric_providers(mp, [power_provider, tmp_provider], provider_interval)
 
@@ -185,7 +191,7 @@ def main(idle_time,
                 logging.debug('Mean Val: %s', mean_value)
                 logging.debug('Std. Dev: %s', std_value)
 
-                sys.exit(4)
+                raise SystemExit(4)
 
             mean_values[name] = mean_value
             std_values[name] = std_value
@@ -213,7 +219,7 @@ def main(idle_time,
             return_code = process.wait()
             if return_code != 0:
                 logging.error(f"{stress_command} failed with return code: {return_code}")
-                sys.exit(2)
+                raise SystemExit(2)
 
 
     logging.info('Starting stress')
@@ -251,7 +257,7 @@ def main(idle_time,
                 logging.info(f"Mean    : {tmp_mean[name]}")
                 logging.info(f"Mean+std: {tmp_mean[name] + (tmp_std[name] * STD_THRESHOLD_MULTI)}")
                 logging.info(f"Window  : {RELIABLE_DURATION}")
-                sys.exit(3)
+                raise SystemExit(3)
 
         return norm_times
 
@@ -346,7 +352,7 @@ def main(idle_time,
         plt.theme('clear')
         plt.show()
 
-    shutil.rmtree(TMP_FOLDER, ignore_errors=True)
+    cleanup()
 
 
 if __name__ == '__main__':
@@ -394,7 +400,7 @@ if __name__ == '__main__':
     if not args.stress_command:
         # Currently we are only interested in how hot the CPU gets so we use the matrix stress
         # In the future we might also want to see how much energy components.
-        args.stress_command = f"stress-ng --matrix 0 -t {args.stress_time}s --maximize"
+        args.stress_command = f"stress-ng --matrix 0 -t {args.stress_time}s"
 
     if args.output_file:
         logging.basicConfig(filename=args.output_file, level=log_level, format='[%(levelname)s] %(asctime)s - %(message)s')
@@ -403,10 +409,15 @@ if __name__ == '__main__':
 
     logging.debug('Calibration script started 🎉')
 
-    main(idle_time = args.idle_time,
-         stress_time = args.stress_time,
-         provider_interval = args.provider_interval,
-         stress_command = args.stress_command,
-         cooldown_time = args.cooldown_time,
-         write_config = args.write_config,
-         )
+    try:
+        main(idle_time = args.idle_time,
+            stress_time = args.stress_time,
+            provider_interval = args.provider_interval,
+            stress_command = args.stress_command,
+            cooldown_time = args.cooldown_time,
+            write_config = args.write_config,
+        )
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
+    finally:
+        cleanup()
