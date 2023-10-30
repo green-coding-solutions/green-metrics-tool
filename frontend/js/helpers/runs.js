@@ -111,7 +111,7 @@ const getRunsTable = (el, url, include_uri=true, include_button=true, searching=
                 render: function(el, type, row) {
                     let uri_link = replaceRepoIcon(el);
 
-                    if (uri.startsWith("http")) {
+                    if (el.startsWith("http")) {
                         uri_link = `${uri_link} <a href="${el}"><i class="icon external alternate"></i></a>`;
                     }
                     return uri_link
