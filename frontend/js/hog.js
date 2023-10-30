@@ -16,11 +16,11 @@ $(document).ready(function () {
                     data: 1,
                     title: 'Energy Impact',
                     className: "dt-body-right",
-                    render: function(data, type, row) {
+                    render: function(el, type, row) {
                         if (type === 'display' || type === 'filter') {
-                            return (data.toLocaleString())
+                            return (el.toLocaleString())
                         }
-                        return data;
+                        return el;
                     }
                 },
             ],

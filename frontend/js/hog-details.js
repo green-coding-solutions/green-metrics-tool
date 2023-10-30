@@ -186,33 +186,33 @@ $(document).ready(function () {
                                 data: 1,
                                 title: 'Energy Impact',
                                 className: "dt-body-right",
-                                render: function(data, type, row) {
+                                render: function(el, type, row) {
                                     if (type === 'display' || type === 'filter') {
-                                        return (data.toLocaleString())
+                                        return (el.toLocaleString())
                                     }
-                                    return data;
+                                    return el;
                                 }
                             },
                             {
                                 data: 2,
                                 title: 'Mb Read',
                                 className: "dt-body-right",
-                                render: function(data, type, row) {
+                                render: function(el, type, row) {
                                     if (type === 'display' || type === 'filter') {
-                                        return Math.trunc(data / 1048576).toLocaleString();
+                                        return Math.trunc(el / 1048576).toLocaleString();
                                     }
-                                    return data;
+                                    return el;
                                 }
                             },
                             {
                                 data: 3,
                                 title: 'Mb Written',
                                 className: "dt-body-right",
-                                render: function(data, type, row) {
+                                render: function(el, type, row) {
                                     if (type === 'display' || type === 'filter') {
-                                        return Math.trunc(data / 1048576).toLocaleString();
+                                        return Math.trunc(el / 1048576).toLocaleString();
                                     }
-                                    return data;
+                                    return el;
                                 }
                             },
                             { data: 4, title: 'Intr Wakeups',className: "dt-body-right"},
@@ -222,7 +222,7 @@ $(document).ready(function () {
                             {
                                 data: null,
                                 title: '',
-                                render: function(data, type, row) {
+                                render: function(el, type, row) {
                                     return `<button class="ui icon button js-task-info" data-name="${row[0]}" data-start="${firstValue[6]}" data-end="${lastValue[6]}"><i class="info icon"></i></button>`;
                                 },
                                 orderable: false,

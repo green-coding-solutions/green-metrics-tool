@@ -192,7 +192,7 @@ const loadCharts = async () => {
                             <i class="question circle icon link"></i>
                         </i>
                     </div>
-                    <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${buildQueryParams()}"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(skip_dates=false,metric_override=series[my_series].metric_name,detail_name=series[my_series].detail_name)}"></a></span>
+                    <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${buildQueryParams()}" target="_blank"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(skip_dates=false,metric_override=series[my_series].metric_name,detail_name=series[my_series].detail_name)}"></a></span>
                     <a href="#" class="copy-badge"><i class="copy icon"></i></a>
                 </div>
                 <p></p>`
