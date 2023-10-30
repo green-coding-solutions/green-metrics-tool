@@ -17,7 +17,7 @@ $(document).ready(function () {
             chart_node.classList.add('ui')
             chart_node.classList.add('wide')
 
-            const url_link = `${replaceRepoIcon(url)} <a href="${url}"><i class="icon external alternate"></i></a>`;
+            const url_link = `${replaceRepoIcon(url)} <a href="${url}" target="_blank"><i class="icon external alternate"></i></a>`;
             chart_node.innerHTML = `
                 <div class="content">
                     <div class="header">${name}</div>
@@ -47,7 +47,7 @@ $(document).ready(function () {
                                     <i class="question circle icon link"></i>
                                 </i>
                             </div>
-                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}"><img src="${API_URL}/v1/badge/timeline?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}" alt="Image Failed to Load" onerror="this.closest('.field').style.display='none'"></a></span>
+                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}" alt="Image Failed to Load" onerror="this.closest('.field').style.display='none'"></a></span>
                             <a href="#" class="copy-badge"><i class="copy icon"></i></a>
                         </div>
                         </div>
@@ -57,11 +57,11 @@ $(document).ready(function () {
             chart_node.innerHTML = `${chart_node.innerHTML}
                 </div>
 		<hr>
-                <a class="ui button blue" href="/timeline.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}">
+                <a class="ui button blue" href="/timeline.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}" target="_blank">
                     Show Timeline <i class="external alternate icon"></i>
                 </a>
                 <hr>
-                <a class="ui button grey" href="/index.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}">
+                <a class="ui button grey" href="/index.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}" target="_blank">
                     Show All Measurements <i class="external alternate icon"></i>
                 </a>`
 
