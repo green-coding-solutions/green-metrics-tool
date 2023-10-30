@@ -86,9 +86,9 @@ $(document).ready(function () {
             { data: 4, title: 'Filename'},
             { data: 6, title: 'Machine'},
             { data: 7, title: 'Schedule Mode'},
-            { data: 8, title: 'Last Scheduled', render: (data) => data == null ? '-' : dateToYMD(new Date(data)) },
-            { data: 9, title: 'Created At', render: (data) => data == null ? '-' : dateToYMD(new Date(data)) },
-            { data: 10, title: 'Updated At', render: (data) => data == null ? '-' : dateToYMD(new Date(data)) },
+            { data: 8, title: 'Last Scheduled', render: (el) => el == null ? '-' : dateToYMD(new Date(el)) },
+            { data: 9, title: 'Created At', render: (el) => el == null ? '-' : dateToYMD(new Date(el)) },
+            { data: 10, title: 'Updated At', render: (el) => el == null ? '-' : dateToYMD(new Date(el)) },
             {
                 data: 0,
                 title: 'Timeline Link',
