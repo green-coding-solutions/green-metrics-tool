@@ -1,18 +1,13 @@
-#pylint: disable=wrong-import-position, import-error, no-name-in-module
 import os
 import re
 import shutil
-import sys
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/../.")
-sys.path.append(f"{CURRENT_DIR}/../lib")
 
 from pathlib import Path
-from global_config import GlobalConfig
-import utils
 
-#pylint:disable=import-error
+from lib.global_config import GlobalConfig
+from lib import utils
 from runner import Runner
 
 #create test/tmp directory with specified usage_scenario to be passed as uri to runner
@@ -38,7 +33,6 @@ def replace_include_in_usage_scenario(usage_scenario_path, docker_compose_filena
         file.write(data)
 
 
-#pylint: disable=too-many-arguments
 def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='folder', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False,
         skip_unsafe=False, verbose_provider_boot=False, dir_name=None, dev_repeat_run=True, skip_system_checks=True):

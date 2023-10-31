@@ -27,7 +27,7 @@
                     <i class="dropdown icon"></i> ${uri_link}
                   </div>
                   <div class="content" data-uri="${uri}">
-                      <table class="ui sortable celled striped table"></table>
+                      <table class="ui celled striped table"></table>
                   </div>
                 </div>
             </td>`;

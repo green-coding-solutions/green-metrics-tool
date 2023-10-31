@@ -1,13 +1,15 @@
-
-# pylint: disable=import-error
-# pylint: disable=no-name-in-module
-# pylint: disable=wrong-import-position
-
 import faulthandler
-import sys
-import os
 
+# It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
+# Is the redundant call problematic
+faulthandler.enable()  # will catch segfaults and write to STDERR
+
+import zlib
+import base64
+import json
+from typing import List
 from xml.sax.saxutils import escape as xml_escape
+import math
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -19,28 +21,25 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from pydantic import BaseModel
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../lib')
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../tools')
-
-from global_config import GlobalConfig
-from db import DB
-from jobs import Job
-from timeline_projects import TimelineProject
-import email_helpers
-import error_helpers
 import anybadge
-from api_helpers import (add_phase_stats_statistics, determine_comparison_case,
+
+from api.object_specifications import Measurement
+from api.api_helpers import (add_phase_stats_statistics, determine_comparison_case,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value, get_timeline_query,
                          get_run_info, get_machine_list)
 
-# It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
-# Is the redundant call problematic
-faulthandler.enable()  # will catch segfaults and write to STDERR
+from lib.global_config import GlobalConfig
+from lib.db import DB
+from lib import email_helpers
+from lib import error_helpers
+from tools.jobs import Job
+from tools.timeline_projects import TimelineProject
+
 
 app = FastAPI()
 
-async def log_exception(request: Request, body, exc):
+async def log_exception(request: Request, exc, body=None, details=None):
     error_message = f"""
         Error in API call
 
@@ -53,6 +52,8 @@ async def log_exception(request: Request, body, exc):
         Headers: {str(request.headers)}
 
         Body: {body}
+
+        Optional details: {details}
 
         Exception: {exc}
     """
@@ -75,7 +76,7 @@ async def log_exception(request: Request, body, exc):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    await log_exception(request, exc.body, exc)
+    await log_exception(request, exc, body=exc.body, details=exc.errors())
     return ORJSONResponse(
         status_code=422, # HTTP_422_UNPROCESSABLE_ENTITY
         content=jsonable_encoder({'success': False, 'err': exc.errors(), 'body': exc.body}),
@@ -83,7 +84,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
-    await log_exception(request, exc.detail, exc)
+    await log_exception(request, exc, body='StarletteHTTPException handler cannot read body atm. Waiting for FastAPI upgrade.', details=exc.detail)
     return ORJSONResponse(
         status_code=exc.status_code,
         content=jsonable_encoder({'success': False, 'err': exc.detail}),
@@ -97,7 +98,11 @@ async def catch_exceptions_middleware(request: Request, call_next):
         # body = await request.body()  # This blocks the application. Unclear atm how to handle it properly
         # seems like a bug: https://github.com/tiangolo/fastapi/issues/394
         # Although the issue is closed the "solution" still behaves with same failure
-        await log_exception(request, None, exc)
+        # Actually Starlette, the underlying library to FastAPI has already introduced this functionality:
+        # https://github.com/encode/starlette/pull/1692
+        # However FastAPI does not support the new Starlette 0.31.1
+        # The PR relevant here is: https://github.com/tiangolo/fastapi/pull/9939
+        await log_exception(request, exc, body='Middleware cannot read body atm. Waiting for FastAPI upgrade')
         return ORJSONResponse(
             content={
                 'success': False,
@@ -535,10 +540,11 @@ async def get_timeline_projects():
 async def get_jobs():
     # Do not get the email jobs as they do not need to be display in the frontend atm
     query = """
-        SELECT j.id, j.name, j.url, j.filename, j.branch, m.description, j.state, j.updated_at, j.created_at
+        SELECT j.id, r.id as run_id, j.name, j.url, j.filename, j.branch, m.description, j.state, j.updated_at, j.created_at
         FROM jobs as j
         LEFT JOIN machines as m on m.id = j.machine_id
-        ORDER BY j.updated_at, j.created_at ASC
+        LEFT JOIN runs as r on r.job_id = j.id
+        ORDER BY j.updated_at DESC, j.created_at ASC
     """
     data = DB().fetch_all(query)
     if data is None or data == []:
@@ -546,6 +552,393 @@ async def get_jobs():
 
     return ORJSONResponse({'success': True, 'data': data})
 
+####
+
+class HogMeasurement(BaseModel):
+    time: int
+    data: str
+    settings: str
+    machine_uuid: str
+
+def replace_nan_with_zero(obj):
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(v, (dict, list)):
+                replace_nan_with_zero(v)
+            elif isinstance(v, float) and math.isnan(v):
+                obj[k] = 0
+    elif isinstance(obj, list):
+        for i, item in enumerate(obj):
+            if isinstance(item, (dict, list)):
+                replace_nan_with_zero(item)
+            elif isinstance(item, float) and math.isnan(item):
+                obj[i] = 0
+    return obj
+
+
+
+@app.post('/v1/hog/add')
+async def hog_add(measurements: List[HogMeasurement]):
+
+    for measurement in measurements:
+        decoded_data = base64.b64decode(measurement.data)
+        decompressed_data = zlib.decompress(decoded_data)
+        measurement_data = json.loads(decompressed_data.decode())
+
+        # For some reason we sometimes get NaN in the data.
+        measurement_data = replace_nan_with_zero(measurement_data)
+
+        #Check if the data is valid, if not this will throw an exception and converted into a request by the middleware
+        try:
+            _ = Measurement(**measurement_data)
+        except RequestValidationError as exc:
+            print(f"Caught Exception {exc}")
+            print(f"Errors are: {exc.errors()}")
+            raise exc
+
+        coalitions = []
+        for coalition in measurement_data['coalitions']:
+            if coalition['name'] == 'com.googlecode.iterm2' or \
+                coalition['name'] == 'com.apple.Terminal' or \
+                coalition['name'] == 'com.vix.cron' or \
+                coalition['name'].strip() == '':
+                tmp = coalition['tasks']
+                for tmp_el in tmp:
+                    tmp_el['tasks'] = []
+                coalitions.extend(tmp)
+            else:
+                coalitions.append(coalition)
+
+        # We remove the coalitions as we don't want to save all the data in hog_measurements
+        del measurement_data['coalitions']
+        del measurement.data
+
+        cpu_energy_data = {}
+        energy_impact = round(measurement_data['all_tasks'].get('energy_impact_per_s') * measurement_data['elapsed_ns'] / 1_000_000_000)
+        if 'ane_energy' in measurement_data['processor']:
+            cpu_energy_data = {
+                'combined_energy': round(measurement_data['processor'].get('combined_power', 0) * measurement_data['elapsed_ns'] / 1_000_000_000.0),
+                'cpu_energy': round(measurement_data['processor'].get('cpu_energy', 0)),
+                'gpu_energy': round(measurement_data['processor'].get('gpu_energy', 0)),
+                'ane_energy': round(measurement_data['processor'].get('ane_energy', 0)),
+                'energy_impact': energy_impact,
+            }
+        elif 'package_joules' in measurement_data['processor']:
+            # Intel processors report in joules/ watts and not mJ
+            cpu_energy_data = {
+                'combined_energy': round(measurement_data['processor'].get('package_joules', 0) * 1_000),
+                'cpu_energy': round(measurement_data['processor'].get('cpu_joules', 0) * 1_000),
+                'gpu_energy': round(measurement_data['processor'].get('igpu_watts', 0) * measurement_data['elapsed_ns'] / 1_000_000_000.0 * 1_000),
+                'ane_energy': 0,
+                'energy_impact': energy_impact,
+            }
+        else:
+            raise RequestValidationError("input not valid")
+
+        query = """
+            INSERT INTO
+                hog_measurements (
+                    time,
+                    machine_uuid,
+                    elapsed_ns,
+                    combined_energy,
+                    cpu_energy,
+                    gpu_energy,
+                    ane_energy,
+                    energy_impact,
+                    thermal_pressure,
+                    settings,
+                    data)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """
+        params = (
+            measurement.time,
+            measurement.machine_uuid,
+            measurement_data['elapsed_ns'],
+            cpu_energy_data['combined_energy'],
+            cpu_energy_data['cpu_energy'],
+            cpu_energy_data['gpu_energy'],
+            cpu_energy_data['ane_energy'],
+            cpu_energy_data['energy_impact'],
+            measurement_data['thermal_pressure'],
+            measurement.settings,
+            json.dumps(measurement_data),
+        )
+
+        measurement_db_id = DB().fetch_one(query=query, params=params)[0]
+
+
+        # Save hog_measurements
+        for coalition in coalitions:
+
+            if coalition['energy_impact'] < 1.0:
+                # If the energy_impact is too small we just skip the coalition.
+                continue
+
+            c_tasks = coalition['tasks'].copy()
+            del coalition['tasks']
+
+            c_energy_impact = round((coalition['energy_impact_per_s'] / 1_000_000_000) * measurement_data['elapsed_ns'])
+            c_cputime_ns = ((coalition['cputime_ms_per_s'] * 1_000_000)  / 1_000_000_000) * measurement_data['elapsed_ns']
+
+            query = """
+                INSERT INTO
+                    hog_coalitions (
+                        measurement,
+                        name,
+                        cputime_ns,
+                        cputime_per,
+                        energy_impact,
+                        diskio_bytesread,
+                        diskio_byteswritten,
+                        intr_wakeups,
+                        idle_wakeups,
+                        data)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """
+            params = (
+                measurement_db_id,
+                coalition['name'],
+                c_cputime_ns,
+                int(c_cputime_ns / measurement_data['elapsed_ns'] * 100),
+                c_energy_impact,
+                coalition['diskio_bytesread'],
+                coalition['diskio_byteswritten'],
+                coalition['intr_wakeups'],
+                coalition['idle_wakeups'],
+                json.dumps(coalition)
+            )
+
+            coaltion_db_id = DB().fetch_one(query=query, params=params)[0]
+
+            for task in c_tasks:
+                t_energy_impact = round((task['energy_impact_per_s'] / 1_000_000_000) * measurement_data['elapsed_ns'])
+                t_cputime_ns = ((task['cputime_ms_per_s'] * 1_000_000)  / 1_000_000_000) * measurement_data['elapsed_ns']
+
+                query = """
+                    INSERT INTO
+                        hog_tasks (
+                            coalition,
+                            name,
+                            cputime_ns,
+                            cputime_per,
+                            energy_impact,
+                            bytes_received,
+                            bytes_sent,
+                            diskio_bytesread,
+                            diskio_byteswritten,
+                            intr_wakeups,
+                            idle_wakeups,
+                            data)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                    """
+                params = (
+                    coaltion_db_id,
+                    task['name'],
+                    t_cputime_ns,
+                    int(t_cputime_ns / measurement_data['elapsed_ns'] * 100),
+                    t_energy_impact,
+                    task.get('bytes_received', 0),
+                    task.get('bytes_sent', 0),
+                    task.get('diskio_bytesread', 0),
+                    task.get('diskio_byteswritten', 0),
+                    task.get('intr_wakeups', 0),
+                    task.get('idle_wakeups', 0),
+                    json.dumps(task)
+
+                )
+                DB().fetch_one(query=query, params=params)
+
+        return Response(status_code=204) # No-Content
+
+
+@app.get('/v1/hog/top_processes')
+async def hog_get_top_processes():
+    query = """
+        SELECT
+            name,
+            (SUM(energy_impact)::bigint) AS total_energy_impact
+        FROM
+            hog_coalitions
+        GROUP BY
+            name
+        ORDER BY
+            total_energy_impact DESC
+        LIMIT 100;
+    """
+    data = DB().fetch_all(query)
+
+    if data is None:
+        data = []
+
+    query = """
+        SELECT COUNT(DISTINCT machine_uuid) FROM hog_measurements;
+    """
+
+    machine_count = DB().fetch_one(query)[0]
+
+    return ORJSONResponse({'success': True, 'process_data': data, 'machine_count': machine_count})
+
+
+@app.get('/v1/hog/machine_details/{machine_uuid}')
+async def hog_get_machine_details(machine_uuid: str):
+
+    if machine_uuid is None or not is_valid_uuid(machine_uuid):
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty or malformed'}, status_code=400)
+
+    query = """
+        SELECT
+            time,
+            combined_energy,
+            cpu_energy,
+            gpu_energy,
+            ane_energy,
+            energy_impact::bigint,
+            id
+        FROM
+            hog_measurements
+        WHERE
+            machine_uuid = %s
+        ORDER BY
+            time
+    """
+
+    data = DB().fetch_all(query, (machine_uuid,))
+
+    return ORJSONResponse({'success': True, 'data': data})
+
+
+@app.get('/v1/hog/coalitions_tasks/{machine_uuid}/{measurements_id_start}/{measurements_id_end}')
+async def hog_get_coalitions_tasks(machine_uuid: str, measurements_id_start: int, measurements_id_end: int):
+
+    if machine_uuid is None or not is_valid_uuid(machine_uuid):
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty'}, status_code=400)
+
+    if measurements_id_start is None:
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_start is empty'}, status_code=400)
+
+    if measurements_id_end is None:
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_end is empty'}, status_code=400)
+
+
+    coalitions_query = """
+        SELECT
+            name,
+            (SUM(hc.energy_impact)::bigint) AS total_energy_impact,
+            (SUM(hc.diskio_bytesread)::bigint) AS total_diskio_bytesread,
+            (SUM(hc.diskio_byteswritten)::bigint) AS total_diskio_byteswritten,
+            (SUM(hc.intr_wakeups)::bigint) AS total_intr_wakeups,
+            (SUM(hc.idle_wakeups)::bigint) AS total_idle_wakeups,
+            (AVG(hc.cputime_per)::integer) AS avg_cpu_per
+        FROM
+            hog_coalitions AS hc
+        JOIN
+            hog_measurements AS hm ON hc.measurement = hm.id
+        WHERE
+            hc.measurement BETWEEN %s AND %s
+            AND hm.machine_uuid = %s
+        GROUP BY
+            name
+        ORDER BY
+            total_energy_impact DESC
+        LIMIT 100;
+    """
+
+    measurements_query = """
+        SELECT
+            (SUM(combined_energy)::bigint) AS total_combined_energy,
+            (SUM(cpu_energy)::bigint) AS total_cpu_energy,
+            (SUM(gpu_energy)::bigint) AS total_gpu_energy,
+            (SUM(ane_energy)::bigint) AS total_ane_energy,
+            (SUM(energy_impact)::bigint) AS total_energy_impact
+        FROM
+            hog_measurements
+        WHERE
+            id BETWEEN %s AND %s
+            AND machine_uuid = %s
+
+    """
+
+    coalitions_data = DB().fetch_all(coalitions_query, (measurements_id_start, measurements_id_end, machine_uuid))
+
+    energy_data = DB().fetch_one(measurements_query, (measurements_id_start, measurements_id_end, machine_uuid))
+
+    return ORJSONResponse({'success': True, 'data': coalitions_data, 'energy_data': energy_data})
+
+@app.get('/v1/hog/tasks_details/{machine_uuid}/{measurements_id_start}/{measurements_id_end}/{coalition_name}')
+async def hog_get_task_details(machine_uuid: str, measurements_id_start: int, measurements_id_end: int, coalition_name: str):
+
+    if machine_uuid is None or not is_valid_uuid(machine_uuid):
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty'}, status_code=400)
+
+    if measurements_id_start is None:
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_start is empty'}, status_code=400)
+
+    if measurements_id_end is None:
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_end is empty'}, status_code=400)
+
+    if coalition_name is None or not coalition_name.strip():
+        return ORJSONResponse({'success': False, 'err': 'coalition_name is empty'}, status_code=400)
+
+    tasks_query = """
+        SELECT
+            t.name,
+            COUNT(t.id)::bigint AS number_of_tasks,
+            SUM(t.energy_impact)::bigint AS total_energy_impact,
+            SUM(t.cputime_ns)::bigint AS total_cputime_ns,
+            SUM(t.bytes_received)::bigint AS total_bytes_received,
+            SUM(t.bytes_sent)::bigint AS total_bytes_sent,
+            SUM(t.diskio_bytesread)::bigint AS total_diskio_bytesread,
+            SUM(t.diskio_byteswritten)::bigint AS total_diskio_byteswritten,
+            SUM(t.intr_wakeups)::bigint AS total_intr_wakeups,
+            SUM(t.idle_wakeups)::bigint AS total_idle_wakeups
+        FROM
+            hog_tasks t
+        JOIN hog_coalitions c ON t.coalition = c.id
+        JOIN hog_measurements m ON c.measurement = m.id
+        WHERE
+            c.name = %s
+            AND c.measurement BETWEEN %s AND %s
+            AND m.machine_uuid = %s
+        GROUP BY
+            t.name
+        ORDER BY
+            total_energy_impact DESC;
+    """
+
+    coalitions_query = """
+        SELECT
+            c.name,
+            (SUM(c.energy_impact)::bigint) AS total_energy_impact,
+            (SUM(c.diskio_bytesread)::bigint) AS total_diskio_bytesread,
+            (SUM(c.diskio_byteswritten)::bigint) AS total_diskio_byteswritten,
+            (SUM(c.intr_wakeups)::bigint) AS total_intr_wakeups,
+            (SUM(c.idle_wakeups)::bigint) AS total_idle_wakeups
+        FROM
+            hog_coalitions c
+        JOIN hog_measurements m ON c.measurement = m.id
+        WHERE
+            c.name = %s
+            AND c.measurement BETWEEN %s AND %s
+            AND m.machine_uuid = %s
+        GROUP BY
+            c.name
+        ORDER BY
+            total_energy_impact DESC
+        LIMIT 100;
+    """
+
+    tasks_data = DB().fetch_all(tasks_query, (coalition_name, measurements_id_start,measurements_id_end, machine_uuid))
+    coalitions_data = DB().fetch_one(coalitions_query, (coalition_name, measurements_id_start, measurements_id_end, machine_uuid))
+
+    return ORJSONResponse({'success': True, 'tasks_data': tasks_data, 'coalitions_data': coalitions_data})
+
+
+
+####
 
 class Software(BaseModel):
     name: str
@@ -632,11 +1025,12 @@ class CI_Measurement(BaseModel):
     cpu: str
     cpu_util_avg: float
     commit_hash: str
-    workflow: str
+    workflow: str   # workflow_id, change when we make API change of workflow_name being mandatory
     run_id: str
     source: str
     label: str
     duration: int
+    workflow_name: str = None
 
 @app.post('/v1/ci/measurement/add')
 async def post_ci_measurement_add(measurement: CI_Measurement):
@@ -649,7 +1043,7 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                     raise RequestValidationError("Unit is unsupported - only mJ currently accepted")
                 continue
 
-            case 'label':  # Optional fields
+            case 'label' | 'workflow_name':  # Optional fields
                 continue
 
             case _:
@@ -663,13 +1057,12 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 
     query = """
         INSERT INTO
-            ci_measurements (energy_value, energy_unit, repo, branch, workflow, run_id, label, source, cpu, commit_hash, duration, cpu_util_avg)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ci_measurements (energy_value, energy_unit, repo, branch, workflow_id, run_id, label, source, cpu, commit_hash, duration, cpu_util_avg, workflow_name)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
     params = (measurement.energy_value, measurement.energy_unit, measurement.repo, measurement.branch,
-            measurement.workflow, measurement.run_id,
-            measurement.label, measurement.source, measurement.cpu, measurement.commit_hash,
-            measurement.duration, measurement.cpu_util_avg)
+            measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
+            measurement.commit_hash, measurement.duration, measurement.cpu_util_avg, measurement.workflow_name)
 
     DB().query(query=query, params=params)
     return ORJSONResponse({'success': True}, status_code=201)
@@ -677,24 +1070,37 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
 @app.get('/v1/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str):
     query = """
-        SELECT energy_value, energy_unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg
+        SELECT energy_value, energy_unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg,
+               (SELECT workflow_name FROM ci_measurements AS latest_workflow
+                WHERE latest_workflow.repo = ci_measurements.repo
+                AND latest_workflow.branch = ci_measurements.branch
+                AND latest_workflow.workflow_id = ci_measurements.workflow_id
+                ORDER BY latest_workflow.created_at DESC
+                LIMIT 1) AS workflow_name
         FROM ci_measurements
-        WHERE repo = %s AND branch = %s AND workflow = %s
+        WHERE repo = %s AND branch = %s AND workflow_id = %s
         ORDER BY run_id ASC, created_at ASC
     """
     params = (repo, branch, workflow)
     data = DB().fetch_all(query, params=params)
+
     if data is None or data == []:
-        return Response(status_code=204) # No-Content
+        return Response(status_code=204)  # No-Content
 
     return ORJSONResponse({'success': True, 'data': data})
 
 @app.get('/v1/ci/projects')
 async def get_ci_projects():
     query = """
-        SELECT repo, branch, workflow, source, MAX(created_at)
+        SELECT repo, branch, workflow_id, source, MAX(created_at),
+                (SELECT workflow_name FROM ci_measurements AS latest_workflow
+                WHERE latest_workflow.repo = ci_measurements.repo
+                AND latest_workflow.branch = ci_measurements.branch
+                AND latest_workflow.workflow_id = ci_measurements.workflow_id
+                ORDER BY latest_workflow.created_at DESC
+                LIMIT 1) AS workflow_name
         FROM ci_measurements
-        GROUP BY repo, branch, workflow, source
+        GROUP BY repo, branch, workflow_id, source
         ORDER BY repo ASC
     """
 
@@ -709,7 +1115,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
         SELECT SUM(energy_value), MAX(energy_unit), MAX(run_id)
         FROM ci_measurements
-        WHERE repo = %s AND branch = %s AND workflow = %s
+        WHERE repo = %s AND branch = %s AND workflow_id = %s
         GROUP BY run_id
         ORDER BY MAX(created_at) DESC
         LIMIT 1

@@ -95,11 +95,11 @@ const getRunsTable = (el, url, include_uri=true, include_button=true, searching=
         {
             data: 1,
             title: 'Name',
-            render: function(name, type, row) {
+            render: function(el, type, row) {
 
-                if(row[9] == null) name = `${name} (in progress 🔥)`;
-                if(row[5] != null) name = `${name} <span class="ui yellow horizontal label" title="${row[5]}">invalidated</span>`;
-                return `<a href="/stats.html?id=${row[0]}">${name}</a>`
+                if(row[9] == null) el = `${el} (in progress 🔥)`;
+                if(row[5] != null) el = `${el} <span class="ui yellow horizontal label" title="${row[5]}">invalidated</span>`;
+                return `<a href="/stats.html?id=${row[0]}" target="_blank">${el}</a>`
             },
         },
     ]
@@ -108,11 +108,11 @@ const getRunsTable = (el, url, include_uri=true, include_button=true, searching=
         columns.push({
                 data: 2,
                 title: '(<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.) Repo',
-                render: function(uri, type, row) {
-                    let uri_link = replaceRepoIcon(uri);
+                render: function(el, type, row) {
+                    let uri_link = replaceRepoIcon(el);
 
-                    if (uri.startsWith("http")) {
-                        uri_link = `${uri_link} <a href="${uri}"><i class="icon external alternate"></i></a>`;
+                    if (el.startsWith("http")) {
+                        uri_link = `${uri_link} <a href="${el}"><i class="icon external alternate"></i></a>`;
                     }
                     return uri_link
                 },
@@ -124,24 +124,24 @@ const getRunsTable = (el, url, include_uri=true, include_button=true, searching=
     columns.push({
         data: 8,
         title: '<i class="icon history"></i>Commit</th>',
-        render: function(commit, type, row) {
+        render: function(el, type, row) {
           // Modify the content of the "Name" column here
-          return commit == null ? null : `${commit.substr(0,3)}...${commit.substr(-3,3)}`
+          return el == null ? null : `${el.substr(0,3)}...${el.substr(-3,3)}`
         },
     });
 
     columns.push({ data: 6, title: '<i class="icon file alternate"></i>Filename', });
     columns.push({ data: 7, title: '<i class="icon laptop code"></i>Machine</th>' });
-    columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>', render: (data) => data == null ? '-' : dateToYMD(new Date(data)) });
+    columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>', render: (el) => el == null ? '-' : dateToYMD(new Date(el)) });
 
     const button_title = include_button ? '<button id="compare-button" onclick="compareButton()" class="ui small button blue right">Compare: 0 Run(s)</button>' : '';
 
     columns.push({
         data: 0,
         title: button_title,
-        render: function(id, type, row) {
+        render: function(el, type, row) {
             // Modify the content of the "Name" column here
-            return `<input type="checkbox" value="${id}" name="chbx-proj"/>&nbsp;`
+            return `<input type="checkbox" value="${el}" name="chbx-proj"/>&nbsp;`
         }
     });
 
@@ -160,6 +160,6 @@ const getRunsTable = (el, url, include_uri=true, include_button=true, searching=
             allow_group_select_checkboxes('input[type="checkbox"]');
             updateCompareCount();
         },
-        order: [] // API determines order
+        order: [[columns.length-2, 'desc']] // API also orders, but we need to indicate order for the user
     });
 }

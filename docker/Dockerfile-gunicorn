@@ -1,8 +1,15 @@
 # syntax=docker/dockerfile:1
-FROM python:3.11.4-slim-bookworm
+FROM python:3.12.0-slim-bookworm
 ENV DEBIAN_FRONTEND=noninteractive
 
+WORKDIR /var/www/startup/
 COPY requirements.txt requirements.txt
-RUN pip3 install -r requirements.txt
+RUN python -m venv venv
+RUN venv/bin/pip install --upgrade pip
+RUN venv/bin/pip install -r requirements.txt
+RUN find venv -type d -name "site-packages" -exec sh -c 'echo /var/www/green-metrics-tool > "$0/gmt-lib.pth"' {} \;
 
-ENTRYPOINT ["/usr/local/bin/gunicorn", "--workers=2", "--access-logfile=-", "--error-logfile=-", "--worker-tmp-dir=/dev/shm", "--threads=4", "--worker-class=gthread",  "--bind", "unix:/tmp/green-coding-api.sock", "-m", "007", "--user", "www-data", "--chdir", "/var/www/green-metrics-tool/api", "-k", "uvicorn.workers.UvicornWorker", "api:app"]
+
+COPY startup_gunicorn.sh /var/www/startup/startup_gunicorn.sh
+
+ENTRYPOINT ["/bin/bash", "/var/www/startup/startup_gunicorn.sh"]

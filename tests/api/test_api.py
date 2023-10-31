@@ -1,27 +1,21 @@
 import os
-import sys
 import pytest
 import requests
 import psycopg
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{current_dir}/../../api")
-sys.path.append(f"{current_dir}/../../lib")
-sys.path.append(f"{current_dir}/../../tools")
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-#pylint: disable=import-error
-from db import DB
-from machine import Machine
-import utils
-from global_config import GlobalConfig
-import test_functions as Tests
+from lib.db import DB
+from lib import utils
+from lib.global_config import GlobalConfig
+from tools.machine import Machine
+from tests import test_functions as Tests
 
 config = GlobalConfig(config_name='test-config.yml').config
 API_URL = config['cluster']['api_url']
 
-# pylint: disable=no-name-in-module
-from api import Software
-from api import CI_Measurement
+from api.main import Software
+from api.main import CI_Measurement
 
 @pytest.fixture(autouse=True, name="register_machine")
 def register_machine_fixture():
@@ -62,7 +56,8 @@ def test_ci_measurement_add():
                         run_id='testRunID',
                         source='testSource',
                         label='testLabel',
-                        duration=20)
+                        duration=20,
+                        workflow_name='testWorkflowName')
     response = requests.post(f"{API_URL}/v1/ci/measurement/add", json=measurement.model_dump(), timeout=15)
     assert response.status_code == 201, Tests.assertion_info('success', response.text)
     query = """
@@ -71,13 +66,16 @@ def test_ci_measurement_add():
     data = DB().fetch_one(query, (measurement.run_id, ), row_factory=psycopg.rows.dict_row)
     assert data is not None
     for key in measurement.model_dump().keys():
-        assert data[key] == measurement.model_dump()[key], Tests.assertion_info(f"{key}: {data[key]}", measurement.model_dump()[key])
+        if key == 'workflow':
+            assert data['workflow_id'] == measurement.model_dump()[key], Tests.assertion_info(f"workflow_id: {data['workflow_id']}", measurement.model_dump()[key])
+        else:
+            assert data[key] == measurement.model_dump()[key], Tests.assertion_info(f"{key}: {data[key]}", measurement.model_dump()[key])
 
 
 def todo_test_get_runs():
     run_name = 'test_' + utils.randomword(12)
     uri = os.path.abspath(os.path.join(
-            current_dir, 'stress-application/'))
+            CURRENT_DIR, 'stress-application/'))
     pid = DB().fetch_one('INSERT INTO "runs" ("name","uri","email","last_run","created_at") \
                     VALUES \
                     (%s,%s,\'manual\',NULL,NOW()) RETURNING id;', params=(run_name, uri))[0]

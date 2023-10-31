@@ -1,11 +1,14 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
+
 import os
-import sys
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/../lib")
 
-#pylint: disable=import-error
-from db import DB
+from lib.db import DB
 
 class Machine:
 

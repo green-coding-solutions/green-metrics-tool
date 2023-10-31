@@ -1,8 +1,13 @@
-#pylint: disable=invalid-name, line-too-long
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
 
 import sys
 import argparse
 from io import StringIO
+
 import psycopg
 import pandas as pd
 

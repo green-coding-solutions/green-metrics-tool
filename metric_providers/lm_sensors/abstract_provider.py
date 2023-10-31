@@ -3,8 +3,7 @@
 # Discussion is here https://github.com/green-coding-berlin/green-metrics-tool/issues/39
 
 import os
-#pylint: disable=import-error
-from global_config import GlobalConfig
+from lib.global_config import GlobalConfig
 from metric_providers.base import BaseMetricProvider
 
 class LmSensorsProvider(BaseMetricProvider):

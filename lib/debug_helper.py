@@ -1,5 +1,6 @@
 import sys
-from terminal_colors import TerminalColors
+
+from lib.terminal_colors import TerminalColors
 
 class DebugHelper:
 

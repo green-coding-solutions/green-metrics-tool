@@ -1,21 +1,19 @@
 import os
-import sys
 import subprocess
 import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/..")
-sys.path.append(f"{CURRENT_DIR}/../lib")
 
-#pylint: disable=import-error, unused-argument # unused arguement off for now - because there are no running tests in this file
-from db import DB
-import utils
-import test_functions as Tests
-from global_config import GlobalConfig
+from lib.db import DB
+from lib import utils
+from lib.global_config import GlobalConfig
+from tests import test_functions as Tests
 from runner import Runner
+
 
 config = GlobalConfig(config_name='test-config.yml').config
 
+#pylint: disable=unused-argument # unused arguement off for now - because there are no running tests in this file
 @pytest.fixture(name="reset_config")
 def reset_config_fixture():
     idle_start_time = config['measurement']['idle-time-start']

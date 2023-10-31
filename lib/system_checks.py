@@ -7,92 +7,90 @@
 # It is possible for one of the checkers or metric providers to raise an exception if something should fail specifically
 # otherwise you can just return False and set the Status to ERROR for the program to abort.
 
-#pylint: disable=inconsistent-return-statements
-
-
 import sys
 import os
 from enum import Enum
 import subprocess
 import psutil
-import utils
 
-from global_config import GlobalConfig
+from psycopg import OperationalError as psycopg_OperationalError
+
+from lib import utils
+from lib import error_helpers
+from lib.db import DB
+from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
 
 Status = Enum('Status', ['ERROR', 'INFO', 'WARN'])
 
+GMT_Resources = {
+    'free_disk': 1024 ** 3, # 1GB in bytes
+    'free_memory':  1024 ** 3, # 1GB in bytes
+}
 class ConfigurationCheckError(Exception):
     pass
 
 ######## CHECK FUNCTIONS ########
-def check_metric_providers(runner):
-    for metric_provider in runner._Runner__metric_providers:
-        if hasattr(metric_provider, 'check_system'):
-            if metric_provider.check_system() is False:
-                return False
+def check_db():
+    try:
+        DB()
+    except psycopg_OperationalError:
+        error_helpers.log_error('DB is not available. Did you start the docker containers?')
+        os._exit(1)
+    return True
 
-def check_one_psu_provider(_):
-    metric_providers = list(utils.get_metric_providers(GlobalConfig().config).keys())
-    if sum(True for provider in metric_providers if ".energy" in provider and ".machine" in provider) > 1:
-        return False
+def check_one_psu_provider():
+    metric_providers = utils.get_metric_providers(GlobalConfig().config).keys()
+    energy_machine_providers = [provider for provider in metric_providers if ".energy" in provider and ".machine" in provider]
+    return len(energy_machine_providers) <= 1
 
-def check_tmpfs_mount(_):
-    for partition in psutil.disk_partitions():
-        if partition.mountpoint == '/tmp' and partition.fstype != 'tmpfs':
-            return False
+def check_tmpfs_mount():
+    return not any(partition.mountpoint == '/tmp' and partition.fstype != 'tmpfs' for partition in psutil.disk_partitions())
 
-def check_free_disk(percent):
-    # We are assuming that the GMT is installed on the system partition!
-    usage = psutil.disk_usage(os.path.abspath(__file__))
-    if usage.percent >= percent:
-        return False
+def check_free_disk():
+    free_space_bytes = psutil.disk_usage(os.path.dirname(os.path.abspath(__file__))).free
+    return free_space_bytes >= GMT_Resources['free_disk']
 
-def check_free_disk_80(_):
-    return check_free_disk(80)
+def check_free_memory():
+    return psutil.virtual_memory().available >= GMT_Resources['free_memory']
 
-def check_free_disk_90(_):
-    return check_free_disk(90)
-
-def check_free_disk_95(_):
-    return check_free_disk(95)
-
-def check_free_memory(_):
-    if psutil.virtual_memory().percent >= 70:
-        return False
-
-def check_containers_running(_):
-    result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
+def check_containers_running():
+    result = subprocess.run(['docker', 'ps', '--format', '{{.Names}}'],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             check=True, encoding='UTF-8')
-    if result.stdout:
-        return False
+    return not bool(result.stdout.strip())
+
+def check_docker_daemon():
+    result = subprocess.run(['docker', 'version'],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            check=False, encoding='UTF-8')
+    return result.returncode == 0
 
 
 ######## END CHECK FUNCTIONS ########
 
-checks = [
-    (check_metric_providers, Status.ERROR, 'metric providers', 'Metric provider failed'),
+start_checks = [
+    (check_db, Status.ERROR, 'db online', 'This text will never be triggered, please look in the function itself'),
     (check_one_psu_provider, Status.ERROR, 'single PSU provider', 'Please only select one PSU provider'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
-    (check_free_disk_80, Status.INFO, '80% free disk space', 'We recommend to free up some disk space'),
-    (check_free_disk_90, Status.WARN, '90% free disk space', 'We recommend to free up some disk space!!!!!!!'),
-    (check_free_disk_95, Status.ERROR, '95% free disk space', 'No free disk space left. Please clean up some files'),
-    (check_free_memory, Status.ERROR, '80% free memory', 'No free memory! Please kill some programs'),
-    (check_containers_running, Status.WARN, 'Running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.berlin/docs/installation/installation-cluster/].')
+    (check_free_disk, Status.ERROR, '1GB free hdd space', 'We recommend to free up some disk space'),
+    (check_free_memory, Status.ERROR, 'free memory', 'No free memory! Please kill some programs'),
+    (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.berlin/docs/installation/]'),
+    (check_containers_running, Status.WARN, 'Running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.berlin/docs/installation/installation-cluster/].'),
 
 ]
 
 
-def check_all(runner):
+def check_start():
     print(TerminalColors.HEADER, '\nRunning System Checks', TerminalColors.ENDC)
-    max_key_length = max(len(key[2]) for key in checks)
+    max_key_length = max(len(key[2]) for key in start_checks)
 
-    for check in checks:
+    for check in start_checks:
         retval = None
         try:
-            retval = check[0](runner)
+            retval = check[0]()
         except ConfigurationCheckError as exp:
             raise exp
         finally:

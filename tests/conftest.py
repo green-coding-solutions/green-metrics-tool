@@ -1,21 +1,12 @@
-#pylint: disable=import-error
-
-import os
-import sys
 import pytest
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{current_dir}/../lib")
-
-from db import DB
+from lib.db import DB
 
 ## VERY IMPORTANT to override the config file here
 ## otherwise it will automatically connect to non-test DB and delete all your real data
-from global_config import GlobalConfig
+from lib.global_config import GlobalConfig
 GlobalConfig().override_config(config_name='test-config.yml')
 
-
-#pylint: disable=undefined-variable
 def pytest_collection_modifyitems(items):
     for item in items:
         if item.fspath.basename == 'test_functions.py':

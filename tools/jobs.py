@@ -1,21 +1,21 @@
-#pylint: disable=import-error,too-many-instance-attributes
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
+
 import sys
 import os
-import faulthandler
 from datetime import datetime
 
-faulthandler.enable()  # will catch segfaults and write to STDERR
-
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/..")
-sys.path.append(f"{CURRENT_DIR}/../lib")
 
-import email_helpers
-import error_helpers
-from db import DB
-from global_config import GlobalConfig
-from phase_stats import build_and_store_phase_stats
-from terminal_colors import TerminalColors
+from lib import email_helpers
+from lib import error_helpers
+from lib.db import DB
+from lib.global_config import GlobalConfig
+from lib.terminal_colors import TerminalColors
+from tools.phase_stats import build_and_store_phase_stats
 
 """
     The jobs.py file is effectively a state machine that can insert a job in the 'WAITING'
@@ -43,8 +43,9 @@ class Job:
         params = (self.machine_id,)
         data = DB().fetch_one(query, params=params)
         if data:
-            # No email here, only debug
             error_helpers.log_error('Measurement-Job was still running: ', data)
+            if GlobalConfig().config['admin']['no_emails'] is False:
+                email_helpers.send_error_email(GlobalConfig().config['admin']['email'], 'Measurement-Job was still running on box!')
             return True
         return False
 
@@ -52,8 +53,9 @@ class Job:
         query = "SELECT * FROM jobs WHERE state = 'NOTIFYING'"
         data = DB().fetch_one(query)
         if data:
-            # No email here, only debug
             error_helpers.log_error('Notifying-Job was still running: ', data)
+            if GlobalConfig().config['admin']['no_emails'] is False:
+                email_helpers.send_error_email(GlobalConfig().config['admin']['email'], 'Notifying-Job  was still running on box!')
             return True
         return False
 
@@ -94,6 +96,8 @@ class Job:
             return
         self.update_state('RUNNING')
 
+        # We need this exclusion here, as the jobs.py is also included in the API and there the
+        # import of the Runner will lead to import conflicts. It is also not used there, so this is acceptable.
         #pylint: disable=import-outside-toplevel
         from runner import Runner
 
@@ -132,27 +136,33 @@ class Job:
     @classmethod
     def get_job(cls, job_type):
         cls.clear_old_jobs()
-        state = 'WAITING' if job_type == 'run' else 'FINISHED'
 
-        config = GlobalConfig().config
-
-        order_by = 'j.created_at ASC' # default case == 'fifo'
-        if config['machine']['jobs_processing'] == 'random':
-            order_by = 'RANDOM()'
-
-        query = f"""
+        query = '''
             SELECT
                 j.id, j.state, j.name, j.email, j.url, j.branch,
                 j.filename, j.machine_id, m.description, r.id as run_id
             FROM jobs as j
             LEFT JOIN machines as m on m.id = j.machine_id
             LEFT JOIN runs as r on r.job_id = j.id
-            WHERE j.state = %s AND j.machine_id = %s
-            ORDER BY {order_by}
-            LIMIT 1
-        """
+            WHERE
+        '''
+        params = []
+        config = GlobalConfig().config
 
-        job = DB().fetch_one(query, params=(state, config['machine']['id']))
+        if job_type == 'run':
+            query = f"{query} j.state = 'WAITING' AND j.machine_id = %s "
+            params.append(config['machine']['id'])
+        else:
+            query = f"{query} j.state = 'FINISHED' AND j.email IS NOT NULL "
+
+        if config['machine']['jobs_processing'] == 'random':
+            query = f"{query} ORDER BY RANDOM()"
+        else:
+            query = f"{query} ORDER BY j.created_at ASC"  # default case == 'fifo'
+
+        query = f"{query} LIMIT 1"
+
+        job = DB().fetch_one(query, params=params)
         if not job:
             return False
 
@@ -174,11 +184,11 @@ class Job:
         query = '''
             DELETE FROM jobs
             WHERE
-                (state = 'RUNNING' AND updated_at < NOW() - INTERVAL '60 minutes')
-                OR
                 (state = 'NOTIFIED' AND updated_at < NOW() - INTERVAL '14 DAYS')
                 OR
                 (state = 'FAILED' AND updated_at < NOW() - INTERVAL '14 DAYS')
+                OR
+                (state = 'FINISHED' AND updated_at < NOW() - INTERVAL '14 DAYS' AND email IS NULL)
             '''
         DB().query(query)
 
@@ -188,8 +198,12 @@ def handle_job_exception(exce, job):
     error_helpers.log_error('Base exception occurred in jobs.py: ', exce)
 
     if GlobalConfig().config['admin']['no_emails'] is False:
-        email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
-        'Base exception occurred in jobs.py: ', exce), run_id=job.run_id, name=job.name, machine=job.machine_description)
+        if job is not None:
+            email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
+            'Base exception occurred in jobs.py: ', exce), run_id=job.run_id, name=job.name, machine=job.machine_description)
+        else:
+            email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
+            'Base exception occurred in jobs.py: ', exce))
 
         # reduced error message to client
         if job.email and GlobalConfig().config['admin']['email'] != job.email:
@@ -197,8 +211,6 @@ def handle_job_exception(exce, job):
 
 if __name__ == '__main__':
     #pylint: disable=broad-except,invalid-name
-
-    print(TerminalColors.WARNING, '\nWarning: Calling Jobs.py directly is deprecated. Please do not use this functionality in a cronjob and only in CLI for testing\n', TerminalColors.ENDC)
 
     import argparse
     from pathlib import Path
@@ -211,6 +223,10 @@ if __name__ == '__main__':
     parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
 
     args = parser.parse_args()  # script will exit if type is not present
+
+    if args.type == 'run':
+        print(TerminalColors.WARNING, '\nWarning: Calling Jobs.py with argument "run" directly is deprecated.\nPlease do not use this functionality in a cronjob and only in CLI for testing\n', TerminalColors.ENDC)
+
 
     if args.config_override is not None:
         if args.config_override[-4:] != '.yml':
@@ -230,6 +246,7 @@ if __name__ == '__main__':
         if not job_main:
             print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'No job to process. Exiting')
             sys.exit(0)
+        print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'Processing Job ID#: ', job_main.id)
         job_main.process(args.skip_system_checks, args.docker_prune, args.full_docker_prune)
         print('Successfully processed jobs queue item.')
     except Exception as exception:

@@ -1,14 +1,8 @@
-import os
-import sys
 from unittest.mock import patch
 import pytest
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/../../lib")
-
-# pylint: disable=import-error,wrong-import-position
-from notes import Notes
-import test_functions as Tests
+from lib.notes import Notes
+from tests import test_functions as Tests
 
 invalid_test_data = [
     ("72e54687-ba3e-4ef6-a5a1-9f2d6af26239", "This is a note", "test", "string_instead_of_time"),
@@ -30,7 +24,7 @@ def test_invalid_timestamp(run_id, note, detail, timestamp):
         Tests.assertion_info(f"Exception: {expected_exception}", str(err.value))
 
 @pytest.mark.parametrize("run_id,note,detail,timestamp", valid_test_data)
-@patch('db.DB.query')
+@patch('lib.db.DB.query')
 def test_valid_timestamp(mock_query, run_id, note, detail, timestamp):
     mock_query.return_value = None  # Replace with the desired return value
 

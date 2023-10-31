@@ -7,17 +7,23 @@ on:
       - 'docker/auxiliary-containers/**/Dockerfile'
 
   workflow_dispatch:
+    inputs:
+      container:
+        type: choice
+        description: The tag to update
+        required: true
+        options:
+          - gcb_playwright
 
 jobs:
   build-and-push-containers:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       packages: write
       contents: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
         ## This is needed for multi-architecture builds
       - name: Set up QEMU
@@ -32,5 +38,18 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push Containers
-        run: bash ./docker/auxiliary-containers/build-containers.sh
+      - if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+        name: Build and Push auxiliary-containers (PR)
+        shell: bash
+        run: |
+          PR_FILES=$(curl -s "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" | jq -r '.[] | .filename')
+          CHANGED_SUBFOLDERS=$(echo "$PR_FILES" | grep -E '^docker/auxiliary-containers/[^/]+/' | sed -r 's|^docker/auxiliary-containers/([^/]+)/.*|\1|' | sort -u)
+
+          echo $CHANGED_SUBFOLDERS
+          ./docker/auxiliary-containers/build-containers.sh $CHANGED_SUBFOLDERS
+
+      - if: github.event_name == 'workflow_dispatch'
+        name: Build and Push auxiliary-containers (manual)
+        shell: bash
+        run: |
+          ./docker/auxiliary-containers/build-containers.sh ${{ github.event.inputs.container }}

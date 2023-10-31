@@ -1,17 +1,17 @@
-#pylint: disable=import-error,wrong-import-position
-import sys
-import os
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
+
+import os
 import pprint
 from psycopg.rows import dict_row as psycopg_rows_dict_row
-faulthandler.enable()  # will catch segfaults and write to STDERR
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/..")
-sys.path.append(f"{CURRENT_DIR}/../lib")
 
-from jobs import Job
-from db import DB
+from lib.db import DB
+from tools.jobs import Job
 
 """
     This file schedules new Timeline Projects by inserting jobs in the jobs table
@@ -20,6 +20,7 @@ from db import DB
 """
 
 class TimelineProject():
+    #pylint:disable=redefined-outer-name
     @classmethod
     def insert(cls, name, url, branch, filename, machine_id, schedule_mode):
         # Timeline projects never insert / use emails as they are always premium and made by admin
@@ -34,7 +35,6 @@ class TimelineProject():
         return DB().fetch_one(insert_query, params=params)[0]
 
 
-# pylint: disable=broad-exception-caught
 if __name__ == '__main__':
 
     import argparse

@@ -6,17 +6,16 @@ import time
 import xml
 import pandas
 
-#pylint: disable=import-error
-from db import DB
+from lib.db import DB
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 
 class PowermetricsProvider(BaseMetricProvider):
     def __init__(self, resolution):
         super().__init__(
-            metric_name="powermetrics",
+            metric_name='powermetrics',
             metrics={'time': int, 'value': int},
             resolution=resolution,
-            unit="mJ",
+            unit='mJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='/usr/bin/powermetrics',
             sudo=True,
@@ -24,11 +23,11 @@ class PowermetricsProvider(BaseMetricProvider):
 
         # We can't use --show-all here as this sometimes triggers output on stderr
         self._extra_switches = [
-            "--show-process-io",
-            "--show-process-gpu",
-            "--show-process-netstats",
-            "--show-process-energy",
-            "--show-process-coalition",
+            '--show-process-io',
+            '--show-process-gpu',
+            '--show-process-netstats',
+            '--show-process-energy',
+            '--show-process-coalition',
             '-f',
             'plist',
             '-o',
@@ -70,7 +69,6 @@ class PowermetricsProvider(BaseMetricProvider):
 
         self._ps = None
 
-    # pylint: disable=too-many-locals
     def read_metrics(self, run_id, containers=None):
 
         with open(self._filename, 'rb') as metrics_file:
