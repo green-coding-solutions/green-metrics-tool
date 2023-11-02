@@ -97,6 +97,8 @@ linux_info_list = [
     [rpwrs, 'SGX', f"{os.path.join(CURRENT_PATH, '../tools/sgx_enable')} -s", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rfwr, 'IO scheduling', '/sys/block/sda/queue/scheduler', r'(?P<o>.*)'],
     [rpwr, 'Network Interfaces', 'ip addr | grep ether -B 1', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rfwr, 'Current Clocksource', '/sys/devices/system/clocksource/clocksource0/current_clocksource', r'(?P<o>.*)'],
+
 ]
 
 # This is a very slimmed down version in comparison to the linux list. This is because we will not be using this
