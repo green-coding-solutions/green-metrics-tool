@@ -5,7 +5,7 @@
 
 # Introduction
 
-The Green Metrics Tool is a developer tool indented for measuring the energy and CO2 consumption of software through a software life cycle analysis (SLCA). 
+The Green Metrics Tool is a developer tool indented for measuring the energy and CO2 consumption of software through a software life cycle analysis (SLCA).
 
 Key features are:
 - Reproducible measurements through configuration/setup-as-code
