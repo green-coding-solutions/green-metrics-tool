@@ -642,7 +642,6 @@ async def hog_add(measurements: List[HogMeasurement]):
             validate_measurement_data(measurement_data)
         except ValueError as exc:
             print(f"Caught Exception {exc}")
-            print(f"Errors are: {exc.errors()}")
             raise exc
 
         coalitions = []
