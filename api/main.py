@@ -576,6 +576,48 @@ def replace_nan_with_zero(obj):
     return obj
 
 
+def validate_measurement_data(data):
+    required_top_level_fields = [
+        'coalitions', 'all_tasks', 'elapsed_ns', 'processor', 'thermal_pressure'
+    ]
+    for field in required_top_level_fields:
+        if field not in data:
+            raise ValueError(f"Missing required field: {field}")
+
+    # Validate 'coalitions' structure
+    if not isinstance(data['coalitions'], list):
+        raise ValueError("Expected 'coalitions' to be a list")
+
+    for coalition in data['coalitions']:
+        required_coalition_fields = [
+            'name', 'tasks', 'energy_impact_per_s', 'cputime_ms_per_s',
+            'diskio_bytesread', 'diskio_byteswritten', 'intr_wakeups', 'idle_wakeups'
+        ]
+        for field in required_coalition_fields:
+            if field not in coalition:
+                raise ValueError(f"Missing required coalition field: {field}")
+            if field == 'tasks' and not isinstance(coalition['tasks'], list):
+                raise ValueError(f"Expected 'tasks' to be a list in coalition: {coalition['name']}")
+
+    # Validate 'all_tasks' structure
+    if 'energy_impact_per_s' not in data['all_tasks']:
+        raise ValueError("Missing 'energy_impact_per_s' in 'all_tasks'")
+
+    # Validate 'processor' structure based on the processor type
+    processor_fields = data['processor'].keys()
+    if 'ane_energy' in processor_fields:
+        required_processor_fields = ['combined_power', 'cpu_energy', 'gpu_energy', 'ane_energy']
+    elif 'package_joules' in processor_fields:
+        required_processor_fields = ['package_joules', 'cpu_joules', 'igpu_watts']
+    else:
+        raise ValueError("Unknown processor type")
+
+    for field in required_processor_fields:
+        if field not in processor_fields:
+            raise ValueError(f"Missing required processor field: {field}")
+
+    # All checks passed
+    return True
 
 @app.post('/v1/hog/add')
 async def hog_add(measurements: List[HogMeasurement]):
@@ -594,6 +636,12 @@ async def hog_add(measurements: List[HogMeasurement]):
         except RequestValidationError as exc:
             print(f"Caught Exception {exc}")
             print(f"Errors are: {exc.errors()}")
+            email_helpers.send_admin_email('Hog parsing error', str(exc.errors()))
+
+        try:
+            validate_measurement_data(measurement_data)
+        except ValueError as exc:
+            print(f"Caught Exception {exc}")
             raise exc
 
         coalitions = []
