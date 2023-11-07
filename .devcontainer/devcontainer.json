@@ -1,0 +1,4 @@
+{
+"image":"mcr.microsoft.com/vscode/devcontainers/base:ubuntu",
+"args": { "VARIANT": "ubuntu-22.04" }
+}
