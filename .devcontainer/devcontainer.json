@@ -1,7 +1,6 @@
 {
-"image":"mcr.microsoft.com/vscode/devcontainers/base:ubuntu",
-"features": {
-  "ghcr.io/green-coding-berlin/gmt-codespace-test/gmt:latest": {}
-},
-"args": { "VARIANT": "ubuntu-22.04" }
+  "image":"mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+  "features": {
+    "ghcr.io/green-coding-berlin/gmt-codespace-test/gmt:latest": {}
+  }
 }
