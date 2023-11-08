@@ -9,3 +9,4 @@ anybadge==1.14.0
 # calibration script dep
 tqdm==4.66.1
 plotext==5.2.8
+docker==6.1.3

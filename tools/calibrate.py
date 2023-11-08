@@ -3,7 +3,7 @@
 
 #pylint: disable=logging-fstring-interpolation, broad-exception-caught
 
-
+import sys
 import argparse
 import importlib
 import logging
@@ -12,11 +12,13 @@ import shutil
 import time
 from pathlib import Path
 import random
+import traceback
 
 from tqdm import tqdm
 import plotext as plt
 import pandas as pd
 import yaml
+import docker
 
 from lib.global_config import GlobalConfig
 from lib import utils
@@ -37,7 +39,7 @@ CONF_FILE = '../config.yml'
 # Globals
 metric_providers= []
 timings = {}
-
+docker_sleeper = None
 
 def countdown_bar(total_seconds, desc='Countdown'):
     with tqdm(total=total_seconds, desc=desc, bar_format='{l_bar}{bar}| {remaining}') as pbar:
@@ -45,12 +47,36 @@ def countdown_bar(total_seconds, desc='Countdown'):
             time.sleep(1)
             pbar.update(1)
 
-def load_metric_providers(mp, pt_providers, provider_interval):
+# This also checks if the temp is actually increasing. The problem is that depending on what sensors are being monitored
+# not all temperatures increase or with quite a delay. Also it takes some time for the CPU to get hot. (quite dependent
+# on the make actually). Another problem is that the CPU cools down again when the fans go to full blast.
+# So instead of doing a rolling window analysis or something clever we just wait 10 seconds and
+# check if at least one temp provider has increased 20 degrees at some stage.
+def stress_bar(total_seconds, desc, tmp_mean_std, temp_provider):
+    with tqdm(total=total_seconds, desc=desc, bar_format='{l_bar}{bar}| {remaining}') as pbar:
+        for i in range(total_seconds):
+            time.sleep(1)
+            pbar.update(1)
+            if i == 10:
+                logging.debug('')
+                if not any(temp_provider.read_metrics(1)['value'] > tmp_mean_std + 2000):
+                    logging.error('Temperature hasn\'t increased after 10 seconds')
+                    raise SystemExit(5)
+
+
+
+
+def load_metric_providers(mp, pt_providers, provider_interval, rootless=False):
+    global metric_providers
+    metric_providers = []
     # We pretty much copied this from the runner. Keeping the same flow so we can maintain it easier.
     for metric_provider in pt_providers:
         module_path, class_name = metric_provider.rsplit('.', 1)
         module_path = f"metric_providers.{module_path}"
         conf = mp[metric_provider] or {}
+
+        if rootless and '.cgroup.' in module_path:
+            conf['rootless'] = True
 
         logging.info(f"Importing {class_name} from {module_path}")
 
@@ -63,9 +89,9 @@ def load_metric_providers(mp, pt_providers, provider_interval):
         metric_providers.append(metric_provider_obj)
 
 
-def start_metric_providers():
+def start_metric_providers(containers=None):
     for metric_provider in metric_providers:
-        metric_provider.start_profiling()
+        metric_provider.start_profiling(containers)
 
     logging.info('Waiting for Metric Providers to boot ...')
     countdown_bar(len(metric_providers) * 2, 'Booting')
@@ -76,7 +102,8 @@ def start_metric_providers():
         if stderr_read is not None:
             raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
-def stop_metric_providers():
+
+def stop_metric_providers(force=False, containers=None):
     logging.debug('Stopping metric providers and parsing measurements')
 
     data = {}
@@ -85,20 +112,25 @@ def stop_metric_providers():
             continue
 
         if stderr_read := metric_provider.get_stderr() is not None:
-            raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
+            if force is False:
+                raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
         metric_provider.stop_profiling()
 
-        data[metric_provider.__class__.__name__] = metric_provider.read_metrics(1)
+        data[metric_provider.__class__.__name__] = metric_provider.read_metrics(1, containers=containers)
         if data[metric_provider.__class__.__name__] is None or data[metric_provider.__class__.__name__].shape[0] == 0:
-            raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
+            if force is False:
+                raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
 
     return data
 
 
 def cleanup():
-    stop_metric_providers()
+    logging.debug('Cleaning everything up for exit')
+    stop_metric_providers(force=True)
     shutil.rmtree(TMP_FOLDER, ignore_errors=True)
+    if docker_sleeper:
+        docker_sleeper.kill()
 
 
 def main(idle_time,
@@ -108,6 +140,7 @@ def main(idle_time,
          cooldown_time,
          write_config,
          ):
+    global docker_sleeper
 
     # Setup
     shutil.rmtree(TMP_FOLDER, ignore_errors=True)
@@ -131,11 +164,11 @@ def main(idle_time,
     def temp_provider(mp):
         return check_provider(mp, ['lm_sensors', '.temperature'])
 
-    power_provider = one_psu_provider(mp)
-    if not power_provider:
+    energy_provider = one_psu_provider(mp)
+    if not energy_provider:
         logging.warning('Please configure a psu provider for the best results.')
-        power_provider = rapl_provider(mp)
-        if power_provider:
+        energy_provider = rapl_provider(mp)
+        if energy_provider:
             logging.info('Using rapl provider.')
         else:
             logging.error('We need at least one psu/ rapl provider configured!')
@@ -147,7 +180,95 @@ def main(idle_time,
         logging.error('We need at least one temperature provider configured!')
         raise SystemExit(1)
 
-    load_metric_providers(mp, [power_provider, tmp_provider], provider_interval)
+    ###
+    ### This block is to check the load the metric providers create on an idle system. We currently only look at energy
+    ###
+    load_metric_providers(mp, [energy_provider,], provider_interval)
+
+
+    # Start the metrics providers
+    start_metric_providers()
+    timings['start_energy_idle'] = int(time.time() * 1_000_000)
+    countdown_bar(idle_time, 'Idle')
+    timings['end_energy_idle'] = int(time.time() * 1_000_000)
+
+    data_energy_idle = stop_metric_providers()
+
+    if len(data_energy_idle.keys()) != 1:
+        raise ValueError("data_energy_idle should have only one key")
+
+    energy_provider_key = next(iter(data_energy_idle))
+    data_energy_idle = data_energy_idle[energy_provider_key]
+
+    def check_energy_idle_values(data, timing_start, timing_end):
+
+        # Remove boot and stop values
+        data_mask = (data['time'] >= timing_start) & (data['time'] <= timing_end)
+        data = data[data_mask]
+
+        # Remove first values as RAPL is an aggregate value and the first is not representative.
+        data = data.iloc[2:]
+
+        # make sure that there are no massive peaks in standard deviation. If so exit with notification
+        mean_value = data['value'].mean()
+        std_value = data['value'].std()
+
+        threshold = STD_THRESHOLD_MULTI * std_value
+
+        out_mask = (data['value'] < mean_value - threshold) | (data['value'] > mean_value + threshold)
+
+        outliers = data[out_mask]
+        if not outliers.empty:
+            logging.error(f'''There are outliers in your data. It looks like your system is not in a stable state!
+                            Please make sure that the are no jobs running in the background. Aborting!''')
+            logging.debug('\n%s', data)
+            logging.debug('Mean Val: %s', mean_value)
+            logging.debug('Std. Dev: %s', std_value)
+
+            raise SystemExit('System not stable.')
+
+        return mean_value, std_value
+
+    energy_idle_mean_value, energy_idle_std_value = check_energy_idle_values(data_energy_idle, timings['start_energy_idle'], timings['end_energy_idle'])
+    logging.info(f"Energy Idle mean:{energy_idle_mean_value}. Energy idle std: {energy_idle_std_value}")
+
+
+    # Now lets start all configured providers and remeasure
+
+    client = docker.from_env()
+
+    is_rootless = any('rootless' in option for option in client.info()['SecurityOptions'])
+    logging.debug(f"Rootless mode is {is_rootless}")
+
+    load_metric_providers(mp, mp, provider_interval, rootless=is_rootless)
+
+    # We need to start at least one container that just idles so we can also run the container providers
+
+    docker_sleeper = client.containers.run('alpine', 'sleep 2147483647',
+                                    detach=True, auto_remove=True, name='calibrate_sleeper', remove=True)
+
+    gmt_container_obj = {docker_sleeper.id: {'name': docker_sleeper.name}}
+
+    start_metric_providers(containers=gmt_container_obj)
+    timings['start_all_idle'] = int(time.time() * 1_000_000)
+    countdown_bar(idle_time, 'Idle')
+    timings['end_all_idle'] = int(time.time() * 1_000_000)
+
+    docker_sleeper.stop()
+    docker_sleeper = None
+
+    data_all_idle = stop_metric_providers(containers=gmt_container_obj)
+
+    data_energy_idle = data_all_idle[energy_provider_key]
+
+    energy_all_mean_value, energy_all_std_value = check_energy_idle_values(data_energy_idle, timings['start_all_idle'], timings['end_all_idle'])
+
+    logging.info(f"Energy all idle mean:{energy_all_mean_value}. Energy idle all std: {energy_all_std_value}")
+
+    ###
+    ### This block checks what the mean and std are for energy and tmp providers
+
+    load_metric_providers(mp, [energy_provider, tmp_provider], provider_interval)
 
     # Start the metrics providers
     start_metric_providers()
@@ -200,22 +321,24 @@ def main(idle_time,
 
     logging.info('Checking for consistent data')
 
-    power_provider_name = power_provider.rsplit('.', 1)[-1]
+    energy_provider_name = energy_provider.rsplit('.', 1)[-1]
     temp_provider_name = tmp_provider.rsplit('.', 1)[-1]
 
-    power_mean, power_std = check_values(data_idle[power_provider_name])
+    energy_mean, energy_std = check_values(data_idle[energy_provider_name])
     tmp_mean, tmp_std = check_values(data_idle[temp_provider_name])
 
-    logging.debug('Power mean is %s', power_mean)
+    logging.debug('Energy mean is %s', energy_mean)
     logging.debug('Temperature means are %s', tmp_mean)
 
     # Step 2
     # Now we have the idle values now let's stress
     start_metric_providers()
 
+    temp_provider = next(x for x in metric_providers if temp_provider_name == x.__class__.__name__)
+
     def run_stress(stress_command, stress_time):
         with subprocess.Popen(stress_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as process:
-            countdown_bar(stress_time, 'Stressing')
+            stress_bar(stress_time, 'Stressing', tmp_mean + tmp_std, temp_provider)
             return_code = process.wait()
             if return_code != 0:
                 logging.error(f"{stress_command} failed with return code: {return_code}")
@@ -253,9 +376,10 @@ def main(idle_time,
                 norm_times[name] = group['time'].loc[tmp_id]
             else:
                 logging.error(f"The temperature value never falls below idle mean for {name}.")
-                logging.info(data)
-                logging.info(f"Mean    : {tmp_mean[name]}")
-                logging.info(f"Mean+std: {tmp_mean[name] + (tmp_std[name] * STD_THRESHOLD_MULTI)}")
+                logging.info('Data from cooldown:')
+                logging.info(group)
+                logging.info(f"Mean from from idle: {tmp_mean[name]}")
+                logging.info(f"Mean+std from idle : {tmp_mean[name] + (tmp_std[name] * STD_THRESHOLD_MULTI)}")
                 logging.info(f"Window  : {RELIABLE_DURATION}")
                 raise SystemExit(3)
 
@@ -265,6 +389,8 @@ def main(idle_time,
     biggest_time = max(cooldown_times.values())
     cdt_seconds = round(((biggest_time - timings['start_cooldown']) / 1_000_000))
     logging.info(f"Cool down time is {cdt_seconds} seconds")
+
+
 
 
     # Offer to set the values in the config.yml
@@ -296,10 +422,15 @@ def main(idle_time,
             lines_to_add = []
             yml_data = {
                 'calibration': {
-                    'power_mean': [{k: str(v)} for k, v in power_mean.items()],
-                    'power_std': [{k: str(v)} for k, v in power_std.items()],
+                    'energy_stress_mean': [{k: str(v)} for k, v in energy_mean.items()],
+                    'energy_stress_std': [{k: str(v)} for k, v in energy_std.items()],
                     'temp_mean': [{k: str(v)} for k, v in tmp_mean.items()],
-                    'temp_std': [{k: str(v)} for k, v in tmp_std.items()]
+                    'temp_std': [{k: str(v)} for k, v in tmp_std.items()],
+                    'energy_idle_mean': energy_idle_mean_value,
+                    'energy_idle_std': energy_idle_std_value,
+                    'energy_idle_all_mean': energy_all_mean_value,
+                    'energy_idle_all_std': energy_all_std_value,
+
                 }
             }
 
@@ -342,11 +473,11 @@ def main(idle_time,
         tmp_data = pd.concat([data_idle[temp_provider_name], data_stress[temp_provider_name]], ignore_index=True)
         tmp_data = tmp_data.sort_values(by='time')
 
-        pow_data = pd.concat([data_idle[power_provider_name], data_stress[power_provider_name]], ignore_index=True)
+        pow_data = pd.concat([data_idle[energy_provider_name], data_stress[energy_provider_name]], ignore_index=True)
         pow_data = pow_data.sort_values(by='time')
 
         plot_data(tmp_data, "lower", "left", "Temperature (left, bottom)", tmp_mean)
-        plot_data(pow_data, "upper", "right", "Power (right, top)", power_mean)
+        plot_data(pow_data, "upper", "right", "Energy (right, top)", energy_mean)
 
         plt.title("Temperature/ Energy Plot")
         plt.theme('clear')
@@ -366,6 +497,7 @@ if __name__ == '__main__':
                                      2 - stress command failed
                                      3 - temperature never falls below mean
                                      4 - outliers in idle measurement
+                                     5 - temperature is not raising under stress
                                      ''')
 
     parser.add_argument('-d', '--dev', action='store_true', help='Enable development mode with reduced timing.')
@@ -386,8 +518,8 @@ if __name__ == '__main__':
 
     if args.dev:
         args.idle_time = 5
-        args.stress_time = 1
-        args.cooldown_time = 10
+        args.stress_time = 5
+        args.cooldown_time = 25
         args.provider_interval = 1000
         args.log_level = 'debug'
         RELIABLE_DURATION = 2
@@ -418,6 +550,8 @@ if __name__ == '__main__':
             write_config = args.write_config,
         )
     except Exception as e:
-        logging.error(f"An error occurred: {e}")
+        error_message = f"An error occurred: {e}\n"
+        error_message += traceback.format_exc()
+        logging.error(error_message)
     finally:
         cleanup()

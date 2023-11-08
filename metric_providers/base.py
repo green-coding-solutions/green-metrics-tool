@@ -113,7 +113,7 @@ class BaseMetricProvider:
             call_string += ' '.join(self._extra_switches)
 
         # This needs refactoring see https://github.com/green-coding-berlin/green-metrics-tool/issues/45
-        if self._metrics.get('container_id') is not None:
+        if (self._metrics.get('container_id') is not None) and (containers is not None):
             call_string += ' -s '
             call_string += ','.join(containers.keys())
 
