@@ -51,7 +51,7 @@ def countdown_bar(total_seconds, desc='Countdown'):
 # on the make actually). Another problem is that the CPU cools down again when the fans go to full blast.
 # So instead of doing a rolling window analysis or something clever we just wait 10 seconds and
 # check if at least one temp provider has increased 20 degrees at some stage.
-def stress_bar(total_seconds, desc, tmp_mean, tmp_std, temp_provider):
+def stress_bar(total_seconds, desc, tmp_mean, tmp_std, temp_provider, temp_increase=1000):
     with tqdm(total=total_seconds, desc=desc, bar_format='{l_bar}{bar}| {remaining}') as pbar:
         for i in range(total_seconds):
             time.sleep(1)
@@ -61,7 +61,7 @@ def stress_bar(total_seconds, desc, tmp_mean, tmp_std, temp_provider):
                 grouped = data.groupby('detail_name')
                 logging.info('Checking for temperature increase!')
                 for name, group in grouped:
-                    if not any(group['value'] > tmp_mean[name] + tmp_std[name] + 2000):
+                    if not any(group['value'] > tmp_mean[name] + tmp_std[name] + temp_increase):
                         logging.error('Temperature hasn\'t increased after 10 seconds')
                         raise SystemExit(5)
 
@@ -141,6 +141,7 @@ def main(idle_time,
          stress_command,
          cooldown_time,
          write_config,
+         temperature_increase
          ):
     global docker_sleeper
 
@@ -342,7 +343,7 @@ def main(idle_time,
 
     def run_stress(stress_command, stress_time):
         with subprocess.Popen(stress_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as process:
-            stress_bar(stress_time, 'Stressing', tmp_mean, tmp_std, temp_provider)
+            stress_bar(stress_time, 'Stressing', tmp_mean, tmp_std, temp_provider, temperature_increase)
             return_code = process.wait()
             if return_code != 0:
                 logging.error(f"{stress_command} failed with return code: {return_code}")
@@ -512,6 +513,7 @@ if __name__ == '__main__':
     parser.add_argument('-ct', '--cooldown-time', type=int, default=60*5, help='The seconds the system should wait to be back to normal temperature. Defaults to 5 minutes')
 
     parser.add_argument('-pi', '--provider-interval', type=int, default=2000, help='The interval in milliseconds for the providers . Defaults to 5000')
+    parser.add_argument('-ti', '--temperature-increase', type=int, default=1000, help='The delta the temperature must increase. Defaults to 1000')
 
     parser.add_argument('-s', '--stress-command', type=str, help='The command to stress the system with. Defaults to stress-ng')
 
@@ -552,6 +554,7 @@ if __name__ == '__main__':
             stress_command = args.stress_command,
             cooldown_time = args.cooldown_time,
             write_config = args.write_config,
+            temperature_increase = args.temperature_increase
         )
     except Exception as e:
         error_message = f"An error occurred: {e}\n"
