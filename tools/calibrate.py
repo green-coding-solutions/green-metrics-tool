@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-#pylint: disable=logging-fstring-interpolation, broad-exception-caught
+#pylint: disable=logging-fstring-interpolation, broad-exception-caught,global-statement
 
-import sys
 import argparse
 import importlib
 import logging
@@ -219,7 +218,7 @@ def main(idle_time,
 
         outliers = data[out_mask]
         if not outliers.empty:
-            logging.error(f'''There are outliers in your data. It looks like your system is not in a stable state!
+            logging.error('''There are outliers in your data. It looks like your system is not in a stable state!
                             Please make sure that the are no jobs running in the background. Aborting!''')
             logging.debug('\n%s', data)
             logging.debug('Mean Val: %s', mean_value)
