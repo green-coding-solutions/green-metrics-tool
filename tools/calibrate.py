@@ -51,16 +51,19 @@ def countdown_bar(total_seconds, desc='Countdown'):
 # on the make actually). Another problem is that the CPU cools down again when the fans go to full blast.
 # So instead of doing a rolling window analysis or something clever we just wait 10 seconds and
 # check if at least one temp provider has increased 20 degrees at some stage.
-def stress_bar(total_seconds, desc, tmp_mean_std, temp_provider):
+def stress_bar(total_seconds, desc, tmp_mean, tmp_std, temp_provider):
     with tqdm(total=total_seconds, desc=desc, bar_format='{l_bar}{bar}| {remaining}') as pbar:
         for i in range(total_seconds):
             time.sleep(1)
             pbar.update(1)
             if i == 10:
-                logging.debug('')
-                if not any(temp_provider.read_metrics(1)['value'] > tmp_mean_std + 2000):
-                    logging.error('Temperature hasn\'t increased after 10 seconds')
-                    raise SystemExit(5)
+                data = temp_provider.read_metrics(1)
+                grouped = data.groupby('detail_name')
+                logging.info('Checking for temperature increase!')
+                for name, group in grouped:
+                    if not any(group['value'] > tmp_mean[name] + tmp_std[name] + 2000):
+                        logging.error('Temperature hasn\'t increased after 10 seconds')
+                        raise SystemExit(5)
 
 
 
@@ -339,7 +342,7 @@ def main(idle_time,
 
     def run_stress(stress_command, stress_time):
         with subprocess.Popen(stress_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as process:
-            stress_bar(stress_time, 'Stressing', tmp_mean + tmp_std, temp_provider)
+            stress_bar(stress_time, 'Stressing', tmp_mean, tmp_std, temp_provider)
             return_code = process.wait()
             if return_code != 0:
                 logging.error(f"{stress_command} failed with return code: {return_code}")
@@ -518,9 +521,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.dev:
-        args.idle_time = 5
-        args.stress_time = 5
-        args.cooldown_time = 25
+        args.idle_time = 15
+        args.stress_time = 12
+        args.cooldown_time = 30
         args.provider_interval = 1000
         args.log_level = 'debug'
         RELIABLE_DURATION = 2
