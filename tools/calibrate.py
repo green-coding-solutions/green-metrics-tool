@@ -376,7 +376,7 @@ def main(idle_time,
             consecutive_under = under_checker.rolling(window=RELIABLE_DURATION).sum() == RELIABLE_DURATION
 
             if consecutive_under.any():
-                tmp_id = consecutive_under.idxmax() - RELIABLE_DURATION
+                tmp_id = consecutive_under.idxmax()
                 logging.debug(f"Temp normal again at {tmp_id}")
                 norm_times[name] = group['time'].loc[tmp_id]
             else:
@@ -392,7 +392,7 @@ def main(idle_time,
 
     cooldown_times = get_cooldown_time(data_stress[temp_provider_name])
     biggest_time = max(cooldown_times.values())
-    cdt_seconds = round(((biggest_time - timings['start_cooldown']) / 1_000_000))
+    cdt_seconds = round(((biggest_time - timings['start_cooldown']) / 1_000_000)) * 30 # We add 30 secs just to be sure
     logging.info(f"Cool down time is {cdt_seconds} seconds")
 
 
