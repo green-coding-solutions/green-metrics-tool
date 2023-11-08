@@ -110,15 +110,15 @@ def stop_metric_providers(force=False, containers=None):
         if metric_provider.has_started() is False:
             continue
 
-        if stderr_read := metric_provider.get_stderr() is not None:
-            if force is False:
+        if force is False:
+            if stderr_read := metric_provider.get_stderr() is not None:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
         metric_provider.stop_profiling()
 
-        data[metric_provider.__class__.__name__] = metric_provider.read_metrics(1, containers=containers)
-        if data[metric_provider.__class__.__name__] is None or data[metric_provider.__class__.__name__].shape[0] == 0:
-            if force is False:
+        if force is False:
+            data[metric_provider.__class__.__name__] = metric_provider.read_metrics(1, containers=containers)
+            if data[metric_provider.__class__.__name__] is None or data[metric_provider.__class__.__name__].shape[0] == 0:
                 raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
 
     return data
@@ -243,6 +243,7 @@ def main(idle_time,
 
     # We need to start at least one container that just idles so we can also run the container providers
 
+    logging.info('Starting and pulling docker container.')
     docker_sleeper = client.containers.run('alpine', 'sleep 2147483647',
                                     detach=True, auto_remove=True, name='calibrate_sleeper', remove=True)
 
@@ -253,10 +254,11 @@ def main(idle_time,
     countdown_bar(idle_time, 'Idle')
     timings['end_all_idle'] = int(time.time() * 1_000_000)
 
+    data_all_idle = stop_metric_providers(containers=gmt_container_obj)
+
+    logging.info('Stopping and removing docker container.')
     docker_sleeper.stop()
     docker_sleeper = None
-
-    data_all_idle = stop_metric_providers(containers=gmt_container_obj)
 
     data_energy_idle = data_all_idle[energy_provider_key]
 
