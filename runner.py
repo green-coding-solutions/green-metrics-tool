@@ -1424,7 +1424,7 @@ if __name__ == '__main__':
 
 
         print(TerminalColors.OKGREEN,'\n\n####################################################################################')
-        print(f"Please access your report with the ID: {successful_run_id}")
+        print(f"Please access your report on the URL {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={successful_run_id}")
         print('####################################################################################\n\n', TerminalColors.ENDC)
 
     except FileNotFoundError as e:
