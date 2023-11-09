@@ -1,3 +1,4 @@
 {
-  "build": { "dockerfile": "Dockerfile" }
+  "build": { "dockerfile": "Dockerfile" },
+  "postCreateCommand": "/tmp/codespace-setup.sh"
 }
