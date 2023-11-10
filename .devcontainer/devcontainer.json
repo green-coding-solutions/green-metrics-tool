@@ -1,4 +1,7 @@
 {
   "build": { "dockerfile": "Dockerfile" },
-  "postCreateCommand": "/workspaces/green-metrics-tool/.devcontainer/codespace-setup.sh"
+  "postCreateCommand": "/workspaces/green-metrics-tool/.devcontainer/codespace-setup.sh",
+  "features": {
+  	"ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  }
 }
