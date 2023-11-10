@@ -7,7 +7,7 @@ sudo. This is why the output is json and not a nice representation as it needs t
 import json
 import platform
 import re
-from hardware_info import rdr, rpwr, get_values
+from lib.hardware_info import rdr, rpwr, get_values
 
 root_info_list = [
     [rdr, 'CPU scheduling', '/sys/kernel/debug/sched'],
