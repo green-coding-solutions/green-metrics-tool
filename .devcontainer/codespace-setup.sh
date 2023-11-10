@@ -10,4 +10,4 @@ if [ -f /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile ]; t
     mv /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile.bak
 fi
 
-# /workspaces/green-metrics-tool/install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9143 -t
+/workspaces/green-metrics-tool/install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9143 -t
