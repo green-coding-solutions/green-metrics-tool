@@ -1,4 +1,4 @@
 {
   "build": { "dockerfile": "Dockerfile" },
-  "postCreateCommand": "/tmp/codespace-setup.sh"
+  "postCreateCommand": "/workspaces/green-metrics-tool/.devcontainer/codespace-setup.sh"
 }
