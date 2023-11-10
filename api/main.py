@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 import anybadge
 
@@ -633,15 +633,16 @@ async def hog_add(measurements: List[HogMeasurement]):
         #Check if the data is valid, if not this will throw an exception and converted into a request by the middleware
         try:
             _ = Measurement(**measurement_data)
-        except RequestValidationError as exc:
-            print(f"Caught Exception {exc}")
+        except (ValidationError, RequestValidationError) as exc:
+            print(f"Caught Exception in Measurement() {exc.__class__.__name__} {exc}")
             print(f"Errors are: {exc.errors()}")
-            email_helpers.send_admin_email('Hog parsing error', str(exc.errors()))
+            if GlobalConfig().config['admin']['no_emails'] is False:
+                email_helpers.send_admin_email('Hog parsing error', str(exc))
 
         try:
             validate_measurement_data(measurement_data)
         except ValueError as exc:
-            print(f"Caught Exception {exc}")
+            print(f"Caught Exception in validate_measurement_data() {exc.__class__.__name__} {exc}")
             raise exc
 
         coalitions = []
