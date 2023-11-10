@@ -1,6 +1,7 @@
 {
   "build": { "dockerfile": "Dockerfile" },
   "onCreateCommand": "/workspaces/green-metrics-tool/.devcontainer/codespace-setup.sh",
+  "forwardPorts": [9142],
   "features": {
   	"ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
