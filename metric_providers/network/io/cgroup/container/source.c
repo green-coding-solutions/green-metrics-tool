@@ -119,36 +119,42 @@ static int parse_containers(container_t** containers, char* containers_string, i
     *containers = malloc(sizeof(container_t));
     char *id = strtok(containers_string,",");
     int length = 0;
+    FILE* fd = NULL;
 
     for (; id != NULL; id = strtok(NULL, ",")) {
         //printf("Token: %s\n", id);
         length++;
         *containers = realloc(*containers, length * sizeof(container_t));
         (*containers)[length-1].id = id;
-        if(rootless_mode) {
-            sprintf((*containers)[length-1].path,
-                "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/cgroup.procs",
-                user_id, user_id, id);
-        } else {
-            sprintf((*containers)[length-1].path,
-                "/sys/fs/cgroup/system.slice/docker-%s.scope/cgroup.procs",
-                id);
-        }
-        FILE* fd = NULL;
-        fd = fopen((*containers)[length-1].path, "r"); // check for general readability only once
-        if ( fd == NULL) {
-                fprintf(stderr, "Error - cgroup.procs file %s failed to open: errno: %d\n", (*containers)[length-1].path, errno);
-                exit(1);
-        }
-        fscanf(fd, "%u", &(*containers)[length-1].pid);
-        fclose(fd);
+        // trying out cgroups v2 with systemd slices. Typically done in rootless mode
+        sprintf((*containers)[length-1].path,
+            "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/cgroup.procs",
+            user_id, user_id, id);
+        fd = fopen((*containers)[length-1].path, "r");
+        if (fd != NULL) { fscanf(fd, "%u", &(*containers)[length-1].pid); fclose(fd); continue;}
+
+        // trying out cgroups v2 with systemd but non-slice mountpoints. Typically in non-rootless mode
+        sprintf((*containers)[length-1].path,
+            "/sys/fs/cgroup/system.slice/docker-%s.scope/cgroup.procs",
+            id);
+        fd = fopen((*containers)[length-1].path, "r");
+        if (fd != NULL) { fscanf(fd, "%u", &(*containers)[length-1].pid); fclose(fd); continue;}
+
+        // trying out cgroups v2 without slice mountpoints. This is done in Github codespaces and Github actions
+        sprintf((*containers)[length-1].path,
+            "/sys/fs/cgroup/docker/%s/cgroup.procs",
+            id);
+        fd = fopen((*containers)[length-1].path, "r");
+        if (fd != NULL) { fscanf(fd, "%u", &(*containers)[length-1].pid); fclose(fd); continue;}
+
+        fprintf(stderr, "Error - Could not open container for reading: %s. Maybe the container is not running anymore? Are you using --rootless mode? Errno: %d\n", id, errno);
+        exit(1);
     }
 
     if(length == 0) {
         fprintf(stderr, "Please supply at least one container id with -s XXXX\n");
         exit(1);
     }
-
     return length;
 }
 

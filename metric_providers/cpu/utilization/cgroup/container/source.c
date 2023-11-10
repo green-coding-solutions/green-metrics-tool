@@ -128,21 +128,36 @@ static int parse_containers(container_t** containers, char* containers_string, i
     *containers = malloc(sizeof(container_t));
     char *id = strtok(containers_string,",");
     int length = 0;
+    FILE* fd = NULL;
 
     for (; id != NULL; id = strtok(NULL, ",")) {
         //printf("Token: %s\n", id);
         length++;
         *containers = realloc(*containers, length * sizeof(container_t));
         (*containers)[length-1].id = id;
-        if(rootless_mode) {
-            sprintf((*containers)[length-1].path,
-                "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/cpu.stat",
-                user_id, user_id, id);
-        } else {
-            sprintf((*containers)[length-1].path,
-                "/sys/fs/cgroup/system.slice/docker-%s.scope/cpu.stat",
-                id);
-        }
+        // trying out cgroups v2 with systemd slices. Typically done in rootless mode
+        sprintf((*containers)[length-1].path,
+            "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/cpu.stat",
+            user_id, user_id, id);
+        fd = fopen((*containers)[length-1].path, "r");
+        if (fd != NULL) { fclose(fd); continue;}
+
+        // trying out cgroups v2 with systemd but non-slice mountpoints. Typically in non-rootless mode
+        sprintf((*containers)[length-1].path,
+            "/sys/fs/cgroup/system.slice/docker-%s.scope/cpu.stat",
+            id);
+        fd = fopen((*containers)[length-1].path, "r");
+        if (fd != NULL) { fclose(fd); continue;}
+
+        // trying out cgroups v2 without slice mountpoints. This is done in Github codespaces and Github actions
+        sprintf((*containers)[length-1].path,
+            "/sys/fs/cgroup/docker/%s/cpu.stat",
+            id);
+        fd = fopen((*containers)[length-1].path, "r");
+        if (fd != NULL) { fclose(fd); continue;}
+
+        fprintf(stderr, "Error - Could not open container for reading: %s. Maybe the container is not running anymore? Are you using --rootless mode? Errno: %d\n", id, errno);
+        exit(1);
     }
 
     if(length == 0) {
