@@ -1,13 +1,11 @@
-import sys
 import os
+import sys
 from io import StringIO
 import pandas
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/../../../../../../lib")
 sys.path.append(CURRENT_DIR)
 
-#pylint: disable=import-error, wrong-import-position
 import model.xgb as mlmodel
 from metric_providers.base import BaseMetricProvider
 
@@ -37,7 +35,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
     def start_profiling(self, containers=None):
         self._has_started = True
 
-    def read_metrics(self, project_id, containers):
+    def read_metrics(self, run_id, containers=None):
 
         if not os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'):
             raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log file. \
@@ -58,7 +56,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
 
         df['detail_name'] = '[DEFAULT]'  # standard container name when no further granularity was measured
         df['metric'] = self._metric_name
-        df['project_id'] = project_id
+        df['run_id'] = run_id
 
         Z = df.loc[:, ['value']]
 

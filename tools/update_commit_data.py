@@ -1,16 +1,15 @@
-#pylint: disable=import-error,wrong-import-position
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
 
 # This script will update the commit_timestamp field in the database
-# for old projects where only the commit_hash field was populated
-
-
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
-
+# for old runs where only the commit_hash field was populated
 import subprocess
 from datetime import datetime
-from db import DB
+
+from lib.db import DB
 
 if __name__ == '__main__':
 
@@ -27,7 +26,7 @@ if __name__ == '__main__':
         SELECT
             id, commit_hash
         FROM
-            projects
+            runs
         WHERE
             uri = %s
             AND commit_hash IS NOT NULL
@@ -37,7 +36,7 @@ if __name__ == '__main__':
         raise RuntimeError(f"No match found in DB for {args.uri}!")
 
     for row in data:
-        project_id = str(row[0])
+        run_id = str(row[0])
         commit_hash = row[1]
         commit_timestamp = subprocess.run(
             ['git', 'show', '-s', row[1], '--format=%ci'],
@@ -50,7 +49,7 @@ if __name__ == '__main__':
         parsed_timestamp = datetime.strptime(commit_timestamp, "%Y-%m-%d %H:%M:%S %z")
 
         DB().query(
-            'UPDATE projects SET commit_timestamp = %s WHERE id = %s',
-            params=(parsed_timestamp, project_id)
+            'UPDATE runs SET commit_timestamp = %s WHERE id = %s',
+            params=(parsed_timestamp, run_id)
         )
         print(parsed_timestamp)

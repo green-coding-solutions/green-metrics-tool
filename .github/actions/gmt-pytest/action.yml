@@ -9,10 +9,6 @@ inputs:
     description: 'The root directory of the gmt repository'
     required: false
     default: '.'
-  tests-directory:
-    description: 'The directory where to run the tests from'
-    required: false
-    default: './test'
   tests-command:
     description: 'The command to run the tests'
     required: false
@@ -24,26 +20,33 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: setup python
+    - name: setup_python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
-        cache: 'pip'
-    
-    - name: pip install
-      working-directory: ${{ inputs.gmt-directory }}
-      shell: bash
-      run: |
-        pip install -r requirements-dev.txt
-        pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 
-    - name: Run Install / Setup scripts
+    - id: python_cache
+      uses: actions/cache@v3
+      with:
+        path: venv
+        key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}
+
+    - name: install script and packages
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
-        ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -t -w
+        ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -t
+        source venv/bin/activate
+        python3 -m pip install -r requirements-dev.txt
+        python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
+      
+    - name: disable unneeded metric providers and run test setup script
+      shell: bash
+      working-directory: ${{ inputs.gmt-directory }}
+      run: |
+        source venv/bin/activate
         python3 disable_metric_providers.py ${{ inputs.metrics-to-turn-off }}
-        cd test && python3 setup-test-env.py --no-docker-build
+        cd tests && python3 setup-test-env.py --no-docker-build
 
     - name: Set up Docker Buildx
       id: buildx
@@ -63,30 +66,33 @@ runs:
 
     - name: Start Test container
       shell: bash
-      working-directory: ${{ inputs.gmt-directory }}/test
+      working-directory: ${{ inputs.gmt-directory }}/tests
       run: |
-        ./start-test-containers.sh -d
+        source ../venv/bin/activate && ./start-test-containers.sh -d
    
     - name: Sleep for 10 seconds
       run: sleep 10s
       shell: bash
-        
+
+    # - name: Setup upterm session
+    #   uses: lhotari/action-upterm@v1
+
     - name: Run Tests
       shell: bash
-      working-directory: ${{ inputs.tests-directory }}
+      working-directory: ${{ inputs.gmt-directory }}/tests
       run: |
-        ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
+        source ../venv/bin/activate
+        python3 -m ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
 
     - name: Display Results
       shell: bash
       if: always()
-      working-directory: ${{ inputs.tests-directory }}
       run: |
         cat /tmp/test-results.txt | grep -oPz '(=*) short test summary(.*\n)*' >> $GITHUB_STEP_SUMMARY
 
     - name: Stop Containers
       shell: bash
       if: always()
-      working-directory: ${{ inputs.gmt-directory }}/test
+      working-directory: ${{ inputs.gmt-directory }}/tests
       run: |
         ./stop-test-containers.sh

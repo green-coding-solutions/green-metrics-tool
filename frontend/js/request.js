@@ -21,7 +21,7 @@
         const values = Object.fromEntries(data.entries());
 
         try {
-            await makeAPICall('/v1/project/add', values);
+            await makeAPICall('/v1/software/add', values);
             form.reset()
             showNotification('Success', 'Save successful. Check your mail in 10-15 minutes', 'success');
         } catch (err) {

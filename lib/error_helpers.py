@@ -1,8 +1,8 @@
 import sys
-import os
 import traceback
-from terminal_colors import TerminalColors
-from global_config import GlobalConfig
+
+from lib.terminal_colors import TerminalColors
+from lib.global_config import GlobalConfig
 
 
 def end_error(*errors):
@@ -32,7 +32,7 @@ def log_error(*errors):
 
     if error_log_file:
         try:
-            with open(error_log_file, 'a') as file:
+            with open(error_log_file, 'a', encoding='utf-8') as file:
                 print('\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n', file=file)
                 print('Error: ', *errors, file=file)
                 print('\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n', file=file)
@@ -41,10 +41,11 @@ def log_error(*errors):
         except (IOError ,FileNotFoundError, PermissionError):
             print(TerminalColors.FAIL, "\nError: Cannot create file in the specified location because file is not found or not writable", TerminalColors.ENDC, file=sys.stderr)
 
+    # For terminal logging we invert the order. It is better readable if the error is at the bottom
     print(TerminalColors.FAIL,
           '\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n', file=sys.stderr)
-    print('Error: ', *errors, file=sys.stderr)
-    print('\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n', file=sys.stderr)
     print(traceback.format_exc(), file=sys.stderr)
-    print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n',
+    print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n', file=sys.stderr)
+    print('Error: ', *errors, file=sys.stderr)
+    print('\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n',
           TerminalColors.ENDC, file=sys.stderr)

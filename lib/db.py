@@ -1,5 +1,6 @@
 import psycopg
-from global_config import GlobalConfig
+
+from lib.global_config import GlobalConfig
 
 class DB:
 
@@ -81,7 +82,7 @@ class DB:
 if __name__ == '__main__':
     DB()
     DB()
-    print(DB().fetch_all('SELECT * FROM projects'))
-    # DB().query('SELECT * FROM projects')
-    # DB().query('SELECT * FROM projects')
-    # DB().query('SELECT * FROM projects')
+    print(DB().fetch_all('SELECT * FROM runs'))
+    # DB().query('SELECT * FROM runs')
+    # DB().query('SELECT * FROM runs')
+    # DB().query('SELECT * FROM runs')

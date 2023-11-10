@@ -9,6 +9,12 @@ function print_message {
     echo "$1"
 }
 
+function generate_random_password() {
+    local length=$1
+    LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length"
+    echo
+}
+
 db_pw=''
 api_url=''
 metrics_url=''
@@ -37,8 +43,16 @@ if [[ -z $metrics_url ]] ; then
     metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
 fi
 
+if [[ -f config.yml ]]; then
+    password_from_file=$(awk '/postgresql:/ {flag=1; next} flag && /password:/ {print $2; exit}' config.yml)
+fi
+
+default_password=${password_from_file:-$(generate_random_password 12)}
+
 if [[ -z "$db_pw" ]] ; then
-    read -sp "Please enter the new password to be set for the PostgreSQL DB: " db_pw
+    read -sp "Please enter the new password to be set for the PostgreSQL DB (default: $default_password): " db_pw
+    echo "" # force a newline, because read -sp will consume it
+    db_pw=${db_pw:-"$default_password"}
 fi
 
 print_message "Clearing old api.conf and frontend.conf files"
@@ -72,7 +86,14 @@ sed -i '' -e "s|__METRICS_URL__|$metrics_url|" frontend/js/helpers/config.js
 print_message "Checking out further git submodules ..."
 git submodule update --init
 
-print_message "Adding hardware_info_root.py to sudoers file"
+print_message "Setting up python venv"
+python3 -m venv venv
+source venv/bin/activate
+# This will set the include path for the project
+find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
+
+
+print_message "Adding powermetrics to sudoers file"
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/powermetrics" | sudo tee /etc/sudoers.d/green_coding_powermetrics
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall -9 powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics_sigkill
@@ -114,3 +135,4 @@ python3 -m pip install -r requirements.txt
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
+echo -e "Please remember to always activate your venv when using the GMT with 'source venv/bin/activate'"

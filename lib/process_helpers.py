@@ -49,7 +49,6 @@ def timeout(process, cmd: str, duration: int):
         except subprocess.TimeoutExpired as exc2:
             print("Process could not terminate in 5s time. Killing ...")
             process.kill()
-            #pylint: disable=raise-missing-from
             raise RuntimeError(f"Process could not terminate in 5s time and was killed: {cmd}") from exc2
 
         raise RuntimeError(f"Process exceeded runtime of {duration}s: {cmd}") from exc

@@ -4,9 +4,10 @@ root.
 '''
 import re
 import os
-import subprocess
 import platform
 import pprint
+import subprocess
+import sys
 
 REGEX_PARAMS = re.MULTILINE | re.IGNORECASE
 
@@ -77,6 +78,9 @@ linux_info_list = [
     [rpwr, 'Hardware Model', '/usr/bin/hostnamectl', r'Hardware Model:\s*(?P<o>.*)'],
     [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Docker Containers', 'docker ps -a', r'(?P<o>.*)'],
+    [rpwr, 'Installed System Packages', 'if [ -f /etc/lsb-release ]; then dpkg -l ; elif [ -f /etc/redhat-release ]; then dnf list installed ; fi', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Installed Python Packages', f"{sys.executable} -m pip freeze", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Processes', '/usr/bin/ps -aux', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [
         rpwrs,
@@ -93,6 +97,8 @@ linux_info_list = [
     [rpwrs, 'SGX', f"{os.path.join(CURRENT_PATH, '../tools/sgx_enable')} -s", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rfwr, 'IO scheduling', '/sys/block/sda/queue/scheduler', r'(?P<o>.*)'],
     [rpwr, 'Network Interfaces', 'ip addr | grep ether -B 1', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rfwr, 'Current Clocksource', '/sys/devices/system/clocksource/clocksource0/current_clocksource', r'(?P<o>.*)'],
+
 ]
 
 # This is a very slimmed down version in comparison to the linux list. This is because we will not be using this
@@ -106,6 +112,7 @@ mac_info_list = [
     [rpwr, 'Uname', 'uname -a', r'(?P<o>.*)'],
     [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [rpwr, 'Docker Containers', 'docker ps -a', r'(?P<o>.*)'],
     [rpwr, 'Processes', '/bin/ps -ax', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Network Interfaces', 'ifconfig | grep -E "flags|ether"', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
 

@@ -25,9 +25,15 @@ disable=missing-function-docstring,
     too-many-branches,
     too-many-statements,
     too-many-arguments,
+    too-many-return-statements,
+    too-many-instance-attributes,
+    invalid-name,
+    wrong-import-position,
+    wrong-import-order,
+    ungrouped-imports,
+    fixme
 
 
-#    import-error
 
 [MASTER]
 ignore=env

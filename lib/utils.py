@@ -1,25 +1,23 @@
-#pylint: disable=no-member
-#pylint: disable=invalid-name
 import random
 import string
 import subprocess
 import psycopg
 
-from db import DB
+from lib.db import DB
 
 def randomword(length):
     letters = string.ascii_lowercase
     return ''.join(random.choice(letters) for i in range(length))
 
-def get_project_data(project_name):
+def get_run_data(run_name):
     query = """
             SELECT
                 *
             FROM
-                projects
+                runs
             WHERE name = %s
             """
-    data = DB().fetch_one(query, (project_name, ), row_factory=psycopg.rows.dict_row)
+    data = DB().fetch_one(query, (run_name, ), row_factory=psycopg.rows.dict_row)
     if data is None or data == []:
         return None
     return data

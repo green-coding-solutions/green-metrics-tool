@@ -14,13 +14,14 @@
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <meta name="description" content="Measuring the energy of your software" />
     <script src="/dist/js/jquery.min.js" defer></script>
+    <script src="/dist/js/datatables.min.js" defer></script>
     <script src="/dist/js/accordion.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
+    <script src="/js/helpers/runs.js" defer></script>
     <script src="/js/index.js" defer></script>
-    <script src="/dist/js/datatables.min.js" defer></script>
 
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
@@ -31,28 +32,21 @@
     <div class="main ui container" id="main">
         <h1 class="ui header float left">
             <a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a>
-            Green Metrics Tool Dashboard
+            Green Metrics Tool - Home
         </h1>
-        <div class="ui icon message blue">
-            <i class="info circle icon"></i>
+        <div class="ui full-width-card segment card">
             <div class="content">
-                <p>
-                    On the overview page you can go into the details for a specific measurement, or compare them.
-                </p>
-                <p>Comparing is possible for different repos, different branches and different runs as long as they are on the same machine. Also different machines are supported if you compare the same repo.
+                <div class="header">Welcome to the home page</div>
+                <div class="description">
+                    <p>The home page of the Green Metrics Tool shows you the last 50 runs
+                    </p>
+                    <p>From here you can go into the details for a specific measurement, or compare them.</p>
+                    <p>Comparing is possible for different repos, different branches and different runs as long as they are on the same machine. Also different machines are supported if you compare the same repo.
                 </p>
                 <p>Currently we do not support comparing different machines AND different repos at the same time. The tool will notifiy you if you attempt to do so :)</p>
+                </div>
             </div>
         </div>
-<!--
-        <div class="ui search">
-            <div class="ui icon input float right">
-                <input class="prompt" type="text" placeholder="Search tests...">
-                <i class="search icon"></i>
-            </div>
-            <div class="results"></div>
-        </div>
--->
         <div class="ui warning message hidden">
             <div class="header">
                 <i class="notched warning icon"></i> Filters are active
@@ -60,18 +54,7 @@
             <ul></ul>
         </div>
 
-        <table id="projects-table" class="ui sortable celled striped table">
-            <thead>
-                <tr>
-                    <th>
-                        Repositories (<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.)
-                        <button id="compare-button" onclick="compareButton()" class="ui small button blue right">Compare: 0 Run(s)</button></th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-        <div class="clearing" style="display:block; height: 10px;"></div>
+        <table id="runs-table" class="ui celled striped table"></table>
     </div>
-
 </body>
 </html>

@@ -1,18 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# We disable naming convention to allow names like p,kv etc. Even if it is not 'allowed' it makes the code more readable
-#pylint: disable=invalid-name
+import faulthandler
+faulthandler.enable()  # will catch segfaults and write to stderr
 
-# As pretty much everything is done in one big flow we trigger all the too-many-* checks. Which normally makes sense
-# but in this case it would make the code a lot more complicated separating this out into loads of sub-functions
-#pylint: disable=too-many-branches,too-many-statements,too-many-arguments,too-many-instance-attributes
-
-# Using a very broad exception makes sense in this case as we have excepted all the specific ones before
-#pylint: disable=broad-except
-
-# I can't make these go away, but the imports all work fine on my system >.<
-#pylint: disable=wrong-import-position, import-error
+from lib.venv_checker import check_venv
+check_venv() # this check must even run before __main__ as imports might not get resolved
 
 import subprocess
 import json
@@ -22,7 +15,6 @@ from datetime import datetime
 from html import escape
 import sys
 import importlib
-import faulthandler
 import re
 from io import StringIO
 from pathlib import Path
@@ -30,24 +22,23 @@ import random
 import shutil
 import yaml
 
-faulthandler.enable()  # will catch segfaults and write to stderr
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(f"{CURRENT_DIR}/lib")
-sys.path.append(f"{CURRENT_DIR}/tools")
 
-from debug_helper import DebugHelper
-from terminal_colors import TerminalColors
-from schema_checker import SchemaChecker
-import process_helpers
-import hardware_info
-import hardware_info_root
-import error_helpers
-from db import DB
-from global_config import GlobalConfig
-import utils
-from notes import Notes
+from lib import utils
+from lib import process_helpers
+from lib import hardware_info
+from lib import hardware_info_root
+from lib import error_helpers
+from lib.debug_helper import DebugHelper
+from lib.terminal_colors import TerminalColors
+from lib.schema_checker import SchemaChecker
+from lib.db import DB
+from lib.global_config import GlobalConfig
+from lib.notes import Notes
 from lib import system_checks
+
+from tools.machine import Machine
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -94,15 +85,16 @@ def join_paths(path, path2, mode=None):
 
 class Runner:
     def __init__(self,
-        uri, uri_type, pid, filename='usage_scenario.yml', branch=None,
+        name, uri, uri_type, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_system_checks=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
-        dry_run=False, dev_repeat_run=False, docker_prune=False):
+        dry_run=False, dev_repeat_run=False, docker_prune=False, job_id=None):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
 
         # variables that should not change if you call run multiple times
+        self._name = name
         self._debugger = DebugHelper(debug_mode)
         self._allow_unsafe = allow_unsafe
         self._no_file_cleanup = no_file_cleanup
@@ -115,13 +107,15 @@ class Runner:
         self._dev_repeat_run = dev_repeat_run
         self._uri = uri
         self._uri_type = uri_type
-        self._project_id = pid
         self._original_filename = filename
         self._branch = branch
         self._tmp_folder = '/tmp/green-metrics-tool'
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
         self._sci = {'R_d': None, 'R': 0}
+        self._job_id = job_id
+        self._arguments = locals()
+        del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
 
         # transient variables that are created by the runner itself
@@ -141,6 +135,7 @@ class Runner:
         self.__join_default_network = False
         self.__docker_params = []
         self.__folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
+        self.__run_id = None
 
         # we currently do not use this variable
         # self.__filename = self._original_filename # this can be changed later if working directory changes
@@ -150,20 +145,32 @@ class Runner:
             print(TerminalColors.HEADER, '\nSleeping for : ', sleep_time, TerminalColors.ENDC)
             time.sleep(sleep_time)
 
+    def initialize_run(self):
+            # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
+        self.__run_id = DB().fetch_one("""
+                INSERT INTO runs (job_id, name, uri, email, branch, runner_arguments, created_at)
+                VALUES (%s, %s, %s, 'manual', %s, %s, NOW())
+                RETURNING id
+                """, params=(self._job_id, self._name, self._uri, self._branch, json.dumps(self._arguments)))[0]
+        return self.__run_id
+
     def initialize_folder(self, path):
         shutil.rmtree(path, ignore_errors=True)
         Path(path).mkdir(parents=True, exist_ok=True)
 
     def save_notes_runner(self):
         print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
-        self.__notes_helper.save_to_db(self._project_id)
+        self.__notes_helper.save_to_db(self.__run_id)
 
-    def check_system(self):
+    def check_system(self, mode='start'):
         if self._skip_system_checks:
             print("System check skipped")
             return
 
-        system_checks.check_all(self)
+        if mode =='start':
+            system_checks.check_start()
+        else:
+            raise RuntimeError('Unknown mode for system check:', mode)
 
 
     def checkout_repository(self):
@@ -235,12 +242,12 @@ class Runner:
         parsed_timestamp = datetime.strptime(commit_timestamp, "%Y-%m-%d %H:%M:%S %z")
 
         DB().query("""
-            UPDATE projects
+            UPDATE runs
             SET
                 commit_hash=%s,
                 commit_timestamp=%s
             WHERE id = %s
-            """, params=(commit_hash, parsed_timestamp, self._project_id))
+            """, params=(commit_hash, parsed_timestamp, self.__run_id))
 
     # This method loads the yml file and takes care that the includes work and are secure.
     # It uses the tagging infrastructure provided by https://pyyaml.org/wiki/PyYAMLDocumentation
@@ -405,7 +412,7 @@ class Runner:
     '''
         A machine will always register in the database on run.
         This means that it will write its machine_id and machine_descroption to the machines table
-        and then link itself in the projects table accordingly.
+        and then link itself in the runs table accordingly.
     '''
     def register_machine_id(self):
         config = GlobalConfig().config
@@ -415,18 +422,8 @@ class Runner:
             or config['machine']['description'] == '':
             raise RuntimeError('You must set machine id and machine description')
 
-        DB().query("""
-             INSERT INTO machines
-                 ("id", "description", "available", "created_at")
-             VALUES
-                 (%s, %s, TRUE, 'NOW()')
-             ON CONFLICT (id) DO
-                 UPDATE SET description = %s -- no need to make where clause here for correct row
-            """, params=(config['machine']['id'],
-                    config['machine']['description'],
-                    config['machine']['description']
-                )
-        )
+        machine = Machine(machine_id=config['machine'].get('id'), description=config['machine'].get('description'))
+        machine.register()
 
     def update_and_insert_specs(self):
         config = GlobalConfig().config
@@ -460,10 +457,10 @@ class Runner:
 
         # Insert auxilary info for the run. Not critical.
         DB().query("""
-            UPDATE projects
+            UPDATE runs
             SET
                 machine_id=%s, machine_specs=%s, measurement_config=%s,
-                usage_scenario = %s, filename=%s, gmt_hash=%s, last_run = NOW()
+                usage_scenario = %s, filename=%s, gmt_hash=%s
             WHERE id = %s
             """, params=(
             config['machine']['id'],
@@ -472,7 +469,7 @@ class Runner:
             escape(json.dumps(self._usage_scenario), quote=False),
             self._original_filename,
             gmt_hash,
-            self._project_id)
+            self.__run_id)
         )
 
     def import_metric_providers(self):
@@ -486,11 +483,18 @@ class Runner:
             print(TerminalColors.WARNING, arrows('No metric providers were configured in config.yml. Was this intentional?'), TerminalColors.ENDC)
             return
 
-        # will iterate over keys
-        for metric_provider in metric_providers:
+        docker_ps = subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='UTF-8', check=True)
+        rootless = False
+        if 'rootless' in docker_ps.stdout:
+            rootless = True
+
+        for metric_provider in metric_providers: # will iterate over keys
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
             conf = metric_providers[metric_provider] or {}
+
+            if rootless and '.cgroup.' in module_path:
+                conf['rootless'] = True
 
             print(f"Importing {class_name} from {module_path}")
             print(f"Configuration is {conf}")
@@ -586,7 +590,7 @@ class Runner:
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
-                    raise OSError("Docker build failed")
+                    raise OSError(f"Docker build failed\nStderr: {ps.stderr}\nStdout: {ps.stdout}")
 
                 # import the docker image locally
                 image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{tmp_img_name}.tar"]
@@ -1023,7 +1027,7 @@ class Runner:
 
             metric_provider.stop_profiling()
 
-            df = metric_provider.read_metrics(self._project_id, self.__containers)
+            df = metric_provider.read_metrics(self.__run_id, self.__containers)
             if isinstance(df, int):
                 print('Imported', TerminalColors.HEADER, df, TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
                 # If df returns an int the data has already been committed to the db
@@ -1089,10 +1093,10 @@ class Runner:
     def update_start_and_end_times(self):
         print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
         DB().query("""
-            UPDATE projects
+            UPDATE runs
             SET start_measurement=%s, end_measurement=%s
             WHERE id = %s
-            """, params=(self.__start_measurement, self.__end_measurement, self._project_id))
+            """, params=(self.__start_measurement, self.__end_measurement, self.__run_id))
 
     def store_phases(self):
         print(TerminalColors.HEADER, '\nUpdating phases in DB', TerminalColors.ENDC)
@@ -1101,10 +1105,10 @@ class Runner:
         # We did not make this before, as we needed the duplicate checking of dicts
         self.__phases = list(self.__phases.values())
         DB().query("""
-            UPDATE projects
+            UPDATE runs
             SET phases=%s
             WHERE id = %s
-            """, params=(json.dumps(self.__phases), self._project_id))
+            """, params=(json.dumps(self.__phases), self.__run_id))
 
     def read_container_logs(self):
         print(TerminalColors.HEADER, '\nCapturing container logs', TerminalColors.ENDC)
@@ -1141,10 +1145,10 @@ class Runner:
         logs_as_str = logs_as_str.replace('\x00','')
         if logs_as_str:
             DB().query("""
-                UPDATE projects
+                UPDATE runs
                 SET logs=%s
                 WHERE id = %s
-                """, params=(logs_as_str, self._project_id))
+                """, params=(logs_as_str, self.__run_id))
 
 
     def cleanup(self):
@@ -1185,6 +1189,7 @@ class Runner:
         self.__join_default_network = False
         #self.__filename = self._original_filename # # we currently do not use this variable
         self.__folder = f"{self._tmp_folder}/repo"
+        self.__run_id = None
 
     def run(self):
         '''
@@ -1197,15 +1202,17 @@ class Runner:
             Methods thus will behave differently given the runner was instantiated with different arguments.
 
         '''
+        return_run_id = None
         try:
             config = GlobalConfig().config
+            self.check_system('start')
+            return_run_id = self.initialize_run()
             self.initialize_folder(self._tmp_folder)
             self.checkout_repository()
             self.initial_parse()
             self.import_metric_providers()
             self.populate_image_names()
             self.check_running_containers()
-            self.check_system()
             self.remove_docker_images()
             self.download_dependencies()
             self.register_machine_id()
@@ -1274,6 +1281,7 @@ class Runner:
             self.custom_sleep(config['measurement']['idle-time-end'])
             self.store_phases()
             self.update_start_and_end_times()
+
         except BaseException as exc:
             self.add_to_log(exc.__class__.__name__, str(exc))
             raise exc
@@ -1312,6 +1320,7 @@ class Runner:
 
         print(TerminalColors.OKGREEN, arrows('MEASUREMENT SUCCESSFULLY COMPLETED'), TerminalColors.ENDC)
 
+        return return_run_id # we cannot return self.__run_id as this is reset in cleanup()
 
 if __name__ == '__main__':
     import argparse
@@ -1387,21 +1396,18 @@ if __name__ == '__main__':
             sys.exit(1)
         GlobalConfig(config_name=args.config_override)
 
-    # We issue a fetch_one() instead of a query() here, cause we want to get the project_id
-    project_id = DB().fetch_one("""
-                INSERT INTO "projects" ("name","uri","email","last_run","created_at", "branch")
-                VALUES
-                (%s,%s,'manual',NULL,NOW(),%s) RETURNING id;
-                """, params=(args.name, args.uri, args.branch))[0]
-
-    runner = Runner(uri=args.uri, uri_type=run_type, pid=project_id, filename=args.filename,
+    successful_run_id = None
+    runner = Runner(name=args.name, uri=args.uri, uri_type=run_type, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     no_file_cleanup=args.no_file_cleanup, skip_system_checks=args.skip_system_checks,
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                     full_docker_prune=args.full_docker_prune, dry_run=args.dry_run,
                     dev_repeat_run=args.dev_repeat_run, docker_prune=args.docker_prune)
+
+    # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
+    #pylint: disable=broad-except
     try:
-        runner.run()  # Start main code
+        successful_run_id = runner.run()  # Start main code
 
         # this code should live at a different position.
         # From a user perspective it makes perfect sense to run both jobs directly after each other
@@ -1412,23 +1418,25 @@ if __name__ == '__main__':
 
         # get all the metrics from the measurements table grouped by metric
         # loop over them issueing separate queries to the DB
-        from phase_stats import build_and_store_phase_stats
-        build_and_store_phase_stats(project_id, runner._sci)
+        from tools.phase_stats import build_and_store_phase_stats
+
+        print("Run id is", successful_run_id)
+        build_and_store_phase_stats(successful_run_id, runner._sci)
 
 
         print(TerminalColors.OKGREEN,'\n\n####################################################################################')
-        print(f"Please access your report with the ID: {project_id}")
+        print(f"Please access your report on the URL {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={successful_run_id}")
         print('####################################################################################\n\n', TerminalColors.ENDC)
 
     except FileNotFoundError as e:
-        error_helpers.log_error('Docker command failed.', e, project_id)
+        error_helpers.log_error('Docker command failed.', e, successful_run_id)
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error('Docker command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, project_id)
+        error_helpers.log_error('Docker command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, successful_run_id)
     except KeyError as e:
-        error_helpers.log_error('Was expecting a value inside the usage_scenario.yml file, but value was missing: ', e, project_id)
+        error_helpers.log_error('Was expecting a value inside the usage_scenario.yml file, but value was missing: ', e, successful_run_id)
     except RuntimeError as e:
-        error_helpers.log_error('RuntimeError occured in runner.py: ', e, project_id)
+        error_helpers.log_error('RuntimeError occured in runner.py: ', e, successful_run_id)
     except BaseException as e:
-        error_helpers.log_error('Base exception occured in runner.py: ', e, project_id)
+        error_helpers.log_error('Base exception occured in runner.py: ', e, successful_run_id)
     finally:
         if args.print_logs: print("Container logs:", runner.get_logs())
