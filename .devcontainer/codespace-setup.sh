@@ -1,4 +1,9 @@
 #!/bin/bash
+set -euo pipefail
+
+sudo apt update && \
+sudo apt upgrade -y && \
+sudo apt install -y curl git make gcc python3 python3-pip python3-venv
 
 # rename ./metric_providers/lm_sensors/Makefile to ./metric_providers/lm_sensors/Makefile.bak
 mv /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile.bak
