@@ -1,6 +1,7 @@
 {
     "image": "mcr.microsoft.com/vscode/devcontainers/base:ubuntu-22.04",
     "onCreateCommand": "/workspaces/green-metrics-tool/.devcontainer/codespace-setup.sh",
+    "postCreateCommand": "/workspaces/green-metrics-tool/install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9143 -t",
     "forwardPorts": [9143],
     "portsAttributes": {
         "9143": {
