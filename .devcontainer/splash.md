@@ -5,9 +5,10 @@ To get started, blah blah blah...
 First wait for the post install setup script to finish!
 
 Activate your venv!
+`source venv/bin/activate`
 
 In a second terminal window:
-cd docker && docker compose up 
+`cd docker && docker compose up `
 
-quickly test:
-./runner.py --name test --uri /workspaces/green-metrics-tool/tests/stress-application
+quick test:
+`./runner.py --name test --uri /workspaces/green-metrics-tool/tests/stress-application`
