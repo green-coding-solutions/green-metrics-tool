@@ -1,14 +1,14 @@
-## Welcome to Green Metrics Tool in Github Codespaces
+## Green Metrics Tool Codespaces Quickstart
 
-To get started, blah blah blah...
+Thank you for trying out the Green Metrics Tool :-)
 
-First wait for the post install setup script to finish!
-
-Activate your venv!
+First remember to activate your venv:
 `source venv/bin/activate`
 
-In a second terminal window:
-`cd docker && docker compose up `
+Then in a second terminal window, start the docker containers:
+`cd /workspaces/green-metrics-tool/docker && docker compose up `
 
 quick test:
-`./runner.py --name test --uri /workspaces/green-metrics-tool/tests/stress-application`
+`/workspaces/green-metrics-tool/runner.py --name test --uri /workspaces/green-metrics-tool/tests/stress-application`
+
+To see the Metrics front end, go to your ports tab and follow the link for port 9143
