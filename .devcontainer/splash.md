@@ -6,7 +6,7 @@ First remember to activate your venv:
 `source venv/bin/activate`
 
 Then in a second terminal window, start the docker containers:
-`cd /workspaces/green-metrics-tool/docker && docker compose up `
+`cd /workspaces/green-metrics-tool/docker && docker compose up`
 
 quick test:
 `/workspaces/green-metrics-tool/runner.py --name test --uri /workspaces/green-metrics-tool/tests/stress-application`
