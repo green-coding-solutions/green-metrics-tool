@@ -1,5 +1,5 @@
 {
-    "build": { "dockerfile": "Dockerfile" },
+    "image": "mcr.microsoft.com/vscode/devcontainers/base:ubuntu-22.04",
     "onCreateCommand": "/workspaces/green-metrics-tool/.devcontainer/codespace-setup.sh",
     "forwardPorts": [9143],
     "portsAttributes": {
