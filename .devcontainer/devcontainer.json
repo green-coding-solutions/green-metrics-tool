@@ -1,5 +1,23 @@
 {
-  "image": "mcr.microsoft.com/vscode/devcontainers/base:ubuntu-22.04",
-  "features": {
-  }
+    "image": "mcr.microsoft.com/vscode/devcontainers/base:ubuntu-22.04",
+    "onCreateCommand": "/workspaces/green-metrics-tool/.devcontainer/codespace-setup.sh",
+    "forwardPorts": [9143],
+    "portsAttributes": {
+        "9143": {
+            "label": "metrics page"
+        },
+        "9142": {
+            "label": "api"
+        }
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    },
+    "customizations": {
+        "codespaces": {
+            "openFiles": [
+                ".devcontainer/splash.md"
+            ]
+        }
+    }
 }
