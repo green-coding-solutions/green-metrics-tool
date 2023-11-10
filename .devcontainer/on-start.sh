@@ -5,7 +5,7 @@ metrics_url="http://metrics.green-coding.internal:9143"
 host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
 host_metrics_url=${host_metrics_url%:*}
 
-host_api_url="http://api.green-coding.internal:9142"
+api_url="http://api.green-coding.internal:9142"
 host_api_url=`echo $api_url | sed -E 's/^\s*.*:\/\///g'`
 host_api_url=${host_api_url%:*}
 
