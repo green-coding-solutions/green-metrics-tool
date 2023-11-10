@@ -3,6 +3,9 @@
 
 [![Energy Used](https://api.green-coding.berlin/v1/ci/badge/get/?repo=green-coding-berlin/green-metrics-tool&branch=dev&workflow=45267392)](https://metrics.green-coding.berlin/ci.html?repo=green-coding-berlin/green-metrics-tool&branch=dev&workflow=45267392) (This is the energy cost of running our CI-Pipelines on Github. [Find out more about Eco-CI](https://www.green-coding.berlin/projects/eco-ci/))
 
+[![Try in Github Codespaces!](https://github.com/codespaces/badge.svg)](https://codespaces.new/dan-mm/green-metrics-tool)
+
+
 # Introduction
 
 The Green Metrics Tool is a developer tool indented for measuring the energy and CO2 consumption of software through a software life cycle analysis (SLCA).
