@@ -153,6 +153,11 @@ PYTHON_PATH=$(which python3)
 PWD=$(pwd)
 echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
 
+print_message "Setting the hardare hardware_info to be owned by root"
+sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
+sudo chown root:root $PWD/lib/hardware_info_root.py
+sudo chmod 755 $PWD/lib/hardware_info_root.py
+
 print_message "Installing IPMI tools"
 if lsb_release -is | grep -q "Fedora"; then
     sudo dnf -y install ipmitool
