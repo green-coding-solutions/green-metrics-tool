@@ -392,7 +392,7 @@ def main(idle_time,
 
     cooldown_times = get_cooldown_time(data_stress[temp_provider_name])
     biggest_time = max(cooldown_times.values())
-    cdt_seconds = round(((biggest_time - timings['start_cooldown']) / 1_000_000)) * 30 # We add 30 secs just to be sure
+    cdt_seconds = round(((biggest_time - timings['start_cooldown']) / 1_000_000)) + 30 # We add 30 secs just to be sure
     logging.info(f"Cool down time is {cdt_seconds} seconds")
 
 
