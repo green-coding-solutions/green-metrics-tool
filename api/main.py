@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 import anybadge
 
@@ -540,9 +540,10 @@ async def get_timeline_projects():
 async def get_jobs():
     # Do not get the email jobs as they do not need to be display in the frontend atm
     query = """
-        SELECT j.id, j.name, j.url, j.filename, j.branch, m.description, j.state, j.updated_at, j.created_at
+        SELECT j.id, r.id as run_id, j.name, j.url, j.filename, j.branch, m.description, j.state, j.updated_at, j.created_at
         FROM jobs as j
         LEFT JOIN machines as m on m.id = j.machine_id
+        LEFT JOIN runs as r on r.job_id = j.id
         ORDER BY j.updated_at DESC, j.created_at ASC
     """
     data = DB().fetch_all(query)
@@ -575,6 +576,48 @@ def replace_nan_with_zero(obj):
     return obj
 
 
+def validate_measurement_data(data):
+    required_top_level_fields = [
+        'coalitions', 'all_tasks', 'elapsed_ns', 'processor', 'thermal_pressure'
+    ]
+    for field in required_top_level_fields:
+        if field not in data:
+            raise ValueError(f"Missing required field: {field}")
+
+    # Validate 'coalitions' structure
+    if not isinstance(data['coalitions'], list):
+        raise ValueError("Expected 'coalitions' to be a list")
+
+    for coalition in data['coalitions']:
+        required_coalition_fields = [
+            'name', 'tasks', 'energy_impact_per_s', 'cputime_ms_per_s',
+            'diskio_bytesread', 'diskio_byteswritten', 'intr_wakeups', 'idle_wakeups'
+        ]
+        for field in required_coalition_fields:
+            if field not in coalition:
+                raise ValueError(f"Missing required coalition field: {field}")
+            if field == 'tasks' and not isinstance(coalition['tasks'], list):
+                raise ValueError(f"Expected 'tasks' to be a list in coalition: {coalition['name']}")
+
+    # Validate 'all_tasks' structure
+    if 'energy_impact_per_s' not in data['all_tasks']:
+        raise ValueError("Missing 'energy_impact_per_s' in 'all_tasks'")
+
+    # Validate 'processor' structure based on the processor type
+    processor_fields = data['processor'].keys()
+    if 'ane_energy' in processor_fields:
+        required_processor_fields = ['combined_power', 'cpu_energy', 'gpu_energy', 'ane_energy']
+    elif 'package_joules' in processor_fields:
+        required_processor_fields = ['package_joules', 'cpu_joules', 'igpu_watts']
+    else:
+        raise ValueError("Unknown processor type")
+
+    for field in required_processor_fields:
+        if field not in processor_fields:
+            raise ValueError(f"Missing required processor field: {field}")
+
+    # All checks passed
+    return True
 
 @app.post('/v1/hog/add')
 async def hog_add(measurements: List[HogMeasurement]):
@@ -590,9 +633,16 @@ async def hog_add(measurements: List[HogMeasurement]):
         #Check if the data is valid, if not this will throw an exception and converted into a request by the middleware
         try:
             _ = Measurement(**measurement_data)
-        except RequestValidationError as exc:
-            print(f"Caught Exception {exc}")
+        except (ValidationError, RequestValidationError) as exc:
+            print(f"Caught Exception in Measurement() {exc.__class__.__name__} {exc}")
             print(f"Errors are: {exc.errors()}")
+            if GlobalConfig().config['admin']['no_emails'] is False:
+                email_helpers.send_admin_email('Hog parsing error', str(exc))
+
+        try:
+            validate_measurement_data(measurement_data)
+        except ValueError as exc:
+            print(f"Caught Exception in validate_measurement_data() {exc.__class__.__name__} {exc}")
             raise exc
 
         coalitions = []
@@ -751,7 +801,7 @@ async def hog_add(measurements: List[HogMeasurement]):
                 )
                 DB().fetch_one(query=query, params=params)
 
-        return Response(status_code=204) # No-Content
+    return Response(status_code=204) # No-Content
 
 
 @app.get('/v1/hog/top_processes')
@@ -885,15 +935,15 @@ async def hog_get_task_details(machine_uuid: str, measurements_id_start: int, me
     tasks_query = """
         SELECT
             t.name,
-            COUNT(t.id) AS number_of_tasks,
-            (SUM(t.energy_impact)::bigint) AS total_energy_impact,
-            SUM(t.cputime_ns) AS total_cputime_ns,
-            SUM(t.bytes_received) AS total_bytes_received,
-            SUM(t.bytes_sent) AS total_bytes_sent,
-            SUM(t.diskio_bytesread) AS total_diskio_bytesread,
-            SUM(t.diskio_byteswritten) AS total_diskio_byteswritten,
-            SUM(t.intr_wakeups) AS total_intr_wakeups,
-            SUM(t.idle_wakeups) AS total_idle_wakeups
+            COUNT(t.id)::bigint AS number_of_tasks,
+            SUM(t.energy_impact)::bigint AS total_energy_impact,
+            SUM(t.cputime_ns)::bigint AS total_cputime_ns,
+            SUM(t.bytes_received)::bigint AS total_bytes_received,
+            SUM(t.bytes_sent)::bigint AS total_bytes_sent,
+            SUM(t.diskio_bytesread)::bigint AS total_diskio_bytesread,
+            SUM(t.diskio_byteswritten)::bigint AS total_diskio_byteswritten,
+            SUM(t.intr_wakeups)::bigint AS total_intr_wakeups,
+            SUM(t.idle_wakeups)::bigint AS total_idle_wakeups
         FROM
             hog_tasks t
         JOIN hog_coalitions c ON t.coalition = c.id

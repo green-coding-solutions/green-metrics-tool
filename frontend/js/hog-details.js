@@ -186,33 +186,33 @@ $(document).ready(function () {
                                 data: 1,
                                 title: 'Energy Impact',
                                 className: "dt-body-right",
-                                render: function(data, type, row) {
+                                render: function(el, type, row) {
                                     if (type === 'display' || type === 'filter') {
-                                        return (data.toLocaleString())
+                                        return (el.toLocaleString())
                                     }
-                                    return data;
+                                    return el;
                                 }
                             },
                             {
                                 data: 2,
                                 title: 'Mb Read',
                                 className: "dt-body-right",
-                                render: function(data, type, row) {
+                                render: function(el, type, row) {
                                     if (type === 'display' || type === 'filter') {
-                                        return Math.trunc(data / 1048576).toLocaleString();
+                                        return Math.trunc(el / 1048576).toLocaleString();
                                     }
-                                    return data;
+                                    return el;
                                 }
                             },
                             {
                                 data: 3,
                                 title: 'Mb Written',
                                 className: "dt-body-right",
-                                render: function(data, type, row) {
+                                render: function(el, type, row) {
                                     if (type === 'display' || type === 'filter') {
-                                        return Math.trunc(data / 1048576).toLocaleString();
+                                        return Math.trunc(el / 1048576).toLocaleString();
                                     }
-                                    return data;
+                                    return el;
                                 }
                             },
                             { data: 4, title: 'Intr Wakeups',className: "dt-body-right"},
@@ -222,7 +222,7 @@ $(document).ready(function () {
                             {
                                 data: null,
                                 title: '',
-                                render: function(data, type, row) {
+                                render: function(el, type, row) {
                                     return `<button class="ui icon button js-task-info" data-name="${row[0]}" data-start="${firstValue[6]}" data-end="${lastValue[6]}"><i class="info icon"></i></button>`;
                                 },
                                 orderable: false,
@@ -230,112 +230,113 @@ $(document).ready(function () {
                             }
                         ],
                         deferRender: true,
+                        drawCallback: function(settings) {
+                            $('.js-task-info').click(async function() {
+
+                                $("#coaliton-segment").addClass("loading")
+                                $("#task-segment").addClass("loading")
+
+                                $('#task-details').modal('show');
+
+                                var tasks = await makeAPICall(`/v1/hog/tasks_details/${machine_uuid}/${$(this).data('start')}/${$(this).data('end')}/${$(this).data('name')}`);
+
+                                coalition_string=`
+                                    <h3>${tasks.coalitions_data[0]}</h3>
+                                    <table class="ui table">
+                                    <thead>
+                                        <tr>
+                                            <th>Attribute</th>
+                                            <th>Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><b>total_energy_impact</b></td>
+                                            <td>${tasks.coalitions_data[1]}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>total_diskio_bytesread</b></td>
+                                            <td>${tasks.coalitions_data[2]}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>total_diskio_byteswritten</b></td>
+                                            <td>${tasks.coalitions_data[3]}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>total_intr_wakeups</b></td>
+                                            <td>${tasks.coalitions_data[4]}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>total_idle_wakeups</b></td>
+                                            <td>${tasks.coalitions_data[5]}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>`
+                                const tasks_string = tasks.tasks_data.map(subArr => `
+                                <h3>${subArr[0]}</h3>
+                                    <table class="ui table">
+                                    <thead>
+                                        <tr>
+                                            <th>Attribute</th>
+                                            <th>Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><b>Name</b></td>
+                                            <td>${subArr[1]}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>Occurrence</b></td>
+                                            <td>${subArr[2]}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>total_energy_impact</b></td>
+                                            <td>${subArr[3]}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>cputime_ns</b></td>
+                                            <td>${subArr[4]}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>bytes_received</b></td>
+                                            <td>${subArr[5]}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>bytes_sent</b></td>
+                                            <td>${subArr[6]}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>diskio_bytesread</b></td>
+                                            <td>${subArr[7]}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>diskio_byteswritten</b></td>
+                                            <td>${subArr[8]}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>intr_wakeups</b></td>
+                                            <td>${subArr[9]}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>idle_wakeups</b></td>
+                                            <td>${subArr[10]}</td>
+                                        </tr>
+                                    </tbody>
+                                    </table>
+                                `).join(' ');
+                                $("#coaliton-segment").html(coalition_string)
+                                $("#coaliton-segment").removeClass("loading")
+
+                                $("#task-segment").html(tasks_string)
+                                $("#task-segment").removeClass("loading")
+                            });
+                        },
                         order: [],
                     });
+
+
                     $('#table-loader').removeClass('active');
-
-                    $('.js-task-info').click(async function() {
-
-                        $("#coaliton-segment").addClass("loading")
-                        $("#task-segment").addClass("loading")
-
-                        $('#task-details').modal('show');
-
-                        var tasks = await makeAPICall(`/v1/hog/tasks_details/${machine_uuid}/${$(this).data('start')}/${$(this).data('end')}/${$(this).data('name')}`);
-
-                        coalition_string=`
-                            <h3>${tasks.coalitions_data[0]}</h3>
-                            <table class="ui table">
-                            <thead>
-                                <tr>
-                                    <th>Attribute</th>
-                                    <th>Value</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td><b>total_energy_impact</b></td>
-                                    <td>${tasks.coalitions_data[1]}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>total_diskio_bytesread</b></td>
-                                    <td>${tasks.coalitions_data[2]}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>total_diskio_byteswritten</b></td>
-                                    <td>${tasks.coalitions_data[3]}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>total_intr_wakeups</b></td>
-                                    <td>${tasks.coalitions_data[4]}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>total_idle_wakeups</b></td>
-                                    <td>${tasks.coalitions_data[5]}</td>
-                                </tr>
-                            </tbody>
-                        </table>`
-                        const tasks_string = tasks.tasks_data.map(subArr => `
-                        <h3>${subArr[0]}</h3>
-                            <table class="ui table">
-                            <thead>
-                                <tr>
-                                    <th>Attribute</th>
-                                    <th>Value</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td><b>Name</b></td>
-                                    <td>${subArr[1]}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>Occurrence</b></td>
-                                    <td>${subArr[2]}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>total_energy_impact</b></td>
-                                    <td>${subArr[3]}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>cputime_ns</b></td>
-                                    <td>${subArr[4]}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>bytes_received</b></td>
-                                    <td>${subArr[5]}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>bytes_sent</b></td>
-                                    <td>${subArr[6]}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>diskio_bytesread</b></td>
-                                    <td>${subArr[7]}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>diskio_byteswritten</b></td>
-                                    <td>${subArr[8]}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>intr_wakeups</b></td>
-                                    <td>${subArr[9]}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>idle_wakeups</b></td>
-                                    <td>${subArr[10]}</td>
-                                </tr>
-                            </tbody>
-                            </table>
-                    `).join(' ');
-                        $("#coaliton-segment").html(coalition_string)
-                        $("#coaliton-segment").removeClass("loading")
-
-                        $("#task-segment").html(tasks_string)
-                        $("#task-segment").removeClass("loading")
-
-
-                    });
 
                 } catch (err) {
                     showNotification('Could not get data from API', err);

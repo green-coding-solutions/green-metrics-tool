@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+title: Green Metrics Tool
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Arne
+    family-names: Tarara
+    email: arne@green-coding.berlin
+    affiliation: Green Coding Berlin
+  - given-names: Dan
+    family-names: Mateas
+    email: dan@green-coding.berlin
+    affiliation: Green Coding Berlin
+  - given-names: Geerd-Dietger
+    family-names: Hoffmann
+    email: didi@green-coding.berlin
+    affiliation: Green Coding Berlin
+repository-code: 'https://github.com/green-coding-berlin/green-metrics-tool'
+url: 'https://www.green-coding.berlin/'
+repository: 'https://github.com/green-coding-berlin/'
+abstract: >-
+  The Green Metrics Tool is a developer tool indented for
+  measuring the energy and CO2 consumption of software
+  through a software life cycle analysis (SLCA).
+keywords:
+  - Green Coding
+  - 'Software Life Cycle Assessment '
+license: AGPL-3.0-or-later
