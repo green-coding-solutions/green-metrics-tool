@@ -14,3 +14,5 @@ fi
 
 sed -i 's/listen \[::\]:9142;/listen [::]:9143;/; s/listen 9142;/listen 9143;/' /workspaces/green-metrics-tool/docker/nginx/frontend.conf
 sed -i '/green-coding-nginx:/,/green-coding-gunicorn:/ s/\(- 9142:80\)/- 9142:9142\n      - 9143:9143/' /workspaces/green-metrics-tool/docker/compose.yml
+
+git clone https://github.com/green-coding-berlin/example-applications.git /workspaces/examples
