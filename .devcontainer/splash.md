@@ -11,4 +11,6 @@ Then in a second terminal window, start the docker containers:
 quick test:
 `/workspaces/green-metrics-tool/runner.py --name test --uri /workspaces/green-metrics-tool/tests/stress-application`
 
-To see the Metrics front end, go to your ports tab and follow the link for port 9143
+You need to go to the ports tab in codespaces, and make the ports for 9142(api) and 9143(metrics) public by right clicking the port and setting the port visibility to public.
+
+To see the Metrics front end, go to your ports tab and follow the forwarding address for port 9143
