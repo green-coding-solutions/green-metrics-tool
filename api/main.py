@@ -801,7 +801,7 @@ async def hog_add(measurements: List[HogMeasurement]):
                 )
                 DB().fetch_one(query=query, params=params)
 
-        return Response(status_code=204) # No-Content
+    return Response(status_code=204) # No-Content
 
 
 @app.get('/v1/hog/top_processes')
