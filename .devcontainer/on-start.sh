@@ -29,5 +29,3 @@ if [[ ${host_metrics_url} == *".green-coding.internal"* ]];then
         echo "Entry was already present..."
     fi
 fi
-
-code /workspaces/green-metrics-tool/.devcontainer/splash.md
