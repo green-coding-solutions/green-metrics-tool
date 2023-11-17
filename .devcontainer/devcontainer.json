@@ -1,7 +1,7 @@
 {
     "image": "mcr.microsoft.com/vscode/devcontainers/base:ubuntu-22.04",
     "onCreateCommand": "/workspaces/green-metrics-tool/.devcontainer/codespace-setup.sh",
-    "postStartCommand": "/workspaces/green-metrics-tool/.devcontainer/on-start.sh",
+    "postStartCommand": "/workspaces/green-metrics-tool/.devcontainer/on-start.sh && code /workspaces/green-metrics-tool/.devcontainer/splash.md",
     "forwardPorts": [9143],
     "portsAttributes": {
         "9143": {
