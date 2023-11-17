@@ -14,7 +14,7 @@ jobs:
       - name: 'Checkout repository'
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.ref }}
           submodules: 'true'
 
       - name: Eco CI Energy Estimation - Initialize
