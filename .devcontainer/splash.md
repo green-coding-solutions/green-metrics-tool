@@ -9,7 +9,7 @@ Then in a second terminal window, start the docker containers:
 `cd /workspaces/green-metrics-tool/docker && docker compose up`
 
 quick test:
-`/workspaces/green-metrics-tool/runner.py --name test --uri /workspaces/green-metrics-tool/tests/stress-application`
+`/workspaces/green-metrics-tool/runner.py --name test --uri /workspaces/examples/stress/`
 
 You need to go to the ports tab in codespaces, and make the ports for 9142(api) and 9143(metrics) public by right clicking the port and setting the port visibility to public.
 
