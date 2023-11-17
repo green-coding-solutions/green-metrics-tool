@@ -1,3 +1,5 @@
+.
+
 [![Tests Status - Main](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-main.yml/badge.svg)](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-main.yml)
 
 
