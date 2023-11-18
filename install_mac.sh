@@ -89,9 +89,9 @@ git submodule update --init
 print_message "Setting up python venv"
 python3 -m venv venv
 source venv/bin/activate
-# This will set the include path for the project
-find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
+print_message "Setting GMT in include path for python via .pth file"
+find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
 print_message "Adding powermetrics to sudoers file"
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/powermetrics" | sudo tee /etc/sudoers.d/green_coding_powermetrics
