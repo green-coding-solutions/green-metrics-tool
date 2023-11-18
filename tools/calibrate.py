@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 import random
 import traceback
+import sys
 
 from tqdm import tqdm
 import plotext as plt
@@ -35,8 +36,14 @@ TMP_FOLDER = '/tmp/green-metrics-tool'
 LOG_LEVELS = ['debug', 'info', 'warning', 'error', 'critical']
 CONF_FILE = '../config.yml'
 
+RED="\x1b[31m"
+YELLOW="\x1b[33m"
+MAGENTA="\x1b[35m"
+GREEN="\x1b[32m"
+NC="\x1b[0m" # No Color
+
 # Globals
-metric_providers= []
+metric_providers = []
 timings = {}
 docker_sleeper = None
 
@@ -50,8 +57,8 @@ def countdown_bar(total_seconds, desc='Countdown'):
 # not all temperatures increase or with quite a delay. Also it takes some time for the CPU to get hot. (quite dependent
 # on the make actually). Another problem is that the CPU cools down again when the fans go to full blast.
 # So instead of doing a rolling window analysis or something clever we just wait 10 seconds and
-# check if at least one temp provider has increased 20 degrees at some stage.
-def stress_bar(total_seconds, desc, tmp_mean, tmp_std, temp_provider, temp_increase=1000):
+# check if at least one temp provider has increased for "temp_increase" degrees at some stage.
+def check_temperature_increase(total_seconds, desc, temp_mean, temp_std, temp_provider, temp_increase=1000):
     with tqdm(total=total_seconds, desc=desc, bar_format='{l_bar}{bar}| {remaining}') as pbar:
         for i in range(total_seconds):
             time.sleep(1)
@@ -60,17 +67,21 @@ def stress_bar(total_seconds, desc, tmp_mean, tmp_std, temp_provider, temp_incre
                 data = temp_provider.read_metrics(1)
                 grouped = data.groupby('detail_name')
                 logging.info('Checking for temperature increase!')
+                if len(grouped) < 1:
+                    raise SystemExit(f"Not enough values could be collected for temperature check increase. Is the time too small ({total_seconds} seconds)? ")
+
                 for name, group in grouped:
-                    if not any(group['value'] > tmp_mean[name] + tmp_std[name] + temp_increase):
-                        logging.error('Temperature hasn\'t increased after 10 seconds')
+                    if not any(group['value'] > temp_mean[name] + temp_std[name] + temp_increase):
+                        logging.error(f"Temperature hasn\'t increased for at least {temp_increase/100}° during {total_seconds} seconds")
                         raise SystemExit(5)
+                    logging.info(f"Temperature increase ok for {name}. Saw a {max(group['value'])/100}° increase during {total_seconds} seconds")
 
 
 
-
-def load_metric_providers(mp, pt_providers, provider_interval, rootless=False):
+def load_metric_providers(mp, pt_providers, provider_interval_override=None, rootless=False):
     global metric_providers
-    metric_providers = []
+    metric_providers = [] # reset
+
     # We pretty much copied this from the runner. Keeping the same flow so we can maintain it easier.
     for metric_provider in pt_providers:
         module_path, class_name = metric_provider.rsplit('.', 1)
@@ -82,7 +93,9 @@ def load_metric_providers(mp, pt_providers, provider_interval, rootless=False):
 
         logging.info(f"Importing {class_name} from {module_path}")
 
-        conf['resolution'] = provider_interval
+        if provider_interval_override:
+            conf['resolution'] = provider_interval_override
+
 
         module = importlib.import_module(module_path)
 
@@ -95,8 +108,8 @@ def start_metric_providers(containers=None):
     for metric_provider in metric_providers:
         metric_provider.start_profiling(containers)
 
-    logging.info('Waiting for Metric Providers to boot ...')
-    countdown_bar(len(metric_providers) * 2, 'Booting')
+    logging.debug('Waiting for Metric Providers to boot ...')
+    countdown_bar(len(metric_providers) * 2, 'Booting Metric Providers')
 
     for metric_provider in metric_providers:
         stderr_read = metric_provider.get_stderr()
@@ -127,32 +140,7 @@ def stop_metric_providers(force=False, containers=None):
     return data
 
 
-def cleanup():
-    logging.debug('Cleaning everything up for exit')
-    stop_metric_providers(force=True)
-    shutil.rmtree(TMP_FOLDER, ignore_errors=True)
-    if docker_sleeper:
-        docker_sleeper.kill()
-
-
-def main(idle_time,
-         stress_time,
-         provider_interval,
-         stress_command,
-         cooldown_time,
-         write_config,
-         temperature_increase
-         ):
-    global docker_sleeper
-
-    # Setup
-    shutil.rmtree(TMP_FOLDER, ignore_errors=True)
-    Path(TMP_FOLDER).mkdir(parents=True, exist_ok=True)
-    logging.debug(f"Temporary folder created: {TMP_FOLDER}")
-
-    # Importing Metric provider
-    mp = utils.get_metric_providers(GlobalConfig().config)
-
+def check_minimum_provider_configuration(mp):
     # Do some checks
     def check_provider(mp, criteria):
         providers = [provider for provider in mp if all(criterion in provider for criterion in criteria)]
@@ -169,30 +157,35 @@ def main(idle_time,
 
     energy_provider = one_psu_provider(mp)
     if not energy_provider:
-        logging.warning('Please configure a psu provider for the best results.')
+        logging.warning('Please configure a PSU provider for the best results.')
         energy_provider = rapl_provider(mp)
         if energy_provider:
             logging.info('Using rapl provider.')
         else:
-            logging.error('We need at least one psu/ rapl provider configured!')
+            logging.error('We need at least one PSU / RAPL provider configured!')
             raise SystemExit(1)
 
     # Warn and exit if there is no temperature or system energy provider configured
-    tmp_provider = temp_provider(mp)
-    if not tmp_provider:
+    temp_provider = temp_provider(mp)
+    if not temp_provider:
         logging.error('We need at least one temperature provider configured!')
         raise SystemExit(1)
+    return (energy_provider, temp_provider)
 
-    ###
-    ### This block is to check the load the metric providers create on an idle system. We currently only look at energy
-    ###
+
+#####
+# This block is to check the load the metric providers create on an idle system.
+# We currently only look at energy
+#####
+def determine_baseline_energy(mp, energy_provider, idle_time, provider_interval):
+    # global timings # we just read
+
+    # Load only the energy provider with a benchmarking provider_interval
     load_metric_providers(mp, [energy_provider,], provider_interval)
 
-
-    # Start the metrics providers
     start_metric_providers()
     timings['start_energy_idle'] = int(time.time() * 1_000_000)
-    countdown_bar(idle_time, 'Idle')
+    countdown_bar(idle_time, 'Baseline Measurement')
     timings['end_energy_idle'] = int(time.time() * 1_000_000)
 
     data_energy_idle = stop_metric_providers()
@@ -203,47 +196,62 @@ def main(idle_time,
     energy_provider_key = next(iter(data_energy_idle))
     data_energy_idle = data_energy_idle[energy_provider_key]
 
-    def check_energy_idle_values(data, timing_start, timing_end):
-
-        # Remove boot and stop values
-        data_mask = (data['time'] >= timing_start) & (data['time'] <= timing_end)
-        data = data[data_mask]
-
-        # Remove first values as RAPL is an aggregate value and the first is not representative.
-        data = data.iloc[2:]
-
-        # make sure that there are no massive peaks in standard deviation. If so exit with notification
-        mean_value = data['value'].mean()
-        std_value = data['value'].std()
-
-        threshold = STD_THRESHOLD_MULTI * std_value
-
-        out_mask = (data['value'] < mean_value - threshold) | (data['value'] > mean_value + threshold)
-
-        outliers = data[out_mask]
-        if not outliers.empty:
-            logging.error('''There are outliers in your data. It looks like your system is not in a stable state!
-                            Please make sure that the are no jobs running in the background. Aborting!''')
-            logging.debug('\n%s', data)
-            logging.debug('Mean Val: %s', mean_value)
-            logging.debug('Std. Dev: %s', std_value)
-
-            raise SystemExit('System not stable.')
-
-        return mean_value, std_value
-
-    energy_idle_mean_value, energy_idle_std_value = check_energy_idle_values(data_energy_idle, timings['start_energy_idle'], timings['end_energy_idle'])
-    logging.info(f"Energy Idle mean:{energy_idle_mean_value}. Energy idle std: {energy_idle_std_value}")
+    return check_energy_idle_values(data_energy_idle, timings['start_energy_idle'], timings['end_energy_idle'])
 
 
-    # Now lets start all configured providers and remeasure
+def check_energy_idle_values(data, timing_start, timing_end):
+    # global timings # we just read
+
+    # Remove boot and stop values
+    data_mask = (data['time'] >= timing_start) & (data['time'] <= timing_end)
+    data = data[data_mask]
+
+    # Remove first values as RAPL is an aggregate value and the first is not representative.
+    data = data.iloc[2:]
+
+
+    # make sure that there are no massive peaks in standard deviation. If so exit with notification
+    mean_value = data['value'].mean()
+    std_value = data['value'].std()
+
+    if len(data['value']) < 3:
+        raise SystemExit(f"Not enough data points for idle time calculation (amount: {len(data['value'])}; Std: {round(std_value,2)} mJ). Please extend the idle time duration. {data}")
+
+    threshold = STD_THRESHOLD_MULTI * std_value
+
+    out_mask = (data['value'] < mean_value - threshold) | (data['value'] > mean_value + threshold)
+
+    outliers = data[out_mask]
+    if not outliers.empty or (std_value / mean_value) > 0.03:
+        logging.error('''here are outliers in your Baseline / Idle data or the StdDev is > 3%. It looks like your system is not in a stable state!
+                        Please make sure that the are no jobs running in the background. Aborting!''')
+        logging.info('\n%s', data)
+        logging.info('Mean Energy: %s mJ', round(mean_value,2))
+        logging.info('Std. Dev: %s mJ', round(std_value,2))
+        logging.info('Std. Dev (rel): %s %%', round((std_value / mean_value) * 100,2))
+        logging.info('Allowed threshold: %s', threshold)
+        logging.info('Outliers: %s', outliers)
+
+        raise SystemExit('System not stable.')
+
+    logging.info(f"{GREEN}System Baseline / Idle measurement successful{NC}")
+    logging.info('Mean Energy: %s mJ', round(mean_value,2))
+    logging.info('Std. Dev: %s mJ', round(std_value,2))
+    logging.info('Std. Dev (rel): %s %%', round((std_value / mean_value) * 100,2))
+    logging.info('----------------------------------------------------------')
+
+    return mean_value, std_value
+
+def check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time, energy_idle_mean_value):
+    # global timings # we just read
+    global docker_sleeper
 
     client = docker.from_env()
 
     is_rootless = any('rootless' in option for option in client.info()['SecurityOptions'])
     logging.debug(f"Rootless mode is {is_rootless}")
 
-    load_metric_providers(mp, mp, provider_interval, rootless=is_rootless)
+    load_metric_providers(mp, mp, None, rootless=is_rootless)
 
     # We need to start at least one container that just idles so we can also run the container providers
 
@@ -268,17 +276,83 @@ def main(idle_time,
 
     energy_all_mean_value, energy_all_std_value = check_energy_idle_values(data_energy_idle, timings['start_all_idle'], timings['end_all_idle'])
 
-    logging.info(f"Energy all idle mean:{energy_all_mean_value}. Energy idle all std: {energy_all_std_value}")
+    logging.info('Provider energy overhead measurement succesful.')
 
-    ###
-    ### This block checks what the mean and std are for energy and tmp providers
+    logging.info(f"Energy overhead is: {energy_all_mean_value - energy_idle_mean_value} mJ")
+    logging.info(f"Energy overhead (rel.): {((energy_all_mean_value - energy_idle_mean_value) / energy_idle_mean_value) * 100} %")
+    logging.info('-----------------------------------------------------------------------------------------')
 
-    load_metric_providers(mp, [energy_provider, tmp_provider], provider_interval)
+    return energy_all_mean_value, energy_all_std_value
+
+def check_values(data):
+    # global timings # we just read
+
+    # Remove boot and stop values
+    data_mask = (data['time'] >= timings['start_idle']) & (data['time'] <= timings['end_idle'])
+    data = data[data_mask]
+
+    grouped = data.groupby('detail_name')
+
+    mean_values = {}
+    std_values = {}
+
+    for name, group in grouped:
+
+        # Remove first values as RAPL is an aggregate value and the first is not representative.
+        group = group.iloc[2:]
+        # make sure that there are no massive peaks in standard deviation. If so exit with notification
+        mean_value = group['value'].mean()
+        std_value = group['value'].std()
+
+        if group.iloc[0]['unit'] == 'centi°C':
+            display_unit = '°C'
+            display_value = mean_value / 100
+            display_std = std_value / 100
+        elif group.iloc[0]['unit'] == 'mJ':
+            display_unit = group.iloc[0]['unit']
+            display_value = mean_value
+            display_std = std_value
+        else:
+            raise SystemExit(f"Unknown unit detected for {name}: {group.iloc[0]['unit']}; Only expecting mJ and centi°C.")
+
+
+        threshold = STD_THRESHOLD_MULTI * std_value
+
+        out_mask = (group['value'] < mean_value - threshold) | (group['value'] > mean_value + threshold)
+
+        outliers = group[out_mask]
+        if not outliers.empty or (std_value / mean_value) > 0.03:
+            logging.error(f'''There are outliers in your data for {name} or the StdDev is > 3%. It looks like your system is not in a stable state!
+                            Please make sure that the are no jobs running in the background. Aborting!''')
+            logging.info('\n%s', group)
+            logging.info('Mean Value: %s %s', round(display_value,2), display_unit)
+            logging.info('Std. Dev: %s %s', round(display_std,2), display_unit)
+            logging.info('Std. Dev (rel): %s %%', round(display_std / display_value, 2)) # /100 * 100 = 1, therefore omitted
+            logging.info('Allowed threshold: %s', threshold)
+            logging.info('Outliers: %s', outliers)
+
+            raise SystemExit(4)
+
+        logging.info(f"Idle measurement for {name} completed")
+        logging.info('Mean Value: %s %s', round(display_value,2), display_unit)
+        logging.info('Std. Dev: %s %s', round(display_std,2), display_unit)
+        logging.info('Std. Dev (rel): %s %%', round(display_std / display_value, 2)) # /100 * 100 = 1, therefore omitted
+        logging.info('----------------------------------------------------------')
+
+
+        mean_values[name] = mean_value
+        std_values[name] = std_value
+
+    return mean_values, std_values
+
+
+def determine_idle_energy_and_temp(mp, energy_provider, temp_provider, idle_time, provider_interval):
+    # global timings # we just read
+
+    load_metric_providers(mp, [energy_provider, temp_provider], provider_interval)
 
     # Start the metrics providers
     start_metric_providers()
-
-    logging.warning('Starting idle measurement timeframe. Please don\'t do anything with the computer!')
 
     # Wait for n minutes and record data into different files
     timings['start_idle'] = int(time.time() * 1_000_000)
@@ -287,63 +361,29 @@ def main(idle_time,
 
     data_idle = stop_metric_providers()
 
-    def check_values(data):
-        # Remove boot and stop values
-        data_mask = (data['time'] >= timings['start_idle']) & (data['time'] <= timings['end_idle'])
-        data = data[data_mask]
-
-        grouped = data.groupby('detail_name')
-
-        mean_values = {}
-        std_values = {}
-
-        for name, group in grouped:
-
-            # Remove first values as RAPL is an aggregate value and the first is not representative.
-            group = group.iloc[2:]
-            # make sure that there are no massive peaks in standard deviation. If so exit with notification
-            mean_value = group['value'].mean()
-            std_value = group['value'].std()
-
-            threshold = STD_THRESHOLD_MULTI * std_value
-
-            out_mask = (group['value'] < mean_value - threshold) | (group['value'] > mean_value + threshold)
-
-            outliers = group[out_mask]
-            if not outliers.empty:
-                logging.error(f'''There are outliers in your data for {name}. It looks like your system is not in a stable state!
-                                Please make sure that the are no jobs running in the background. Aborting!''')
-                logging.debug('\n%s', group)
-                logging.debug('Mean Val: %s', mean_value)
-                logging.debug('Std. Dev: %s', std_value)
-
-                raise SystemExit(4)
-
-            mean_values[name] = mean_value
-            std_values[name] = std_value
-
-        return mean_values, std_values
-
-    logging.info('Checking for consistent data')
+    logging.debug('Checking for consistent data')
 
     energy_provider_name = energy_provider.rsplit('.', 1)[-1]
-    temp_provider_name = tmp_provider.rsplit('.', 1)[-1]
+    temp_provider_name = temp_provider.rsplit('.', 1)[-1]
 
     energy_mean, energy_std = check_values(data_idle[energy_provider_name])
-    tmp_mean, tmp_std = check_values(data_idle[temp_provider_name])
+    temp_mean, temp_std = check_values(data_idle[temp_provider_name])
 
-    logging.debug('Energy mean is %s', energy_mean)
-    logging.debug('Temperature means are %s', tmp_mean)
+    return data_idle, energy_mean, energy_std, temp_mean, temp_std, energy_provider_name, temp_provider_name
 
-    # Step 2
-    # Now we have the idle values now let's stress
+def stress_system(stress_command, stress_time, cooldown_time, temp_mean, temp_std, temp_provider, temperature_increase):
+    # global metric_providers # we just read
+    # global timings # we just read
+
+    temp_provider_name = temp_provider.rsplit('.', 1)[-1]
+
     start_metric_providers()
 
     temp_provider = next(x for x in metric_providers if temp_provider_name == x.__class__.__name__)
 
     def run_stress(stress_command, stress_time):
         with subprocess.Popen(stress_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as process:
-            stress_bar(stress_time, 'Stressing', tmp_mean, tmp_std, temp_provider, temperature_increase)
+            check_temperature_increase(stress_time, 'Stressing', temp_mean, temp_std, temp_provider, temperature_increase)
             return_code = process.wait()
             if return_code != 0:
                 logging.error(f"{stress_command} failed with return code: {return_code}")
@@ -364,6 +404,8 @@ def main(idle_time,
     data_stress = stop_metric_providers()
 
     def get_cooldown_time(data):
+        # global timings # we just read
+
         # Remove boot and stop values
         data_mask = (data['time'] >= timings['start_cooldown']) & (data['time'] <= timings['end_cooldown'])
         data = data[data_mask]
@@ -372,123 +414,189 @@ def main(idle_time,
 
         norm_times = {}
         for name, group in grouped:
-            under_checker = group['value'] <= tmp_mean[name] + (tmp_std[name] * STD_THRESHOLD_MULTI)
+            under_checker = group['value'] <= temp_mean[name] + (temp_std[name] * STD_THRESHOLD_MULTI)
             consecutive_under = under_checker.rolling(window=RELIABLE_DURATION).sum() == RELIABLE_DURATION
 
             if consecutive_under.any():
-                tmp_id = consecutive_under.idxmax()
-                logging.debug(f"Temp normal again at {tmp_id}")
-                norm_times[name] = group['time'].loc[tmp_id]
+                temp_id = consecutive_under.idxmax()
+                norm_times[name] = group['time'].loc[temp_id]
+                logging.debug(f"Temp normal again at ID {temp_id} with time {(norm_times[name] - timings['start_cooldown']) / 1_000_000}")
             else:
-                logging.error(f"The temperature value never falls below idle mean for {name}.")
+                logging.error(f"The temperature of {name} never falls below the idle value ({round(temp_mean[name]/100,2)}°) for more than {RELIABLE_DURATION} consecutive data points.")
+                logging.error(f"System is still hot after evaluation timeframe ({round((temp_mean[name] + (temp_std[name] * STD_THRESHOLD_MULTI))/100,2)}).")
+                logging.error('You can either increase the cooldown wait time for the script, or install a fan :)')
                 logging.info('Data from cooldown:')
-                logging.info(group)
-                logging.info(f"Mean from from idle: {tmp_mean[name]}")
-                logging.info(f"Mean+std from idle : {tmp_mean[name] + (tmp_std[name] * STD_THRESHOLD_MULTI)}")
-                logging.info(f"Window  : {RELIABLE_DURATION}")
+                logging.info(f"\n{group}")
+                logging.info(f"Mean from from idle: {round(temp_mean[name]/100,2)}°")
+                logging.info(f"Mean+std from idle : {round((temp_mean[name] + (temp_std[name] * STD_THRESHOLD_MULTI)/100),2)}°")
                 raise SystemExit(3)
 
         return norm_times
 
     cooldown_times = get_cooldown_time(data_stress[temp_provider_name])
     biggest_time = max(cooldown_times.values())
-    cdt_seconds = round(((biggest_time - timings['start_cooldown']) / 1_000_000)) + 30 # We add 30 secs just to be sure
-    logging.info(f"Cool down time is {cdt_seconds} seconds")
 
+    return data_stress, round(((biggest_time - timings['start_cooldown']) / 1_000_000),2) + 30 # We add 30 secs just to be sure
 
+def save_value(energy_mean, energy_std, temp_mean, temp_std, energy_idle_mean_value, energy_idle_std_value, energy_all_mean_value, energy_all_std_value, cdt_seconds):
+    def modify_sleep_time_in_client_section(lines, new_value):
+        inside_client_section = False
+        modified_lines = []
+        modified = False
 
+        for line in lines:
+            # Once we have made the replacement we just add the lines without doing anything more
+            if not modified:
+                stripped_line = line.strip().lower()
 
-    # Offer to set the values in the config.yml
-    def save_value():
-        def modify_sleep_time_in_client_section(lines, new_value):
-            inside_client_section = False
-            modified_lines = []
-            modified = False
+                if stripped_line == "client:":
+                    inside_client_section = True
 
-            for line in lines:
-                # Once we have made the replacement we just add the lines without doing anything more
-                if not modified:
-                    stripped_line = line.strip().lower()
+                if inside_client_section and "sleep_time_after_job:" in stripped_line:
+                    leading_spaces = len(line) - len(line.lstrip())
+                    line = " " * leading_spaces + f"sleep_time_after_job: {new_value}\n"
+                    logging.debug('Setting value')
+                    modified = True
 
-                    if stripped_line == "client:":
-                        inside_client_section = True
+            modified_lines.append(line)
 
-                    if inside_client_section and "sleep_time_after_job:" in stripped_line:
-                        leading_spaces = len(line) - len(line.lstrip())
-                        line = " " * leading_spaces + f"sleep_time_after_job: {new_value}\n"
-                        logging.debug('Setting value')
-                        modified = True
+        return modified_lines
 
-                modified_lines.append(line)
+    def add_calibration(modified_lines):
+        lines_to_add = []
+        yml_data = {
+            'calibration': {
+                'energy_stress_mean': [{k: str(v)} for k, v in energy_mean.items()],
+                'energy_stress_std': [{k: str(v)} for k, v in energy_std.items()],
+                'temp_mean': [{k: str(v)} for k, v in temp_mean.items()],
+                'temp_std': [{k: str(v)} for k, v in temp_std.items()],
+                'energy_idle_mean': energy_idle_mean_value,
+                'energy_idle_std': energy_idle_std_value,
+                'energy_idle_all_mean': energy_all_mean_value,
+                'energy_idle_all_std': energy_all_std_value,
 
-            return modified_lines
-
-        def add_calibration(modified_lines):
-            lines_to_add = []
-            yml_data = {
-                'calibration': {
-                    'energy_stress_mean': [{k: str(v)} for k, v in energy_mean.items()],
-                    'energy_stress_std': [{k: str(v)} for k, v in energy_std.items()],
-                    'temp_mean': [{k: str(v)} for k, v in tmp_mean.items()],
-                    'temp_std': [{k: str(v)} for k, v in tmp_std.items()],
-                    'energy_idle_mean': energy_idle_mean_value,
-                    'energy_idle_std': energy_idle_std_value,
-                    'energy_idle_all_mean': energy_all_mean_value,
-                    'energy_idle_all_std': energy_all_std_value,
-
-                }
             }
+        }
 
-            yml_string = yaml.dump(yml_data).split('\n')
-            lines_to_add.extend(['', '', '#This was written by the calibrate.py script'])
-            lines_to_add.extend(yml_string)
-            lines_to_add = [f"{i}\n" for i in lines_to_add]
-            modified_lines.extend(lines_to_add)
-            return modified_lines
+        yml_string = yaml.dump(yml_data).split('\n')
+        lines_to_add.extend(['', '', '#This was written by the calibrate.py script'])
+        lines_to_add.extend(yml_string)
+        lines_to_add = [f"{i}\n" for i in lines_to_add]
+        modified_lines.extend(lines_to_add)
+        return modified_lines
 
-        with open(CONF_FILE, 'r', encoding='utf-8') as file:
-            lines = file.readlines()
+    with open(CONF_FILE, 'r', encoding='utf-8') as file:
+        lines = file.readlines()
 
-        modified_lines = modify_sleep_time_in_client_section(lines, cdt_seconds)
-        modified_lines = add_calibration(modified_lines)
+    modified_lines = modify_sleep_time_in_client_section(lines, cdt_seconds)
+    modified_lines = add_calibration(modified_lines)
 
-        with open(CONF_FILE, 'w', encoding='utf-8') as file:
-            logging.debug('Writing config file')
-            file.writelines(modified_lines)
+    with open(CONF_FILE, 'w', encoding='utf-8') as file:
+        logging.debug('Writing config file')
+        file.writelines(modified_lines)
+
+def show_summary(data_idle, data_stress, temp_provider_name, energy_provider_name, temp_mean, energy_mean):
+    def plot_data(data_source, xside, yside, label_prefix, mean_values):
+        # global timings # we just read
+
+        data_mask = (data_source['time'] >= timings['start_idle']) & (data_source['time'] <= timings['end_cooldown'])
+        filtered_data = data_source[data_mask]
+
+        for n, g in filtered_data.groupby('detail_name'):
+            g = g.iloc[1:]
+            chosen_color = random.choice(allowed_colors)
+            allowed_colors.remove(chosen_color)
+
+            plt.plot(g['time'].tolist(), g['value'].tolist(), xside=xside, yside=yside, label=f"{label_prefix}: {n}", color=chosen_color)
+            plt.hline(mean_values[n], chosen_color)
+
+    allowed_colors = ["red", "green", "yellow", "blue", "magenta", "cyan", "white"]
+
+    temp_data = pd.concat([data_idle[temp_provider_name], data_stress[temp_provider_name]], ignore_index=True)
+    temp_data = temp_data.sort_values(by='time')
+
+    pow_data = pd.concat([data_idle[energy_provider_name], data_stress[energy_provider_name]], ignore_index=True)
+    pow_data = pow_data.sort_values(by='time')
+
+    plot_data(temp_data, "lower", "left", "Temperature (left, bottom)", temp_mean)
+    plot_data(pow_data, "upper", "right", "Energy (right, top)", energy_mean)
+
+    plt.title("Temperature/ Energy Plot")
+    plt.theme('clear')
+    plt.show()
+
+
+def cleanup():
+    # global docker_sleeper # we just execute
+
+    logging.debug('Cleaning everything up for exit')
+    stop_metric_providers(force=True)
+    shutil.rmtree(TMP_FOLDER, ignore_errors=True)
+    if docker_sleeper:
+        docker_sleeper.kill()
+
+
+def main(idle_time,
+         stress_time,
+         provider_interval,
+         stress_command,
+         cooldown_time,
+         write_config,
+         temperature_increase
+         ):
+    # global docker_sleeper # we just read
+
+    # Setup and importing
+    logging.warning('Starting calibration. Please don\'t do anything with the computer!')
+
+    logging.info(f"{MAGENTA}Setting up environment and metric providers for initial baseline measurement ...{NC}")
+    shutil.rmtree(TMP_FOLDER, ignore_errors=True)
+    Path(TMP_FOLDER).mkdir(parents=True, exist_ok=True)
+    logging.debug(f"Temporary folder created: {TMP_FOLDER}")
+
+    mp = utils.get_metric_providers(GlobalConfig().config)
+    energy_provider, temp_provider = check_minimum_provider_configuration(mp)
+
+    logging.info(f"{MAGENTA}Determining baseline of system with no load ...{NC}")
+    energy_idle_mean_value, energy_idle_std_value = determine_baseline_energy(mp, energy_provider, idle_time, provider_interval)
+    energy_provider_key = energy_provider.rsplit('.', 1)[1]
+
+    logging.info(f"{MAGENTA}Determining provider overhead for GMT when running configured set of providers ...{NC}")
+    energy_all_mean_value, energy_all_std_value = check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time, energy_idle_mean_value)
+
+    logging.info(f"{MAGENTA}Determining idle values for energy and temperature to caclulate cooldown calibration settings ...{NC}")
+    data_idle, energy_mean, energy_std, temp_mean, temp_std, energy_provider_name, temp_provider_name = determine_idle_energy_and_temp(mp, energy_provider, temp_provider, idle_time, provider_interval)
+
+    logging.info(f"{MAGENTA}Stressing system to determine max. system temperature under load ...{NC}")
+    data_stress, cdt_seconds = stress_system(stress_command, stress_time, cooldown_time, temp_mean, temp_std, temp_provider, temperature_increase)
+
+    logging.info(f"{MAGENTA}Your calculated cooldown time is {cdt_seconds} seconds.{NC}")
 
     if write_config or input("Do you want to save the values in the config.yml? [Y/n] ").lower() in ('y', ''):
-        save_value()
+        save_value(energy_mean, energy_std, temp_mean, temp_std, energy_idle_mean_value, energy_idle_std_value, energy_all_mean_value, energy_all_std_value, cdt_seconds)
 
     if input('Do you want to see a summary? [Y/n]').lower() in ('y', ''):
-
-        def plot_data(data_source, xside, yside, label_prefix, mean_values):
-            data_mask = (data_source['time'] >= timings['start_idle']) & (data_source['time'] <= timings['end_cooldown'])
-            filtered_data = data_source[data_mask]
-
-            for n, g in filtered_data.groupby('detail_name'):
-                g = g.iloc[1:]
-                chosen_color = random.choice(allowed_colors)
-                allowed_colors.remove(chosen_color)
-
-                plt.plot(g['time'].tolist(), g['value'].tolist(), xside=xside, yside=yside, label=f"{label_prefix}: {n}", color=chosen_color)
-                plt.hline(mean_values[n], chosen_color)
-
-        allowed_colors = ["red", "green", "yellow", "blue", "magenta", "cyan", "white"]
-
-        tmp_data = pd.concat([data_idle[temp_provider_name], data_stress[temp_provider_name]], ignore_index=True)
-        tmp_data = tmp_data.sort_values(by='time')
-
-        pow_data = pd.concat([data_idle[energy_provider_name], data_stress[energy_provider_name]], ignore_index=True)
-        pow_data = pow_data.sort_values(by='time')
-
-        plot_data(tmp_data, "lower", "left", "Temperature (left, bottom)", tmp_mean)
-        plot_data(pow_data, "upper", "right", "Energy (right, top)", energy_mean)
-
-        plt.title("Temperature/ Energy Plot")
-        plt.theme('clear')
-        plt.show()
+        show_summary(data_idle, data_stress, temp_provider_name, energy_provider_name, temp_mean, energy_mean)
 
     cleanup()
+
+# Custom formatter for logging
+class MyFormatter(logging.Formatter):
+
+    my_format = '[%(levelname)s] %(asctime)s - %(message)s'
+
+    FORMATS = {
+        logging.DEBUG: my_format,
+        logging.INFO: my_format,
+        logging.WARNING: YELLOW + my_format + NC,
+        logging.ERROR: RED + my_format + NC,
+        logging.CRITICAL: RED + my_format + NC
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
 
 
 if __name__ == '__main__':
@@ -498,7 +606,7 @@ if __name__ == '__main__':
                                      A script to establish baseline values for systems that the Green Metrics Tool
                                      should run benchmarks on.
                                      Return codes are:
-                                     1 - no psu and temp provider configured
+                                     1 - no PSU and temp provider configured
                                      2 - stress command failed
                                      3 - temperature never falls below mean
                                      4 - outliers in idle measurement
@@ -532,18 +640,22 @@ if __name__ == '__main__':
 
     log_level = getattr(logging, args.log_level.upper())
 
-    if args.provider_interval < 1000:
-        logging.warning('A too small interval will make it difficult for the system to become stable!')
-
     if not args.stress_command:
         # Currently we are only interested in how hot the CPU gets so we use the matrix stress
         # In the future we might also want to see how much energy components.
         args.stress_command = f"stress-ng --matrix 0 -t {args.stress_time}s"
 
+
+
     if args.output_file:
         logging.basicConfig(filename=args.output_file, level=log_level, format='[%(levelname)s] %(asctime)s - %(message)s')
     else:
-        logging.basicConfig(level=log_level, format='[%(levelname)s] %(asctime)s - %(message)s')
+        handler_sh = logging.StreamHandler(sys.stdout)
+        handler_sh.setFormatter(MyFormatter())
+        logging.basicConfig(level=log_level, handlers=[handler_sh], format='[%(levelname)s] %(asctime)s - %(message)s')
+
+    if args.provider_interval < 1000:
+        logging.warning('A too small interval will make it difficult for the system to become stable!')
 
     logging.debug('Calibration script started 🎉')
 
