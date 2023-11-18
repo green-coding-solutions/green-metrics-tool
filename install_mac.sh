@@ -100,7 +100,7 @@ echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo
 
 print_message "Setting the hardare hardware_info to be owned by root"
 sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
-sudo chown root:root $PWD/lib/hardware_info_root.py
+sudo chown root: $PWD/lib/hardware_info_root.py
 sudo chmod 755 $PWD/lib/hardware_info_root.py
 
 print_message "Adding powermetrics to sudoers file"
