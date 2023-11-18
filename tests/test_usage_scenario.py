@@ -59,7 +59,7 @@ def get_env_vars(runner):
 
         ps = subprocess.run(
             ['docker', 'exec', 'test-container', '/bin/sh',
-            '-c', 'echo $TESTALLOWED'],
+            '-c', 'env'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -78,15 +78,30 @@ def test_env_variable_no_skip_or_allow():
     assert expected_exception in str(e.value), \
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
-def test_env_variable_skip_unsafe_true():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress.yml', skip_unsafe=True)
+def test_env_variable_unsafe_false():
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress.yml', skip_unsafe=False)
     env_var_output = get_env_vars(runner)
-    assert env_var_output == 'alpha-num123_\n', Tests.assertion_info('alpha-num123_', env_var_output)
+    print("Env var output is ", env_var_output)
+    assert 'TESTALLOWED=alpha-num123_' in env_var_output, Tests.assertion_info('TESTALLOWED=alpha-num123_', env_var_output)
+    assert 'TEST1_ALLOWED=alpha-key-num123_' in env_var_output, Tests.assertion_info('TEST1_ALLOWED=alpha-key-num123_', env_var_output)
+
+def test_env_variable_skip_unsafe_true():
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_unallowed.yml', skip_unsafe=True)
+    env_var_output = get_env_vars(runner)
+    assert 'TESTALLOWED=alpha-num123_' in env_var_output, Tests.assertion_info('TESTALLOWED=alpha-num123_', env_var_output)
+    assert 'TEST1_ALLOWED=alpha-key-num123_' in env_var_output, Tests.assertion_info('TEST1_ALLOWED=alpha-key-num123_', env_var_output)
+    assert 'TESTBACKTICK' not in env_var_output, Tests.assertion_info('TESTBACKTICK', env_var_output)
+    assert 'TESTDOLLAR' not in env_var_output, Tests.assertion_info('TESTDOLLAR', env_var_output)
+    assert 'TESTPARENTHESIS' not in env_var_output, Tests.assertion_info('TESTPARENTHESIS', env_var_output)
 
 def test_env_variable_allow_unsafe_true():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress.yml', allow_unsafe=True)
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_unallowed.yml', allow_unsafe=True)
     env_var_output = get_env_vars(runner)
-    assert env_var_output == 'alpha-num123_\n', Tests.assertion_info('alpha-num123_', env_var_output)
+    assert 'TESTALLOWED=alpha-num123_' in env_var_output, Tests.assertion_info('TESTALLOWED=alpha-num123_', env_var_output)
+    assert 'TEST1_ALLOWED=alpha-key-num123_' in env_var_output, Tests.assertion_info('TEST1_ALLOWED=alpha-key-num123_', env_var_output)
+    assert 'TESTBACKTICK' in env_var_output, Tests.assertion_info('TESTBACKTICK', env_var_output)
+    assert 'TESTDOLLAR' in env_var_output, Tests.assertion_info('TESTDOLLAR', env_var_output)
+    assert 'TESTPARENTHESIS' in env_var_output, Tests.assertion_info('TESTPARENTHESIS', env_var_output)
 
 # ports: [int:int] (optional)
 # Docker container portmapping on host OS to be used with --allow-unsafe flag.
