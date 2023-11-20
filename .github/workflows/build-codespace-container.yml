@@ -26,6 +26,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: /.devcontainer/containerized/Dockerfile  # Path to the Dockerfile
+          file: ./.devcontainer/containerized/Dockerfile  # Path to the Dockerfile
           push: true
           tags: ghcr.io/green-coding-berlin/codespace-container:latest
