@@ -28,7 +28,7 @@ jobs:
       - name: Build and push gunicorn container
         uses: docker/build-push-action@v5
         with:
-          context: ./docker/.
+          context: ./docker
           file: ./Dockerfile-gunicorn
           push: true
           tags: ghcr.io/green-coding-berlin/green-coding-gunicorn-container:latest
