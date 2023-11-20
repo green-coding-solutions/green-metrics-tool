@@ -11,7 +11,7 @@ RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor
     sudo apt install ca-certificates curl gnupg lsb-release -y && \
     sudo apt install docker-ce docker-ce-cli containerd.io docker-compose-plugin -y 
 
-# and gmt dependencies and example applications
+# add gmt dependencies and example applications
 RUN apt-get update \
     && apt-get install -y curl git make gcc python3 python3-pip python3-venv \
     && git clone https://github.com/green-coding-berlin/example-applications.git /workspaces/examples
