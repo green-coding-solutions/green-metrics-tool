@@ -20,7 +20,7 @@ RUN apt-get update \
 RUN mv /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile.bak
 
 # pull the gunicorn container
-RUN docker pull ghcr.io/green-coding-berlin/green-coding-gunicorn-container:latest
+FROM ghcr.io/green-coding-berlin/green-coding-gunicorn-container:latest
 
 
 # initially run the install script
