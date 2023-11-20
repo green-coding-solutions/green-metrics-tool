@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/vscode/devcontainers/base:ubuntu-22.04
 
 # Copy the contents of your project into the container
-COPY ../../. /workspace
+COPY ../../. /workspaces
 
 # Install Docker and dependencies
 # and install example applications
