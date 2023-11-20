@@ -6,7 +6,7 @@ COPY ../../. /workspaces/green-metrics-tool
 # Install Docker and dependencies
 # and install example applications
 RUN apt-get update \
-    && apt-get install -y docker.io curl git make gcc python3 python3-pip python3-venv \
+    && apt-get install -y docker.io docker-compose docker-compose-v2 curl git make gcc python3 python3-pip python3-venv \
     && git clone https://github.com/green-coding-berlin/example-applications.git /workspaces/examples
 
 # rename the lm_sensors makefile so its not built
