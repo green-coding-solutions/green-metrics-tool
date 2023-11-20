@@ -11,6 +11,7 @@ if [ -f /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile ]; t
 fi
 
 /workspaces/green-metrics-tool/install_linux.sh -p testpw -a "https://${CODESPACE_NAME}-9142.app.github.dev" -m "https://${CODESPACE_NAME}-9143.app.github.dev" -t
+source venv/bin/activate
 python3 -m pip install -r /workspaces/green-metrics-tool/requirements-dev.txt
 python3 -m pip install -r /workspaces/green-metrics-tool/metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 
