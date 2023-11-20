@@ -1,5 +1,4 @@
-# Use the base image from GitHub Container Registry
-FROM ghcr.io/devcontainers/base:ubuntu-22.04
+FROM mcr.microsoft.com/vscode/devcontainers/base:ubuntu-22.04
 
 # Copy the contents of your project into the container
 COPY ../../. /workspace
