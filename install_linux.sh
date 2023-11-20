@@ -22,11 +22,10 @@ metrics_url=''
 no_build=false
 no_hosts=false
 ask_tmpfs=true
-docker_in_docker=false
 
 reboot_echo_flag=false
 
-while getopts "p:a:m:nhtd" o; do
+while getopts "p:a:m:nht" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -45,9 +44,6 @@ while getopts "p:a:m:nhtd" o; do
             ;;
         t)
             ask_tmpfs=false
-            ;;
-        d)
-            docker_in_docker=true
             ;;
 
     esac
@@ -196,13 +192,8 @@ if [[ $no_build != true ]] ; then
     print_message "Building / Updating docker containers"
     if docker info 2>/dev/null | grep rootless; then
         print_message "Docker is running in rootless mode. Using non-sudo call ..."
-        if [[ $docker_in_docker == true ]]; then
-            docker compose -v /var/run/docker.sock:/var/run/docker.sock -f docker/compose.yml down
-            docker compose -v /var/run/docker.sock:/var/run/docker.sock -f docker/compose.yml build
-        else
-            docker compose -f docker/compose.yml down
-            docker compose -f docker/compose.yml build
-        fi
+        docker compose -f docker/compose.yml down
+        docker compose -f docker/compose.yml build
     else
         print_message "Docker is running in default root mode. Using sudo call ..."
         sudo docker compose -f docker/compose.yml down

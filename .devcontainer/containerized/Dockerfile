@@ -19,9 +19,13 @@ RUN apt-get update \
 # rename the lm_sensors makefile so its not bulit
 RUN mv /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile.bak
 
+# pull the gunicorn container
+RUN docker pull ghcr.io/green-coding-berlin/green-coding-gunicorn-container:latest
+
+
 # initially run the install script
-RUN cd /workspaces/green-metrics-tool \
-    && ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -t -h -d
+#RUN cd /workspaces/green-metrics-tool \
+#    && ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -t -h
 
 # Expose the necessary ports
 EXPOSE 9142 9143
