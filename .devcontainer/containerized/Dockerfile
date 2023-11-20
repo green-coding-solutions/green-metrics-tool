@@ -21,7 +21,7 @@ RUN mv /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile /work
 
 # initially run the install script
 RUN cd /workspaces/green-metrics-tool \
-    && PATH=/usr/bin:$PATH; DOCKER_HOST=unix:///run/user/1000/docker.sock; ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -t -h
+    && ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -t -h -d
 
 # Expose the necessary ports
 EXPOSE 9142 9143
