@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/vscode/devcontainers/base:ubuntu-22.04
 
 # Copy the contents of your project into the container
-COPY ../../. /workspaces
+COPY ../../. /workspaces/green-metrics-tool
 
 # Install Docker and dependencies
 # and install example applications
