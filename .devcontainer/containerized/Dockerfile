@@ -1,5 +1,6 @@
 FROM mcr.microsoft.com/vscode/devcontainers/base:ubuntu-22.04
 
+
 # Copy the contents of your project into the container
 COPY ../../. /workspaces/green-metrics-tool
 
@@ -20,8 +21,8 @@ RUN apt-get update \
 RUN mv /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile.bak
 
 # pull the gunicorn container
-FROM ghcr.io/green-coding-berlin/green-coding-gunicorn-container:latest
-
+#RUN docker pull ghcr.io/green-coding-berlin/green-coding-gunicorn-container:latest 
+#FROM ghcr.io/green-coding-berlin/green-coding-gunicorn-container:latest
 
 # initially run the install script
 #RUN cd /workspaces/green-metrics-tool \
