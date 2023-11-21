@@ -27,7 +27,7 @@ install_sensors=true
 
 reboot_echo_flag=false
 
-while getopts "p:a:m:nht" o; do
+while getopts "p:a:m:nhtis" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
