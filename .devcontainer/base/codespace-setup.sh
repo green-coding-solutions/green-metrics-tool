@@ -1,8 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null && \
 sudo apt update && \
-sudo apt install -y curl git make gcc python3 python3-pip python3-venv
+sudo apt remove docker docker-engine docker.io containerd runc -y && \
+sudo apt install ca-certificates curl gnupg lsb-release docker-ce docker-ce-cli containerd.io docker-compose-plugin curl git make gcc python3 python3-pip python3-venv -y
+
 
 # we have to rename this makefile as it doesn't compile in Codespaces
 if [ -f /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile ]; then
