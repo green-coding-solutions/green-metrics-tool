@@ -22,6 +22,8 @@ metrics_url=''
 no_build=false
 no_hosts=false
 ask_tmpfs=true
+install_ipmi=true
+install_sensors=true
 
 reboot_echo_flag=false
 
@@ -44,6 +46,12 @@ while getopts "p:a:m:nht" o; do
             ;;
         t)
             ask_tmpfs=false
+            ;;
+        i)
+            install_ipmi=false
+            ;;
+        s)
+            install_sensors=false
             ;;
 
     esac
@@ -114,13 +122,25 @@ sed -i -e "s|__METRICS_URL__|$metrics_url|" frontend/js/helpers/config.js
 print_message "Checking out further git submodules ..."
 git submodule update --init
 
-print_message "Installing needed binaries for building ..."
+print_message "Installing needed binaries ..."
 if lsb_release -is | grep -q "Fedora"; then
-    sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy lshw
+    sudo dnf -y install tinyproxy lshw
 else
     sudo apt-get update
-    sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy lshw
+    sudo apt-get install -y tinyproxy lshw
 fi
+
+# This is a hacky patch for now for codespaces. Actually compile will fail if you do not install sensors atm!
+# we want to modularize it anyway in the near future, so this is deemed acceptable
+if [[ $install_sensors != false ]] ; then
+    print_message "Installing lm_sensors ..."
+    if lsb_release -is | grep -q "Fedora"; then
+        sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel
+    else
+        sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev
+    fi
+fi
+
 
 print_message "Building binaries ..."
 metrics_subdir="metric_providers"
@@ -135,6 +155,18 @@ while IFS= read -r subdir; do
         make -C $subdir
     fi
 done
+
+if [[ $install_ipmi != false ]] ; then
+    print_message "Installing IPMI tools"
+    if lsb_release -is | grep -q "Fedora"; then
+        sudo dnf -y install ipmitool
+    else
+        sudo apt-get install -y freeipmi-tools ipmitool
+    fi
+    print_message "Adding IPMI to sudoers file"
+    echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/ipmi_get_machine_energy_stat
+fi
+
 
 print_message "Setting up python venv"
 python3 -m venv venv
@@ -152,17 +184,6 @@ print_message "Adding hardware_info_root.py to sudoers file"
 PYTHON_PATH=$(which python3)
 PWD=$(pwd)
 echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
-
-print_message "Installing IPMI tools"
-if lsb_release -is | grep -q "Fedora"; then
-    sudo dnf -y install ipmitool
-else
-    sudo apt-get install -y freeipmi-tools ipmitool
-fi
-
-
-print_message "Adding IPMI to sudoers file"
-echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/ipmi_get_machine_energy_stat
 
 if [[ $no_hosts != true ]] ; then
 
@@ -189,15 +210,15 @@ if [[ $no_hosts != true ]] ; then
 fi
 
 if [[ $no_build != true ]] ; then
-    print_message "Building / Updating docker containers"
+    print_message "Updating docker containers"
     if docker info 2>/dev/null | grep rootless; then
         print_message "Docker is running in rootless mode. Using non-sudo call ..."
         docker compose -f docker/compose.yml down
-        docker compose -f docker/compose.yml build
+        docker compose -f docker/compose.yml pull
     else
         print_message "Docker is running in default root mode. Using sudo call ..."
         sudo docker compose -f docker/compose.yml down
-        sudo docker compose -f docker/compose.yml build
+        sudo docker compose -f docker/compose.yml pull
     fi
 
     print_message "Updating python requirements"

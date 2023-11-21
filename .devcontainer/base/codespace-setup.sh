@@ -2,7 +2,6 @@
 set -euo pipefail
 
 sudo apt update && \
-sudo apt upgrade -y && \
 sudo apt install -y curl git make gcc python3 python3-pip python3-venv
 
 # we have to rename this makefile as it doesn't compile in Codespaces
@@ -12,7 +11,7 @@ fi
 
 /workspaces/green-metrics-tool/install_linux.sh -p testpw -a "https://${CODESPACE_NAME}-9142.app.github.dev" -m "https://${CODESPACE_NAME}-9143.app.github.dev" -t
 source venv/bin/activate
-python3 -m pip install -r /workspaces/green-metrics-tool/requirements-dev.txt
+python3 -m pip install -r /workspaces/green-metrics-tool/requirements.txt
 python3 -m pip install -r /workspaces/green-metrics-tool/metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 
 # make edits to ports so we can use 9143 to access front end
