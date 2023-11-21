@@ -1,5 +1,5 @@
 -r requirements.txt
-pydantic==2.4.2
+pydantic==2.5.1
 pytest==7.4.3
 requests==2.31.0
 pylint==3.0.2
@@ -7,5 +7,5 @@ fastapi==0.104.1
 anybadge==1.14.0
 
 # just to clear the pylint errors for the files in /api
-scipy==1.11.3
+scipy==1.11.4
 orjson==3.9.10

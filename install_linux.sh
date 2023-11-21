@@ -185,6 +185,11 @@ PYTHON_PATH=$(which python3)
 PWD=$(pwd)
 echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
 
+print_message "Setting the hardare hardware_info to be owned by root"
+sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
+sudo chown root:root $PWD/lib/hardware_info_root.py
+sudo chmod 755 $PWD/lib/hardware_info_root.py
+
 if [[ $no_hosts != true ]] ; then
 
     etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"

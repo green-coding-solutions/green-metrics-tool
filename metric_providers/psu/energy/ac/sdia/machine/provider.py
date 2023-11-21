@@ -14,7 +14,7 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
             current_dir=os.path.dirname(os.path.abspath(__file__)),
         )
         self.cpu_chips = CPUChips
-        self.tpd = TDP
+        self.tdp = TDP
 
 
     # Since no process is ever started we just return None
@@ -54,13 +54,13 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
         if not self.cpu_chips:
             raise RuntimeError(
                 'Please set the CPUChips config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
-        if not self.tpd:
+        if not self.tdp:
             raise RuntimeError('Please set the TDP config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
 
         # since the CPU-Utilization is a ratio, we technically have to divide by 10,000 to get a 0...1 range.
         # And then again at the end multiply with 1000 to get mW. We take the
         # shortcut and just mutiply the 0.65 ratio from the SDIA by 10 -> 6.5
-        df.value = ((df.value * self.tpd) / 6.5) * self.cpu_chips # will result in mW
+        df.value = ((df.value * self.tdp) / 6.5) * self.cpu_chips # will result in mW
         df.value = (df.value * df.time.diff()) / 1_000_000 # mW * us / 1_000_000 will result in mJ
 
         df['unit'] = self._unit
