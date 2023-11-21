@@ -11,8 +11,14 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - name: 'Checkout repository'
-        uses: actions/checkout@v4
+
+      - name: This should fail
+        shell: bash
+        run: |
+            false
+
+      - name: 'Should never go here'
+        uses: actions/breakdjaskhd82h4iufwe@v4
         with:
           ref: ${{ github.ref }}
           submodules: 'true'
