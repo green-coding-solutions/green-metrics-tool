@@ -24,10 +24,13 @@ no_hosts=false
 ask_tmpfs=true
 install_ipmi=true
 install_sensors=true
+# The system site packages are only an option to choose if you are in temporary VMs anyway
+# Not recommended for classical developer system
+system_site_packages=false
 
 reboot_echo_flag=false
 
-while getopts "p:a:m:nhtis" o; do
+while getopts "p:a:m:nhtisy" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -52,6 +55,9 @@ while getopts "p:a:m:nhtis" o; do
             ;;
         s)
             install_sensors=false
+            ;;
+        y)
+            system_site_packages=true
             ;;
 
     esac
@@ -169,7 +175,11 @@ fi
 
 
 print_message "Setting up python venv"
-python3 -m venv venv
+if [[ $system_site_packages != false ]] ; then
+    python3 -m venv venv --system_site_packages
+else
+    python3 -m venv venv
+fi
 source venv/bin/activate
 
 print_message "Setting GMT in include path for python via .pth file"

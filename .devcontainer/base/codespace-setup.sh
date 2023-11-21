@@ -11,7 +11,8 @@ fi
 
 /workspaces/green-metrics-tool/install_linux.sh -p testpw -a "https://${CODESPACE_NAME}-9142.app.github.dev" -m "https://${CODESPACE_NAME}-9143.app.github.dev" -t -i -s
 source venv/bin/activate
-python3 -m pip install -r /workspaces/green-metrics-tool/requirements.txt
+
+# Also add XGBoost, as we need it
 python3 -m pip install -r /workspaces/green-metrics-tool/metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 
 # make edits to ports so we can use 9143 to access front end
@@ -21,3 +22,11 @@ sed -i '/green-coding-nginx:/,/green-coding-gunicorn:/ s/\(- 9142:80\)/- 9142:91
 python3 /workspaces/green-metrics-tool/disable_metric_providers.py --categories RAPL Machine Sensors Debug --providers NetworkIoCgroupContainerProvider NetworkConnectionsProxyContainerProvider PsuEnergyAcSdiaMachineProvider
 
 git clone https://github.com/green-coding-berlin/example-applications.git /workspaces/examples
+
+source venv/bin/activate
+
+docker compose -f /workspaces/green-metrics-tool/docker/compose.yml up -d
+
+gh codespace ports visibility 9142:public -c $CODESPACE_NAME
+
+gh codespace ports visibility 9143:public -c $CODESPACE_NAME
