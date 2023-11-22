@@ -362,6 +362,10 @@ class Runner:
 
         self._sci['R_d'] = self._usage_scenario.get('sci', {}).get('R_d', None)
 
+    def prepare_docker(self):
+        # Disable Docker CLI hints (e.g. "What's Next? ...")
+        os.environ['DOCKER_CLI_HINTS'] = 'false'
+
     def check_running_containers(self):
         result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
                                 stdout=subprocess.PIPE,
@@ -1211,6 +1215,7 @@ class Runner:
             self.initial_parse()
             self.import_metric_providers()
             self.populate_image_names()
+            self.prepare_docker()
             self.check_running_containers()
             self.remove_docker_images()
             self.download_dependencies()
