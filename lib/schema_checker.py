@@ -129,8 +129,7 @@ class SchemaChecker():
         if 'networks' in usage_scenario:
             self.validate_networks_no_invalid_chars(usage_scenario['networks'])
 
-        for service_name in usage_scenario.get('services'):
-            service = usage_scenario['services'][service_name]
+        for service in usage_scenario.get('services', {}):
             if 'image' not in service and 'build' not in service:
                 raise SchemaError("The 'image' key under services is required when 'build' key is not present.")
 
