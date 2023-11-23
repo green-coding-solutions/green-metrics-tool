@@ -1441,5 +1441,5 @@ if __name__ == '__main__':
         if args.print_logs:
             for container_id, std_out in runner.get_logs().items():
                 print(f"Container logs of '{container_id}':")
-                sys.stdout.buffer.write(std_out.encode())
+                print(std_out)
                 print(f"\n-----------------------------\n")
