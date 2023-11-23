@@ -1438,4 +1438,8 @@ if __name__ == '__main__':
     except BaseException as e:
         error_helpers.log_error('Base exception occured in runner.py: ', e, successful_run_id)
     finally:
-        if args.print_logs: print("Container logs:", runner.get_logs())
+        if args.print_logs:
+            for container_id, std_out in runner.get_logs().items():
+                print(f"Container logs of '{container_id}':")
+                sys.stdout.buffer.write(std_out.encode())
+                print(f"\n-----------------------------\n")
