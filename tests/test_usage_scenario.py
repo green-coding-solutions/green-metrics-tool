@@ -70,8 +70,24 @@ def get_env_vars(runner):
         Tests.cleanup(runner)
     return env_var_output
 
-def test_env_variable_no_skip_or_allow():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_unallowed.yml')
+def test_env_variable_with_incorrect_envs_no_flags_backtick():
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_unallowed_backtick.yml')
+    with pytest.raises(RuntimeError) as e:
+        get_env_vars(runner)
+    expected_exception = 'Docker container setup environment var value had wrong format.'
+    assert expected_exception in str(e.value), \
+        Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
+
+def test_env_variable_with_incorrect_envs_no_flags_dollar():
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_unallowed_dollar.yml')
+    with pytest.raises(RuntimeError) as e:
+        get_env_vars(runner)
+    expected_exception = 'Docker container setup environment var value had wrong format.'
+    assert expected_exception in str(e.value), \
+        Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
+
+def test_env_variable_with_incorrect_envs_no_flags_paren():
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_unallowed_paren.yml')
     with pytest.raises(RuntimeError) as e:
         get_env_vars(runner)
     expected_exception = 'Docker container setup environment var value had wrong format.'
