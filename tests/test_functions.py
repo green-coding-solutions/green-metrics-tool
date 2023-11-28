@@ -71,6 +71,7 @@ def run_until(runner, step):
         runner.initial_parse()
         runner.import_metric_providers()
         runner.populate_image_names()
+        runner.prepare_docker()
         runner.check_running_containers()
         runner.check_system()
         runner.remove_docker_images()
