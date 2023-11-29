@@ -14,13 +14,14 @@ from metric_providers.base import MetricProviderConfigurationError, BaseMetricPr
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
-    def __init__(self, *, host_ip=None):
+    def __init__(self, *, host_ip=None, skip_check=False):
         super().__init__(
             metric_name='network_connections_proxy_container_dockerproxy',
             metrics={},
             resolution=None,
             unit=None,
             current_dir=os.path.dirname(os.path.abspath(__file__)),
+            skip_check=skip_check,
         )
 
         self._conf_file = f"{CURRENT_DIR}/proxy_conf.conf"

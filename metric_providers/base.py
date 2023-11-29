@@ -22,7 +22,8 @@ class BaseMetricProvider:
         current_dir,
         metric_provider_executable='metric-provider-binary',
         sudo=False,
-        disable_buffer=True
+        disable_buffer=True,
+        skip_check=False,
     ):
         self._metric_name = metric_name
         self._metrics = metrics
@@ -34,6 +35,7 @@ class BaseMetricProvider:
         self._has_started = False
         self._disable_buffer = disable_buffer
         self._rootless = None
+        self._skip_check = skip_check
 
         self._tmp_folder = '/tmp/green-metrics-tool'
         self._ps = None
@@ -43,7 +45,8 @@ class BaseMetricProvider:
 
         self._filename = f"{self._tmp_folder}/{self._metric_name}.log"
 
-        self.check_system()
+        if not self._skip_check:
+            self.check_system()
 
     # this is the default function that will be overridden in the children
     def check_system(self):

@@ -495,6 +495,9 @@ class Runner:
             if rootless and '.cgroup.' in module_path:
                 conf['rootless'] = True
 
+            if self._skip_system_checks:
+                conf['skip_check'] = True
+
             print(f"Importing {class_name} from {module_path}")
             print(f"Configuration is {conf}")
 

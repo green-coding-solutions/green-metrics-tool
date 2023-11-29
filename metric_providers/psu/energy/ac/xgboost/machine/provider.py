@@ -11,13 +11,14 @@ from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
     def __init__(self, *, resolution, HW_CPUFreq, CPUChips, CPUThreads, TDP,
-                 HW_MemAmountGB, CPUCores=None, Hardware_Availability_Year=None):
+                 HW_MemAmountGB, CPUCores=None, Hardware_Availability_Year=None, skip_check=False):
         super().__init__(
             metric_name="psu_energy_ac_xgboost_machine",
             metrics={"time": int, "value": int},
             resolution=resolution,
             unit="mJ",
             current_dir=os.path.dirname(os.path.abspath(__file__)),
+            skip_check=skip_check,
         )
         self.HW_CPUFreq = HW_CPUFreq
         self.CPUChips = CPUChips

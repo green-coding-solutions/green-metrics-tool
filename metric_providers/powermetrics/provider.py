@@ -10,7 +10,7 @@ from lib.db import DB
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 
 class PowermetricsProvider(BaseMetricProvider):
-    def __init__(self, resolution):
+    def __init__(self, resolution, skip_check=False):
         super().__init__(
             metric_name='powermetrics',
             metrics={'time': int, 'value': int},
@@ -19,8 +19,10 @@ class PowermetricsProvider(BaseMetricProvider):
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='/usr/bin/powermetrics',
             sudo=True,
+            skip_check=skip_check,
         )
 
+        self._skip_check =  skip_check
         # We can't use --show-all here as this sometimes triggers output on stderr
         self._extra_switches = [
             '--show-process-io',
@@ -34,8 +36,8 @@ class PowermetricsProvider(BaseMetricProvider):
             self._filename]
 
     def check_system(self):
-        if self.is_powermetrics_running():
-            raise MetricProviderConfigurationError('Another instance of powermetrics is already running on the system!\nPlease close it before running the Green Metrics Tool.')
+            if self.is_powermetrics_running():
+                raise MetricProviderConfigurationError('Another instance of powermetrics is already running on the system!\nPlease close it before running the Green Metrics Tool.')
 
     def is_powermetrics_running(self):
         ps = subprocess.run(['pgrep', '-qx', 'powermetrics'], check=False)
@@ -55,17 +57,21 @@ class PowermetricsProvider(BaseMetricProvider):
 
         # As killall returns right after sending the SIGKILL we need to wait and make sure that the process
         # had time to flush everything to disk
-        count = 0
-        while self.is_powermetrics_running():
-            print(f"Waiting for powermetrics to shut down (try {count}/60). Please do not abort ...")
-            time.sleep(1)
-            count += 1
-            if count >= 60:
-                subprocess.check_output('sudo /usr/bin/killall -9 powermetrics', shell=True)
-                raise RuntimeError('powermetrics had to be killed with kill -9. Values can not be trusted!')
-
-        # We need to give the OS a second to flush
-        time.sleep(1)
+        if self._skip_check:
+            # When this is the case there is probably another powermetrics process running. Which isn't really
+            # that big of a problem but just doesn't work with the way we have implemented this. As the user
+            # has decided to not check anything we will just sleep and assume everything is fine. Not ideal but
+            # will work for now.
+            time.sleep(10)
+        else:
+            count = 0
+            while self.is_powermetrics_running():
+                print(f"Waiting for powermetrics to shut down (try {count}/60). Please do not abort ...")
+                time.sleep(1)
+                count += 1
+                if count >= 60:
+                    subprocess.check_output('sudo /usr/bin/killall -9 powermetrics', shell=True)
+                    raise RuntimeError('powermetrics had to be killed with kill -9. Values can not be trusted!')
 
         self._ps = None
 
