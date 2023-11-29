@@ -1,6 +1,16 @@
+# Tests
+
 ## Pre-reqs
+
+Make sure you have venv activated:
+
+```bash
+source ../venv/bin/activate
+```
+
 Make sure you have the required dev dependencies installed:
-```sh
+
+```bash
 python3 -m pip install -r ../requirements-dev.txt
 ```
 
@@ -8,6 +18,7 @@ We assume that your green-metrics-tool is already set up to work on your machine
 file to determine which metric providers can be utilized in the tests.
 
 ## First time setup
+
 run:
 
 `python3 setup-test-env.py`
@@ -20,6 +31,7 @@ You will need to re-run this setup script if new metric providers are added or t
 significant way.
 
 ## Running
+
 To run the tests, you need to first start the test containers, then run pytest, and afterwards stop the containers.
 There are a few scripts to make this easy.
 
