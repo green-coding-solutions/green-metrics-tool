@@ -66,13 +66,13 @@ def run_until(runner, step):
         # do a meaningless operation on return_run_id so pylint doesn't complain
         print(return_run_id)
 
+        runner.check_system('start')
         runner.initialize_folder(runner._tmp_folder)
         runner.checkout_repository()
         runner.initial_parse()
         runner.import_metric_providers()
         runner.populate_image_names()
         runner.check_running_containers()
-        runner.check_system()
         runner.remove_docker_images()
         runner.download_dependencies()
         runner.register_machine_id()
