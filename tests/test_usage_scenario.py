@@ -235,6 +235,48 @@ def get_contents_of_bound_volume(runner):
         Tests.cleanup(runner)
     return ls
 
+# depends_on: [array] (optional)
+# Array of container names to express dependencies
+def test_depends_on_order():
+    out = io.StringIO()
+    err = io.StringIO()
+    runner = Tests.setup_runner(usage_scenario='depends_on.yml', dry_run=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        try:
+            Tests.run_until(runner, 'setup_services')
+        finally:
+            runner.cleanup()
+
+    # Expected order: test-container-2, test-container-4, test-container-3, test-container-1
+    assert check_order(out.getvalue(), "test-container-2", "test-container-1"), \
+        Tests.assertion_info('test-container-2 should have been started first, \
+                             because it is a dependency of test-container-1.', 'test-container-1 started first')
+    assert check_order(out.getvalue(), "test-container-3", "test-container-1"), \
+        Tests.assertion_info('test-container-3 should have been started first, \
+                             because it is a dependency of test-container-1.', 'test-container-1 started first')
+    assert check_order(out.getvalue(), "test-container-2", "test-container-4"), \
+        Tests.assertion_info('test-container-2 should have been started first, \
+                             because it is a dependency of test-container-4.', 'test-container-4 started first')
+    assert check_order(out.getvalue(), "test-container-4", "test-container-3"), \
+        Tests.assertion_info('test-container-4 should have been started first, \
+                             because it is a dependency of test-container-3.', 'test-container-3 started first')
+
+def check_order(text, string1, string2):
+    index1 = text.find(string1)
+    index2 = text.find(string2)
+
+    assert index1 != -1 and index2 != -1, \
+        Tests.assertion_info(f"stdout contain the container names '{string1}' and '{string2}'.", \
+                             f"stdout doesn't contain '{string1}' and/or '{string2}'.")
+    
+    # order is correct
+    if index1 < index2:
+        return True
+    # order is incorrect
+    else:
+        return False
+
 #volumes: [array] (optional)
 #Array of volumes to be mapped. Only read of runner.py is executed with --allow-unsafe flag
 def test_volume_bindings_allow_unsafe_true():

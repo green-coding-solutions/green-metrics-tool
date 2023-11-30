@@ -1,0 +1,37 @@
+---
+name: Test depends_on
+author: David Kopp
+description: test
+
+services:
+  test-container-1:
+    type: container
+    image: gcb_stress
+    build: .
+    depends_on:
+      - test-container-2
+      - test-container-3
+  test-container-2:
+    type: container
+    image: gcb_stress
+    build: .
+  test-container-3:
+    type: container
+    image: gcb_stress
+    build: .
+    depends_on:
+      - test-container-4
+  test-container-4:
+    type: container
+    image: gcb_stress
+    build: .
+    depends_on:
+      - test-container-2
+
+flow:
+  - name: Stress
+    container: test-container-1
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1 -q
+        note: Starting Stress

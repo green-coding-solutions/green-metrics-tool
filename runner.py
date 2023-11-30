@@ -21,6 +21,7 @@ from pathlib import Path
 import random
 import shutil
 import yaml
+from collections import OrderedDict
 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -637,18 +638,37 @@ class Runner:
             self.__networks.append(network)
             self.__join_default_network = True
 
+    # Order service names based on 'depends_on'
+    def order_service_names(self, order_array, service_name):
+        service = self._usage_scenario['services'][service_name]
+        if 'depends_on' in service:
+            for dep in service['depends_on']:
+                if dep not in order_array:
+                    order_array = self.order_service_names(order_array, dep)
+        if service_name not in order_array:
+            order_array.append(service_name)
+        return order_array
+
     def setup_services(self):
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
-        for service_name in self._usage_scenario.get('services', []):
+        services = self._usage_scenario.get('services', {})
+
+        order_of_service_names = []
+        # Check if there are dependencies defined with 'depends_on'.
+        # If so, change the order of the services accordingly.
+        for service_name in services.keys():
+            order_of_service_names = self.order_service_names(order_of_service_names, service_name)
+        services_ordered = OrderedDict((key, services[key]) for key in order_of_service_names)
+        print("Startup order of containers: ", order_of_service_names)
+
+        for service_name, service in services_ordered.items():
             print(TerminalColors.HEADER, '\nSetting up containers', TerminalColors.ENDC)
 
-            if 'container_name' in self._usage_scenario['services'][service_name]:
-                container_name = self._usage_scenario['services'][service_name]['container_name']
+            if 'container_name' in service:
+                container_name = service['container_name']
             else:
                 container_name = service_name
-
-            service = self._usage_scenario['services'][service_name]
 
             print('Resetting container')
             # By using the -f we return with 0 if no container is found
@@ -789,6 +809,33 @@ class Runner:
 
             print(f"Running docker run with: {' '.join(docker_run_string)}")
 
+            # before starting the container, check if the dependent containers are "ready"
+            # if not, wait for them
+            if 'depends_on' in service:
+                for dependent_container in service['depends_on']:
+                    max_waiting_time = 20
+                    sleep_time_per_iteration = 1
+                    waiting_time = 0
+                    state = ""
+                    while waiting_time < max_waiting_time:
+                        # TODO: Check health status if healthcheck ist enabled (https://github.com/green-coding-berlin/green-metrics-tool/issues/423)
+                        docker_inspect = subprocess.run(
+                            ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
+                            check=True,
+                            stdout=subprocess.PIPE,
+                            encoding='UTF-8'
+                        )
+                        state = docker_inspect.stdout.strip()
+                        if state == "running":
+                            break;
+                        else:
+                            print(f"State of container '{dependent_container}': {state}. Waiting for {sleep_time_per_iteration} seconds")
+                            self.custom_sleep(sleep_time_per_iteration)
+                            waiting_time += sleep_time_per_iteration
+                    
+                    if state != "running":
+                        print(f"WARNING: Dependent container '{dependent_container}' of '{container_name}' is still not running after waiting for '{max_waiting_time}' seconds!")
+            
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
             # injection of unwawnted params
 
