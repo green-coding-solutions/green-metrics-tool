@@ -529,6 +529,8 @@ class Runner:
     def clean_image_name(self, name):
         # clean up image name for problematic characters
         name = re.sub(r'[^A-Za-z0-9_]', '', name)
+        # only lowercase letters are allowed for tags
+        name = name.lower()
         name = f"{name}_gmt_run_tmp"
         return name
 
@@ -549,7 +551,7 @@ class Runner:
 
             tmp_img_name = self.clean_image_name(service['image'])
 
-            #If we are in developer repeat runs check if the docker image has already been built
+            # If we are in developer repeat runs check if the docker image has already been built
             try:
                 subprocess.run(['docker', 'inspect', '--type=image', tmp_img_name],
                                          stdout=subprocess.PIPE,
@@ -609,7 +611,7 @@ class Runner:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
                     raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
 
-                # tagging must be done in pull case, so we cann the correct container later
+                # tagging must be done in pull case, so we can get the correct container later
                 subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
 
 
