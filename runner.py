@@ -650,6 +650,7 @@ class Runner:
         return order_array
 
     def setup_services(self):
+        print(TerminalColors.HEADER, '\nSetting up services', TerminalColors.ENDC)
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
         services = self._usage_scenario.get('services', {})
@@ -660,15 +661,16 @@ class Runner:
         for service_name in services.keys():
             order_of_service_names = self.order_service_names(order_of_service_names, service_name)
         services_ordered = OrderedDict((key, services[key]) for key in order_of_service_names)
-        print("Startup order of containers: ", order_of_service_names)
+        print("Startup order: ", order_of_service_names)
 
         for service_name, service in services_ordered.items():
-            print(TerminalColors.HEADER, '\nSetting up containers', TerminalColors.ENDC)
 
             if 'container_name' in service:
                 container_name = service['container_name']
             else:
                 container_name = service_name
+
+            print(TerminalColors.HEADER, '\nSetting up container: ', container_name, TerminalColors.ENDC)
 
             print('Resetting container')
             # By using the -f we return with 0 if no container is found
@@ -807,18 +809,17 @@ class Runner:
             if 'cmd' in service:  # must come last
                 docker_run_string.append(service['cmd'])
 
-            print(f"Running docker run with: {' '.join(docker_run_string)}")
-
             # before starting the container, check if the dependent containers are "ready"
             # if not, wait for them
             if 'depends_on' in service:
                 for dependent_container in service['depends_on']:
+                    # TODO: Make some options configurable through config.yml
                     max_waiting_time = 20
                     sleep_time_per_iteration = 1
-                    waiting_time = 0
+                    time_waited = 0
                     state = ""
-                    while waiting_time < max_waiting_time:
-                        # TODO: Check health status if healthcheck ist enabled (https://github.com/green-coding-berlin/green-metrics-tool/issues/423)
+                    while time_waited < max_waiting_time:
+                        # TODO: Check health status if `healthcheck` is enabled (https://github.com/green-coding-berlin/green-metrics-tool/issues/423)
                         docker_inspect = subprocess.run(
                             ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
                             check=True,
@@ -831,13 +832,15 @@ class Runner:
                         else:
                             print(f"State of container '{dependent_container}': {state}. Waiting for {sleep_time_per_iteration} seconds")
                             self.custom_sleep(sleep_time_per_iteration)
-                            waiting_time += sleep_time_per_iteration
-                    
+                            time_waited += sleep_time_per_iteration
+
                     if state != "running":
                         print(f"WARNING: Dependent container '{dependent_container}' of '{container_name}' is still not running after waiting for '{max_waiting_time}' seconds!")
-            
+
+            print(f"Running docker run with: {' '.join(docker_run_string)}")
+
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
-            # injection of unwawnted params
+            # injection of unwanted params
 
             ps = subprocess.run(
                 docker_run_string,
