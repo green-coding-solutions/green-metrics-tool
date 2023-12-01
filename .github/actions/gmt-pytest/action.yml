@@ -65,7 +65,7 @@ runs:
       run: docker buildx bake --file test-compose.yml --file docker-compose-cache.json
 
 
-     - name: Build docker-compose
+    - name: Build docker-compose
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/docker
       run: |
