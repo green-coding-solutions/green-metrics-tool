@@ -76,6 +76,7 @@ runs:
     
     - name: Check Docker build error and fail if permissions issue
       if: ${{ steps.build-docker-compose.outputs.DOCKER_EXIT_CODE != 0 }}
+      shell: bash
       run: |
         if echo "${{ steps.build-docker-compose.outputs.DOCKER_OUTPUT }}" | grep -q "permission"; then
           echo "Docker build failed due to permissions issue"
