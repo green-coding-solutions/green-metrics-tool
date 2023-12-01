@@ -75,9 +75,13 @@ runs:
         echo "DOCKER_OUTPUT=$DOCKER_OUTPUT" >> $GITHUB_OUTPUT
     
     - name: Check Docker build error and fail if permissions issue
-      if: ${{ steps.build-docker-compose.outputs.DOCKER_EXIT_CODE != 0 }}
+      # if: ${{ steps.build-docker-compose.outputs.DOCKER_EXIT_CODE != 0 }}
       shell: bash
       run: |
+        echo "exit code: ${{ steps.build-docker-compose.outputs.DOCKER_EXIT_CODE }}"
+        echo "docker output:"
+        echo ${{ steps.build-docker-compose.outputs.DOCKER_OUTPUT }}
+        echo "----- dm ------"
         if echo "${{ steps.build-docker-compose.outputs.DOCKER_OUTPUT }}" | grep -q "permission"; then
           echo "Docker build failed due to permissions issue"
           exit 1
