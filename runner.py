@@ -759,11 +759,11 @@ class Runner:
                         raise RuntimeError(f"Docker container setup environment var key had wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ allowed: {env_key} - Maybe consider using --allow-unsafe or --skip-unsafe")
 
                     if not self._allow_unsafe and \
-                        re.search(r'^[a-zA-Z0-9_]+[a-zA-Z0-9_-]*$', env_value) is None:
+                        re.search(r'^[a-zA-Z0-9_]{1}[a-zA-Z0-9_.:/-]{0,1023}$', env_value) is None:
                         if self._skip_unsafe:
-                            print(TerminalColors.WARNING, arrows(f"Found environment var value with wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {env_value} - Skipping"), TerminalColors.ENDC)
+                            print(TerminalColors.WARNING, arrows("Found environment var value with wrong format. Only ^[a-zA-Z0-9_]{1}[a-zA-Z0-9_.:/-]{0,1023}$ allowed: " + env_value + " - Skipping"), TerminalColors.ENDC)
                             continue
-                        raise RuntimeError(f"Docker container setup environment var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {env_value} - Maybe consider using --allow-unsafe --skip-unsafe")
+                        raise RuntimeError("Docker container setup environment var value had wrong format. Only ^[a-zA-Z0-9_]{1}[a-zA-Z0-9_.:/-]{0,1023}$ allowed: " + env_value + " - Maybe consider using --allow-unsafe --skip-unsafe")
 
                     docker_run_string.append('-e')
                     docker_run_string.append(f"{env_key}={env_value}")
