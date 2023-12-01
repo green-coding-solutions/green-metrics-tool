@@ -17,10 +17,10 @@ jobs:
           ref: ${{ github.ref }}
           submodules: 'true'
 
-      - name: Eco CI Energy Estimation - Initialize
-        uses: green-coding-berlin/eco-ci-energy-estimation@v2
-        with:
-          task: start-measurement
+      # - name: Eco CI Energy Estimation - Initialize
+      #   uses: green-coding-berlin/eco-ci-energy-estimation@v2
+      #   with:
+      #     task: start-measurement
 
       - name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
@@ -28,16 +28,16 @@ jobs:
          metrics-to-turn-off: '--categories RAPL Machine Sensors Debug CGroupV2 MacOS'
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Eco CI Energy Estimation - Get Measurement
-        uses: green-coding-berlin/eco-ci-energy-estimation@v2
-        with:
-          task: get-measurement
-          branch: main
+      # - name: Eco CI Energy Estimation - Get Measurement
+      #   uses: green-coding-berlin/eco-ci-energy-estimation@v2
+      #   with:
+      #     task: get-measurement
+      #     branch: main
 
-      - name: Eco CI Energy Estimation - End Measurement
-        uses: green-coding-berlin/eco-ci-energy-estimation@v2
-        with:
-          task: display-results
-          branch: main
-          pr-comment: true
+      # - name: Eco CI Energy Estimation - End Measurement
+      #   uses: green-coding-berlin/eco-ci-energy-estimation@v2
+      #   with:
+      #     task: display-results
+      #     branch: main
+      #     pr-comment: true
         
