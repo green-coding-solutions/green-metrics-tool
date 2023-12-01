@@ -735,6 +735,7 @@ class Runner:
                     raise RuntimeError('Found "ports" but neither --skip-unsafe nor --allow-unsafe is set')
 
             if 'environment' in service:
+                env_var_check_errors = []
                 for docker_env_var in service['environment']:
                     # In a compose file env vars can be defined with a "=" and as a dict.
                     # We make sure that:
@@ -756,17 +757,21 @@ class Runner:
                             warn_message= arrows(f"Found environment var key with wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ allowed: {env_key} - Skipping")
                             print(TerminalColors.WARNING, warn_message, TerminalColors.ENDC)
                             continue
-                        raise RuntimeError(f"Docker container setup environment var key had wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ allowed: {env_key} - Maybe consider using --allow-unsafe or --skip-unsafe")
+                        env_var_check_errors.append(f"- key '{env_key}' has wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ is allowed - Maybe consider using --allow-unsafe or --skip-unsafe")
 
                     if not self._allow_unsafe and \
-                        re.search(r'^[a-zA-Z0-9_]{1}[a-zA-Z0-9_.:/-]{0,1023}$', env_value) is None:
+                        re.search(r'[*?|;<>$`!{}()[\]]', env_value) is not None:
                         if self._skip_unsafe:
-                            print(TerminalColors.WARNING, arrows("Found environment var value with wrong format. Only ^[a-zA-Z0-9_]{1}[a-zA-Z0-9_.:/-]{0,1023}$ allowed: " + env_value + " - Skipping"), TerminalColors.ENDC)
+                            print(TerminalColors.WARNING, arrows("Found environment var value with forbidden character ( *?|;<>$`!{}()[] ): " + env_value + " - Skipping"), TerminalColors.ENDC)
                             continue
-                        raise RuntimeError("Docker container setup environment var value had wrong format. Only ^[a-zA-Z0-9_]{1}[a-zA-Z0-9_.:/-]{0,1023}$ allowed: " + env_value + " - Maybe consider using --allow-unsafe --skip-unsafe")
+                        env_var_check_errors.append(f"- value of env var '{env_key}={env_value}' contains forbidden characters: " + "( *?|;<>$`!{}()[] ) - Maybe consider using --allow-unsafe --skip-unsafe")
 
                     docker_run_string.append('-e')
                     docker_run_string.append(f"{env_key}={env_value}")
+
+                if env_var_check_errors:
+                    raise RuntimeError("Docker container setup environment has problems:\n" + 
+                                       "\n".join(env_var_check_errors))
 
             if 'networks' in service:
                 for network in service['networks']:

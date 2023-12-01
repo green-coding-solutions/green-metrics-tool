@@ -1,0 +1,35 @@
+---
+name: Test Stress
+author: Dan Mateas
+description: test
+
+services:
+  test-container:
+    type: container
+    image: gcb_stress
+    build: .
+    environment:
+      TEST_ALLOWED: 'alpha-num123_' # this is the only allowed value in this file (added to check if skip_unsafe works)
+      TEST_ASTERISK: '*'
+      TEST_QUESTION_MARK: '?'
+      TEST_VERTICAL_BAR: '|'
+      TEST_SEMICOLON: ';'
+      TEST_ANGLE_QUOTATION_LEFT: '<'
+      TEST_ANGLE_QUOTATION_RIGHT: '>'
+      TEST_DOLLAR: '$'
+      TEST_BACKTICK: '`'
+      TEST_EXCLAMATION_MARK: '!'
+      TEST_CURLY_BRACKET_LEFT: '{'
+      TEST_CURLY_BRACKET_RIGHT: '}'
+      TEST_SQUARE_BRACKET_LEFT: '['
+      TEST_SQUARE_BRACKET_RIGHT: ']'
+      TEST_PARENTHESIS_LEFT: '('
+      TEST_PARENTHESIS_RIGHT: ')'
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1 -q
+        note: Starting Stress

@@ -70,32 +70,9 @@ def get_env_vars(runner):
         Tests.cleanup(runner)
     return env_var_output
 
-def test_env_variable_with_incorrect_envs_no_flags_backtick():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_unallowed_backtick.yml', dry_run=True)
-    with pytest.raises(RuntimeError) as e:
-        get_env_vars(runner)
-    expected_exception = 'Docker container setup environment var value had wrong format.'
-    assert expected_exception in str(e.value), \
-        Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
-
-def test_env_variable_with_incorrect_envs_no_flags_dollar():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_unallowed_dollar.yml', dry_run=True)
-    with pytest.raises(RuntimeError) as e:
-        get_env_vars(runner)
-    expected_exception = 'Docker container setup environment var value had wrong format.'
-    assert expected_exception in str(e.value), \
-        Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
-
-def test_env_variable_with_incorrect_envs_no_flags_paren():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_unallowed_paren.yml', dry_run=True)
-    with pytest.raises(RuntimeError) as e:
-        get_env_vars(runner)
-    expected_exception = 'Docker container setup environment var value had wrong format.'
-    assert expected_exception in str(e.value), \
-        Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
-
-def test_env_variable_unsafe_false():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress.yml', skip_unsafe=False, dry_run=True)
+# Test allowed characters
+def test_env_variable_allowed_characters():
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_allowed.yml', skip_unsafe=False, dry_run=True)
     env_var_output = get_env_vars(runner)
     print("Env var output is ", env_var_output)
     assert 'TESTALLOWED=alpha-num123_' in env_var_output, Tests.assertion_info('TESTALLOWED=alpha-num123_', env_var_output)
@@ -103,23 +80,60 @@ def test_env_variable_unsafe_false():
     assert 'TEST2_ALLOWED=http://localhost:8080' in env_var_output, Tests.assertion_info('TEST2_ALLOWED=http://localhost:8080', env_var_output)
     assert 'TEST3_ALLOWED=example.com' in env_var_output, Tests.assertion_info('TEST3_ALLOWED=example.com', env_var_output)
 
-def test_env_variable_skip_unsafe_true():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_unallowed.yml', skip_unsafe=True, dry_run=True)
-    env_var_output = get_env_vars(runner)
-    assert 'TESTALLOWED=alpha-num123_' in env_var_output, Tests.assertion_info('TESTALLOWED=alpha-num123_', env_var_output)
-    assert 'TEST1_ALLOWED=alpha-key-num123_' in env_var_output, Tests.assertion_info('TEST1_ALLOWED=alpha-key-num123_', env_var_output)
-    assert 'TESTBACKTICK' not in env_var_output, Tests.assertion_info('TESTBACKTICK', env_var_output)
-    assert 'TESTDOLLAR' not in env_var_output, Tests.assertion_info('TESTDOLLAR', env_var_output)
-    assert 'TESTPARENTHESIS' not in env_var_output, Tests.assertion_info('TESTPARENTHESIS', env_var_output)
+# Test forbidden characters
+def test_env_variable_forbidden_characters():
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', dry_run=True)
+    with pytest.raises(RuntimeError) as e:
+        get_env_vars(runner)
 
-def test_env_variable_allow_unsafe_true():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_unallowed.yml', allow_unsafe=True, dry_run=True)
+    assert 'TEST_ASTERISK' in str(e.value), \
+        Tests.assertion_info("'*' is a forbidden character", str(e.value))
+    assert 'TEST_QUESTION_MARK' in str(e.value), \
+        Tests.assertion_info("'?' is a forbidden character'", str(e.value))
+    assert 'TEST_VERTICAL_BAR' in str(e.value), \
+        Tests.assertion_info("'|' is a forbidden character", str(e.value))
+    assert 'TEST_SEMICOLON' in str(e.value), \
+        Tests.assertion_info("';' is a forbidden character", str(e.value))
+    assert 'TEST_ANGLE_QUOTATION_LEFT' in str(e.value), \
+        Tests.assertion_info("'<' is a forbidden character", str(e.value))
+    assert 'TEST_ANGLE_QUOTATION_RIGHT' in str(e.value), \
+        Tests.assertion_info("'>' is a forbidden character", str(e.value))
+    assert 'TEST_DOLLAR' in str(e.value), \
+        Tests.assertion_info("'$' is a forbidden character", str(e.value))
+    assert 'TEST_BACKTICK' in str(e.value), \
+        Tests.assertion_info("'`' is a forbidden character", str(e.value))
+    assert 'TEST_EXCLAMATION_MARK' in str(e.value), \
+        Tests.assertion_info("'!' is a forbidden character", str(e.value))
+    assert 'TEST_CURLY_BRACKET_LEFT' in str(e.value), \
+        Tests.assertion_info("'{' is a forbidden character", str(e.value))
+    assert 'TEST_CURLY_BRACKET_RIGHT' in str(e.value), \
+        Tests.assertion_info("'}' is a forbidden character", str(e.value))
+    assert 'TEST_SQUARE_BRACKET_LEFT' in str(e.value), \
+        Tests.assertion_info("'[' is a forbidden character", str(e.value))
+    assert 'TEST_SQUARE_BRACKET_RIGHT' in str(e.value), \
+        Tests.assertion_info("']' is a forbidden character", str(e.value))
+    assert 'TEST_PARENTHESIS_LEFT' in str(e.value), \
+        Tests.assertion_info("'(' is a forbidden character", str(e.value))
+    assert 'TEST_PARENTHESIS_RIGHT' in str(e.value), \
+        Tests.assertion_info("')' is a forbidden character", str(e.value))
+
+# Test skip_unsafe=true
+def test_env_variable_skip_unsafe_true():
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', skip_unsafe=True, dry_run=True)
     env_var_output = get_env_vars(runner)
-    assert 'TESTALLOWED=alpha-num123_' in env_var_output, Tests.assertion_info('TESTALLOWED=alpha-num123_', env_var_output)
-    assert 'TEST1_ALLOWED=alpha-key-num123_' in env_var_output, Tests.assertion_info('TEST1_ALLOWED=alpha-key-num123_', env_var_output)
-    assert 'TESTBACKTICK' in env_var_output, Tests.assertion_info('TESTBACKTICK', env_var_output)
-    assert 'TESTDOLLAR' in env_var_output, Tests.assertion_info('TESTDOLLAR', env_var_output)
-    assert 'TESTPARENTHESIS' in env_var_output, Tests.assertion_info('TESTPARENTHESIS', env_var_output)
+
+    # Only allowed characters should be in env vars, forbidden ones should be skipped
+    assert 'TEST_ALLOWED' in env_var_output, Tests.assertion_info('TEST_ALLOWED in env vars', env_var_output)
+    assert 'TEST_DOLLAR' not in env_var_output, Tests.assertion_info('TEST_DOLLAR not in env vars', env_var_output)
+
+# Test allow_unsafe=true
+def test_env_variable_allow_unsafe_true():
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', allow_unsafe=True, dry_run=True)
+    env_var_output = get_env_vars(runner)
+
+    # Both allowed and forbidden characters should be in env vars
+    assert 'TEST_ALLOWED' in env_var_output, Tests.assertion_info('TEST_ALLOWED in env vars', env_var_output)
+    assert 'TEST_DOLLAR' in env_var_output, Tests.assertion_info('TEST_DOLLAR in env vars', env_var_output)
 
 # ports: [int:int] (optional)
 # Docker container portmapping on host OS to be used with --allow-unsafe flag.
