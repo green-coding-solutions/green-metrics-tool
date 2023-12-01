@@ -64,26 +64,20 @@ runs:
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/docker
       run: |
-        { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --file docker-compose-cache.json 2>&1); } || true
-        DOCKER_EXIT_CODE=${PIPESTATUS[0]}
+        { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --file docker-compose-cache.json 2>&1); DOCKER_EXIT_CODE=$?; } || true
         echo "exit code: $DOCKER_EXIT_CODE"
         echo "docker output:"
         echo $DOCKER_OUTPUT
         echo "----- dm ------"
-        echo "DOCKER_EXIT_CODE=$DOCKER_EXIT_CODE" >> $GITHUB_OUTPUT
-        echo "DOCKER_OUTPUT=$DOCKER_OUTPUT" >> $GITHUB_OUTPUT
-    
-    - name: Check Docker build error and fail if permissions issue
-      # if: ${{ steps.build-docker-compose.outputs.DOCKER_EXIT_CODE != 0 }}
-      shell: bash
-      run: |
-        echo "exit code: ${{ steps.build-docker-compose.outputs.DOCKER_EXIT_CODE }}"
-        echo "docker output:"
-        echo ${{ steps.build-docker-compose.outputs.DOCKER_OUTPUT }}
-        echo "----- dm ------"
-        if echo "${{ steps.build-docker-compose.outputs.DOCKER_OUTPUT }}" | grep -q "permission"; then
-          echo "Docker build failed due to permissions issue"
-          exit 1
+        if [ "$DOCKER_EXIT_CODE" -ne 0 ]; then
+          echo "Docker build failed with exit code $DOCKER_EXIT_CODE"
+          if echo "$DOCKER_OUTPUT" | grep -q "403 Forbidden"; then
+            echo "Docker build failed due to permissions issue. Continuing..."
+          else
+              echo "Docker build failed. Docker output:"
+              echo $DOCKER_OUTPUT
+              exit 1
+          fi
         fi
 
     - name: Start Test container
