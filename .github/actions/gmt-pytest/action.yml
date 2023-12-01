@@ -71,14 +71,13 @@ runs:
         echo "docker output:"
         echo $DOCKER_OUTPUT
         echo "----- dm ------"
-        echo "::set-output name=DOCKER_EXIT_CODE::$DOCKER_EXIT_CODE"
-        echo "::set-output name=DOCKER_OUTPUT::$DOCKER_OUTPUT"
+        echo "DOCKER_EXIT_CODE=$DOCKER_EXIT_CODE" >> $GITHUB_OUTPUT
+        echo "DOCKER_OUTPUT=$DOCKER_OUTPUT" >> $GITHUB_OUTPUT
     
     - name: Check Docker build error and fail if permissions issue
-      needs: build-docker-compose
-      if: ${{ needs.build-docker-compose.outputs.DOCKER_EXIT_CODE != 0 }}
+      if: ${{ steps.build-docker-compose.outputs.DOCKER_EXIT_CODE != 0 }}
       run: |
-        if echo "${{ needs.build-docker-compose.outputs.DOCKER_OUTPUT }}" | grep -q "permission"; then
+        if echo "${{ steps.build-docker-compose.outputs.DOCKER_OUTPUT }}" | grep -q "permission"; then
           echo "Docker build failed due to permissions issue"
           exit 1
         fi
