@@ -65,21 +65,24 @@ runs:
       run: docker buildx bake --file test-compose.yml --file docker-compose-cache.json
 
 
-    - name: Build docker-compose
+     - name: Build docker-compose
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/docker
       run: |
         # Run Docker command and capture both stdout and stderr in a file
         docker_output_file=$(mktemp)
-        if ! docker buildx bake --file test-compose.yml --file docker-compose-cache.json > "$docker_output_file" 2>&1; then
-          exit_code=$?
+        docker buildx bake --file test-compose.yml --file docker-compose-cache.json > "$docker_output_file" 2>&1
+        exit_code=$?
+        echo "-----dm- docker_output_file-----"
+        cat "$docker_output_file"
+        echo "-----dm------"
+        
+        if [ $exit_code -ne 0 ]; then
           echo "Docker build failed with exit code $exit_code."
-          echo "-----dm- docker_output_file-----"
-          cat $docker_output_file
-          echo "-----dm------"
-
+          
           # Check if the failure is permission-related by looking for specific error messages
-          if grep -q "denied" "$docker_output_file" || grep -q "permission" "$docker_output_file"; then
+          error_message=$(cat "$docker_output_file")
+          if echo "$error_message" | grep -q "403 Forbidden"; then
             echo "Ignoring permission-related failure. Continuing with the workflow."
           else
             echo "Failing the workflow due to a non-permission-related failure."
@@ -89,6 +92,7 @@ runs:
           echo "Docker build succeeded."
         fi
         rm "$docker_output_file"
+
 
 
     - name: Start Test container
