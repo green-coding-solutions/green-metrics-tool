@@ -11,9 +11,7 @@ services:
     environment:
       TESTALLOWED: 'alpha-num123_'
       TEST1_ALLOWED: 'alpha-key-num123_'
-      TESTBACKTICK: '`'
       TESTDOLLAR: '$'
-      TESTPARENTHESIS: '()'
 
 flow:
   - name: Stress

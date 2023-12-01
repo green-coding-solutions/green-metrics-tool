@@ -348,7 +348,7 @@ const displayCITable = (measurements, url_params) => {
                             <td class="td-index">${run_link_node}</td>\
                             <td class="td-index">${escapeString(label)}</td>\
                             <td class="td-index"><span title="${escapeString(created_at)}">${dateToYMD(new Date(created_at))}</span></td>\
-                            <td class="td-index">${escapeString(numberFormatter.format(value))}</td>\
+                            <td class="td-index">${escapeString(`${numberFormatter.format(energy_value)} ${energy_unit}`)}</td>\
                             <td class="td-index">${escapeString(cpu)}</td>\
                             <td class="td-index">${escapeString(cpu_avg)}%</td>
                             <td class="td-index">${escapeString(duration)} seconds</td>

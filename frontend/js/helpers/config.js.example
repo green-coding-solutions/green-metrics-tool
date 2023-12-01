@@ -149,12 +149,22 @@ METRIC_MAPPINGS = {
     'cores_power_powermetrics_component': {
         'clean_name': 'CPU Power (Cores)',
         'source': 'powermetrics',
-        'explanation': 'Power of the cores only without GPU, ANE, GPU, DRAM etc.',
+        'explanation': 'Power of the cores (M1) only without GPU, ANE, GPU, DRAM etc.',
     },
     'cores_energy_powermetrics_component': {
         'clean_name': 'CPU Energy (Cores)',
         'source': 'powermetrics',
-        'explanation': 'Energy of the cores only without GPU, ANE, GPU, DRAM etc.',
+        'explanation': 'Energy of the cores (M1) only without GPU, ANE, GPU, DRAM etc.',
+    },
+    'cpu_energy_powermetrics_component': {
+        'clean_name': 'CPU Energy (Package)',
+        'source': 'powermetrics',
+        'explanation': 'Energy of the Package (Intel) only without GPU, ANE, GPU, DRAM etc.',
+    },
+    'cpu_power_powermetrics_component': {
+        'clean_name': 'CPU Power (Package)',
+        'source': 'powermetrics',
+        'explanation': 'Power of the Package (Intel) only without GPU, ANE, GPU, DRAM etc.',
     },
     'cpu_time_powermetrics_vm': {
         'clean_name': 'CPU time',

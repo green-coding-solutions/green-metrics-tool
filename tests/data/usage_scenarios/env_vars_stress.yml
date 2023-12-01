@@ -11,6 +11,7 @@ services:
     build: .
     environment:
       TESTALLOWED: 'alpha-num123_'
+      TEST1_ALLOWED: 'alpha-key-num123_'
 flow:
   - name: Stress
     container: test-container
