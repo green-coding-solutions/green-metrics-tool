@@ -30,10 +30,10 @@ services:
     # No need to fix the version here, as we just waant to use latest, never have experienced
     # incompatibilities and for measurement accuracy the web container is not relevant as it
     # should not run on the measurement node anyway
-    image: nginx
-    container_name: green-coding-nginx-container
+    xximage: nginx
+    xxcontainer_name: green-coding-nginx-container
     depends_on:
-      - green-coding-postgres
+      - xxxgreen-coding-postgres
     ports:
       - 9142:80
     restart: always
