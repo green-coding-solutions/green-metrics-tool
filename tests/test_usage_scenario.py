@@ -249,33 +249,20 @@ def test_depends_on_order():
             runner.cleanup()
 
     # Expected order: test-container-2, test-container-4, test-container-3, test-container-1
-    assert check_order(out.getvalue(), "test-container-2", "test-container-1"), \
-        Tests.assertion_info('test-container-2 should have been started first, \
-                             because it is a dependency of test-container-1.', 'test-container-1 started first')
-    assert check_order(out.getvalue(), "test-container-3", "test-container-1"), \
-        Tests.assertion_info('test-container-3 should have been started first, \
-                             because it is a dependency of test-container-1.', 'test-container-1 started first')
-    assert check_order(out.getvalue(), "test-container-2", "test-container-4"), \
-        Tests.assertion_info('test-container-2 should have been started first, \
-                             because it is a dependency of test-container-4.', 'test-container-4 started first')
-    assert check_order(out.getvalue(), "test-container-4", "test-container-3"), \
-        Tests.assertion_info('test-container-4 should have been started first, \
-                             because it is a dependency of test-container-3.', 'test-container-3 started first')
+    assert_order(out.getvalue(), "test-container-2", "test-container-4")
+    assert_order(out.getvalue(), "test-container-4", "test-container-3")
+    assert_order(out.getvalue(), "test-container-3", "test-container-1")
 
-def check_order(text, string1, string2):
-    index1 = text.find(string1)
-    index2 = text.find(string2)
+def assert_order(text, first, second):
+    index1 = text.find(first)
+    index2 = text.find(second)
 
     assert index1 != -1 and index2 != -1, \
-        Tests.assertion_info(f"stdout contain the container names '{string1}' and '{string2}'.", \
-                             f"stdout doesn't contain '{string1}' and/or '{string2}'.")
+        Tests.assertion_info(f"stdout contain the container names '{first}' and '{second}'.", \
+                             f"stdout doesn't contain '{first}' and/or '{second}'.")
     
-    # order is correct
-    if index1 < index2:
-        return True
-    # order is incorrect
-    else:
-        return False
+    assert index1 < index2, Tests.assertion_info(f'{first} should start first, \
+                             because it is a dependency of {second}.', f'{second} started first')
 
 #volumes: [array] (optional)
 #Array of volumes to be mapped. Only read of runner.py is executed with --allow-unsafe flag
