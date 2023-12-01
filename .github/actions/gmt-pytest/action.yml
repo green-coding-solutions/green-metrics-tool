@@ -63,10 +63,9 @@ runs:
       id: build-docker-compose
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/docker
-      continue-on-error: true
       run: |
-        DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --file docker-compose-cache.json 2>&1)
-        DOCKER_EXIT_CODE=$?
+        DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --file docker-compose-cache.json 2>&1) || true
+        DOCKER_EXIT_CODE=${PIPESTATUS[0]}
         echo "exit code: $DOCKER_EXIT_CODE"
         echo "docker output:"
         echo $DOCKER_OUTPUT
