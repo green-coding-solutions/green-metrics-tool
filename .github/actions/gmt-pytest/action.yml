@@ -60,6 +60,7 @@ runs:
         password: ${{ inputs.github-token }}
 
     - name: Build docker-compose
+      id: build-docker-compose
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/docker
       continue-on-error: true
@@ -74,9 +75,9 @@ runs:
         echo "::set-output name=DOCKER_OUTPUT::$DOCKER_OUTPUT"
     
     - name: Check Docker build error and fail if permissions issue
-      if: ${{ needs.build.outputs.DOCKER_EXIT_CODE != 0 }}
+      if: ${{ needs.build.build-docker-compose.DOCKER_EXIT_CODE != 0 }}
       run: |
-        if echo "${{ needs.build.outputs.DOCKER_OUTPUT }}" | grep -q "permission"; then
+        if echo "${{ needs.build-docker-compose.outputs.DOCKER_OUTPUT }}" | grep -q "permission"; then
           echo "Docker build failed due to permissions issue"
           exit 1
         fi
