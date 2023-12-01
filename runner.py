@@ -760,11 +760,11 @@ class Runner:
                         env_var_check_errors.append(f"- key '{env_key}' has wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ is allowed - Maybe consider using --allow-unsafe or --skip-unsafe")
 
                     if not self._allow_unsafe and \
-                        re.search(r'[*?|;<>$`!{}()[\]]', env_value) is not None:
+                        re.search(r'[*?|;<>$`!{}()[\]]', env_value) is not None or len(env_value) > 1024:
                         if self._skip_unsafe:
-                            print(TerminalColors.WARNING, arrows("Found environment var value with forbidden character ( *?|;<>$`!{}()[] ): " + env_value + " - Skipping"), TerminalColors.ENDC)
+                            print(TerminalColors.WARNING, arrows("Found environment var value with forbidden character ( *?|;<>$`!{}()[] ) or is too long: " + env_value + " - Skipping"), TerminalColors.ENDC)
                             continue
-                        env_var_check_errors.append(f"- value of env var '{env_key}={env_value}' contains forbidden characters: " + "( *?|;<>$`!{}()[] ) - Maybe consider using --allow-unsafe --skip-unsafe")
+                        env_var_check_errors.append(f"- value of env var '{env_key}={env_value}' contains forbidden characters: " + "( *?|;<>$`!{}()[] ) or is too long - Maybe consider using --allow-unsafe --skip-unsafe")
 
                     docker_run_string.append('-e')
                     docker_run_string.append(f"{env_key}={env_value}")
