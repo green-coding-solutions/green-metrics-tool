@@ -100,6 +100,8 @@ def test_env_variable_unsafe_false():
     print("Env var output is ", env_var_output)
     assert 'TESTALLOWED=alpha-num123_' in env_var_output, Tests.assertion_info('TESTALLOWED=alpha-num123_', env_var_output)
     assert 'TEST1_ALLOWED=alpha-key-num123_' in env_var_output, Tests.assertion_info('TEST1_ALLOWED=alpha-key-num123_', env_var_output)
+    assert 'TEST2_ALLOWED=http://localhost:8080' in env_var_output, Tests.assertion_info('TEST2_ALLOWED=http://localhost:8080', env_var_output)
+    assert 'TEST3_ALLOWED=example.com' in env_var_output, Tests.assertion_info('TEST3_ALLOWED=example.com', env_var_output)
 
 def test_env_variable_skip_unsafe_true():
     runner = Tests.setup_runner(usage_scenario='env_vars_stress_unallowed.yml', skip_unsafe=True, dry_run=True)

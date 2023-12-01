@@ -12,6 +12,8 @@ services:
     environment:
       TESTALLOWED: 'alpha-num123_'
       TEST1_ALLOWED: 'alpha-key-num123_'
+      TEST2_ALLOWED: 'http://localhost:8080'
+      TEST3_ALLOWED: 'example.com'
 flow:
   - name: Stress
     container: test-container
