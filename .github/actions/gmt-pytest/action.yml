@@ -65,16 +65,12 @@ runs:
       working-directory: ${{ inputs.gmt-directory }}/docker
       run: |
         { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --file docker-compose-cache.json 2>&1); DOCKER_EXIT_CODE=$?; } || true
-        echo "exit code: $DOCKER_EXIT_CODE"
-        echo "docker output:"
-        echo $DOCKER_OUTPUT
-        echo "----- dm ------"
         if [ "$DOCKER_EXIT_CODE" -ne 0 ]; then
           echo "Docker build failed with exit code $DOCKER_EXIT_CODE"
           if echo "$DOCKER_OUTPUT" | grep -q "403 Forbidden"; then
             echo "Docker build failed due to permissions issue. Continuing..."
           else
-              echo "Docker build failed. Docker output:"
+              echo "Docker build failed. docker buildx output:"
               echo $DOCKER_OUTPUT
               exit 1
           fi
