@@ -59,41 +59,20 @@ runs:
         username: ${{ github.actor }}
         password: ${{ inputs.github-token }}
 
-    - name: Build docker-compose
-      shell: bash
-      working-directory: ${{ inputs.gmt-directory }}/docker
-      run: docker buildx bake --file test-compose.yml --file docker-compose-cache.json
-
-
-    - name: Build docker-compose
+    - name: Build docker-compose and check for permissions issue
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/docker
       run: |
-        # Run Docker command and capture both stdout and stderr in a file
-        docker_output_file=$(mktemp)
-        docker buildx bake --file test-compose.yml --file docker-compose-cache.json > "$docker_output_file" 2>&1
-        exit_code=$?
-        echo "-----dm- docker_output_file-----"
-        cat "$docker_output_file"
-        echo "-----dm------"
-        
-        if [ $exit_code -ne 0 ]; then
-          echo "Docker build failed with exit code $exit_code."
-          
-          # Check if the failure is permission-related by looking for specific error messages
-          error_message=$(cat "$docker_output_file")
-          if echo "$error_message" | grep -q "403 Forbidden"; then
-            echo "Ignoring permission-related failure. Continuing with the workflow."
-          else
-            echo "Failing the workflow due to a non-permission-related failure."
-            exit 1
-          fi
-        else
-          echo "Docker build succeeded."
+        set -e
+        DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --file docker-compose-cache.json 2>&1)
+        echo "---dm---- docker output: ------" 
+        echo $DOCKER_OUTPUT
+        echo "------------dm------------"
+        # Check for permissions issue in the Docker build output
+        if echo "$DOCKER_OUTPUT" | grep -q "permission"; then
+          echo "Docker build failed due to permissions issue"
+          exit 1
         fi
-        rm "$docker_output_file"
-
-
 
     - name: Start Test container
       shell: bash
