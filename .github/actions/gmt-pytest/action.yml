@@ -59,17 +59,24 @@ runs:
         username: ${{ github.actor }}
         password: ${{ inputs.github-token }}
 
-    - name: Build docker-compose and check for permissions issue
+    - name: Build docker-compose
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/docker
+      continue-on-error: true
       run: |
-        set -e
         DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --file docker-compose-cache.json 2>&1)
-        echo "---dm---- docker output: ------" 
+        DOCKER_EXIT_CODE=$?
+        echo "exit code: $DOCKER_EXIT_CODE"
+        echo "docker output:"
         echo $DOCKER_OUTPUT
-        echo "------------dm------------"
-        # Check for permissions issue in the Docker build output
-        if echo "$DOCKER_OUTPUT" | grep -q "permission"; then
+        echo "----- dm ------"
+        echo "::set-output name=DOCKER_EXIT_CODE::$DOCKER_EXIT_CODE"
+        echo "::set-output name=DOCKER_OUTPUT::$DOCKER_OUTPUT"
+    
+    - name: Check Docker build error and fail if permissions issue
+      if: ${{ needs.build.outputs.DOCKER_EXIT_CODE != 0 }}
+      run: |
+        if echo "${{ needs.build.outputs.DOCKER_OUTPUT }}" | grep -q "permission"; then
           echo "Docker build failed due to permissions issue"
           exit 1
         fi
