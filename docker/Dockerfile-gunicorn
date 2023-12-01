@@ -9,7 +9,7 @@ RUN venv/bin/pip install --upgrade pip
 RUN venv/bin/pip install -r requirements.txt
 RUN find venv -type d -name "site-packages" -exec sh -c 'echo /var/www/green-metrics-tool > "$0/gmt-lib.pth"' {} \;
 
-RUN echo hello
+RUN echo "hello, world"
 
 COPY startup_gunicorn.sh /var/www/startup/startup_gunicorn.sh
 

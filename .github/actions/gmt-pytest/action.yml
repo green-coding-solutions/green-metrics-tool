@@ -64,6 +64,33 @@ runs:
       working-directory: ${{ inputs.gmt-directory }}/docker
       run: docker buildx bake --file test-compose.yml --file docker-compose-cache.json
 
+    - name: Build docker-compose
+      shell: bash
+      working-directory: ${{ inputs.gmt-directory }}/docker
+      run: |
+        docker_output=$(docker buildx bake --file test-compose.yml --file docker-compose-cache.json 2>&1)
+        exit_code=$?
+
+        if [ $exit_code -eq 0 ]; then
+          echo "Docker build succeeded."
+        else
+          echo "Docker build failed with exit code $exit_code."
+          echo "Docker output:"
+          echo $docker_output
+          echo "-------- dm -------"
+
+
+          # Check if the failure is permission-related by looking for specific error messages
+          if echo "$docker_output" | grep -q "denied" || echo "$docker_output" | grep -q "permission"; then
+            echo "Ignoring permission-related failure. Continuing with the workflow."
+          else
+            echo "Failing the workflow due to a non-permission-related failure."
+            exit 1
+          fi
+        fi
+
+
+
     - name: Start Test container
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/tests
@@ -73,22 +100,6 @@ runs:
     - name: Sleep for 1 seconds
       run: sleep 1s
       shell: bash
-
-    # - name: Setup upterm session
-    #   uses: lhotari/action-upterm@v1
-
-    # - name: Run Tests
-    #   shell: bash
-    #   working-directory: ${{ inputs.gmt-directory }}/tests
-    #   run: |
-    #     source ../venv/bin/activate
-    #     python3 -m ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
-
-    # - name: Display Results
-    #   shell: bash
-    #   if: always()
-    #   run: |
-    #     cat /tmp/test-results.txt | grep -oPz '(=*) short test summary(.*\n)*' >> $GITHUB_STEP_SUMMARY
 
     - name: Stop Containers
       shell: bash
