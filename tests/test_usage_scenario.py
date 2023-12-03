@@ -80,31 +80,31 @@ def test_env_variable_allowed_characters():
     assert 'TEST2_ALLOWED=http://localhost:8080' in env_var_output, Tests.assertion_info('TEST2_ALLOWED=http://localhost:8080', env_var_output)
     assert 'TEST3_ALLOWED=example.com' in env_var_output, Tests.assertion_info('TEST3_ALLOWED=example.com', env_var_output)
 
-# Test forbidden characters
-def test_env_variable_forbidden_characters():
+# Test too long values
+def test_env_variable_too_long():
     runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', dry_run=True)
     with pytest.raises(RuntimeError) as e:
         get_env_vars(runner)
 
-    assert 'TEST_BACKSLASH' in str(e.value), Tests.assertion_info(r"'\' is a forbidden character", str(e.value))
+    assert 'TEST_TOO_LONG' in str(e.value), Tests.assertion_info("Env var value is too long", str(e.value))
 
 # Test skip_unsafe=true
 def test_env_variable_skip_unsafe_true():
     runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', skip_unsafe=True, dry_run=True)
     env_var_output = get_env_vars(runner)
 
-    # Only allowed characters should be in env vars, forbidden ones should be skipped
+    # Only allowed values should be in env vars, forbidden ones should be skipped
     assert 'TEST_ALLOWED' in env_var_output, Tests.assertion_info('TEST_ALLOWED in env vars', env_var_output)
-    assert 'TEST_BACKSLASH' not in env_var_output, Tests.assertion_info('TEST_BACKSLASH not in env vars', env_var_output)
+    assert 'TEST_TOO_LONG' not in env_var_output, Tests.assertion_info('TEST_TOO_LONG not in env vars', env_var_output)
 
 # Test allow_unsafe=true
 def test_env_variable_allow_unsafe_true():
     runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', allow_unsafe=True, dry_run=True)
     env_var_output = get_env_vars(runner)
 
-    # Both allowed and forbidden characters should be in env vars
+    # Both allowed and forbidden values should be in env vars
     assert 'TEST_ALLOWED' in env_var_output, Tests.assertion_info('TEST_ALLOWED in env vars', env_var_output)
-    assert 'TEST_BACKSLASH' in env_var_output, Tests.assertion_info('TEST_BACKSLASH in env vars', env_var_output)
+    assert 'TEST_TOO_LONG' in env_var_output, Tests.assertion_info('TEST_TOO_LONG in env vars', env_var_output)
 
 # ports: [int:int] (optional)
 # Docker container portmapping on host OS to be used with --allow-unsafe flag.
