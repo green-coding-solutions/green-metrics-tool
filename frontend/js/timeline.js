@@ -185,10 +185,10 @@ const loadCharts = async () => {
         let badge = `
                 <div class="field">
                     <div class="header title">
-                        <strong>${METRIC_MAPPINGS[series[my_series].metric_name]['clean_name']}</strong> via
-                        <strong>${METRIC_MAPPINGS[series[my_series].metric_name]['source']}</strong>
+                        <strong>${getPretty(series[my_series].metric_name, 'clean_name')}</strong> via
+                        <strong>${getPretty(series[my_series].metric_name, 'source')}</strong>
                          - ${series[my_series].detail_name}
-                        <i data-tooltip="${METRIC_MAPPINGS[series[my_series].metric_name]['explanation']}" data-position="bottom center" data-inverted>
+                        <i data-tooltip="${getPretty(series[my_series].metric_name, 'explanation')}" data-position="bottom center" data-inverted>
                             <i class="question circle icon link"></i>
                         </i>
                     </div>
@@ -199,7 +199,7 @@ const loadCharts = async () => {
         document.querySelector("#badge-container").innerHTML += badge;
 
 
-        const element = createChartContainer("#chart-container", `${METRIC_MAPPINGS[series[my_series].metric_name]['clean_name']} via ${METRIC_MAPPINGS[series[my_series].metric_name]['source']} - ${series[my_series].detail_name} <i data-tooltip="${METRIC_MAPPINGS[series[my_series].metric_name]['explanation']}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
+        const element = createChartContainer("#chart-container", `${getPretty(series[my_series].metric_name, 'clean_name')} via ${getPretty(series[my_series].metric_name, 'source')} - ${series[my_series].detail_name} <i data-tooltip="${getPretty(series[my_series].metric_name, 'explanation')}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
 
         const chart_instance = echarts.init(element);
 
