@@ -222,7 +222,7 @@ const displayTimelineCharts = (metrics, notes) => {
 
     for (const metric_name in metrics) {
 
-        const element = createChartContainer("#chart-container", `${METRIC_MAPPINGS[metric_name]['clean_name']} via ${METRIC_MAPPINGS[metric_name]['source']} <i data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
+        const element = createChartContainer("#chart-container", `${getPretty(metric_name, 'clean_name')} via ${getPretty(metric_name, 'source')} <i data-tooltip="${getPretty(metric_name, 'explanation')}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
 
         let legend = [];
         let series = [];
