@@ -820,11 +820,10 @@ class Runner:
                     state = ""
                     while time_waited < max_waiting_time:
                         # TODO: Check health status if `healthcheck` is enabled (https://github.com/green-coding-berlin/green-metrics-tool/issues/423)
-                        docker_inspect = subprocess.run(
+                        docker_inspect = subprocess.check_output(
                             ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
-                            check=True,
-                            stdout=subprocess.PIPE,
-                            encoding='UTF-8'
+                            stderr=subprocess.STDOUT,
+                            text=True
                         )
                         state = docker_inspect.stdout.strip()
                         if state == "running":
