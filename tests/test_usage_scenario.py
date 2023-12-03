@@ -264,12 +264,19 @@ def assert_order(text, first, second):
     assert index1 < index2, Tests.assertion_info(f'{first} should start first, \
                              because it is a dependency of {second}.', f'{second} started first')
 
-def test_depends_on_dependent_container_is_not_running_error():
-    runner = Tests.setup_runner(usage_scenario='depends_on_error.yml', dry_run=True)
+def test_depends_on_error_not_running():
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_not_running.yml', dry_run=True)
     with pytest.raises(RuntimeError) as e:
         Tests.run_until(runner, 'setup_services')
     assert "Dependent container 'test-container-2' of 'test-container-1' is not running" in str(e.value) , \
         Tests.assertion_info('test-container-2 is not running', str(e.value))
+
+def test_depends_on_error_cyclic_dependency():
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_cycle.yml', dry_run=True)
+    with pytest.raises(RuntimeError) as e:
+        Tests.run_until(runner, 'setup_services')
+    assert "Cycle found in dependency declaration of service 'test-container-1'" in str(e.value) , \
+        Tests.assertion_info('cycle in depends_on of test-container-1', str(e.value))
 
 #volumes: [array] (optional)
 #Array of volumes to be mapped. Only read of runner.py is executed with --allow-unsafe flag

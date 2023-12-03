@@ -643,6 +643,8 @@ class Runner:
         service = self._usage_scenario['services'][service_name]
         if 'depends_on' in service:
             for dep in service['depends_on']:
+                if dep == service_name:
+                    raise RuntimeError(f"Cycle found in dependency declaration of service '{service_name}'!")
                 if dep not in order_array:
                     order_array = self.order_service_names(order_array, dep)
         if service_name not in order_array:
