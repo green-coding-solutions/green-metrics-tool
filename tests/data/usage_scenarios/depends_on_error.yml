@@ -5,7 +5,7 @@ description: test
 
 services:
   test-container-1:
-    image: httpd
+    image: alpine
     depends_on:
       - test-container-2
   test-container-2:
