@@ -9,22 +9,8 @@ services:
     image: gcb_stress
     build: .
     environment:
-      TEST_ALLOWED: 'alpha-num123_' # this is the only allowed value in this file (added to check if skip_unsafe works)
-      TEST_ASTERISK: '*'
-      TEST_QUESTION_MARK: '?'
-      TEST_VERTICAL_BAR: '|'
-      TEST_SEMICOLON: ';'
-      TEST_ANGLE_QUOTATION_LEFT: '<'
-      TEST_ANGLE_QUOTATION_RIGHT: '>'
-      TEST_DOLLAR: '$'
-      TEST_BACKTICK: '`'
-      TEST_EXCLAMATION_MARK: '!'
-      TEST_CURLY_BRACKET_LEFT: '{'
-      TEST_CURLY_BRACKET_RIGHT: '}'
-      TEST_SQUARE_BRACKET_LEFT: '['
-      TEST_SQUARE_BRACKET_RIGHT: ']'
-      TEST_PARENTHESIS_LEFT: '('
-      TEST_PARENTHESIS_RIGHT: ')'
+      TEST_ALLOWED: 'alpha-num123_' # this is an allowed value to able to check if skip_unsafe works
+      TEST_BACKSLASH: '\'
 
 flow:
   - name: Stress

@@ -74,7 +74,7 @@ def get_env_vars(runner):
 def test_env_variable_allowed_characters():
     runner = Tests.setup_runner(usage_scenario='env_vars_stress_allowed.yml', skip_unsafe=False, dry_run=True)
     env_var_output = get_env_vars(runner)
-    print("Env var output is ", env_var_output)
+
     assert 'TESTALLOWED=alpha-num123_' in env_var_output, Tests.assertion_info('TESTALLOWED=alpha-num123_', env_var_output)
     assert 'TEST1_ALLOWED=alpha-key-num123_' in env_var_output, Tests.assertion_info('TEST1_ALLOWED=alpha-key-num123_', env_var_output)
     assert 'TEST2_ALLOWED=http://localhost:8080' in env_var_output, Tests.assertion_info('TEST2_ALLOWED=http://localhost:8080', env_var_output)
@@ -86,36 +86,7 @@ def test_env_variable_forbidden_characters():
     with pytest.raises(RuntimeError) as e:
         get_env_vars(runner)
 
-    assert 'TEST_ASTERISK' in str(e.value), \
-        Tests.assertion_info("'*' is a forbidden character", str(e.value))
-    assert 'TEST_QUESTION_MARK' in str(e.value), \
-        Tests.assertion_info("'?' is a forbidden character'", str(e.value))
-    assert 'TEST_VERTICAL_BAR' in str(e.value), \
-        Tests.assertion_info("'|' is a forbidden character", str(e.value))
-    assert 'TEST_SEMICOLON' in str(e.value), \
-        Tests.assertion_info("';' is a forbidden character", str(e.value))
-    assert 'TEST_ANGLE_QUOTATION_LEFT' in str(e.value), \
-        Tests.assertion_info("'<' is a forbidden character", str(e.value))
-    assert 'TEST_ANGLE_QUOTATION_RIGHT' in str(e.value), \
-        Tests.assertion_info("'>' is a forbidden character", str(e.value))
-    assert 'TEST_DOLLAR' in str(e.value), \
-        Tests.assertion_info("'$' is a forbidden character", str(e.value))
-    assert 'TEST_BACKTICK' in str(e.value), \
-        Tests.assertion_info("'`' is a forbidden character", str(e.value))
-    assert 'TEST_EXCLAMATION_MARK' in str(e.value), \
-        Tests.assertion_info("'!' is a forbidden character", str(e.value))
-    assert 'TEST_CURLY_BRACKET_LEFT' in str(e.value), \
-        Tests.assertion_info("'{' is a forbidden character", str(e.value))
-    assert 'TEST_CURLY_BRACKET_RIGHT' in str(e.value), \
-        Tests.assertion_info("'}' is a forbidden character", str(e.value))
-    assert 'TEST_SQUARE_BRACKET_LEFT' in str(e.value), \
-        Tests.assertion_info("'[' is a forbidden character", str(e.value))
-    assert 'TEST_SQUARE_BRACKET_RIGHT' in str(e.value), \
-        Tests.assertion_info("']' is a forbidden character", str(e.value))
-    assert 'TEST_PARENTHESIS_LEFT' in str(e.value), \
-        Tests.assertion_info("'(' is a forbidden character", str(e.value))
-    assert 'TEST_PARENTHESIS_RIGHT' in str(e.value), \
-        Tests.assertion_info("')' is a forbidden character", str(e.value))
+    assert 'TEST_BACKSLASH' in str(e.value), Tests.assertion_info(r"'\' is a forbidden character", str(e.value))
 
 # Test skip_unsafe=true
 def test_env_variable_skip_unsafe_true():
@@ -124,7 +95,7 @@ def test_env_variable_skip_unsafe_true():
 
     # Only allowed characters should be in env vars, forbidden ones should be skipped
     assert 'TEST_ALLOWED' in env_var_output, Tests.assertion_info('TEST_ALLOWED in env vars', env_var_output)
-    assert 'TEST_DOLLAR' not in env_var_output, Tests.assertion_info('TEST_DOLLAR not in env vars', env_var_output)
+    assert 'TEST_BACKSLASH' not in env_var_output, Tests.assertion_info('TEST_BACKSLASH not in env vars', env_var_output)
 
 # Test allow_unsafe=true
 def test_env_variable_allow_unsafe_true():
@@ -133,7 +104,7 @@ def test_env_variable_allow_unsafe_true():
 
     # Both allowed and forbidden characters should be in env vars
     assert 'TEST_ALLOWED' in env_var_output, Tests.assertion_info('TEST_ALLOWED in env vars', env_var_output)
-    assert 'TEST_DOLLAR' in env_var_output, Tests.assertion_info('TEST_DOLLAR in env vars', env_var_output)
+    assert 'TEST_BACKSLASH' in env_var_output, Tests.assertion_info('TEST_BACKSLASH in env vars', env_var_output)
 
 # ports: [int:int] (optional)
 # Docker container portmapping on host OS to be used with --allow-unsafe flag.

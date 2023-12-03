@@ -752,6 +752,7 @@ class Runner:
                     else:
                         raise RuntimeError('Environment variable needs to be a string with = or dict and non-empty. We do not allow the feature of forwarding variables from the host OS!')
 
+                    # Check the key of the environment var
                     if not self._allow_unsafe and re.search(r'^[A-Z_]+[A-Z0-9_]*$', env_key) is None:
                         if self._skip_unsafe:
                             warn_message= arrows(f"Found environment var key with wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ allowed: {env_key} - Skipping")
@@ -759,18 +760,20 @@ class Runner:
                             continue
                         env_var_check_errors.append(f"- key '{env_key}' has wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ is allowed - Maybe consider using --allow-unsafe or --skip-unsafe")
 
-                    if not self._allow_unsafe and \
-                        re.search(r'[*?|;<>$`!{}()[\]]', env_value) is not None or len(env_value) > 1024:
+                    # Check the value of the environment var
+                    # We only forbid long values (>1024) and the backslash character.
+                    # The value is directly passed to the container and is not evaluated on the host system.
+                    if not self._allow_unsafe and ('\\' in env_value or len(env_value) > 1024):
                         if self._skip_unsafe:
-                            print(TerminalColors.WARNING, arrows("Found environment var value with forbidden character ( *?|;<>$`!{}()[] ) or is too long: " + env_value + " - Skipping"), TerminalColors.ENDC)
+                            print(TerminalColors.WARNING, arrows(f"Found environment var value with forbidden character '\\' or is too long: '{env_key}={env_value}' - Skipping"), TerminalColors.ENDC)
                             continue
-                        env_var_check_errors.append(f"- value of env var '{env_key}={env_value}' contains forbidden characters: " + "( *?|;<>$`!{}()[] ) or is too long - Maybe consider using --allow-unsafe --skip-unsafe")
+                        env_var_check_errors.append(f"- value of environment var '{env_key}={env_value}' contains forbidden character '\\' or is too long - Maybe consider using --allow-unsafe or --skip-unsafe")
 
                     docker_run_string.append('-e')
                     docker_run_string.append(f"{env_key}={env_value}")
 
                 if env_var_check_errors:
-                    raise RuntimeError("Docker container setup environment has problems:\n" + 
+                    raise RuntimeError("Docker container environment setup has problems:\n" + 
                                        "\n".join(env_var_check_errors))
 
             if 'networks' in service:
