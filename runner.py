@@ -652,6 +652,7 @@ class Runner:
         return order_array
 
     def setup_services(self):
+        config = GlobalConfig().config
         print(TerminalColors.HEADER, '\nSetting up services', TerminalColors.ENDC)
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
@@ -812,20 +813,33 @@ class Runner:
                 docker_run_string.append(service['cmd'])
 
             # Before starting the container, check if the dependent containers are "ready". 
-            # If not, throw an error and exit.
+            # If not, wait for some time. If the container is not ready after a certain time, throw an error.
             # Currently we consider "ready" only as "running".
-            # In the future we want to implement an health check to know if the container is actually ready.
+            # In the future we want to implement an health check to know if dependent containers are actually ready.
             if 'depends_on' in service:
                 for dependent_container in service['depends_on']:
 
-                    # TODO: Check health status instead if `healthcheck` is enabled (https://github.com/green-coding-berlin/green-metrics-tool/issues/423)
-                    status_output = subprocess.check_output(
-                        ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
-                        stderr=subprocess.STDOUT,
-                        text=True
-                    )
-                    if status_output.strip() != "running":
-                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running! Consider checking your service configuration or the logs of the container.")
+                    time_waited = 0
+                    state = ""
+                    max_waiting_time = config['boot']['wait_time_dependencies']
+                    while time_waited < max_waiting_time:
+                        # TODO: Check health status instead if `healthcheck` is enabled (https://github.com/green-coding-berlin/green-metrics-tool/issues/423)
+                        # This waiting loop is actually a pre-work for the upcoming health check. For the check if the container is "running", as implemented here, the waiting loop is not needed.
+                        status_output = subprocess.check_output(
+                            ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
+                            stderr=subprocess.STDOUT,
+                            text=True
+                        )
+                        state = status_output.strip()
+                        if state == "running":
+                            break;
+                        else:
+                            print(f"State of container '{dependent_container}': {state}. Waiting for 1 second")
+                            self.custom_sleep(1)
+                            time_waited += 1
+
+                    if state != "running":
+                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
 
             print(f"Running docker run with: {' '.join(docker_run_string)}")
 

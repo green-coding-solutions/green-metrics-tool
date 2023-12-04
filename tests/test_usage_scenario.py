@@ -278,6 +278,13 @@ def test_depends_on_error_cyclic_dependency():
     assert "Cycle found in dependency declaration of service 'test-container-1'" in str(e.value) , \
         Tests.assertion_info('cycle in depends_on of test-container-1', str(e.value))
 
+def test_depends_on_error_unsupported_long_form():
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_unsupported_long_form.yml', dry_run=True)
+    with pytest.raises(RuntimeError) as e:
+        Tests.run_until(runner, 'setup_services')
+    assert "Long form of depends_on is currently not supported!" in str(e.value) , \
+        Tests.assertion_info('long form is not supported', str(e.value))
+
 #volumes: [array] (optional)
 #Array of volumes to be mapped. Only read of runner.py is executed with --allow-unsafe flag
 def test_volume_bindings_allow_unsafe_true():

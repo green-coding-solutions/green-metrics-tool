@@ -39,6 +39,9 @@ machine:
   error_log_file: False
   jobs_processing: random
 
+boot:
+  wait_time_dependencies: 20
+
 measurement:
   idle-time-start: 10
   idle-time-end: 5
