@@ -642,6 +642,8 @@ class Runner:
     def order_service_names(self, order_array, service_name):
         service = self._usage_scenario['services'][service_name]
         if 'depends_on' in service:
+            if isinstance(service['depends_on'], dict):
+                raise RuntimeError(f"Service definition of {service_name} uses the long form of 'depends_on', however, GMT only supports the short form!")
             for dep in service['depends_on']:
                 if dep == service_name:
                     raise RuntimeError(f"Cycle found in dependency declaration of service '{service_name}'!")
@@ -818,7 +820,6 @@ class Runner:
             # In the future we want to implement an health check to know if dependent containers are actually ready.
             if 'depends_on' in service:
                 for dependent_container in service['depends_on']:
-
                     time_waited = 0
                     state = ""
                     max_waiting_time = config['boot']['wait_time_dependencies']

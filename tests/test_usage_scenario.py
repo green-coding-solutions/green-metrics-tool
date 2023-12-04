@@ -282,7 +282,7 @@ def test_depends_on_error_unsupported_long_form():
     runner = Tests.setup_runner(usage_scenario='depends_on_error_unsupported_long_form.yml', dry_run=True)
     with pytest.raises(RuntimeError) as e:
         Tests.run_until(runner, 'setup_services')
-    assert "Long form of depends_on is currently not supported!" in str(e.value) , \
+    assert "long form" in str(e.value) , \
         Tests.assertion_info('long form is not supported', str(e.value))
 
 #volumes: [array] (optional)
