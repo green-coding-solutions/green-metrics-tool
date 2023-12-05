@@ -639,18 +639,25 @@ class Runner:
             self.__join_default_network = True
 
     # Order service names based on 'depends_on'
-    def order_service_names(self, order_array, service_name):
+    def order_service_names(self, order_array, service_name, visited=None):
+        if visited is None:
+            visited = set()
+        if service_name in visited:
+            raise RuntimeError(f"Cycle found in depends_on definition with service '{service_name}'!")
+        visited.add(service_name)
+
         service = self._usage_scenario['services'][service_name]
+
         if 'depends_on' in service:
             if isinstance(service['depends_on'], dict):
                 raise RuntimeError(f"Service definition of {service_name} uses the long form of 'depends_on', however, GMT only supports the short form!")
             for dep in service['depends_on']:
-                if dep == service_name:
-                    raise RuntimeError(f"Cycle found in dependency declaration of service '{service_name}'!")
                 if dep not in order_array:
-                    order_array = self.order_service_names(order_array, dep)
+                    order_array = self.order_service_names(order_array, dep, visited)
+        
         if service_name not in order_array:
             order_array.append(service_name)
+
         return order_array
 
     def setup_services(self):

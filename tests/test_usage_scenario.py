@@ -275,8 +275,8 @@ def test_depends_on_error_cyclic_dependency():
     runner = Tests.setup_runner(usage_scenario='depends_on_error_cycle.yml', dry_run=True)
     with pytest.raises(RuntimeError) as e:
         Tests.run_until(runner, 'setup_services')
-    assert "Cycle found in dependency declaration of service 'test-container-1'" in str(e.value) , \
-        Tests.assertion_info('cycle in depends_on of test-container-1', str(e.value))
+    assert "Cycle found in depends_on definition with service 'test-container-1'" in str(e.value) , \
+        Tests.assertion_info('cycle in depends_on with test-container-1', str(e.value))
 
 def test_depends_on_error_unsupported_long_form():
     runner = Tests.setup_runner(usage_scenario='depends_on_error_unsupported_long_form.yml', dry_run=True)
