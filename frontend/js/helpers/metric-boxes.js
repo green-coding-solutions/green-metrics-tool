@@ -224,8 +224,8 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
     if(comparison_case !== null) {
         tr.innerHTML = `
-            <td data-position="bottom left" data-inverted="" data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}"><i class="question circle icon"></i>${METRIC_MAPPINGS[metric_name]['clean_name']}</td>
-            <td>${METRIC_MAPPINGS[metric_name]['source']}</td>
+            <td data-position="bottom left" data-inverted="" data-tooltip="${getPretty(metric_name, 'explanation')}"><i class="question circle icon"></i>${getPretty(metric_name, 'clean_name')}</td>
+            <td>${getPretty(metric_name, 'source')}</td>
             <td>${scope}</td>
             <td>${detail_name}</td>
             <td>${metric_data.type}</td>
@@ -239,8 +239,8 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
 
     } else {
         tr.innerHTML = `
-            <td data-position="bottom left" data-inverted="" data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}"><i class="question circle icon"></i>${METRIC_MAPPINGS[metric_name]['clean_name']}</td>
-            <td>${METRIC_MAPPINGS[metric_name]['source']}</td>
+            <td data-position="bottom left" data-inverted="" data-tooltip="${getPretty(metric_name, 'explanation')}"><i class="question circle icon"></i>${getPretty(metric_name, 'clean_name')}</td>
+            <td>${getPretty(metric_name, 'source')}</td>
             <td>${scope}</td>
             <td>${detail_name}</td>
             <td>${metric_data.type}</td>
@@ -252,9 +252,9 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
 
 
     updateKeyMetric(
-        phase, metric_name, METRIC_MAPPINGS[metric_name]['clean_name'], detail_name,
-        value , std_dev_text, unit,
-        METRIC_MAPPINGS[metric_name]['explanation'], METRIC_MAPPINGS[metric_name]['source']
+        phase, metric_name, getPretty(metric_name, 'clean_name'), detail_name,
+        value , std_dev_text, unit, detail_data.mean, metric_data.unit,
+        getPretty(metric_name, 'explanation'), getPretty(metric_name, 'source')
     );
 }
 
@@ -297,8 +297,8 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
 
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
     tr.innerHTML = `
-        <td data-position="bottom left" data-inverted="" data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}"><i class="question circle icon"></i>${METRIC_MAPPINGS[metric_name]['clean_name']}</td>
-        <td>${METRIC_MAPPINGS[metric_name]['source']}</td>
+        <td data-position="bottom left" data-inverted="" data-tooltip="${getPretty(metric_name, 'explanation')}"><i class="question circle icon"></i>${getPretty(metric_name, 'clean_name')}</td>
+        <td>${getPretty(metric_name, 'source')}</td>
         <td>${scope}</td>
         <td>${detail_name}</td>
         <td>${metric_data.type}</td>
@@ -309,9 +309,9 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
         <td>${extra_label}</td>`;
 
     updateKeyMetric(
-        phase, metric_name, METRIC_MAPPINGS[metric_name]['clean_name'], detail_name,
-        value, '', metric_data.unit,
-        METRIC_MAPPINGS[metric_name]['explanation'], METRIC_MAPPINGS[metric_name]['source']
+        phase, metric_name, getPretty(metric_name, 'clean_name'), detail_name,
+        value, '', metric_data.unit, null, null,
+        getPretty(metric_name, 'explanation'), getPretty(metric_name, 'source')
     );
 
 }
@@ -354,7 +354,7 @@ const calculateCO2 = (phase, total_CO2_in_ug) => {
     }
 }
 
-const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std_dev_text, unit, explanation, source) => {
+const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std_dev_text, unit, raw_value, raw_unit, explanation, source) => {
 
     let selector = null;
     // key metrics are already there, cause we want a fixed order, so we just replace
@@ -380,6 +380,9 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
 
 
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerText = `${(value)} ${std_dev_text}`
+
+    document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value`).setAttribute('title', `${raw_value} [${raw_unit}]`)
+
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .si-unit`).innerText = `[${unit}]`
     if(std_dev_text != '') document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(AVG + STD.DEV)`;
     else if(String(value).indexOf('%') !== -1) document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(Diff. in %)`;

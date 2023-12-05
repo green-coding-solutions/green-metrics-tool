@@ -40,10 +40,10 @@ $(document).ready(function () {
                 <fieldset style="border:none;">
                         <div class="field">
                             <div class="header title">
-                                <strong>${METRIC_MAPPINGS[metric_name]['clean_name']}</strong> via
-                                <strong>${METRIC_MAPPINGS[metric_name]['source']}</strong>
+                                <strong>${getPretty(metric_name, 'clean_name')}</strong> via
+                                <strong>${getPretty(metric_name, 'source')}</strong>
                                  - ${detail_name}
-                                <i data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}" data-position="bottom center" data-inverted>
+                                <i data-tooltip="${getPretty(metric_name, 'explanation')}" data-position="bottom center" data-inverted>
                                     <i class="question circle icon link"></i>
                                 </i>
                             </div>
@@ -110,10 +110,10 @@ $(document).ready(function () {
                     // iterate over the key metrics that shalle be displayed as badge
                     return `<div class="field">
                             <div class="header title">
-                                <strong>${METRIC_MAPPINGS['cores_energy_powermetrics_component']['clean_name']}</strong> via
-                                <strong>${METRIC_MAPPINGS['cores_energy_powermetrics_component']['source']}</strong>
+                                <strong>${getPretty('cores_energy_powermetrics_component', 'clean_name')}</strong> via
+                                <strong>${getPretty('cores_energy_powermetrics_component', 'source')}</strong>
                                  - ${`[COMPONENT]`}
-                                <i data-tooltip="${METRIC_MAPPINGS['cores_energy_powermetrics_component']['explanation']}" data-position="bottom center" data-inverted>
+                                <i data-tooltip="${getPretty('cores_energy_powermetrics_component', 'explanation')}" data-position="bottom center" data-inverted>
                                     <i class="question circle icon link"></i>
                                 </i>
                             </div>

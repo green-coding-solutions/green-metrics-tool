@@ -532,6 +532,8 @@ class Runner:
     def clean_image_name(self, name):
         # clean up image name for problematic characters
         name = re.sub(r'[^A-Za-z0-9_]', '', name)
+        # only lowercase letters are allowed for tags
+        name = name.lower()
         name = f"{name}_gmt_run_tmp"
         return name
 
@@ -552,7 +554,7 @@ class Runner:
 
             tmp_img_name = self.clean_image_name(service['image'])
 
-            #If we are in developer repeat runs check if the docker image has already been built
+            # If we are in developer repeat runs check if the docker image has already been built
             try:
                 subprocess.run(['docker', 'inspect', '--type=image', tmp_img_name],
                                          stdout=subprocess.PIPE,
@@ -612,7 +614,7 @@ class Runner:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
                     raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
 
-                # tagging must be done in pull case, so we cann the correct container later
+                # tagging must be done in pull case, so we can get the correct container later
                 subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
 
 
@@ -738,6 +740,7 @@ class Runner:
                     raise RuntimeError('Found "ports" but neither --skip-unsafe nor --allow-unsafe is set')
 
             if 'environment' in service:
+                env_var_check_errors = []
                 for docker_env_var in service['environment']:
                     # In a compose file env vars can be defined with a "=" and as a dict.
                     # We make sure that:
@@ -754,22 +757,29 @@ class Runner:
                     else:
                         raise RuntimeError('Environment variable needs to be a string with = or dict and non-empty. We do not allow the feature of forwarding variables from the host OS!')
 
+                    # Check the key of the environment var
                     if not self._allow_unsafe and re.search(r'^[A-Z_]+[A-Z0-9_]*$', env_key) is None:
                         if self._skip_unsafe:
                             warn_message= arrows(f"Found environment var key with wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ allowed: {env_key} - Skipping")
                             print(TerminalColors.WARNING, warn_message, TerminalColors.ENDC)
                             continue
-                        raise RuntimeError(f"Docker container setup environment var key had wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ allowed: {env_key} - Maybe consider using --allow-unsafe or --skip-unsafe")
+                        env_var_check_errors.append(f"- key '{env_key}' has wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ is allowed - Maybe consider using --allow-unsafe or --skip-unsafe")
 
-                    if not self._allow_unsafe and \
-                        re.search(r'^[a-zA-Z0-9_]+[a-zA-Z0-9_-]*$', env_value) is None:
+                    # Check the value of the environment var
+                    # We only forbid long values (>1024), every character is allowed.
+                    # The value is directly passed to the container and is not evaluated on the host system, so there is no security related reason to forbid special characters.
+                    if not self._allow_unsafe and len(env_value) > 1024:
                         if self._skip_unsafe:
-                            print(TerminalColors.WARNING, arrows(f"Found environment var value with wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {env_value} - Skipping"), TerminalColors.ENDC)
+                            print(TerminalColors.WARNING, arrows(f"Found environment var value with size {len(env_value)} (max allowed length is 1024) - Skipping env var '{env_key}'"), TerminalColors.ENDC)
                             continue
-                        raise RuntimeError(f"Docker container setup environment var value had wrong format. Only ^[A-Z_]+[a-zA-Z0-9_]*$ allowed: {env_value} - Maybe consider using --allow-unsafe --skip-unsafe")
+                        env_var_check_errors.append(f"- value of environment var '{env_key}' is too long {len(env_value)} (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe")
 
                     docker_run_string.append('-e')
                     docker_run_string.append(f"{env_key}={env_value}")
+
+                if env_var_check_errors:
+                    raise RuntimeError("Docker container environment setup has problems:\n" + 
+                                       "\n".join(env_var_check_errors))
 
             if 'networks' in service:
                 for network in service['networks']:

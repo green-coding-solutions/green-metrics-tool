@@ -144,18 +144,18 @@ const displayComparisonMetrics = (phase_stats_object) => {
                     as we can have the same metric multiple times just with different detail names
                 */
                 if(radar_chart_condition(metric_name) && phase_stats_object.comparison_details.length >= 2) {
-                    radar_chart_labels.push(METRIC_MAPPINGS[metric_name]['clean_name']);
+                    radar_chart_labels.push(getPretty(metric_name, 'clean_name'));
                 }
 
                 if (top_bar_chart_condition(metric_name)) {
-                    top_bar_chart_labels.push(`${METRIC_MAPPINGS[metric_name]['clean_name']} (${METRIC_MAPPINGS[metric_name]['source']})`);
+                    top_bar_chart_labels.push(`${getPretty(metric_name, 'clean_name')} (${getPretty(metric_name, 'source')})`);
                 }
 
                 if (total_chart_bottom_condition(metric_name)) {
                     if(found_bottom_chart_metric) {
                         showWarning(phase, `Another metric for the bottom chart was already set (${found_bottom_chart_metric}), skipping ${metric_name} and only first one will be shown.`);
                     } else {
-                        total_chart_bottom_legend[phase].push(METRIC_MAPPINGS[metric_name]['clean_name']);
+                        total_chart_bottom_legend[phase].push(getPretty(metric_name, 'clean_name'));
                         found_bottom_chart_metric = `${metric_name} ${detail_name}`;
                     }
                 }
@@ -218,7 +218,7 @@ const displayComparisonMetrics = (phase_stats_object) => {
                 if(phase_stats_object.comparison_case !== null) { // compare charts will display for everything apart stats.html
                     displayCompareChart(
                         phase,
-                        `${METRIC_MAPPINGS[metric_name]['clean_name']} via ${METRIC_MAPPINGS[metric_name]['source']} - ${detail_name} <i data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`,
+                        `${getPretty(metric_name, 'clean_name')} via ${getPretty(metric_name, 'source')} - ${detail_name} <i data-tooltip="${getPretty(metric_name, 'explanation')}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`,
                         metric_data.unit,
                         compare_chart_labels,
                         compare_chart_data,

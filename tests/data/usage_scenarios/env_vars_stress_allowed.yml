@@ -2,6 +2,7 @@
 name: Test Stress
 author: Dan Mateas
 description: test
+description: test
 
 services:
   test-container:
@@ -11,8 +12,8 @@ services:
     environment:
       TESTALLOWED: 'alpha-num123_'
       TEST1_ALLOWED: 'alpha-key-num123_'
-      TESTBACKTICK: '`'
-
+      TEST2_ALLOWED: 'http://localhost:8080'
+      TEST3_ALLOWED: 'example.com'
 flow:
   - name: Stress
     container: test-container
