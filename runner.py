@@ -822,7 +822,7 @@ class Runner:
                 for dependent_container in service['depends_on']:
                     time_waited = 0
                     state = ""
-                    max_waiting_time = config['boot']['wait_time_dependencies']
+                    max_waiting_time = config['measurement']['boot']['wait_time_dependencies']
                     while time_waited < max_waiting_time:
                         # TODO: Check health status instead if `healthcheck` is enabled (https://github.com/green-coding-berlin/green-metrics-tool/issues/423)
                         # This waiting loop is actually a pre-work for the upcoming health check. For the check if the container is "running", as implemented here, the waiting loop is not needed.
