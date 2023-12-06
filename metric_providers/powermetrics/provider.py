@@ -11,6 +11,12 @@ from metric_providers.base import MetricProviderConfigurationError, BaseMetricPr
 
 class PowermetricsProvider(BaseMetricProvider):
     def __init__(self, resolution, skip_check=False):
+        # We get this value on init as we want to have to for check_system to work in the normal case
+        pw_processes = subprocess.check_output(['pgrep', '-ix', 'powermetrics'], text=True)
+        self._pm_process_count = len(pw_processes.strip().split('\n')) if pw_processes else 0
+        print(f"NUMBER BEFORE: {self._pm_process_count}")
+
+
         super().__init__(
             metric_name='powermetrics',
             metrics={'time': int, 'value': int},
@@ -35,15 +41,18 @@ class PowermetricsProvider(BaseMetricProvider):
             '-o',
             self._filename]
 
-    def check_system(self):
-            if self.is_powermetrics_running():
-                raise MetricProviderConfigurationError('Another instance of powermetrics is already running on the system!\nPlease close it before running the Green Metrics Tool.')
 
-    def is_powermetrics_running(self):
-        ps = subprocess.run(['pgrep', '-qx', 'powermetrics'], check=False)
-        if ps.returncode == 1:
-            return False
-        return True
+    def check_system(self):
+        if self._pm_process_count > 0:
+            raise MetricProviderConfigurationError('Another instance of powermetrics is already running on the system!\n'
+                                                   'Please close it before running the Green Metrics Tool.\n'
+                                                   'You can also override this with --skip-system-checks\n')
+
+    def is_our_powermetrics_running(self):
+        pw_processes = subprocess.check_output(['pgrep', '-ix', 'powermetrics'], text=True)
+        total_count = len(pw_processes.strip().split('\n')) if pw_processes else 0
+        minus_startup = total_count -  self._pm_process_count
+        return  minus_startup >= 1
 
 
     def stop_profiling(self):
@@ -51,27 +60,25 @@ class PowermetricsProvider(BaseMetricProvider):
             # We try calling the parent method but if this doesn't work we use the more hardcore approach
             super().stop_profiling()
         except PermissionError:
-            #This isn't the nicest way of doing this but there isn't really any other way that is nicer
+            # This isn't the nicest way of doing this but there isn't really any other way that is nicer that doesn't
+            # open up a huge security hole
             subprocess.check_output('sudo /usr/bin/killall powermetrics', shell=True)
             print('Killed powermetrics process with killall!')
+            if self._pm_process_count > 0:
+                print('----------------------------------------------------------------------------------------------')
+                print('This means we will have also killed the already running powermetrics process. Please restart!')
+                print('----------------------------------------------------------------------------------------------')
 
         # As killall returns right after sending the SIGKILL we need to wait and make sure that the process
         # had time to flush everything to disk
-        if self._skip_check:
-            # When this is the case there is probably another powermetrics process running. Which isn't really
-            # that big of a problem but just doesn't work with the way we have implemented this. As the user
-            # has decided to not check anything we will just sleep and assume everything is fine. Not ideal but
-            # will work for now.
-            time.sleep(10)
-        else:
-            count = 0
-            while self.is_powermetrics_running():
-                print(f"Waiting for powermetrics to shut down (try {count}/60). Please do not abort ...")
-                time.sleep(1)
-                count += 1
-                if count >= 60:
-                    subprocess.check_output('sudo /usr/bin/killall -9 powermetrics', shell=True)
-                    raise RuntimeError('powermetrics had to be killed with kill -9. Values can not be trusted!')
+        count = 0
+        while self.is_our_powermetrics_running():
+            print(f"Waiting for powermetrics to shut down (try {count}/60). Please do not abort ...")
+            time.sleep(1)
+            count += 1
+            if count >= 60:
+                subprocess.check_output('sudo /usr/bin/killall -9 powermetrics', shell=True)
+                raise RuntimeError('powermetrics had to be killed with kill -9. Values can not be trusted!')
 
         self._ps = None
 
