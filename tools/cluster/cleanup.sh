@@ -1,3 +1,5 @@
+#!/bin/bash
+
 echo "apt-daily-upgrade"
 /usr/lib/apt/apt.systemd.daily update
 
