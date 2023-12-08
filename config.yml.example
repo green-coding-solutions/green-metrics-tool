@@ -56,65 +56,65 @@ measurement:
     linux:
     #--- Always-On - We recommend these providers to be always enabled
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
-        resolution: 100
+        resolution: 99
     #--- CGroupV2 - Turn these on if you have CGroupsV2 working on your machine
       cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
-        resolution: 100
+        resolution: 99
       memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider:
-        resolution: 100
+        resolution: 99
       network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
-        resolution: 100
+        resolution: 99
     #--- RAPL - Only enable these if you have RAPL enabled on your machine
 #      cpu.energy.RAPL.MSR.component.provider.CpuEnergyRaplMsrComponentProvider:
-#        resolution: 100
+#        resolution: 99
 #      memory.energy.RAPL.MSR.component.provider.MemoryEnergyRaplMsrComponentProvider:
-#        resolution: 100
+#        resolution: 99
     #--- Machine Energy - These providers need special hardware / lab equipment to work
 #      psu.energy.ac.gude.machine.provider.PsuEnergyAcGudeMachineProvider:
-#        resolution: 100
+#        resolution: 99
 #      psu.energy.ac.powerspy2.machine.provider.PsuEnergyAcPowerspy2MachineProvider:
 #        resolution: 250
 #      psu.energy.ac.mcp.machine.provider.PsuEnergyAcMcpMachineProvider:
-#        resolution: 100
+#        resolution: 99
 #      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
-#        resolution: 100
+#        resolution: 99
     #--- Sensors - these providers need the lm-sensors package installed
 #      lm_sensors.temperature.component.provider.LmSensorsTemperatureComponentProvider:
-#        resolution: 100
+#        resolution: 99
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000', 'coretemp-isa-0000']
 #        features: ['CPU', 'Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
 #      lm_sensors.fan.component.provider.LmSensorsFanComponentProvider:
-#        resolution: 100
+#        resolution: 99
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000']
 #        features: ['fan1', 'fan2']
     #--- Debug - These providers should only be needed for debugging and introspection purposes
 #      cpu.frequency.sysfs.core.provider.CpuFrequencySysfsCoreProvider:
-#        resolution: 100
+#        resolution: 99
 #      cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
-#        resolution: 100
+#        resolution: 99
 #      cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider:
-#        resolution: 100
+#        resolution: 99
 #      cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider:
-#        resolution: 100
+#        resolution: 99
     #--- Architecture - MacOS
     macos:
     #--- MacOS: On Mac you only need this provider. Please remove all others!
       powermetrics.provider.PowermetricsProvider:
-        resolution: 100
+        resolution: 99
     #--- Architecture - Common
     common:
 #      network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
 ##        host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails
     #--- Model based - These providers estimate rather than measure. Helpful where measuring is not possible, like in VMs
 #      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
-#        resolution: 100
+#        resolution: 99
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        TDP: 65
 #      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
-#        resolution: 100
+#        resolution: 99
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        HW_CPUFreq: 3200
