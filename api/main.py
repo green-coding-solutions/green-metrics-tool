@@ -634,11 +634,11 @@ async def hog_add(measurements: List[HogMeasurement]):
         try:
             _ = Measurement(**measurement_data)
         except (ValidationError, RequestValidationError) as exc:
-            print(f"Caught Exception in Measurement() {exc.__class__.__name__} {exc}")
+            print('Caught Exception in Measurement()', exc.__class__.__name__, exc)
+            print('Hog parsing error. Missing expected, but non critical key', str(exc))
             # Output is extremely verbose. Please only turn on if debugging manually
             # print(f"Errors are: {exc.errors()}")
-            if GlobalConfig().config['admin']['no_emails'] is False:
-                email_helpers.send_admin_email('Hog parsing error', str(exc))
+
 
         try:
             validate_measurement_data(measurement_data)
