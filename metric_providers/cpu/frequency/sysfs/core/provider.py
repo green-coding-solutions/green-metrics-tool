@@ -20,5 +20,6 @@ class CpuFrequencySysfsCoreProvider(BaseMetricProvider):
                 with open(file_path, 'r', encoding='utf-8') as file:
                     file.read()
             except PermissionError as exc:
-                raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot read the path for the CPU frequency in sysfs.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml") from exc
-        raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCould not find the path for the CPU frequency in sysfs.\n\nAre you running in a VM / cloud / shared hosting? \nIf so please disable the {self._metric_name} provider in the config.yml")
+                raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot read {file_path}.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml") from exc
+        else:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCould not find {file_path}.\n\nAre you running in a VM / cloud / shared hosting? \nIf so please disable the {self._metric_name} provider in the config.yml")

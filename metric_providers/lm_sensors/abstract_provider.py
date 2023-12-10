@@ -3,8 +3,9 @@
 # Discussion is here https://github.com/green-coding-berlin/green-metrics-tool/issues/39
 
 import os
+import subprocess
 from lib.global_config import GlobalConfig
-from metric_providers.base import BaseMetricProvider
+from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
 
 class LmSensorsProvider(BaseMetricProvider):
 
@@ -37,3 +38,23 @@ class LmSensorsProvider(BaseMetricProvider):
             current_dir=os.path.dirname(os.path.abspath(__file__)),
         )
         self._extra_switches = self._create_options()
+
+    def check_system(self):
+        # Run 'sensors' command and capture the output
+        ps = subprocess.run(['sensors'], capture_output=True, text=True, check=False)
+        if ps.returncode != 0:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot run the 'sensors' command. Did you install lm_sensors?.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
+
+        provider_config = GlobalConfig().config['measurement']['metric-providers']['linux']\
+            [self._provider_config_path]
+
+        for config_chip in provider_config['chips']:
+            matching_chips = [chip for chip in ps.stdout.split('\n\n') if chip.startswith(config_chip)]
+
+            if not matching_chips:
+                raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot find a chip starting with '{config_chip}' in output of 'sensors' command.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
+
+            for chip_section in matching_chips:
+                for feature in provider_config['features']:
+                    if feature not in chip_section:
+                        raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot find feature '{feature}' in the output section for chip starting with '{config_chip}' of the 'sensors' command.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")

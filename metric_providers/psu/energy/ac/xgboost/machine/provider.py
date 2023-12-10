@@ -7,7 +7,8 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(CURRENT_DIR)
 
 import model.xgb as mlmodel
-from metric_providers.base import BaseMetricProvider
+from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
+from lib.global_config import GlobalConfig
 
 class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
     def __init__(self, *, resolution, HW_CPUFreq, CPUChips, CPUThreads, TDP,
@@ -34,6 +35,14 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
     # All work is done by reading system cpu utilization file
     def start_profiling(self, containers=None):
         self._has_started = True
+
+    #TODO: not a fan of using the full key name here. any way to avoid this?
+    # keeping original checks in read_metrics for now
+    def check_system(self):
+        config = GlobalConfig().config
+        if 'cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider' not in config['measurement']['metric-providers']['linux']:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease activate the CpuUtilizationProcfsSystemProvider in the config.yml\n \
+                This is required to run PsuEnergyAcSdiaMachineProvider")
 
     def read_metrics(self, run_id, containers=None):
 

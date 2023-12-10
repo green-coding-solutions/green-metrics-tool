@@ -1,6 +1,7 @@
 import os
+import subprocess
 
-from metric_providers.base import BaseMetricProvider
+from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
 
 class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
     def __init__(self, resolution):
@@ -43,3 +44,9 @@ class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
         df = df.drop(columns='interval')  # clean up
 
         return df
+
+    def check_system(self):
+        # Run 'sensors' command and capture the output
+        ps = subprocess.run(['sudo', '/usr/sbin/ipmi-dcmi', '--get-system-power-statistics'], capture_output=True, text=True, check=False)
+        if ps.returncode != 0:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot run the 'sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics' command.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")

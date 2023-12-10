@@ -2,7 +2,8 @@ import os
 from io import StringIO
 import pandas
 
-from metric_providers.base import BaseMetricProvider
+from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
+from lib.global_config import GlobalConfig
 
 class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
     def __init__(self, *, resolution, CPUChips, TDP):
@@ -24,6 +25,22 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
     # All work is done by reading system cpu utilization file
     def start_profiling(self, containers=None):
         self._has_started = True
+
+
+    #TODO: not a fan of using the full key name here. any way to avoid this?
+    # keeping original checks in read_metrics for now
+    def check_system(self):
+        config = GlobalConfig().config
+        provider_config = config['measurement']['metric-providers']['common']['psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider']
+
+        if not provider_config['CPUChips']:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease set the CPUChips config option for PsuEnergyAcSdiaMachineProvider in the config.yml")
+        if not provider_config['TDP']:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease set the TDP config option for PsuEnergyAcSdiaMachineProvider in the config.yml")
+
+        if 'cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider' not in config['measurement']['metric-providers']['linux']:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease activate the CpuUtilizationProcfsSystemProvider in the config.yml\n \
+                This is required to run PsuEnergyAcSdiaMachineProvider")
 
     def read_metrics(self, run_id, containers=None):
 
