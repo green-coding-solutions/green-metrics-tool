@@ -9,3 +9,7 @@ This script expects the GUDE Powermeter to be fixed on the IP 192.168.178.32
 - Install requests: `pip3 install requests`
 - Run: `python3 check_gude.py`
 
+
+This metric providers is no longer officially mainted by us anymore, but remains here for backwards compatability.
+
+This provider was initially meant to be sued with the same power meter the blauer engel team used, the [Gude Expert Power Control 1202](https://gude-systems.com/en/products/expert-power-control-1202/). Please find technical specifications on the manufactor's website.
