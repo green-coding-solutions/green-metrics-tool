@@ -1141,14 +1141,15 @@ class Runner:
             if log.stdout:
                 self.add_to_log(container_id, f"stdout: {log.stdout}")
 
-                for line in log.stdout.splitlines():
-                    if container_info['read-notes-stdout']:
-                        if note := self.__notes_helper.parse_note(line):
-                            self.__notes_helper.add_note({'note': note[1], 'detail_name': container_info['name'], 'timestamp': note[0]})
+                if container_info['read-notes-stdout'] or container_info['read-sci-stdout']:
+                    for line in log.stdout.splitlines():
+                        if container_info['read-notes-stdout']:
+                            if note := self.__notes_helper.parse_note(line):
+                                self.__notes_helper.add_note({'note': note[1], 'detail_name': container_info['name'], 'timestamp': note[0]})
 
-                    if container_info['read-sci-stdout']:
-                        if match := re.findall(r'GMT_SCI_R=(\d+)', line):
-                            self._sci['R'] += int(match[0])
+                        if container_info['read-sci-stdout']:
+                            if match := re.findall(r'GMT_SCI_R=(\d+)', line):
+                                self._sci['R'] += int(match[0])
 
             if log.stderr:
                 self.add_to_log(container_id, f"stderr: {log.stderr}")
