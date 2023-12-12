@@ -638,27 +638,31 @@ class Runner:
             self.__networks.append(network)
             self.__join_default_network = True
 
-    # Order service names based on 'depends_on'
-    def order_service_names(self, order_array, service_name, visited=None):
-        if visited is None:
-            visited = set()
-        if service_name in visited:
-            raise RuntimeError(f"Cycle found in depends_on definition with service '{service_name}'!")
-        visited.add(service_name)
+    def order_services(self, services):
+        names_ordered = []
+        def order_service_names(service_name, visited=None):
+            if visited is None:
+                visited = set()
+            if service_name in visited:
+                raise RuntimeError(f"Cycle found in depends_on definition with service '{service_name}'!")
+            visited.add(service_name)
 
-        service = self._usage_scenario['services'][service_name]
+            service = services[service_name]
+            if 'depends_on' in service:
+                if isinstance(service['depends_on'], dict):
+                    raise RuntimeError(f"Service definition of {service_name} uses the long form of 'depends_on', however, GMT only supports the short form!")
+                for dep in service['depends_on']:
+                    if dep not in names_ordered:
+                        order_service_names(dep, visited)
 
-        if 'depends_on' in service:
-            if isinstance(service['depends_on'], dict):
-                raise RuntimeError(f"Service definition of {service_name} uses the long form of 'depends_on', however, GMT only supports the short form!")
-            for dep in service['depends_on']:
-                if dep not in order_array:
-                    order_array = self.order_service_names(order_array, dep, visited)
-        
-        if service_name not in order_array:
-            order_array.append(service_name)
+            if service_name not in names_ordered:
+                names_ordered.append(service_name)
 
-        return order_array
+        # Iterate over all services and sort them with the recursive function 'order_service_names'
+        for service_name in services.keys():
+            order_service_names(service_name)
+        print("Startup order: ", names_ordered)
+        return OrderedDict((key, services[key]) for key in names_ordered)
 
     def setup_services(self):
         config = GlobalConfig().config
@@ -667,14 +671,9 @@ class Runner:
         # This use case is when you have running containers on your host and want to benchmark some code running in them
         services = self._usage_scenario.get('services', {})
 
-        order_of_service_names = []
-        # Check if there are dependencies defined with 'depends_on'.
+        # Check if there are service dependencies defined with 'depends_on'.
         # If so, change the order of the services accordingly.
-        for service_name in services.keys():
-            order_of_service_names = self.order_service_names(order_of_service_names, service_name)
-        services_ordered = OrderedDict((key, services[key]) for key in order_of_service_names)
-        print("Startup order: ", order_of_service_names)
-
+        services_ordered = self.order_services(services)
         for service_name, service in services_ordered.items():
 
             if 'container_name' in service:
