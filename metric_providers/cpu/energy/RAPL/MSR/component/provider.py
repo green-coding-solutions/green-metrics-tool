@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
 
@@ -26,6 +27,6 @@ class CpuEnergyRaplMsrComponentProvider(BaseMetricProvider):
 
     # only check for existence
     def check_system(self):
-        file_path = "/dev/cpu/0/msr"
-        if not os.path.exists(file_path):
-            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCould not find the path for the RAPL MSR at {file_path}.\n\nAre you running in a VM / cloud / shared hosting? \nIf so please disable the {self._metric_name} provider in the config.yml")
+        ps = subprocess.run(['./metric-provider-binary', '-c'], capture_output=True, text=True, check=False)
+        if ps.returncode != 0:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nError: {ps.stderr}\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
