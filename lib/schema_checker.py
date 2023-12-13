@@ -102,6 +102,8 @@ class SchemaChecker():
                     Optional("volumes"): self.single_or_list(str),
                     Optional("folder-destination"):str,
                     Optional("cmd"): str,
+                    Optional("log-stdout"): bool,
+                    Optional("log-stderr"): bool,
                     Optional("read-notes-stdout"): bool,
                     Optional("read-sci-stdout"): bool,
                 }
