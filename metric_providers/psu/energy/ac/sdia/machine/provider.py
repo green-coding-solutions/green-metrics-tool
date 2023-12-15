@@ -27,11 +27,13 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
         self._has_started = True
 
 
-    #TODO: not a fan of using the full key name here. any way to avoid this?
+    #TODO: not a fan of using the full key name here (for CpuUtilizationProcfsSystemProvider). any way to avoid this?
     # keeping original checks in read_metrics for now
     def check_system(self):
         config = GlobalConfig().config
-        provider_config = config['measurement']['metric-providers']['common']['psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider']
+        file_path = os.path.dirname(os.path.abspath(__file__))
+        provider_name = file_path[file_path.find("metric_providers") + len("metric_providers") + 1:].replace("/", ".") + ".provider." + self.__class__.__name__
+        provider_config = config['measurement']['metric-providers']['common'][provider_name]
 
         if not provider_config['CPUChips']:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease set the CPUChips config option for PsuEnergyAcSdiaMachineProvider in the config.yml")
