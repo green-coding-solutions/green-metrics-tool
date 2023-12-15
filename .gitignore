@@ -18,3 +18,4 @@ tests/structure.sql
 tools/sgx_enable
 venv/
 lib/hardware_info_root.py
+tools/cluster/cleanup.sh
