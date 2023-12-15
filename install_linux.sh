@@ -158,6 +158,12 @@ sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.p
 sudo chown root:root $PWD/lib/hardware_info_root.py
 sudo chmod 755 $PWD/lib/hardware_info_root.py
 
+print_message "Setting the cluster cleanup.sh file to be owned by root"
+sudo cp -f $PWD/tools/cluster/cleanup_original.sh $PWD/tools/cluster/cleanup.sh
+sudo chown root:root $PWD/tools/cluster/cleanup.sh
+sudo chmod 755 $PWD/tools/cluster/cleanup.sh
+sudo chmod +x $PWD/tools/cluster/cleanup.sh
+
 print_message "Installing IPMI tools"
 if lsb_release -is | grep -q "Fedora"; then
     sudo dnf -y install ipmitool
