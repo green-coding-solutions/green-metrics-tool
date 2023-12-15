@@ -282,39 +282,32 @@ const displayTimelineCharts = (metrics, notes) => {
 
 
 
-async function makeAPICalls(url_params) {
+async function makeBaseAPICalls(url_params) {
+
+    let run_data = null;
+    let phase_stats_data = null;
+    let network_data = null;
 
     try {
-        var run_data = await makeAPICall('/v1/run/' + url_params.get('id'))
+        run_data = await makeAPICall('/v1/run/' + url_params.get('id'))
     } catch (err) {
         showNotification('Could not get run data from API', err);
     }
 
     try {
-        var measurement_data = await makeAPICall('/v1/measurements/single/' + url_params.get('id'))
-    } catch (err) {
-        showNotification('Could not get stats data from API', err);
-    }
-
-    try {
-        var notes_data = await makeAPICall('/v1/notes/' + url_params.get('id'))
-    } catch (err) {
-        showNotification('Could not get notes data from API', err);
-    }
-
-    try {
-        var network_data = await makeAPICall('/v1/network/' + url_params.get('id'))
-    } catch (err) {
-        showNotification('Could not get network intercepts data from API', err);
-    }
-
-    try {
-        var phase_stats_data = await makeAPICall('/v1/phase_stats/single/' + url_params.get('id'))
+        phase_stats_data = await makeAPICall('/v1/phase_stats/single/' + url_params.get('id'))
     } catch (err) {
         showNotification('Could not get phase_stats data from API', err);
     }
 
-    return [run_data?.data, measurement_data?.data, notes_data?.data, phase_stats_data?.data, network_data?.data];
+    try {
+        network_data = await makeAPICall('/v1/network/' + url_params.get('id'))
+    } catch (err) {
+        showNotification('Could not get network intercepts data from API', err);
+    }
+
+
+    return [run_data?.data, phase_stats_data?.data, network_data?.data];
 }
 
 const renderBadges = (url_params) => {
@@ -355,10 +348,48 @@ const getURLParams = () => {
     return url_params;
 }
 
+async function getDetailedMeasurements() {
+    document.querySelector('#api-loader').style.display = '';
+
+    document.querySelector('#loader-question').remove();
+
+    let measurement_data = null;
+    let note_data = null;
+    let url_params = getURLParams();
+    if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
+        showNotification('No run id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
+        return;
+    }
+
+    try {
+        measurement_data = await makeAPICall('/v1/measurements/single/' + url_params.get('id'))
+    } catch (err) {
+        showNotification('Could not get stats data from API', err);
+    }
+
+    measurement_data = measurement_data?.data;
+
+     if (measurement_data == null) return;
+    const metrics = getTimelineMetrics(measurement_data);
+
+    try {
+        note_data = await makeAPICall('/v1/notes/' + url_params.get('id'))
+    } catch (err) {
+        showNotification('Could not get notes data from API', err);
+    }
+
+    note_data = note_data?.data;
+
+    if (note_data == null) return;
+    displayTimelineCharts(metrics, note_data);
+}
+
 
 /* Chart starting code*/
 $(document).ready( (e) => {
     (async () => {
+
+        document.querySelector('#fetch-detailed-data').addEventListener('click', getDetailedMeasurements);
 
         let url_params = getURLParams();
         if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
@@ -366,25 +397,24 @@ $(document).ready( (e) => {
             return;
         }
 
-        let [run_data, measurements_data, notes_data, phase_stats_data, network_data] = await makeAPICalls(url_params);
+        let [run_data, phase_stats_data, network_data] = await makeBaseAPICalls(url_params);
 
         if (run_data == undefined) return;
 
         renderBadges(url_params);
 
         fillRunData(run_data);
+        console.log(phase_stats_data);
 
         if(phase_stats_data != null) {
             displayComparisonMetrics(phase_stats_data)
         }
 
-        if (measurements_data == undefined) return;
-        const metrics = getTimelineMetrics(measurements_data);
+        if (localStorage.getItem('fetch_detailed_measurements') === 'true') {
+            getDetailedMeasurements(url_params);
+        }
 
-        if (notes_data == undefined) return;
-        displayTimelineCharts(metrics, notes_data);
-
-        displayNetworkIntercepts(network_data);
+        //displayNetworkIntercepts(network_data);
 
         // after all charts instances have been placed
         // the flexboxes might have rearranged. We need to trigger resize
