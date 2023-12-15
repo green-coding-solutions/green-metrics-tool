@@ -7,9 +7,9 @@ var display_in_metric_units = localStorage.getItem('display_in_metric_units');
 if(display_in_metric_units == 'true') display_in_metric_units = true;
 else display_in_metric_units = false;
 
-var fetch_detailed_measurements = localStorage.getItem('fetch_detailed_measurements');
-if(fetch_detailed_measurements == 'true') fetch_detailed_measurements = true;
-else fetch_detailed_measurements = false;
+var fetch_time_series = localStorage.getItem('fetch_time_series');
+if(fetch_time_series == 'true') fetch_time_series = true;
+else fetch_time_series = false;
 
 let toggleWatts = () => {
     localStorage.setItem('display_in_watts', !display_in_watts);
@@ -21,8 +21,8 @@ let toggleUnits = () => {
     window.location.reload();
 }
 
-let toggleDetailedMeasurements = () => {
-    localStorage.setItem('fetch_detailed_measurements', !fetch_detailed_measurements);
+let toggleTimeSeries = () => {
+    localStorage.setItem('fetch_time_series', !fetch_time_series);
     window.location.reload();
 }
 
@@ -38,8 +38,8 @@ let toggleDetailedMeasurements = () => {
       if(display_in_metric_units) $("#units-display").text("Currently showing metric units");
       else $("#units-display").text("Currently showing imperial units");
 
-      if(fetch_detailed_measurements) $("#fetch-detailed-measurements-display").text("Currently fetching detailed measurements by default");
-      else $("#fetch-detailed-measurements-display").text("Currently not fetching detailed measurements by default");
+      if(fetch_time_series) $("#fetch-time-series-display").text("Currently fetching time series by default");
+      else $("#fetch-time-series-display").text("Currently not fetching time series by default");
 
 
     });

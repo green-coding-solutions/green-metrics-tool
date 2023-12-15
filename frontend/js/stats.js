@@ -348,7 +348,7 @@ const getURLParams = () => {
     return url_params;
 }
 
-async function getDetailedMeasurements() {
+async function getTimeSeries() {
     document.querySelector('#api-loader').style.display = '';
 
     document.querySelector('#loader-question').remove();
@@ -389,7 +389,7 @@ async function getDetailedMeasurements() {
 $(document).ready( (e) => {
     (async () => {
 
-        document.querySelector('#fetch-detailed-data').addEventListener('click', getDetailedMeasurements);
+        document.querySelector('#fetch-time-series').addEventListener('click', getTimeSeries);
 
         let url_params = getURLParams();
         if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
@@ -411,8 +411,8 @@ $(document).ready( (e) => {
             displayComparisonMetrics(phase_stats_data)
         }
 
-        if (localStorage.getItem('fetch_detailed_measurements') === 'true') {
-            getDetailedMeasurements(url_params);
+        if (localStorage.getItem('fetch_time_series') === 'true') {
+            getTimeSeries(url_params);
         }
 
         // after all charts instances have been placed
