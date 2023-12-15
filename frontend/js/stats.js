@@ -404,7 +404,8 @@ $(document).ready( (e) => {
         renderBadges(url_params);
 
         fillRunData(run_data);
-        console.log(phase_stats_data);
+
+        displayNetworkIntercepts(network_data);
 
         if(phase_stats_data != null) {
             displayComparisonMetrics(phase_stats_data)
@@ -413,8 +414,6 @@ $(document).ready( (e) => {
         if (localStorage.getItem('fetch_detailed_measurements') === 'true') {
             getDetailedMeasurements(url_params);
         }
-
-        //displayNetworkIntercepts(network_data);
 
         // after all charts instances have been placed
         // the flexboxes might have rearranged. We need to trigger resize
