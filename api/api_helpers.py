@@ -81,9 +81,14 @@ def html_escape_multi(item):
 
 def get_machine_list():
     query = """
-            SELECT id, description, available
-            FROM machines
-            ORDER BY description ASC
+            SELECT
+                m.id, m.description, m.available,
+                m.status_code,
+                m.updated_at,
+                m.sleep_time_after_job,
+                (SELECT COUNT(id) FROM jobs as j WHERE j.machine_id = m.id AND j.state = 'WAITING')
+            FROM machines as m
+            ORDER BY m.description DESC
             """
     return DB().fetch_all(query)
 

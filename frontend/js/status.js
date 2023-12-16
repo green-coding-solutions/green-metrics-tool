@@ -16,5 +16,28 @@ $(document).ready(function () {
             deferRender: true,
             order: [[7, 'desc']] // API also orders, but we need to indicate order for the user
         });
+        $('#machines-table').DataTable({
+            ajax: `${API_URL}/v1/machines`,
+            searching: false,
+            columns: [
+                { data: 0, title: 'ID'},
+                { data: 1, title: 'Name'},
+                { data: 2, title: 'Available'},
+                { data: 3, title: 'Status'},
+                { data: 4, title: 'Status date'},
+                { data: 5, title: 'Cooldown after Job', render: function(el) {
+                    return `${el/60} Minutes`
+                }},
+                { data: 6, title: 'Waiting Jobs'},
+                { data: 5, title: 'Estimated waiting time', render: function(el, type, row) {
+                    // 900 Seconds is current average job time. WE add this to the amount of waiting time
+                    return `${( (900+row[5]) * row[6]) / 60} Minutes`
+                }},
+            ],
+            deferRender: true,
+            //order: [[7, 'desc']] // API also orders, but we need to indicate order for the user
+        });
+
+
     })();
 });

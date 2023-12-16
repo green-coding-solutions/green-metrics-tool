@@ -27,6 +27,14 @@ def set_status(status_code, data=None, run_id=None):
     params = (status_code, GlobalConfig().config['machine']['id'], data, run_id)
     DB().query(query=query, params=params)
 
+    query = """
+        UPDATE machines
+        SET status_code=%s, sleep_time_after_job=%s
+        WHERE id = %s
+    """
+    params = (status_code, GlobalConfig().config['client']['sleep_time_after_job'], GlobalConfig().config['machine']['id'])
+    DB().query(query=query, params=params)
+
 
 # pylint: disable=broad-exception-caught
 if __name__ == '__main__':
