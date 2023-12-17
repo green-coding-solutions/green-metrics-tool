@@ -224,8 +224,8 @@ class Runner:
             self.__folder = self._uri
             if self._branch:
                 subprocess.check_output(['git', 'checkout', self._branch], cwd=self.__folder, encoding='UTF-8')
-            else:
-                self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self.__folder, encoding='UTF-8').strip()
+
+        self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self.__folder, encoding='UTF-8').strip()
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
