@@ -355,10 +355,15 @@ def test_uri_github_repo():
 #    Optionally specify the git branch when targeting a git repository
 def test_uri_local_branch():
     runner = Tests.setup_runner(usage_scenario='basic_stress.yml', branch='main')
-    current_branch = subprocess.check_output(
-        ['git', 'branch', '--show-current'],
-        cwd=f"{runner._tmp_folder}/repo",
-    encoding='UTF-8').strip()
+    try:
+        Tests.run_until(runner, 'import_metric_providers')
+    finally:
+        current_branch = subprocess.check_output(
+            ['git', 'branch', '--show-current'],
+            cwd=f"{runner._tmp_folder}/repo",
+            encoding='UTF-8'
+        ).strip()
+        Tests.cleanup(runner)
 
     assert current_branch == 'main', \
         Tests.assertion_info('Branches did not match: main', current_branch)

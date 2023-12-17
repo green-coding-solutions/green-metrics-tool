@@ -67,6 +67,8 @@ def run_until(runner, step):
         runner.checkout_repository()
         runner.initialize_run()
         runner.initial_parse()
+        if step == 'import_metric_providers':
+            return
         runner.import_metric_providers()
         runner.populate_image_names()
         runner.check_running_containers()
