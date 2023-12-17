@@ -103,17 +103,15 @@ def get_run_info(run_id):
     return DB().fetch_one(query, params=params, row_factory=psycopg_rows_dict_row)
 
 
-def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, limit_365=False, sorting='run'):
+def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, limit_365=False, sorting='run'):
 
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
 
-    params = [uri, filename, machine_id, f"%{phase}"]
+    if branch is None or branch.strip() != '':
+        branch = 'main'
 
-    branch_condition = 'AND r.branch IS NULL'
-    if branch is not None and branch.strip() != '':
-        branch_condition = 'AND r.branch = %s'
-        params.append(branch)
+    params = [uri, filename, branch, machine_id, f"%{phase}"]
 
     metrics_condition = ''
     if metrics is None or metrics.strip() == '' or metrics.strip() == 'key':
@@ -156,10 +154,10 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
             WHERE
                 r.uri = %s
                 AND r.filename = %s
+                AND r.branch = %s
                 AND r.end_measurement IS NOT NULL
                 AND r.machine_id = %s
                 AND p.phase LIKE %s
-                {branch_condition}
                 {metrics_condition}
                 {start_date_condition}
                 {end_date_condition}
@@ -171,13 +169,14 @@ def get_timeline_query(uri,filename,machine_id, branch, metrics, phase, start_da
                 p.phase ASC, {sorting_condition}
 
             """
+
     return (query, params)
 
 def determine_comparison_case(ids):
 
     query = '''
             WITH uniques as (
-                SELECT uri, filename, machine_id, commit_hash, COALESCE(branch, 'main / master') as branch FROM runs
+                SELECT uri, filename, machine_id, commit_hash, branch FROM runs
                 WHERE id = ANY(%s::uuid[])
                 GROUP BY uri, filename, machine_id, commit_hash, branch
             )
@@ -277,7 +276,7 @@ def get_phase_stats(ids):
     query = """
             SELECT
                 a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.min_value, a.unit,
-                b.uri, c.description, b.filename, b.commit_hash, COALESCE(b.branch, 'main / master') as branch
+                b.uri, c.description, b.filename, b.commit_hash, b.branch
             FROM phase_stats as a
             LEFT JOIN runs as b on b.id = a.run_id
             LEFT JOIN machines as c on c.id = b.machine_id

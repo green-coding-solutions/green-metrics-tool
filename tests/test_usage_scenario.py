@@ -354,14 +354,14 @@ def test_uri_github_repo():
 ## --branch BRANCH
 #    Optionally specify the git branch when targeting a git repository
 def test_uri_local_branch():
-    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', branch='test-branch')
-    out = io.StringIO()
-    err = io.StringIO()
-    with redirect_stdout(out), redirect_stderr(err), pytest.raises(RuntimeError) as e:
-        runner.run()
-    expected_exception = 'Specified --branch but using local URI. Did you mean to specify a github url?'
-    assert str(e.value) == expected_exception, \
-        Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
+    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', branch='main')
+    current_branch = subprocess.check_output(
+        ['git', 'branch', '--show-current'],
+        cwd=f"{runner._tmp_folder}/repo",
+    encoding='UTF-8').strip()
+
+    assert current_branch == 'main', \
+        Tests.assertion_info('Branches did not match: main', current_branch)
 
     # basic positive case, branch prepped ahead of time
     # this branch has a different usage_scenario file name - basic_stress

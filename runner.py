@@ -115,6 +115,8 @@ class Runner:
         self._sci = {'R_d': None, 'R': 0}
         self._job_id = job_id
         self._arguments = locals()
+        self._commit_hash = None
+        self._commit_timestamp = None
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
 
@@ -146,12 +148,15 @@ class Runner:
             time.sleep(sleep_time)
 
     def initialize_run(self):
-            # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
+        # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
+
+        # we also update the branch here again, as this might not be main in case of local filesystem
+
         self.__run_id = DB().fetch_one("""
-                INSERT INTO runs (job_id, name, uri, email, branch, runner_arguments, created_at)
-                VALUES (%s, %s, %s, 'manual', %s, %s, NOW())
+                INSERT INTO runs (job_id, name, uri, email, branch, filename, commit_hash, commit_timestamp, runner_arguments, created_at)
+                VALUES (%s, %s, %s, 'manual', %s, %s, %s, %s, %s, NOW())
                 RETURNING id
-                """, params=(self._job_id, self._name, self._uri, self._branch, json.dumps(self._arguments)))[0]
+                """, params=(self._job_id, self._name, self._uri, self._branch, self._original_filename, self._commit_hash, self._commit_timestamp, json.dumps(self._arguments)))[0]
         return self.__run_id
 
     def initialize_folder(self, path):
@@ -216,38 +221,32 @@ class Runner:
                 )  # always name target-dir repo according to spec
 
         else:
-            if self._branch:
-                raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
             self.__folder = self._uri
+            if self._branch:
+                subprocess.check_output(['git', 'checkout', self._branch], cwd=self.__folder, encoding='UTF-8')
+            else:
+                self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self.__folder, encoding='UTF-8').strip()
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
-        commit_hash = subprocess.run(
+        self._commit_hash = subprocess.run(
             ['git', 'rev-parse', 'HEAD'],
             check=True,
             capture_output=True,
             encoding='UTF-8',
             cwd=self.__folder
         )
-        commit_hash = commit_hash.stdout.strip("\n")
+        self._commit_hash = self._commit_hash.stdout.strip("\n")
 
-        commit_timestamp = subprocess.run(
+        self._commit_timestamp = subprocess.run(
             ['git', 'show', '-s', '--format=%ci'],
             check=True,
             capture_output=True,
             encoding='UTF-8',
             cwd=self.__folder
         )
-        commit_timestamp = commit_timestamp.stdout.strip("\n")
-        parsed_timestamp = datetime.strptime(commit_timestamp, "%Y-%m-%d %H:%M:%S %z")
-
-        DB().query("""
-            UPDATE runs
-            SET
-                commit_hash=%s,
-                commit_timestamp=%s
-            WHERE id = %s
-            """, params=(commit_hash, parsed_timestamp, self.__run_id))
+        self._commit_timestamp = self._commit_timestamp.stdout.strip("\n")
+        self._commit_timestamp = datetime.strptime(self._commit_timestamp, "%Y-%m-%d %H:%M:%S %z")
 
     # This method loads the yml file and takes care that the includes work and are secure.
     # It uses the tagging infrastructure provided by https://pyyaml.org/wiki/PyYAMLDocumentation
@@ -459,14 +458,13 @@ class Runner:
             UPDATE runs
             SET
                 machine_id=%s, machine_specs=%s, measurement_config=%s,
-                usage_scenario = %s, filename=%s, gmt_hash=%s
+                usage_scenario = %s, gmt_hash=%s
             WHERE id = %s
             """, params=(
             config['machine']['id'],
             escape(json.dumps(machine_specs), quote=False),
             json.dumps(measurement_config),
             escape(json.dumps(self._usage_scenario), quote=False),
-            self._original_filename,
             gmt_hash,
             self.__run_id)
         )
@@ -775,8 +773,7 @@ class Runner:
                     docker_run_string.append(f"{env_key}={env_value}")
 
                 if env_var_check_errors:
-                    raise RuntimeError("Docker container environment setup has problems:\n" + 
-                                       "\n".join(env_var_check_errors))
+                    raise RuntimeError('Docker container environment setup has problems:\n\n'.join(env_var_check_errors))
 
             if 'networks' in service:
                 for network in service['networks']:
@@ -1215,9 +1212,9 @@ class Runner:
         try:
             config = GlobalConfig().config
             self.check_system('start')
-            return_run_id = self.initialize_run()
             self.initialize_folder(self._tmp_folder)
             self.checkout_repository()
+            return_run_id = self.initialize_run()
             self.initial_parse()
             self.import_metric_providers()
             self.populate_image_names()
@@ -1449,7 +1446,7 @@ if __name__ == '__main__':
         error_helpers.log_error('Base exception occured in runner.py: ', e, successful_run_id)
     finally:
         if args.print_logs:
-            for container_id, std_out in runner.get_logs().items():
-                print(f"Container logs of '{container_id}':")
+            for container_id_outer, std_out in runner.get_logs().items():
+                print(f"Container logs of '{container_id_outer}':")
                 print(std_out)
-                print(f"\n-----------------------------\n")
+                print('\n-----------------------------\n')
