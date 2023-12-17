@@ -33,7 +33,7 @@ from tools.client import set_status
 def validate_stddev(repo_uri, filename, branch, machine_id, comparison_window, phase, metrics):
     query = """
         WITH LastXRows AS (
-            SELECT *
+            SELECT id
             FROM runs
             WHERE
                 uri = %s
@@ -46,8 +46,8 @@ def validate_stddev(repo_uri, filename, branch, machine_id, comparison_window, p
         ) SELECT
             metric, detail_name, phase, type,
             AVG(value) as "avg",
-            STDDEV(value) as "stddev",
-            (STDDEV(value) / AVG(value)) as "rel_stddev",
+            COALESCE(STDDEV(value), 0) as "stddev",
+            COALESCE(STDDEV(value) / AVG(value), 0) as "rel_stddev",
             unit
           FROM phase_stats
           WHERE
