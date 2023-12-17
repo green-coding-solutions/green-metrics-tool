@@ -27,20 +27,20 @@ from tools.phase_stats import build_and_store_phase_stats
 
 class Job:
     def __init__(self, state, name, email, url,  branch, filename, machine_id, run_id=None, job_id=None, machine_description=None):
-        self.id = job_id
-        self.state = state
-        self.name = name
-        self.email = email
-        self.url = url
-        self.branch = branch
-        self.filename = filename
-        self.machine_id = machine_id
-        self.machine_description = machine_description
-        self.run_id = run_id
+        self._id = job_id
+        self._state = state
+        self._name = name
+        self._email = email
+        self._url = url
+        self._branch = branch
+        self._filename = filename
+        self._machine_id = machine_id
+        self._machine_description = machine_description
+        self._run_id = run_id
 
     def check_measurement_job_running(self):
         query = "SELECT * FROM jobs WHERE state = 'RUNNING' AND machine_id = %s"
-        params = (self.machine_id,)
+        params = (self._machine_id,)
         data = DB().fetch_one(query, params=params)
         if data:
             error_helpers.log_error('Measurement-Job was still running: ', data)
@@ -61,19 +61,19 @@ class Job:
 
     def update_state(self, state):
         query_update = "UPDATE jobs SET state = %s WHERE id=%s"
-        params_update = (state, self.id,)
+        params_update = (state, self._id,)
         DB().query(query_update, params=params_update)
 
 
     def process(self, skip_system_checks=False, docker_prune=False, full_docker_prune=False):
         try:
-            if self.state == 'FINISHED':
+            if self._state == 'FINISHED':
                 self._do_email_job()
-            elif self.state == 'WAITING':
+            elif self._state == 'WAITING':
                 self._do_run_job(skip_system_checks, docker_prune, full_docker_prune)
             else:
                 raise RuntimeError(
-                    f"Job w/ id {self.id} has unknown state: {self.state}.")
+                    f"Job w/ id {self._id} has unknown state: {self._state}.")
         except Exception as exc:
             self.update_state('FAILED')
             raise exc
@@ -84,8 +84,8 @@ class Job:
             return
         self.update_state('NOTIFYING')
 
-        if GlobalConfig().config['admin']['no_emails'] is False and self.email:
-            email_helpers.send_report_email(self.email, self.run_id, self.name, machine=self.machine_description)
+        if GlobalConfig().config['admin']['no_emails'] is False and self._email:
+            email_helpers.send_report_email(self._email, self._run_id, self._name, machine=self._machine_description)
 
         self.update_state('NOTIFIED')
 
@@ -102,23 +102,24 @@ class Job:
         from runner import Runner
 
         runner = Runner(
-            name=self.name,
-            uri=self.url,
+            name=self._name,
+            uri=self._url,
             uri_type='URL',
-            filename=self.filename,
-            branch=self.branch,
+            filename=self._filename,
+            branch=self._branch,
             skip_unsafe=True,
             skip_system_checks=skip_system_checks,
             full_docker_prune=full_docker_prune,
             docker_prune=docker_prune,
-            job_id=self.id,
+            job_id=self._id,
         )
         try:
             # Start main code. Only URL is allowed for cron jobs
-            self.run_id = runner.run()
-            build_and_store_phase_stats(self.run_id, runner._sci)
+            self._run_id = runner.run()
+            build_and_store_phase_stats(self._run_id, runner._sci)
             self.update_state('FINISHED')
         except Exception as exc:
+            self._run_id = runner._run_id # might not be set yet, but we try
             raise exc
 
     @classmethod
