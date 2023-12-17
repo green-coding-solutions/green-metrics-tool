@@ -19,6 +19,7 @@ import faulthandler
 faulthandler.enable()  # will catch segfaults and write to stderr
 
 import sys
+import time
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -121,8 +122,11 @@ if __name__ == '__main__':
             print(TerminalColors.FAIL, 'Aborting!', TerminalColors.ENDC)
             raise RuntimeError(info_string_acc)
         print(TerminalColors.OKGREEN, f"Machine is operating normally. All STDDEV below {config['machine']['control_workload']['threshhold'] * 100} %", TerminalColors.ENDC)
+
         if config['admin']['no_emails'] is False and config['machine']['control_workload']['send_status_mail']:
             email_helpers.send_admin_email(f"Machine is operating normally. All STDDEV below {config['machine']['control_workload']['threshhold'] * 100} %", info_string_acc)
+
+        time.sleep(config['client']['sleep_time_after_job'])
 
     except Exception as exc:
         error_helpers.log_error('Base exception occurred in validate.py: ', exc, f"Please check under {config['cluster']['metrics_url']}/timeline.html?uri={config['machine']['control_workload']['uri']}&branch={config['machine']['control_workload']['branch']}&filename={config['machine']['control_workload']['filename']}&machine_id={config['machine']['id']}")
