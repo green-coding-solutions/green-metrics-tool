@@ -247,7 +247,7 @@ if __name__ == '__main__':
         if not job_main:
             print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'No job to process. Exiting')
             sys.exit(0)
-        print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'Processing Job ID#: ', job_main.id)
+        print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'Processing Job ID#: ', job_main._id)
         job_main.process(args.skip_system_checks, args.docker_prune, args.full_docker_prune)
         print('Successfully processed jobs queue item.')
     except Exception as exception:

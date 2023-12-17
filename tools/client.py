@@ -38,14 +38,14 @@ if __name__ == '__main__':
             set_status('job_no')
             time.sleep(GlobalConfig().config['client']['sleep_time_no_job'])
         else:
-            set_status('job_start', '', job.run_id)
+            set_status('job_start', '', job._run_id)
             try:
                 job.process(docker_prune=True)
             except Exception as exc:
-                set_status('job_error', str(exc), job.run_id)
+                set_status('job_error', str(exc), job._run_id)
                 handle_job_exception(exc, job)
             else:
-                set_status('job_end', '', job.run_id)
+                set_status('job_end', '', job._run_id)
 
             set_status('cleanup_start')
 
