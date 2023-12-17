@@ -221,9 +221,10 @@ class Runner:
                 )  # always name target-dir repo according to spec
 
         else:
-            self.__folder = self._uri
             if self._branch:
-                subprocess.check_output(['git', 'checkout', self._branch], cwd=self.__folder, encoding='UTF-8')
+                # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
+                raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
+            self.__folder = self._uri
 
         self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self.__folder, encoding='UTF-8').strip()
 
