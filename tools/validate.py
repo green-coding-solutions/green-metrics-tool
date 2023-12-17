@@ -126,6 +126,7 @@ if __name__ == '__main__':
         if config['admin']['no_emails'] is False and config['machine']['control_workload']['send_status_mail']:
             email_helpers.send_admin_email(f"Machine is operating normally. All STDDEV below {config['machine']['control_workload']['threshhold'] * 100} %", info_string_acc)
 
+        print('Sleeping for ', config['client']['sleep_time_after_job'] , 'seconds')
         time.sleep(config['client']['sleep_time_after_job'])
 
     except Exception as exc:
