@@ -338,8 +338,9 @@ class Runner:
             # creating benchmarking scripts and you want to have all options in the compose but not in each benchmark.
             # The cleaner way would be to handle an empty service key throughout the code but would make it quite messy
             # so we chose to remove it right at the start.
-            for key in [sname for sname, content in yml_obj['services'].items() if content is None]:
-                del yml_obj['services'][key]
+            if 'services' in yml_obj:
+                for key in [sname for sname, content in yml_obj['services'].items() if content is None]:
+                    del yml_obj['services'][key]
 
             self._usage_scenario = yml_obj
 
@@ -383,7 +384,7 @@ class Runner:
                         raise PermissionError(f"Container '{container_name}' is already running on system. Please close it before running the tool.")
 
     def populate_image_names(self):
-        for service_name, service in self._usage_scenario.get('services', []).items():
+        for service_name, service in self._usage_scenario.get('services', {}).items():
             if not service.get('image', None): # image is a non essential field. But we need it, so we tmp it
                 if self._dev_repeat_run:
                     service['image'] = f"{service_name}"
@@ -547,7 +548,7 @@ class Runner:
 
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
-        for _, service in self._usage_scenario.get('services', []).items():
+        for _, service in self._usage_scenario.get('services', {}).items():
             # minimal protection from possible shell escapes.
             # since we use subprocess without shell we should be safe though
             if re.findall(r'(\.\.|\$|\'|"|`|!)', service['image']):
@@ -646,15 +647,13 @@ class Runner:
     def setup_services(self):
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
-        for service_name in self._usage_scenario.get('services', []):
+        for service_name, service in self._usage_scenario.get('services', {}).items():
             print(TerminalColors.HEADER, '\nSetting up containers', TerminalColors.ENDC)
 
             if 'container_name' in self._usage_scenario['services'][service_name]:
                 container_name = self._usage_scenario['services'][service_name]['container_name']
             else:
                 container_name = service_name
-
-            service = self._usage_scenario['services'][service_name]
 
             print('Resetting container')
             # By using the -f we return with 0 if no container is found
