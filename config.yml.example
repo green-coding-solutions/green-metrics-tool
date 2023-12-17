@@ -38,6 +38,20 @@ machine:
   # Takes a file path to log all the errors to it. This is disabled if False
   error_log_file: False
   jobs_processing: random
+  control_workload:
+    name: "Measurement control Workload (on boot)"
+    uri: "https://github.com/green-coding-berlin/measurement-control-workload"
+    filename: "usage_scenario.yml"
+    branch: "main"
+    comparison_window: 5
+    threshhold: 0.01
+    send_status_mail: False
+    phase: "004_[RUNTIME]"
+    metrics:
+      - "psu_energy_ac_mcp_machine"
+      - "psu_power_ac_mcp_machine"
+      - "cpu_power_rapl_msr_component"
+      - "cpu_energy_rapl_msr_component"
 
 measurement:
   idle-time-start: 10

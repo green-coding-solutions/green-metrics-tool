@@ -13,7 +13,7 @@ from lib.global_config import GlobalConfig
 from lib.db import DB
 
 # We currently have this dynamically as it will probably change quite a bit
-STATUS_LIST = ['job_no', 'job_start', 'job_error', 'job_end', 'cleanup_start', 'cleanup_stop']
+STATUS_LIST = ['job_no', 'job_start', 'job_error', 'job_end', 'cleanup_start', 'cleanup_stop', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
 
 def set_status(status_code, data=None, run_id=None):
     if status_code not in STATUS_LIST:
@@ -27,8 +27,16 @@ def set_status(status_code, data=None, run_id=None):
     params = (status_code, GlobalConfig().config['machine']['id'], data, run_id)
     DB().query(query=query, params=params)
 
+    query = """
+        UPDATE machines
+        SET status_code=%s, sleep_time_after_job=%s
+        WHERE id = %s
+    """
+    params = (status_code, GlobalConfig().config['client']['sleep_time_after_job'], GlobalConfig().config['machine']['id'])
+    DB().query(query=query, params=params)
 
-# pylint: disable=broad-exception-caught
+
+# pylint: disable=broad-except
 if __name__ == '__main__':
 
     while True:
