@@ -45,9 +45,16 @@ class BaseMetricProvider:
 
         self.check_system()
 
-    # this is the default function that will be overridden in the children
+    # this is the default function that can be overridden in the children
+    # by default we expect the executable to have a -c switch to test functionality
     def check_system(self):
-        pass
+        call_string = self._metric_provider_executable
+        if self._metric_provider_executable[0] != '/':
+            call_string = f"{self._current_dir}/{call_string}"
+
+        ps = subprocess.run([f"{call_string}", '-c'], capture_output=True, encoding='UTF-8', check=False)
+        if ps.returncode != 0:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nError: {ps.stderr}\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
 
     # implemented as getter function and not direct access, so it can be overloaded
     # some child classes might not actually have _ps attribute set
