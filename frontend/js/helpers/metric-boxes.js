@@ -65,7 +65,7 @@ class PhaseMetrics extends HTMLElement {
             </div>
             <div class="ui card network-energy">
                 <div class="ui content">
-                    <div class="ui top blue attached label overflow-ellipsis">Network Transmission <span class="si-unit"></span></div>
+                    <div class="ui top blue attached label overflow-ellipsis">Network Transmission Energy<span class="si-unit"></span></div>
                     <div class="description">
                         <div class="ui fluid mini statistic">
                             <div class="value">
@@ -103,7 +103,7 @@ class PhaseMetrics extends HTMLElement {
             </div>
             <div class="ui card network-co2">
                 <div class="ui content">
-                    <div class="ui top black attached label overflow-ellipsis">Network CO2 <span class="si-unit"></span></div>
+                    <div class="ui top black attached label overflow-ellipsis">Network Transmission CO2 <span class="si-unit"></span></div>
                     <div class="description">
                         <div class="ui fluid mini statistic">
                             <div class="value">
