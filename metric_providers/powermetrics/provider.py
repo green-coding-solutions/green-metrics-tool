@@ -14,8 +14,6 @@ class PowermetricsProvider(BaseMetricProvider):
         # We get this value on init as we want to have to for check_system to work in the normal case
         pw_processes = subprocess.check_output(['pgrep', '-ix', 'powermetrics'], text=True)
         self._pm_process_count = len(pw_processes.strip().split('\n')) if pw_processes else 0
-        print(f"NUMBER BEFORE: {self._pm_process_count}")
-
 
         super().__init__(
             metric_name='powermetrics',
@@ -49,7 +47,7 @@ class PowermetricsProvider(BaseMetricProvider):
                                                    'You can also override this with --skip-system-checks\n')
 
     def is_our_powermetrics_running(self):
-        pw_processes = subprocess.check_output(['pgrep', '-ix', 'powermetrics'], text=True)
+        pw_processes = subprocess.check_output(['pgrep', '-ix', 'powermetrics'], encoding='UTF-8')
         total_count = len(pw_processes.strip().split('\n')) if pw_processes else 0
         minus_startup = total_count -  self._pm_process_count
         return  minus_startup >= 1
@@ -57,17 +55,25 @@ class PowermetricsProvider(BaseMetricProvider):
 
     def stop_profiling(self):
         try:
-            # We try calling the parent method but if this doesn't work we use the more hardcore approach
+            # We try calling the parent method which should work see
+            # https://github.com/green-coding-berlin/green-metrics-tool/pull/566#discussion_r1429891190
+            # but we keep the try to make sure that if we ever change the sudo call it still works
             super().stop_profiling()
         except PermissionError:
-            # This isn't the nicest way of doing this but there isn't really any other way that is nicer that doesn't
-            # open up a huge security hole
+            # We will land here in any case as stated before (root permissions missing). When we trigger *killall* now
+            # the process will be terminated. We opted for this implementation as other processes on the system, like
+            # for instance the power hog (https://github.com/green-coding-berlin/hog) should not be affected too much.
+            # They restart the process anyway when it gets killed. However manual processes that the user might have
+            # started will also be killed, so we issue a notice.
+            # There is really no better way of doing this as of now. Keeping the process id for instance in a hash and
+            # killing only that would also fail du to root permissions missing. If we add an /etc/sudoers entry with a
+            # wildcard for a PID we open up a security hole. Happy to take suggestions on this one!
             subprocess.check_output('sudo /usr/bin/killall powermetrics', shell=True)
             print('Killed powermetrics process with killall!')
             if self._pm_process_count > 0:
-                print('----------------------------------------------------------------------------------------------')
-                print('This means we will have also killed the already running powermetrics process. Please restart!')
-                print('----------------------------------------------------------------------------------------------')
+                print('-----------------------------------------------------------------------------------------------------------------')
+                print('This means we will have also killed any other already running powermetrics process. Please restart them if needed!')
+                print('-----------------------------------------------------------------------------------------------------------------')
 
         # As killall returns right after sending the SIGKILL we need to wait and make sure that the process
         # had time to flush everything to disk
