@@ -98,6 +98,7 @@ class SchemaChecker():
                     Optional("networks"): self.single_or_list(Use(self.contains_no_invalid_chars)),
                     Optional("environment"): self.single_or_list(Or(dict,str)),
                     Optional("ports"): self.single_or_list(Or(str, int)),
+                    Optional("depends_on"): Or([str],dict),
                     Optional("setup-commands"): [str],
                     Optional("volumes"): self.single_or_list(str),
                     Optional("folder-destination"):str,

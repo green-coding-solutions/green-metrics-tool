@@ -222,6 +222,56 @@ def get_contents_of_bound_volume(runner):
         Tests.cleanup(runner)
     return ls
 
+# depends_on: [array] (optional)
+# Array of container names to express dependencies
+def test_depends_on_order():
+    out = io.StringIO()
+    err = io.StringIO()
+    runner = Tests.setup_runner(usage_scenario='depends_on.yml', dry_run=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        try:
+            Tests.run_until(runner, 'setup_services')
+        finally:
+            runner.cleanup()
+
+    # Expected order: test-container-2, test-container-4, test-container-3, test-container-1
+    assert_order(out.getvalue(), "test-container-2", "test-container-4")
+    assert_order(out.getvalue(), "test-container-4", "test-container-3")
+    assert_order(out.getvalue(), "test-container-3", "test-container-1")
+
+def assert_order(text, first, second):
+    index1 = text.find(first)
+    index2 = text.find(second)
+
+    assert index1 != -1 and index2 != -1, \
+        Tests.assertion_info(f"stdout contain the container names '{first}' and '{second}'.", \
+                             f"stdout doesn't contain '{first}' and/or '{second}'.")
+    
+    assert index1 < index2, Tests.assertion_info(f'{first} should start first, \
+                             because it is a dependency of {second}.', f'{second} started first')
+
+def test_depends_on_error_not_running():
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_not_running.yml', dry_run=True)
+    with pytest.raises(RuntimeError) as e:
+        Tests.run_until(runner, 'setup_services')
+    assert "Dependent container 'test-container-2' of 'test-container-1' is not running" in str(e.value) , \
+        Tests.assertion_info('test-container-2 is not running', str(e.value))
+
+def test_depends_on_error_cyclic_dependency():
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_cycle.yml', dry_run=True)
+    with pytest.raises(RuntimeError) as e:
+        Tests.run_until(runner, 'setup_services')
+    assert "Cycle found in depends_on definition with service 'test-container-1'" in str(e.value) , \
+        Tests.assertion_info('cycle in depends_on with test-container-1', str(e.value))
+
+def test_depends_on_error_unsupported_long_form():
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_unsupported_long_form.yml', dry_run=True)
+    with pytest.raises(RuntimeError) as e:
+        Tests.run_until(runner, 'setup_services')
+    assert "long form" in str(e.value) , \
+        Tests.assertion_info('long form is not supported', str(e.value))
+
 #volumes: [array] (optional)
 #Array of volumes to be mapped. Only read of runner.py is executed with --allow-unsafe flag
 def test_volume_bindings_allow_unsafe_true():

@@ -21,6 +21,7 @@ from pathlib import Path
 import random
 import shutil
 import yaml
+from collections import OrderedDict
 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -643,18 +644,50 @@ class Runner:
             self.__networks.append(network)
             self.__join_default_network = True
 
+    def order_services(self, services):
+        names_ordered = []
+        def order_service_names(service_name, visited=None):
+            if visited is None:
+                visited = set()
+            if service_name in visited:
+                raise RuntimeError(f"Cycle found in depends_on definition with service '{service_name}'!")
+            visited.add(service_name)
+
+            service = services[service_name]
+            if 'depends_on' in service:
+                if isinstance(service['depends_on'], dict):
+                    raise RuntimeError(f"Service definition of {service_name} uses the long form of 'depends_on', however, GMT only supports the short form!")
+                for dep in service['depends_on']:
+                    if dep not in names_ordered:
+                        order_service_names(dep, visited)
+
+            if service_name not in names_ordered:
+                names_ordered.append(service_name)
+
+        # Iterate over all services and sort them with the recursive function 'order_service_names'
+        for service_name in services.keys():
+            order_service_names(service_name)
+        print("Startup order: ", names_ordered)
+        return OrderedDict((key, services[key]) for key in names_ordered)
+
     def setup_services(self):
+        config = GlobalConfig().config
+        print(TerminalColors.HEADER, '\nSetting up services', TerminalColors.ENDC)
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
-        for service_name in self._usage_scenario.get('services', []):
-            print(TerminalColors.HEADER, '\nSetting up containers', TerminalColors.ENDC)
+        services = self._usage_scenario.get('services', {})
 
-            if 'container_name' in self._usage_scenario['services'][service_name]:
-                container_name = self._usage_scenario['services'][service_name]['container_name']
+        # Check if there are service dependencies defined with 'depends_on'.
+        # If so, change the order of the services accordingly.
+        services_ordered = self.order_services(services)
+        for service_name, service in services_ordered.items():
+
+            if 'container_name' in service:
+                container_name = service['container_name']
             else:
                 container_name = service_name
 
-            service = self._usage_scenario['services'][service_name]
+            print(TerminalColors.HEADER, '\nSetting up container: ', container_name, TerminalColors.ENDC)
 
             print('Resetting container')
             # By using the -f we return with 0 if no container is found
@@ -801,10 +834,38 @@ class Runner:
             if 'cmd' in service:  # must come last
                 docker_run_string.append(service['cmd'])
 
+            # Before starting the container, check if the dependent containers are "ready". 
+            # If not, wait for some time. If the container is not ready after a certain time, throw an error.
+            # Currently we consider "ready" only as "running".
+            # In the future we want to implement an health check to know if dependent containers are actually ready.
+            if 'depends_on' in service:
+                for dependent_container in service['depends_on']:
+                    time_waited = 0
+                    state = ""
+                    max_waiting_time = config['measurement']['boot']['wait_time_dependencies']
+                    while time_waited < max_waiting_time:
+                        # TODO: Check health status instead if `healthcheck` is enabled (https://github.com/green-coding-berlin/green-metrics-tool/issues/423)
+                        # This waiting loop is actually a pre-work for the upcoming health check. For the check if the container is "running", as implemented here, the waiting loop is not needed.
+                        status_output = subprocess.check_output(
+                            ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
+                            stderr=subprocess.STDOUT,
+                            text=True
+                        )
+                        state = status_output.strip()
+                        if state == "running":
+                            break;
+                        else:
+                            print(f"State of container '{dependent_container}': {state}. Waiting for 1 second")
+                            self.custom_sleep(1)
+                            time_waited += 1
+
+                    if state != "running":
+                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+
             print(f"Running docker run with: {' '.join(docker_run_string)}")
 
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
-            # injection of unwawnted params
+            # injection of unwanted params
 
             ps = subprocess.run(
                 docker_run_string,
