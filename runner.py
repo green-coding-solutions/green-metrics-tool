@@ -880,6 +880,7 @@ class Runner:
                 'name': container_name,
                 'log-stdout': service.get('log-stdout', False),
                 'log-stderr': service.get('log-stderr', True),
+                'read-notes-stdout': service.get('read-notes-stdout', False),
                 'read-sci-stdout': service.get('read-sci-stdout', False),
             }
 
@@ -1194,9 +1195,8 @@ class Runner:
             if container_info['log-stderr'] is True:
                 stderr_behaviour = subprocess.PIPE
 
-
             log = subprocess.run(
-                ['docker', 'logs', '-t', container_id],
+                ['docker', 'logs', container_id],
                 check=True,
                 encoding='UTF-8',
                 stdout=stdout_behaviour,
@@ -1205,10 +1205,16 @@ class Runner:
 
             if log.stdout:
                 self.add_to_log(container_id, f"stdout: {log.stdout}")
-                if container_info['read-sci-stdout']:
+
+                if container_info['read-notes-stdout'] or container_info['read-sci-stdout']:
                     for line in log.stdout.splitlines():
-                        if match := re.findall(r'GMT_SCI_R=(\d+)', line):
-                            self._sci['R'] += int(match[0])
+                        if container_info['read-notes-stdout']:
+                            if note := self.__notes_helper.parse_note(line):
+                                self.__notes_helper.add_note({'note': note[1], 'detail_name': container_info['name'], 'timestamp': note[0]})
+
+                        if container_info['read-sci-stdout']:
+                            if match := re.findall(r'GMT_SCI_R=(\d+)', line):
+                                self._sci['R'] += int(match[0])
 
             if log.stderr:
                 self.add_to_log(container_id, f"stderr: {log.stderr}")
