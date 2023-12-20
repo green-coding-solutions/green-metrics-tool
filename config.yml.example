@@ -44,6 +44,8 @@ measurement:
   idle-time-end: 5
   flow-process-runtime: 3800
   phase-transition-time: 1
+  boot:
+    wait_time_dependencies: 20
   metric-providers:
 
   # Please select the needed providers according to the working ones on your system

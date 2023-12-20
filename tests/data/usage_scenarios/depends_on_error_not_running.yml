@@ -1,0 +1,20 @@
+---
+name: Test depends_on
+author: David Kopp
+description: test
+
+services:
+  test-container-1:
+    image: alpine
+    depends_on:
+      - test-container-2
+  test-container-2:
+    image: hello-world # Container exists immediately after start
+
+flow:
+  - name: Stress
+    container: test-container-1
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1 -q
+        note: Starting Stress
