@@ -227,7 +227,7 @@ class Runner:
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
             self._folder = self._uri
 
-        self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self.__folder, encoding='UTF-8').strip()
+        self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._folder, encoding='UTF-8').strip()
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
@@ -833,7 +833,7 @@ class Runner:
             if 'cmd' in service:  # must come last
                 docker_run_string.append(service['cmd'])
 
-            # Before starting the container, check if the dependent containers are "ready". 
+            # Before starting the container, check if the dependent containers are "ready".
             # If not, wait for some time. If the container is not ready after a certain time, throw an error.
             # Currently we consider "ready" only as "running".
             # In the future we want to implement an health check to know if dependent containers are actually ready.
@@ -852,11 +852,11 @@ class Runner:
                         )
                         state = status_output.strip()
                         if state == "running":
-                            break;
-                        else:
-                            print(f"State of container '{dependent_container}': {state}. Waiting for 1 second")
-                            self.custom_sleep(1)
-                            time_waited += 1
+                            break
+
+                        print(f"State of container '{dependent_container}': {state}. Waiting for 1 second")
+                        self.custom_sleep(1)
+                        time_waited += 1
 
                     if state != "running":
                         raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
