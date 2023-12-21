@@ -832,7 +832,7 @@ class Runner:
             if 'cmd' in service:  # must come last
                 docker_run_string.append(service['cmd'])
 
-            # Before starting the container, check if the dependent containers are "ready". 
+            # Before starting the container, check if the dependent containers are "ready".
             # If not, wait for some time. If the container is not ready after a certain time, throw an error.
             # Currently we consider "ready" only as "running".
             # In the future we want to implement an health check to know if dependent containers are actually ready.
@@ -961,7 +961,7 @@ class Runner:
 
             stderr_read = metric_provider.get_stderr()
             print(f"Stderr check on {metric_provider.__class__.__name__}")
-            if stderr_read is not None:
+            if stderr_read is not None and str(stderr_read) is not '':
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
 
@@ -1095,7 +1095,7 @@ class Runner:
                 continue
 
             stderr_read = metric_provider.get_stderr()
-            if stderr_read is not None:
+            if stderr_read is not None and str(stderr_read) is not '':
                 errors.append(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
             metric_provider.stop_profiling()
