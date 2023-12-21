@@ -62,14 +62,14 @@ METRIC_MAPPINGS = {
         'explanation': 'Machine CO2 calculated by formula via XGBoost estimation',
     },
     'network_energy_formula_global': {
-        'clean_name': 'Network Energy',
+        'clean_name': 'Network Transmission',
         'source': 'Formula',
-        'explanation': 'Network Energy calculated by formula',
+        'explanation': 'Estimated external energy cost for network infrastructure.',
     },
     'network_co2_formula_global': {
-        'clean_name': 'Network CO2',
+        'clean_name': 'Network Transmission CO2',
         'source': 'Formula',
-        'explanation': 'Network CO2 calculated by formula',
+        'explanation': 'Estimated external CO2 cost for network infrastructure.',
     },
      'lm_sensors_temperature_component': {
         'clean_name': 'CPU Temperature',

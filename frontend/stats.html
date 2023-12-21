@@ -246,7 +246,7 @@
                 Runtime can contain multiple flows.
                 By default all runtime flows are aggregated. Please select a separate flow if needed.
             </div>
-            <div id="runtime-sub-phases" class="ui top attached tabular menu">
+            <div id="runtime-sub-phases" class="ui top attached tabular wrapping menu">
                 <a class="active item" data-tab="[[RUNTIME]]">All Flows</a>
                 <a class="item runtime-step" data-tab="" style="display:none;"></a> <!-- empty element for copying. Usage phases will be inserted before -->
             </div>
@@ -347,7 +347,21 @@
             </div>
         </div>
 
-        <div class="ui two cards" id="api-loader">
+        <div id="loader-question" class="ui icon info message blue">
+            <i class="info circle icon"></i>
+
+                <div class="content">
+                    <div class="header">
+                        Time series are not displayed automatically
+                    </div>
+                    <p>Please click the button below to fetch data.</p>
+                    <p>You can change the default behaviour under <a href="/settings.html" style="text-decoration: underline; font-weight: bold;">Settings</a></p>
+                    <button id="fetch-time-series" class="blue ui button">Fetch time series</button>
+                </div>
+                <ul></ul>
+            </div>
+
+        <div class="ui two cards" id="api-loader" style="display:none;">
             <div class="card" style="min-height: 300px">
                 <div class="ui active dimmer">
                     <div class="ui indeterminate text loader">Waiting for API data</div>
