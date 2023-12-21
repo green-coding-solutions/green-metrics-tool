@@ -964,7 +964,11 @@ class Runner:
 
             stderr_read = metric_provider.get_stderr()
             print(f"Stderr check on {metric_provider.__class__.__name__}")
-            if stderr_read is not None and str(stderr_read) is not '':
+
+            if isinstance(stderr_read, bytes):
+                stderr_read = stderr_read.decode('utf-8')
+
+            if stderr_read is not None and stderr_read != '':
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
 
@@ -1098,7 +1102,11 @@ class Runner:
                 continue
 
             stderr_read = metric_provider.get_stderr()
-            if stderr_read is not None and str(stderr_read) is not '':
+
+            if isinstance(stderr_read, bytes):
+                stderr_read = stderr_read.decode('utf-8')
+
+            if stderr_read is not None and stderr_read != '':
                 errors.append(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
             metric_provider.stop_profiling()
