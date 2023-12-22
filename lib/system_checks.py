@@ -61,6 +61,13 @@ def check_containers_running():
                             check=True, encoding='UTF-8')
     return not bool(result.stdout.strip())
 
+def check_providers_running():
+    result = subprocess.run(['pgrep', '-f', 'metric_providers'],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            check=False, encoding='UTF-8')
+    return result.returncode == 1
+
 def check_docker_daemon():
     result = subprocess.run(['docker', 'version'],
                             stdout=subprocess.PIPE,
@@ -78,6 +85,7 @@ start_checks = [
     (check_free_disk, Status.ERROR, '1GB free hdd space', 'We recommend to free up some disk space'),
     (check_free_memory, Status.ERROR, 'free memory', 'No free memory! Please kill some programs'),
     (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.berlin/docs/installation/]'),
+    (check_providers_running, Status.ERROR, 'metric providers', 'Some metric providers from the GMT are running on the system. This might be because of an uncomplete shutdown. Please close them (Hint: use "pgrep -f metric_providers | xargs kill -9") for example.'),
     (check_containers_running, Status.WARN, 'Running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.berlin/docs/installation/installation-cluster/].'),
 
 ]
