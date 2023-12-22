@@ -12,8 +12,7 @@ from metric_providers.base import MetricProviderConfigurationError, BaseMetricPr
 class PowermetricsProvider(BaseMetricProvider):
     def __init__(self, resolution, skip_check=False):
         # We get this value on init as we want to have to for check_system to work in the normal case
-        pw_processes = subprocess.check_output(['pgrep', '-ix', 'powermetrics'], text=True)
-        self._pm_process_count = len(pw_processes.strip().split('\n')) if pw_processes else 0
+        self._pm_process_count = self.powermetrics_total_count()
 
         super().__init__(
             metric_name='powermetrics',
@@ -46,12 +45,18 @@ class PowermetricsProvider(BaseMetricProvider):
                                                    'Please close it before running the Green Metrics Tool.\n'
                                                    'You can also override this with --skip-system-checks\n')
 
+
+    def powermetrics_total_count(self):
+        result = subprocess.run(['pgrep', '-ix', 'powermetrics'], encoding='UTF-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if result.returncode in [0, 1]:
+            return len(result.stdout.strip().split('\n')) if result.stdout else 0
+        else:
+            raise subprocess.CalledProcessError(result.stderr)
+
     def is_our_powermetrics_running(self):
-        pw_processes = subprocess.check_output(['pgrep', '-ix', 'powermetrics'], encoding='UTF-8')
-        total_count = len(pw_processes.strip().split('\n')) if pw_processes else 0
+        total_count = self.powermetrics_total_count()
         minus_startup = total_count -  self._pm_process_count
         return  minus_startup >= 1
-
 
     def stop_profiling(self):
         try:
