@@ -1505,11 +1505,9 @@ if __name__ == '__main__':
         print('####################################################################################\n\n', TerminalColors.ENDC)
 
     except FileNotFoundError as e:
-        error_helpers.log_error('Docker command failed.', e, runner._run_id)
+        error_helpers.log_error('File or executable not found', e, runner._run_id)
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error('Docker command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, runner._run_id)
-    except KeyError as e:
-        error_helpers.log_error('Was expecting a value inside the usage_scenario.yml file, but value was missing: ', e, runner._run_id)
+        error_helpers.log_error('Command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, runner._run_id)
     except RuntimeError as e:
         error_helpers.log_error('RuntimeError occured in runner.py: ', e, runner._run_id)
     except BaseException as e:
