@@ -329,22 +329,34 @@ def test_depends_on_huge():
 
 def test_depends_on_error_not_running():
     runner = Tests.setup_runner(usage_scenario='depends_on_error_not_running.yml', dry_run=True)
-    with pytest.raises(RuntimeError) as e:
-        Tests.run_until(runner, 'setup_services')
+    try:
+        with pytest.raises(RuntimeError) as e:
+            Tests.run_until(runner, 'setup_services')
+    finally:
+        runner.cleanup()
+
     assert "Dependent container 'test-container-2' of 'test-container-1' is not running" in str(e.value) , \
         Tests.assertion_info('test-container-2 is not running', str(e.value))
 
 def test_depends_on_error_cyclic_dependency():
     runner = Tests.setup_runner(usage_scenario='depends_on_error_cycle.yml', dry_run=True)
-    with pytest.raises(RuntimeError) as e:
-        Tests.run_until(runner, 'setup_services')
+    try:
+        with pytest.raises(RuntimeError) as e:
+            Tests.run_until(runner, 'setup_services')
+    finally:
+        runner.cleanup()
+
     assert "Cycle found in depends_on definition with service 'test-container-1'" in str(e.value) , \
         Tests.assertion_info('cycle in depends_on with test-container-1', str(e.value))
 
 def test_depends_on_error_unsupported_long_form():
     runner = Tests.setup_runner(usage_scenario='depends_on_error_unsupported_long_form.yml', dry_run=True)
-    with pytest.raises(RuntimeError) as e:
-        Tests.run_until(runner, 'setup_services')
+    try:
+        with pytest.raises(RuntimeError) as e:
+            Tests.run_until(runner, 'setup_services')
+    finally:
+        runner.cleanup()
+
     assert "long form" in str(e.value) , \
         Tests.assertion_info('long form is not supported', str(e.value))
 
@@ -454,9 +466,12 @@ def test_uri_local_dir():
 
 def test_uri_local_dir_missing():
     runner = Tests.setup_runner(usage_scenario='basic_stress.yml', uri='/tmp/missing')
-    with pytest.raises(FileNotFoundError) as e:
-        runner.run()
-    expected_exception = 'No such file or directory: \'/tmp/missing\''
+    try:
+        with pytest.raises(FileNotFoundError) as e:
+            runner.run()
+        expected_exception = 'No such file or directory: \'/tmp/missing\''
+    finally:
+        runner.cleanup()
     assert expected_exception in str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
