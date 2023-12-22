@@ -10,6 +10,7 @@ import re
 from lib.hardware_info import rdr, rpwr, get_values
 
 root_info_list = [
+    [rdr, 'Power Limits', '/sys/devices/virtual/powercap/intel-rapl'],
     [rdr, 'CPU scheduling', '/sys/kernel/debug/sched'],
     [rpwr, 'Hardware Details', 'lshw', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
 ]

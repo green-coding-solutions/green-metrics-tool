@@ -60,9 +60,21 @@ runs:
         password: ${{ inputs.github-token }}
 
     - name: Build docker-compose
+      id: build-docker-compose
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/docker
-      run: docker buildx bake --file test-compose.yml --file docker-compose-cache.json
+      run: |
+        { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --file docker-compose-cache.json 2>&1); DOCKER_EXIT_CODE=$?; } || true
+        if [ "$DOCKER_EXIT_CODE" -ne 0 ]; then
+          echo "Docker build failed with exit code $DOCKER_EXIT_CODE"
+          echo "buildx output:"
+          echo $DOCKER_OUTPUT
+          if echo "$DOCKER_OUTPUT" | grep -q "403 Forbidden"; then
+            echo "Docker build failed due to permissions issue. Continuing..."
+          else
+              exit 1
+          fi
+        fi
 
     - name: Start Test container
       shell: bash

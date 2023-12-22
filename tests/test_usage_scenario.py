@@ -222,6 +222,144 @@ def get_contents_of_bound_volume(runner):
         Tests.cleanup(runner)
     return ls
 
+def assert_order(text, first, second):
+    index1 = text.find(first)
+    index2 = text.find(second)
+
+    assert index1 != -1 and index2 != -1, \
+        Tests.assertion_info(f"stdout contain the container names '{first}' and '{second}'.", \
+                             f"stdout doesn't contain '{first}' and/or '{second}'.")
+
+    assert index1 < index2, Tests.assertion_info(f'{first} should start first, \
+                             because it is a dependency of {second}.', f'{second} started first')
+
+# depends_on: [array] (optional)
+# Array of container names to express dependencies
+def test_depends_on_order():
+    out = io.StringIO()
+    err = io.StringIO()
+    runner = Tests.setup_runner(usage_scenario='depends_on.yml', dry_run=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        try:
+            Tests.run_until(runner, 'setup_services')
+        finally:
+            runner.cleanup()
+
+    # Expected order: test-container-2, test-container-4, test-container-3, test-container-1
+    assert_order(out.getvalue(), 'test-container-2', 'test-container-4')
+    assert_order(out.getvalue(), 'test-container-4', 'test-container-3')
+    assert_order(out.getvalue(), 'test-container-3', 'test-container-1')
+
+
+def test_depends_on_huge():
+    out = io.StringIO()
+    err = io.StringIO()
+    runner = Tests.setup_runner(usage_scenario='depends_on_huge.yml', dry_run=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        try:
+            Tests.run_until(runner, 'setup_services')
+        finally:
+            runner.cleanup()
+
+    # For test-container-20
+    assert_order(out.getvalue(), 'test-container-16', 'test-container-20')
+    assert_order(out.getvalue(), 'test-container-15', 'test-container-20')
+
+    # For test-container-19
+    assert_order(out.getvalue(), 'test-container-14', 'test-container-19')
+    assert_order(out.getvalue(), 'test-container-13', 'test-container-19')
+
+    # For test-container-18
+    assert_order(out.getvalue(), 'test-container-12', 'test-container-18')
+    assert_order(out.getvalue(), 'test-container-11', 'test-container-18')
+
+    # For test-container-17
+    assert_order(out.getvalue(), 'test-container-10', 'test-container-17')
+    assert_order(out.getvalue(), 'test-container-9', 'test-container-17')
+
+    # For test-container-16
+    assert_order(out.getvalue(), 'test-container-8', 'test-container-16')
+    assert_order(out.getvalue(), 'test-container-7', 'test-container-16')
+
+    # For test-container-15
+    assert_order(out.getvalue(), 'test-container-6', 'test-container-15')
+    assert_order(out.getvalue(), 'test-container-5', 'test-container-15')
+
+    # For test-container-14
+    assert_order(out.getvalue(), 'test-container-4', 'test-container-14')
+
+    # For test-container-13
+    assert_order(out.getvalue(), 'test-container-3', 'test-container-13')
+
+    # For test-container-12
+    assert_order(out.getvalue(), 'test-container-2', 'test-container-12')
+
+    # For test-container-11
+    assert_order(out.getvalue(), 'test-container-1', 'test-container-11')
+
+    # For test-container-10
+    assert_order(out.getvalue(), 'test-container-4', 'test-container-10')
+
+    # For test-container-9
+    assert_order(out.getvalue(), 'test-container-3', 'test-container-9')
+
+    # For test-container-8
+    assert_order(out.getvalue(), 'test-container-2', 'test-container-8')
+
+    # For test-container-7
+    assert_order(out.getvalue(), 'test-container-1', 'test-container-7')
+
+    # For test-container-6
+    assert_order(out.getvalue(), 'test-container-4', 'test-container-6')
+
+    # For test-container-5
+    assert_order(out.getvalue(), 'test-container-3', 'test-container-5')
+
+    # For test-container-4
+    assert_order(out.getvalue(), 'test-container-2', 'test-container-4')
+
+    # For test-container-3
+    assert_order(out.getvalue(), 'test-container-1', 'test-container-3')
+
+    # For test-container-2
+    assert_order(out.getvalue(), 'test-container-1', 'test-container-2')
+
+
+def test_depends_on_error_not_running():
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_not_running.yml', dry_run=True)
+    try:
+        with pytest.raises(RuntimeError) as e:
+            Tests.run_until(runner, 'setup_services')
+    finally:
+        runner.cleanup()
+
+    assert "Dependent container 'test-container-2' of 'test-container-1' is not running" in str(e.value) , \
+        Tests.assertion_info('test-container-2 is not running', str(e.value))
+
+def test_depends_on_error_cyclic_dependency():
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_cycle.yml', dry_run=True)
+    try:
+        with pytest.raises(RuntimeError) as e:
+            Tests.run_until(runner, 'setup_services')
+    finally:
+        runner.cleanup()
+
+    assert "Cycle found in depends_on definition with service 'test-container-1'" in str(e.value) , \
+        Tests.assertion_info('cycle in depends_on with test-container-1', str(e.value))
+
+def test_depends_on_error_unsupported_long_form():
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_unsupported_long_form.yml', dry_run=True)
+    try:
+        with pytest.raises(RuntimeError) as e:
+            Tests.run_until(runner, 'setup_services')
+    finally:
+        runner.cleanup()
+
+    assert "long form" in str(e.value) , \
+        Tests.assertion_info('long form is not supported', str(e.value))
+
 #volumes: [array] (optional)
 #Array of volumes to be mapped. Only read of runner.py is executed with --allow-unsafe flag
 def test_volume_bindings_allow_unsafe_true():
@@ -328,9 +466,12 @@ def test_uri_local_dir():
 
 def test_uri_local_dir_missing():
     runner = Tests.setup_runner(usage_scenario='basic_stress.yml', uri='/tmp/missing')
-    with pytest.raises(FileNotFoundError) as e:
-        runner.run()
-    expected_exception = 'No such file or directory: \'/tmp/missing\''
+    try:
+        with pytest.raises(FileNotFoundError) as e:
+            runner.run()
+        expected_exception = 'No such file or directory: \'/tmp/missing\''
+    finally:
+        runner.cleanup()
     assert expected_exception in str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 

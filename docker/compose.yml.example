@@ -32,6 +32,7 @@ services:
     # should not run on the measurement node anyway
     image: nginx
     container_name: green-coding-nginx-container
+    stop_signal: SIGQUIT
     depends_on:
       - green-coding-postgres
     ports:
@@ -49,6 +50,7 @@ services:
       context: .
       dockerfile: Dockerfile-gunicorn
     container_name: green-coding-gunicorn-container
+    init: true
     depends_on:
       - green-coding-postgres
     restart: always

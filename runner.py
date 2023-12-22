@@ -21,6 +21,7 @@ from pathlib import Path
 import random
 import shutil
 import yaml
+from collections import OrderedDict
 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -115,6 +116,8 @@ class Runner:
         self._sci = {'R_d': None, 'R': 0}
         self._job_id = job_id
         self._arguments = locals()
+        self._commit_hash = None
+        self._commit_timestamp = None
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
 
@@ -146,12 +149,15 @@ class Runner:
             time.sleep(sleep_time)
 
     def initialize_run(self):
-            # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
+        # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
+
+        # we also update the branch here again, as this might not be main in case of local filesystem
+
         self.__run_id = DB().fetch_one("""
-                INSERT INTO runs (job_id, name, uri, email, branch, runner_arguments, created_at)
-                VALUES (%s, %s, %s, 'manual', %s, %s, NOW())
+                INSERT INTO runs (job_id, name, uri, email, branch, filename, commit_hash, commit_timestamp, runner_arguments, created_at)
+                VALUES (%s, %s, %s, 'manual', %s, %s, %s, %s, %s, NOW())
                 RETURNING id
-                """, params=(self._job_id, self._name, self._uri, self._branch, json.dumps(self._arguments)))[0]
+                """, params=(self._job_id, self._name, self._uri, self._branch, self._original_filename, self._commit_hash, self._commit_timestamp, json.dumps(self._arguments)))[0]
         return self.__run_id
 
     def initialize_folder(self, path):
@@ -217,37 +223,32 @@ class Runner:
 
         else:
             if self._branch:
+                # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
             self.__folder = self._uri
 
+        self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self.__folder, encoding='UTF-8').strip()
+
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
-        commit_hash = subprocess.run(
+        self._commit_hash = subprocess.run(
             ['git', 'rev-parse', 'HEAD'],
             check=True,
             capture_output=True,
             encoding='UTF-8',
             cwd=self.__folder
         )
-        commit_hash = commit_hash.stdout.strip("\n")
+        self._commit_hash = self._commit_hash.stdout.strip("\n")
 
-        commit_timestamp = subprocess.run(
+        self._commit_timestamp = subprocess.run(
             ['git', 'show', '-s', '--format=%ci'],
             check=True,
             capture_output=True,
             encoding='UTF-8',
             cwd=self.__folder
         )
-        commit_timestamp = commit_timestamp.stdout.strip("\n")
-        parsed_timestamp = datetime.strptime(commit_timestamp, "%Y-%m-%d %H:%M:%S %z")
-
-        DB().query("""
-            UPDATE runs
-            SET
-                commit_hash=%s,
-                commit_timestamp=%s
-            WHERE id = %s
-            """, params=(commit_hash, parsed_timestamp, self.__run_id))
+        self._commit_timestamp = self._commit_timestamp.stdout.strip("\n")
+        self._commit_timestamp = datetime.strptime(self._commit_timestamp, "%Y-%m-%d %H:%M:%S %z")
 
     # This method loads the yml file and takes care that the includes work and are secure.
     # It uses the tagging infrastructure provided by https://pyyaml.org/wiki/PyYAMLDocumentation
@@ -362,6 +363,10 @@ class Runner:
 
         self._sci['R_d'] = self._usage_scenario.get('sci', {}).get('R_d', None)
 
+    def prepare_docker(self):
+        # Disable Docker CLI hints (e.g. "What's Next? ...")
+        os.environ['DOCKER_CLI_HINTS'] = 'false'
+
     def check_running_containers(self):
         result = subprocess.run(['docker', 'ps' ,'--format', '{{.Names}}'],
                                 stdout=subprocess.PIPE,
@@ -459,14 +464,13 @@ class Runner:
             UPDATE runs
             SET
                 machine_id=%s, machine_specs=%s, measurement_config=%s,
-                usage_scenario = %s, filename=%s, gmt_hash=%s
+                usage_scenario = %s, gmt_hash=%s
             WHERE id = %s
             """, params=(
             config['machine']['id'],
             escape(json.dumps(machine_specs), quote=False),
             json.dumps(measurement_config),
             escape(json.dumps(self._usage_scenario), quote=False),
-            self._original_filename,
             gmt_hash,
             self.__run_id)
         )
@@ -639,18 +643,50 @@ class Runner:
             self.__networks.append(network)
             self.__join_default_network = True
 
+    def order_services(self, services):
+        names_ordered = []
+        def order_service_names(service_name, visited=None):
+            if visited is None:
+                visited = set()
+            if service_name in visited:
+                raise RuntimeError(f"Cycle found in depends_on definition with service '{service_name}'!")
+            visited.add(service_name)
+
+            service = services[service_name]
+            if 'depends_on' in service:
+                if isinstance(service['depends_on'], dict):
+                    raise RuntimeError(f"Service definition of {service_name} uses the long form of 'depends_on', however, GMT only supports the short form!")
+                for dep in service['depends_on']:
+                    if dep not in names_ordered:
+                        order_service_names(dep, visited)
+
+            if service_name not in names_ordered:
+                names_ordered.append(service_name)
+
+        # Iterate over all services and sort them with the recursive function 'order_service_names'
+        for service_name in services.keys():
+            order_service_names(service_name)
+        print("Startup order: ", names_ordered)
+        return OrderedDict((key, services[key]) for key in names_ordered)
+
     def setup_services(self):
+        config = GlobalConfig().config
+        print(TerminalColors.HEADER, '\nSetting up services', TerminalColors.ENDC)
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
-        for service_name in self._usage_scenario.get('services', []):
-            print(TerminalColors.HEADER, '\nSetting up containers', TerminalColors.ENDC)
+        services = self._usage_scenario.get('services', {})
 
-            if 'container_name' in self._usage_scenario['services'][service_name]:
-                container_name = self._usage_scenario['services'][service_name]['container_name']
+        # Check if there are service dependencies defined with 'depends_on'.
+        # If so, change the order of the services accordingly.
+        services_ordered = self.order_services(services)
+        for service_name, service in services_ordered.items():
+
+            if 'container_name' in service:
+                container_name = service['container_name']
             else:
                 container_name = service_name
 
-            service = self._usage_scenario['services'][service_name]
+            print(TerminalColors.HEADER, '\nSetting up container: ', container_name, TerminalColors.ENDC)
 
             print('Resetting container')
             # By using the -f we return with 0 if no container is found
@@ -775,8 +811,7 @@ class Runner:
                     docker_run_string.append(f"{env_key}={env_value}")
 
                 if env_var_check_errors:
-                    raise RuntimeError("Docker container environment setup has problems:\n" + 
-                                       "\n".join(env_var_check_errors))
+                    raise RuntimeError('Docker container environment setup has problems:\n\n'.join(env_var_check_errors))
 
             if 'networks' in service:
                 for network in service['networks']:
@@ -797,10 +832,38 @@ class Runner:
             if 'cmd' in service:  # must come last
                 docker_run_string.append(service['cmd'])
 
+            # Before starting the container, check if the dependent containers are "ready".
+            # If not, wait for some time. If the container is not ready after a certain time, throw an error.
+            # Currently we consider "ready" only as "running".
+            # In the future we want to implement an health check to know if dependent containers are actually ready.
+            if 'depends_on' in service:
+                for dependent_container in service['depends_on']:
+                    time_waited = 0
+                    state = ""
+                    max_waiting_time = config['measurement']['boot']['wait_time_dependencies']
+                    while time_waited < max_waiting_time:
+                        # TODO: Check health status instead if `healthcheck` is enabled (https://github.com/green-coding-berlin/green-metrics-tool/issues/423)
+                        # This waiting loop is actually a pre-work for the upcoming health check. For the check if the container is "running", as implemented here, the waiting loop is not needed.
+                        status_output = subprocess.check_output(
+                            ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
+                            stderr=subprocess.STDOUT,
+                            text=True
+                        )
+                        state = status_output.strip()
+                        if state == "running":
+                            break;
+                        else:
+                            print(f"State of container '{dependent_container}': {state}. Waiting for 1 second")
+                            self.custom_sleep(1)
+                            time_waited += 1
+
+                    if state != "running":
+                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+
             print(f"Running docker run with: {' '.join(docker_run_string)}")
 
             # docker_run_string must stay as list, cause this forces items to be quoted and escaped and prevents
-            # injection of unwawnted params
+            # injection of unwanted params
 
             ps = subprocess.run(
                 docker_run_string,
@@ -815,6 +878,7 @@ class Runner:
                 'name': container_name,
                 'log-stdout': service.get('log-stdout', False),
                 'log-stderr': service.get('log-stderr', True),
+                'read-notes-stdout': service.get('read-notes-stdout', False),
                 'read-sci-stdout': service.get('read-sci-stdout', False),
             }
 
@@ -897,7 +961,7 @@ class Runner:
 
             stderr_read = metric_provider.get_stderr()
             print(f"Stderr check on {metric_provider.__class__.__name__}")
-            if stderr_read is not None:
+            if stderr_read is not None and str(stderr_read):
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
 
@@ -1031,7 +1095,7 @@ class Runner:
                 continue
 
             stderr_read = metric_provider.get_stderr()
-            if stderr_read is not None:
+            if stderr_read is not None and str(stderr_read):
                 errors.append(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
             metric_provider.stop_profiling()
@@ -1129,9 +1193,8 @@ class Runner:
             if container_info['log-stderr'] is True:
                 stderr_behaviour = subprocess.PIPE
 
-
             log = subprocess.run(
-                ['docker', 'logs', '-t', container_id],
+                ['docker', 'logs', container_id],
                 check=True,
                 encoding='UTF-8',
                 stdout=stdout_behaviour,
@@ -1140,10 +1203,16 @@ class Runner:
 
             if log.stdout:
                 self.add_to_log(container_id, f"stdout: {log.stdout}")
-                if container_info['read-sci-stdout']:
+
+                if container_info['read-notes-stdout'] or container_info['read-sci-stdout']:
                     for line in log.stdout.splitlines():
-                        if match := re.findall(r'GMT_SCI_R=(\d+)', line):
-                            self._sci['R'] += int(match[0])
+                        if container_info['read-notes-stdout']:
+                            if note := self.__notes_helper.parse_note(line):
+                                self.__notes_helper.add_note({'note': note[1], 'detail_name': container_info['name'], 'timestamp': note[0]})
+
+                        if container_info['read-sci-stdout']:
+                            if match := re.findall(r'GMT_SCI_R=(\d+)', line):
+                                self._sci['R'] += int(match[0])
 
             if log.stderr:
                 self.add_to_log(container_id, f"stderr: {log.stderr}")
@@ -1215,12 +1284,13 @@ class Runner:
         try:
             config = GlobalConfig().config
             self.check_system('start')
-            return_run_id = self.initialize_run()
             self.initialize_folder(self._tmp_folder)
             self.checkout_repository()
+            return_run_id = self.initialize_run()
             self.initial_parse()
             self.import_metric_providers()
             self.populate_image_names()
+            self.prepare_docker()
             self.check_running_containers()
             self.remove_docker_images()
             self.download_dependencies()
@@ -1449,7 +1519,7 @@ if __name__ == '__main__':
         error_helpers.log_error('Base exception occured in runner.py: ', e, successful_run_id)
     finally:
         if args.print_logs:
-            for container_id, std_out in runner.get_logs().items():
-                print(f"Container logs of '{container_id}':")
+            for container_id_outer, std_out in runner.get_logs().items():
+                print(f"Container logs of '{container_id_outer}':")
                 print(std_out)
-                print(f"\n-----------------------------\n")
+                print('\n-----------------------------\n')
