@@ -110,21 +110,21 @@ if __name__ == '__main__':
 
         print('Validate_stddev returned: ')
         warning = False
-        info_string_acc = ''
+        info_string_acc = []
         for el in data:
             info_string = f"{el[0]} {el[1]}: {el[4]} +/- {el[5]} {el[6]*100} %"
             print(info_string)
-            info_string_acc = f"{info_string_acc}\n{info_string}"
+            info_string_acc.append(info_string)
             if el[6] > config['machine']['control_workload']['threshhold']:
                 print(TerminalColors.FAIL, 'Warning. Threshhold exceeded!', TerminalColors.ENDC)
                 warning = True
         if warning:
             print(TerminalColors.FAIL, 'Aborting!', TerminalColors.ENDC)
-            raise RuntimeError(info_string_acc)
+            raise RuntimeError("\n".join(info_string_acc))
         print(TerminalColors.OKGREEN, f"Machine is operating normally. All STDDEV below {config['machine']['control_workload']['threshhold'] * 100} %", TerminalColors.ENDC)
 
         if config['admin']['no_emails'] is False and config['machine']['control_workload']['send_status_mail']:
-            email_helpers.send_admin_email(f"Machine is operating normally. All STDDEV below {config['machine']['control_workload']['threshhold'] * 100} %", info_string_acc)
+            email_helpers.send_admin_email(f"Machine is operating normally. All STDDEV below {config['machine']['control_workload']['threshhold'] * 100} %", "\n".join(info_string_acc))
 
         print('Sleeping for ', config['client']['sleep_time_after_job'] , 'seconds')
         time.sleep(config['client']['sleep_time_after_job'])
