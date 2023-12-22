@@ -26,12 +26,12 @@ $(document).ready(function () {
                 { data: 3, title: 'Status'},
                 { data: 4, title: 'Status date'},
                 { data: 5, title: 'Cooldown after Job', render: function(el) {
-                    return `${el/60} Minutes`
+                    return (el == null) ? 'awaiting info': `${el/60} Minutes`;
                 }},
                 { data: 6, title: 'Waiting Jobs'},
-                { data: 5, title: 'Estimated waiting time', render: function(el, type, row) {
-                    // 900 Seconds is current average job time. WE add this to the amount of waiting time
-                    return `${( (900+row[5]) * row[6]) / 60} Minutes`
+                { data: 7, title: 'Estimated waiting time', render: function(el, type, row) {
+
+                    return (row[5] == null || row[7] == null) ? 'awaiting info' : `${( (row[7]+row[5]) * row[6]) / 60} Minutes`
                 }},
             ],
             deferRender: true,

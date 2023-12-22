@@ -81,15 +81,27 @@ def html_escape_multi(item):
 
 def get_machine_list():
     query = """
+        WITH timings as (
             SELECT
+                machine_id,
+                AVG(end_measurement - start_measurement)/1000000 as avg_duration
+            FROM runs
+            WHERE
+                end_measurement IS NOT NULL
+                AND created_at > NOW() - INTERVAL '30 DAY'
+            GROUP BY machine_id
+        ) SELECT
                 m.id, m.description, m.available,
                 m.status_code,
                 m.updated_at,
                 m.sleep_time_after_job,
-                (SELECT COUNT(id) FROM jobs as j WHERE j.machine_id = m.id AND j.state = 'WAITING')
+                (SELECT COUNT(id) FROM jobs as j WHERE j.machine_id = m.id AND j.state = 'WAITING') as job_amount,
+                (SELECT avg_duration FROM timings WHERE timings.machine_id = m.id )::int as avg_duration_seconds
+
             FROM machines as m
             ORDER BY m.description DESC
             """
+
     return DB().fetch_all(query)
 
 def get_run_info(run_id):
