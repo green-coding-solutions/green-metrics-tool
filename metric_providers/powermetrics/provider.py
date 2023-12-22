@@ -49,11 +49,12 @@ class PowermetricsProvider(BaseMetricProvider):
 
 
     def powermetrics_total_count(self):
-        result = subprocess.run(['pgrep', '-ix', 'powermetrics'], encoding='UTF-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        cmd = ['pgrep', '-ix', 'powermetrics']
+        result = subprocess.run(cmd, encoding='UTF-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
         if result.returncode in [0, 1]:
             return len(result.stdout.strip().split('\n')) if result.stdout else 0
-        else:
-            raise subprocess.CalledProcessError(result.stderr)
+
+        raise subprocess.CalledProcessError(result.stderr, cmd=cmd)
 
     def is_our_powermetrics_running(self):
         total_count = self.powermetrics_total_count()
@@ -64,6 +65,8 @@ class PowermetricsProvider(BaseMetricProvider):
         if self._ps is None:
             return
 
+        # Sending SIGIO shall tell the process to flush. Although the process does not seem
+        # to react we keep it in, as it is common practice and don't expect it to have negative effects
         os.kill(self._ps.pid, signal.SIGIO)
 
         try:
