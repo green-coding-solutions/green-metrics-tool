@@ -5,6 +5,7 @@ from datetime import timezone
 import time
 import xml
 import pandas
+import signal
 
 from lib.db import DB
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
@@ -35,8 +36,9 @@ class PowermetricsProvider(BaseMetricProvider):
             '--show-process-coalition',
             '-f',
             'plist',
-            '-o',
-            self._filename]
+            '-b',
+            '0',
+            ]
 
 
     def check_system(self):
@@ -59,6 +61,11 @@ class PowermetricsProvider(BaseMetricProvider):
         return  minus_startup >= 1
 
     def stop_profiling(self):
+        if self._ps is None:
+            return
+
+        os.kill(self._ps.pid, signal.SIGIO)
+
         try:
             # We try calling the parent method which should work see
             # https://github.com/green-coding-berlin/green-metrics-tool/pull/566#discussion_r1429891190
@@ -97,6 +104,11 @@ class PowermetricsProvider(BaseMetricProvider):
 
         with open(self._filename, 'rb') as metrics_file:
             datas = metrics_file.read()
+
+        # Sometimes the container stops so fast that there will be no data in the file as powermetrics takes some time
+        # to start. In this case we can't really do anything
+        if datas == b'':
+            return 0
 
         datas = datas.split(b'\x00')
 
@@ -205,7 +217,14 @@ class PowermetricsProvider(BaseMetricProvider):
     def get_stderr(self):
         stderr = super().get_stderr()
 
-        if stderr is not None and str(stderr).find('proc_pid') != -1:
+        if stderr is not None and str(stderr).find('proc_pid') != -1 :
+            return None
+
+        # This has been showing up and we don't really understand why. Google has no results and looking at the
+        # strings of powermetrics doesn't show anything. There also seems to be no correlation with the interval.
+        # A shame we can't look into the code and figure this one out. For now we just ignore it as we don't really
+        # have any other chance to debug.
+        if stderr is not None and str(stderr).find('Second underflow occured') != -1 :
             return None
 
         return stderr

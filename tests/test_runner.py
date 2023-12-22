@@ -3,6 +3,7 @@ import os
 from shutil import copy2
 
 import pytest
+import platform
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_DATA_CONFIG_DIR = os.path.join(CURRENT_DIR, "data", "config_files")
@@ -18,6 +19,7 @@ test_data = [
     ("two_psu_providers.yml", False, pytest.raises(ConfigurationCheckError)),
 ]
 
+@pytest.mark.skipif(platform.system() == 'Darwin', reason="We can't have two psu providers under MacOS")
 @pytest.mark.parametrize("config_file,skip_system_checks,expectation", test_data)
 def test_check_system(config_file, skip_system_checks, expectation):
 

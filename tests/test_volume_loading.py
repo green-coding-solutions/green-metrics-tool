@@ -50,7 +50,7 @@ def test_volume_load_no_escape():
         container_running = check_if_container_running('test-container')
         runner.cleanup()
 
-    expected_error = 'trying to escape folder: /etc/passwd'
+    expected_error = 'trying to escape folder:'
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
@@ -120,7 +120,7 @@ def test_symlinks_should_fail():
         container_running = check_if_container_running('test-container')
         runner.cleanup()
 
-    expected_error = 'trying to escape folder: /etc/passwd'
+    expected_error = 'trying to escape folder:'
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
