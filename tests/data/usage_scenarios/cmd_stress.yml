@@ -9,7 +9,7 @@ services:
     type: container
     image: gcb_stress
     build: .
-    cmd: sh
+    command: sh
 
 flow:
   - name: Stress

@@ -411,7 +411,7 @@ def test_container_is_in_network():
         Tests.cleanup(runner)
     assert 'test-container' in inspect, Tests.assertion_info('test-container', inspect)
 
-# cmd: [str] (optional)
+# command: [str] (optional)
 #    Command to be executed when container is started.
 #    When container does not have a daemon running typically a shell
 #    is started here to have the container running like bash or sh
