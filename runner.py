@@ -829,9 +829,6 @@ class Runner:
 
             docker_run_string.append(self.clean_image_name(service['image']))
 
-            if 'cmd' in service:  # must come last
-                docker_run_string.append(service['cmd'])
-
             # Before starting the container, check if the dependent containers are "ready".
             # If not, wait for some time. If the container is not ready after a certain time, throw an error.
             # Currently we consider "ready" only as "running".
@@ -851,14 +848,17 @@ class Runner:
                         )
                         state = status_output.strip()
                         if state == "running":
-                            break;
-                        else:
-                            print(f"State of container '{dependent_container}': {state}. Waiting for 1 second")
-                            self.custom_sleep(1)
-                            time_waited += 1
+                            break
+
+                        print(f"State of container '{dependent_container}': {state}. Waiting for 1 second")
+                        self.custom_sleep(1)
+                        time_waited += 1
 
                     if state != "running":
                         raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+
+            if 'command' in service:  # must come last
+                docker_run_string.append(service['command'])
 
             print(f"Running docker run with: {' '.join(docker_run_string)}")
 
