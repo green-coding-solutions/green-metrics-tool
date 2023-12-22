@@ -172,7 +172,7 @@ async def get_network(run_id):
 
 
 # return a list of all possible registered machines
-@app.get('/v1/machines/')
+@app.get('/v1/machines')
 async def get_machines():
 
     data = get_machine_list()
