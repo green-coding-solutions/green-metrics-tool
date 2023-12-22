@@ -386,7 +386,7 @@ class Runner:
 
     def populate_image_names(self):
         for service_name, service in self._usage_scenario.get('services', []).items():
-            if not service.get('image', None): # image is a non essential field. But we need it, so we tmp it
+            if not service.get('image', None): # image is a non-mandatory field. But we need it, so we tmp it
                 if self._dev_repeat_run:
                     service['image'] = f"{service_name}"
                 else:
