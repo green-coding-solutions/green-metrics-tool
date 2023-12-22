@@ -45,7 +45,7 @@ Unfortunately, your Green Metrics analysis has run into some issues and could no
 Name: {name}
 Run Id: {run_id}
 Machine: {machine}
-Link: {url}/stats.html?id={run_id}
+Link: {link}
 
 {errors}
 
@@ -53,6 +53,9 @@ Link: {url}/stats.html?id={run_id}
 {url}"""
 
     config = GlobalConfig().config
+    link = 'No link available'
+    if run_id is not None:
+        link = f"Link: {config['cluster']['metrics_url']}/stats.html?id={run_id}"
     message = message.format(
         receiver_email=receiver_email,
         errors=error,
@@ -61,11 +64,12 @@ Link: {url}/stats.html?id={run_id}
         bcc_email=config['admin']['bcc_email'],
         url=config['cluster']['metrics_url'],
         run_id=run_id,
+        link=link,
         smtp_sender=config['smtp']['sender'])
     send_email(message, [receiver_email, config['admin']['bcc_email']])
 
 
-def send_report_email(receiver_email, report_id, name, machine=None):
+def send_report_email(receiver_email, run_id, name, machine=None):
     message = """\
 From: {smtp_sender}
 To: {receiver_email}
@@ -75,7 +79,7 @@ Subject: Your Green Metric report is ready
 Run Name: {name}
 Machine: {machine}
 
-Your report is now accessible under the URL: {url}/stats.html?id={report_id}
+Your report is now accessible under the URL: {url}/stats.html?id={run_id}
 
 --
 {url}"""
@@ -83,7 +87,7 @@ Your report is now accessible under the URL: {url}/stats.html?id={report_id}
     config = GlobalConfig().config
     message = message.format(
         receiver_email=receiver_email,
-        report_id=report_id,
+        run_id=run_id,
         machine=machine,
         name=name,
         bcc_email=config['admin']['bcc_email'],
@@ -97,8 +101,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('receiver_email', help='Please supply a receiver_email to send the email to')
-    parser.add_argument('report_id', help='Please supply a report_id to include in the email')
+    parser.add_argument('run_id', help='Please supply a run_id to include in the email')
 
     args = parser.parse_args()  # script will exit if arguments is not present
 
-    send_report_email(args.receiver_email, args.report_id, "My custom name")
+    send_report_email(args.receiver_email, args.run_id, "My custom name")
