@@ -8,6 +8,8 @@ CREATE TABLE machines (
     id SERIAL PRIMARY KEY,
     description text,
     available boolean DEFAULT false,
+    status_code text,
+    sleep_time_after_job integer,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
