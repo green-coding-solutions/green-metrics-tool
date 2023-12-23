@@ -52,7 +52,7 @@ class BaseMetricProvider:
     # implemented as getter function and not direct access, so it can be overloaded
     # some child classes might not actually have _ps attribute set
     def get_stderr(self):
-        return self._ps.stderr.read()
+        return self._ps.stderr.read() if self._ps.stderr is not None else None
 
     def has_started(self):
         return self._has_started
