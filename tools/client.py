@@ -68,7 +68,7 @@ if __name__ == '__main__':
             validate.run_workload(cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
             set_status('measurement_control_end')
 
-            stddev_data = validate.get_workload_stddev(cwl['repo_uri'], cwl['filename'], cwl['branch'], GlobalConfig().config['machine']['id'], cwl['comparison_window'], cwl['phase'], cwl['metrics'])
+            stddev_data = validate.get_workload_stddev(cwl['uri'], cwl['filename'], cwl['branch'], GlobalConfig().config['machine']['id'], cwl['comparison_window'], cwl['phase'], cwl['metrics'])
             print('get_workload_stddev returned: ', stddev_data)
 
             try:
