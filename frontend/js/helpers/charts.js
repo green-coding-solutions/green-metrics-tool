@@ -1,3 +1,9 @@
+const calculateStatistics = (data) => {
+    const mean = data.reduce((sum, value) => sum + value.value, 0) / data.length;
+    const stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value.value - mean, 2), 0) / data.length);
+    return { mean, stddev };
+}
+
 const getCompareChartOptions = (legend, series, chart_type='line', x_axis='time', y_axis_name, mark_area=null,  graphic=null) => {
     let tooltip_trigger = (chart_type=='line') ? 'axis' : 'item';
 
@@ -106,7 +112,7 @@ const calculateMA = (series, factor) => {
   return result;
 }
 
-const getLineBarChartOptions = (legend, labels, series, x_axis_name=null, y_axis_name='', x_axis='time', mark_area=null, no_toolbox=false, graphic=null, moving_average=false, show_x_axis_label=true) => {
+const getLineBarChartOptions = (legend, labels, series, x_axis_name=null, y_axis_name='', x_axis='time', mark_area=null, no_toolbox=false, graphic=null, moving_average=false, show_x_axis_label=true, stddev=false) => {
 
     if(Object.keys(series).length == 0) {
         return {graphic: getChartGraphic("No energy reporter active")};
@@ -127,6 +133,31 @@ const getLineBarChartOptions = (legend, labels, series, x_axis_name=null, y_axis
           }
        })
    }
+
+   if(stddev) {
+       const { mean, stddev } = calculateStatistics(series[0].data);
+
+       legend.push('Stddev')
+       series.push({
+            name: 'Stddev',
+            type: 'line',
+            markArea: {
+                label: {
+                    show: true,
+                    name: "MarkArea",
+                    position: 'top'
+                },
+                data: [
+                    [
+                        { yAxis: mean + stddev, name: `StdDev: ${(stddev/mean * 100).toFixed(2)} %`},
+                        { yAxis: mean - stddev},
+                    ]
+
+                ],
+            }
+        });
+   }
+
 
    let options =  {
         tooltip: { trigger: tooltip_trigger },

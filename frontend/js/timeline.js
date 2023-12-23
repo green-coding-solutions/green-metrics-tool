@@ -218,12 +218,12 @@ const loadCharts = async () => {
             }
         }]
 
-        let options = getLineBarChartOptions([], series[my_series].labels, data_series, 'Time', series[my_series].unit,  'category', null, false, null, true, false);
+        let options = getLineBarChartOptions([], series[my_series].labels, data_series, 'Time', series[my_series].unit,  'category', null, false, null, true, false, true);
 
         options.tooltip = {
             trigger: 'item',
             formatter: function (params, ticket, callback) {
-                if(params.componentType != 'series') return; // no notes for the MovingAverage
+                if(series[params.seriesName]?.notes == null) return; // no notes for the MovingAverage
                 return `<strong>${series[params.seriesName].notes[params.dataIndex].run_name}</strong><br>
                         date: ${series[params.seriesName].notes[params.dataIndex].created_at}<br>
                         metric_name: ${params.seriesName}<br>
@@ -243,9 +243,31 @@ const loadCharts = async () => {
 
         });
 
+        options.dataZoom = {
+            show: false,
+            start: 0,
+            end: 100,
+        };
+
 
         chart_instance.setOption(options);
         chart_instances.push(chart_instance);
+        chart_instance.on('datazoom', function(e, f) {
+            const data = chart_instance.getOption().series[0].data
+            const dataZoomOption = chart_instance.getOption().dataZoom[0];
+            const startPercent = dataZoomOption.start;
+            const endPercent = dataZoomOption.end;
+            const totalDataPoints = data.length;
+            const startIndex = Math.floor(startPercent / 100 * totalDataPoints);
+            const endIndex = Math.ceil(endPercent / 100 * totalDataPoints) - 1;
+            const { mean, stddev } = calculateStatistics(data.slice(startIndex, endIndex+1));
+
+            let options = chart_instance.getOption()
+            options.series[2].markArea.data[0][0].name = `StdDev: ${(stddev/mean * 100).toFixed(2)} %`
+            options.series[2].markArea.data[0][0].yAxis = mean + stddev
+            options.series[2].markArea.data[0][1].yAxis = mean - stddev;
+            chart_instance.setOption(options)
+        });
 
     }
 
