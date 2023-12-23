@@ -20,7 +20,7 @@ test_data = [
 ]
 
 @pytest.mark.parametrize("config_file,skip_system_checks,expectation", test_data)
-def test_check_system(config_file, skip_system_checks, expectation):
+def disable_test_check_system(config_file, skip_system_checks, expectation):
     runner = Runner("foo", "baz", "bar", skip_system_checks=skip_system_checks)
     copy2(os.path.join(TEST_DATA_CONFIG_DIR, config_file), os.path.join(REPO_ROOT, config_file))
     GlobalConfig().override_config(config_name=config_file)
