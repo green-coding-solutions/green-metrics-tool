@@ -65,14 +65,14 @@ class PhaseMetrics extends HTMLElement {
             </div>
             <div class="ui card network-energy">
                 <div class="ui content">
-                    <div class="ui top blue attached label overflow-ellipsis">Network Energy <span class="si-unit"></span></div>
+                    <div class="ui top blue attached label overflow-ellipsis">Network Transmission Energy<span class="si-unit"></span></div>
                     <div class="description">
                         <div class="ui fluid mini statistic">
                             <div class="value">
                                 <i class="battery three quarters icon"></i> <span>N/A</span>
                             </div>
                         </div>
-                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Estimated external energy cost for network infrastructure. See details under formula.">
                             <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
                         </div>
@@ -103,14 +103,14 @@ class PhaseMetrics extends HTMLElement {
             </div>
             <div class="ui card network-co2">
                 <div class="ui content">
-                    <div class="ui top black attached label overflow-ellipsis">Network CO2 <span class="si-unit"></span></div>
+                    <div class="ui top black attached label overflow-ellipsis">Network Transmission CO2 <span class="si-unit"></span></div>
                     <div class="description">
                         <div class="ui fluid mini statistic">
                             <div class="value">
                                 <i class="burn icon"></i> <span>N/A</span>
                             </div>
                         </div>
-                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Estimated external CO2 cost for network infrastructure. See details under formula.">
                             <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
                         </div>

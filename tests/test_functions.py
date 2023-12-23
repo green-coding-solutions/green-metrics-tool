@@ -62,17 +62,16 @@ def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='f
 def run_until(runner, step):
     try:
         config = GlobalConfig().config
-        return_run_id = runner.initialize_run()
-
-        # do a meaningless operation on return_run_id so pylint doesn't complain
-        print(return_run_id)
-
         runner.check_system('start')
         runner.initialize_folder(runner._tmp_folder)
         runner.checkout_repository()
+        runner.initialize_run()
         runner.initial_parse()
+        if step == 'import_metric_providers':
+            return
         runner.import_metric_providers()
         runner.populate_image_names()
+        runner.prepare_docker()
         runner.check_running_containers()
         runner.remove_docker_images()
         runner.download_dependencies()

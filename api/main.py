@@ -172,7 +172,7 @@ async def get_network(run_id):
 
 
 # return a list of all possible registered machines
-@app.get('/v1/machines/')
+@app.get('/v1/machines')
 async def get_machines():
 
     data = get_machine_list()
@@ -227,7 +227,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
 async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None):
 
     query = """
-            SELECT r.id, r.name, r.uri, COALESCE(r.branch, 'main / master'), r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement
+            SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE 1=1
@@ -303,7 +303,7 @@ async def compare_in_repo(ids: str):
         machine = machines[run_info['machine_id']]
         uri = run_info['uri']
         usage_scenario = run_info['usage_scenario']['name']
-        branch = run_info['branch'] if run_info['branch'] is not None else 'main / master'
+        branch = run_info['branch']
         commit = run_info['commit_hash']
         filename = run_info['filename']
 
@@ -519,8 +519,8 @@ async def get_timeline_projects():
                 FROM runs as r
                 WHERE
                     p.url = r.uri
-                    AND COALESCE(p.branch, 'main / master') = COALESCE(r.branch, 'main / master')
-                    AND COALESCE(p.filename, 'usage_scenario.yml') = COALESCE(r.filename, 'usage_scenario.yml')
+                    AND p.branch = r.branch
+                    AND p.filename = r.filename
                     AND p.machine_id = r.machine_id
                 ORDER BY r.created_at DESC
                 LIMIT 1
@@ -1017,15 +1017,15 @@ async def software_add(software: Software):
     if software.email is None or software.email.strip() == '':
         raise RequestValidationError('E-mail is empty')
 
+    if software.branch is None or software.branch.strip() == '':
+        software.branch = 'main'
+
+    if software.filename is None or software.filename.strip() == '':
+        software.filename = 'usage_scenario.yml'
+
     if not DB().fetch_one('SELECT id FROM machines WHERE id=%s AND available=TRUE', params=(software.machine_id,)):
         raise RequestValidationError('Machine does not exist')
 
-
-    if software.branch.strip() == '':
-        software.branch = None
-
-    if software.filename.strip() == '':
-        software.filename = 'usage_scenario.yml'
 
     if software.schedule_mode not in ['one-off', 'time', 'commit', 'variance']:
         raise RequestValidationError(f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")

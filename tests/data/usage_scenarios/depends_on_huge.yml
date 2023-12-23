@@ -1,0 +1,146 @@
+# test-container-1
+# ├── test-container-2
+# │   ├── test-container-3
+# │   │   ├── test-container-5
+# │   │   │   ├── test-container-15
+# │   │   │   │   └── test-container-20
+# │   │   │   └── test-container-6
+# │   │   ├── test-container-9
+# │   │   │   └── test-container-17
+# │   │   └── test-container-13
+# │   │       └── test-container-19
+# │   ├── test-container-4
+# │   │   ├── test-container-6
+# │   │   ├── test-container-10
+# │   │   │   └── test-container-17
+# │   │   ├── test-container-14
+# │   │   │   └── test-container-19
+# │   │   └── test-container-7
+# │   │       └── test-container-16
+# │   └── test-container-8
+# │       └── test-container-16
+# │           └── test-container-20
+# └── test-container-7
+#     └── test-container-16
+#         └── test-container-20
+# └── test-container-11
+#     └── test-container-18
+# └── test-container-12
+#     └── test-container-18
+
+name: Test depends_on with loads of depends
+author: Didi Hoffmann
+description: test
+
+services:
+  test-container-20:
+    image: alpine
+    depends_on:
+      - test-container-16
+      - test-container-15
+
+  test-container-19:
+    image: alpine
+    depends_on:
+      - test-container-14
+      - test-container-13
+
+  test-container-18:
+    image: alpine
+    depends_on:
+      - test-container-12
+      - test-container-11
+
+  test-container-17:
+    image: alpine
+    depends_on:
+      - test-container-10
+      - test-container-9
+
+  test-container-16:
+    image: alpine
+    depends_on:
+      - test-container-8
+      - test-container-7
+
+  test-container-15:
+    image: alpine
+    depends_on:
+      - test-container-6
+      - test-container-5
+
+  test-container-14:
+    image: alpine
+    depends_on:
+      - test-container-4
+
+  test-container-13:
+    image: alpine
+    depends_on:
+      - test-container-3
+
+  test-container-12:
+    image: alpine
+    depends_on:
+      - test-container-2
+
+  test-container-11:
+    image: alpine
+    depends_on:
+      - test-container-1
+
+  test-container-10:
+    image: alpine
+    depends_on:
+      - test-container-4
+
+  test-container-9:
+    image: alpine
+    depends_on:
+      - test-container-3
+
+  test-container-8:
+    image: alpine
+    depends_on:
+      - test-container-2
+
+  test-container-7:
+    image: alpine
+    depends_on:
+      - test-container-1
+
+  test-container-6:
+    image: alpine
+    depends_on:
+      - test-container-4
+
+  test-container-5:
+    image: alpine
+    depends_on:
+      - test-container-3
+
+  test-container-4:
+    image: alpine
+    depends_on:
+      - test-container-2
+
+  test-container-3:
+    image: alpine
+    depends_on:
+      - test-container-1
+
+  test-container-2:
+    image: alpine
+    depends_on:
+      - test-container-1
+
+  test-container-1:
+    image: alpine
+
+
+flow:
+  - name: dummy
+    container: test-container-1
+    commands:
+      - type: console
+        command: pwd

@@ -98,10 +98,15 @@ class SchemaChecker():
                     Optional("networks"): self.single_or_list(Use(self.contains_no_invalid_chars)),
                     Optional("environment"): self.single_or_list(Or(dict,str)),
                     Optional("ports"): self.single_or_list(Or(str, int)),
+                    Optional("depends_on"): Or([str],dict),
                     Optional("setup-commands"): [str],
                     Optional("volumes"): self.single_or_list(str),
                     Optional("folder-destination"):str,
-                    Optional("cmd"): str,
+                    Optional("command"): str,
+                    Optional("log-stdout"): bool,
+                    Optional("log-stderr"): bool,
+                    Optional("read-notes-stdout"): bool,
+                    Optional("read-sci-stdout"): bool,
                 }
             },
 
@@ -114,6 +119,7 @@ class SchemaChecker():
                     Optional("detach"): bool,
                     Optional("note"): str,
                     Optional("read-notes-stdout"): bool,
+                    Optional("read-sci-stdout"): bool,
                     Optional("ignore-errors"): bool,
                     Optional("shell"): str,
                     Optional("log-stdout"): bool,
@@ -124,6 +130,7 @@ class SchemaChecker():
             Optional("compose-file"): Use(self.validate_compose_include)
         }, ignore_extra_keys=True)
 
+
         # This check is necessary to do in a seperate pass. If tried to bake into the schema object above,
         # it will not know how to handle the value passed when it could be either a dict or list
         if 'networks' in usage_scenario:
@@ -133,6 +140,8 @@ class SchemaChecker():
             service = usage_scenario['services'][service_name]
             if 'image' not in service and 'build' not in service:
                 raise SchemaError("The 'image' key under services is required when 'build' key is not present.")
+            if 'cmd' in service:
+                raise SchemaError("The 'cmd' key under services is not supported anymore. Please migrate to 'command'")
 
         usage_scenario_schema.validate(usage_scenario)
 
