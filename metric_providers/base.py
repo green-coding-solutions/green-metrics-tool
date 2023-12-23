@@ -47,7 +47,17 @@ class BaseMetricProvider:
 
     # this is the default function that will be overridden in the children
     def check_system(self):
-        pass
+        cmd = ['pgrep', '-f', self._metric_provider_executable]
+        result = subprocess.run(cmd,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            check=False, encoding='UTF-8')
+        # returncode 1 sadly indicates program failure or no found process, so we need to go deeper
+        if result.returncode not in [0, 1]:
+            raise subprocess.CalledProcessError(result.stderr, cmd)
+        if result.stdout != '':
+            raise MetricProviderConfigurationError(f"Another instance of the {self._metric_name} metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.")
+        return True
 
     # implemented as getter function and not direct access, so it can be overloaded
     # some child classes might not actually have _ps attribute set

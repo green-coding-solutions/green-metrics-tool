@@ -3,6 +3,7 @@ import os
 from shutil import copy2
 
 import pytest
+import re
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_DATA_CONFIG_DIR = os.path.join(CURRENT_DIR, "data", "config_files")
@@ -12,7 +13,6 @@ from runner import Runner
 from lib.global_config import GlobalConfig
 from lib.system_checks import ConfigurationCheckError
 from tests import test_functions as Tests
-from lib.system_checks import check_providers_running
 
 test_data = [
     ("two_psu_providers.yml", True, does_not_raise()),
@@ -33,12 +33,19 @@ def test_check_system(config_file, skip_system_checks, expectation):
 def test_reporters_still_running():
     runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, dry_run=True)
 
+    runner2 = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, dry_run=True)
+
     runner.check_system('start') # should not fail
 
     try:
         Tests.run_until(runner, 'setup_services')
 
-        assert check_providers_running() is False, 'Providers where expected to be still running on system, but where not.'
+        with pytest.raises(Exception) as e:
+            runner2.import_metric_providers()
+
+        expected_error = r'Another instance of the \w+ metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.'
+        assert re.match(expected_error, str(e.value)), Tests.assertion_info(expected_error, str(e.value))
 
     finally:
         Tests.cleanup(runner)
+        Tests.cleanup(runner2)
