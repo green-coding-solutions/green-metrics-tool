@@ -30,11 +30,11 @@ cluster:
   client:
     sleep_time_no_job: 300
     cooldown_time_after_job: 300
-    jobs_processing: random
+    jobs_processing: "random"
     time_between_control_workload_validations: 21600
     send_control_workload_status_mail: False
     control_workload:
-      name: "Measurement control Workload (on boot)"
+      name: "Measurement control Workload"
       uri: "https://github.com/green-coding-berlin/measurement-control-workload"
       filename: "usage_scenario.yml"
       branch: "main"

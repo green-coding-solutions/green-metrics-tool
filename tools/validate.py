@@ -141,7 +141,7 @@ if __name__ == '__main__':
     if not args.skip_run:
         run_workload(cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
 
-    stddev_data = get_workload_stddev(cwl['repo_uri'], cwl['filename'], cwl['branch'], config_main['machine']['id'], cwl['comparison_window'], cwl['phase'], cwl['metrics'])
+    stddev_data = get_workload_stddev(cwl['uri'], cwl['filename'], cwl['branch'], config_main['machine']['id'], cwl['comparison_window'], cwl['phase'], cwl['metrics'])
     print('get_workload_stddev returned: ', stddev_data)
 
     message = validate_workload_stddev(stddev_data, cwl['threshold'])

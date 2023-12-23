@@ -35,10 +35,10 @@ def set_status(status_code, data=None, run_id=None):
 
     query = """
         UPDATE machines
-        SET status_code=%s, sleep_time_after_job=%s
+        SET status_code=%s, cooldown_time_after_job=%s
         WHERE id = %s
     """
-    params = (status_code, client['sleep_time_after_job'], config['machine']['id'])
+    params = (status_code, client['cooldown_time_after_job'], config['machine']['id'])
     DB().query(query=query, params=params)
 
 def do_cleanup():
@@ -78,12 +78,12 @@ if __name__ == '__main__':
             except Exception as exception:
                 validate.handle_validate_exception(exception)
                 set_status('measurement_control_error')
-                # the process will now go to sleep for the next 6 hours
+                # the process will now go to sleep for 'time_between_control_workload_validations''
                 # This is as long as the next validation is needed and thus it will loop
                 # endlessly in validation until manually handled, which is what we want.
                 time.sleep(client_main['time_between_control_workload_validations'])
             finally:
-                time.sleep(client_main['sleep_time_after_job'])
+                time.sleep(client_main['cooldown_time_after_job'])
                 do_cleanup()
 
         elif job:
@@ -95,7 +95,7 @@ if __name__ == '__main__':
                 set_status('job_error', str(exc), job._run_id)
                 handle_job_exception(exc, job)
             finally:
-                time.sleep(client_main['sleep_time_after_job'])
+                time.sleep(client_main['cooldown_time_after_job'])
                 do_cleanup()
 
         else:
