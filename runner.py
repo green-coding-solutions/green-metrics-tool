@@ -962,7 +962,7 @@ class Runner:
 
             stderr_read = metric_provider.get_stderr()
             print(f"Stderr check on {metric_provider.__class__.__name__}")
-            if stderr_read is not None and str(stderr_read):
+            if stderr_read is not None and stderr_read != '':
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
 
@@ -1096,7 +1096,7 @@ class Runner:
                 continue
 
             stderr_read = metric_provider.get_stderr()
-            if stderr_read is not None and str(stderr_read):
+            if stderr_read is not None and stderr_read != '':
                 errors.append(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
             metric_provider.stop_profiling()
@@ -1123,6 +1123,7 @@ class Runner:
         process_helpers.kill_ps(self.__ps_to_kill)
         for ps in self.__ps_to_read:
             if ps['detach']:
+                # communicate will only really work to our experience if the process is killed before
                 stdout, stderr = ps['ps'].communicate(timeout=5)
             else:
                 stdout = ps['ps'].stdout
