@@ -156,7 +156,7 @@ class Job:
         else:
             query = f"{query} j.state = 'FINISHED' AND j.email IS NOT NULL "
 
-        if config['machine']['jobs_processing'] == 'random':
+        if config['cluster']['client']['jobs_processing'] == 'random':
             query = f"{query} ORDER BY RANDOM()"
         else:
             query = f"{query} ORDER BY j.created_at ASC"  # default case == 'fifo'

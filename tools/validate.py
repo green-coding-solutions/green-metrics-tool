@@ -13,13 +13,13 @@ energy metrics.
 
 However if your workload also incorporates an SCI value it makes sense to also have that integrated
 as it also tries to compare the throughput of the machine then.
+
+This script is designed to be run manually via direct call or to be utilized as includes in the client.py
+
 '''
 
 import faulthandler
 faulthandler.enable()  # will catch segfaults and write to stderr
-
-import sys
-import time
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -29,9 +29,12 @@ from lib import error_helpers
 
 from runner import Runner
 from tools.phase_stats import build_and_store_phase_stats
-from tools.client import set_status
 
-def validate_stddev(repo_uri, filename, branch, machine_id, comparison_window, phase, metrics):
+class ValidationWorkloadStddevError(RuntimeError):
+    pass
+
+
+def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_window, phase, metrics):
     query = """
         WITH LastXRows AS (
             SELECT id
@@ -66,6 +69,62 @@ def validate_stddev(repo_uri, filename, branch, machine_id, comparison_window, p
     return DB().fetch_all(query=query, params=params)
 
 
+def run_workload(name, uri, filename, branch):
+    runner = Runner(
+        name=name,
+        uri=uri,
+        uri_type='URL',
+        filename=filename,
+        branch=branch,
+        skip_unsafe=True,
+        skip_system_checks=None,
+        full_docker_prune=False,
+        docker_prune=True,
+        job_id=None,
+    )
+    # Start main code. Only URL is allowed for cron jobs
+    run_id = runner.run()
+    build_and_store_phase_stats(run_id, runner._sci)
+
+def validate_workload_stddev(data, threshold):
+    warning = False
+    info_string_acc = []
+    for el in data:
+        info_string = f"{el[0]} {el[1]}: {el[4]} +/- {el[5]} {el[6]*100} %"
+        print(info_string)
+        info_string_acc.append(info_string)
+        if el[6] > threshold:
+            print(TerminalColors.FAIL, 'Warning. Threshold exceeded!', TerminalColors.ENDC)
+            warning = True
+    if warning:
+        print(TerminalColors.FAIL, 'Aborting!', TerminalColors.ENDC)
+        raise ValidationWorkloadStddevError("\n".join(info_string_acc))
+    print(TerminalColors.OKGREEN, f"Machine is operating normally. All STDDEV below {threshold * 100} %", TerminalColors.ENDC)
+
+    return info_string_acc
+
+def is_validation_needed(duration):
+    query = '''
+        SELECT id
+        FROM client_status
+        WHERE
+            status_code = 'measurement_control_end'
+            AND EXTRACT(EPOCH FROM CURRENT_TIMESTAMP - created_at) < %s
+        ORDER BY created_at DESC
+    '''
+    data = DB().fetch_one(query=query, params=(duration, ))
+    return data is None or data == []
+
+def handle_validate_exception(exc):
+    config = GlobalConfig().config
+    control_workload = config['cluster']['client']['control_workload']
+
+    error_helpers.log_error('handle_validate_exception: ', exc, f"Please check under {config['cluster']['metrics_url']}/timeline.html?uri={control_workload['uri']}&branch={control_workload['branch']}&filename={control_workload['filename']}&machine_id={config['machine']['id']}")
+
+    if config['admin']['no_emails'] is False:
+        email_helpers.send_error_email(config['admin']['email'], error_helpers.format_error(
+            'handle_validate_exception: ', exc, f"Please check under {config['cluster']['metrics_url']}/timeline.html?uri={control_workload['uri']}&branch={control_workload['branch']}&filename={control_workload['filename']}&machine_id={config['machine']['id']}"), name='Measurement control Workload (on boot)', machine=config['machine']['description'])
+
 # pylint: disable=broad-except
 if __name__ == '__main__':
     import argparse
@@ -75,64 +134,15 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    run_id = None
-    config = GlobalConfig().config
-    try:
-        set_status('measurement_control_start')
-        if not args.skip_run:
-            runner = Runner(
-                name=config['machine']['control_workload']['name'],
-                uri=config['machine']['control_workload']['uri'],
-                uri_type='URL',
-                filename=config['machine']['control_workload']['filename'],
-                branch=config['machine']['control_workload']['branch'],
-                skip_unsafe=True,
-                skip_system_checks=None,
-                full_docker_prune=False,
-                docker_prune=True,
-                job_id=None,
-            )
-            # Start main code. Only URL is allowed for cron jobs
-            run_id = runner.run()
-            build_and_store_phase_stats(run_id, runner._sci)
+    config_main = GlobalConfig().config
+    client = config_main['cluster']['client']
+    cwl = client['control_workload']
 
-        set_status('measurement_control_end')
+    if not args.skip_run:
+        run_workload(cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
 
-        data = validate_stddev(
-            config['machine']['control_workload']['uri'],
-            config['machine']['control_workload']['filename'],
-            config['machine']['control_workload']['branch'],
-            config['machine']['id'],
-            config['machine']['control_workload']['comparison_window'],
-            config['machine']['control_workload']['phase'],
-            config['machine']['control_workload']['metrics'],
-        )
+    stddev_data = get_workload_stddev(cwl['repo_uri'], cwl['filename'], cwl['branch'], config_main['machine']['id'], cwl['comparison_window'], cwl['phase'], cwl['metrics'])
+    print('get_workload_stddev returned: ', stddev_data)
 
-        print('Validate_stddev returned: ')
-        warning = False
-        info_string_acc = []
-        for el in data:
-            info_string = f"{el[0]} {el[1]}: {el[4]} +/- {el[5]} {el[6]*100} %"
-            print(info_string)
-            info_string_acc.append(info_string)
-            if el[6] > config['machine']['control_workload']['threshhold']:
-                print(TerminalColors.FAIL, 'Warning. Threshhold exceeded!', TerminalColors.ENDC)
-                warning = True
-        if warning:
-            print(TerminalColors.FAIL, 'Aborting!', TerminalColors.ENDC)
-            raise RuntimeError("\n".join(info_string_acc))
-        print(TerminalColors.OKGREEN, f"Machine is operating normally. All STDDEV below {config['machine']['control_workload']['threshhold'] * 100} %", TerminalColors.ENDC)
-
-        if config['admin']['no_emails'] is False and config['machine']['control_workload']['send_status_mail']:
-            email_helpers.send_admin_email(f"Machine is operating normally. All STDDEV below {config['machine']['control_workload']['threshhold'] * 100} %", "\n".join(info_string_acc))
-
-        print('Sleeping for ', config['client']['sleep_time_after_job'] , 'seconds')
-        time.sleep(config['client']['sleep_time_after_job'])
-
-    except Exception as exc:
-        error_helpers.log_error('Base exception occurred in validate.py: ', exc, f"Please check under {config['cluster']['metrics_url']}/timeline.html?uri={config['machine']['control_workload']['uri']}&branch={config['machine']['control_workload']['branch']}&filename={config['machine']['control_workload']['filename']}&machine_id={config['machine']['id']}")
-        if GlobalConfig().config['admin']['no_emails'] is False:
-            email_helpers.send_error_email(config['admin']['email'], error_helpers.format_error(
-                'Base exception occurred in validate.py: ', exc, f"Please check under {config['cluster']['metrics_url']}/timeline.html?uri={config['machine']['control_workload']['uri']}&branch={config['machine']['control_workload']['branch']}&filename={config['machine']['control_workload']['filename']}&machine_id={config['machine']['id']}"), run_id=run_id, name='Measurement control Workload (on boot)', machine=config['machine'].get('description'))
-        set_status('measurement_control_error')
-        sys.exit(1)
+    message = validate_workload_stddev(stddev_data, cwl['threshold'])
+    print('validate_workload_stddev returned:', message)
