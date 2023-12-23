@@ -117,9 +117,13 @@ git submodule update --init
 print_message "Installing needed binaries for building ..."
 if lsb_release -is | grep -q "Fedora"; then
     sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy lshw
+    sudo systemctl stop tinyproxy
+    sudo systemctl disable tinyproxy
 else
     sudo apt-get update
     sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy lshw
+    sudo systemctl stop tinyproxy
+    sudo systemctl disable tinyproxy
 fi
 
 print_message "Building binaries ..."
