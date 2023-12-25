@@ -1,5 +1,5 @@
 -r requirements.txt
-pydantic==2.5.2
+pydantic==2.5.3
 pytest==7.4.3
 requests==2.31.0
 pylint==3.0.3
