@@ -22,7 +22,10 @@ class BaseMetricProvider:
         current_dir,
         metric_provider_executable='metric-provider-binary',
         sudo=False,
-        disable_buffer=True
+        disable_buffer=True,
+        rootless = None,
+        monitor=False,
+
     ):
         self._metric_name = metric_name
         self._metrics = metrics
@@ -33,7 +36,8 @@ class BaseMetricProvider:
         self._sudo = sudo
         self._has_started = False
         self._disable_buffer = disable_buffer
-        self._rootless = None
+        self._rootless = rootless
+        self._monitor = monitor
 
         self._tmp_folder = '/tmp/green-metrics-tool'
         self._ps = None
@@ -112,13 +116,16 @@ class BaseMetricProvider:
             call_string += ' '  # space at start
             call_string += ' '.join(self._extra_switches)
 
-        # This needs refactoring see https://github.com/green-coding-berlin/green-metrics-tool/issues/45
-        if self._metrics.get('container_id') is not None:
+        if self._monitor is True:
+            call_string += ' --monitor '
+        elif self._metrics.get('container_id') is not None: # This needs refactoring see https://github.com/green-coding-berlin/green-metrics-tool/issues/45
             call_string += ' -s '
             call_string += ','.join(containers.keys())
 
         if self._rootless is True:
             call_string += ' --rootless '
+
+
 
         call_string += f" > {self._filename}"
 

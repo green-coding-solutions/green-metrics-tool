@@ -476,7 +476,7 @@ class Runner:
             self._run_id)
         )
 
-    def import_metric_providers(self):
+    def import_metric_providers(self, monitor=False):
         config = GlobalConfig().config
 
         print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
@@ -499,6 +499,9 @@ class Runner:
 
             if rootless and '.cgroup.' in module_path:
                 conf['rootless'] = True
+
+            if monitor and '.cgroup.' in module_path:
+                conf['monitor'] = True
 
             print(f"Importing {class_name} from {module_path}")
             print(f"Configuration is {conf}")
@@ -966,11 +969,10 @@ class Runner:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
 
-    def start_phase(self, phase, transition=True, silent=False):
+    def start_phase(self, phase, transition=True):
         config = GlobalConfig().config
 
-        if not silent:
-            print(TerminalColors.HEADER, f"\nStarting phase {phase}.", TerminalColors.ENDC)
+        print(TerminalColors.HEADER, f"\nStarting phase {phase}.", TerminalColors.ENDC)
 
         if transition:
             # The force-sleep must go and we must actually check for the temperature baseline
@@ -1499,6 +1501,7 @@ if __name__ == '__main__':
         from tools.phase_stats import build_and_store_phase_stats
 
         print("Run id is", runner._run_id)
+        print("Aggregating and uploading phase_stats. This can take a while for longer runs ...")
         build_and_store_phase_stats(runner._run_id, runner._sci)
 
 

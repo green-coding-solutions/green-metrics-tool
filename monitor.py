@@ -10,6 +10,7 @@ check_venv() # this check must even run before __main__ as imports might not get
 import subprocess
 import os
 import sys
+import time
 from pathlib import Path
 
 
@@ -54,7 +55,7 @@ class Monitor(Runner):
             # self.checkout_repository()
             self.initialize_run()
             #self.initial_parse()
-            self.import_metric_providers()
+            self.import_metric_providers(monitor=True)
             #self.populate_image_names()
             self.prepare_docker()
             # self.check_running_containers()
@@ -75,22 +76,12 @@ class Monitor(Runner):
 
             self.start_metric_providers(allow_container=True, allow_other=False)
 
-            self.start_phase('MOCK_BASELINE', transition=False, silent=True)
-            self.end_phase('MOCK_BASELINE')
-
-            self.start_phase('MOCK_INSTALLATION', transition=False, silent=True)
-            self.end_phase('MOCK_INSTALLATION')
-
-            self.start_phase('MOCK_BOOT', transition=False, silent=True)
-            self.end_phase('MOCK_BOOT')
-
-            self.start_phase('MOCK_IDLE', transition=False, silent=True)
-            self.end_phase('MOCK_IDLE')
-
-
-            self.start_phase('[RUNTIME]')
+            self.start_phase('[RUNTIME]', transition=False)
                 # TODO: Trigger
-            self.custom_sleep(2)
+
+            print('Monitoring active ... press CTRL+C to stop and save data.')
+            while True:
+                time.sleep(3600)
 
 
 
@@ -98,42 +89,46 @@ class Monitor(Runner):
             self.add_to_log(exc.__class__.__name__, str(exc))
             raise exc
         finally:
-            self.end_phase('[RUNTIME]')
-            self.end_measurement()
-            self.store_phases()
-            self.update_start_and_end_times()
-
             try:
-                self.read_container_logs()
+                self.end_phase('[RUNTIME]')
+                self.end_measurement()
+                self.store_phases()
+                self.update_start_and_end_times()
             except BaseException as exc:
                 self.add_to_log(exc.__class__.__name__, str(exc))
                 raise exc
             finally:
                 try:
-                    self.read_and_cleanup_processes()
+                    self.read_container_logs()
                 except BaseException as exc:
                     self.add_to_log(exc.__class__.__name__, str(exc))
                     raise exc
                 finally:
                     try:
-                        self.save_notes_runner()
+                        self.read_and_cleanup_processes()
                     except BaseException as exc:
                         self.add_to_log(exc.__class__.__name__, str(exc))
                         raise exc
                     finally:
                         try:
-                            self.stop_metric_providers()
+                            self.save_notes_runner()
                         except BaseException as exc:
                             self.add_to_log(exc.__class__.__name__, str(exc))
                             raise exc
                         finally:
                             try:
-                                self.save_stdout_logs()
+                                self.stop_metric_providers()
                             except BaseException as exc:
                                 self.add_to_log(exc.__class__.__name__, str(exc))
                                 raise exc
                             finally:
-                                self.cleanup()  # always run cleanup automatically after each run
+                                try:
+                                    self.save_stdout_logs()
+                                except BaseException as exc:
+                                    self.add_to_log(exc.__class__.__name__, str(exc))
+                                    raise exc
+                                finally:
+                                    self.cleanup()  # always run cleanup automatically after each run
 
         return self._run_id
 
@@ -199,13 +194,15 @@ if __name__ == '__main__':
         from tools.phase_stats import build_and_store_phase_stats
 
         print("Run id is", monitor._run_id)
-        build_and_store_phase_stats(monitor._run_id, monitor._sci)
 
+    except KeyboardInterrupt:
+        from tools.phase_stats import build_and_store_phase_stats
+        print("Aggregating and uploading phase_stats. This can take a while for longer runs ...")
+        build_and_store_phase_stats(monitor._run_id, monitor._sci)
 
         print(TerminalColors.OKGREEN,'\n\n####################################################################################')
         print(f"Please access your report on the URL {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={monitor._run_id}")
         print('####################################################################################\n\n', TerminalColors.ENDC)
-
     except FileNotFoundError as e:
         error_helpers.log_error('File or executable not found', e, monitor._run_id)
     except subprocess.CalledProcessError as e:

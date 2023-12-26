@@ -81,7 +81,7 @@ static int scan_directory(container_t** containers, int rootless_mode) {
                 user_id, user_id, entry->d_name);
         }
     }
-    printf("Found new length: %d\n", length);
+    // printf("Found new length: %d\n", length);
 
     closedir(dir);
     return length;
@@ -106,7 +106,7 @@ static int output_stats(container_t* containers, int length) {
         //printf("Looking at %s ", containers[i].path);
         fd = fopen(containers[i].path, "r");
         if (fd == NULL) {
-            printf("Warning, container has disappeared in 'before': %s\n", containers[i].path);
+            //printf("Warning, container has disappeared in 'before': %s\n", containers[i].path);
             containers[i].active = 0;
             continue;
         }
@@ -129,7 +129,7 @@ static int output_stats(container_t* containers, int length) {
 
         fd = fopen(containers[i].path, "r");
         if (fd == NULL) {
-            printf("Warning, container has disappeared in 'after': %s\n", containers[i].path);
+            //printf("Warning, container has disappeared in 'after': %s\n", containers[i].path);
             containers[i].active = 0;
             continue;
         }
@@ -230,6 +230,7 @@ int main(int argc, char **argv) {
         {"help", no_argument, NULL, 'h'},
         {"interval", no_argument, NULL, 'i'},
         {"containers", no_argument, NULL, 's'},
+        {"monitor", no_argument, NULL, 'm'},
         {NULL, 0, NULL, 0}
     };
 
