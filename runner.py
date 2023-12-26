@@ -966,9 +966,11 @@ class Runner:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
 
-    def start_phase(self, phase, transition = True):
+    def start_phase(self, phase, transition=True, silent=False):
         config = GlobalConfig().config
-        print(TerminalColors.HEADER, f"\nStarting phase {phase}.", TerminalColors.ENDC)
+
+        if not silent:
+            print(TerminalColors.HEADER, f"\nStarting phase {phase}.", TerminalColors.ENDC)
 
         if transition:
             # The force-sleep must go and we must actually check for the temperature baseline

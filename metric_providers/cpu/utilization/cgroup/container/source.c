@@ -6,10 +6,12 @@
 #include <time.h>
 #include <string.h> // for strtok
 #include <getopt.h>
+#include <dirent.h>
 
 typedef struct container_t { // struct is a specification and this static makes no sense here
     char path[BUFSIZ];
     char *id;
+    int active;
 } container_t;
 
 // All variables are made static, because we believe that this will
@@ -40,27 +42,50 @@ static long int read_cpu_cgroup(FILE *fd) {
     return cpu_usage;
 }
 
-static long int get_cpu_stat(char* filename, int mode) {
-    FILE* fd = NULL;
-    long int result=-1;
+static int scan_directory(container_t** containers, int rootless_mode) {
+    struct dirent* entry;
+    size_t docker_prefix_len = strlen("docker-");
+    size_t scope_suffix_len = strlen(".scope");
+    int length = 0;
+    DIR* dir = NULL;
+    char my_path[BUFSIZ] = "";
 
-    fd = fopen(filename, "r");
 
-    if ( fd == NULL) {
-        fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Are you using --rootless mode? Errno: %d\n", filename, errno);
-        exit(1);
-    }
-    if(mode == 1) {
-        result = read_cpu_cgroup(fd);
-        // printf("Got cgroup: %ld", result);
+    if(rootless_mode) {
+        sprintf(my_path, "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/", user_id, user_id);
     } else {
-        result = read_cpu_proc(fd);
-        // printf("Got /proc/stat: %ld", result);
+        sprintf(my_path, "/sys/fs/cgroup/system.slice/");
     }
-    fclose(fd);
-    return result;
-}
 
+    dir = opendir(my_path);
+    if (!dir) {
+        fprintf(stderr,"Unable to scan directory for containers. Could not find folder: %s\n", my_path);
+        exit(-1);
+    }
+
+    *containers = malloc(sizeof(container_t));
+
+    while ((entry = readdir(dir)) != NULL) {
+        // Check if the entry is a directory and matches the format
+        if (entry->d_type == DT_DIR &&
+            strstr(entry->d_name, "docker-") == entry->d_name &&
+            strstr(entry->d_name + docker_prefix_len, ".scope") != NULL &&
+            strcmp(entry->d_name + strlen(entry->d_name) - scope_suffix_len, ".scope") == 0) {
+
+            length++;
+            *containers = realloc(*containers, length * sizeof(container_t));
+            (*containers)[length-1].id = strdup(entry->d_name);
+            (*containers)[length-1].active = 1;
+            sprintf((*containers)[length-1].path,
+                "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/%s/cpu.stat",
+                user_id, user_id, entry->d_name);
+        }
+    }
+    printf("Found new length: %d\n", length);
+
+    closedir(dir);
+    return length;
+}
 
 static int output_stats(container_t* containers, int length) {
 
@@ -69,28 +94,58 @@ static int output_stats(container_t* containers, int length) {
     long int cpu_readings_after[length];
     long int container_reading;
 
+    FILE *fd = NULL;
+
     struct timeval now;
     int i;
 
-
     // Get Energy Readings, set timestamp mark
     gettimeofday(&now, NULL);
+
     for(i=0; i<length; i++) {
         //printf("Looking at %s ", containers[i].path);
-        cpu_readings_before[i]=get_cpu_stat(containers[i].path, 1);
+        fd = fopen(containers[i].path, "r");
+        if (fd == NULL) {
+            printf("Warning, container has disappeared in 'before': %s\n", containers[i].path);
+            containers[i].active = 0;
+            continue;
+        }
+        containers[i].active = 1; // containers can come back up again and thus we set active = 1
+        cpu_readings_before[i]=read_cpu_cgroup(fd);
+        fclose(fd);
     }
-    main_cpu_reading_before = get_cpu_stat("/proc/stat", 0);
+
+    fd = fopen("/proc/stat", "r");
+    main_cpu_reading_before = read_cpu_proc(fd);
+    fclose(fd);
 
     usleep(msleep_time*1000);
 
+
+    // after the sleep the containers might have disappeared
+
     for(i=0; i<length; i++) {
-        cpu_readings_after[i]=get_cpu_stat(containers[i].path, 1);
+        if(containers[i].active == 0) continue;
+
+        fd = fopen(containers[i].path, "r");
+        if (fd == NULL) {
+            printf("Warning, container has disappeared in 'after': %s\n", containers[i].path);
+            containers[i].active = 0;
+            continue;
+        }
+        cpu_readings_after[i]=read_cpu_cgroup(fd);
+        fclose(fd);
     }
-    main_cpu_reading_after = get_cpu_stat("/proc/stat", 0);
+
+    fd = fopen("/proc/stat", "r");
+    main_cpu_reading_after = read_cpu_proc(fd);
+    fclose(fd);
 
     // Display Energy Readings
     // This is in a seperate loop, so that all energy readings are done beforehand as close together as possible
     for(i=0; i<length; i++) {
+        if(containers[i].active == 0) continue;
+
         container_reading = cpu_readings_after[i] - cpu_readings_before[i];
         main_cpu_reading = main_cpu_reading_after - main_cpu_reading_before;
 
@@ -133,7 +188,8 @@ static int parse_containers(container_t** containers, char* containers_string, i
         //printf("Token: %s\n", id);
         length++;
         *containers = realloc(*containers, length * sizeof(container_t));
-        (*containers)[length-1].id = id;
+        (*containers)[length-1].id = strdup(id);
+        (*containers)[length-1].active = 1;
         if(rootless_mode) {
             sprintf((*containers)[length-1].path,
                 "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/cpu.stat",
@@ -152,9 +208,14 @@ static int parse_containers(container_t** containers, char* containers_string, i
     return length;
 }
 
+
+
 int main(int argc, char **argv) {
 
     int c;
+    int length = 0;
+    int discover_containers = 0;
+    int use_containers_string = 0;
     int rootless_mode = 0; // docker root is default
     char *containers_string = NULL;  // Dynamic buffer to store optarg
     container_t *containers = NULL;
@@ -172,7 +233,7 @@ int main(int argc, char **argv) {
         {NULL, 0, NULL, 0}
     };
 
-    while ((c = getopt_long(argc, argv, "ri:s:h", long_options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "ri:s:hm", long_options, NULL)) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
@@ -199,8 +260,12 @@ int main(int argc, char **argv) {
             break;
 
         case 's':
+            use_containers_string = 1;
             containers_string = (char *)malloc(strlen(optarg) + 1);  // Allocate memory
             strncpy(containers_string, optarg, strlen(optarg));
+            break;
+        case 'm':
+            discover_containers = 1;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -208,10 +273,17 @@ int main(int argc, char **argv) {
         }
     }
 
-    int length = parse_containers(&containers, containers_string, rootless_mode);
+    if (discover_containers == 1 && use_containers_string == 1) {
+        fprintf(stderr,"Cannot discover containers and use containers string in parallel. Please choose either or.\n");
+        exit(-1);
+    } else if (use_containers_string == 1) {
+        length = parse_containers(&containers, containers_string, rootless_mode);
+    }
 
     while(1) {
+        if(discover_containers == 1) length = scan_directory(&containers, rootless_mode);
         output_stats(containers, length);
+        if(discover_containers == 1) free(containers);
     }
 
     free(containers); // since tools is only aborted by CTRL+C this is never called, but memory is freed on program end
