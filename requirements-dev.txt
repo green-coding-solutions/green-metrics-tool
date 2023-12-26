@@ -3,7 +3,7 @@ pydantic==2.5.3
 pytest==7.4.3
 requests==2.31.0
 pylint==3.0.3
-fastapi==0.105.0
+fastapi==0.106.0
 anybadge==1.14.0
 
 # just to clear the pylint errors for the files in /api
