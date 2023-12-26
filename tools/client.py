@@ -73,7 +73,7 @@ if __name__ == '__main__':
 
             try:
                 message = validate.validate_workload_stddev(stddev_data, cwl['threshold'])
-                if GlobalConfig().config['admin']['no_emails'] is False and cwl['send_control_workload_status_mail']:
+                if GlobalConfig().config['admin']['no_emails'] is False and client_main['send_control_workload_status_mail']:
                     email_helpers.send_admin_email(f"Machine is operating normally. All STDDEV below {cwl['threshold'] * 100} %", "\n".join(message))
             except Exception as exception:
                 validate.handle_validate_exception(exception)
