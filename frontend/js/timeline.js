@@ -222,29 +222,24 @@ const loadCharts = async () => {
         let options = getLineBarChartOptions([], series[my_series].labels, data_series, 'Time', series[my_series].unit,  'category', null, false, null, true, false, true);
 
         options.tooltip = {
-            trigger: 'item',
+            triggerOn: 'click',
             formatter: function (params, ticket, callback) {
                 if(series[params.seriesName]?.notes == null) return; // no notes for the MovingAverage
                 return `<strong>${series[params.seriesName].notes[params.dataIndex].run_name}</strong><br>
+                        run_id: <a href="/stats.html?id=${series[params.seriesName].notes[params.dataIndex].run_id}"  target="_blank">${series[params.seriesName].notes[params.dataIndex].run_id}</a><br>
                         date: ${series[params.seriesName].notes[params.dataIndex].created_at}<br>
                         metric_name: ${params.seriesName}<br>
                         phase: ${series[params.seriesName].notes[params.dataIndex].phase}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
                         commit_timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
-                        commit_hash: <a href="/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}">${series[params.seriesName].notes[params.dataIndex].commit_hash}</a><br>
-                        gmt_hash: <a href="https://github.com/green-coding-berlin/green-metrics-tool/commit/${series[params.seriesName].notes[params.dataIndex].gmt_hash}">${series[params.seriesName].notes[params.dataIndex].gmt_hash}</a><br>
+                        commit_hash: <a href="${$("#uri").text()}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}" target="_blank">${series[params.seriesName].notes[params.dataIndex].commit_hash}</a><br>
+                        gmt_hash: <a href="https://github.com/green-coding-berlin/green-metrics-tool/commit/${series[params.seriesName].notes[params.dataIndex].gmt_hash}" target="_blank">${series[params.seriesName].notes[params.dataIndex].gmt_hash}</a><br>
 
                         <br>
-                        <i>Click the bar to diff measurement with previous</i>
+                        👉 <a href="/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].run_id},${series[params.seriesName].notes[params.dataIndex].prun_id}" target="_blank">Diff with previous run</a>
                         `;
             }
         };
-
-        chart_instance.on('click', function (params) {
-            if(params.componentType != 'series') return; // no notes for the MovingAverage
-            window.open(`/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].run_id},${series[params.seriesName].notes[params.dataIndex].prun_id}`, '_blank');
-
-        });
 
         options.dataZoom = {
             show: false,
