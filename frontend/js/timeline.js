@@ -39,13 +39,13 @@ function* colorIterator() {
     }
 }
 
-const generateColoredValues = (values) => {
+const generateColoredValues = (values, key) => {
     const color_iterator = colorIterator()
-    let last_commit_hash = null
+    let last_hash = null
     let color = null;
     return values.map((value) => {
-        if(last_commit_hash != value.commit_hash) {
-            last_commit_hash = value.commit_hash
+        if(last_hash != value[key]) {
+            last_hash = value[key]
             color = color_iterator.next().value
         }
         return {value: value.value, itemStyle: {color: color}}
@@ -159,7 +159,7 @@ const loadCharts = async () => {
     let prun_id = null
 
     phase_stats_data.forEach( (data) => {
-        let [run_id, run_name, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp] = data
+        let [run_id, run_name, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp, gmt_hash] = data
 
 
         if (series[`${metric_name} - ${detail_name}`] == undefined) {
@@ -167,7 +167,7 @@ const loadCharts = async () => {
         }
 
         series[`${metric_name} - ${detail_name}`].labels.push(commit_timestamp)
-        series[`${metric_name} - ${detail_name}`].values.push({value: value, commit_hash: commit_hash})
+        series[`${metric_name} - ${detail_name}`].values.push({value: value, commit_hash: commit_hash, gmt_hash: gmt_hash})
         series[`${metric_name} - ${detail_name}`].notes.push({
             run_name: run_name,
             created_at: created_at,
@@ -176,6 +176,7 @@ const loadCharts = async () => {
             phase: phase,
             run_id: run_id,
             prun_id: prun_id,
+            gmt_hash: gmt_hash,
         })
 
         prun_id = run_id
@@ -203,7 +204,7 @@ const loadCharts = async () => {
 
         const chart_instance = echarts.init(element);
 
-        const my_values = generateColoredValues(series[my_series].values);
+        const my_values = generateColoredValues(series[my_series].values, $('.radio-coloring:checked').val());
 
         let data_series = [{
             name: my_series,
@@ -230,9 +231,11 @@ const loadCharts = async () => {
                         phase: ${series[params.seriesName].notes[params.dataIndex].phase}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
                         commit_timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
-                        commit_hash: ${series[params.seriesName].notes[params.dataIndex].commit_hash}<br>
+                        commit_hash: <a href="/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}">${series[params.seriesName].notes[params.dataIndex].commit_hash}</a><br>
+                        gmt_hash: <a href="https://github.com/green-coding-berlin/green-metrics-tool/commit/${series[params.seriesName].notes[params.dataIndex].gmt_hash}">${series[params.seriesName].notes[params.dataIndex].gmt_hash}</a><br>
+
                         <br>
-                        <i>Click to diff measurement with previous</i>
+                        <i>Click the bar to diff measurement with previous</i>
                         `;
             }
         };
