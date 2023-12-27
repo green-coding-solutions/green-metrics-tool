@@ -125,7 +125,7 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
 
-    if branch is None or branch.strip() != '':
+    if branch is None or branch.strip() == '':
         branch = 'main'
 
     params = [uri, filename, branch, machine_id, f"%{phase}"]
