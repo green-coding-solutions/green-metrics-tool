@@ -663,6 +663,9 @@ class Runner:
                 raise RuntimeError(f"Cycle found in depends_on definition with service '{service_name}'!")
             visited.add(service_name)
 
+            if service_name not in services:
+                raise RuntimeError(f"Dependent service '{service_name}' defined in 'depends_on' does not exist in usage_scenario!")
+
             service = services[service_name]
             if 'depends_on' in service:
                 for dep in service['depends_on']:
@@ -883,7 +886,7 @@ class Runner:
                         status_output = subprocess.check_output(
                             ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
                             stderr=subprocess.STDOUT,
-                            text=True
+                            encoding='UTF-8'
                         )
                         state = status_output.strip()
                         print(f"State of container '{dependent_container}': {state}.")
