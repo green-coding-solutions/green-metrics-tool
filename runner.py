@@ -48,7 +48,7 @@ def arrows(text):
 # path with `..`, symbolic links or similar.
 # We always return the same error message including the path and file parameter, never `filename` as
 # otherwise we might disclose if certain files exist or not.
-def join_paths(path, path2, mode=None):
+def join_paths(path, path2, mode='file'):
     filename = os.path.realpath(os.path.join(path, path2))
 
     # If the original path is a symlink we need to resolve it.
@@ -59,23 +59,23 @@ def join_paths(path, path2, mode=None):
         return filename
 
     if not filename.startswith(path):
-        raise ValueError(f"{path2} not in {path}")
+        raise ValueError(f"{path2} must not be in folder above {path}")
 
     # To double check we also check if it is in the files allow list
 
     if mode == 'file':
         folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
-    elif mode == 'dir':
+    elif mode == 'directory':
         folder_content = [str(item) for item in Path(path).rglob("*") if item.is_dir()]
     else:
-        folder_content = [str(item) for item in Path(path).rglob("*")]
+        raise RuntimeError(f"Unknown mode supplied for join_paths: {mode}")
 
     if filename not in folder_content:
-        raise ValueError(f"{path2} not in {path}")
+        raise ValueError(f"{mode.capitalize()} '{path2}' not in '{path}'")
 
     # Another way to implement this. This is checking the third time but we want to be extra secure 👾
     if Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
-        raise ValueError(f"{path2} not in {path}")
+        raise ValueError(f"{mode.capitalize()} '{path2}' not in folder '{path}'")
 
     if os.path.exists(filename):
         return filename
@@ -574,7 +574,7 @@ class Runner:
                 self.__notes_helper.add_note({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
                 # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
-                context_path = join_paths(self._folder, context, 'dir')
+                context_path = join_paths(self._folder, context, 'directory')
                 join_paths(context_path, dockerfile, 'file')
 
                 docker_build_command = ['docker', 'run', '--rm',
@@ -742,16 +742,19 @@ class Runner:
                         # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
                         # could create volumes that would linger on our system.
                         path = os.path.realpath(os.path.join(self._folder, vol[0]))
+
+                        # Check that the path starts with self._folder
+                        # We need to do this first, as telling first if path exists or not will tell about our filesystem structure
+                        if not path.startswith(self._folder):
+                            raise RuntimeError(f"Service '{service_name}' volume path ({vol[0]}) is outside allowed folder: {path}")
+
                         if not os.path.exists(path):
                             raise RuntimeError(f"Service '{service_name}' volume path does not exist: {path}")
 
-                        # Check that the path starts with self._folder
-                        if not path.startswith(self._folder):
-                            raise RuntimeError(f"Service '{service_name}' trying to escape folder: {path}")
-
                         # To double check we also check if it is in the files allow list
-                        if path not in [str(item) for item in Path(self._folder).rglob("*")]:
-                            raise RuntimeError(f"Service '{service_name}' volume '{path}' not in allowed file list")
+                        allowed_files_list = [str(item) for item in Path(self._folder).rglob("*")]
+                        if path not in allowed_files_list:
+                            raise RuntimeError(f"Service '{service_name}' volume '{path}' not in allowed file list:\n{chr(10).join(allowed_files_list)}\n\nOnly files from the supplied repository are allowed.")
 
                         if len(vol) == 3:
                             if vol[2] != 'ro':
@@ -1505,13 +1508,13 @@ if __name__ == '__main__':
         print('####################################################################################\n\n', TerminalColors.ENDC)
 
     except FileNotFoundError as e:
-        error_helpers.log_error('File or executable not found', e, runner._run_id)
+        error_helpers.log_error('File or executable not found', e, "\n", f"Run-ID: {runner._run_id}")
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error('Command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, runner._run_id)
+        error_helpers.log_error('Command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, "\n", f"Run-ID: {runner._run_id}")
     except RuntimeError as e:
-        error_helpers.log_error('RuntimeError occured in runner.py: ', e, runner._run_id)
+        error_helpers.log_error('RuntimeError occured in runner.py: ', e, "\n", f"Run-ID: {runner._run_id}")
     except BaseException as e:
-        error_helpers.log_error('Base exception occured in runner.py: ', e, runner._run_id)
+        error_helpers.log_error('Base exception occured in runner.py: ', e, "\n", f"Run-ID: {runner._run_id}")
     finally:
         if args.print_logs:
             for container_id_outer, std_out in runner.get_logs().items():
