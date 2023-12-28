@@ -665,8 +665,6 @@ class Runner:
 
             service = services[service_name]
             if 'depends_on' in service:
-                if isinstance(service['depends_on'], dict):
-                    raise RuntimeError(f"Service definition of {service_name} uses the long form of 'depends_on', however, GMT only supports the short form!")
                 for dep in service['depends_on']:
                     if dep not in names_ordered:
                         order_service_names(dep, visited)
@@ -841,6 +839,31 @@ class Runner:
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
 
+            if 'healthcheck' in service:  # must come last
+                if 'disable' in service['healthcheck'] and service['healthcheck']['disable'] is True:
+                    docker_run_string.append('--no-healthcheck')
+                else:
+                    if 'test' in service['healthcheck']:
+                        docker_run_string.append('--health-cmd')
+                        health_string = service['healthcheck']['test']
+                        if isinstance(service['healthcheck']['test'], list):
+                            health_string = ' '.join(service['healthcheck']['test'])
+                        docker_run_string.append(health_string)
+                    if 'interval' in service['healthcheck']:
+                        docker_run_string.append('--health-interval')
+                        docker_run_string.append(service['healthcheck']['interval'])
+                    if 'timeout' in service['healthcheck']:
+                        docker_run_string.append('--health-timeout')
+                        docker_run_string.append(service['healthcheck']['timeout'])
+                    if 'retries' in service['healthcheck']:
+                        docker_run_string.append('--health-retries')
+                        docker_run_string.append(service['healthcheck']['retries'])
+                    if 'start_period' in service['healthcheck']:
+                        docker_run_string.append('--health-start-period')
+                        docker_run_string.append(service['healthcheck']['start_period'])
+                    if 'start_interval' in service['healthcheck']:
+                        raise RuntimeError('start_interval is not supported atm in healthcheck')
+
             docker_run_string.append(self.clean_image_name(service['image']))
 
             # Before starting the container, check if the dependent containers are "ready".
@@ -849,8 +872,10 @@ class Runner:
             # In the future we want to implement an health check to know if dependent containers are actually ready.
             if 'depends_on' in service:
                 for dependent_container in service['depends_on']:
+                    print(f"Waiting for dependent container {dependent_container}")
                     time_waited = 0
-                    state = ""
+                    state = ''
+                    health = 'healthy' # default because some containers have no health
                     max_waiting_time = config['measurement']['boot']['wait_time_dependencies']
                     while time_waited < max_waiting_time:
                         # TODO: Check health status instead if `healthcheck` is enabled (https://github.com/green-coding-berlin/green-metrics-tool/issues/423)
@@ -861,15 +886,37 @@ class Runner:
                             text=True
                         )
                         state = status_output.strip()
-                        if state == "running":
+                        print(f"State of container '{dependent_container}': {state}.")
+
+                        if isinstance(service['depends_on'], dict) \
+                            and 'condition' in service['depends_on'][dependent_container]:
+
+                            condition = service['depends_on'][dependent_container]['condition']
+                            if condition == 'service_healthy':
+                                health_output = subprocess.check_output(
+                                    ["docker", "container", "inspect", "-f", "{{.State.Health}}", dependent_container],
+                                    stderr=subprocess.STDOUT,
+                                    encoding='UTF-8'
+                                )
+                                health = health_output.strip()
+                                if health == '<nil>':
+                                    raise RuntimeError(f"Health check for dependent_container '{dependent_container}' was requested, but container has no healthcheck implemented!")
+                                print(f"Health of container '{dependent_container}': {health}.")
+                            elif condition == 'service_started':
+                                pass
+                            else:
+                                raise RuntimeError(f"Unsupported condition in healthcheck for service '{service_name}':  {condition}")
+
+                        if state == 'running' and 'healthy' in health:
                             break
 
-                        print(f"State of container '{dependent_container}': {state}. Waiting for 1 second")
-                        self.custom_sleep(1)
+                        print('Waiting for 1 second')
+                        time.sleep(1)
                         time_waited += 1
 
-                    if state != "running":
+                    if state != 'running':
                         raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+
 
             if 'command' in service:  # must come last
                 docker_run_string.append(service['command'])
