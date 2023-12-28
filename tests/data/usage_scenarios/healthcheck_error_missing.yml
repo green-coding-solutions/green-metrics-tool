@@ -1,0 +1,20 @@
+---
+name: Test depends_on
+author: David Kopp
+description: test
+
+services:
+  test-container-1:
+    image: alpine
+    depends_on:
+      test-container-2:
+        condition: service_healthy
+  test-container-2:
+    image: alpine
+
+flow:
+  - name: dummy
+    container: test-container-1
+    commands:
+      - type: console
+        command: pwd

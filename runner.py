@@ -881,8 +881,6 @@ class Runner:
                     health = 'healthy' # default because some containers have no health
                     max_waiting_time = config['measurement']['boot']['wait_time_dependencies']
                     while time_waited < max_waiting_time:
-                        # TODO: Check health status instead if `healthcheck` is enabled (https://github.com/green-coding-berlin/green-metrics-tool/issues/423)
-                        # This waiting loop is actually a pre-work for the upcoming health check. For the check if the container is "running", as implemented here, the waiting loop is not needed.
                         status_output = subprocess.check_output(
                             ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
                             stderr=subprocess.STDOUT,
@@ -904,7 +902,7 @@ class Runner:
                                 health = health_output.strip()
                                 if health == '<nil>':
                                     raise RuntimeError(f"Health check for dependent_container '{dependent_container}' was requested, but container has no healthcheck implemented!")
-                                print(f"Health of container '{dependent_container}': {health}.")
+                                print(f"Health of container '{dependent_container}': {health}")
                             elif condition == 'service_started':
                                 pass
                             else:

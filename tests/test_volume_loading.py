@@ -39,8 +39,7 @@ def check_if_container_running(container_name):
 def test_volume_load_no_escape():
     tmp_dir_name = utils.randomword(12)
     tmp_dir = os.path.join(CURRENT_DIR, 'tmp', tmp_dir_name, 'basic_stress_w_import.yml')
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml',
-                            docker_compose='volume_load_etc_passwords.yml', dir_name=tmp_dir_name)
+    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', docker_compose='volume_load_etc_passwords.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True)
     Tests.replace_include_in_usage_scenario(tmp_dir, 'volume_load_etc_passwords.yml')
 
     try:
@@ -50,8 +49,8 @@ def test_volume_load_no_escape():
         container_running = check_if_container_running('test-container')
         runner.cleanup()
 
-    expected_error = 'trying to escape folder: /etc/passwd'
-    assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
+    expected_error = 'Service \'test-container\' volume path (/etc/passwd) is outside allowed folder:'
+    assert str(e.value).startswith(expected_error), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
 def create_tmp_dir():
@@ -83,7 +82,7 @@ def test_load_files_from_within_gmt():
     copy_compose_and_edit_directory('volume_load_within_proj.yml', tmp_dir)
 
     # setup runner and run test
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name)
+    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True)
     Tests.replace_include_in_usage_scenario(os.path.join(tmp_dir, 'basic_stress_w_import.yml'), 'docker-compose.yml')
 
     try:
@@ -106,11 +105,12 @@ def test_load_files_from_within_gmt():
 def test_symlinks_should_fail():
     tmp_dir, tmp_dir_name = create_tmp_dir()
     # make a symlink to /etc/passwords in tmp_dir
+    symlink = os.path.join(tmp_dir, 'symlink')
     os.symlink('/etc/passwd', os.path.join(tmp_dir, 'symlink'))
 
     copy_compose_and_edit_directory('volume_load_symlinks_negative.yml', tmp_dir)
 
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name)
+    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True)
     Tests.replace_include_in_usage_scenario(os.path.join(tmp_dir, 'basic_stress_w_import.yml'), 'docker-compose.yml')
 
     try:
@@ -120,15 +120,14 @@ def test_symlinks_should_fail():
         container_running = check_if_container_running('test-container')
         runner.cleanup()
 
-    expected_error = 'trying to escape folder: /etc/passwd'
-    assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
+    expected_error = f"Service 'test-container' volume path ({symlink}) is outside allowed folder:"
+    assert str(e.value).startswith(expected_error), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
 def test_non_bind_mounts_should_fail():
     tmp_dir_name = create_tmp_dir()[1]
     tmp_dir_usage = os.path.join(CURRENT_DIR, 'tmp', tmp_dir_name, 'basic_stress_w_import.yml')
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml',
-                            docker_compose='volume_load_non_bind_mounts.yml', dir_name=tmp_dir_name)
+    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', docker_compose='volume_load_non_bind_mounts.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True)
     Tests.replace_include_in_usage_scenario(tmp_dir_usage, 'volume_load_non_bind_mounts.yml')
 
     try:
@@ -148,7 +147,7 @@ def test_load_volume_references():
 
     copy_compose_and_edit_directory('volume_load_references.yml', tmp_dir)
 
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name)
+    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True)
     Tests.replace_include_in_usage_scenario(os.path.join(tmp_dir, 'basic_stress_w_import.yml'), 'docker-compose.yml')
 
     try:
@@ -171,7 +170,7 @@ def test_load_volume_references():
 def test_volume_loading_subdirectories_root():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
     RUN_NAME = 'test_' + utils.randomword(12)
-    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', skip_system_checks=True)
+    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -199,7 +198,7 @@ def test_volume_loading_subdirectories_root():
 def test_volume_loading_subdirectories_subdir():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
     RUN_NAME = 'test_' + utils.randomword(12)
-    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', filename="subdir/usage_scenario_subdir.yml", skip_system_checks=True)
+    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', filename="subdir/usage_scenario_subdir.yml", skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -218,7 +217,7 @@ def test_volume_loading_subdirectories_subdir():
 def test_volume_loading_subdirectories_subdir2():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
     RUN_NAME = 'test_' + utils.randomword(12)
-    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', filename="subdir/subdir2/usage_scenario_subdir2.yml", skip_system_checks=True)
+    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', filename="subdir/subdir2/usage_scenario_subdir2.yml", skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True)
 
     out = io.StringIO()
     err = io.StringIO()
