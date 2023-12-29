@@ -201,14 +201,14 @@ def handle_job_exception(exce, job):
     if GlobalConfig().config['admin']['no_emails'] is False:
         if job is not None:
             email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
-            'Base exception occurred in jobs.py: ', exce), run_id=job._run_id, name=job.name, machine=job.machine_description)
+            'Base exception occurred in jobs.py: ', exce), run_id=job._run_id, name=job._name, machine=job._machine_description)
         else:
             email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
             'Base exception occurred in jobs.py: ', exce))
 
         # reduced error message to client
-        if job.email and GlobalConfig().config['admin']['email'] != job.email:
-            email_helpers.send_error_email(job.email, exce, run_id=job._run_id, name=job.name, machine=job.machine_description)
+        if job._email and GlobalConfig().config['admin']['email'] != job._email:
+            email_helpers.send_error_email(job._email, exce, run_id=job._run_id, name=job._name, machine=job._machine_description)
 
 if __name__ == '__main__':
     #pylint: disable=broad-except,invalid-name
