@@ -128,14 +128,14 @@ class Runner:
         # transient variables that are created by the runner itself
         # these are accessed and processed on cleanup and then reset
         # They are __ as they should not be changed because this could break the state of the runner
-        self.__stdout_logs = {}
+        self.__stdout_logs = OrderedDict()
         self.__containers = {}
         self.__networks = []
         self.__ps_to_kill = []
         self.__ps_to_read = []
         self.__metric_providers = []
         self.__notes_helper = Notes()
-        self.__phases = {}
+        self.__phases = OrderedDict()
         self.__start_measurement = None
         self.__end_measurement = None
         self.__services_to_pause_phase = {}
@@ -974,17 +974,6 @@ class Runner:
                 if ps.stderr:
                     self.add_to_log(container_name, f"stderr {ps.stderr}", d_command)
 
-            # Obsolete warnings. But left in, cause reasoning for NotImplementedError still holds
-            # elif el['type'] == 'Dockerfile':
-            #    raise NotImplementedError('Green Metrics Tool can currently not consume Dockerfiles. \
-            # This will be a premium feature, as it creates a lot of server usage and thus slows down \
-            # Tests per Minute for our server.')
-            # elif el['type'] == 'Docker-Compose':
-            #    raise NotImplementedError('Green Metrics Tool will not support that, because we wont support \
-            # all features from docker compose, like for instance volumes and binding arbitrary directories')
-            # else:
-            #    raise RuntimeError('Unknown type detected in setup: ', el.get('type', None))
-
         print(TerminalColors.HEADER, '\nCurrent known containers: ', self.__containers, TerminalColors.ENDC)
 
     def get_logs(self):
@@ -1069,87 +1058,120 @@ class Runner:
     def run_flows(self):
         config = GlobalConfig().config
         # run the flows
-        for el in self._usage_scenario['flow']:
-            print(TerminalColors.HEADER, '\nRunning flow: ', el['name'], TerminalColors.ENDC)
+        ps_to_kill_tmp = []
+        ps_to_read_tmp = []
+        flow_id = 0
+        flows_len = len(self._usage_scenario['flow'])
+        while flow_id < flows_len:
+            flow = self._usage_scenario['flow'][flow_id]
+            ps_to_kill_tmp = []
+            ps_to_read_tmp = []
+            print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
-            self.start_phase(el['name'].replace('[', '').replace(']',''), transition=False)
+            try:
+                self.start_phase(flow['name'].replace('[', '').replace(']',''), transition=False)
 
-            for inner_el in el['commands']:
-                if 'note' in inner_el:
-                    self.__notes_helper.add_note({'note': inner_el['note'], 'detail_name': el['container'], 'timestamp': int(time.time_ns() / 1_000)})
+                for cmd_obj in flow['commands']:
+                    if 'note' in cmd_obj:
+                        self.__notes_helper.add_note({'note': cmd_obj['note'], 'detail_name': flow['container'], 'timestamp': int(time.time_ns() / 1_000)})
 
-                if inner_el['type'] == 'console':
-                    print(TerminalColors.HEADER, '\nConsole command', inner_el['command'], 'on container', el['container'], TerminalColors.ENDC)
+                    if cmd_obj['type'] == 'console':
+                        print(TerminalColors.HEADER, '\nConsole command', cmd_obj['command'], 'on container', flow['container'], TerminalColors.ENDC)
 
-                    docker_exec_command = ['docker', 'exec']
+                        docker_exec_command = ['docker', 'exec']
 
-                    docker_exec_command.append(el['container'])
-                    if shell := inner_el.get('shell', False):
-                        docker_exec_command.append(shell)
-                        docker_exec_command.append('-c')
-                        docker_exec_command.append(inner_el['command'])
+                        docker_exec_command.append(flow['container'])
+                        if shell := cmd_obj.get('shell', False):
+                            docker_exec_command.append(shell)
+                            docker_exec_command.append('-c')
+                            docker_exec_command.append(cmd_obj['command'])
+                        else:
+                            for cmd in cmd_obj['command'].split():
+                                docker_exec_command.append(cmd)
+
+                        # Note: In case of a detach wish in the usage_scenario.yml:
+                        # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
+                        # Since Popen always make the process asynchronous we can leverage this to emulate a detached
+                        # behavior
+
+                        stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
+                        if cmd_obj.get('log-stdout', False):
+                            stdout_behaviour = subprocess.PIPE
+                        if cmd_obj.get('log-stderr', True):
+                            stderr_behaviour = subprocess.PIPE
+
+
+                        if cmd_obj.get('detach', False) is True:
+                            print('Process should be detached. Running asynchronously and detaching ...')
+                            #pylint: disable=consider-using-with
+                            ps = subprocess.Popen(
+                                docker_exec_command,
+                                stderr=stderr_behaviour,
+                                stdout=stdout_behaviour,
+                                encoding='UTF-8',
+                            )
+                            if stderr_behaviour == subprocess.PIPE:
+                                os.set_blocking(ps.stderr.fileno(), False)
+                            if  stdout_behaviour == subprocess.PIPE:
+                                os.set_blocking(ps.stdout.fileno(), False)
+
+                            ps_to_kill_tmp.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
+                        else:
+                            print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
+                            ps = subprocess.run(
+                                docker_exec_command,
+                                stderr=stderr_behaviour,
+                                stdout=stdout_behaviour,
+                                encoding='UTF-8',
+                                check=False, # cause it will be checked later and also ignore-errors checked
+                                timeout=config['measurement']['flow-process-runtime'],
+                            )
+
+                        ps_to_read_tmp.append({
+                            'cmd': docker_exec_command,
+                            'ps': ps,
+                            'container_name': flow['container'],
+                            'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
+                            'ignore-errors': cmd_obj.get('ignore-errors', False),
+                            'read-sci-stdout': cmd_obj.get('read-sci-stdout', False),
+                            'detail_name': flow['container'],
+                            'detach': cmd_obj.get('detach', False),
+                        })
+
+
                     else:
-                        for cmd in inner_el['command'].split():
-                            docker_exec_command.append(cmd)
+                        raise RuntimeError('Unknown command type in flow: ', cmd_obj['type'])
 
-                    # Note: In case of a detach wish in the usage_scenario.yml:
-                    # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
-                    # Since Popen always make the process asynchronous we can leverage this to emulate a detached
-                    # behavior
+                    if self._debugger.active:
+                        self._debugger.pause('Waiting to start next command in flow')
 
-                    stderr_behaviour = stdout_behaviour = subprocess.DEVNULL
-                    if inner_el.get('log-stdout', False):
-                        stdout_behaviour = subprocess.PIPE
-                    if inner_el.get('log-stderr', True):
-                        stderr_behaviour = subprocess.PIPE
+                self.end_phase(flow['name'].replace('[', '').replace(']',''))
+                self.__ps_to_kill += ps_to_kill_tmp
+                self.__ps_to_read += ps_to_read_tmp # will otherwise be discarded, bc they confuse execption handling
+                self.check_process_returncodes()
+                flow_id += 1
+            except BaseException as exc:
+                print('Exception occured: ', exc)
+                print(TerminalColors.OKCYAN, '\nWhat do you want to do?\n1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n0 / CTRL+C -- Abort', TerminalColors.ENDC)
+                value = sys.stdin.readline().strip()
 
+                self.__ps_to_read = [] # clear, so we do not read old processes
+                if ps_to_kill_tmp:
+                    print('Trying to kill detached processes of current flow')
+                    process_helpers.kill_ps(ps_to_kill_tmp)
 
-                    if inner_el.get('detach', False) is True:
-                        print('Process should be detached. Running asynchronously and detaching ...')
-                        #pylint: disable=consider-using-with
-                        ps = subprocess.Popen(
-                            docker_exec_command,
-                            stderr=stderr_behaviour,
-                            stdout=stdout_behaviour,
-                            encoding='UTF-8',
-                        )
-                        if stderr_behaviour == subprocess.PIPE:
-                            os.set_blocking(ps.stderr.fileno(), False)
-                        if  stdout_behaviour == subprocess.PIPE:
-                            os.set_blocking(ps.stdout.fileno(), False)
+                if value == '0':
+                    raise KeyboardInterrupt("Manual abort")
+                if value == '1':
+                    self.__phases.pop(flow['name'])
+                if value == '2':
+                    self.__phases = OrderedDict()
+                if value == '3':
+                    self.cleanup(inline=True)
+                    self.setup_networks()
+                    self.setup_services()
+                    flow_id = 0
 
-                        self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
-                    else:
-                        print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
-                        ps = subprocess.run(
-                            docker_exec_command,
-                            stderr=stderr_behaviour,
-                            stdout=stdout_behaviour,
-                            encoding='UTF-8',
-                            check=False, # cause it will be checked later and also ignore-errors checked
-                            timeout=config['measurement']['flow-process-runtime'],
-                        )
-
-                    self.__ps_to_read.append({
-                        'cmd': docker_exec_command,
-                        'ps': ps,
-                        'container_name': el['container'],
-                        'read-notes-stdout': inner_el.get('read-notes-stdout', False),
-                        'ignore-errors': inner_el.get('ignore-errors', False),
-                        'read-sci-stdout': inner_el.get('read-sci-stdout', False),
-                        'detail_name': el['container'],
-                        'detach': inner_el.get('detach', False),
-                    })
-
-
-                else:
-                    raise RuntimeError('Unknown command type in flow: ', inner_el['type'])
-
-                if self._debugger.active:
-                    self._debugger.pause('Waiting to start next command in flow')
-
-            self.end_phase(el['name'].replace('[', '').replace(']',''))
-            self.check_process_returncodes()
 
     # this function should never be called twice to avoid double logging of metrics
     def stop_metric_providers(self):
@@ -1244,12 +1266,12 @@ class Runner:
         # internally PostgreSQL stores JSON ordered. This means our name-indexed dict will get
         # re-ordered. Therefore we change the structure and make it a list now.
         # We did not make this before, as we needed the duplicate checking of dicts
-        self.__phases = list(self.__phases.values())
+        phases = list(self.__phases.values())
         DB().query("""
             UPDATE runs
             SET phases=%s
             WHERE id = %s
-            """, params=(json.dumps(self.__phases), self._run_id))
+            """, params=(json.dumps(phases), self._run_id))
 
     def read_container_logs(self):
         print(TerminalColors.HEADER, '\nCapturing container logs', TerminalColors.ENDC)
@@ -1297,43 +1319,49 @@ class Runner:
                 """, params=(logs_as_str, self._run_id))
 
 
-    def cleanup(self):
+    def cleanup(self, inline=False):
         #https://github.com/green-coding-berlin/green-metrics-tool/issues/97
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
 
-        print('Stopping metric providers')
-        for metric_provider in self.__metric_providers:
-            metric_provider.stop_profiling()
+        if inline is False:
+            print('Stopping metric providers')
+            for metric_provider in self.__metric_providers:
+                metric_provider.stop_profiling()
+            self.__metric_providers = []
+
 
         print('Stopping containers')
         for container_id in self.__containers:
             subprocess.run(['docker', 'rm', '-f', container_id], check=True, stderr=subprocess.DEVNULL)
+        self.__containers = {}
 
         print('Removing network')
         for network_name in self.__networks:
             # no check=True, as the network might already be gone. We do not want to fail here
             subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
+        self.__networks = []
 
-        if not self._no_file_cleanup:
+        if inline is False or not self._no_file_cleanup:
             print('Removing files')
             subprocess.run(['rm', '-Rf', self._tmp_folder], stderr=subprocess.DEVNULL, check=True)
 
-        self.remove_docker_images()
+        if inline is False:
+            self.remove_docker_images()
 
         process_helpers.kill_ps(self.__ps_to_kill)
-        print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
-
-        self.__notes_helper = Notes()
-        self.__containers = {}
-        self.__networks = []
         self.__ps_to_kill = []
         self.__ps_to_read = []
-        self.__metric_providers = []
-        self.__phases = {}
-        self.__start_measurement = None
+
+        if inline is False:
+            self.__start_measurement = None
+            self.__notes_helper = Notes()
+
+        self.__phases = OrderedDict()
         self.__end_measurement = None
         self.__join_default_network = False
         #self.__filename = self._original_filename # # we currently do not use this variable
+
+        print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
     def run(self):
         '''
