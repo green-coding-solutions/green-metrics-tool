@@ -52,12 +52,12 @@ class BaseMetricProvider:
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             check=False, encoding='UTF-8')
-        # returncode 1 sadly indicates program failure or no found process, so we need to go deeper
-        if result.returncode not in [0, 1]:
-            raise subprocess.CalledProcessError(result.stderr, cmd)
-        if result.stdout != '':
+        if result.returncode == 1:
+            return True
+        if result.returncode == 0:
             raise MetricProviderConfigurationError(f"Another instance of the {self._metric_name} metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.")
-        return True
+        # implicit else
+        raise subprocess.CalledProcessError(result.stderr, cmd)
 
     # implemented as getter function and not direct access, so it can be overloaded
     # some child classes might not actually have _ps attribute set
