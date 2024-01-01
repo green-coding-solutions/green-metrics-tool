@@ -39,12 +39,11 @@ def setup_module(module):
     err = io.StringIO()
     GlobalConfig(config_name='test-config.yml').config
     with redirect_stdout(out), redirect_stderr(err):
-        uri = os.path.abspath(os.path.join(
-            CURRENT_DIR, 'stress-application/'))
+        uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
         subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_repeat_run=True, skip_system_checks=False)
+        runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=False)
         runner.run()
 
     #pylint: disable=global-statement

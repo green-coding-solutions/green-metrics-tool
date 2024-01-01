@@ -33,9 +33,9 @@ from tests import test_functions as Tests
 #        os.remove(os.path.join(REPO_ROOT, config_file))
 
 def test_reporters_still_running():
-    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dry_run=True)
+    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dev_no_sleeps=True, dev_no_build=True, dev_no_metrics=False)
 
-    runner2 = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dry_run=True)
+    runner2 = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dev_no_sleeps=True, dev_no_build=True, dev_no_metrics=False)
 
     runner.check_system('start') # should not fail
 
