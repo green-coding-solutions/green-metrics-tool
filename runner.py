@@ -89,7 +89,8 @@ class Runner:
         name, uri, uri_type, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_system_checks=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
-        dev_no_sleeps=False, dev_no_build=False, dev_no_metrics=False, docker_prune=False, job_id=None):
+        dev_no_sleeps=False, dev_no_build=False, dev_no_metrics=False,
+        dev_flow_timetravel=False, docker_prune=False, job_id=None):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -107,6 +108,7 @@ class Runner:
         self._dev_no_sleeps = dev_no_sleeps
         self._dev_no_build = dev_no_build
         self._dev_no_metrics = dev_no_metrics
+        self._dev_flow_timetravel = dev_flow_timetravel
         self._uri = uri
         self._uri_type = uri_type
         self._original_filename = filename
@@ -1150,7 +1152,12 @@ class Runner:
                 self.__ps_to_read += ps_to_read_tmp # will otherwise be discarded, bc they confuse execption handling
                 self.check_process_returncodes()
                 flow_id += 1
+
+            # pylint: disable=broad-exception-caught
             except BaseException as exc:
+                if self._dev_flow_timetravel: # Exception handling only if explicitely wanted
+                    raise exc
+
                 print('Exception occured: ', exc)
                 print(TerminalColors.OKCYAN, '\nWhat do you want to do?\n1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n0 / CTRL+C -- Abort', TerminalColors.ENDC)
                 value = sys.stdin.readline().strip()
@@ -1161,11 +1168,13 @@ class Runner:
                     process_helpers.kill_ps(ps_to_kill_tmp)
 
                 if value == '0':
-                    raise KeyboardInterrupt("Manual abort")
+                    raise KeyboardInterrupt("Manual abort") from exc
                 if value == '1':
-                    self.__phases.pop(flow['name'])
+                    self.__phases.popitem(last=True)
                 if value == '2':
-                    self.__phases = OrderedDict()
+                    for _ in range(0,flow_id+1):
+                        self.__phases.popitem(last=True)
+                    flow_id = 0
                 if value == '3':
                     self.cleanup(inline=True)
                     self.setup_networks()
@@ -1511,6 +1520,7 @@ if __name__ == '__main__':
     parser.add_argument('--verbose-provider-boot', action='store_true', help='Boot metric providers gradually')
     parser.add_argument('--full-docker-prune', action='store_true', help='Stop and remove all containers, build caches, volumes and images on the system')
     parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
+    parser.add_argument('--dev-flow-timetravel', action='store_true', help='Allows to repeat a failed flow or timetravel to beginning of flows or restart services.')
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
     parser.add_argument('--dev-no-build', action='store_true', help='Checks if a container images are already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run.')
@@ -1574,7 +1584,8 @@ if __name__ == '__main__':
                     no_file_cleanup=args.no_file_cleanup, skip_system_checks=args.skip_system_checks,
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                     full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
-                    dev_no_build=args.dev_no_build, dev_no_metrics=args.dev_no_metrics, docker_prune=args.docker_prune)
+                    dev_no_build=args.dev_no_build, dev_no_metrics=args.dev_no_metrics,
+                    dev_flow_timetravel=args.dev_flow_timetravel, docker_prune=args.docker_prune)
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
