@@ -15,23 +15,24 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
     def __init__(self, *, host_ip=None):
+
+        tinyproxy_path = subprocess.getoutput('which tinyproxy')
+
         super().__init__(
             metric_name='network_connections_proxy_container_dockerproxy',
             metrics={},
             resolution=None,
             unit=None,
             current_dir=os.path.dirname(os.path.abspath(__file__)),
+            metric_provider_executable=f"{tinyproxy_path}"
         )
 
         self._conf_file = f"{CURRENT_DIR}/proxy_conf.conf"
-        self._filename = f"{self._tmp_folder}/proxy.log"
+        self._extra_switches = ['-d', '-c', self._conf_file]
         self._host_ip = host_ip
 
-        tinyproxy_path = subprocess.getoutput('which tinyproxy')
-        self._metric_provider_executable = f"{tinyproxy_path} -d -c {self._conf_file} > {self._filename}"
-
-
     def check_system(self):
+        super().check_system()
 
         output = subprocess.check_output(['tinyproxy', '-v'], stderr=subprocess.STDOUT, text=True)
         version_string = output.strip().split()[1].split('-')[0]

@@ -34,8 +34,9 @@ class PowermetricsProvider(BaseMetricProvider):
             self._filename]
 
     def check_system(self):
+        # no call to super().check_system() as we have different logic of finding the process
         if self.is_powermetrics_running():
-            raise MetricProviderConfigurationError('Another instance of powermetrics is already running on the system!\nPlease close it before running the Green Metrics Tool.')
+            raise MetricProviderConfigurationError(f"Another instance of the {self._metric_name} metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.")
 
     def is_powermetrics_running(self):
         ps = subprocess.run(['pgrep', '-qx', 'powermetrics'], check=False)

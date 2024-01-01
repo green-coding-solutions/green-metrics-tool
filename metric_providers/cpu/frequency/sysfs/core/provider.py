@@ -14,6 +14,8 @@ class CpuFrequencySysfsCoreProvider(BaseMetricProvider):
         )
 
     def check_system(self):
+        super().check_system()
+
         file_path = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"
         if os.path.exists(file_path):
             try:
