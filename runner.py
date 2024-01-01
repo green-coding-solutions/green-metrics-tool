@@ -1365,7 +1365,7 @@ class Runner:
         #https://github.com/green-coding-berlin/green-metrics-tool/issues/97
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
 
-        if inline is False:
+        if inline is not True:
             print('Stopping metric providers')
             for metric_provider in self.__metric_providers:
                 try:
@@ -1387,11 +1387,11 @@ class Runner:
             subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
         self.__networks = []
 
-        if inline is False or not self._no_file_cleanup:
+        if inline is not True and self._no_file_cleanup is not True:
             print('Removing files')
             subprocess.run(['rm', '-Rf', self._tmp_folder], stderr=subprocess.DEVNULL, check=True)
 
-        if inline is False:
+        if inline is not True:
             self.remove_docker_images()
 
         ps_errors = []
@@ -1409,7 +1409,7 @@ class Runner:
         self.__ps_to_kill = []
         self.__ps_to_read = []
 
-        if inline is False:
+        if inline is not True:
             self.__start_measurement = None
             self.__notes_helper = Notes()
 
