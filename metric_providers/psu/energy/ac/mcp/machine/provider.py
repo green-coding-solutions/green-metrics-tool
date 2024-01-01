@@ -4,7 +4,7 @@ import os
 from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyAcMcpMachineProvider(BaseMetricProvider):
-    def __init__(self, resolutions, skip_check=False):
+    def __init__(self, resolution, skip_check=False):
         super().__init__(
             metric_name='psu_energy_ac_mcp_machine',
             metrics={'time': int, 'value': int},
