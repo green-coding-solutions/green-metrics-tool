@@ -341,7 +341,7 @@ class Runner:
             # creating benchmarking scripts and you want to have all options in the compose but not in each benchmark.
             # The cleaner way would be to handle an empty service key throughout the code but would make it quite messy
             # so we chose to remove it right at the start.
-            for key in [sname for sname, content in yml_obj['services'].items() if content is None]:
+            for key in [sname for sname, content in yml_obj.get('services', {}).items() if content is None]:
                 del yml_obj['services'][key]
 
             self._usage_scenario = yml_obj
@@ -376,7 +376,7 @@ class Runner:
                                 check=True, encoding='UTF-8')
         for line in result.stdout.splitlines():
             for running_container in line.split(','): # if docker container has multiple tags, they will be split by comma, so we only want to
-                for service_name in self._usage_scenario.get('services', []):
+                for service_name in self._usage_scenario.get('services', {}):
                     if 'container_name' in self._usage_scenario['services'][service_name]:
                         container_name = self._usage_scenario['services'][service_name]['container_name']
                     else:
@@ -386,7 +386,7 @@ class Runner:
                         raise PermissionError(f"Container '{container_name}' is already running on system. Please close it before running the tool.")
 
     def populate_image_names(self):
-        for service_name, service in self._usage_scenario.get('services', []).items():
+        for service_name, service in self._usage_scenario.get('services', {}).items():
             if not service.get('image', None): # image is a non-mandatory field. But we need it, so we tmp it
                 if self._dev_no_build:
                     service['image'] = f"{service_name}"
@@ -505,6 +505,9 @@ class Runner:
             if rootless and '.cgroup.' in module_path:
                 conf['rootless'] = True
 
+            if self._skip_system_checks:
+                conf['skip_check'] = True
+
             print(f"Importing {class_name} from {module_path}")
             print(f"Configuration is {conf}")
 
@@ -515,7 +518,7 @@ class Runner:
             self.__metric_providers.append(metric_provider_obj)
 
             if hasattr(metric_provider_obj, 'get_docker_params'):
-                services_list = ",".join(list(self._usage_scenario['services'].keys()))
+                services_list = ",".join(list(self._usage_scenario.get('services', {}).keys()))
                 self.__docker_params += metric_provider_obj.get_docker_params(no_proxy_list=services_list)
 
 
@@ -557,7 +560,7 @@ class Runner:
 
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
-        for _, service in self._usage_scenario.get('services', []).items():
+        for _, service in self._usage_scenario.get('services', {}).items():
             # minimal protection from possible shell escapes.
             # since we use subprocess without shell we should be safe though
             if re.findall(r'(\.\.|\$|\'|"|`|!)', service['image']):
@@ -600,7 +603,7 @@ class Runner:
                 if self.__docker_params:
                     docker_build_command[2:2] = self.__docker_params
 
-                print(" ".join(docker_build_command))
+                print(' '.join(docker_build_command))
 
                 ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
@@ -610,7 +613,7 @@ class Runner:
 
                 # import the docker image locally
                 image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{tmp_img_name}.tar"]
-                print(" ".join(image_import_command))
+                print(' '.join(image_import_command))
                 ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0 or ps.stderr != "":
@@ -884,8 +887,9 @@ class Runner:
                         status_output = subprocess.check_output(
                             ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
                             stderr=subprocess.STDOUT,
-                            encoding='UTF-8'
+                            encoding='UTF-8',
                         )
+
                         state = status_output.strip()
                         print(f"State of container '{dependent_container}': {state}.")
 
@@ -920,7 +924,8 @@ class Runner:
 
 
             if 'command' in service:  # must come last
-                docker_run_string.append(service['command'])
+                for cmd in service['command'].split():
+                    docker_run_string.append(cmd)
 
             print(f"Running docker run with: {' '.join(docker_run_string)}")
 
@@ -1026,7 +1031,8 @@ class Runner:
 
             stderr_read = metric_provider.get_stderr()
             print(f"Stderr check on {metric_provider.__class__.__name__}")
-            if stderr_read is not None and str(stderr_read):
+
+            if stderr_read:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
 
@@ -1118,7 +1124,7 @@ class Runner:
                         if  stdout_behaviour == subprocess.PIPE:
                             os.set_blocking(ps.stdout.fileno(), False)
 
-                        self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
+                        self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command']})
                     else:
                         print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
                         ps = subprocess.run(
@@ -1163,10 +1169,14 @@ class Runner:
                 continue
 
             stderr_read = metric_provider.get_stderr()
-            if stderr_read is not None and str(stderr_read):
+            if stderr_read:
                 errors.append(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
-            metric_provider.stop_profiling()
+            # pylint: disable=broad-exception-caught
+            try:
+                metric_provider.stop_profiling()
+            except Exception as exc:
+                errors.append(f"Could not stop profiling on {metric_provider.__class__.__name__}: {str(exc)}")
 
             df = metric_provider.read_metrics(self._run_id, self.__containers)
             if isinstance(df, int):
@@ -1187,9 +1197,20 @@ class Runner:
 
     def read_and_cleanup_processes(self):
         print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
-        process_helpers.kill_ps(self.__ps_to_kill)
+
+        ps_errors = []
+        for ps in self.__ps_to_kill:
+            try:
+                process_helpers.kill_ps(ps['ps'], ps['cmd'])
+            except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
+                ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
+        if ps_errors:
+            raise RuntimeError(ps_errors)
+        self.__ps_to_kill = [] # we need to clear, so we do not kill twice later
+
         for ps in self.__ps_to_read:
             if ps['detach']:
+                # communicate will only really work to our experience if the process is killed before
                 stdout, stderr = ps['ps'].communicate(timeout=5)
             else:
                 stdout = ps['ps'].stdout
@@ -1208,8 +1229,7 @@ class Runner:
                         if match := re.findall(r'GMT_SCI_R=(\d+)', line):
                             self._sci['R'] += int(match[0])
             if stderr:
-                stderr = stderr.splitlines()
-                for line in stderr:
+                for line in stderr.splitlines():
                     print('stderr from process:', ps['cmd'], line)
                     self.add_to_log(ps['container_name'], f"stderr: {line}", ps['cmd'])
 
@@ -1303,7 +1323,12 @@ class Runner:
 
         print('Stopping metric providers')
         for metric_provider in self.__metric_providers:
-            metric_provider.stop_profiling()
+            # pylint: disable=broad-exception-caught
+            try:
+                metric_provider.stop_profiling()
+            except Exception as exc:
+                error_helpers.log_error(f"Could not stop profiling on {metric_provider.__class__.__name__}: {str(exc)}")
+
 
         print('Stopping containers')
         for container_id in self.__containers:
@@ -1320,7 +1345,16 @@ class Runner:
 
         self.remove_docker_images()
 
-        process_helpers.kill_ps(self.__ps_to_kill)
+        ps_errors = []
+        for ps in self.__ps_to_kill:
+            try:
+                process_helpers.kill_ps(ps['ps'], ps['cmd'])
+            except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
+                ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
+        if ps_errors:
+            raise RuntimeError(ps_errors)
+
+
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
         self.__notes_helper = Notes()
