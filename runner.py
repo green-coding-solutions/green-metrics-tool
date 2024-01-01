@@ -862,7 +862,8 @@ class Runner:
                         raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
 
             if 'command' in service:  # must come last
-                docker_run_string.append(service['command'])
+                for cmd in service['command'].split():
+                    docker_run_string.append(cmd)
 
             print(f"Running docker run with: {' '.join(docker_run_string)}")
 
