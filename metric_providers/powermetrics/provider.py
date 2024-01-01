@@ -50,11 +50,15 @@ class PowermetricsProvider(BaseMetricProvider):
 
     def powermetrics_total_count(self):
         cmd = ['pgrep', '-ix', 'powermetrics']
-        result = subprocess.run(cmd, encoding='UTF-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        result = subprocess.run(cmd,
+                                encoding='UTF-8',
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                check=False)
         if result.returncode in [0, 1]:
             return len(result.stdout.strip().split('\n')) if result.stdout else 0
 
-        raise subprocess.CalledProcessError(result.stderr, cmd=cmd)
+        raise subprocess.CalledProcessError(result.returncode, cmd, result.stdout, result.stderr)
 
     def is_our_powermetrics_running(self):
         total_count = self.powermetrics_total_count()
@@ -216,18 +220,23 @@ class PowermetricsProvider(BaseMetricProvider):
 
         return df
 
-    # powermetrics sometimes generates output to stderr. This isn't really a problem for our measurements
+
+    def filter_lines(self, stderr, f_strings):
+        filtered_lines = [line for line in stderr.split('\n') if all(allowed_str not in line for allowed_str in f_strings)]
+        return '\n'.join(filtered_lines).strip()
+
+
     def get_stderr(self):
         stderr = super().get_stderr()
 
-        if stderr is not None and str(stderr).find('proc_pid') != -1 :
+        if stderr is None:
             return None
 
+        # powermetrics sometimes generates output to stderr. This isn't really a problem for our measurements
         # This has been showing up and we don't really understand why. Google has no results and looking at the
         # strings of powermetrics doesn't show anything. There also seems to be no correlation with the interval.
         # A shame we can't look into the code and figure this one out. For now we just ignore it as we don't really
         # have any other chance to debug.
-        if stderr is not None and str(stderr).find('Second underflow occured') != -1 :
-            return None
+        f_strings = ['proc_pid', 'Second underflow occured']
 
-        return stderr
+        return self.filter_lines(str(stderr), f_strings)
