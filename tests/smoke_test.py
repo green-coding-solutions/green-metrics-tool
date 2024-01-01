@@ -44,7 +44,7 @@ def setup_module(module):
         subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_repeat_run=True, skip_system_checks=True)
+        runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_repeat_run=True, skip_system_checks=False)
         runner.run()
 
     #pylint: disable=global-statement

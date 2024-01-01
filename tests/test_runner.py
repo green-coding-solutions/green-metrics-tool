@@ -33,9 +33,9 @@ def disable_test_check_system(config_file, skip_system_checks, expectation):
         os.remove(os.path.join(REPO_ROOT, config_file))
 
 def test_reporters_still_running():
-    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, dry_run=True)
+    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dry_run=True)
 
-    runner2 = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, dry_run=True)
+    runner2 = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dry_run=True)
 
     runner.check_system('start') # should not fail
 
