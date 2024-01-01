@@ -1,12 +1,11 @@
 import os
 from pathlib import Path
 import subprocess
-import signal
-import sys
 from io import StringIO
 import pandas
 
 from lib.system_checks import ConfigurationCheckError
+from lib import process_helpers
 
 class MetricProviderConfigurationError(ConfigurationCheckError):
     pass
@@ -158,20 +157,6 @@ class BaseMetricProvider:
     def stop_profiling(self):
         if self._ps is None:
             return
-        try:
-            print(f"Killing process with id: {self._ps.pid}")
-            ps_group_id = os.getpgid(self._ps.pid)
-            print(f" and process group {ps_group_id}")
-            os.killpg(ps_group_id, signal.SIGTERM)
-            try:
-                self._ps.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                # If the process hasn't gracefully exited after 5 seconds we kill it
-                os.killpg(ps_group_id, signal.SIGKILL)
-                print("Killed the process with SIGKILL. This could lead to corrupted metric log files!")
 
-        except ProcessLookupError:
-            print(f"Could not find process-group for {self._ps.pid}",
-                    file=sys.stderr)  # process/-group may have already closed
-
+        process_helpers.kill_pg(self._ps, self._metric_provider_executable)
         self._ps = None
