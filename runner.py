@@ -1058,7 +1058,7 @@ class Runner:
                         if  stdout_behaviour == subprocess.PIPE:
                             os.set_blocking(ps.stdout.fileno(), False)
 
-                        self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
+                        self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command']})
                     else:
                         print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
                         ps = subprocess.run(
@@ -1103,7 +1103,11 @@ class Runner:
             if stderr_read is not None and str(stderr_read):
                 errors.append(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
-            metric_provider.stop_profiling()
+            # pylint: disable=broad-exception-caught
+            try:
+                metric_provider.stop_profiling()
+            except Exception as exc:
+                errors.append(f"Could not stop profiling on {metric_provider.__class__.__name__}: {str(exc)}")
 
             df = metric_provider.read_metrics(self._run_id, self.__containers)
             if isinstance(df, int):
@@ -1124,7 +1128,17 @@ class Runner:
 
     def read_and_cleanup_processes(self):
         print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
-        process_helpers.kill_ps(self.__ps_to_kill)
+
+        ps_errors = []
+        for ps in self.__ps_to_kill:
+            try:
+                process_helpers.kill_ps(ps['ps'], ps['cmd'])
+            except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
+                ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
+        if ps_errors:
+            raise RuntimeError(ps_errors)
+        self.__ps_to_kill = [] # we need to clear, so we do not kill twice later
+
         for ps in self.__ps_to_read:
             if ps['detach']:
                 stdout, stderr = ps['ps'].communicate(timeout=5)
@@ -1240,7 +1254,12 @@ class Runner:
 
         print('Stopping metric providers')
         for metric_provider in self.__metric_providers:
-            metric_provider.stop_profiling()
+            # pylint: disable=broad-exception-caught
+            try:
+                metric_provider.stop_profiling()
+            except Exception as exc:
+                error_helpers.log_error(f"Could not stop profiling on {metric_provider.__class__.__name__}: {str(exc)}")
+
 
         print('Stopping containers')
         for container_id in self.__containers:
@@ -1257,7 +1276,16 @@ class Runner:
 
         self.remove_docker_images()
 
-        process_helpers.kill_ps(self.__ps_to_kill)
+        ps_errors = []
+        for ps in self.__ps_to_kill:
+            try:
+                process_helpers.kill_ps(ps['ps'], ps['cmd'])
+            except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
+                ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
+        if ps_errors:
+            raise RuntimeError(ps_errors)
+
+
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
         self.__notes_helper = Notes()
