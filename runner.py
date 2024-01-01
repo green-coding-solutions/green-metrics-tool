@@ -966,7 +966,7 @@ class Runner:
 
             stderr_read = metric_provider.get_stderr()
             print(f"Stderr check on {metric_provider.__class__.__name__}")
-            if stderr_read is not None and str(stderr_read):
+            if stderr_read:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
 
@@ -1100,7 +1100,7 @@ class Runner:
                 continue
 
             stderr_read = metric_provider.get_stderr()
-            if stderr_read is not None and str(stderr_read):
+            if stderr_read:
                 errors.append(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
             # pylint: disable=broad-exception-caught
@@ -1141,6 +1141,7 @@ class Runner:
 
         for ps in self.__ps_to_read:
             if ps['detach']:
+                # communicate will only really work to our experience if the process is killed before
                 stdout, stderr = ps['ps'].communicate(timeout=5)
             else:
                 stdout = ps['ps'].stdout
@@ -1159,8 +1160,7 @@ class Runner:
                         if match := re.findall(r'GMT_SCI_R=(\d+)', line):
                             self._sci['R'] += int(match[0])
             if stderr:
-                stderr = stderr.splitlines()
-                for line in stderr:
+                for line in stderr.splitlines():
                     print('stderr from process:', ps['cmd'], line)
                     self.add_to_log(ps['container_name'], f"stderr: {line}", ps['cmd'])
 

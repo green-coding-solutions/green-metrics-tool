@@ -50,8 +50,18 @@ class BaseMetricProvider:
 
     # implemented as getter function and not direct access, so it can be overloaded
     # some child classes might not actually have _ps attribute set
+    #
+    # This function has to go through quite some hoops to read the stderr
+    # The preferred way to communicate with processes is through communicate()
+    # However this function ALWAYS waits for the process to terminate and it does not allow reading from processes
+    # in chunks while they are running. Thus we we cannot set encoding='UTF-8' in Popen and must decode here.
     def get_stderr(self):
-        return self._ps.stderr.read()
+        stderr_read = ''
+        if self._ps.stderr is not None:
+            stderr_read = self._ps.stderr.read()
+            if isinstance(stderr_read, bytes):
+                stderr_read = stderr_read.decode('utf-8')
+        return stderr_read
 
     def has_started(self):
         return self._has_started
@@ -131,7 +141,9 @@ class BaseMetricProvider:
             [call_string],
             shell=True,
             preexec_fn=os.setsid,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            #encoding='UTF-8' # we cannot set this option here as reading later will then flake with "can't concat NoneType to bytes"
+                              # see get_stderr() for additional details
             # since we are launching the command with shell=True we cannot use ps.terminate() / ps.kill().
             # This would just kill the executing shell, but not it's child and make the process an orphan.
             # therefore we use os.setsid here and later call os.getpgid(pid) to get process group that the shell
