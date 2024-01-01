@@ -895,7 +895,7 @@ class Runner:
                         )
 
                         state = status_output.strip()
-                        print(f"State of container '{dependent_container}': {state}.")
+                        print(f"State of container '{dependent_container}': {state}")
 
                         if isinstance(service['depends_on'], dict) \
                             and 'condition' in service['depends_on'][dependent_container]:
