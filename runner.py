@@ -48,7 +48,7 @@ def arrows(text):
 # path with `..`, symbolic links or similar.
 # We always return the same error message including the path and file parameter, never `filename` as
 # otherwise we might disclose if certain files exist or not.
-def join_paths(path, path2, mode=None):
+def join_paths(path, path2, mode='file'):
     filename = os.path.realpath(os.path.join(path, path2))
 
     # If the original path is a symlink we need to resolve it.
@@ -59,23 +59,23 @@ def join_paths(path, path2, mode=None):
         return filename
 
     if not filename.startswith(path):
-        raise ValueError(f"{path2} not in {path}")
+        raise ValueError(f"{path2} must not be in folder above {path}")
 
     # To double check we also check if it is in the files allow list
 
     if mode == 'file':
         folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
-    elif mode == 'dir':
+    elif mode == 'directory':
         folder_content = [str(item) for item in Path(path).rglob("*") if item.is_dir()]
     else:
-        folder_content = [str(item) for item in Path(path).rglob("*")]
+        raise RuntimeError(f"Unknown mode supplied for join_paths: {mode}")
 
     if filename not in folder_content:
-        raise ValueError(f"{path2} not in {path}")
+        raise ValueError(f"{mode.capitalize()} '{path2}' not in '{path}'")
 
     # Another way to implement this. This is checking the third time but we want to be extra secure 👾
     if Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
-        raise ValueError(f"{path2} not in {path}")
+        raise ValueError(f"{mode.capitalize()} '{path2}' not in folder '{path}'")
 
     if os.path.exists(filename):
         return filename
@@ -574,7 +574,7 @@ class Runner:
                 self.__notes_helper.add_note({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
                 # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
-                context_path = join_paths(self._folder, context, 'dir')
+                context_path = join_paths(self._folder, context, 'directory')
                 join_paths(context_path, dockerfile, 'file')
 
                 docker_build_command = ['docker', 'run', '--rm',
@@ -590,7 +590,7 @@ class Runner:
                 if self.__docker_params:
                     docker_build_command[2:2] = self.__docker_params
 
-                print(" ".join(docker_build_command))
+                print(' '.join(docker_build_command))
 
                 ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
@@ -600,7 +600,7 @@ class Runner:
 
                 # import the docker image locally
                 image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{tmp_img_name}.tar"]
-                print(" ".join(image_import_command))
+                print(' '.join(image_import_command))
                 ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0 or ps.stderr != "":
@@ -742,16 +742,19 @@ class Runner:
                         # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
                         # could create volumes that would linger on our system.
                         path = os.path.realpath(os.path.join(self._folder, vol[0]))
+
+                        # Check that the path starts with self._folder
+                        # We need to do this first, as telling first if path exists or not will tell about our filesystem structure
+                        if not path.startswith(self._folder):
+                            raise RuntimeError(f"Service '{service_name}' volume path ({vol[0]}) is outside allowed folder: {path}")
+
                         if not os.path.exists(path):
                             raise RuntimeError(f"Service '{service_name}' volume path does not exist: {path}")
 
-                        # Check that the path starts with self._folder
-                        if not path.startswith(self._folder):
-                            raise RuntimeError(f"Service '{service_name}' trying to escape folder: {path}")
-
                         # To double check we also check if it is in the files allow list
-                        if path not in [str(item) for item in Path(self._folder).rglob("*")]:
-                            raise RuntimeError(f"Service '{service_name}' volume '{path}' not in allowed file list")
+                        allowed_files_list = [str(item) for item in Path(self._folder).rglob("*")]
+                        if path not in allowed_files_list:
+                            raise RuntimeError(f"Service '{service_name}' volume '{path}' not in allowed file list:\n{chr(10).join(allowed_files_list)}\n\nOnly files from the supplied repository are allowed.")
 
                         if len(vol) == 3:
                             if vol[2] != 'ro':
@@ -859,7 +862,8 @@ class Runner:
                         raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
 
             if 'command' in service:  # must come last
-                docker_run_string.append(service['command'])
+                for cmd in service['command'].split():
+                    docker_run_string.append(cmd)
 
             print(f"Running docker run with: {' '.join(docker_run_string)}")
 
@@ -962,7 +966,7 @@ class Runner:
 
             stderr_read = metric_provider.get_stderr()
             print(f"Stderr check on {metric_provider.__class__.__name__}")
-            if stderr_read is not None and str(stderr_read):
+            if stderr_read:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
 
@@ -1054,7 +1058,7 @@ class Runner:
                         if  stdout_behaviour == subprocess.PIPE:
                             os.set_blocking(ps.stdout.fileno(), False)
 
-                        self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
+                        self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command']})
                     else:
                         print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
                         ps = subprocess.run(
@@ -1096,10 +1100,14 @@ class Runner:
                 continue
 
             stderr_read = metric_provider.get_stderr()
-            if stderr_read is not None and str(stderr_read):
+            if stderr_read:
                 errors.append(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
-            metric_provider.stop_profiling()
+            # pylint: disable=broad-exception-caught
+            try:
+                metric_provider.stop_profiling()
+            except Exception as exc:
+                errors.append(f"Could not stop profiling on {metric_provider.__class__.__name__}: {str(exc)}")
 
             df = metric_provider.read_metrics(self._run_id, self.__containers)
             if isinstance(df, int):
@@ -1120,9 +1128,20 @@ class Runner:
 
     def read_and_cleanup_processes(self):
         print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
-        process_helpers.kill_ps(self.__ps_to_kill)
+
+        ps_errors = []
+        for ps in self.__ps_to_kill:
+            try:
+                process_helpers.kill_ps(ps['ps'], ps['cmd'])
+            except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
+                ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
+        if ps_errors:
+            raise RuntimeError(ps_errors)
+        self.__ps_to_kill = [] # we need to clear, so we do not kill twice later
+
         for ps in self.__ps_to_read:
             if ps['detach']:
+                # communicate will only really work to our experience if the process is killed before
                 stdout, stderr = ps['ps'].communicate(timeout=5)
             else:
                 stdout = ps['ps'].stdout
@@ -1141,8 +1160,7 @@ class Runner:
                         if match := re.findall(r'GMT_SCI_R=(\d+)', line):
                             self._sci['R'] += int(match[0])
             if stderr:
-                stderr = stderr.splitlines()
-                for line in stderr:
+                for line in stderr.splitlines():
                     print('stderr from process:', ps['cmd'], line)
                     self.add_to_log(ps['container_name'], f"stderr: {line}", ps['cmd'])
 
@@ -1236,7 +1254,12 @@ class Runner:
 
         print('Stopping metric providers')
         for metric_provider in self.__metric_providers:
-            metric_provider.stop_profiling()
+            # pylint: disable=broad-exception-caught
+            try:
+                metric_provider.stop_profiling()
+            except Exception as exc:
+                error_helpers.log_error(f"Could not stop profiling on {metric_provider.__class__.__name__}: {str(exc)}")
+
 
         print('Stopping containers')
         for container_id in self.__containers:
@@ -1253,7 +1276,16 @@ class Runner:
 
         self.remove_docker_images()
 
-        process_helpers.kill_ps(self.__ps_to_kill)
+        ps_errors = []
+        for ps in self.__ps_to_kill:
+            try:
+                process_helpers.kill_ps(ps['ps'], ps['cmd'])
+            except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
+                ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
+        if ps_errors:
+            raise RuntimeError(ps_errors)
+
+
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
         self.__notes_helper = Notes()
@@ -1505,13 +1537,13 @@ if __name__ == '__main__':
         print('####################################################################################\n\n', TerminalColors.ENDC)
 
     except FileNotFoundError as e:
-        error_helpers.log_error('File or executable not found', e, runner._run_id)
+        error_helpers.log_error('File or executable not found', e, "\n", f"Run-ID: {runner._run_id}")
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error('Command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, runner._run_id)
+        error_helpers.log_error('Command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, "\n", f"Run-ID: {runner._run_id}")
     except RuntimeError as e:
-        error_helpers.log_error('RuntimeError occured in runner.py: ', e, runner._run_id)
+        error_helpers.log_error('RuntimeError occured in runner.py: ', e, "\n", f"Run-ID: {runner._run_id}")
     except BaseException as e:
-        error_helpers.log_error('Base exception occured in runner.py: ', e, runner._run_id)
+        error_helpers.log_error('Base exception occured in runner.py: ', e, "\n", f"Run-ID: {runner._run_id}")
     finally:
         if args.print_logs:
             for container_id_outer, std_out in runner.get_logs().items():

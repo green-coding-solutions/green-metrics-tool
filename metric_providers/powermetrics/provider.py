@@ -182,7 +182,7 @@ class PowermetricsProvider(BaseMetricProvider):
     def get_stderr(self):
         stderr = super().get_stderr()
 
-        if stderr is not None and str(stderr).find('proc_pid') != -1:
+        if stderr.find('proc_pid') != -1:
             return None
 
         return stderr
