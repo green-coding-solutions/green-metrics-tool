@@ -382,9 +382,9 @@ def test_depends_on_healthcheck():
     try:
         with redirect_stdout(out), redirect_stderr(err):
             runner.run()
-        message = 'Health of container \'test-container-2\': {starting 0 []}'
+        message = 'Health of container \'test-container-2\': starting'
         assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
-        message2 = 'Health of container \'test-container-2\': {healthy 0'
+        message2 = 'Health of container \'test-container-2\': healthy'
         assert message2 in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
     finally:
@@ -400,7 +400,7 @@ def test_depends_on_healthcheck_error_missing():
         runner.cleanup()
 
     expected_exception = "Health check for dependent_container 'test-container-2' was requested, but container has no healthcheck implemented!"
-    assert expected_exception == str(e.value) ,\
+    assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 #volumes: [array] (optional)

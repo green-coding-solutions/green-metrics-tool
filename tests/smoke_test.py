@@ -43,7 +43,7 @@ def setup_module(module):
         subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=True)
+        runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=False)
         runner.run()
 
     #pylint: disable=global-statement
@@ -85,7 +85,6 @@ def test_db_rows_are_written_and_presented():
     # The network connection proxy provider writes to a different DB so we need to remove it here
     if 'NetworkConnectionsProxyContainerProvider' in metric_providers:
         metric_providers.remove('NetworkConnectionsProxyContainerProvider')
-
 
     if 'PowermetricsProvider' in metric_providers:
         # The problem here is that the powermetrics provider splits up the output of powermetrics and acts like
