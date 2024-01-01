@@ -125,7 +125,7 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
 
-    if branch is None or branch.strip() != '':
+    if branch is None or branch.strip() == '':
         branch = 'main'
 
     params = [uri, filename, branch, machine_id, f"%{phase}"]
@@ -163,7 +163,7 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
     query = f"""
             SELECT
                 r.id, r.name, r.created_at, p.metric, p.detail_name, p.phase,
-                p.value, p.unit, r.commit_hash, r.commit_timestamp,
+                p.value, p.unit, r.commit_hash, r.commit_timestamp, r.gmt_hash,
                 row_number() OVER () AS row_num
             FROM runs as r
             LEFT JOIN phase_stats as p ON
