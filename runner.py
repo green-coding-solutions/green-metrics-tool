@@ -853,7 +853,11 @@ class Runner:
                         docker_run_string.append('--health-cmd')
                         health_string = service['healthcheck']['test']
                         if isinstance(service['healthcheck']['test'], list):
-                            health_string = ' '.join(service['healthcheck']['test'])
+                            health_string_copy = service['healthcheck']['test'].copy()
+                            health_string_command = health_string_copy.pop(0)
+                            if health_string_command not in ['CMD', 'CMD-SHELL']:
+                                raise RuntimeError(f"Healthcheck starts with {health_string_command}. Please use 'CMD' or 'CMD-SHELL' when supplying as list. For disabling do not use 'NONE' but the disable argument.")
+                            health_string = ' '.join(health_string_copy)
                         docker_run_string.append(health_string)
                     if 'interval' in service['healthcheck']:
                         docker_run_string.append('--health-interval')
@@ -898,21 +902,25 @@ class Runner:
 
                             condition = service['depends_on'][dependent_container]['condition']
                             if condition == 'service_healthy':
-                                health_output = subprocess.check_output(
-                                    ["docker", "container", "inspect", "-f", "{{.State.Health}}", dependent_container],
-                                    stderr=subprocess.STDOUT,
+                                ps = subprocess.run(
+                                    ["docker", "container", "inspect", "-f", "{{.State.Health.Status}}", dependent_container],
+                                    check=False,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT, # put both in one stream
                                     encoding='UTF-8'
                                 )
-                                health = health_output.strip()
-                                if health == '<nil>':
-                                    raise RuntimeError(f"Health check for dependent_container '{dependent_container}' was requested, but container has no healthcheck implemented!")
+                                health = ps.stdout.strip()
+                                if ps.returncode != 0 or health == '<nil>':
+                                    raise RuntimeError(f"Health check for dependent_container '{dependent_container}' was requested, but container has no healthcheck implemented! (Output was: {health})")
+                                if health == 'unhealthy':
+                                    raise RuntimeError('ontainer healthcheck failed terminally with status "unhealthy")')
                                 print(f"Health of container '{dependent_container}': {health}")
                             elif condition == 'service_started':
                                 pass
                             else:
                                 raise RuntimeError(f"Unsupported condition in healthcheck for service '{service_name}':  {condition}")
 
-                        if state == 'running' and 'healthy' in health:
+                        if state == 'running' and health == 'healthy':
                             break
 
                         print('Waiting for 1 second')
@@ -920,8 +928,9 @@ class Runner:
                         time_waited += 1
 
                     if state != 'running':
-                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
-
+                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running but {state} after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                    if health != 'healthy':
+                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
 
             if 'command' in service:  # must come last
                 for cmd in service['command'].split():
