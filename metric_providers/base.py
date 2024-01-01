@@ -146,5 +146,5 @@ class BaseMetricProvider:
         if self._ps is None:
             return
 
-        process_helpers.kill_pg(self._ps, os.getpgid(self._ps.pid), self._metric_provider_executable)
+        process_helpers.kill_pg(self._ps, self._metric_provider_executable)
         self._ps = None

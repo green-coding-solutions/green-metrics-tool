@@ -1128,8 +1128,8 @@ class Runner:
         ps_errors = []
         for ps in self.__ps_to_kill:
             try:
-                process_helpers.kill_ps(ps['ps'], ps['ps'].pid, ps['cmd'])
-            except ProcessLookupError as exc:
+                process_helpers.kill_ps(ps['ps'], ps['cmd'])
+            except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
                 ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
         if ps_errors:
             raise RuntimeError(ps_errors)
@@ -1275,8 +1275,8 @@ class Runner:
         ps_errors = []
         for ps in self.__ps_to_kill:
             try:
-                process_helpers.kill_ps(ps['ps'], ps['ps'].pid, ps['cmd'])
-            except ProcessLookupError as exc:
+                process_helpers.kill_ps(ps['ps'], ps['cmd'])
+            except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
                 ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
         if ps_errors:
             raise RuntimeError(ps_errors)

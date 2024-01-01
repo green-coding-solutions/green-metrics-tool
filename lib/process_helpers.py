@@ -2,7 +2,8 @@ import signal
 import os
 import subprocess
 
-def kill_pg(ps, pgid, cmd):
+def kill_pg(ps, cmd):
+    pgid = os.getpgid(ps.pid)
     print(f"Trying to kill {cmd} with PGID: {pgid}")
 
     os.killpg(pgid, signal.SIGTERM)
@@ -13,7 +14,8 @@ def kill_pg(ps, pgid, cmd):
         os.killpg(pgid, signal.SIGKILL)
         raise RuntimeError(f"Killed the process {cmd} with SIGKILL. This could lead to corrupted data!") from exc
 
-def kill_ps(ps, pid, cmd):
+def kill_ps(ps, cmd):
+    pid = ps.pid
     print(f"Trying to kill {cmd} with PID: {pid}")
 
     os.kill(pid, signal.SIGTERM)
