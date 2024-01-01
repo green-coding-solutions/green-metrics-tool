@@ -42,11 +42,11 @@ class PowermetricsProvider(BaseMetricProvider):
 
 
     def check_system(self):
+        # no call to super().check_system() as we have different logic of finding the process
         if self._pm_process_count > 0:
             raise MetricProviderConfigurationError('Another instance of powermetrics is already running on the system!\n'
                                                    'Please close it before running the Green Metrics Tool.\n'
                                                    'You can also override this with --skip-system-checks\n')
-
 
     def powermetrics_total_count(self):
         cmd = ['pgrep', '-ix', 'powermetrics']
@@ -229,8 +229,8 @@ class PowermetricsProvider(BaseMetricProvider):
     def get_stderr(self):
         stderr = super().get_stderr()
 
-        if stderr is None:
-            return None
+        if not stderr:
+            return stderr
 
         # powermetrics sometimes generates output to stderr. This isn't really a problem for our measurements
         # This has been showing up and we don't really understand why. Google has no results and looking at the
@@ -238,5 +238,4 @@ class PowermetricsProvider(BaseMetricProvider):
         # A shame we can't look into the code and figure this one out. For now we just ignore it as we don't really
         # have any other chance to debug.
         f_strings = ['proc_pid', 'Second underflow occured']
-
-        return self.filter_lines(str(stderr), f_strings)
+        return self.filter_lines(stderr, f_strings)

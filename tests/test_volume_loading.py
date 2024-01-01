@@ -50,8 +50,8 @@ def test_volume_load_no_escape():
         container_running = check_if_container_running('test-container')
         runner.cleanup()
 
-    expected_error = 'trying to escape folder:'
-    assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
+    expected_error = 'Service \'test-container\' volume path (/etc/passwd) is outside allowed folder:'
+    assert str(e.value).startswith(expected_error), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
 def create_tmp_dir():
@@ -106,6 +106,7 @@ def test_load_files_from_within_gmt():
 def test_symlinks_should_fail():
     tmp_dir, tmp_dir_name = create_tmp_dir()
     # make a symlink to /etc/passwords in tmp_dir
+    symlink = os.path.join(tmp_dir, 'symlink')
     os.symlink('/etc/passwd', os.path.join(tmp_dir, 'symlink'))
 
     copy_compose_and_edit_directory('volume_load_symlinks_negative.yml', tmp_dir)
@@ -120,8 +121,8 @@ def test_symlinks_should_fail():
         container_running = check_if_container_running('test-container')
         runner.cleanup()
 
-    expected_error = 'trying to escape folder:'
-    assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
+    expected_error = f"Service 'test-container' volume path ({symlink}) is outside allowed folder:"
+    assert str(e.value).startswith(expected_error), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
 def test_non_bind_mounts_should_fail():

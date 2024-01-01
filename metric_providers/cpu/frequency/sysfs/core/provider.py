@@ -15,6 +15,8 @@ class CpuFrequencySysfsCoreProvider(BaseMetricProvider):
         )
 
     def check_system(self):
+        super().check_system()
+
         file_path = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"
         if os.path.exists(file_path):
             try:
@@ -22,4 +24,5 @@ class CpuFrequencySysfsCoreProvider(BaseMetricProvider):
                     file.read()
             except PermissionError as exc:
                 raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot read the path for the CPU frequency in sysfs.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml") from exc
-        raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCould not find the path for the CPU frequency in sysfs.\n\nAre you running in a VM / cloud / shared hosting? \nIf so please disable the {self._metric_name} provider in the config.yml")
+        else:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCould not find the path for the CPU frequency in sysfs.\n\nAre you running in a VM / cloud / shared hosting? \nIf so please disable the {self._metric_name} provider in the config.yml")

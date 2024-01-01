@@ -115,13 +115,12 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
 /* Handle collapsing on click or on small window */
 a,
 #menu {
-    -webkit-transition: left 300ms ease-in-out;
-    transition: left 300ms ease-in-out;
-
+    -webkit-transition: left 75ms ease-in-out;
+    transition: left 75ms ease-in-out;
 }
 #main {
-    -webkit-transition: margin-left 300ms ease-in-out;
-    transition: margin-left 300ms ease-in-out;
+    -webkit-transition: margin-left 75ms ease-in-out;
+    transition: margin-left 75ms ease-in-out;
 
 }
 

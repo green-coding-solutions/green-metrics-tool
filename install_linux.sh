@@ -121,6 +121,8 @@ else
     sudo apt-get update
     sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy lshw
 fi
+sudo systemctl stop tinyproxy
+sudo systemctl disable tinyproxy
 
 print_message "Building binaries ..."
 metrics_subdir="metric_providers"

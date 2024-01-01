@@ -84,7 +84,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
-    await log_exception(request, exc, body='StarletteHTTPException handler cannot read body atm. Waiting for FastAPI upgrade.', details=exc.detail)
+    body = await request.body()
+    await log_exception(request, exc, body=body, details=exc.detail)
     return ORJSONResponse(
         status_code=exc.status_code,
         content=jsonable_encoder({'success': False, 'err': exc.detail}),
@@ -92,17 +93,12 @@ async def http_exception_handler(request, exc):
 
 async def catch_exceptions_middleware(request: Request, call_next):
     #pylint: disable=broad-except
+    body = None
     try:
+        body = await request.body()
         return await call_next(request)
     except Exception as exc:
-        # body = await request.body()  # This blocks the application. Unclear atm how to handle it properly
-        # seems like a bug: https://github.com/tiangolo/fastapi/issues/394
-        # Although the issue is closed the "solution" still behaves with same failure
-        # Actually Starlette, the underlying library to FastAPI has already introduced this functionality:
-        # https://github.com/encode/starlette/pull/1692
-        # However FastAPI does not support the new Starlette 0.31.1
-        # The PR relevant here is: https://github.com/tiangolo/fastapi/pull/9939
-        await log_exception(request, exc, body='Middleware cannot read body atm. Waiting for FastAPI upgrade')
+        await log_exception(request, exc, body=body)
         return ORJSONResponse(
             content={
                 'success': False,
@@ -172,7 +168,7 @@ async def get_network(run_id):
 
 
 # return a list of all possible registered machines
-@app.get('/v1/machines/')
+@app.get('/v1/machines')
 async def get_machines():
 
     data = get_machine_list()

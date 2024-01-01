@@ -81,10 +81,27 @@ def html_escape_multi(item):
 
 def get_machine_list():
     query = """
-            SELECT id, description, available
-            FROM machines
-            ORDER BY description ASC
+        WITH timings as (
+            SELECT
+                machine_id,
+                AVG(end_measurement - start_measurement)/1000000 as avg_duration
+            FROM runs
+            WHERE
+                end_measurement IS NOT NULL
+                AND created_at > NOW() - INTERVAL '30 DAY'
+            GROUP BY machine_id
+        ) SELECT
+                m.id, m.description, m.available,
+                m.status_code,
+                m.updated_at,
+                m.sleep_time_after_job,
+                (SELECT COUNT(id) FROM jobs as j WHERE j.machine_id = m.id AND j.state = 'WAITING') as job_amount,
+                (SELECT avg_duration FROM timings WHERE timings.machine_id = m.id )::int as avg_duration_seconds
+
+            FROM machines as m
+            ORDER BY m.description DESC
             """
+
     return DB().fetch_all(query)
 
 def get_run_info(run_id):
@@ -108,7 +125,7 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
 
-    if branch is None or branch.strip() != '':
+    if branch is None or branch.strip() == '':
         branch = 'main'
 
     params = [uri, filename, branch, machine_id, f"%{phase}"]
@@ -146,7 +163,7 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
     query = f"""
             SELECT
                 r.id, r.name, r.created_at, p.metric, p.detail_name, p.phase,
-                p.value, p.unit, r.commit_hash, r.commit_timestamp,
+                p.value, p.unit, r.commit_hash, r.commit_timestamp, r.gmt_hash,
                 row_number() OVER () AS row_num
             FROM runs as r
             LEFT JOIN phase_stats as p ON

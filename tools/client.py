@@ -27,6 +27,14 @@ def set_status(status_code, data=None, run_id=None):
     params = (status_code, GlobalConfig().config['machine']['id'], data, run_id)
     DB().query(query=query, params=params)
 
+    query = """
+        UPDATE machines
+        SET status_code=%s, sleep_time_after_job=%s
+        WHERE id = %s
+    """
+    params = (status_code, GlobalConfig().config['client']['sleep_time_after_job'], GlobalConfig().config['machine']['id'])
+    DB().query(query=query, params=params)
+
 
 # pylint: disable=broad-exception-caught
 if __name__ == '__main__':
@@ -38,14 +46,14 @@ if __name__ == '__main__':
             set_status('job_no')
             time.sleep(GlobalConfig().config['client']['sleep_time_no_job'])
         else:
-            set_status('job_start', '', job.run_id)
+            set_status('job_start', '', job._run_id)
             try:
                 job.process(docker_prune=True)
             except Exception as exc:
-                set_status('job_error', str(exc), job.run_id)
+                set_status('job_error', str(exc), job._run_id)
                 handle_job_exception(exc, job)
             else:
-                set_status('job_end', '', job.run_id)
+                set_status('job_end', '', job._run_id)
 
             set_status('cleanup_start')
 
