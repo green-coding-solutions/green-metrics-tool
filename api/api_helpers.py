@@ -94,7 +94,7 @@ def get_machine_list():
                 m.id, m.description, m.available,
                 m.status_code,
                 m.updated_at,
-                m.sleep_time_after_job,
+                m.cooldown_time_after_job,
                 (SELECT COUNT(id) FROM jobs as j WHERE j.machine_id = m.id AND j.state = 'WAITING') as job_amount,
                 (SELECT avg_duration FROM timings WHERE timings.machine_id = m.id )::int as avg_duration_seconds
 
