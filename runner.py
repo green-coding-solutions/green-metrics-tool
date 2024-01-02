@@ -1171,7 +1171,7 @@ class Runner:
 
             # pylint: disable=broad-exception-caught
             except BaseException as flow_exc:
-                if self._dev_flow_timetravel: # Exception handling only if explicitely wanted
+                if not self._dev_flow_timetravel: # Exception handling only if explicitely wanted
                     raise flow_exc
 
                 print('Exception occured: ', flow_exc)
