@@ -5,12 +5,16 @@ from datetime import timezone
 import time
 import xml
 import pandas
+import signal
 
 from lib.db import DB
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 
 class PowermetricsProvider(BaseMetricProvider):
-    def __init__(self, resolution):
+    def __init__(self, resolution, skip_check=False):
+        # We get this value on init as we want to have to for check_system to work in the normal case
+        self._pm_process_count = self.powermetrics_total_count()
+
         super().__init__(
             metric_name='powermetrics',
             metrics={'time': int, 'value': int},
@@ -19,8 +23,10 @@ class PowermetricsProvider(BaseMetricProvider):
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='/usr/bin/powermetrics',
             sudo=True,
+            skip_check=skip_check,
         )
 
+        self._skip_check =  skip_check
         # We can't use --show-all here as this sometimes triggers output on stderr
         self._extra_switches = [
             '--show-process-io',
@@ -30,33 +36,68 @@ class PowermetricsProvider(BaseMetricProvider):
             '--show-process-coalition',
             '-f',
             'plist',
-            '-o',
-            self._filename]
+            '-b',
+            '0',
+            ]
+
 
     def check_system(self):
-        if self.is_powermetrics_running():
-            raise MetricProviderConfigurationError('Another instance of powermetrics is already running on the system!\nPlease close it before running the Green Metrics Tool.')
+        # no call to super().check_system() as we have different logic of finding the process
+        if self._pm_process_count > 0:
+            raise MetricProviderConfigurationError('Another instance of powermetrics is already running on the system!\n'
+                                                   'Please close it before running the Green Metrics Tool.\n'
+                                                   'You can also override this with --skip-system-checks\n')
 
-    def is_powermetrics_running(self):
-        ps = subprocess.run(['pgrep', '-qx', 'powermetrics'], check=False)
-        if ps.returncode == 1:
-            return False
-        return True
+    def powermetrics_total_count(self):
+        cmd = ['pgrep', '-ix', 'powermetrics']
+        result = subprocess.run(cmd,
+                                encoding='UTF-8',
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                check=False)
+        if result.returncode in [0, 1]:
+            return len(result.stdout.strip().split('\n')) if result.stdout else 0
 
+        raise subprocess.CalledProcessError(result.returncode, cmd, result.stdout, result.stderr)
+
+    def is_our_powermetrics_running(self):
+        total_count = self.powermetrics_total_count()
+        minus_startup = total_count -  self._pm_process_count
+        return  minus_startup >= 1
 
     def stop_profiling(self):
+        if self._ps is None:
+            return
+
+        # Sending SIGIO shall tell the process to flush. Although the process does not seem
+        # to react we keep it in, as it is common practice and don't expect it to have negative effects
+        os.kill(self._ps.pid, signal.SIGIO)
+
         try:
-            # We try calling the parent method but if this doesn't work we use the more hardcore approach
+            # We try calling the parent method which should work see
+            # https://github.com/green-coding-berlin/green-metrics-tool/pull/566#discussion_r1429891190
+            # but we keep the try to make sure that if we ever change the sudo call it still works
             super().stop_profiling()
         except PermissionError:
-            #This isn't the nicest way of doing this but there isn't really any other way that is nicer
+            # We will land here in any case as stated before (root permissions missing). When we trigger *killall* now
+            # the process will be terminated. We opted for this implementation as other processes on the system, like
+            # for instance the power hog (https://github.com/green-coding-berlin/hog) should not be affected too much.
+            # They restart the process anyway when it gets killed. However manual processes that the user might have
+            # started will also be killed, so we issue a notice.
+            # There is really no better way of doing this as of now. Keeping the process id for instance in a hash and
+            # killing only that would also fail du to root permissions missing. If we add an /etc/sudoers entry with a
+            # wildcard for a PID we open up a security hole. Happy to take suggestions on this one!
             subprocess.check_output('sudo /usr/bin/killall powermetrics', shell=True)
             print('Killed powermetrics process with killall!')
+            if self._pm_process_count > 0:
+                print('-----------------------------------------------------------------------------------------------------------------')
+                print('This means we will have also killed any other already running powermetrics process. Please restart them if needed!')
+                print('-----------------------------------------------------------------------------------------------------------------')
 
         # As killall returns right after sending the SIGKILL we need to wait and make sure that the process
         # had time to flush everything to disk
         count = 0
-        while self.is_powermetrics_running():
+        while self.is_our_powermetrics_running():
             print(f"Waiting for powermetrics to shut down (try {count}/60). Please do not abort ...")
             time.sleep(1)
             count += 1
@@ -64,15 +105,17 @@ class PowermetricsProvider(BaseMetricProvider):
                 subprocess.check_output('sudo /usr/bin/killall -9 powermetrics', shell=True)
                 raise RuntimeError('powermetrics had to be killed with kill -9. Values can not be trusted!')
 
-        # We need to give the OS a second to flush
-        time.sleep(1)
-
         self._ps = None
 
     def read_metrics(self, run_id, containers=None):
 
         with open(self._filename, 'rb') as metrics_file:
             datas = metrics_file.read()
+
+        # Sometimes the container stops so fast that there will be no data in the file as powermetrics takes some time
+        # to start. In this case we can't really do anything
+        if datas == b'':
+            return 0
 
         datas = datas.split(b'\x00')
 
@@ -177,11 +220,22 @@ class PowermetricsProvider(BaseMetricProvider):
 
         return df
 
-    # powermetrics sometimes generates output to stderr. This isn't really a problem for our measurements
+
+    def filter_lines(self, stderr, f_strings):
+        filtered_lines = [line for line in stderr.split('\n') if all(allowed_str not in line for allowed_str in f_strings)]
+        return '\n'.join(filtered_lines).strip()
+
+
     def get_stderr(self):
         stderr = super().get_stderr()
 
-        if stderr is not None and str(stderr).find('proc_pid') != -1:
-            return None
+        if not stderr:
+            return stderr
 
-        return stderr
+        # powermetrics sometimes generates output to stderr. This isn't really a problem for our measurements
+        # This has been showing up and we don't really understand why. Google has no results and looking at the
+        # strings of powermetrics doesn't show anything. There also seems to be no correlation with the interval.
+        # A shame we can't look into the code and figure this one out. For now we just ignore it as we don't really
+        # have any other chance to debug.
+        f_strings = ['proc_pid', 'Second underflow occured']
+        return self.filter_lines(stderr, f_strings)

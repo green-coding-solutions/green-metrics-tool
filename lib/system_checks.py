@@ -12,6 +12,7 @@ import os
 from enum import Enum
 import subprocess
 import psutil
+import locale
 
 from psycopg import OperationalError as psycopg_OperationalError
 
@@ -68,6 +69,8 @@ def check_docker_daemon():
                             check=False, encoding='UTF-8')
     return result.returncode == 0
 
+def check_utf_encoding():
+    return locale.getpreferredencoding().lower() == sys.getdefaultencoding().lower() == 'utf-8'
 
 ######## END CHECK FUNCTIONS ########
 
@@ -78,7 +81,8 @@ start_checks = [
     (check_free_disk, Status.ERROR, '1GB free hdd space', 'We recommend to free up some disk space'),
     (check_free_memory, Status.ERROR, 'free memory', 'No free memory! Please kill some programs'),
     (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.berlin/docs/installation/]'),
-    (check_containers_running, Status.WARN, 'Running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.berlin/docs/installation/installation-cluster/].'),
+    (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.berlin/docs/installation/installation-cluster/].'),
+    (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output.'),
 
 ]
 

@@ -99,6 +99,15 @@ class SchemaChecker():
                     Optional("environment"): self.single_or_list(Or(dict,str)),
                     Optional("ports"): self.single_or_list(Or(str, int)),
                     Optional("depends_on"): Or([str],dict),
+                    Optional("healthcheck"): {
+                        Optional('test'): Or(list, str),
+                        Optional('interval'): str,
+                        Optional('timeout'): str,
+                        Optional('retries'): int,
+                        Optional('start_period'): str,
+                        # Optional('start_interval'): str, docker CLI does not support this atm
+                        Optional('disable'): bool,
+                    },
                     Optional("setup-commands"): [str],
                     Optional("volumes"): self.single_or_list(str),
                     Optional("folder-destination"):str,

@@ -48,7 +48,7 @@ def arrows(text):
 # path with `..`, symbolic links or similar.
 # We always return the same error message including the path and file parameter, never `filename` as
 # otherwise we might disclose if certain files exist or not.
-def join_paths(path, path2, mode=None):
+def join_paths(path, path2, mode='file'):
     filename = os.path.realpath(os.path.join(path, path2))
 
     # If the original path is a symlink we need to resolve it.
@@ -59,23 +59,23 @@ def join_paths(path, path2, mode=None):
         return filename
 
     if not filename.startswith(path):
-        raise ValueError(f"{path2} not in {path}")
+        raise ValueError(f"{path2} must not be in folder above {path}")
 
     # To double check we also check if it is in the files allow list
 
     if mode == 'file':
         folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
-    elif mode == 'dir':
+    elif mode == 'directory':
         folder_content = [str(item) for item in Path(path).rglob("*") if item.is_dir()]
     else:
-        folder_content = [str(item) for item in Path(path).rglob("*")]
+        raise RuntimeError(f"Unknown mode supplied for join_paths: {mode}")
 
     if filename not in folder_content:
-        raise ValueError(f"{path2} not in {path}")
+        raise ValueError(f"{mode.capitalize()} '{path2}' not in '{path}'")
 
     # Another way to implement this. This is checking the third time but we want to be extra secure 👾
     if Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
-        raise ValueError(f"{path2} not in {path}")
+        raise ValueError(f"{mode.capitalize()} '{path2}' not in folder '{path}'")
 
     if os.path.exists(filename):
         return filename
@@ -89,7 +89,7 @@ class Runner:
         name, uri, uri_type, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_system_checks=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
-        dry_run=False, dev_repeat_run=False, docker_prune=False, job_id=None):
+        dev_no_sleeps=False, dev_no_build=False, dev_no_metrics=False, docker_prune=False, job_id=None):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -104,8 +104,9 @@ class Runner:
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
         self._docker_prune = docker_prune
-        self._dry_run = dry_run
-        self._dev_repeat_run = dev_repeat_run
+        self._dev_no_sleeps = dev_no_sleeps
+        self._dev_no_build = dev_no_build
+        self._dev_no_metrics = dev_no_metrics
         self._uri = uri
         self._uri_type = uri_type
         self._original_filename = filename
@@ -145,7 +146,7 @@ class Runner:
         # self.__filename = self._original_filename # this can be changed later if working directory changes
 
     def custom_sleep(self, sleep_time):
-        if not self._dry_run:
+        if not self._dev_no_sleeps:
             print(TerminalColors.HEADER, '\nSleeping for : ', sleep_time, TerminalColors.ENDC)
             time.sleep(sleep_time)
 
@@ -340,7 +341,7 @@ class Runner:
             # creating benchmarking scripts and you want to have all options in the compose but not in each benchmark.
             # The cleaner way would be to handle an empty service key throughout the code but would make it quite messy
             # so we chose to remove it right at the start.
-            for key in [sname for sname, content in yml_obj['services'].items() if content is None]:
+            for key in [sname for sname, content in yml_obj.get('services', {}).items() if content is None]:
                 del yml_obj['services'][key]
 
             self._usage_scenario = yml_obj
@@ -375,7 +376,7 @@ class Runner:
                                 check=True, encoding='UTF-8')
         for line in result.stdout.splitlines():
             for running_container in line.split(','): # if docker container has multiple tags, they will be split by comma, so we only want to
-                for service_name in self._usage_scenario.get('services', []):
+                for service_name in self._usage_scenario.get('services', {}):
                     if 'container_name' in self._usage_scenario['services'][service_name]:
                         container_name = self._usage_scenario['services'][service_name]['container_name']
                     else:
@@ -385,15 +386,15 @@ class Runner:
                         raise PermissionError(f"Container '{container_name}' is already running on system. Please close it before running the tool.")
 
     def populate_image_names(self):
-        for service_name, service in self._usage_scenario.get('services', []).items():
+        for service_name, service in self._usage_scenario.get('services', {}).items():
             if not service.get('image', None): # image is a non-mandatory field. But we need it, so we tmp it
-                if self._dev_repeat_run:
+                if self._dev_no_build:
                     service['image'] = f"{service_name}"
                 else:
                     service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
 
     def remove_docker_images(self):
-        if self._dev_repeat_run:
+        if self._dev_no_build:
             return
 
         print(TerminalColors.HEADER, '\nRemoving all temporary GMT images', TerminalColors.ENDC)
@@ -477,6 +478,10 @@ class Runner:
         )
 
     def import_metric_providers(self):
+        if self._dev_no_metrics:
+            print(TerminalColors.HEADER, '\nSkipping import of metric providers', TerminalColors.ENDC)
+            return
+
         config = GlobalConfig().config
 
         print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
@@ -500,6 +505,9 @@ class Runner:
             if rootless and '.cgroup.' in module_path:
                 conf['rootless'] = True
 
+            if self._skip_system_checks:
+                conf['skip_check'] = True
+
             print(f"Importing {class_name} from {module_path}")
             print(f"Configuration is {conf}")
 
@@ -510,13 +518,17 @@ class Runner:
             self.__metric_providers.append(metric_provider_obj)
 
             if hasattr(metric_provider_obj, 'get_docker_params'):
-                services_list = ",".join(list(self._usage_scenario['services'].keys()))
+                services_list = ",".join(list(self._usage_scenario.get('services', {}).keys()))
                 self.__docker_params += metric_provider_obj.get_docker_params(no_proxy_list=services_list)
 
 
         self.__metric_providers.sort(key=lambda item: 'rapl' not in item.__class__.__name__.lower())
 
     def download_dependencies(self):
+        if self._dev_no_build:
+            print(TerminalColors.HEADER, '\nSkipping downloading dependencies', TerminalColors.ENDC)
+            return
+
         print(TerminalColors.HEADER, '\nDownloading dependencies', TerminalColors.ENDC)
         subprocess.run(['docker', 'pull', 'gcr.io/kaniko-project/executor:latest'], check=True)
 
@@ -548,7 +560,7 @@ class Runner:
 
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
-        for _, service in self._usage_scenario.get('services', []).items():
+        for _, service in self._usage_scenario.get('services', {}).items():
             # minimal protection from possible shell escapes.
             # since we use subprocess without shell we should be safe though
             if re.findall(r'(\.\.|\$|\'|"|`|!)', service['image']):
@@ -564,6 +576,7 @@ class Runner:
                                          encoding='UTF-8',
                                          check=True)
                 # The image exists so exit and don't build
+                print(f"Image {service['image']} exists in build cache. Skipping build ...")
                 continue
             except subprocess.CalledProcessError:
                 pass
@@ -574,7 +587,7 @@ class Runner:
                 self.__notes_helper.add_note({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
                 # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
-                context_path = join_paths(self._folder, context, 'dir')
+                context_path = join_paths(self._folder, context, 'directory')
                 join_paths(context_path, dockerfile, 'file')
 
                 docker_build_command = ['docker', 'run', '--rm',
@@ -590,7 +603,7 @@ class Runner:
                 if self.__docker_params:
                     docker_build_command[2:2] = self.__docker_params
 
-                print(" ".join(docker_build_command))
+                print(' '.join(docker_build_command))
 
                 ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
@@ -600,7 +613,7 @@ class Runner:
 
                 # import the docker image locally
                 image_import_command = ['docker', 'load', '-q', '-i', f"{temp_dir}/{tmp_img_name}.tar"]
-                print(" ".join(image_import_command))
+                print(' '.join(image_import_command))
                 ps = subprocess.run(image_import_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0 or ps.stderr != "":
@@ -653,10 +666,11 @@ class Runner:
                 raise RuntimeError(f"Cycle found in depends_on definition with service '{service_name}'!")
             visited.add(service_name)
 
+            if service_name not in services:
+                raise RuntimeError(f"Dependent service '{service_name}' defined in 'depends_on' does not exist in usage_scenario!")
+
             service = services[service_name]
             if 'depends_on' in service:
-                if isinstance(service['depends_on'], dict):
-                    raise RuntimeError(f"Service definition of {service_name} uses the long form of 'depends_on', however, GMT only supports the short form!")
                 for dep in service['depends_on']:
                     if dep not in names_ordered:
                         order_service_names(dep, visited)
@@ -742,16 +756,19 @@ class Runner:
                         # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
                         # could create volumes that would linger on our system.
                         path = os.path.realpath(os.path.join(self._folder, vol[0]))
+
+                        # Check that the path starts with self._folder
+                        # We need to do this first, as telling first if path exists or not will tell about our filesystem structure
+                        if not path.startswith(self._folder):
+                            raise RuntimeError(f"Service '{service_name}' volume path ({vol[0]}) is outside allowed folder: {path}")
+
                         if not os.path.exists(path):
                             raise RuntimeError(f"Service '{service_name}' volume path does not exist: {path}")
 
-                        # Check that the path starts with self._folder
-                        if not path.startswith(self._folder):
-                            raise RuntimeError(f"Service '{service_name}' trying to escape folder: {path}")
-
                         # To double check we also check if it is in the files allow list
-                        if path not in [str(item) for item in Path(self._folder).rglob("*")]:
-                            raise RuntimeError(f"Service '{service_name}' volume '{path}' not in allowed file list")
+                        allowed_files_list = [str(item) for item in Path(self._folder).rglob("*")]
+                        if path not in allowed_files_list:
+                            raise RuntimeError(f"Service '{service_name}' volume '{path}' not in allowed file list:\n{chr(10).join(allowed_files_list)}\n\nOnly files from the supplied repository are allowed.")
 
                         if len(vol) == 3:
                             if vol[2] != 'ro':
@@ -828,6 +845,35 @@ class Runner:
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
 
+            if 'healthcheck' in service:  # must come last
+                if 'disable' in service['healthcheck'] and service['healthcheck']['disable'] is True:
+                    docker_run_string.append('--no-healthcheck')
+                else:
+                    if 'test' in service['healthcheck']:
+                        docker_run_string.append('--health-cmd')
+                        health_string = service['healthcheck']['test']
+                        if isinstance(service['healthcheck']['test'], list):
+                            health_string_copy = service['healthcheck']['test'].copy()
+                            health_string_command = health_string_copy.pop(0)
+                            if health_string_command not in ['CMD', 'CMD-SHELL']:
+                                raise RuntimeError(f"Healthcheck starts with {health_string_command}. Please use 'CMD' or 'CMD-SHELL' when supplying as list. For disabling do not use 'NONE' but the disable argument.")
+                            health_string = ' '.join(health_string_copy)
+                        docker_run_string.append(health_string)
+                    if 'interval' in service['healthcheck']:
+                        docker_run_string.append('--health-interval')
+                        docker_run_string.append(service['healthcheck']['interval'])
+                    if 'timeout' in service['healthcheck']:
+                        docker_run_string.append('--health-timeout')
+                        docker_run_string.append(service['healthcheck']['timeout'])
+                    if 'retries' in service['healthcheck']:
+                        docker_run_string.append('--health-retries')
+                        docker_run_string.append(service['healthcheck']['retries'])
+                    if 'start_period' in service['healthcheck']:
+                        docker_run_string.append('--health-start-period')
+                        docker_run_string.append(service['healthcheck']['start_period'])
+                    if 'start_interval' in service['healthcheck']:
+                        raise RuntimeError('start_interval is not supported atm in healthcheck')
+
             docker_run_string.append(self.clean_image_name(service['image']))
 
             # Before starting the container, check if the dependent containers are "ready".
@@ -836,30 +882,59 @@ class Runner:
             # In the future we want to implement an health check to know if dependent containers are actually ready.
             if 'depends_on' in service:
                 for dependent_container in service['depends_on']:
+                    print(f"Waiting for dependent container {dependent_container}")
                     time_waited = 0
-                    state = ""
+                    state = ''
+                    health = 'healthy' # default because some containers have no health
                     max_waiting_time = config['measurement']['boot']['wait_time_dependencies']
                     while time_waited < max_waiting_time:
-                        # TODO: Check health status instead if `healthcheck` is enabled (https://github.com/green-coding-berlin/green-metrics-tool/issues/423)
-                        # This waiting loop is actually a pre-work for the upcoming health check. For the check if the container is "running", as implemented here, the waiting loop is not needed.
                         status_output = subprocess.check_output(
                             ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
                             stderr=subprocess.STDOUT,
-                            text=True
+                            encoding='UTF-8',
                         )
+
                         state = status_output.strip()
-                        if state == "running":
+                        print(f"State of container '{dependent_container}': {state}")
+
+                        if isinstance(service['depends_on'], dict) \
+                            and 'condition' in service['depends_on'][dependent_container]:
+
+                            condition = service['depends_on'][dependent_container]['condition']
+                            if condition == 'service_healthy':
+                                ps = subprocess.run(
+                                    ["docker", "container", "inspect", "-f", "{{.State.Health.Status}}", dependent_container],
+                                    check=False,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT, # put both in one stream
+                                    encoding='UTF-8'
+                                )
+                                health = ps.stdout.strip()
+                                if ps.returncode != 0 or health == '<nil>':
+                                    raise RuntimeError(f"Health check for dependent_container '{dependent_container}' was requested, but container has no healthcheck implemented! (Output was: {health})")
+                                if health == 'unhealthy':
+                                    raise RuntimeError('ontainer healthcheck failed terminally with status "unhealthy")')
+                                print(f"Health of container '{dependent_container}': {health}")
+                            elif condition == 'service_started':
+                                pass
+                            else:
+                                raise RuntimeError(f"Unsupported condition in healthcheck for service '{service_name}':  {condition}")
+
+                        if state == 'running' and health == 'healthy':
                             break
 
-                        print(f"State of container '{dependent_container}': {state}. Waiting for 1 second")
-                        self.custom_sleep(1)
+                        print('Waiting for 1 second')
+                        time.sleep(1)
                         time_waited += 1
 
-                    if state != "running":
-                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                    if state != 'running':
+                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running but {state} after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                    if health != 'healthy':
+                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
 
             if 'command' in service:  # must come last
-                docker_run_string.append(service['command'])
+                for cmd in service['command'].split():
+                    docker_run_string.append(cmd)
 
             print(f"Running docker run with: {' '.join(docker_run_string)}")
 
@@ -937,6 +1012,9 @@ class Runner:
 
 
     def start_metric_providers(self, allow_container=True, allow_other=True):
+        if self._dev_no_metrics:
+            return
+
         print(TerminalColors.HEADER, '\nStarting metric providers', TerminalColors.ENDC)
 
         for metric_provider in self.__metric_providers:
@@ -962,7 +1040,8 @@ class Runner:
 
             stderr_read = metric_provider.get_stderr()
             print(f"Stderr check on {metric_provider.__class__.__name__}")
-            if stderr_read is not None and str(stderr_read):
+
+            if stderr_read:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
 
@@ -1054,7 +1133,7 @@ class Runner:
                         if  stdout_behaviour == subprocess.PIPE:
                             os.set_blocking(ps.stdout.fileno(), False)
 
-                        self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command'], 'ps_group': False})
+                        self.__ps_to_kill.append({'ps': ps, 'cmd': inner_el['command']})
                     else:
                         print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
                         ps = subprocess.run(
@@ -1089,6 +1168,9 @@ class Runner:
 
     # this function should never be called twice to avoid double logging of metrics
     def stop_metric_providers(self):
+        if self._dev_no_metrics:
+            return
+
         print(TerminalColors.HEADER, 'Stopping metric providers and parsing measurements', TerminalColors.ENDC)
         errors = []
         for metric_provider in self.__metric_providers:
@@ -1096,10 +1178,14 @@ class Runner:
                 continue
 
             stderr_read = metric_provider.get_stderr()
-            if stderr_read is not None and str(stderr_read):
+            if stderr_read:
                 errors.append(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
-            metric_provider.stop_profiling()
+            # pylint: disable=broad-exception-caught
+            try:
+                metric_provider.stop_profiling()
+            except Exception as exc:
+                errors.append(f"Could not stop profiling on {metric_provider.__class__.__name__}: {str(exc)}")
 
             df = metric_provider.read_metrics(self._run_id, self.__containers)
             if isinstance(df, int):
@@ -1120,9 +1206,20 @@ class Runner:
 
     def read_and_cleanup_processes(self):
         print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
-        process_helpers.kill_ps(self.__ps_to_kill)
+
+        ps_errors = []
+        for ps in self.__ps_to_kill:
+            try:
+                process_helpers.kill_ps(ps['ps'], ps['cmd'])
+            except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
+                ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
+        if ps_errors:
+            raise RuntimeError(ps_errors)
+        self.__ps_to_kill = [] # we need to clear, so we do not kill twice later
+
         for ps in self.__ps_to_read:
             if ps['detach']:
+                # communicate will only really work to our experience if the process is killed before
                 stdout, stderr = ps['ps'].communicate(timeout=5)
             else:
                 stdout = ps['ps'].stdout
@@ -1141,8 +1238,7 @@ class Runner:
                         if match := re.findall(r'GMT_SCI_R=(\d+)', line):
                             self._sci['R'] += int(match[0])
             if stderr:
-                stderr = stderr.splitlines()
-                for line in stderr:
+                for line in stderr.splitlines():
                     print('stderr from process:', ps['cmd'], line)
                     self.add_to_log(ps['container_name'], f"stderr: {line}", ps['cmd'])
 
@@ -1236,7 +1332,12 @@ class Runner:
 
         print('Stopping metric providers')
         for metric_provider in self.__metric_providers:
-            metric_provider.stop_profiling()
+            # pylint: disable=broad-exception-caught
+            try:
+                metric_provider.stop_profiling()
+            except Exception as exc:
+                error_helpers.log_error(f"Could not stop profiling on {metric_provider.__class__.__name__}: {str(exc)}")
+
 
         print('Stopping containers')
         for container_id in self.__containers:
@@ -1253,7 +1354,16 @@ class Runner:
 
         self.remove_docker_images()
 
-        process_helpers.kill_ps(self.__ps_to_kill)
+        ps_errors = []
+        for ps in self.__ps_to_kill:
+            try:
+                process_helpers.kill_ps(ps['ps'], ps['cmd'])
+            except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
+                ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
+        if ps_errors:
+            raise RuntimeError(ps_errors)
+
+
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
         self.__notes_helper = Notes()
@@ -1416,8 +1526,9 @@ if __name__ == '__main__':
     parser.add_argument('--verbose-provider-boot', action='store_true', help='Boot metric providers gradually')
     parser.add_argument('--full-docker-prune', action='store_true', help='Stop and remove all containers, build caches, volumes and images on the system')
     parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
-    parser.add_argument('--dry-run', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
-    parser.add_argument('--dev-repeat-run', action='store_true', help='Checks if a docker image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run')
+    parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
+    parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
+    parser.add_argument('--dev-no-build', action='store_true', help='Checks if a container images are already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
     args = parser.parse_args()
@@ -1432,9 +1543,9 @@ if __name__ == '__main__':
         error_helpers.log_error('--allow-unsafe and skip--unsafe in conjuction is not possible')
         sys.exit(1)
 
-    if args.dev_repeat_run and (args.docker_prune or args.full_docker_prune):
+    if args.dev_no_build and (args.docker_prune or args.full_docker_prune):
         parser.print_help()
-        error_helpers.log_error('--dev-repeat-run blocks pruning docker images. Combination is not allowed')
+        error_helpers.log_error('--dev-no-build blocks pruning docker images. Combination is not allowed')
         sys.exit(1)
 
     if args.full_docker_prune and GlobalConfig().config['postgresql']['host'] == 'green-coding-postgres-container':
@@ -1477,8 +1588,8 @@ if __name__ == '__main__':
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     no_file_cleanup=args.no_file_cleanup, skip_system_checks=args.skip_system_checks,
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
-                    full_docker_prune=args.full_docker_prune, dry_run=args.dry_run,
-                    dev_repeat_run=args.dev_repeat_run, docker_prune=args.docker_prune)
+                    full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
+                    dev_no_build=args.dev_no_build, dev_no_metrics=args.dev_no_metrics, docker_prune=args.docker_prune)
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
@@ -1505,13 +1616,13 @@ if __name__ == '__main__':
         print('####################################################################################\n\n', TerminalColors.ENDC)
 
     except FileNotFoundError as e:
-        error_helpers.log_error('File or executable not found', e, runner._run_id)
+        error_helpers.log_error('File or executable not found', e, "\n", f"Run-ID: {runner._run_id}")
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error('Command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, runner._run_id)
+        error_helpers.log_error('Command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, "\n", f"Run-ID: {runner._run_id}")
     except RuntimeError as e:
-        error_helpers.log_error('RuntimeError occured in runner.py: ', e, runner._run_id)
+        error_helpers.log_error('RuntimeError occured in runner.py: ', e, "\n", f"Run-ID: {runner._run_id}")
     except BaseException as e:
-        error_helpers.log_error('Base exception occured in runner.py: ', e, runner._run_id)
+        error_helpers.log_error('Base exception occured in runner.py: ', e, "\n", f"Run-ID: {runner._run_id}")
     finally:
         if args.print_logs:
             for container_id_outer, std_out in runner.get_logs().items():
