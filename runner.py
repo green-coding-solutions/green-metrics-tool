@@ -11,7 +11,6 @@ import subprocess
 import json
 import os
 import time
-from datetime import datetime
 from html import escape
 import sys
 import importlib
@@ -31,6 +30,7 @@ from lib import process_helpers
 from lib import hardware_info
 from lib import hardware_info_root
 from lib import error_helpers
+from lib.repo_info import get_repo_info
 from lib.debug_helper import DebugHelper
 from lib.terminal_colors import TerminalColors
 from lib.schema_checker import SchemaChecker
@@ -232,25 +232,7 @@ class Runner:
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
-        self._commit_hash = subprocess.run(
-            ['git', 'rev-parse', 'HEAD'],
-            check=True,
-            capture_output=True,
-            encoding='UTF-8',
-            cwd=self._folder
-        )
-        self._commit_hash = self._commit_hash.stdout.strip("\n")
-
-        self._commit_timestamp = subprocess.run(
-            ['git', 'show', '-s', '--format=%ci'],
-            check=True,
-            capture_output=True,
-            encoding='UTF-8',
-            cwd=self._folder
-        )
-
-        self._commit_timestamp = self._commit_timestamp.stdout.strip("\n")
-        self._commit_timestamp = datetime.strptime(self._commit_timestamp, "%Y-%m-%d %H:%M:%S %z")
+        self._commit_hash, self._commit_timestamp = get_repo_info(self._folder)
 
     # This method loads the yml file and takes care that the includes work and are secure.
     # It uses the tagging infrastructure provided by https://pyyaml.org/wiki/PyYAMLDocumentation
@@ -435,15 +417,7 @@ class Runner:
     def update_and_insert_specs(self):
         config = GlobalConfig().config
 
-        gmt_hash = subprocess.run(
-            ['git', 'rev-parse', 'HEAD'],
-            check=True,
-            capture_output=True,
-            encoding='UTF-8',
-            cwd=CURRENT_DIR
-        )
-        gmt_hash = gmt_hash.stdout.strip("\n")
-
+        gmt_hash, _ = get_repo_info(CURRENT_DIR)
 
         # There are two ways we get hardware info. First things we don't need to be root to do which we get through
         # a method call. And then things we need root privilege which we need to call as a subprocess with sudo. The

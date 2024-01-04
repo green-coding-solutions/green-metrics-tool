@@ -9,7 +9,10 @@ CREATE TABLE machines (
     description text,
     available boolean DEFAULT false,
     status_code text,
+    jobs_processing text,
     cooldown_time_after_job integer,
+    gmt_hash text,
+    gmt_timestamp timestamp with time zone,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );

@@ -112,7 +112,7 @@ const dateToYMD = (date, short=false) => {
     let offset = date.getTimezoneOffset();
     offset = offset < 0 ? `+${-offset/60}` : -offset/60;
 
-    if(short) return `${date.getFullYear().toString()}.${month}.${day}`;
+    if(short) return `${date.getFullYear().toString()}-${month}-${day}`;
     return ` ${date.getFullYear()}-${month}-${day} <br> ${hours}:${minutes} UTC${offset}`;
 }
 
