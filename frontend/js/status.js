@@ -54,7 +54,7 @@ $(document).ready(function () {
                 }},
                 { data: 9, title: 'Waiting Jobs'},
                 { data: 10, title: 'Estimated waiting time', render: function(el, type, row) {
-                    return (row[5] == null || row[7] == null) ? 'awaiting info' : `${Math.round(( (row[7]+row[5]) * row[6]) / 60)} Minutes`
+                    return (row[8] == null || row[10] == null) ? 'awaiting info' : `${Math.round(( (row[8]+row[10]) * row[9]) / 60)} Minutes`
                 }},
             ],
             deferRender: true,
