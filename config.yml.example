@@ -33,6 +33,7 @@ cluster:
     jobs_processing: "random"
     time_between_control_workload_validations: 21600
     send_control_workload_status_mail: False
+    shutdown_on_job_no: False
     control_workload:
       name: "Measurement control Workload"
       uri: "https://github.com/green-coding-berlin/measurement-control-workload"

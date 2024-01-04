@@ -11,11 +11,13 @@ import subprocess
 from tools.jobs import Job, handle_job_exception
 from lib.global_config import GlobalConfig
 from lib.db import DB
+from lib.repo_info import get_repo_info
 from tools import validate
 from lib import email_helpers
 
 # We currently have this dynamically as it will probably change quite a bit
 STATUS_LIST = ['job_no', 'job_start', 'job_error', 'job_end', 'cleanup_start', 'cleanup_stop', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def set_status(status_code, data=None, run_id=None):
     # pylint: disable=redefined-outer-name
@@ -35,10 +37,13 @@ def set_status(status_code, data=None, run_id=None):
 
     query = """
         UPDATE machines
-        SET status_code=%s, cooldown_time_after_job=%s
+        SET status_code=%s, cooldown_time_after_job=%s, jobs_processing=%s, gmt_hash=%s, gmt_timestamp=%s
         WHERE id = %s
     """
-    params = (status_code, client['cooldown_time_after_job'], config['machine']['id'])
+
+    gmt_hash, gmt_timestamp = get_repo_info(CURRENT_DIR)
+
+    params = (status_code, client['cooldown_time_after_job'], client['jobs_processing'], gmt_hash, gmt_timestamp, config['machine']['id'])
     DB().query(query=query, params=params)
 
 def do_cleanup():
@@ -101,6 +106,8 @@ if __name__ == '__main__':
         else:
             do_cleanup()
             set_status('job_no')
+            if client_main['shutdown_on_job_no'] is True:
+                subprocess.check_output(['sudo', 'shutdown'])
             time.sleep(client_main['sleep_time_no_job'])
 
         first_start = False
