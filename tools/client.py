@@ -101,6 +101,8 @@ if __name__ == '__main__':
         else:
             do_cleanup()
             set_status('job_no')
+            if client_main['shutdown_on_job_no'] is True:
+                subprocess.check_output(['sudo', 'shutdown'])
             time.sleep(client_main['sleep_time_no_job'])
 
         first_start = False
