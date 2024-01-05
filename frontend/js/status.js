@@ -49,12 +49,14 @@ $(document).ready(function () {
                     return `<a href="https://github.com/green-coding-berlin/green-metrics-tool/commit/${el}">${`${el.substr(0,3)}...${el.substr(-3,3)}`}</a> (${dateToYMD(new Date(row[7]), true)})`;
 
                 }},
-                { data: 8, title: 'Cooldown after Job', render: function(el) {
+                { data: 8, title: 'Base temp (°)'},
+                { data: 9, title: 'Current temp (°)', render: (el) => el == null ? '-' : el},
+                { data: 10, title: 'Cooldown time', render: function(el) {
                     return (el == null) ? 'awaiting info': `${Math.round(el/60)} Minutes`;
                 }},
-                { data: 9, title: 'Waiting Jobs'},
-                { data: 10, title: 'Estimated waiting time', render: function(el, type, row) {
-                    return (row[8] == null || row[10] == null) ? 'awaiting info' : `${Math.round(( (row[8]+row[10]) * row[9]) / 60)} Minutes`
+                { data: 11, title: 'Waiting Jobs'},
+                { data: 12, title: 'Estimated waiting time', render: function(el, type, row) {
+                    return (row[10] == null || row[12] == null) ? 'awaiting info' : `${Math.round(( (row[10]+row[12]) * row[11]) / 60)} Minutes`
                 }},
             ],
             deferRender: true,

@@ -11,6 +11,8 @@ CREATE TABLE machines (
     status_code text,
     jobs_processing text,
     cooldown_time_after_job integer,
+    base_temperature integer,
+    current_temperature integer,
     gmt_hash text,
     gmt_timestamp timestamp with time zone,
     created_at timestamp with time zone DEFAULT now(),
