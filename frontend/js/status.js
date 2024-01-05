@@ -25,6 +25,7 @@ $(document).ready(function () {
                 { data: 2, title: 'Available', render: function(el) {
                     return (el == true) ? '<i class="ui label mini empty green circular"></i>': '<i class="ui label mini empty red circular"></i>';
                 }},
+                { data: 5, title: 'Jobs processing'},
                 { data: 3, title: 'State', render: function(el) {
                     switch (el) {
                             case 'job_no': return `${el} <span data-inverted data-tooltip="No job currently in queue"><i class="ui question circle icon fluid"></i></div>`;
@@ -42,8 +43,6 @@ $(document).ready(function () {
                     }
                     return el;
                 }},
-                { data: 4, title: 'State date', render: (el) => el == null ? '-' : dateToYMD(new Date(el)) },
-                { data: 5, title: 'Jobs processing'},
                 { data: 6, title: 'GMT version', render: function(el, type, row) {
                     if (el == null) return '-';
 
@@ -59,6 +58,7 @@ $(document).ready(function () {
                 { data: 12, title: 'Estimated waiting time', render: function(el, type, row) {
                     return (row[10] == null || row[12] == null) ? 'awaiting info' : `${Math.round(( (row[10]+row[12]) * row[11]) / 60)} Minutes`
                 }},
+                { data: 4, title: 'Updated at', render: (el) => el == null ? '-' : dateToYMD(new Date(el)) },
             ],
             deferRender: true,
             //order: [[7, 'desc']] // API also orders, but we need to indicate order for the user
