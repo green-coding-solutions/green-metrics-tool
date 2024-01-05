@@ -10,7 +10,7 @@ def get_temperature(chip, feature):
 
     try:
         output = subprocess.check_output(
-            [f"{CURRENT_DIR}/../metric_providers/lm_sensors/metric-provider-binary", '-c', chip, '-f', feature, '-1'],
+            [f"{CURRENT_DIR}/../metric_providers/lm_sensors/metric-provider-binary", '-c', chip, '-f', feature, '-n', '1'],
             encoding='UTF-8',
         )
     except (FileNotFoundError, subprocess.CalledProcessError) as exc:
