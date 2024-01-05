@@ -34,6 +34,7 @@ $(document).ready(function () {
                             case 'cleanup_start': return `${el} <span data-inverted data-tooltip="Cleanup after job has started"><i class="ui question circle icon fluid"></i></div>`;
                             case 'cleanup_end': return `${el} <span data-inverted data-tooltip="Cleanup after job has finished"><i class="ui question circle icon fluid"></i></div>`;
                             case 'measurement_control_start': return `${el} <span data-inverted data-tooltip="Periodic Measurement Control job has started"><i class="ui question circle icon fluid"></i></div>`;
+                            case 'cooldown': return `${el} <span data-inverted data-tooltip="Machine is currently cooling down to base temperature"><i class="ui question circle icon fluid"></i></div>`;
                             case 'measurement_control_error': return `${el} <span data-inverted data-tooltip="Last periodic Measurement Control job has failed"><i class="ui question circle icon fluid"></i></div>`;
                             case 'measurement_control_end': return `${el} <span data-inverted data-tooltip="Periodic Measurement Control job has finished"><i class="ui question circle icon fluid"></i></div>`;
                             case undefined: // fallthrough
@@ -49,12 +50,14 @@ $(document).ready(function () {
                     return `<a href="https://github.com/green-coding-berlin/green-metrics-tool/commit/${el}">${`${el.substr(0,3)}...${el.substr(-3,3)}`}</a> (${dateToYMD(new Date(row[7]), true)})`;
 
                 }},
-                { data: 8, title: 'Cooldown after Job', render: function(el) {
+                { data: 8, title: 'Base temp (°)'},
+                { data: 9, title: 'Current temp (°)', render: (el) => el == null ? '-' : el},
+                { data: 10, title: 'Cooldown time', render: function(el) {
                     return (el == null) ? 'awaiting info': `${Math.round(el/60)} Minutes`;
                 }},
-                { data: 9, title: 'Waiting Jobs'},
-                { data: 10, title: 'Estimated waiting time', render: function(el, type, row) {
-                    return (row[8] == null || row[10] == null) ? 'awaiting info' : `${Math.round(( (row[8]+row[10]) * row[9]) / 60)} Minutes`
+                { data: 11, title: 'Waiting Jobs'},
+                { data: 12, title: 'Estimated waiting time', render: function(el, type, row) {
+                    return (row[10] == null || row[12] == null) ? 'awaiting info' : `${Math.round(( (row[10]+row[12]) * row[11]) / 60)} Minutes`
                 }},
             ],
             deferRender: true,

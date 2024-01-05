@@ -29,7 +29,6 @@ cluster:
   metrics_url: __METRICS_URL__
   client:
     sleep_time_no_job: 300
-    cooldown_time_after_job: 300
     jobs_processing: "random"
     time_between_control_workload_validations: 21600
     send_control_workload_status_mail: False
@@ -53,7 +52,9 @@ machine:
   description: "Development machine for testing"
   # Takes a file path to log all the errors to it. This is disabled if False
   error_log_file: False
-
+  base_temperature_value: False
+  base_temperature_chip: False
+  base_temperature_feature: False
 
 measurement:
   idle-time-start: 10
