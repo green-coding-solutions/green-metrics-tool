@@ -86,7 +86,7 @@ if __name__ == '__main__':
         last_cooldown_time = cooldown_time
         cooldown_time = 0
 
-        if validate.is_validation_needed(client_main['time_between_control_workload_validations']):
+        if validate.is_validation_needed(config_main['machine']['id'], client_main['time_between_control_workload_validations']):
             set_status('measurement_control_start', current_temperature, last_cooldown_time)
             validate.run_workload(cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
             set_status('measurement_control_end', current_temperature, last_cooldown_time)

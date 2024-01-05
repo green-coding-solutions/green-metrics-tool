@@ -103,16 +103,17 @@ def validate_workload_stddev(data, threshold):
 
     return info_string_acc
 
-def is_validation_needed(duration):
+def is_validation_needed(machine_id, duration):
     query = '''
         SELECT id
         FROM client_status
         WHERE
             status_code = 'measurement_control_end'
             AND EXTRACT(EPOCH FROM CURRENT_TIMESTAMP - created_at) < %s
+            AND machine_id = %s
         ORDER BY created_at DESC
     '''
-    data = DB().fetch_one(query=query, params=(duration, ))
+    data = DB().fetch_one(query=query, params=(duration, machine_id))
     return data is None or data == []
 
 def handle_validate_exception(exc):
