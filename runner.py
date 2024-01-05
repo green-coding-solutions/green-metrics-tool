@@ -1027,7 +1027,7 @@ class Runner:
             # The force-sleep must go and we must actually check for the temperature baseline
             print(f"\nForce-sleeping for {config['measurement']['phase-transition-time']}s")
             self.custom_sleep(config['measurement']['phase-transition-time'])
-            print(TerminalColors.HEADER, '\nChecking if temperature is back to baseline ...', TerminalColors.ENDC)
+            #print(TerminalColors.HEADER, '\nChecking if temperature is back to baseline ...', TerminalColors.ENDC)
 
         phase_time = int(time.time_ns() / 1_000)
         self.__notes_helper.add_note({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
