@@ -176,7 +176,8 @@ static void output_value(int value, char *container_id) {
 
 int main(int argc, char *argv[]) {
     int c, err;
-    int one_off = 0;
+    int measurement_amount = 0;
+    int i = 0;
     const char *config_file_name = NULL;
 
     // These are the lists that we pass in through the command line
@@ -203,7 +204,7 @@ int main(int argc, char *argv[]) {
     setlocale(LC_CTYPE, "");
 
     while (1) {
-        c = getopt_long(argc, argv, "c:f:hts:i:1", long_opts, NULL);
+        c = getopt_long(argc, argv, "c:f:hts:i:n:", long_opts, NULL);
         if (c == EOF) break;
         switch (c) {
             case ':':
@@ -237,8 +238,8 @@ int main(int argc, char *argv[]) {
             case 'i':
                 msleep_time = atoi(optarg);
                 break;
-            case '1':
-                one_off = 1;
+            case 'n':
+                measurement_amount = atoi(optarg);
                 break;
             default:
                 exit(1);
@@ -319,7 +320,7 @@ int main(int argc, char *argv[]) {
         }
 
         /* The main loop */
-        while (keep_running) {
+        while (keep_running == 1 && i <= measurement_amount) {
             for (output_iterator = chip_feature_output; output_iterator; output_iterator = output_iterator->next) {
                 const sensors_chip_name *tmp_chip_name = ((Output_Mapping *)output_iterator->data)->chip_name;
                 const sensors_feature *temp_feature = ((Output_Mapping *)output_iterator->data)->feature;
@@ -346,7 +347,8 @@ int main(int argc, char *argv[]) {
                  g_string_free(chip_feature_str, 1);
                  free(tmp_label);
             }
-            if (one_off) break;
+
+            if (measurement_amount != 0) i++; // only increment if switch was given to not overflow.
             usleep(msleep_time * 1000);
         }
         g_list_free_full(chip_feature_output, free);
