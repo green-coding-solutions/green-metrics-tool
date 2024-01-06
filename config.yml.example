@@ -97,6 +97,9 @@ measurement:
 #        resolution: 99
 #      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
 #        resolution: 99
+    #--- GPU - Only enable these if you have GPUs with power measurement enabled in your machine
+#      gpu.energy.NVIDIA.SMI.component.provider.GpuEnergyNvidiaSmiComponentProvider:
+#        resolution: 99
     #--- Sensors - these providers need the lm-sensors package installed
 #      lm_sensors.temperature.component.provider.LmSensorsTemperatureComponentProvider:
 #        resolution: 99
