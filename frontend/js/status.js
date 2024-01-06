@@ -10,8 +10,8 @@ $(document).ready(function () {
                 { data: 5, title: 'Branch'},
                 { data: 6, title: 'Machine'},
                 { data: 7, title: 'State'},
-                { data: 8, title: 'Last Update', render: (el) => el == null ? '-' : dateToYMD(new Date(el)) },
                 { data: 9, title: 'Created at', render: (el) => el == null ? '-' : dateToYMD(new Date(el)) },
+                { data: 8, title: 'Updated at', render: (el) => el == null ? '-' : dateToYMD(new Date(el)) },
             ],
             deferRender: true,
             order: [[7, 'desc']] // API also orders, but we need to indicate order for the user
@@ -46,7 +46,7 @@ $(document).ready(function () {
                 { data: 6, title: 'GMT version', render: function(el, type, row) {
                     if (el == null) return '-';
 
-                    return `<a href="https://github.com/green-coding-berlin/green-metrics-tool/commit/${el}">${`${el.substr(0,3)}...${el.substr(-3,3)}`}</a> (${dateToYMD(new Date(row[7]), true)})`;
+                    return `<a href="https://github.com/green-coding-berlin/green-metrics-tool/commit/${el}" title="${dateToYMD(new Date(row[7]))}">${`${el.substr(0,3)}...${el.substr(-3,3)}`}</a>`;
 
                 }},
                 { data: 8, title: 'Base temp (°)'},
