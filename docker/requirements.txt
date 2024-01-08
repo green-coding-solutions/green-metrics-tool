@@ -1,5 +1,5 @@
 gunicorn==21.2.0
-psycopg[binary]==3.1.16
+psycopg[binary]==3.1.17
 fastapi==0.108.0
 starlette>=0.32
 uvicorn[standard]==0.25.0
