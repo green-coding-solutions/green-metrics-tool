@@ -102,7 +102,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
         return ORJSONResponse(
             content={
                 'success': False,
-                'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.berlin',
+                'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.io',
             },
             status_code=500,
         )
