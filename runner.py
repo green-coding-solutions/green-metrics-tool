@@ -89,10 +89,14 @@ class Runner:
         name, uri, uri_type, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_system_checks=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
-        dev_no_sleeps=False, dev_no_build=False, dev_no_metrics=False, docker_prune=False, job_id=None):
+        dev_no_sleeps=False, dev_no_build=False, dev_no_metrics=False, docker_prune=False, job_id=None,
+        parallel_id=None):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
+
+        if parallel_id is None:
+            parallel_id = random.randint(500000,10000000)
 
         # variables that should not change if you call run multiple times
         self._name = name
@@ -111,7 +115,8 @@ class Runner:
         self._uri_type = uri_type
         self._original_filename = filename
         self._branch = branch
-        self._tmp_folder = '/tmp/green-metrics-tool'
+        #DMM:MARK
+        self._tmp_folder = f"/tmp/green-metrics-tool/{parallel_id}"
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
         self._sci = {'R_d': None, 'R': 0}
@@ -121,6 +126,7 @@ class Runner:
         self._run_id = None
         self._commit_hash = None
         self._commit_timestamp = None
+        self._parallel_id = parallel_id
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
@@ -358,6 +364,7 @@ class Runner:
                                 check=True, encoding='UTF-8')
         for line in result.stdout.splitlines():
             for running_container in line.split(','): # if docker container has multiple tags, they will be split by comma, so we only want to
+                #DMM:MARK
                 for service_name in self._usage_scenario.get('services', {}):
                     if 'container_name' in self._usage_scenario['services'][service_name]:
                         container_name = self._usage_scenario['services'][service_name]['container_name']
@@ -668,12 +675,12 @@ class Runner:
         # Check if there are service dependencies defined with 'depends_on'.
         # If so, change the order of the services accordingly.
         services_ordered = self.order_services(services)
+        #DMM:MARK
         for service_name, service in services_ordered.items():
-
             if 'container_name' in service:
-                container_name = service['container_name']
+                container_name = f"{service['container_name']}_{self._parallel_id}"
             else:
-                container_name = service_name
+                container_name = f"{service_name}_{self._parallel_id}"
 
             print(TerminalColors.HEADER, '\nSetting up container: ', container_name, TerminalColors.ENDC)
 
@@ -815,7 +822,6 @@ class Runner:
                 docker_run_string.append('--net')
                 docker_run_string.append(self.__networks[0])
 
-
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
 
@@ -856,20 +862,21 @@ class Runner:
             # In the future we want to implement an health check to know if dependent containers are actually ready.
             if 'depends_on' in service:
                 for dependent_container in service['depends_on']:
-                    print(f"Waiting for dependent container {dependent_container}")
+                    dependent_container_name = f"{dependent_container}_{self._parallel_id}"
+                    print(f"Waiting for dependent container {dependent_container_name}")
                     time_waited = 0
                     state = ''
                     health = 'healthy' # default because some containers have no health
                     max_waiting_time = config['measurement']['boot']['wait_time_dependencies']
                     while time_waited < max_waiting_time:
                         status_output = subprocess.check_output(
-                            ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
+                            ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container_name],
                             stderr=subprocess.STDOUT,
                             encoding='UTF-8',
                         )
 
                         state = status_output.strip()
-                        print(f"State of container '{dependent_container}': {state}")
+                        print(f"State of container '{dependent_container_name}': {state}")
 
                         if isinstance(service['depends_on'], dict) \
                             and 'condition' in service['depends_on'][dependent_container]:
@@ -877,7 +884,7 @@ class Runner:
                             condition = service['depends_on'][dependent_container]['condition']
                             if condition == 'service_healthy':
                                 ps = subprocess.run(
-                                    ["docker", "container", "inspect", "-f", "{{.State.Health.Status}}", dependent_container],
+                                    ["docker", "container", "inspect", "-f", "{{.State.Health.Status}}", dependent_container_name],
                                     check=False,
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT, # put both in one stream
@@ -885,10 +892,10 @@ class Runner:
                                 )
                                 health = ps.stdout.strip()
                                 if ps.returncode != 0 or health == '<nil>':
-                                    raise RuntimeError(f"Health check for dependent_container '{dependent_container}' was requested, but container has no healthcheck implemented! (Output was: {health})")
+                                    raise RuntimeError(f"Health check for dependent_container '{dependent_container_name}' was requested, but container has no healthcheck implemented! (Output was: {health})")
                                 if health == 'unhealthy':
                                     raise RuntimeError('ontainer healthcheck failed terminally with status "unhealthy")')
-                                print(f"Health of container '{dependent_container}': {health}")
+                                print(f"Health of container '{dependent_container_name}': {health}")
                             elif condition == 'service_started':
                                 pass
                             else:
@@ -902,9 +909,9 @@ class Runner:
                         time_waited += 1
 
                     if state != 'running':
-                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running but {state} after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                        raise RuntimeError(f"Dependent container '{dependent_container_name}' of '{container_name}' is not running but {state} after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
                     if health != 'healthy':
-                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                        raise RuntimeError(f"Dependent container '{dependent_container_name}' of '{container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
 
             if 'command' in service:  # must come last
                 for cmd in service['command'].split():
@@ -1063,6 +1070,8 @@ class Runner:
 
             self.start_phase(el['name'].replace('[', '').replace(']',''), transition=False)
 
+            #DMM:MARK ['container']
+            el['container'] = f"{el['container']}_{self._parallel_id}"
             for inner_el in el['commands']:
                 if 'note' in inner_el:
                     self.__notes_helper.add_note({'note': inner_el['note'], 'detail_name': el['container'], 'timestamp': int(time.time_ns() / 1_000)})

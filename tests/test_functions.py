@@ -36,7 +36,7 @@ def replace_include_in_usage_scenario(usage_scenario_path, docker_compose_filena
 def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='folder', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False,
         skip_unsafe=False, verbose_provider_boot=False, dir_name=None, dev_no_build=False, skip_system_checks=True,
-        dev_no_sleeps=True, dev_no_metrics=True):
+        dev_no_sleeps=True, dev_no_metrics=True, parallel_id=None):
     usage_scenario_path = os.path.join(CURRENT_DIR, 'data/usage_scenarios/', usage_scenario)
     if docker_compose is not None:
         docker_compose_path = os.path.join(CURRENT_DIR, 'data/docker-compose-files/', docker_compose)
@@ -54,7 +54,8 @@ def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='f
     return Runner(name=RUN_NAME, uri=uri, uri_type=uri_type, filename=usage_scenario, branch=branch,
         debug_mode=debug_mode, allow_unsafe=allow_unsafe, no_file_cleanup=no_file_cleanup,
         skip_unsafe=skip_unsafe, verbose_provider_boot=verbose_provider_boot, dev_no_build=dev_no_build,
-        skip_system_checks=skip_system_checks, dev_no_sleeps=dev_no_sleeps, dev_no_metrics=dev_no_metrics)
+        skip_system_checks=skip_system_checks, dev_no_sleeps=dev_no_sleeps, dev_no_metrics=dev_no_metrics,
+        parallel_id=parallel_id)
 
 # This function runs the runner up to and *including* the specified step
 # remember to catch in try:finally and do cleanup when calling this!

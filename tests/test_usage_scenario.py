@@ -52,12 +52,12 @@ def cleanup_tmp_directories_fixture():
 # environment: [object] (optional)
 # Key-Value pairs for ENV variables inside the container
 
-def get_env_vars(runner):
+def get_env_vars(runner, parallel_id):
     try:
         Tests.run_until(runner, 'setup_services')
 
         ps = subprocess.run(
-            ['docker', 'exec', 'test-container', '/bin/sh',
+            ['docker', 'exec', f"test-container_{parallel_id}", '/bin/sh',
             '-c', 'env'],
             check=True,
             stderr=subprocess.PIPE,
@@ -71,8 +71,9 @@ def get_env_vars(runner):
 
 # Test allowed characters
 def test_env_variable_allowed_characters():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_allowed.yml', skip_unsafe=False, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
-    env_var_output = get_env_vars(runner)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_allowed.yml', skip_unsafe=False, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
+    env_var_output = get_env_vars(runner, parallel_id)
 
     assert 'TESTALLOWED=alpha-num123_' in env_var_output, Tests.assertion_info('TESTALLOWED=alpha-num123_', env_var_output)
     assert 'TEST1_ALLOWED=alpha-key-num123_' in env_var_output, Tests.assertion_info('TEST1_ALLOWED=alpha-key-num123_', env_var_output)
@@ -81,16 +82,18 @@ def test_env_variable_allowed_characters():
 
 # Test too long values
 def test_env_variable_too_long():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
     with pytest.raises(RuntimeError) as e:
-        get_env_vars(runner)
+        get_env_vars(runner, parallel_id)
 
     assert 'TEST_TOO_LONG' in str(e.value), Tests.assertion_info("Env var value is too long", str(e.value))
 
 # Test skip_unsafe=true
 def test_env_variable_skip_unsafe_true():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', skip_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
-    env_var_output = get_env_vars(runner)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', skip_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
+    env_var_output = get_env_vars(runner, parallel_id)
 
     # Only allowed values should be in env vars, forbidden ones should be skipped
     assert 'TEST_ALLOWED' in env_var_output, Tests.assertion_info('TEST_ALLOWED in env vars', env_var_output)
@@ -98,8 +101,9 @@ def test_env_variable_skip_unsafe_true():
 
 # Test allow_unsafe=true
 def test_env_variable_allow_unsafe_true():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
-    env_var_output = get_env_vars(runner)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
+    env_var_output = get_env_vars(runner, parallel_id)
 
     # Both allowed and forbidden values should be in env vars
     assert 'TEST_ALLOWED' in env_var_output, Tests.assertion_info('TEST_ALLOWED in env vars', env_var_output)
@@ -108,11 +112,11 @@ def test_env_variable_allow_unsafe_true():
 # ports: [int:int] (optional)
 # Docker container portmapping on host OS to be used with --allow-unsafe flag.
 
-def get_port_bindings(runner):
+def get_port_bindings(runner, parallel_id):
     try:
         Tests.run_until(runner, 'setup_services')
         ps = subprocess.run(
-                ['docker', 'port', 'test-container', '9018'],
+                ['docker', 'port', f"test-container_{parallel_id}", '9018'],
                 check=True,
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -125,20 +129,22 @@ def get_port_bindings(runner):
     return port, err
 
 def test_port_bindings_allow_unsafe_true():
-    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
-    port, _ = get_port_bindings(runner)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
+    port, _ = get_port_bindings(runner, parallel_id)
     assert port.startswith('0.0.0.0:9017'), Tests.assertion_info('0.0.0.0:9017', port)
 
 def test_port_bindings_skip_unsafe_true():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', skip_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', skip_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
 
     # need to catch exception here as otherwise the subprocess returning an error will
     # fail the test
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception):
-        _, docker_port_err = get_port_bindings(runner)
-        expected_container_error = 'Error: No public port \'9018/tcp\' published for test-container\n'
+        _, docker_port_err = get_port_bindings(runner, parallel_id)
+        expected_container_error = f"Error: No public port \'9018/tcp\' published for test-container_{parallel_id}\n"
         assert docker_port_err == expected_container_error, \
             Tests.assertion_info(f"Container Error: {expected_container_error}", docker_port_err)
     expected_warning = 'Found ports entry but not running in unsafe mode. Skipping'
@@ -146,10 +152,11 @@ def test_port_bindings_skip_unsafe_true():
         Tests.assertion_info(f"Warning: {expected_warning}", 'no/different warning')
 
 def test_port_bindings_no_skip_or_allow():
-    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
     with pytest.raises(Exception) as e:
-        _, docker_port_err = get_port_bindings(runner)
-        expected_container_error = 'Error: No public port \'9018/tcp\' published for test-container\n'
+        _, docker_port_err = get_port_bindings(runner, parallel_id)
+        expected_container_error = f"Error: No public port \'9018/tcp\' published for test-container_{parallel_id}\n"
         assert docker_port_err == expected_container_error, \
             Tests.assertion_info(f"Container Error: {expected_container_error}", docker_port_err)
     expected_error = 'Found "ports" but neither --skip-unsafe nor --allow-unsafe is set'
@@ -162,14 +169,15 @@ def test_port_bindings_no_skip_or_allow():
 def test_setup_commands_one_command():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='setup_commands_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='setup_commands_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
 
     with redirect_stdout(out), redirect_stderr(err):
         try:
             Tests.run_until(runner, 'setup_services')
         finally:
             runner.cleanup()
-    assert 'Running command:  docker exec test-container sh -c ps -a' in out.getvalue(), \
+    assert f"Running command:  docker exec test-container_{parallel_id} sh -c ps -a" in out.getvalue(), \
         Tests.assertion_info('stdout message: Running command: docker exec  ps -a', out.getvalue())
     assert '1 root      0:00 /bin/sh' in out.getvalue(), \
         Tests.assertion_info('container stdout showing /bin/sh as process 1', 'different message in container stdout')
@@ -177,7 +185,8 @@ def test_setup_commands_one_command():
 def test_setup_commands_multiple_commands():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='setup_commands_multiple_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='setup_commands_multiple_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
 
     with redirect_stdout(out), redirect_stderr(err):
         try:
@@ -185,17 +194,17 @@ def test_setup_commands_multiple_commands():
         finally:
             runner.cleanup()
 
-    expected_pattern = re.compile(r'Running command:  docker exec test-container echo hello world.*\
+    expected_pattern = re.compile(fr"Running command:  docker exec test-container_{parallel_id} echo hello world.*\
 \s*Stdout: hello world.*\
 \s*Stderr:.*\
-\s*Running command:  docker exec test-container ps -a.*\
+\s*Running command:  docker exec test-container_{parallel_id} ps -a.*\
 \s*Stdout:\s+PID\s+USER\s+TIME\s+COMMAND.*\
 \s*1\s+root\s+\d:\d\d\s+/bin/sh.*\
 \s*1\d+\s+root\s+\d:\d\d\s+ps -a.*\
 \s*Stderr:.*\
-\s*Running command:  docker exec test-container echo goodbye world.*\
+\s*Running command:  docker exec test-container_{parallel_id} echo goodbye world.*\
 \s*Stdout: goodbye world.*\
-', re.MULTILINE)
+", re.MULTILINE)
 
     assert re.search(expected_pattern, out.getvalue()), \
         Tests.assertion_info('container stdout showing 3 commands run in sequence',\
@@ -206,11 +215,11 @@ def create_test_file(path):
         os.mkdir(path)
     Path(f"{path}/test-file").touch()
 
-def get_contents_of_bound_volume(runner):
+def get_contents_of_bound_volume(runner, parallel_id):
     try:
         Tests.run_until(runner, 'setup_services')
         ps = subprocess.run(
-                ['docker', 'exec', 'test-container', 'ls', '/tmp/test-data'],
+                ['docker', 'exec', f"test-container_{parallel_id}", 'ls', '/tmp/test-data'],
                 check=True,
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -237,7 +246,8 @@ def assert_order(text, first, second):
 def test_depends_on_order():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='depends_on.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='depends_on.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
 
     with redirect_stdout(out), redirect_stderr(err):
         try:
@@ -246,15 +256,16 @@ def test_depends_on_order():
             runner.cleanup()
 
     # Expected order: test-container-2, test-container-4, test-container-3, test-container-1
-    assert_order(out.getvalue(), 'test-container-2', 'test-container-4')
-    assert_order(out.getvalue(), 'test-container-4', 'test-container-3')
-    assert_order(out.getvalue(), 'test-container-3', 'test-container-1')
+    assert_order(out.getvalue(), f"test-container-2_{parallel_id}", f"test-container-4_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-4_{parallel_id}", f"test-container-3_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-3_{parallel_id}", f"test-container-1_{parallel_id}")
 
 
 def test_depends_on_huge():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='depends_on_huge.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='depends_on_huge.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
 
     with redirect_stdout(out), redirect_stderr(err):
         try:
@@ -263,79 +274,80 @@ def test_depends_on_huge():
             runner.cleanup()
 
     # For test-container-20
-    assert_order(out.getvalue(), 'test-container-16', 'test-container-20')
-    assert_order(out.getvalue(), 'test-container-15', 'test-container-20')
+    assert_order(out.getvalue(), f"test-container-16_{parallel_id}", f"test-container-20_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-15_{parallel_id}", f"test-container-20_{parallel_id}")
 
     # For test-container-19
-    assert_order(out.getvalue(), 'test-container-14', 'test-container-19')
-    assert_order(out.getvalue(), 'test-container-13', 'test-container-19')
+    assert_order(out.getvalue(), f"test-container-14_{parallel_id}", f"test-container-19_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-13_{parallel_id}", f"test-container-19_{parallel_id}")
 
     # For test-container-18
-    assert_order(out.getvalue(), 'test-container-12', 'test-container-18')
-    assert_order(out.getvalue(), 'test-container-11', 'test-container-18')
+    assert_order(out.getvalue(), f"test-container-12_{parallel_id}", f"test-container-18_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-11_{parallel_id}", f"test-container-18_{parallel_id}")
 
     # For test-container-17
-    assert_order(out.getvalue(), 'test-container-10', 'test-container-17')
-    assert_order(out.getvalue(), 'test-container-9', 'test-container-17')
+    assert_order(out.getvalue(), f"test-container-10_{parallel_id}", f"test-container-17_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-9_{parallel_id}", f"test-container-17_{parallel_id}")
 
     # For test-container-16
-    assert_order(out.getvalue(), 'test-container-8', 'test-container-16')
-    assert_order(out.getvalue(), 'test-container-7', 'test-container-16')
+    assert_order(out.getvalue(), f"test-container-8_{parallel_id}", f"test-container-16_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-7_{parallel_id}", f"test-container-16_{parallel_id}")
 
     # For test-container-15
-    assert_order(out.getvalue(), 'test-container-6', 'test-container-15')
-    assert_order(out.getvalue(), 'test-container-5', 'test-container-15')
+    assert_order(out.getvalue(), f"test-container-6_{parallel_id}", f"test-container-15_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-5_{parallel_id}", f"test-container-15_{parallel_id}")
 
     # For test-container-14
-    assert_order(out.getvalue(), 'test-container-4', 'test-container-14')
+    assert_order(out.getvalue(), f"test-container-4_{parallel_id}", f"test-container-14_{parallel_id}")
 
     # For test-container-13
-    assert_order(out.getvalue(), 'test-container-3', 'test-container-13')
+    assert_order(out.getvalue(), f"test-container-3_{parallel_id}", f"test-container-13_{parallel_id}")
 
     # For test-container-12
-    assert_order(out.getvalue(), 'test-container-2', 'test-container-12')
+    assert_order(out.getvalue(), f"test-container-2_{parallel_id}", f"test-container-12_{parallel_id}")
 
     # For test-container-11
-    assert_order(out.getvalue(), 'test-container-1', 'test-container-11')
+    assert_order(out.getvalue(), f"test-container-1_{parallel_id}", f"test-container-11_{parallel_id}")
 
     # For test-container-10
-    assert_order(out.getvalue(), 'test-container-4', 'test-container-10')
+    assert_order(out.getvalue(), f"test-container-4_{parallel_id}", f"test-container-10_{parallel_id}")
 
     # For test-container-9
-    assert_order(out.getvalue(), 'test-container-3', 'test-container-9')
+    assert_order(out.getvalue(), f"test-container-3_{parallel_id}", f"test-container-9_{parallel_id}")
 
     # For test-container-8
-    assert_order(out.getvalue(), 'test-container-2', 'test-container-8')
+    assert_order(out.getvalue(), f"test-container-2_{parallel_id}", f"test-container-8_{parallel_id}")
 
     # For test-container-7
-    assert_order(out.getvalue(), 'test-container-1', 'test-container-7')
+    assert_order(out.getvalue(), f"test-container-1_{parallel_id}", f"test-container-7_{parallel_id}")
 
     # For test-container-6
-    assert_order(out.getvalue(), 'test-container-4', 'test-container-6')
+    assert_order(out.getvalue(), f"test-container-4_{parallel_id}", f"test-container-6_{parallel_id}")
 
     # For test-container-5
-    assert_order(out.getvalue(), 'test-container-3', 'test-container-5')
+    assert_order(out.getvalue(), f"test-container-3_{parallel_id}", f"test-container-5_{parallel_id}")
 
     # For test-container-4
-    assert_order(out.getvalue(), 'test-container-2', 'test-container-4')
+    assert_order(out.getvalue(), f"test-container-2_{parallel_id}", f"test-container-4_{parallel_id}")
 
     # For test-container-3
-    assert_order(out.getvalue(), 'test-container-1', 'test-container-3')
+    assert_order(out.getvalue(), f"test-container-1_{parallel_id}", f"test-container-3_{parallel_id}")
 
     # For test-container-2
-    assert_order(out.getvalue(), 'test-container-1', 'test-container-2')
+    assert_order(out.getvalue(), f"test-container-1_{parallel_id}", f"test-container-2_{parallel_id}")
 
 
 def test_depends_on_error_not_running():
-    runner = Tests.setup_runner(usage_scenario='depends_on_error_not_running.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_not_running.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
     try:
         with pytest.raises(RuntimeError) as e:
             Tests.run_until(runner, 'setup_services')
     finally:
         runner.cleanup()
 
-    assert "Dependent container 'test-container-2' of 'test-container-1' is not running" in str(e.value) , \
-        Tests.assertion_info('test-container-2 is not running', str(e.value))
+    assert f"Dependent container 'test-container-2_{parallel_id}' of 'test-container-1_{parallel_id}' is not running" in str(e.value) , \
+        Tests.assertion_info(f"test-container-2_{parallel_id} is not running", str(e.value))
 
 def test_depends_on_error_cyclic_dependency():
     runner = Tests.setup_runner(usage_scenario='depends_on_error_cycle.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
@@ -346,7 +358,7 @@ def test_depends_on_error_cyclic_dependency():
         runner.cleanup()
 
     assert "Cycle found in depends_on definition with service 'test-container-1'" in str(e.value) , \
-        Tests.assertion_info('cycle in depends_on with test-container-1', str(e.value))
+        Tests.assertion_info("cycle in depends_on with test-container-1", str(e.value))
 
 def test_depends_on_error_unsupported_condition():
     runner = Tests.setup_runner(usage_scenario='depends_on_error_unsupported_condition.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
@@ -356,7 +368,7 @@ def test_depends_on_error_unsupported_condition():
     finally:
         runner.cleanup()
 
-    message = 'Unsupported condition in healthcheck for service \'test-container-1\':  service_completed_successfully'
+    message = "Unsupported condition in healthcheck for service \'test-container-1\':  service_completed_successfully"
     assert message in str(e.value) , \
         Tests.assertion_info(message, str(e.value))
 
@@ -375,23 +387,25 @@ def test_depends_on_long_form():
         runner.cleanup()
 
 def test_depends_on_healthcheck():
-    runner = Tests.setup_runner(usage_scenario='healthcheck.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='healthcheck.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
     out = io.StringIO()
     err = io.StringIO()
 
     try:
         with redirect_stdout(out), redirect_stderr(err):
             runner.run()
-        message = 'Health of container \'test-container-2\': starting'
+        message = f"Health of container \'test-container-2_{parallel_id}\': starting"
         assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
-        message2 = 'Health of container \'test-container-2\': healthy'
+        message2 = f"Health of container \'test-container-2_{parallel_id}\': healthy"
         assert message2 in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
     finally:
         runner.cleanup()
 
 def test_depends_on_healthcheck_error_missing():
-    runner = Tests.setup_runner(usage_scenario='healthcheck_error_missing.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='healthcheck_error_missing.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
 
     try:
         with pytest.raises(RuntimeError) as e:
@@ -399,26 +413,28 @@ def test_depends_on_healthcheck_error_missing():
     finally:
         runner.cleanup()
 
-    expected_exception = "Health check for dependent_container 'test-container-2' was requested, but container has no healthcheck implemented!"
+    expected_exception = f"Health check for dependent_container 'test-container-2_{parallel_id}' was requested, but container has no healthcheck implemented!"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 #volumes: [array] (optional)
 #Array of volumes to be mapped. Only read of runner.py is executed with --allow-unsafe flag
 def test_volume_bindings_allow_unsafe_true():
+    parallel_id = utils.randomword(12)
     create_test_file('/tmp/gmt-test-data')
-    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
-    ls = get_contents_of_bound_volume(runner)
+    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
+    ls = get_contents_of_bound_volume(runner, parallel_id)
     assert 'test-file' in ls, Tests.assertion_info('test-file', ls)
 
 def test_volumes_bindings_skip_unsafe_true():
     create_test_file('/tmp/gmt-test-data')
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', skip_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', skip_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
 
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception):
-        ls = get_contents_of_bound_volume(runner)
+        ls = get_contents_of_bound_volume(runner, parallel_id)
         assert ls == '', Tests.assertion_info('empty list', ls)
     expected_warning = '' # expecting no warning for safe volumes
     assert expected_warning in out.getvalue(), \
@@ -426,9 +442,10 @@ def test_volumes_bindings_skip_unsafe_true():
 
 def test_volumes_bindings_no_skip_or_allow():
     create_test_file('/tmp/gmt-test-data')
-    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
     with pytest.raises(RuntimeError) as e:
-        ls = get_contents_of_bound_volume(runner)
+        ls = get_contents_of_bound_volume(runner, parallel_id)
         assert ls == '', Tests.assertion_info('empty list', ls)
     expected_exception = '' # Expecting no error for safe volumes
     assert expected_exception in str(e.value) ,\
@@ -451,7 +468,8 @@ def test_network_created():
     assert 'gmt-test-network' in ls, Tests.assertion_info('gmt-test-network', ls)
 
 def test_container_is_in_network():
-    runner = Tests.setup_runner(usage_scenario='network_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='network_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
     try:
         Tests.run_until(runner, 'setup_services')
         ps = subprocess.run(
@@ -464,18 +482,19 @@ def test_container_is_in_network():
         inspect = ps.stdout
     finally:
         Tests.cleanup(runner)
-    assert 'test-container' in inspect, Tests.assertion_info('test-container', inspect)
+    assert f"test-container_{parallel_id}" in inspect, Tests.assertion_info(f"test-container_{parallel_id}", inspect)
 
 # command: [str] (optional)
 #    Command to be executed when container is started.
 #    When container does not have a daemon running typically a shell
 #    is started here to have the container running like bash or sh
 def test_cmd_ran():
-    runner = Tests.setup_runner(usage_scenario='cmd_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='cmd_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
     try:
         Tests.run_until(runner, 'setup_services')
         ps = subprocess.run(
-            ['docker', 'exec', 'test-container', 'ps', '-a'],
+            ['docker', 'exec', f"test-container_{parallel_id}", 'ps', '-a'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
