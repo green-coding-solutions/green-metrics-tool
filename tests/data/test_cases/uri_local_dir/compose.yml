@@ -1,0 +1,7 @@
+version: '2'
+services:
+  stress:
+    build: .
+    image: gcb_stress
+    container_name: gcb_stress
+    restart: always

@@ -501,7 +501,7 @@ def test_cmd_ran():
 #   The URI to get the usage_scenario.yml from. Can be either a local directory starting with
 #     / or a remote git repository starting with http(s)://
 def test_uri_local_dir():
-    uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
+    uri = os.path.abspath(os.path.join(CURRENT_DIR, 'data/test_cases/uri_local_dir/'))
     RUN_NAME = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,'--config-override', 'test-config.yml',

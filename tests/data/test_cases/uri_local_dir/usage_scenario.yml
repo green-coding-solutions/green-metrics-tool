@@ -1,0 +1,40 @@
+---
+# Important
+# Please remember that anything in this file changes the structural change should
+# also be reflected in the simple example we provide in the documentation:
+# https://docs.green-coding.berlin/docs/measuring/measuring-locally/
+
+
+name: Stress Container One Core 5 Seconds
+author: Arne Tarara
+description: test
+description: test
+
+networks:
+  network-for-pytests:
+
+services:
+  ubuntu-stress:
+    type: container
+    image: gcb_stress
+    networks:
+      - network-for-pytests-uri-test
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+  ubuntu-stress-2:
+    type: container
+    image: gcb_stress # this will reuse the image earlier built
+    networks:
+      - network-for-pytests-uri-test
+
+flow:
+  - name: Stress
+    container: ubuntu-stress
+    commands:
+# Alpine does not have stress, so we use stress-ng
+# We need the -q flag because otherwise it will write debug to STDERR
+      - type: console
+        command: stress-ng -c 1 -t 1 -q
+        note: Starting Stress
