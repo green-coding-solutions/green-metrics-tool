@@ -85,8 +85,8 @@ runs:
           fi
         fi
 
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
+    # - name: Setup upterm session
+    #   uses: lhotari/action-upterm@v1
 
     - name: Start Test container
       shell: bash
