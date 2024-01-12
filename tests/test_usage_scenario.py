@@ -5,7 +5,6 @@
 import io
 import os
 import re
-import shutil
 import subprocess
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -34,16 +33,6 @@ def build_image_fixture():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
     subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
     GlobalConfig().override_config(config_name='test-config.yml')
-
-# cleanup test/tmp directory after every test run
-@pytest.fixture(autouse=True, name="cleanup_tmp_directories")
-def cleanup_tmp_directories_fixture():
-    yield
-    tmp_dir = os.path.join(CURRENT_DIR, 'tmp/')
-    if os.path.exists(tmp_dir):
-        shutil.rmtree(tmp_dir)
-    if os.path.exists('/tmp/gmt-test-data'):
-        shutil.rmtree('/tmp/gmt-test-data')
 
 # This function runs the runner up to and *including* the specified step
 #pylint: disable=redefined-argument-from-local
@@ -421,13 +410,14 @@ def test_depends_on_healthcheck_error_missing():
 #Array of volumes to be mapped. Only read of runner.py is executed with --allow-unsafe flag
 def test_volume_bindings_allow_unsafe_true():
     parallel_id = utils.randomword(12)
-    create_test_file('/tmp/gmt-test-data')
+    create_test_file("/tmp/gmt-test-data")
     runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
     ls = get_contents_of_bound_volume(runner, parallel_id)
     assert 'test-file' in ls, Tests.assertion_info('test-file', ls)
 
 def test_volumes_bindings_skip_unsafe_true():
-    create_test_file('/tmp/gmt-test-data')
+    parallel_id = utils.randomword(12)
+    create_test_file("/tmp/gmt-test-data")
     out = io.StringIO()
     err = io.StringIO()
     parallel_id = utils.randomword(12)
@@ -441,7 +431,8 @@ def test_volumes_bindings_skip_unsafe_true():
         Tests.assertion_info(f"Warning: {expected_warning}", 'no/different warning')
 
 def test_volumes_bindings_no_skip_or_allow():
-    create_test_file('/tmp/gmt-test-data')
+    parallel_id = utils.randomword(12)
+    create_test_file("/tmp/gmt-test-data")
     parallel_id = utils.randomword(12)
     runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
     with pytest.raises(RuntimeError) as e:

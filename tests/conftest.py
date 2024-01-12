@@ -1,5 +1,6 @@
 import pytest
-
+import os
+import shutil
 from lib.db import DB
 
 ## VERY IMPORTANT to override the config file here
@@ -7,23 +8,26 @@ from lib.db import DB
 from lib.global_config import GlobalConfig
 GlobalConfig().override_config(config_name='test-config.yml')
 
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 def pytest_collection_modifyitems(items):
     for item in items:
         if item.fspath.basename == 'test_functions.py':
             item.add_marker(pytest.mark.skip(reason='Skipping this file'))
 
-# should we hardcode test-db here?
-@pytest.fixture(autouse=True)
-def cleanup_after_test():
-    yield
+def cleanup_tables():
     tables = DB().fetch_all("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
     for table in tables:
         table_name = table[0]
         DB().query(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE')
 
-### If you wish to turn off the above auto-cleanup per test, include the following in your
-### test module:
-# from conftest import cleanup_after_test
-# @pytest.fixture(autouse=False)  # Set autouse to False to override the fixture
-# def cleanup_after_test():
-#     pass
+def cleanup_temp_directories():
+    tmp_dir = os.path.join(CURRENT_DIR, 'tmp/')
+    if os.path.exists(tmp_dir):
+        shutil.rmtree(tmp_dir)
+    if os.path.exists("/tmp/gmt-test-data/"):
+        shutil.rmtree("/tmp/gmt-test-data/")
+
+def pytest_sessionfinish():
+    cleanup_tables()
+    cleanup_temp_directories()

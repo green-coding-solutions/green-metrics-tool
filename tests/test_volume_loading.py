@@ -17,13 +17,6 @@ from runner import Runner
 
 GlobalConfig().override_config(config_name='test-config.yml')
 
-@pytest.fixture(autouse=True, name="cleanup_tmp_directories")
-def cleanup_tmp_directories_fixture():
-    yield
-    tmp_dir = os.path.join(CURRENT_DIR, 'tmp/')
-    if os.path.exists(tmp_dir):
-        shutil.rmtree(tmp_dir)
-
 def check_if_container_running(container_name):
     ps = subprocess.run(
             ['docker', 'container', 'inspect', '-f', '{{.State.Running}}', container_name],
@@ -37,10 +30,9 @@ def check_if_container_running(container_name):
     return True
 
 def test_volume_load_no_escape():
-    tmp_dir_name = utils.randomword(12)
-    tmp_dir = os.path.join(CURRENT_DIR, 'tmp', tmp_dir_name, 'basic_stress_w_import.yml')
     parallel_id = utils.randomword(12)
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', docker_compose='volume_load_etc_passwords.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False, parallel_id=parallel_id)
+    tmp_dir = os.path.join(CURRENT_DIR, 'tmp', parallel_id, 'basic_stress_w_import.yml')
+    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', docker_compose='volume_load_etc_passwords.yml', dir_name=parallel_id, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False, parallel_id=parallel_id)
     Tests.replace_include_in_usage_scenario(tmp_dir, 'volume_load_etc_passwords.yml')
 
     try:

@@ -6,7 +6,6 @@ import re
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from contextlib import redirect_stdout, redirect_stderr
-import pytest
 
 from lib.db import DB
 from lib import utils
@@ -18,23 +17,9 @@ run_stdout = None
 
 RUN_NAME = 'test_' + utils.randomword(12)
 
-
-# override per test cleanup, as the module setup requires writing to DB
-@pytest.fixture(autouse=False)
-def cleanup_after_test():
-    pass
-
-#pylint: disable=unused-argument # unused arguement off for now - because there are no running tests in this file
-def cleanup_after_module(autouse=True, scope="module"):
-    yield
-    tables = DB().fetch_all("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
-    for table in tables:
-        table_name = table[0]
-        DB().query(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE')
-
 # Runs once per file before any test(
 #pylint: disable=expression-not-assigned
-def setup_module(module):
+def setup_module():
     out = io.StringIO()
     err = io.StringIO()
     GlobalConfig(config_name='test-config.yml').config
