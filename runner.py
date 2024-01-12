@@ -623,6 +623,7 @@ class Runner:
         if 'networks' in self._usage_scenario:
             print(TerminalColors.HEADER, '\nSetting up networks', TerminalColors.ENDC)
             for network in self._usage_scenario['networks']:
+                network = f"{network}_{self._parallel_id}"
                 print('Creating network: ', network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
                 subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
@@ -814,6 +815,7 @@ class Runner:
 
             if 'networks' in service:
                 for network in service['networks']:
+                    network = f"{network}_{self._parallel_id}"
                     docker_run_string.append('--net')
                     docker_run_string.append(network)
             elif self.__join_default_network:

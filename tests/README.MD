@@ -23,12 +23,9 @@ run:
 
 `python3 setup-test-env.py`
 
-from the test directory. This will create a copy of the `config.yml` and docker `compose.yml` files that will be used in
+from the test directory. This will create a copy of the docker `compose.yml` file that will be used in
 the test containers. Please make sure that you have compiled all the metric providers and source code in lib. You can do
-this automatically by using the `install.sh` command.
-
-You will need to re-run this setup script if new metric providers are added or the config.yml is otherwise changed in a
-significant way.
+this automatically by using the `install_linux.sh` or `install_mac.sh` command.
 
 ## Running
 
@@ -42,7 +39,7 @@ There are a few scripts to make this easy.
 `./run-tests.sh` will do everything - start the containers, run pytest, and then stop the containers.
 
 The recommended workflow is to start the containers with the `./start-test-containers.sh` script, then in another shell
-window run the pytest suite using `pytest`, and then stop the containers when your test run has finished.
+window run the pytest suite using `pytest -n auto --dist loadgroup`, and then stop the containers when your test run has finished.
 
 Running a subset of tests using pytest is better explained within the documentation here:
  https://docs.pytest.org/en/7.2.x/how-to/usage.html
