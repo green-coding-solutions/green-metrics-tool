@@ -1,6 +1,7 @@
 import os
+import subprocess
 
-from metric_providers.base import BaseMetricProvider
+from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 
 class GpuEnergyNvidiaSmiComponentProvider(BaseMetricProvider):
     def __init__(self, resolution, skip_check=False):
@@ -14,6 +15,15 @@ class GpuEnergyNvidiaSmiComponentProvider(BaseMetricProvider):
             skip_check=skip_check,
         )
 
+
+    def check_system(self):
+        super().check_system()
+
+        ps = subprocess.run(['which', 'nvidia-smi'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        if ps.returncode != 0:
+            raise MetricProviderConfigurationError('gpu_energy_nvidia_smi_component cannot be started. nvidia-smi is not installed on the system. Please install it or disable metrics provider.')
+
+        return True
 
     def read_metrics(self, run_id, containers=None):
         df = super().read_metrics(run_id, containers)
