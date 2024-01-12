@@ -9,12 +9,6 @@ $(document).ready(function () {
                 { data: 2, title: 'Available', render: function(el) {
                     return (el == true) ? '<i class="ui label mini empty green circular"></i>': '<i class="ui label mini empty red circular"></i>';
                 }},
-                { data: 13, title: 'Details', render: function(el, type, row) {
-                    return `<button class="ui icon button show-machine-configuration">
-                              <i class="ui exclamation icon"></i>
-                              <span class="machine-configuration-details" style="display:none; ">${JSON.stringify(el, undefined, 2)}</span>
-                            </button>`;
-                }},
                 { data: 5, title: 'Jobs processing'},
                 { data: 3, title: 'State', render: function(el) {
                     switch (el) {
@@ -38,6 +32,12 @@ $(document).ready(function () {
 
                     return `<a href="https://github.com/green-coding-berlin/green-metrics-tool/commit/${el}" title="${dateToYMD(new Date(row[7]))}">${`${el.substr(0,3)}...${el.substr(-3,3)}`}</a>`;
 
+                }},
+                { data: 13, title: 'Details', render: function(el, type, row) {
+                    return `<button class="ui icon button show-machine-configuration">
+                              <i class="ui info icon"></i>
+                              <span class="machine-configuration-details" style="display:none; ">${JSON.stringify(el, undefined, 2)}</span>
+                            </button>`;
                 }},
                 { data: 8, title: 'Base temp (°)'},
                 { data: 9, title: 'Current temp (°)', render: (el) => el == null ? '-' : el},
