@@ -18,6 +18,8 @@
     <script src="/dist/js/accordion.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
+    <script src="/dist/js/modal.min.js" defer></script>
+    <script src="/dist/js/dimmer.min.js" defer></script>
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
     <script src="/js/status.js" defer></script>
@@ -49,5 +51,16 @@
         <h3>Jobs queue</h3>
         <table id="jobs-table" class="ui celled striped table"></table>
     </div>
+    <div class="ui overlay large modal" id="machine-configuration">
+        <div class="header">Details</div>
+        <div class="scrolling content" id="modal-content">
+            <div class="ui loading segment" id="machine-configuration-details">
+                <pre></pre>
+            </div>
+        </div>
+        <div class="actions">
+            <div class="ui approve button">Close</div>
+          </div>
+      </div>
 </body>
 </html>
