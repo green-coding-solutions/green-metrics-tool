@@ -129,7 +129,7 @@ if [[ ${host_metrics_url} == *".green-coding.internal"* ]];then
 fi
 
 if ! command -v stdbuf &> /dev/null; then
-    print_message "Trying to install 'coreutils' via homebew. If this fails (because you do not have brew or use another package manager), please install it manually ..."
+    print_message "Trying to install 'coreutils' via homebrew. If this fails (because you do not have brew or use another package manager), please install it manually ..."
     brew install coreutils
 fi
 

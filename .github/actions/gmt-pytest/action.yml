@@ -31,9 +31,14 @@ runs:
         path: venv
         key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}
 
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
-        
+    - name: Install docker for MacOS
+      if: runner.os == 'macOS'
+      run: |
+        brew install docker docker-compose
+        mkdir -p ~/.docker/cli-plugins
+        ln -sfn /usr/local/opt/docker-compose/bin/docker-compose ~/.docker/cli-plugins/docker-compose
+        colima start
+
     - name: install script and packages
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
@@ -79,6 +84,9 @@ runs:
           fi
         fi
 
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+      
     - name: Start Test container
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/tests
