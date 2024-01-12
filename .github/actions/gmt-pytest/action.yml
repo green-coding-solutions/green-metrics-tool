@@ -31,6 +31,9 @@ runs:
         path: venv
         key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}
 
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+        
     - name: install script and packages
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
