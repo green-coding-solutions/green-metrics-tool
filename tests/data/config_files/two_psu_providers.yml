@@ -56,9 +56,9 @@ measurement:
       network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
         resolution: 100
     #--- RAPL - Only enable these if you have RAPL enabled on your machine
-#      cpu.energy.RAPL.MSR.component.provider.CpuEnergyRaplMsrComponentProvider:
+#      cpu.energy.rapl.msr.component.provider.CpuEnergyRaplMsrComponentProvider:
 #        resolution: 100
-#      memory.energy.RAPL.MSR.component.provider.MemoryEnergyRaplMsrComponentProvider:
+#      memory.energy.rapl.msr.component.provider.MemoryEnergyRaplMsrComponentProvider:
 #        resolution: 100
     #--- Machine Energy - These providers need special hardware / lab equipment to work
 #      psu.energy.ac.gude.machine.provider.PsuEnergyAcGudeMachineProvider:

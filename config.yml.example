@@ -84,9 +84,9 @@ measurement:
       network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
         resolution: 99
     #--- RAPL - Only enable these if you have RAPL enabled on your machine
-#      cpu.energy.RAPL.MSR.component.provider.CpuEnergyRaplMsrComponentProvider:
+#      cpu.energy.rapl.msr.component.provider.CpuEnergyRaplMsrComponentProvider:
 #        resolution: 99
-#      memory.energy.RAPL.MSR.component.provider.MemoryEnergyRaplMsrComponentProvider:
+#      memory.energy.rapl.msr.component.provider.MemoryEnergyRaplMsrComponentProvider:
 #        resolution: 99
     #--- Machine Energy - These providers need special hardware / lab equipment to work
 #      psu.energy.ac.gude.machine.provider.PsuEnergyAcGudeMachineProvider:
@@ -98,7 +98,7 @@ measurement:
 #      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
 #        resolution: 99
     #--- GPU - Only enable these if you have GPUs with power measurement enabled in your machine
-#      gpu.energy.NVIDIA.SMI.component.provider.GpuEnergyNvidiaSmiComponentProvider:
+#      gpu.energy.nvidia.smi.component.provider.GpuEnergyNvidiaSmiComponentProvider:
 #        resolution: 99
     #--- Sensors - these providers need the lm-sensors package installed
 #      lm_sensors.temperature.component.provider.LmSensorsTemperatureComponentProvider:

@@ -1004,6 +1004,7 @@ class Runner:
                 self.custom_sleep(10)
 
         print(TerminalColors.HEADER, '\nWaiting for Metric Providers to boot ...', TerminalColors.ENDC)
+        # if this is omitted the stderr can be empty even if the process is not found by the OS ... python process spawning is slow ...
         self.custom_sleep(2)
 
         for metric_provider in self.__metric_providers:
