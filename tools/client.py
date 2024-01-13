@@ -7,6 +7,7 @@ faulthandler.enable()  # will catch segfaults and write to stderr
 import os
 import time
 import subprocess
+import json
 
 from tools.jobs import Job, handle_job_exception
 from lib.global_config import GlobalConfig
@@ -38,13 +39,20 @@ def set_status(status_code, cur_temp, cooldown_time_after_job, data=None, run_id
 
     query = """
         UPDATE machines
-        SET status_code=%s, cooldown_time_after_job=%s, current_temperature=%s, base_temperature=%s, jobs_processing=%s, gmt_hash=%s, gmt_timestamp=%s
+        SET status_code=%s, cooldown_time_after_job=%s, current_temperature=%s, base_temperature=%s, jobs_processing=%s, gmt_hash=%s, gmt_timestamp=%s, configuration=%s
         WHERE id = %s
     """
 
     gmt_hash, gmt_timestamp = get_repo_info(CURRENT_DIR)
 
-    params = (status_code, cooldown_time_after_job, cur_temp, config['machine']['base_temperature_value'], client['jobs_processing'], gmt_hash, gmt_timestamp, config['machine']['id'])
+    params = (
+        status_code, cooldown_time_after_job, cur_temp,
+        config['machine']['base_temperature_value'], client['jobs_processing'],
+        gmt_hash, gmt_timestamp,
+        json.dumps({"measurement": config['measurement'], "machine": config['machine']}),
+        config['machine']['id'],
+
+    )
     DB().query(query=query, params=params)
 
 def do_cleanup(cur_temp, cooldown_time_after_job):

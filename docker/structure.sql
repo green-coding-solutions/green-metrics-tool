@@ -15,6 +15,7 @@ CREATE TABLE machines (
     current_temperature integer,
     gmt_hash text,
     gmt_timestamp timestamp with time zone,
+    configuration json,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
