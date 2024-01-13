@@ -54,7 +54,7 @@ $(document).ready(function () {
             drawCallback: function(settings) {
                 $('.show-machine-configuration').on('click', function(el) {
                         el.preventDefault();
-                        $("#machine-configuration-details pre").html($(this).find('.machine-configuration-details').text())
+                        $("#machine-configuration-details pre").text($(this).find('.machine-configuration-details').text())
                         $("#machine-configuration-details").removeClass("loading")
                         $('#machine-configuration').modal('show');
                     })
