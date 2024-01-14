@@ -686,6 +686,46 @@ def test_debug(monkeypatch):
     # there is a note added when it starts "Booting {metric_provider}"
     # can check for this note in the DB and the notes are about 2s apart
 
+def test_read_detached_process_no_exit():
+    runner = Tests.setup_runner(usage_scenario='stress_detached_no_exit.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        try:
+            runner.run()
+        finally:
+            runner.cleanup()
+    assert 'setting to a 1 min, 40 secs run per stressor' in out.getvalue(), \
+        Tests.assertion_info('setting to a 1 min, 40 secs run per stressor', out.getvalue())
+    assert 'successful run completed' not in out.getvalue(), \
+        Tests.assertion_info('NOT successful run completed', out.getvalue())
+
+def test_read_detached_process_after_exit():
+    runner = Tests.setup_runner(usage_scenario='stress_detached_exit.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        try:
+            runner.run()
+        finally:
+            runner.cleanup()
+    assert 'successful run completed' in out.getvalue(), \
+        Tests.assertion_info('successful run completed', out.getvalue())
+
+def test_read_detached_process_failure():
+    runner = Tests.setup_runner(usage_scenario='stress_detached_failure.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+        try:
+            runner.run()
+        finally:
+            runner.cleanup()
+    assert '\'g4jiorejf\']\' had bad returncode: 126' in str(e.value), \
+        Tests.assertion_info('\'g4jiorejf\']\' had bad returncode: 126', str(e.value))
+
+
     ## rethink this one
 def wip_test_verbose_provider_boot():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
