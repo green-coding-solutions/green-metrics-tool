@@ -31,6 +31,12 @@ runs:
         path: venv
         key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}
 
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+      with: 
+        limit-access-to-actor: true
+        limit-access-to-users: dan-mm
+
     - name: Install docker for MacOS
       if: runner.os == 'macOS'
       shell: bash
@@ -40,11 +46,6 @@ runs:
         ln -sfn /usr/local/opt/docker-compose/bin/docker-compose ~/.docker/cli-plugins/docker-compose
         colima start
 
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
-      with: 
-        limit-access-to-actor: true
-        limit-access-to-users: dan-mm
 
     - name: install script and packages
       shell: bash
