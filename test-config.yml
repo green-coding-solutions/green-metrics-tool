@@ -1,67 +1,79 @@
+postgresql:
+  host: test-green-coding-postgres-container
+  user: postgres
+  dbname: test-green-coding
+  password: testpw
+  port: 9573
+
+smtp:
+  server: null
+  sender: null
+  port: null
+  password: null
+  user: null
+
 admin:
-  bcc_email: ''
   email: myemail@dev.local
+  bcc_email: ''
   no_emails: true
+
+
 cluster:
   api_url: http://api.green-coding.internal:9142
+  metrics_url: http://metrics.green-coding.internal:9142
   client:
+    sleep_time_no_job: 300
+    jobs_processing: random
+    time_between_control_workload_validations: 21600
+    send_control_workload_status_mail: false
+    shutdown_on_job_no: false
     control_workload:
+      name: Measurement control Workload
+      uri: https://github.com/green-coding-berlin/measurement-control-workload
+      filename: usage_scenario.yml
       branch: main
       comparison_window: 5
-      filename: usage_scenario.yml
+      threshold: 0.01
+      phase: 004_[RUNTIME]
       metrics:
       - psu_energy_ac_mcp_machine
       - psu_power_ac_mcp_machine
       - cpu_power_rapl_msr_component
       - cpu_energy_rapl_msr_component
-      name: Measurement control Workload
-      phase: 004_[RUNTIME]
-      threshold: 0.01
-      uri: https://github.com/green-coding-berlin/measurement-control-workload
-    jobs_processing: random
-    send_control_workload_status_mail: false
-    shutdown_on_job_no: false
-    sleep_time_no_job: 300
-    time_between_control_workload_validations: 21600
-  metrics_url: http://metrics.green-coding.internal:9142
+
 machine:
-  base_temperature_chip: false
-  base_temperature_feature: false
-  base_temperature_value: false
+  id: 1
   description: Development machine for testing
   error_log_file: false
-  id: 1
+  base_temperature_value: false
+  base_temperature_chip: false
+  base_temperature_feature: false
+
 measurement:
+  idle-time-start: 0
+  idle-time-end: 0
+  flow-process-runtime: 3800
+  phase-transition-time: 1
   boot:
     wait_time_dependencies: 20
-  flow-process-runtime: 3800
-  idle-time-end: 0
-  idle-time-start: 0
   metric-providers:
-    common:
-      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
-        CPUChips: 1
-        TDP: 65
-        resolution: 99
     linux:
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
         resolution: 99
     macos: null
-  phase-transition-time: 1
-postgresql:
-  dbname: test-green-coding
-  host: test-green-coding-postgres-container
-  password: testpw
-  port: 9573
-  user: postgres
+    common:
+     psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
+       resolution: 99
+       CPUChips: 1
+       HW_CPUFreq: 3200
+       CPUCores: 4
+       CPUThreads: 4
+       TDP: 65
+       HW_MemAmountGB: 16
+       Hardware_Availability_Year: 2011
+
 sci:
   EL: 3.5
-  I: 475
   RS: 1
   TE: 194000
-smtp:
-  password: null
-  port: null
-  sender: null
-  server: null
-  user: null
+  I: 475
