@@ -464,7 +464,7 @@ def test_container_is_in_network():
     try:
         Tests.run_until(runner, 'setup_services')
         ps = subprocess.run(
-            ['docker', 'network', 'inspect', 'gmt-test-network'],
+            ['docker', 'network', 'inspect', f"gmt-test-network_{parallel_id}"],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
