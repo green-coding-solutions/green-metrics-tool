@@ -40,7 +40,7 @@ def check_db():
         os._exit(1)
     return True
 
-def check_one_psu_provider():
+def check_one_energy_and_scope_machine_provider():
     metric_providers = utils.get_metric_providers(GlobalConfig().config).keys()
     energy_machine_providers = [provider for provider in metric_providers if ".energy" in provider and ".machine" in provider]
     return len(energy_machine_providers) <= 1
@@ -76,7 +76,7 @@ def check_utf_encoding():
 
 start_checks = [
     (check_db, Status.ERROR, 'db online', 'This text will never be triggered, please look in the function itself'),
-    (check_one_psu_provider, Status.ERROR, 'single PSU provider', 'Please only select one PSU provider'),
+    (check_one_energy_and_scope_machine_provider, Status.ERROR, 'single energy scope machine provider', 'Please only select one provider with energy and scope machine'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
     (check_free_disk, Status.ERROR, '1GB free hdd space', 'We recommend to free up some disk space'),
     (check_free_memory, Status.ERROR, 'free memory', 'No free memory! Please kill some programs'),
