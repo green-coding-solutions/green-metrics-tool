@@ -1,3 +1,4 @@
+// Note that we use the STDDEV of the population, as we want to quantify the accuracy and NOT the workload itself
 const calculateStatistics = (data) => {
     const mean = data.reduce((sum, value) => sum + value.value, 0) / data.length;
     const stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value.value - mean, 2), 0) / data.length);
