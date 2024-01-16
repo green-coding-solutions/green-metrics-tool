@@ -1050,7 +1050,7 @@ async def software_add(software: Software):
     if software.schedule_mode == 'one-off':
         Job.insert(software.name, software.url,  software.email, software.branch, software.filename, software.machine_id)
     elif software.schedule_mode == 'variance':
-        for _ in range(0,3):
+        for _ in range(0,10):
             Job.insert(software.name, software.url,  software.email, software.branch, software.filename, software.machine_id)
     else:
         TimelineProject.insert(software.name, software.url, software.branch, software.filename, software.machine_id, software.schedule_mode)
