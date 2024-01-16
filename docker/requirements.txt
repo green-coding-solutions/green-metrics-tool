@@ -1,7 +1,7 @@
 gunicorn==21.2.0
 psycopg[binary]==3.1.17
-fastapi==0.108.0
-starlette>=0.32
+fastapi==0.109.0
+starlette>=0.35
 uvicorn[standard]==0.25.0
 pandas==2.1.4
 PyYAML==6.0.1

@@ -66,10 +66,10 @@ measurement:
   metric-providers:
 
   # Please select the needed providers according to the working ones on your system
-  # More info https://docs.green-coding.berlin/docs/measuring/metric-providers
+  # More info https://docs.green-coding.io/docs/measuring/metric-providers
   # Please activate and deactivate any provider in this list by uncommenting it.
   # Keep in mind that some reporters need separate installation steps to be found @
-  # https://docs.green-coding.berlin/docs/installation/installation-overview/
+  # https://docs.green-coding.io/docs/installation/installation-overview/
   # You can ignore any line that starts with #---
     #--- Architecture - Linux Only
     linux:
@@ -84,9 +84,9 @@ measurement:
       network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
         resolution: 99
     #--- RAPL - Only enable these if you have RAPL enabled on your machine
-#      cpu.energy.RAPL.MSR.component.provider.CpuEnergyRaplMsrComponentProvider:
+#      cpu.energy.rapl.msr.component.provider.CpuEnergyRaplMsrComponentProvider:
 #        resolution: 99
-#      memory.energy.RAPL.MSR.component.provider.MemoryEnergyRaplMsrComponentProvider:
+#      memory.energy.rapl.msr.component.provider.MemoryEnergyRaplMsrComponentProvider:
 #        resolution: 99
     #--- Machine Energy - These providers need special hardware / lab equipment to work
 #      psu.energy.ac.gude.machine.provider.PsuEnergyAcGudeMachineProvider:
@@ -98,7 +98,7 @@ measurement:
 #      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
 #        resolution: 99
     #--- GPU - Only enable these if you have GPUs with power measurement enabled in your machine
-#      gpu.energy.NVIDIA.SMI.component.provider.GpuEnergyNvidiaSmiComponentProvider:
+#      gpu.energy.nvidia.smi.component.provider.GpuEnergyNvidiaSmiComponentProvider:
 #        resolution: 99
     #--- Sensors - these providers need the lm-sensors package installed
 #      lm_sensors.temperature.component.provider.LmSensorsTemperatureComponentProvider:
@@ -170,7 +170,7 @@ sci:
     TE: 194000
     # I is the Carbon Intensity at the location of this machine
     # The value can either be a number in gCO2e/kWh or a carbon intensity provider that fetches this number dynamically
-    # https://docs.green-coding.berlin/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/
+    # https://docs.green-coding.io/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/
     # For fixed values get the number from https://ember-climate.org/insights/research/global-electricity-review-2022/
     # The number 475 that comes as default is for Germany from 2022
     I: 475

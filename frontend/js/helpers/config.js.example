@@ -199,7 +199,7 @@ METRIC_MAPPINGS = {
     'network_io_cgroup_container': {
         'clean_name': 'Network I/O',
         'source': 'cgroup',
-        'explanation': 'Network I/O. Details on docs.green-coding.berlin/docs/measuring/metric-providers/network-io-cgroup-container',
+        'explanation': 'Network I/O. Details on https://docs.green-coding.io/docs/measuring/metric-providers/network-io-cgroup-container',
     },
     'gpu_energy_nvidia_smi_component': {
         'clean_name': 'GPU Energy',

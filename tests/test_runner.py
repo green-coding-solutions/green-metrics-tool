@@ -1,36 +1,39 @@
-#from contextlib import nullcontext as does_not_raise
-#import os
-#from shutil import copy2
+from contextlib import nullcontext as does_not_raise
 
 import pytest
-#import platform
 import re
 
-#CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-#TEST_DATA_CONFIG_DIR = os.path.join(CURRENT_DIR, "data", "config_files")
-#REPO_ROOT = os.path.realpath(os.path.join(CURRENT_DIR, ".."))
-
-#from runner import Runner
-#from lib.global_config import GlobalConfig
-#from lib.system_checks import ConfigurationCheckError
+from runner import Runner
+from lib.global_config import GlobalConfig
+from lib.system_checks import ConfigurationCheckError
 from tests import test_functions as Tests
 
-#test_data = [
-#    ("two_psu_providers.yml", True, does_not_raise()),
-#    ("two_psu_providers.yml", False, pytest.raises(ConfigurationCheckError)),
-#]
+GlobalConfig().override_config(config_name='test-config.yml')
 
-#@pytest.mark.skipif(platform.system() == 'Darwin', reason="We can't have two psu providers under MacOS")
-#@pytest.mark.parametrize("config_file,skip_system_checks,expectation", test_data)
-#def disable_test_check_system(config_file, skip_system_checks, expectation):
-#    runner = Runner("foo", "baz", "bar", skip_system_checks=skip_system_checks)
-#    copy2(os.path.join(TEST_DATA_CONFIG_DIR, config_file), os.path.join(REPO_ROOT, config_file))
-#    GlobalConfig().override_config(config_name=config_file)
-#    try:
-#        with expectation:
-#            runner.check_system()
-#    finally:
-#        os.remove(os.path.join(REPO_ROOT, config_file))
+test_data = [
+   (True, does_not_raise()),
+   (False, pytest.raises(ConfigurationCheckError)),
+]
+
+@pytest.mark.parametrize("skip_system_checks,expectation", test_data)
+def test_check_system(skip_system_checks, expectation):
+    runner = Runner("foo", "baz", "bar", skip_system_checks=skip_system_checks)
+
+    if GlobalConfig().config['measurement']['metric-providers']['common'] is None:
+        GlobalConfig().config['measurement']['metric-providers']['common'] = {}
+
+    GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.foo.machine.provider.SomeProvider'] = {
+                'key': 'value'
+            }
+    GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.bar.machine.provider.SomeOtherProvider'] = {
+                'key': 'value'
+            }
+    try:
+        with expectation:
+            runner.check_system()
+    finally:
+        del GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.foo.machine.provider.SomeProvider']
+        del GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.bar.machine.provider.SomeOtherProvider']
 
 def test_reporters_still_running():
     runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dev_no_sleeps=True, dev_no_build=True, dev_no_metrics=False)

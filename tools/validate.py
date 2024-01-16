@@ -50,8 +50,8 @@ def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_windo
         ) SELECT
             metric, detail_name, phase, type,
             AVG(value) as "avg",
-            COALESCE(STDDEV(value), 0) as "stddev",
-            COALESCE(STDDEV(value) / AVG(value), 0) as "rel_stddev",
+            COALESCE(STDDEV_POP(value), 0) as "stddev",
+            COALESCE(STDDEV_POP(value) / AVG(value), 0) as "rel_stddev",
             unit
           FROM phase_stats
           WHERE
@@ -61,6 +61,8 @@ def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_windo
           GROUP BY
             metric, detail_name, phase, type, unit
     """
+
+    # Note that we use the STDDEV of the population, as we want to quantify the accuracy and NOT the workload itself
 
     placeholders = ', '.join(['%s'] * len(metrics))
     query = query.replace('$list_replace', placeholders)

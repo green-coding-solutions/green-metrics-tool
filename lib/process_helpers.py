@@ -15,15 +15,15 @@ def kill_pg(ps, cmd):
         raise RuntimeError(f"Killed the process {cmd} with SIGKILL. This could lead to corrupted data!") from exc
 
 def kill_ps(ps, cmd):
-    pid = ps.pid
-    print(f"Trying to kill {cmd} with PID: {pid}")
+    print(f"Trying to kill {cmd} with PID: {ps.pid}")
 
-    os.kill(pid, signal.SIGTERM)
+    ps.terminate()
     try:
         ps.wait(timeout=10)
     except subprocess.TimeoutExpired as exc:
-        os.kill(pid, signal.SIGKILL)
+        ps.kill()
         raise RuntimeError(f"Killed the process {cmd} with SIGKILL. This could lead to corrupted data!") from exc
+
 
 # currently unused
 def timeout(process, cmd: str, duration: int):

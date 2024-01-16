@@ -1013,6 +1013,7 @@ class Runner:
                 self.custom_sleep(10)
 
         print(TerminalColors.HEADER, '\nWaiting for Metric Providers to boot ...', TerminalColors.ENDC)
+        # if this is omitted the stderr can be empty even if the process is not found by the OS ... python process spawning is slow ...
         self.custom_sleep(2)
 
         for metric_provider in self.__metric_providers:
@@ -1195,6 +1196,7 @@ class Runner:
         ps_errors = []
         for ps in self.__ps_to_kill:
             try:
+                # we never need to kill a process group here, even if started in shell mode, as we funnel through docker exec
                 process_helpers.kill_ps(ps['ps'], ps['cmd'])
             except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
                 ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
@@ -1231,11 +1233,19 @@ class Runner:
         print(TerminalColors.HEADER, '\nChecking process return codes', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
             if not ps['ignore-errors']:
-                if process_helpers.check_process_failed(ps['ps'], ps['detach']):
-                    stderr = 'Not read because detached. Please use stderr logging.'
-                    if not ps['detach']:
+                # This block will read from a detached process via communicate
+                # If the process is detached the returncode is only set after communicate has been called, even if it failed
+                # If the process is still running the returncode will be None and it still runs
+                try:
+                    if ps['detach']:
+                        _, stderr = ps['ps'].communicate(timeout=1)
+                    else:
                         stderr = ps['ps'].stderr
-                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}. Detached process: {ps['detach']}")
+                except subprocess.TimeoutExpired:
+                    pass
+
+                if process_helpers.check_process_failed(ps['ps'], ps['detach']):
+                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}")
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
