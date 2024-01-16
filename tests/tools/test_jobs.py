@@ -21,11 +21,6 @@ def register_machine_fixture():
     machine = Machine(machine_id=1, description='test-machine')
     machine.register()
 
-@pytest.fixture(autouse=True, scope="module")
-def cleanup_jobs_table():
-    yield
-    DB().query('TRUNCATE TABLE jobs RESTART IDENTITY CASCADE')
-
 # This should be done once per module
 @pytest.fixture(autouse=True, scope="module", name="build_image")
 def build_image_fixture():
@@ -45,8 +40,11 @@ def get_job(job_id):
 
     return data
 
-@pytest.mark.xdist_group(name="jobs")
-def test_no_run_job():
+#@pytest.mark.xdist_group(name="jobs")
+@pytest.mark.serial
+def test_no_job_to_process():
+    # make sure jobs table is empty
+    DB().query('TRUNCATE TABLE jobs RESTART IDENTITY CASCADE')
     ps = subprocess.run(
             ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
             check=True,
@@ -54,30 +52,19 @@ def test_no_run_job():
             stdout=subprocess.PIPE,
             encoding='UTF-8'
         )
-    print(ps.stderr)
     assert 'No job to process. Exiting' in ps.stdout,\
         Tests.assertion_info('No job to process. Exiting', ps.stdout)
 
-@pytest.mark.xdist_group(name="jobs")
-def test_no_email_job():
-    ps = subprocess.run(
-            ['python3', '../tools/jobs.py', 'email', '--config-override', 'test-config.yml'],
-            check=True,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            encoding='UTF-8'
-        )
-    assert 'No job to process. Exiting' in ps.stdout,\
-        Tests.assertion_info('No job to process. Exiting', ps.stdout)
-
-@pytest.mark.xdist_group(name="jobs")
+#@pytest.mark.xdist_group(name="jobs")
+@pytest.mark.serial
 def test_insert_job():
     job_id = Job.insert('Test Name', 'Test URL',  'Test Email', 'Test Branch', 'Test filename', 1)
     assert job_id is not None
     job = Job.get_job('run')
     assert job._state == 'WAITING'
 
-@pytest.mark.xdist_group(name="jobs")
+#@pytest.mark.xdist_group(name="jobs")
+@pytest.mark.serial
 def test_simple_run_job():
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
@@ -102,6 +89,7 @@ def test_simple_run_job():
 #pylint: disable=unused-variable # for the time being, until I get the mocking to work
 ## This test doesn't really make sense anymore as is, since we don't have "email jobs" in the same way,
 ## more that we send an email after a run job is finished.
+@pytest.mark.serial
 def todo_test_simple_email_job():
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'

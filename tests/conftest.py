@@ -24,10 +24,16 @@ def cleanup_tables():
 def cleanup_temp_directories():
     tmp_dir = os.path.join(CURRENT_DIR, 'tmp/')
     if os.path.exists(tmp_dir):
-        shutil.rmtree(tmp_dir)
+        for item in os.listdir(tmp_dir):
+            item_path = os.path.join(tmp_dir, item)
+            if os.path.isfile(item_path):
+                os.remove(item_path)
+            elif os.path.isdir(item_path):
+                shutil.rmtree(item_path)
     if os.path.exists("/tmp/gmt-test-data/"):
         shutil.rmtree("/tmp/gmt-test-data/")
 
-def pytest_sessionfinish():
-    cleanup_tables()
-    cleanup_temp_directories()
+def pytest_sessionfinish(session):
+    if not hasattr(session.config, 'workerinput'):
+        cleanup_tables()
+        cleanup_temp_directories()

@@ -36,6 +36,16 @@ def test_check_system(skip_system_checks, expectation):
         del GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.bar.machine.provider.SomeOtherProvider']
 
 def test_reporters_still_running():
+    if GlobalConfig().config['measurement']['metric-providers']['linux'] is None:
+        GlobalConfig().config['measurement']['metric-providers']['linux'] = {}
+
+    real_provider = {
+        'cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider': {
+            'resolution': 99
+        }
+    }
+    GlobalConfig().config['measurement']['metric-providers']['linux'].update(real_provider)
+
     runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dev_no_sleeps=True, dev_no_build=True, dev_no_metrics=False)
 
     runner2 = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dev_no_sleeps=True, dev_no_build=True, dev_no_metrics=False)
@@ -54,3 +64,4 @@ def test_reporters_still_running():
     finally:
         Tests.cleanup(runner)
         Tests.cleanup(runner2)
+        del GlobalConfig().config['measurement']['metric-providers']['linux']['cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider']

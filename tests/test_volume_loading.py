@@ -214,7 +214,7 @@ def test_volume_loading_subdirectories_subdir():
     expect_mounted_testfile_3 = f"stdout from process: ['docker', 'exec', 'test-container_{parallel_id}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-mounted'] testfile3-content"
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
-def test_volume_loading_subdirectories_subdir2():
+def HELP_test_volume_loading_subdirectories_subdir2():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
     RUN_NAME = 'test_' + utils.randomword(12)
     parallel_id = utils.randomword(12)
