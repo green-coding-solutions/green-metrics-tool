@@ -9,10 +9,9 @@ inputs:
     description: 'The root directory of the gmt repository'
     required: false
     default: '.'
-  tests-command:
-    description: 'The command to run the tests'
-    required: false
-    default: 'pytest -n auto -m "not serial" || true && pytest -m "serial"'
+  run-examples-directory-tests:
+    description: 'Run tests for examples directory instead of regular gmt tests'
+    default: false
   github-token:
     description: 'pass in your secrets.GITHUB_TOKEN'
     required: true
@@ -86,15 +85,22 @@ runs:
       run: sleep 10s
       shell: bash
 
-    # - name: Setup upterm session
-    #   uses: lhotari/action-upterm@v1
-
     - name: Run Tests
+      if: ${{ inputs.run-examples-directory-tests }} == false
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/tests
       run: |
         source ../venv/bin/activate
-        python3 -m ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
+        python3 -m pytest -n auto -m "not serial" -rA >> /tmp/test-results.txt
+        python3 -m pytest -m "serial" -rA >> /tmp/test-results.txt
+
+    - name: Run Tests (examples directory)
+      if: ${{ inputs.run-examples-directory-tests }} == true
+      shell: bash
+      working-directory: ${{ inputs.gmt-directory }}/tests
+      run: |
+        source ../venv/bin/activate
+        python3 -m pytest ../../examples-directory/test/smoke_test.py -k "test_all_directories" -rA >> /tmp/test-results.txt
 
     - name: Display Results
       shell: bash
