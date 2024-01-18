@@ -100,13 +100,18 @@ def build_and_store_phase_stats(run_id, sci=None):
                 power_min = (min_value * 10**6) / ((phase['end'] - phase['start']) / value_count)
                 csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_sum, 'MEAN', power_max, power_min, 'mW'))
 
+                # -------------- REFACTOR START
                 if metric.endswith('_machine'):
                     machine_co2 = (value_sum / 3_600) * config['sci']['I']
                     csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_co2_')}", detail_name, f"{idx:03}_{phase['name']}", machine_co2, 'TOTAL', None, None, 'ug'))
-
+                # -------------- REFACTOR END
 
             else:
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, unit))
+
+
+        # -------------- REFACTOR START
+
         # after going through detail metrics, create cumulated ones
         if network_io_bytes_total:
             # build the network energy
@@ -130,6 +135,9 @@ def build_and_store_phase_stats(run_id, sci=None):
         if phase['name'] == '[RUNTIME]' and machine_co2 is not None and sci is not None \
                          and sci.get('R', None) is not None and sci['R'] != 0:
             csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_co2 + embodied_carbon_share_ug) / sci['R'], 'TOTAL', None, None, f"ugCO2e/{sci['R_d']}"))
+
+
+        # -------------- REFACTOR END
 
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning
