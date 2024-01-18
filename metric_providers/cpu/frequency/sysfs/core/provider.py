@@ -3,7 +3,7 @@ import os
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 
 class CpuFrequencySysfsCoreProvider(BaseMetricProvider):
-    def __init__(self, resolution):
+    def __init__(self, resolution, skip_check=False):
         super().__init__(
             metric_name='cpu_frequency_sysfs_core',
             metrics={'time': int, 'value': int, 'core_id': int},
@@ -11,9 +11,12 @@ class CpuFrequencySysfsCoreProvider(BaseMetricProvider):
             unit='Hz',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='get-scaling-cur-freq.sh',
+            skip_check=skip_check,
         )
 
     def check_system(self):
+        super().check_system()
+
         file_path = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"
         if os.path.exists(file_path):
             try:

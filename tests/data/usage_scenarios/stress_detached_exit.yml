@@ -1,0 +1,27 @@
+---
+name: Test Stress
+author: Dan Mateas
+description: test
+description: test
+
+services:
+  test-container:
+    type: container
+    image: gcb_stress
+    build: .
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1
+        note: Starting Stress
+        detach: true
+        log-stdout: true
+  - name: Sleep longer than detached
+    container: test-container
+    commands:
+      - type: console
+        command: sleep 2
+        note: Starting Sleep

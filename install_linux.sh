@@ -121,6 +121,8 @@ else
     sudo apt-get update
     sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy lshw
 fi
+sudo systemctl stop tinyproxy
+sudo systemctl disable tinyproxy
 
 print_message "Building binaries ..."
 metrics_subdir="metric_providers"
@@ -151,12 +153,22 @@ rm lib/sgx-software-enable/sgx_enable.o
 print_message "Adding hardware_info_root.py to sudoers file"
 PYTHON_PATH=$(which python3)
 PWD=$(pwd)
-echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
+echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
+# remove old file name
+sudo rm -f /etc/sudoers.d/green_coding_hardware_info
+
 
 print_message "Setting the hardare hardware_info to be owned by root"
 sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
 sudo chown root:root $PWD/lib/hardware_info_root.py
 sudo chmod 755 $PWD/lib/hardware_info_root.py
+
+print_message "Setting the cluster cleanup.sh file to be owned by root"
+sudo cp -f $PWD/tools/cluster/cleanup_original.sh $PWD/tools/cluster/cleanup.sh
+sudo chown root:root $PWD/tools/cluster/cleanup.sh
+sudo chmod 755 $PWD/tools/cluster/cleanup.sh
+sudo chmod +x $PWD/tools/cluster/cleanup.sh
 
 print_message "Installing IPMI tools"
 if lsb_release -is | grep -q "Fedora"; then
@@ -167,7 +179,11 @@ fi
 
 
 print_message "Adding IPMI to sudoers file"
-echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/ipmi_get_machine_energy_stat
+echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+# remove old file name
+sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
+
 
 if [[ $no_hosts != true ]] ; then
 

@@ -27,94 +27,116 @@ admin:
 cluster:
   api_url: __API_URL__
   metrics_url: __METRICS_URL__
-
-client:
-  sleep_time_no_job: 300
-  sleep_time_after_job: 300
+  client:
+    sleep_time_no_job: 300
+    jobs_processing: "random"
+    time_between_control_workload_validations: 21600
+    send_control_workload_status_mail: False
+    shutdown_on_job_no: False
+    control_workload:
+      name: "Measurement control Workload"
+      uri: "https://github.com/green-coding-berlin/measurement-control-workload"
+      filename: "usage_scenario.yml"
+      branch: "main"
+      comparison_window: 5
+      threshold: 0.01
+      phase: "004_[RUNTIME]"
+      metrics:
+        - "psu_energy_ac_mcp_machine"
+        - "psu_power_ac_mcp_machine"
+        - "cpu_power_rapl_msr_component"
+        - "cpu_energy_rapl_msr_component"
 
 machine:
   id: 1
   description: "Development machine for testing"
   # Takes a file path to log all the errors to it. This is disabled if False
   error_log_file: False
-  jobs_processing: random
+  base_temperature_value: False
+  base_temperature_chip: False
+  base_temperature_feature: False
 
 measurement:
   idle-time-start: 10
   idle-time-end: 5
   flow-process-runtime: 3800
   phase-transition-time: 1
+  boot:
+    wait_time_dependencies: 20
   metric-providers:
 
   # Please select the needed providers according to the working ones on your system
-  # More info https://docs.green-coding.berlin/docs/measuring/metric-providers
+  # More info https://docs.green-coding.io/docs/measuring/metric-providers
   # Please activate and deactivate any provider in this list by uncommenting it.
   # Keep in mind that some reporters need separate installation steps to be found @
-  # https://docs.green-coding.berlin/docs/installation/installation-overview/
+  # https://docs.green-coding.io/docs/installation/installation-overview/
   # You can ignore any line that starts with #---
     #--- Architecture - Linux Only
     linux:
     #--- Always-On - We recommend these providers to be always enabled
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
-        resolution: 100
+        resolution: 99
     #--- CGroupV2 - Turn these on if you have CGroupsV2 working on your machine
       cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
-        resolution: 100
+        resolution: 99
       memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider:
-        resolution: 100
+        resolution: 99
       network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
-        resolution: 100
+        resolution: 99
     #--- RAPL - Only enable these if you have RAPL enabled on your machine
-#      cpu.energy.RAPL.MSR.component.provider.CpuEnergyRaplMsrComponentProvider:
-#        resolution: 100
-#      memory.energy.RAPL.MSR.component.provider.MemoryEnergyRaplMsrComponentProvider:
-#        resolution: 100
+#      cpu.energy.rapl.msr.component.provider.CpuEnergyRaplMsrComponentProvider:
+#        resolution: 99
+#      memory.energy.rapl.msr.component.provider.MemoryEnergyRaplMsrComponentProvider:
+#        resolution: 99
     #--- Machine Energy - These providers need special hardware / lab equipment to work
 #      psu.energy.ac.gude.machine.provider.PsuEnergyAcGudeMachineProvider:
-#        resolution: 100
+#        resolution: 99
 #      psu.energy.ac.powerspy2.machine.provider.PsuEnergyAcPowerspy2MachineProvider:
 #        resolution: 250
 #      psu.energy.ac.mcp.machine.provider.PsuEnergyAcMcpMachineProvider:
-#        resolution: 100
+#        resolution: 99
 #      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
-#        resolution: 100
+#        resolution: 99
+    #--- GPU - Only enable these if you have GPUs with power measurement enabled in your machine
+#      gpu.energy.nvidia.smi.component.provider.GpuEnergyNvidiaSmiComponentProvider:
+#        resolution: 99
     #--- Sensors - these providers need the lm-sensors package installed
 #      lm_sensors.temperature.component.provider.LmSensorsTemperatureComponentProvider:
-#        resolution: 100
+#        resolution: 99
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000', 'coretemp-isa-0000']
 #        features: ['CPU', 'Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
 #      lm_sensors.fan.component.provider.LmSensorsFanComponentProvider:
-#        resolution: 100
+#        resolution: 99
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000']
 #        features: ['fan1', 'fan2']
     #--- Debug - These providers should only be needed for debugging and introspection purposes
 #      cpu.frequency.sysfs.core.provider.CpuFrequencySysfsCoreProvider:
-#        resolution: 100
+#        resolution: 99
 #      cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
-#        resolution: 100
+#        resolution: 99
 #      cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider:
-#        resolution: 100
+#        resolution: 99
 #      cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider:
-#        resolution: 100
+#        resolution: 99
     #--- Architecture - MacOS
     macos:
     #--- MacOS: On Mac you only need this provider. Please remove all others!
       powermetrics.provider.PowermetricsProvider:
-        resolution: 100
+        resolution: 99
     #--- Architecture - Common
     common:
 #      network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
 ##        host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails
     #--- Model based - These providers estimate rather than measure. Helpful where measuring is not possible, like in VMs
 #      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
-#        resolution: 100
+#        resolution: 99
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        TDP: 65
 #      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
-#        resolution: 100
+#        resolution: 99
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        HW_CPUFreq: 3200
@@ -148,7 +170,7 @@ sci:
     TE: 194000
     # I is the Carbon Intensity at the location of this machine
     # The value can either be a number in gCO2e/kWh or a carbon intensity provider that fetches this number dynamically
-    # https://docs.green-coding.berlin/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/
+    # https://docs.green-coding.io/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/
     # For fixed values get the number from https://ember-climate.org/insights/research/global-electricity-review-2022/
     # The number 475 that comes as default is for Germany from 2022
     I: 475

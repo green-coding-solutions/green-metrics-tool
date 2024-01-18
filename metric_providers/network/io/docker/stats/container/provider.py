@@ -4,13 +4,14 @@ import subprocess
 from metric_providers.base import BaseMetricProvider
 
 class NetworkIoDockerStatsContainerProvider(BaseMetricProvider):
-    def __init__(self, resolution):
+    def __init__(self, resolution, skip_check=False):
         super().__init__(
             metric_name='network_io_docker_stats_container',
             metrics={'time': int, 'value': int, 'container_id': str},
             resolution=resolution,
             unit='Bytes',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
+            skip_check=skip_check,
         )
 
     def start_profiling(self, containers=None):

@@ -31,7 +31,7 @@ def test_escape_dict():
     assert escaped['link'] == escaped_link
 
 def test_escape_run():
-    messy_run = Run(name="test<?>", url='testURL', email='testEmail', branch='', machine_id=0)
+    messy_run = Run(name="test<?>", url='testURL', email='testEmail', branch='main', machine_id=0)
     escaped_name = 'test&lt;?&gt;'
     escaped = api_helpers.html_escape_multi(messy_run.model_copy())
 
@@ -42,7 +42,7 @@ def test_escape_measurement():
         value=123,
         unit='mJ',
         repo='link<some_place>',
-        branch='',
+        branch='main',
         cpu='',
         commit_hash='',
         workflow='',

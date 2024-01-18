@@ -6,39 +6,47 @@ class GMTMenu extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
         <div id="menu" class="ui inverted vertical menu">
-            <div>
-                <img class="ui fluid image menu-logo" src="/images/logo.png">
+            <div class="item-container">
+                <div class="item" href="/index.html">
+                    <hr>
+                </div>
+                <a class="item" href="/index.html">
+                    <b><i class="home icon"></i>Home</b>
+                </a>
+                <a class="item" href="/repositories.html">
+                    <b><i class="code branch icon"></i>Repositories</b>
+                </a>
+                <a class="item" href="/energy-timeline.html">
+                    <b><i class="history icon"></i>Energy Timeline</b>
+                </a>
+                <a class="item" href="/request.html">
+                    <b><i class="bullseye icon"></i>Measure software</b>
+                </a>
+                <a class="item" href="/data-analysis.html">
+                    <b><i class="chartline icon"></i>Data Analysis</b>
+                </a>
+                <a class="item" href="/ci-index.html">
+                    <b><i class="seedling icon"></i>Eco-CI</b>
+                </a>
+                <a class="item" href="/status.html">
+                    <b><i class="database icon"></i>Status</b>
+                </a>
+                <a class="item" href="/hog.html">
+                    <b><i class="piggy bank icon"></i>Power Hog</b>
+                </a>
+                <a class="item" href="/settings.html">
+                    <b><i class="cogs icon"></i>Settings</b>
+                </a>
             </div>
-            <div class="item">
-                <i>&lt;Green Metrics Tool&gt;</i>
+            <div class="sticky-container">
+                <a href="href="https://www.green-coding.io">
+                  <img class="ui fluid image menu-logo" src="/images/green-coding-menu-logo-2x.webp"
+                       srcset="/images/green-coding-menu-logo.webp 1x,
+                               /images/green-coding-menu-logo-2x.webp 2x"
+                       alt="Green Coduing Solutions Logo">
+                </a>
             </div>
-            <a class="item" href="/index.html">
-                <b><i class="home icon"></i>Home</b>
-            </a>
-            <a class="item" href="/repositories.html">
-                <b><i class="code branch icon"></i>Repositories</b>
-            </a>
-            <a class="item" href="/energy-timeline.html">
-                <b><i class="history icon"></i>Energy Timeline</b>
-            </a>
-            <a class="item" href="/request.html">
-                <b><i class="bullseye icon"></i>Measure software</b>
-            </a>
-            <a class="item" href="/data-analysis.html">
-                <b><i class="chartline icon"></i>Data Analysis</b>
-            </a>
-            <a class="item" href="/ci-index.html">
-                <b><i class="seedling icon"></i>Eco-CI</b>
-            </a>
-            <a class="item" href="/status.html">
-                <b><i class="database icon"></i>Status</b>
-            </a>
-            <a class="item" href="/hog.html">
-            <b><i class="piggy bank icon"></i>Power Hog</b>
-        </a>
-            <a class="item" href="/settings.html">
-                <b><i class="cogs icon"></i>Settings</b>
-            </a>
+
         </div> <!-- end menu -->`;
     }
 }
@@ -112,7 +120,7 @@ const dateToYMD = (date, short=false) => {
     let offset = date.getTimezoneOffset();
     offset = offset < 0 ? `+${-offset/60}` : -offset/60;
 
-    if(short) return `${date.getFullYear().toString()}.${month}.${day}`;
+    if(short) return `${date.getFullYear().toString()}-${month}-${day}`;
     return ` ${date.getFullYear()}-${month}-${day} <br> ${hours}:${minutes} UTC${offset}`;
 }
 
@@ -165,26 +173,29 @@ async function makeAPICall(path, values=null) {
 /* Menu toggling */
 let openMenu = function(e){
     $(this).removeClass('closed').addClass('opened');
-    $(this).find('i').removeClass('right').addClass('left');
     $('#menu').removeClass('closed').addClass('opened');
     $('#main').removeClass('closed').addClass('opened');
     setTimeout(function(){window.dispatchEvent(new Event('resize'))}, 500) // needed for the graphs to resize
+    localStorage.setItem('menu_closed', false)
+
 }
 
 let closeMenu = function(e){
     $(this).removeClass('opened').addClass('closed');
-    $(this).find('i').removeClass('left').addClass('right');
     $('#menu').removeClass('opened').addClass('closed');
     $('#main').removeClass('opened').addClass('closed');
     setTimeout(function(){window.dispatchEvent(new Event('resize'))}, 500) // needed for the graphs to resize
+    localStorage.setItem('menu_closed', true)
 }
 
 $(document).ready(function () {
     $(document).on('click','#menu-toggle.closed', openMenu);
     $(document).on('click','#menu-toggle.opened', closeMenu);
 
-    if ($(window).width() < 960) {
+    if ($(window).width() < 960 || localStorage.getItem('menu_closed') == 'true') {
         $('#menu-toggle').removeClass('opened').addClass('closed');
+        $('#menu').removeClass('opened').addClass('closed');
+        $('#main').removeClass('opened').addClass('closed');
     }
 });
 

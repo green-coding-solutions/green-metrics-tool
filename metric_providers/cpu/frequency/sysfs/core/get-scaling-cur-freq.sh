@@ -1,4 +1,5 @@
 #! /bin/bash
+set -euo pipefail
 
 cores=$(cat /proc/cpuinfo | grep processor | awk '{print $3}')
 

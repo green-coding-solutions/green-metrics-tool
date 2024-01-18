@@ -6,13 +6,14 @@ from metric_providers.base import BaseMetricProvider, MetricProviderConfiguratio
 from lib.global_config import GlobalConfig
 
 class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
-    def __init__(self, *, resolution, CPUChips, TDP):
+    def __init__(self, *, resolution, CPUChips, TDP, skip_check=False):
         super().__init__(
             metric_name='psu_energy_ac_sdia_machine',
             metrics={'time': int, 'value': int},
             resolution=resolution,
             unit='mJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
+            skip_check=skip_check,
         )
         self.cpu_chips = CPUChips
         self.tdp = TDP

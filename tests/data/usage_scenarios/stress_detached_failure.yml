@@ -1,0 +1,26 @@
+---
+name: Test Stress
+author: Dan Mateas
+description: test
+description: test
+
+services:
+  test-container:
+    type: container
+    image: gcb_stress
+    build: .
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: g4jiorejf
+        note: Starting Stress
+        detach: true
+  - name: Sleep shorter than detached
+    container: test-container
+    commands:
+      - type: console
+        command: sleep 2
+        note: Starting Sleep

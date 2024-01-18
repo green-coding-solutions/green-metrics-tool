@@ -84,7 +84,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
-    await log_exception(request, exc, body='StarletteHTTPException handler cannot read body atm. Waiting for FastAPI upgrade.', details=exc.detail)
+    body = await request.body()
+    await log_exception(request, exc, body=body, details=exc.detail)
     return ORJSONResponse(
         status_code=exc.status_code,
         content=jsonable_encoder({'success': False, 'err': exc.detail}),
@@ -92,21 +93,16 @@ async def http_exception_handler(request, exc):
 
 async def catch_exceptions_middleware(request: Request, call_next):
     #pylint: disable=broad-except
+    body = None
     try:
+        body = await request.body()
         return await call_next(request)
     except Exception as exc:
-        # body = await request.body()  # This blocks the application. Unclear atm how to handle it properly
-        # seems like a bug: https://github.com/tiangolo/fastapi/issues/394
-        # Although the issue is closed the "solution" still behaves with same failure
-        # Actually Starlette, the underlying library to FastAPI has already introduced this functionality:
-        # https://github.com/encode/starlette/pull/1692
-        # However FastAPI does not support the new Starlette 0.31.1
-        # The PR relevant here is: https://github.com/tiangolo/fastapi/pull/9939
-        await log_exception(request, exc, body='Middleware cannot read body atm. Waiting for FastAPI upgrade')
+        await log_exception(request, exc, body=body)
         return ORJSONResponse(
             content={
                 'success': False,
-                'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.berlin',
+                'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.io',
             },
             status_code=500,
         )
@@ -172,7 +168,7 @@ async def get_network(run_id):
 
 
 # return a list of all possible registered machines
-@app.get('/v1/machines/')
+@app.get('/v1/machines')
 async def get_machines():
 
     data = get_machine_list()
@@ -227,7 +223,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
 async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None):
 
     query = """
-            SELECT r.id, r.name, r.uri, COALESCE(r.branch, 'main / master'), r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement
+            SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE 1=1
@@ -303,7 +299,7 @@ async def compare_in_repo(ids: str):
         machine = machines[run_info['machine_id']]
         uri = run_info['uri']
         usage_scenario = run_info['usage_scenario']['name']
-        branch = run_info['branch'] if run_info['branch'] is not None else 'main / master'
+        branch = run_info['branch']
         commit = run_info['commit_hash']
         filename = run_info['filename']
 
@@ -519,8 +515,8 @@ async def get_timeline_projects():
                 FROM runs as r
                 WHERE
                     p.url = r.uri
-                    AND COALESCE(p.branch, 'main / master') = COALESCE(r.branch, 'main / master')
-                    AND COALESCE(p.filename, 'usage_scenario.yml') = COALESCE(r.filename, 'usage_scenario.yml')
+                    AND p.branch = r.branch
+                    AND p.filename = r.filename
                     AND p.machine_id = r.machine_id
                 ORDER BY r.created_at DESC
                 LIMIT 1
@@ -537,16 +533,33 @@ async def get_timeline_projects():
 
 
 @app.get('/v1/jobs')
-async def get_jobs():
-    # Do not get the email jobs as they do not need to be display in the frontend atm
-    query = """
+async def get_jobs(machine_id: int | None = None, state: str | None = None):
+
+    params = []
+    machine_id_condition = ''
+    state_condition = ''
+
+    if machine_id is not None:
+        machine_id_condition = 'AND j.machine_id = %s'
+        params.append(machine_id)
+
+    if state is not None and state != '':
+        state_condition = 'AND j.state = %s'
+        params.append(state)
+
+
+    query = f"""
         SELECT j.id, r.id as run_id, j.name, j.url, j.filename, j.branch, m.description, j.state, j.updated_at, j.created_at
         FROM jobs as j
         LEFT JOIN machines as m on m.id = j.machine_id
         LEFT JOIN runs as r on r.job_id = j.id
+        WHERE
+            1=1
+            {machine_id_condition}
+            {state_condition}
         ORDER BY j.updated_at DESC, j.created_at ASC
     """
-    data = DB().fetch_all(query)
+    data = DB().fetch_all(query, params)
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
@@ -634,11 +647,11 @@ async def hog_add(measurements: List[HogMeasurement]):
         try:
             _ = Measurement(**measurement_data)
         except (ValidationError, RequestValidationError) as exc:
-            print(f"Caught Exception in Measurement() {exc.__class__.__name__} {exc}")
+            print('Caught Exception in Measurement()', exc.__class__.__name__, exc)
+            print('Hog parsing error. Missing expected, but non critical key', str(exc))
             # Output is extremely verbose. Please only turn on if debugging manually
             # print(f"Errors are: {exc.errors()}")
-            if GlobalConfig().config['admin']['no_emails'] is False:
-                email_helpers.send_admin_email('Hog parsing error', str(exc))
+
 
         try:
             validate_measurement_data(measurement_data)
@@ -1017,15 +1030,15 @@ async def software_add(software: Software):
     if software.email is None or software.email.strip() == '':
         raise RequestValidationError('E-mail is empty')
 
+    if software.branch is None or software.branch.strip() == '':
+        software.branch = 'main'
+
+    if software.filename is None or software.filename.strip() == '':
+        software.filename = 'usage_scenario.yml'
+
     if not DB().fetch_one('SELECT id FROM machines WHERE id=%s AND available=TRUE', params=(software.machine_id,)):
         raise RequestValidationError('Machine does not exist')
 
-
-    if software.branch.strip() == '':
-        software.branch = None
-
-    if software.filename.strip() == '':
-        software.filename = 'usage_scenario.yml'
 
     if software.schedule_mode not in ['one-off', 'time', 'commit', 'variance']:
         raise RequestValidationError(f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")
@@ -1037,7 +1050,7 @@ async def software_add(software: Software):
     if software.schedule_mode == 'one-off':
         Job.insert(software.name, software.url,  software.email, software.branch, software.filename, software.machine_id)
     elif software.schedule_mode == 'variance':
-        for _ in range(0,3):
+        for _ in range(0,10):
             Job.insert(software.name, software.url,  software.email, software.branch, software.filename, software.machine_id)
     else:
         TimelineProject.insert(software.name, software.url, software.branch, software.filename, software.machine_id, software.schedule_mode)

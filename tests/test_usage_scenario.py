@@ -31,8 +31,7 @@ config = GlobalConfig().config
 # This should be done once per module
 @pytest.fixture(autouse=True, scope="module", name="build_image")
 def build_image_fixture():
-    uri = os.path.abspath(os.path.join(
-            CURRENT_DIR, 'stress-application/'))
+    uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
     subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
     GlobalConfig().override_config(config_name='test-config.yml')
 
@@ -72,7 +71,7 @@ def get_env_vars(runner):
 
 # Test allowed characters
 def test_env_variable_allowed_characters():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_allowed.yml', skip_unsafe=False, dry_run=True)
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_allowed.yml', skip_unsafe=False, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     env_var_output = get_env_vars(runner)
 
     assert 'TESTALLOWED=alpha-num123_' in env_var_output, Tests.assertion_info('TESTALLOWED=alpha-num123_', env_var_output)
@@ -82,7 +81,7 @@ def test_env_variable_allowed_characters():
 
 # Test too long values
 def test_env_variable_too_long():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', dry_run=True)
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with pytest.raises(RuntimeError) as e:
         get_env_vars(runner)
 
@@ -90,7 +89,7 @@ def test_env_variable_too_long():
 
 # Test skip_unsafe=true
 def test_env_variable_skip_unsafe_true():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', skip_unsafe=True, dry_run=True)
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', skip_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     env_var_output = get_env_vars(runner)
 
     # Only allowed values should be in env vars, forbidden ones should be skipped
@@ -99,7 +98,7 @@ def test_env_variable_skip_unsafe_true():
 
 # Test allow_unsafe=true
 def test_env_variable_allow_unsafe_true():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', allow_unsafe=True, dry_run=True)
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     env_var_output = get_env_vars(runner)
 
     # Both allowed and forbidden values should be in env vars
@@ -126,14 +125,14 @@ def get_port_bindings(runner):
     return port, err
 
 def test_port_bindings_allow_unsafe_true():
-    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', allow_unsafe=True)
+    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     port, _ = get_port_bindings(runner)
     assert port.startswith('0.0.0.0:9017'), Tests.assertion_info('0.0.0.0:9017', port)
 
 def test_port_bindings_skip_unsafe_true():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', skip_unsafe=True)
+    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', skip_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     # need to catch exception here as otherwise the subprocess returning an error will
     # fail the test
@@ -147,7 +146,7 @@ def test_port_bindings_skip_unsafe_true():
         Tests.assertion_info(f"Warning: {expected_warning}", 'no/different warning')
 
 def test_port_bindings_no_skip_or_allow():
-    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml')
+    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with pytest.raises(Exception) as e:
         _, docker_port_err = get_port_bindings(runner)
         expected_container_error = 'Error: No public port \'9018/tcp\' published for test-container\n'
@@ -163,7 +162,7 @@ def test_port_bindings_no_skip_or_allow():
 def test_setup_commands_one_command():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='setup_commands_stress.yml')
+    runner = Tests.setup_runner(usage_scenario='setup_commands_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         try:
@@ -178,7 +177,7 @@ def test_setup_commands_one_command():
 def test_setup_commands_multiple_commands():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='setup_commands_multiple_stress.yml')
+    runner = Tests.setup_runner(usage_scenario='setup_commands_multiple_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         try:
@@ -222,11 +221,193 @@ def get_contents_of_bound_volume(runner):
         Tests.cleanup(runner)
     return ls
 
+def assert_order(text, first, second):
+    index1 = text.find(first)
+    index2 = text.find(second)
+
+    assert index1 != -1 and index2 != -1, \
+        Tests.assertion_info(f"stdout contain the container names '{first}' and '{second}'.", \
+                             f"stdout doesn't contain '{first}' and/or '{second}'.")
+
+    assert index1 < index2, Tests.assertion_info(f'{first} should start first, \
+                             because it is a dependency of {second}.', f'{second} started first')
+
+# depends_on: [array] (optional)
+# Array of container names to express dependencies
+def test_depends_on_order():
+    out = io.StringIO()
+    err = io.StringIO()
+    runner = Tests.setup_runner(usage_scenario='depends_on.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        try:
+            Tests.run_until(runner, 'setup_services')
+        finally:
+            runner.cleanup()
+
+    # Expected order: test-container-2, test-container-4, test-container-3, test-container-1
+    assert_order(out.getvalue(), 'test-container-2', 'test-container-4')
+    assert_order(out.getvalue(), 'test-container-4', 'test-container-3')
+    assert_order(out.getvalue(), 'test-container-3', 'test-container-1')
+
+
+def test_depends_on_huge():
+    out = io.StringIO()
+    err = io.StringIO()
+    runner = Tests.setup_runner(usage_scenario='depends_on_huge.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        try:
+            Tests.run_until(runner, 'setup_services')
+        finally:
+            runner.cleanup()
+
+    # For test-container-20
+    assert_order(out.getvalue(), 'test-container-16', 'test-container-20')
+    assert_order(out.getvalue(), 'test-container-15', 'test-container-20')
+
+    # For test-container-19
+    assert_order(out.getvalue(), 'test-container-14', 'test-container-19')
+    assert_order(out.getvalue(), 'test-container-13', 'test-container-19')
+
+    # For test-container-18
+    assert_order(out.getvalue(), 'test-container-12', 'test-container-18')
+    assert_order(out.getvalue(), 'test-container-11', 'test-container-18')
+
+    # For test-container-17
+    assert_order(out.getvalue(), 'test-container-10', 'test-container-17')
+    assert_order(out.getvalue(), 'test-container-9', 'test-container-17')
+
+    # For test-container-16
+    assert_order(out.getvalue(), 'test-container-8', 'test-container-16')
+    assert_order(out.getvalue(), 'test-container-7', 'test-container-16')
+
+    # For test-container-15
+    assert_order(out.getvalue(), 'test-container-6', 'test-container-15')
+    assert_order(out.getvalue(), 'test-container-5', 'test-container-15')
+
+    # For test-container-14
+    assert_order(out.getvalue(), 'test-container-4', 'test-container-14')
+
+    # For test-container-13
+    assert_order(out.getvalue(), 'test-container-3', 'test-container-13')
+
+    # For test-container-12
+    assert_order(out.getvalue(), 'test-container-2', 'test-container-12')
+
+    # For test-container-11
+    assert_order(out.getvalue(), 'test-container-1', 'test-container-11')
+
+    # For test-container-10
+    assert_order(out.getvalue(), 'test-container-4', 'test-container-10')
+
+    # For test-container-9
+    assert_order(out.getvalue(), 'test-container-3', 'test-container-9')
+
+    # For test-container-8
+    assert_order(out.getvalue(), 'test-container-2', 'test-container-8')
+
+    # For test-container-7
+    assert_order(out.getvalue(), 'test-container-1', 'test-container-7')
+
+    # For test-container-6
+    assert_order(out.getvalue(), 'test-container-4', 'test-container-6')
+
+    # For test-container-5
+    assert_order(out.getvalue(), 'test-container-3', 'test-container-5')
+
+    # For test-container-4
+    assert_order(out.getvalue(), 'test-container-2', 'test-container-4')
+
+    # For test-container-3
+    assert_order(out.getvalue(), 'test-container-1', 'test-container-3')
+
+    # For test-container-2
+    assert_order(out.getvalue(), 'test-container-1', 'test-container-2')
+
+
+def test_depends_on_error_not_running():
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_not_running.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    try:
+        with pytest.raises(RuntimeError) as e:
+            Tests.run_until(runner, 'setup_services')
+    finally:
+        runner.cleanup()
+
+    assert "Dependent container 'test-container-2' of 'test-container-1' is not running" in str(e.value) , \
+        Tests.assertion_info('test-container-2 is not running', str(e.value))
+
+def test_depends_on_error_cyclic_dependency():
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_cycle.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    try:
+        with pytest.raises(RuntimeError) as e:
+            Tests.run_until(runner, 'setup_services')
+    finally:
+        runner.cleanup()
+
+    assert "Cycle found in depends_on definition with service 'test-container-1'" in str(e.value) , \
+        Tests.assertion_info('cycle in depends_on with test-container-1', str(e.value))
+
+def test_depends_on_error_unsupported_condition():
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_unsupported_condition.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    try:
+        with pytest.raises(RuntimeError) as e:
+            Tests.run_until(runner, 'setup_services')
+    finally:
+        runner.cleanup()
+
+    message = 'Unsupported condition in healthcheck for service \'test-container-1\':  service_completed_successfully'
+    assert message in str(e.value) , \
+        Tests.assertion_info(message, str(e.value))
+
+def test_depends_on_long_form():
+    runner = Tests.setup_runner(usage_scenario='depends_on_long_form.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+
+    try:
+        with redirect_stdout(out), redirect_stderr(err):
+            runner.run()
+        message = 'State of container'
+        assert message in out.getvalue(), \
+            Tests.assertion_info(message, out.getvalue())
+    finally:
+        runner.cleanup()
+
+def test_depends_on_healthcheck():
+    runner = Tests.setup_runner(usage_scenario='healthcheck.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+
+    try:
+        with redirect_stdout(out), redirect_stderr(err):
+            runner.run()
+        message = 'Health of container \'test-container-2\': starting'
+        assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
+        message2 = 'Health of container \'test-container-2\': healthy'
+        assert message2 in out.getvalue(), Tests.assertion_info(message, out.getvalue())
+
+    finally:
+        runner.cleanup()
+
+def test_depends_on_healthcheck_error_missing():
+    runner = Tests.setup_runner(usage_scenario='healthcheck_error_missing.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+
+    try:
+        with pytest.raises(RuntimeError) as e:
+            runner.run()
+    finally:
+        runner.cleanup()
+
+    expected_exception = "Health check for dependent_container 'test-container-2' was requested, but container has no healthcheck implemented!"
+    assert str(e.value).startswith(expected_exception),\
+        Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
+
 #volumes: [array] (optional)
 #Array of volumes to be mapped. Only read of runner.py is executed with --allow-unsafe flag
 def test_volume_bindings_allow_unsafe_true():
     create_test_file('/tmp/gmt-test-data')
-    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', allow_unsafe=True)
+    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     ls = get_contents_of_bound_volume(runner)
     assert 'test-file' in ls, Tests.assertion_info('test-file', ls)
 
@@ -234,7 +415,7 @@ def test_volumes_bindings_skip_unsafe_true():
     create_test_file('/tmp/gmt-test-data')
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', skip_unsafe=True)
+    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', skip_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception):
         ls = get_contents_of_bound_volume(runner)
@@ -245,7 +426,7 @@ def test_volumes_bindings_skip_unsafe_true():
 
 def test_volumes_bindings_no_skip_or_allow():
     create_test_file('/tmp/gmt-test-data')
-    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml')
+    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with pytest.raises(RuntimeError) as e:
         ls = get_contents_of_bound_volume(runner)
         assert ls == '', Tests.assertion_info('empty list', ls)
@@ -254,7 +435,7 @@ def test_volumes_bindings_no_skip_or_allow():
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_network_created():
-    runner = Tests.setup_runner(usage_scenario='network_stress.yml')
+    runner = Tests.setup_runner(usage_scenario='network_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     try:
         Tests.run_until(runner, 'setup_networks')
         ps = subprocess.run(
@@ -270,7 +451,7 @@ def test_network_created():
     assert 'gmt-test-network' in ls, Tests.assertion_info('gmt-test-network', ls)
 
 def test_container_is_in_network():
-    runner = Tests.setup_runner(usage_scenario='network_stress.yml')
+    runner = Tests.setup_runner(usage_scenario='network_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     try:
         Tests.run_until(runner, 'setup_services')
         ps = subprocess.run(
@@ -285,12 +466,12 @@ def test_container_is_in_network():
         Tests.cleanup(runner)
     assert 'test-container' in inspect, Tests.assertion_info('test-container', inspect)
 
-# cmd: [str] (optional)
+# command: [str] (optional)
 #    Command to be executed when container is started.
 #    When container does not have a daemon running typically a shell
 #    is started here to have the container running like bash or sh
 def test_cmd_ran():
-    runner = Tests.setup_runner(usage_scenario='cmd_stress.yml')
+    runner = Tests.setup_runner(usage_scenario='cmd_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     try:
         Tests.run_until(runner, 'setup_services')
         ps = subprocess.run(
@@ -310,12 +491,11 @@ def test_cmd_ran():
 #   The URI to get the usage_scenario.yml from. Can be either a local directory starting with
 #     / or a remote git repository starting with http(s)://
 def test_uri_local_dir():
-    uri = os.path.abspath(os.path.join(
-            CURRENT_DIR, 'stress-application/'))
+    uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
     RUN_NAME = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,'--config-override', 'test-config.yml',
-        '--skip-system-checks', '--dev-repeat-run'],
+        '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -327,10 +507,13 @@ def test_uri_local_dir():
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 def test_uri_local_dir_missing():
-    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', uri='/tmp/missing')
-    with pytest.raises(FileNotFoundError) as e:
-        runner.run()
-    expected_exception = 'No such file or directory: \'/tmp/missing\''
+    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', uri='/tmp/missing', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    try:
+        with pytest.raises(FileNotFoundError) as e:
+            runner.run()
+        expected_exception = 'No such file or directory: \'/tmp/missing\''
+    finally:
+        runner.cleanup()
     assert expected_exception in str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
@@ -340,7 +523,7 @@ def test_uri_github_repo():
     RUN_NAME = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,'--config-override', 'test-config.yml',
-        '--skip-system-checks', '--dev-repeat-run'],
+        '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -354,7 +537,7 @@ def test_uri_github_repo():
 ## --branch BRANCH
 #    Optionally specify the git branch when targeting a git repository
 def test_uri_local_branch():
-    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', branch='test-branch')
+    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', branch='test-branch', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     out = io.StringIO()
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(RuntimeError) as e:
@@ -372,7 +555,7 @@ def test_uri_github_repo_branch():
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
         '--branch', 'test-branch' , '--filename', 'basic_stress.yml',
-        '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-repeat-run'],
+        '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -391,7 +574,11 @@ def test_uri_github_repo_branch_missing():
     runner = Tests.setup_runner(usage_scenario='basic_stress.yml',
         uri='https://github.com/green-coding-berlin/pytest-dummy-repo',
         uri_type='URL',
-        branch='missing-branch')
+        branch='missing-branch',
+        dev_no_sleeps=True,
+        dev_no_build=True,
+        dev_no_metrics=True,
+    )
     with pytest.raises(subprocess.CalledProcessError) as e:
         runner.run()
     expected_exception = 'returned non-zero exit status 128'
@@ -401,12 +588,11 @@ def test_uri_github_repo_branch_missing():
 # #   --name NAME
 # #    A name which will be stored to the database to discern this run from others
 def test_name_is_in_db():
-    uri = os.path.abspath(os.path.join(
-            CURRENT_DIR, 'stress-application/'))
+    uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
     RUN_NAME = 'test_' + utils.randomword(12)
     subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,'--config-override', 'test-config.yml',
-        '--skip-system-checks'],
+        '--skip-system-checks', '--dev-no-metrics', '--dev-no-sleeps', '--dev-no-build'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -429,7 +615,7 @@ def test_different_filename():
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
          '--filename', 'basic_stress.yml', '--config-override', 'test-config.yml',
-         '--skip-system-checks', '--dev-repeat-run'],
+         '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -448,7 +634,7 @@ def test_different_filename_missing():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, '..', 'stress-application/'))
     RUN_NAME = 'test_' + utils.randomword(12)
 
-    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', filename='basic_stress.yml', skip_system_checks=True)
+    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', filename='basic_stress.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
 
     with pytest.raises(FileNotFoundError) as e:
         runner.run()
@@ -459,8 +645,7 @@ def test_different_filename_missing():
 #   --no-file-cleanup
 #    Do not delete files in /tmp/green-metrics-tool
 def test_no_file_cleanup():
-    uri = os.path.abspath(os.path.join(
-            CURRENT_DIR, 'stress-application/'))
+    uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
     RUN_NAME = 'test_' + utils.randomword(12)
     subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
@@ -476,19 +661,18 @@ def test_no_file_cleanup():
 #pylint: disable=unused-variable
 def test_skip_and_allow_unsafe_both_true():
     with pytest.raises(RuntimeError) as e:
-        runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, allow_unsafe=True)
+        runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
     assert str(e.value) == expected_exception, Tests.assertion_info('', str(e.value))
 
 def test_debug(monkeypatch):
     monkeypatch.setattr('sys.stdin', io.StringIO('Enter'))
-    uri = os.path.abspath(os.path.join(
-            CURRENT_DIR, 'stress-application/'))
+    uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
     RUN_NAME = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
          '--debug', '--config-override', 'test-config.yml', '--skip-system-checks',
-          '--dev-repeat-run'],
+          '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -502,15 +686,54 @@ def test_debug(monkeypatch):
     # there is a note added when it starts "Booting {metric_provider}"
     # can check for this note in the DB and the notes are about 2s apart
 
+def test_read_detached_process_no_exit():
+    runner = Tests.setup_runner(usage_scenario='stress_detached_no_exit.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        try:
+            runner.run()
+        finally:
+            runner.cleanup()
+    assert 'setting to a 1 min, 40 secs run per stressor' in out.getvalue(), \
+        Tests.assertion_info('setting to a 1 min, 40 secs run per stressor', out.getvalue())
+    assert 'successful run completed' not in out.getvalue(), \
+        Tests.assertion_info('NOT successful run completed', out.getvalue())
+
+def test_read_detached_process_after_exit():
+    runner = Tests.setup_runner(usage_scenario='stress_detached_exit.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        try:
+            runner.run()
+        finally:
+            runner.cleanup()
+    assert 'successful run completed' in out.getvalue(), \
+        Tests.assertion_info('successful run completed', out.getvalue())
+
+def test_read_detached_process_failure():
+    runner = Tests.setup_runner(usage_scenario='stress_detached_failure.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+        try:
+            runner.run()
+        finally:
+            runner.cleanup()
+    assert '\'g4jiorejf\']\' had bad returncode: 126' in str(e.value), \
+        Tests.assertion_info('\'g4jiorejf\']\' had bad returncode: 126', str(e.value))
+
+
     ## rethink this one
 def wip_test_verbose_provider_boot():
-    uri = os.path.abspath(os.path.join(
-            CURRENT_DIR, 'stress-application/'))
+    uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
     RUN_NAME = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
          '--verbose-provider-boot', '--config-override', 'test-config.yml',
-         '--dev-repeat-run'],
+         '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
