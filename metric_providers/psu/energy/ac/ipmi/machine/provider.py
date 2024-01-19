@@ -1,7 +1,6 @@
 import os
-import subprocess
 
-from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
+from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
     def __init__(self, resolution, skip_check=False):
@@ -45,19 +44,3 @@ class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
         df = df.drop(columns='interval')  # clean up
 
         return df
-
-    def check_system(self):
-        # Run 'sensors' command and capture the output
-        ps = subprocess.run(['sudo', '/usr/sbin/ipmi-dcmi', '--get-system-power-statistics'], capture_output=True, text=True, check=False)
-        if ps.returncode != 0:
-            raise MetricProviderConfigurationError(f"\n\n{self._metric_name} provider could not be started.\nCannot run the 'sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics' command.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
-
-        current_power_line = [line for line in ps.stdout.split('\n') if line.startswith('Current Power')]
-        if not current_power_line:
-            raise MetricProviderConfigurationError(f"\n\n{self._metric_name} provider could not be started.\nUnable to find 'Current Power' in the output of 'sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics' command.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
-
-        current_power = int(current_power_line[0].split(':')[1].strip().split()[0])
-
-        # Check if current power is non-zero
-        if current_power == 0:
-            raise MetricProviderConfigurationError(f"\n\n{self._metric_name} provider could not be started.\nCurrent power is zero, which is unexpected.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
