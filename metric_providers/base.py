@@ -58,6 +58,9 @@ class BaseMetricProvider:
         if ps.returncode != 0:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nError: {ps.stderr}\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
 
+        self.check_parallel_provider_running()
+
+    def check_parallel_provider_running(self):
         cmd = ['pgrep', '-f', self._metric_provider_executable]
         result = subprocess.run(cmd,
                             stdout=subprocess.PIPE,

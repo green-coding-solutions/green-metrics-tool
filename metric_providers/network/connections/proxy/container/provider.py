@@ -32,7 +32,7 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
         self._host_ip = host_ip
 
     def check_system(self):
-        super().check_system()
+        self.check_parallel_provider_running()
 
         output = subprocess.check_output(['tinyproxy', '-v'], stderr=subprocess.STDOUT, text=True)
         version_string = output.strip().split()[1].split('-')[0]
