@@ -2,6 +2,6 @@ PyYAML==6.0.1
 pandas==2.1.4
 psycopg[binary]==3.1.17
 pyserial==3.5
-psutil==5.9.7
+psutil==5.9.8
 schema==0.7.5
 anybadge==1.14.0
