@@ -1,1 +1,1 @@
-../../../../../cpu/energy/RAPL/MSR/component/source.c
+../../../../../cpu/energy/rapl/msr/component/source.c
