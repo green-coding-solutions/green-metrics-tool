@@ -79,18 +79,36 @@ static int output_stats() {
     return 1;
 }
 
+static int check_system() {
+    char check_path[BUFSIZ];
+    sprintf(check_path, "/proc/stat");
+    
+    FILE* fd = NULL;
+    fd = fopen(check_path, "r");
+
+    if (fd == NULL) {
+        fprintf(stderr, "Couldn't open %s file\n", check_path);
+        exit(127);
+    }
+    fclose(fd);
+    return 0;
+}
+
 int main(int argc, char **argv) {
 
     int c;
+    int check_system_flag = 0;
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    while ((c = getopt (argc, argv, "i:h")) != -1) {
+    while ((c = getopt (argc, argv, "i:hc")) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
-            printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n\n");
+            printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
+            printf("\t-c      : check system and exit\n\n");
+
 
             struct timespec res;
             double resolution;
@@ -104,10 +122,17 @@ int main(int argc, char **argv) {
         case 'i':
             msleep_time = atoi(optarg);
             break;
+        case 'c':
+            check_system_flag = 1;
+            break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
             exit(-1);
         }
+    }
+
+    if(check_system_flag){
+        exit(check_system()); 
     }
 
     while(1) {
