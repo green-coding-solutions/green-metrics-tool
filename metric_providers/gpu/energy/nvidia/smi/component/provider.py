@@ -17,7 +17,7 @@ class GpuEnergyNvidiaSmiComponentProvider(BaseMetricProvider):
 
 
     def check_system(self):
-        super().check_system()
+        super().check_parallel_provider_running()
 
         ps = subprocess.run(['which', 'nvidia-smi'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
         if ps.returncode != 0:

@@ -15,8 +15,6 @@ class PsuEnergyAcPowerspy2MachineProvider(BaseMetricProvider):
         self._extra_switches = ['-u','mJ']
 
     def check_system(self):
-        super().check_system()
-
         file_path = "/dev/rfcomm0"
         if os.path.exists(file_path):
             try:
@@ -26,3 +24,5 @@ class PsuEnergyAcPowerspy2MachineProvider(BaseMetricProvider):
                 raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot read device at {file_path}.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml") from exc
         else:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCould not find device at {file_path}.\n\nAre you running in a VM / cloud / shared hosting? \nIf so please disable the {self._metric_name} provider in the config.yml")
+
+        super().check_parallel_provider_running()
