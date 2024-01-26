@@ -44,6 +44,7 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
         if 'cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider' not in config['measurement']['metric-providers']['linux']:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease activate the CpuUtilizationProcfsSystemProvider in the config.yml\n \
                 This is required to run PsuEnergyAcSdiaMachineProvider")
+        self.check_parallel_provider_running()
 
     def read_metrics(self, run_id, containers=None):
 

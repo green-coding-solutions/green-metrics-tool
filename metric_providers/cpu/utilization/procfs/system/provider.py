@@ -23,3 +23,4 @@ class CpuUtilizationProcfsSystemProvider(BaseMetricProvider):
                 raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot read the path at {file_path}.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml") from exc
         else:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCould not find {file_path}.\n\nAre you running in a VM / cloud / shared hosting? \nIf so please disable the {self._metric_name} provider in the config.yml")
+        self.check_parallel_provider_running()
