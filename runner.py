@@ -1057,8 +1057,8 @@ class Runner:
         flows_len = len(self._usage_scenario['flow'])
         while flow_id < flows_len:
             flow = self._usage_scenario['flow'][flow_id]
-            ps_to_kill_tmp = []
-            ps_to_read_tmp = []
+            ps_to_kill_tmp.clear()
+            ps_to_read_tmp.clear()
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
             try:
@@ -1153,7 +1153,7 @@ class Runner:
                 print(TerminalColors.OKCYAN, '\nWhat do you want to do?\n1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n0 / CTRL+C -- Abort', TerminalColors.ENDC)
                 value = sys.stdin.readline().strip()
 
-                self.__ps_to_read = [] # clear, so we do not read old processes
+                self.__ps_to_read.clear() # clear, so we do not read old processes
                 if ps_to_kill_tmp:
                     print(f"Trying to kill detached process '{ps['cmd']}'' of current flow")
                     try:
@@ -1209,7 +1209,7 @@ class Runner:
 
             f = StringIO(df.to_csv(index=False, header=False))
             DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')
-        self.__metric_providers = []
+        self.__metric_providers.clear()
         if errors:
             raise RuntimeError("\n".join(errors))
 
@@ -1226,7 +1226,7 @@ class Runner:
                 ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
         if ps_errors:
             raise RuntimeError(ps_errors)
-        self.__ps_to_kill = [] # we need to clear, so we do not kill twice later
+        self.__ps_to_kill.clear() # we need to clear, so we do not kill twice later
 
         for ps in self.__ps_to_read:
             if ps['detach']:
@@ -1357,7 +1357,7 @@ class Runner:
                 # pylint: disable=broad-exception-caught
                 except Exception as exc:
                     error_helpers.log_error(f"Could not stop profiling on {metric_provider.__class__.__name__}: {str(exc)}")
-            self.__metric_providers = []
+            self.__metric_providers.clear()
 
 
         print('Stopping containers')
@@ -1369,7 +1369,7 @@ class Runner:
         for network_name in self.__networks:
             # no check=True, as the network might already be gone. We do not want to fail here
             subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
-        self.__networks = []
+        self.__networks.clear()
 
         if inline is not True and self._no_file_cleanup is not True:
             print('Removing files')
@@ -1390,8 +1390,8 @@ class Runner:
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
-        self.__ps_to_kill = []
-        self.__ps_to_read = []
+        self.__ps_to_kill.clear()
+        self.__ps_to_read.clear()
 
         if inline is not True:
             self.__start_measurement = None
