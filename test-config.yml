@@ -60,7 +60,9 @@ measurement:
     linux:
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
         resolution: 99
-    macos: null
+    macos:
+      powermetrics.provider.PowermetricsProvider:
+        resolution: 99
     common:
       psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
         resolution: 99
