@@ -138,30 +138,35 @@ class Job:
     def get_job(cls, job_type):
         cls.clear_old_jobs()
 
-        query = '''
+
+        params = []
+        config = GlobalConfig().config
+
+        if job_type == 'run':
+            email_field = "'RESTRICTED'"
+            where_condition = " j.state = 'WAITING' AND j.machine_id = %s "
+            params.append(config['machine']['id'])
+        else:
+            email_field = 'j.email'
+            where_condition = " j.state = 'FINISHED' AND j.email IS NOT NULL "
+
+        if config['cluster']['client']['jobs_processing'] == 'random':
+            order_by = ' ORDER BY RANDOM() '
+        else:
+            order_by = ' ORDER BY j.created_at ASC'  # default case == 'fifo'
+
+        query = f"""
             SELECT
-                j.id, j.state, j.name, j.email, j.url, j.branch,
+                j.id, j.state, j.name, {email_field}, j.url, j.branch,
                 j.filename, j.machine_id, m.description, r.id as run_id
             FROM jobs as j
             LEFT JOIN machines as m on m.id = j.machine_id
             LEFT JOIN runs as r on r.job_id = j.id
             WHERE
-        '''
-        params = []
-        config = GlobalConfig().config
-
-        if job_type == 'run':
-            query = f"{query} j.state = 'WAITING' AND j.machine_id = %s "
-            params.append(config['machine']['id'])
-        else:
-            query = f"{query} j.state = 'FINISHED' AND j.email IS NOT NULL "
-
-        if config['cluster']['client']['jobs_processing'] == 'random':
-            query = f"{query} ORDER BY RANDOM()"
-        else:
-            query = f"{query} ORDER BY j.created_at ASC"  # default case == 'fifo'
-
-        query = f"{query} LIMIT 1"
+                {where_condition}
+            {order_by}
+            LIMIT 1
+        """
 
         job = DB().fetch_one(query, params=params)
         if not job:
