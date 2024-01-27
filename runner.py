@@ -1053,12 +1053,15 @@ class Runner:
         # run the flows
         ps_to_kill_tmp = []
         ps_to_read_tmp = []
+        exception_occured = False
         flow_id = 0
         flows_len = len(self._usage_scenario['flow'])
         while flow_id < flows_len:
             flow = self._usage_scenario['flow'][flow_id]
             ps_to_kill_tmp.clear()
             ps_to_read_tmp.clear()
+            exception_occured = False # reset
+
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
             try:
@@ -1148,39 +1151,44 @@ class Runner:
             except BaseException as flow_exc:
                 if not self._dev_flow_timetravel: # Exception handling only if explicitely wanted
                     raise flow_exc
-
                 print('Exception occured: ', flow_exc)
-            finally:
-                if not self._dev_flow_timetravel: # Timetravel only if active
-                    continue
+                exception_occured = True
 
-                print(TerminalColors.OKCYAN, '\nTime-Travel mode is active!\nWhat do you want to do?\n0 -- Continue\n1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n9 / CTRL+C -- Abort', TerminalColors.ENDC)
-                value = sys.stdin.readline().strip()
 
-                self.__ps_to_read.clear() # clear, so we do not read old processes
-                if ps_to_kill_tmp:
-                    print(f"Trying to kill detached process '{ps['cmd']}'' of current flow")
-                    try:
-                        process_helpers.kill_ps(ps['ps'], ps['cmd'])
-                    except ProcessLookupError as process_exc: # Process might have done expected exit already. However all other errors shall bubble
-                        print(f"Could not kill {ps['cmd']}. Exception: {process_exc}")
+            if not self._dev_flow_timetravel: # Timetravel only if active
+                continue
 
-                if value == '0':
-                    continue
-                if value == '1':
+            print(TerminalColors.OKCYAN, '\nTime-Travel mode is active!\nWhat do you want to do?\n')
+            if not exception_occured:
+                print('0 -- Continue')
+            print('1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n9 / CTRL+C -- Abort', TerminalColors.ENDC)
+
+            value = sys.stdin.readline().strip()
+
+            self.__ps_to_read.clear() # clear, so we do not read old processes
+            for ps in ps_to_kill_tmp:
+                print(f"Trying to kill detached process '{ps['cmd']}'' of current flow")
+                try:
+                    process_helpers.kill_ps(ps['ps'], ps['cmd'])
+                except ProcessLookupError as process_exc: # Process might have done expected exit already. However all other errors shall bubble
+                    print(f"Could not kill {ps['cmd']}. Exception: {process_exc}")
+
+            if not exception_occured and value == '0':
+                continue
+
+            if value == '2':
+                for _ in range(0,flow_id+1):
                     self.__phases.popitem(last=True)
-                if value == '2':
-                    for _ in range(0,flow_id+1):
-                        self.__phases.popitem(last=True)
-                    flow_id = 0
-                if value == '3':
-                    self.cleanup(continue_measurement=True)
-                    self.setup_networks()
-                    self.setup_services()
-                    flow_id = 0
-                if value == '9':
-                    raise KeyboardInterrupt("Manual abort") from flow_exc
-
+                flow_id = 0
+            elif value == '3':
+                self.cleanup(continue_measurement=True)
+                self.setup_networks()
+                self.setup_services()
+                flow_id = 0
+            elif value == '9':
+                raise KeyboardInterrupt("Manual abort")
+            else: # implicit 1
+                self.__phases.popitem(last=True)
 
     # this function should never be called twice to avoid double logging of metrics
     def stop_metric_providers(self):
