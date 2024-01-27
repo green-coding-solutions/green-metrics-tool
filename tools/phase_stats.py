@@ -110,7 +110,7 @@ def build_and_store_phase_stats(run_id, sci=None):
         # after going through detail metrics, create cumulated ones
         if network_io_bytes_total:
             # build the network energy
-            # network via formula: https://www.green-coding.berlin/co2-formulas/
+            # network via formula: https://www.green-coding.io/co2-formulas/
             # pylint: disable=invalid-name
             network_io_in_kWh = (sum(network_io_bytes_total) / 1_000_000_000) * 0.00375
             network_io_in_mJ = network_io_in_kWh * 3_600_000_000

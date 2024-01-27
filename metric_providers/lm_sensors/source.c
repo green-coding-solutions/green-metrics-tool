@@ -176,6 +176,7 @@ static void output_value(int value, char *container_id) {
 
 int main(int argc, char *argv[]) {
     int c, err;
+    int measurement_amount = -1;
     const char *config_file_name = NULL;
 
     // These are the lists that we pass in through the command line
@@ -202,7 +203,7 @@ int main(int argc, char *argv[]) {
     setlocale(LC_CTYPE, "");
 
     while (1) {
-        c = getopt_long(argc, argv, "c:f:hts:i:", long_opts, NULL);
+        c = getopt_long(argc, argv, "c:f:hts:i:n:", long_opts, NULL);
         if (c == EOF) break;
         switch (c) {
             case ':':
@@ -235,6 +236,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'i':
                 msleep_time = atoi(optarg);
+                break;
+            case 'n':
+                measurement_amount = atoi(optarg);
                 break;
             default:
                 exit(1);
@@ -342,6 +346,9 @@ int main(int argc, char *argv[]) {
                  g_string_free(chip_feature_str, 1);
                  free(tmp_label);
             }
+
+            if (measurement_amount != -1) measurement_amount--; // only decrement if switch was given to not overflow.
+            if (!measurement_amount) break;
             usleep(msleep_time * 1000);
         }
         g_list_free_full(chip_feature_output, free);

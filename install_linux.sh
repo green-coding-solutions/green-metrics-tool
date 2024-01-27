@@ -153,7 +153,11 @@ rm lib/sgx-software-enable/sgx_enable.o
 print_message "Adding hardware_info_root.py to sudoers file"
 PYTHON_PATH=$(which python3)
 PWD=$(pwd)
-echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
+echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
+# remove old file name
+sudo rm -f /etc/sudoers.d/green_coding_hardware_info
+
 
 print_message "Setting the hardare hardware_info to be owned by root"
 sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
@@ -175,7 +179,11 @@ fi
 
 
 print_message "Adding IPMI to sudoers file"
-echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/ipmi_get_machine_energy_stat
+echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+# remove old file name
+sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
+
 
 if [[ $no_hosts != true ]] ; then
 

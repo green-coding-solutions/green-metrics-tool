@@ -11,7 +11,6 @@ import subprocess
 import json
 import os
 import time
-from datetime import datetime
 from html import escape
 import sys
 import importlib
@@ -31,6 +30,7 @@ from lib import process_helpers
 from lib import hardware_info
 from lib import hardware_info_root
 from lib import error_helpers
+from lib.repo_info import get_repo_info
 from lib.debug_helper import DebugHelper
 from lib.terminal_colors import TerminalColors
 from lib.schema_checker import SchemaChecker
@@ -234,25 +234,7 @@ class Runner:
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
-        self._commit_hash = subprocess.run(
-            ['git', 'rev-parse', 'HEAD'],
-            check=True,
-            capture_output=True,
-            encoding='UTF-8',
-            cwd=self._folder
-        )
-        self._commit_hash = self._commit_hash.stdout.strip("\n")
-
-        self._commit_timestamp = subprocess.run(
-            ['git', 'show', '-s', '--format=%ci'],
-            check=True,
-            capture_output=True,
-            encoding='UTF-8',
-            cwd=self._folder
-        )
-
-        self._commit_timestamp = self._commit_timestamp.stdout.strip("\n")
-        self._commit_timestamp = datetime.strptime(self._commit_timestamp, "%Y-%m-%d %H:%M:%S %z")
+        self._commit_hash, self._commit_timestamp = get_repo_info(self._folder)
 
     # This method loads the yml file and takes care that the includes work and are secure.
     # It uses the tagging infrastructure provided by https://pyyaml.org/wiki/PyYAMLDocumentation
@@ -437,15 +419,7 @@ class Runner:
     def update_and_insert_specs(self):
         config = GlobalConfig().config
 
-        gmt_hash = subprocess.run(
-            ['git', 'rev-parse', 'HEAD'],
-            check=True,
-            capture_output=True,
-            encoding='UTF-8',
-            cwd=CURRENT_DIR
-        )
-        gmt_hash = gmt_hash.stdout.strip("\n")
-
+        gmt_hash, _ = get_repo_info(CURRENT_DIR)
 
         # There are two ways we get hardware info. First things we don't need to be root to do which we get through
         # a method call. And then things we need root privilege which we need to call as a subprocess with sudo. The
@@ -1022,6 +996,7 @@ class Runner:
                 self.custom_sleep(10)
 
         print(TerminalColors.HEADER, '\nWaiting for Metric Providers to boot ...', TerminalColors.ENDC)
+        # if this is omitted the stderr can be empty even if the process is not found by the OS ... python process spawning is slow ...
         self.custom_sleep(2)
 
         for metric_provider in self.__metric_providers:
@@ -1045,7 +1020,7 @@ class Runner:
             # The force-sleep must go and we must actually check for the temperature baseline
             print(f"\nForce-sleeping for {config['measurement']['phase-transition-time']}s")
             self.custom_sleep(config['measurement']['phase-transition-time'])
-            print(TerminalColors.HEADER, '\nChecking if temperature is back to baseline ...', TerminalColors.ENDC)
+            #print(TerminalColors.HEADER, '\nChecking if temperature is back to baseline ...', TerminalColors.ENDC)
 
         phase_time = int(time.time_ns() / 1_000)
         self.__notes_helper.add_note({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
@@ -1245,6 +1220,7 @@ class Runner:
         ps_errors = []
         for ps in self.__ps_to_kill:
             try:
+                # we never need to kill a process group here, even if started in shell mode, as we funnel through docker exec
                 process_helpers.kill_ps(ps['ps'], ps['cmd'])
             except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
                 ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
@@ -1281,11 +1257,19 @@ class Runner:
         print(TerminalColors.HEADER, '\nChecking process return codes', TerminalColors.ENDC)
         for ps in self.__ps_to_read:
             if not ps['ignore-errors']:
-                if process_helpers.check_process_failed(ps['ps'], ps['detach']):
-                    stderr = 'Not read because detached. Please use stderr logging.'
-                    if not ps['detach']:
+                # This block will read from a detached process via communicate
+                # If the process is detached the returncode is only set after communicate has been called, even if it failed
+                # If the process is still running the returncode will be None and it still runs
+                try:
+                    if ps['detach']:
+                        _, stderr = ps['ps'].communicate(timeout=1)
+                    else:
                         stderr = ps['ps'].stderr
-                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}. Detached process: {ps['detach']}")
+                except subprocess.TimeoutExpired:
+                    pass
+
+                if process_helpers.check_process_failed(ps['ps'], ps['detach']):
+                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}")
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
@@ -1571,7 +1555,7 @@ if __name__ == '__main__':
     parser.add_argument('--dev-flow-timetravel', action='store_true', help='Allows to repeat a failed flow or timetravel to beginning of flows or restart services.')
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
-    parser.add_argument('--dev-no-build', action='store_true', help='Checks if a container images are already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run.')
+    parser.add_argument('--dev-no-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
     args = parser.parse_args()

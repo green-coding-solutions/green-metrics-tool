@@ -199,7 +199,17 @@ METRIC_MAPPINGS = {
     'network_io_cgroup_container': {
         'clean_name': 'Network I/O',
         'source': 'cgroup',
-        'explanation': 'Network I/O. Details on docs.green-coding.berlin/docs/measuring/metric-providers/network-io-cgroup-container',
+        'explanation': 'Network I/O. Details on https://docs.green-coding.io/docs/measuring/metric-providers/network-io-cgroup-container',
+    },
+    'gpu_energy_nvidia_smi_component': {
+        'clean_name': 'GPU Energy',
+        'source': 'NVIDA SMI',
+        'explanation': 'Derived NVIDIA SMI based GPU energy',
+    },
+    'gpu_power_nvidia_smi_component': {
+        'clean_name': 'GPU Power',
+        'source': 'NVIDA SMI',
+        'explanation': 'NVIDIA SMI based GPU power',
     },
     'cpu_energy_rapl_msr_component': {
         'clean_name': 'CPU Energy (Package)',

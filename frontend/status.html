@@ -18,6 +18,8 @@
     <script src="/dist/js/accordion.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
+    <script src="/dist/js/modal.min.js" defer></script>
+    <script src="/dist/js/dimmer.min.js" defer></script>
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
     <script src="/js/status.js" defer></script>
@@ -37,8 +39,7 @@
             <div class="content">
                 <div class="header">Status overview</div>
                 <div class="description">
-                    <p>This page shows the database status. In the current version only the jobs in the database are shown.</p>
-                </p>
+                <p>This page shows the status of the machines and the jobs in their respective queues.</p>
                 <p>With it you can estimate the length of the jobs queue. Be aware of the the processing scheme configured (Random or FIFO).</p>
                 <p>In a future version this will also provide statistics such as jobs run per day, failed jobs, most measured software etc.</p>
                 </div>
@@ -50,5 +51,16 @@
         <h3>Jobs queue</h3>
         <table id="jobs-table" class="ui celled striped table"></table>
     </div>
+    <div class="ui overlay large modal" id="machine-configuration">
+        <div class="header">Details</div>
+        <div class="scrolling content" id="modal-content">
+            <div class="ui loading segment" id="machine-configuration-details">
+                <pre></pre>
+            </div>
+        </div>
+        <div class="actions">
+            <div class="ui approve button">Close</div>
+          </div>
+      </div>
 </body>
 </html>

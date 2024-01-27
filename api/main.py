@@ -102,7 +102,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
         return ORJSONResponse(
             content={
                 'success': False,
-                'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.berlin',
+                'err': 'Technical error with getting data from the API - Please contact us: info@green-coding.io',
             },
             status_code=500,
         )
@@ -533,16 +533,33 @@ async def get_timeline_projects():
 
 
 @app.get('/v1/jobs')
-async def get_jobs():
-    # Do not get the email jobs as they do not need to be display in the frontend atm
-    query = """
+async def get_jobs(machine_id: int | None = None, state: str | None = None):
+
+    params = []
+    machine_id_condition = ''
+    state_condition = ''
+
+    if machine_id is not None:
+        machine_id_condition = 'AND j.machine_id = %s'
+        params.append(machine_id)
+
+    if state is not None and state != '':
+        state_condition = 'AND j.state = %s'
+        params.append(state)
+
+
+    query = f"""
         SELECT j.id, r.id as run_id, j.name, j.url, j.filename, j.branch, m.description, j.state, j.updated_at, j.created_at
         FROM jobs as j
         LEFT JOIN machines as m on m.id = j.machine_id
         LEFT JOIN runs as r on r.job_id = j.id
+        WHERE
+            1=1
+            {machine_id_condition}
+            {state_condition}
         ORDER BY j.updated_at DESC, j.created_at ASC
     """
-    data = DB().fetch_all(query)
+    data = DB().fetch_all(query, params)
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
@@ -1033,7 +1050,7 @@ async def software_add(software: Software):
     if software.schedule_mode == 'one-off':
         Job.insert(software.name, software.url,  software.email, software.branch, software.filename, software.machine_id)
     elif software.schedule_mode == 'variance':
-        for _ in range(0,3):
+        for _ in range(0,10):
             Job.insert(software.name, software.url,  software.email, software.branch, software.filename, software.machine_id)
     else:
         TimelineProject.insert(software.name, software.url, software.branch, software.filename, software.machine_id, software.schedule_mode)
