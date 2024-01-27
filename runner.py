@@ -1150,7 +1150,11 @@ class Runner:
                     raise flow_exc
 
                 print('Exception occured: ', flow_exc)
-                print(TerminalColors.OKCYAN, '\nWhat do you want to do?\n1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n0 / CTRL+C -- Abort', TerminalColors.ENDC)
+            finally:
+                if not self._dev_flow_timetravel: # Timetravel only if active
+                    continue
+
+                print(TerminalColors.OKCYAN, '\nTime-Travel mode is active!\nWhat do you want to do?\n0 -- Continue\n1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n9 / CTRL+C -- Abort', TerminalColors.ENDC)
                 value = sys.stdin.readline().strip()
 
                 self.__ps_to_read.clear() # clear, so we do not read old processes
@@ -1162,7 +1166,7 @@ class Runner:
                         print(f"Could not kill {ps['cmd']}. Exception: {process_exc}")
 
                 if value == '0':
-                    raise KeyboardInterrupt("Manual abort") from flow_exc
+                    continue
                 if value == '1':
                     self.__phases.popitem(last=True)
                 if value == '2':
@@ -1174,6 +1178,8 @@ class Runner:
                     self.setup_networks()
                     self.setup_services()
                     flow_id = 0
+                if value == '9':
+                    raise KeyboardInterrupt("Manual abort") from flow_exc
 
 
     # this function should never be called twice to avoid double logging of metrics
