@@ -889,7 +889,7 @@ class Runner:
                                 if ps.returncode != 0 or health == '<nil>':
                                     raise RuntimeError(f"Health check for dependent_container '{dependent_container}' was requested, but container has no healthcheck implemented! (Output was: {health})")
                                 if health == 'unhealthy':
-                                    raise RuntimeError('Container healthcheck failed terminally with status "unhealthy")')
+                                    raise RuntimeError('Container healthcheck failed terminally with status "unhealthy"')
 
                                 print(f"Health of container '{dependent_container}': {health}")
                             elif condition == 'service_started':
