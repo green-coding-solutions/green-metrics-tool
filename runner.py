@@ -1170,7 +1170,7 @@ class Runner:
                         self.__phases.popitem(last=True)
                     flow_id = 0
                 if value == '3':
-                    self.cleanup(inline=True)
+                    self.cleanup(continue_measurement=True)
                     self.setup_networks()
                     self.setup_services()
                     flow_id = 0
@@ -1345,11 +1345,11 @@ class Runner:
                 """, params=(logs_as_str, self._run_id))
 
 
-    def cleanup(self, inline=False):
+    def cleanup(self, continue_measurement=False):
         #https://github.com/green-coding-berlin/green-metrics-tool/issues/97
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
 
-        if inline is not True:
+        if continue_measurement is False:
             print('Stopping metric providers')
             for metric_provider in self.__metric_providers:
                 try:
@@ -1371,11 +1371,11 @@ class Runner:
             subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
         self.__networks.clear()
 
-        if inline is not True and self._no_file_cleanup is not True:
+        if continue_measurement is False and self._no_file_cleanup is not True:
             print('Removing files')
             subprocess.run(['rm', '-Rf', self._tmp_folder], stderr=subprocess.DEVNULL, check=True)
 
-        if inline is not True:
+        if continue_measurement is False:
             self.remove_docker_images()
 
         ps_errors = []
@@ -1393,7 +1393,7 @@ class Runner:
         self.__ps_to_kill.clear()
         self.__ps_to_read.clear()
 
-        if inline is not True:
+        if continue_measurement is False:
             self.__start_measurement = None
             self.__notes_helper = Notes()
 
