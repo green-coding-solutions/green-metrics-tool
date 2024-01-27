@@ -189,7 +189,7 @@ class Job:
                 OR
                 (state = 'FAILED' AND updated_at < NOW() - INTERVAL '14 DAYS')
                 OR
-                (state = 'FINISHED' AND updated_at < NOW() - INTERVAL '14 DAYS' AND email IS NULL)
+                (state = 'FINISHED' AND updated_at < NOW() - INTERVAL '14 DAYS')
             '''
         DB().query(query)
 
