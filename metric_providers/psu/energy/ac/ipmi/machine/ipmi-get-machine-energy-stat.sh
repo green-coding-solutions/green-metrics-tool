@@ -2,19 +2,19 @@
 set -euo pipefail
 
 i=''
-check_system=False
+check_system=false
 while getopts "i:c" o; do
     case "$o" in
         i)
             i=${OPTARG}
             ;;
         c)
-            check_system=True
+            check_system=true
             ;;
     esac
 done
 
-if [ "$check_system" = True ]; then
+if $check_system; then
     first_line=$(sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics | head -1)
     if ! [[ "$first_line" =~ ^"Current Power" ]]; then
         echo "Unable to find 'Current Power' in the output of 'sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics' command. Found $first_line instead">&2

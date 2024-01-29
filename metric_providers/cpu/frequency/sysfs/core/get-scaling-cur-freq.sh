@@ -2,7 +2,7 @@
 set -euo pipefail
 
 cores=$(cat /proc/cpuinfo | grep processor | awk '{print $3}')
-check_system=False
+check_system=false
 i=''
 
 while getopts "i:c" o; do
@@ -11,12 +11,12 @@ while getopts "i:c" o; do
             i=${OPTARG}
             ;;
         c)
-            check_system=True
+            check_system=true
             ;;
     esac
 done
 
-if [ "$check_system" = True ]; then
+if $check_system; then
     file_path="/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"
 
     if [ -e "$file_path" ]; then
