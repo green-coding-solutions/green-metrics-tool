@@ -116,7 +116,7 @@ class Runner:
         self._original_filename = filename
         self._branch = branch
         #DMM:MARK
-        self._tmp_folder = f"/tmp/green-metrics-tool/{parallel_id}"
+        self._tmp_folder = "/tmp/green-metrics-tool"
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
         self._sci = {'R_d': None, 'R': 0}

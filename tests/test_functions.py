@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+import yaml
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -32,6 +33,30 @@ def replace_include_in_usage_scenario(usage_scenario_path, docker_compose_filena
     with open(usage_scenario_path, 'w', encoding='utf-8') as file:
         file.write(data)
 
+def parallelize_runner(runner, parallel_id):
+    runner._tmp_folder = f"/tmp/green-metrics-tool/{parallel_id}"
+    runner._folder = f"{runner._tmp_folder}/repo"
+    print(runner._uri)
+    ## Remember to edit compose file too, because of !include shenanigans
+
+    original_yaml_path = os.path.join(runner._uri, runner._original_filename)
+    with open(original_yaml_path, 'r', encoding='utf-8') as file:
+        yaml_data = yaml.safe_load(file)
+
+    print(yaml_data.items())
+    #print(yaml.dump(yaml_data))
+    # go through yaml_data, and add parallel_id to any value whose key is container
+    for key, value in yaml_data.items():
+        if key == 'containers':
+            pass
+        elif key == 'networks':
+            for network in value:
+                network['name'] = f"{network}_{parallel_id}"
+
+    # with open(original_yaml_path, 'w') as file:
+    #     yaml.dump(yaml_data, file, default_flow_style=False)
+
+    return runner
 
 def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='folder', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False,
@@ -51,11 +76,13 @@ def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='f
 
     RUN_NAME = 'test_' + utils.randomword(12)
 
-    return Runner(name=RUN_NAME, uri=uri, uri_type=uri_type, filename=usage_scenario, branch=branch,
+    runner = Runner(name=RUN_NAME, uri=uri, uri_type=uri_type, filename=usage_scenario, branch=branch,
         debug_mode=debug_mode, allow_unsafe=allow_unsafe, no_file_cleanup=no_file_cleanup,
         skip_unsafe=skip_unsafe, verbose_provider_boot=verbose_provider_boot, dev_no_build=dev_no_build,
-        skip_system_checks=skip_system_checks, dev_no_sleeps=dev_no_sleeps, dev_no_metrics=dev_no_metrics,
-        parallel_id=parallel_id)
+        skip_system_checks=skip_system_checks, dev_no_sleeps=dev_no_sleeps, dev_no_metrics=dev_no_metrics)
+
+    return parallelize_runner(runner, parallel_id)
+
 
 # This function runs the runner up to and *including* the specified step
 # remember to catch in try:finally and do cleanup when calling this!
@@ -158,7 +185,6 @@ def cleanup(runner):
                     finally:
                         runner.cleanup()  # always run cleanup automatically after each run
 
-
 def assertion_info(expected, actual):
     return f"Expected: {expected}, Actual: {actual}"
 
@@ -166,3 +192,7 @@ def create_test_file(path):
     if not os.path.exists(path):
         os.mkdir(path)
     Path(f"{path}/test-file").touch()
+
+# test this file
+if __name__ == '__main__':
+    setup_runner('network_stress.yml', 'compose.yml')
