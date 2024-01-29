@@ -18,4 +18,4 @@ Example:
 
 # Documentation
 
-For details and output format please look at https://docs.green-coding.berlin/docs/measuring/metric-providers/cpu-energy-rapl-msr-system/
+For details and output format please look at https://docs.green-coding.io/docs/measuring/metric-providers/cpu-energy-rapl-msr-system/

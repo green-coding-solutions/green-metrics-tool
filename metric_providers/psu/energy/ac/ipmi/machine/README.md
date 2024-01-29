@@ -1,6 +1,6 @@
 # Information
 
-See https://docs.green-coding.berlin/docs/measuring/metric-providers/psu-energy-ac-ipmi-machine/ for details.
+See https://docs.green-coding.io/docs/measuring/metric-providers/psu-energy-ac-ipmi-machine/ for details.
 
 This provider uses [IPMI](https://www.intel.com/content/www/us/en/products/docs/servers/ipmi/ipmi-home.html) to get  
 the current machine power statistics.

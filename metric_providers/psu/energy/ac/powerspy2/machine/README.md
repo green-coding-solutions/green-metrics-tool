@@ -7,7 +7,7 @@ The protocol documentation can be found under:
 https://www.alciom.com/wp-content/uploads/2018/04/LG0838-003-powerspy-protocol-specification-1G.pdf
 
 Full documentation of this provider can be found on our main docs page:
-https://docs.green-coding.berlin/docs/measuring/metric-providers/psu-energy-ac-powerspy2/
+https://docs.green-coding.io/docs/measuring/metric-providers/psu-energy-ac-powerspy2/
 
 ## Setup
 

@@ -1,3 +1,3 @@
 # Documentation
 
-Please see https://docs.green-coding.berlin/docs/measuring/metric-providers/network-proxy/ for details
+Please see https://docs.green-coding.io/docs/measuring/metric-providers/network-proxy/ for details
