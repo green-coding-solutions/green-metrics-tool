@@ -49,29 +49,35 @@ class BaseMetricProvider:
 
     # this is the default function that can be overridden in the children
     # by default we expect the executable to have a -c switch to test functionality
-    def check_system(self):
-        call_string = self._metric_provider_executable
-        if self._metric_provider_executable[0] != '/':
-            call_string = f"{self._current_dir}/{call_string}"
+    def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
+        if check_command is not None:
+            if check_command == "default":
+                call_string = self._metric_provider_executable
+                if self._metric_provider_executable[0] != '/':
+                    call_string = f"{self._current_dir}/{call_string}"
+                check_command = [f"{call_string}", '-c']
 
-        ps = subprocess.run([f"{call_string}", '-c'], capture_output=True, encoding='UTF-8', check=False)
-        if ps.returncode != 0:
-            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nError: {ps.stderr}\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
+            ps = subprocess.run(check_command, capture_output=True, encoding='UTF-8', check=False)
+            if ps.returncode != 0:
+                if check_error_message is None:
+                    check_error_message = ps.stderr
+                raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nError: {check_error_message}\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
 
-        self.check_parallel_provider_running()
+        ## Check if another instance of the same metric provider is already running
+        if check_parallel_provider:
+            cmd = ['pgrep', '-f', self._metric_provider_executable]
+            result = subprocess.run(cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                check=False, encoding='UTF-8')
+            if result.returncode == 1:
+                pass
+            elif result.returncode == 0:
+                raise MetricProviderConfigurationError(f"Another instance of the {self._metric_name} metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.")
+            else:
+                raise subprocess.CalledProcessError(result.stderr, cmd)
 
-    def check_parallel_provider_running(self):
-        cmd = ['pgrep', '-f', self._metric_provider_executable]
-        result = subprocess.run(cmd,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            check=False, encoding='UTF-8')
-        if result.returncode == 1:
-            return True
-        if result.returncode == 0:
-            raise MetricProviderConfigurationError(f"Another instance of the {self._metric_name} metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.")
-        # implicit else
-        raise subprocess.CalledProcessError(result.stderr, cmd)
+        return True
 
     # implemented as getter function and not direct access, so it can be overloaded
     # some child classes might not actually have _ps attribute set

@@ -88,13 +88,12 @@ static int parse_containers(container_t** containers, char* containers_string, i
 }
 
 static int check_system(int rootless_mode) {
-    char check_path[BUFSIZ];
-    sprintf(check_path, "/sys/fs/cgroup/cpu.stat");
-    
+    const char* check_path;
+
     if(rootless_mode) {
-        sprintf(check_path, "/sys/fs/cgroup/user.slice/memory.current");
+        check_path = "/sys/fs/cgroup/user.slice/memory.current";
     } else {
-        sprintf(check_path, "/sys/fs/cgroup/system.slice/memory.current");
+        check_path = "/sys/fs/cgroup/system.slice/memory.current";
     }
 
     FILE* fd = NULL;

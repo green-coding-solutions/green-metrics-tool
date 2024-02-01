@@ -40,8 +40,9 @@ class LmSensorsProvider(BaseMetricProvider):
         )
         self._extra_switches = self._create_options()
 
-    def check_system(self):
-        self.check_parallel_provider_running()
+    def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
+        super().check_system(check_command=None)
+
         # Run 'sensors' command and capture the output
         ps = subprocess.run(['sensors'], capture_output=True, text=True, check=False)
         if ps.returncode != 0:

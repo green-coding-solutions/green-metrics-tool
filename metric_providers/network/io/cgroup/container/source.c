@@ -153,16 +153,15 @@ static int parse_containers(container_t** containers, char* containers_string, i
 }
 
 static int check_system(int rootless_mode) {
-    char file_path_cgroup_procs[BUFSIZ];
-    char file_path_proc_net_dev[BUFSIZ];
+    const char* file_path_cgroup_procs;
+    const char file_path_proc_net_dev[] = "/proc/net/dev";
     int found_error = 0;
 
     if(rootless_mode) {
-        sprintf(file_path_cgroup_procs, "/sys/fs/cgroup/user.slice/cgroup.procs");
+        file_path_cgroup_procs = "/sys/fs/cgroup/user.slice/cgroup.procs";
     } else {
-        sprintf(file_path_cgroup_procs, "/sys/fs/cgroup/system.slice/cgroup.procs");
+        file_path_cgroup_procs = "/sys/fs/cgroup/system.slice/cgroup.procs";
     }
-    sprintf(file_path_proc_net_dev, "/proc/net/dev");
     
     FILE* fd = NULL;
 

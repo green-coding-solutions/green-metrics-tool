@@ -79,12 +79,12 @@ static int parse_containers(container_t** containers, char* containers_string, i
 }
 
 static int check_system(int rootless_mode) {
-    char check_path[BUFSIZ];
+    const char* check_path;
 
     if(rootless_mode) {
-        sprintf(check_path, "/sys/fs/cgroup/user.slice/cpu.stat");
+        check_path = "/sys/fs/cgroup/user.slice/cpu.stat";
     } else {
-        sprintf(check_path, "/sys/fs/cgroup/system.slice/cpu.stat");
+        check_path = "/sys/fs/cgroup/system.slice/cpu.stat";
     }
     
     FILE* fd = NULL;

@@ -37,9 +37,7 @@ static int output_stats() {
 }
 
 static int check_system() {
-    char check_path[BUFSIZ];
-    sprintf(check_path, "/sys/fs/cgroup/cpu.stat");
-    
+    const char check_path[] = "/sys/fs/cgroup/cpu.stat";
     FILE* fd = NULL;
     fd = fopen(check_path, "r");
 

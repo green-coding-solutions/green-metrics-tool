@@ -37,14 +37,14 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
     def start_profiling(self, containers=None):
         self._has_started = True
 
-    #TODO: not a fan of using the full key name here. any way to avoid this?
-    # keeping original checks in read_metrics for now
-    def check_system(self):
+    def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
+        # We want to skip both the normal binary check, as well as the parallel provider check
+        # as there is no metric_provider_executable to check
+        super().check_system(check_command=None, check_parallel_provider=False)
         config = GlobalConfig().config
         if 'cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider' not in config['measurement']['metric-providers']['linux']:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease activate the CpuUtilizationProcfsSystemProvider in the config.yml\n \
                 This is required to run PsuEnergyAcSdiaMachineProvider")
-        self.check_parallel_provider_running()
 
     def read_metrics(self, run_id, containers=None):
 

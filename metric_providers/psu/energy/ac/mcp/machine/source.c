@@ -249,8 +249,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Error. Connection could not be opened\n");
         return -1;
     }
-
-    if(check_system_flag && fd >= 0) {
+    else if(check_system_flag) {
         exit(0);
     }
 

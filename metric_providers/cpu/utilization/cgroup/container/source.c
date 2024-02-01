@@ -153,16 +153,16 @@ static int parse_containers(container_t** containers, char* containers_string, i
 }
 
 static int check_system(int rootless_mode) {
-    char file_path_cpu_stat[BUFSIZ];
-    char file_path_proc_stat[BUFSIZ];
+    const char* file_path_cpu_stat;
+    const char* file_path_proc_stat;
     int found_error = 0;
 
     if(rootless_mode) {
-        sprintf(file_path_cpu_stat, "/sys/fs/cgroup/user.slice/cpu.stat");
+        file_path_cpu_stat = "/sys/fs/cgroup/user.slice/cpu.stat";
     } else {
-        sprintf(file_path_cpu_stat, "/sys/fs/cgroup/system.slice/cpu.stat");
+        file_path_cpu_stat = "/sys/fs/cgroup/system.slice/cpu.stat";
     }
-    sprintf(file_path_proc_stat, "/proc/stat");
+    file_path_proc_stat = "/proc/stat";
     
     FILE* fd = NULL;
 
