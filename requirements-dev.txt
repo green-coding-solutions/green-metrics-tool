@@ -1,6 +1,6 @@
 -r requirements.txt
-pydantic==2.5.3
-pytest==7.4.4
+pydantic==2.6.0
+pytest==8.0.0
 requests==2.31.0
 pylint==3.0.3
 fastapi==0.109.0
