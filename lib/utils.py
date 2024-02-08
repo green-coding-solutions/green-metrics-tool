@@ -2,6 +2,8 @@ import random
 import string
 import subprocess
 import psycopg
+import os
+from pathlib import Path
 
 from lib.db import DB
 
@@ -61,3 +63,41 @@ def get_architecture():
     if output == 'darwin':
         return 'macos'
     return output
+
+# This function takes a path and a file and joins them while making sure that no one is trying to escape the
+# path with `..`, symbolic links or similar.
+# We always return the same error message including the path and file parameter, never `filename` as
+# otherwise we might disclose if certain files exist or not.
+def join_paths(path, path2, mode='file'):
+    filename = os.path.realpath(os.path.join(path, path2))
+
+    # If the original path is a symlink we need to resolve it.
+    path = os.path.realpath(path)
+
+    # This is a special case in which the file is '.'
+    if filename == path.rstrip('/'):
+        return filename
+
+    if not filename.startswith(path):
+        raise ValueError(f"{path2} must not be in folder above {path}")
+
+    # To double check we also check if it is in the files allow list
+
+    if mode == 'file':
+        folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
+    elif mode == 'directory':
+        folder_content = [str(item) for item in Path(path).rglob("*") if item.is_dir()]
+    else:
+        raise RuntimeError(f"Unknown mode supplied for join_paths: {mode}")
+
+    if filename not in folder_content:
+        raise ValueError(f"{mode.capitalize()} '{path2}' not in '{path}'")
+
+    # Another way to implement this. This is checking the third time but we want to be extra secure 👾
+    if Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
+        raise ValueError(f"{mode.capitalize()} '{path2}' not in folder '{path}'")
+
+    if os.path.exists(filename):
+        return filename
+
+    raise FileNotFoundError(f"{path2} in {path} not found")

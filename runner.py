@@ -38,65 +38,22 @@ from lib.db import DB
 from lib.global_config import GlobalConfig
 from lib.notes import Notes
 from lib import system_checks
+from lib.yml_helpers import Loader
 
 from tools.machine import Machine
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
 
-# This function takes a path and a file and joins them while making sure that no one is trying to escape the
-# path with `..`, symbolic links or similar.
-# We always return the same error message including the path and file parameter, never `filename` as
-# otherwise we might disclose if certain files exist or not.
-def join_paths(path, path2, mode='file'):
-    filename = os.path.realpath(os.path.join(path, path2))
-
-    # If the original path is a symlink we need to resolve it.
-    path = os.path.realpath(path)
-
-    # This is a special case in which the file is '.'
-    if filename == path.rstrip('/'):
-        return filename
-
-    if not filename.startswith(path):
-        raise ValueError(f"{path2} must not be in folder above {path}")
-
-    # To double check we also check if it is in the files allow list
-
-    if mode == 'file':
-        folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
-    elif mode == 'directory':
-        folder_content = [str(item) for item in Path(path).rglob("*") if item.is_dir()]
-    else:
-        raise RuntimeError(f"Unknown mode supplied for join_paths: {mode}")
-
-    if filename not in folder_content:
-        raise ValueError(f"{mode.capitalize()} '{path2}' not in '{path}'")
-
-    # Another way to implement this. This is checking the third time but we want to be extra secure 👾
-    if Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
-        raise ValueError(f"{mode.capitalize()} '{path2}' not in folder '{path}'")
-
-    if os.path.exists(filename):
-        return filename
-
-    raise FileNotFoundError(f"{path2} in {path} not found")
-
-
-
 class Runner:
     def __init__(self,
         name, uri, uri_type, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_system_checks=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
-        dev_no_sleeps=False, dev_no_build=False, dev_no_metrics=False, docker_prune=False, job_id=None,
-        parallel_id=None):
+        dev_no_sleeps=False, dev_no_build=False, dev_no_metrics=False, docker_prune=False, job_id=None):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
-
-        if parallel_id is None:
-            parallel_id = random.randint(500000,10000000)
 
         # variables that should not change if you call run multiple times
         self._name = name
@@ -126,7 +83,6 @@ class Runner:
         self._run_id = None
         self._commit_hash = None
         self._commit_timestamp = None
-        self._parallel_id = parallel_id
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
@@ -245,47 +201,7 @@ class Runner:
     # Inspiration from https://github.com/tanbro/pyyaml-include which we can't use as it doesn't
     # do security checking and has no option to select when imported
     def load_yml_file(self):
-        #pylint: disable=too-many-ancestors
-        class Loader(yaml.SafeLoader):
-            def __init__(self, stream):
-                # We need to find our own root as the Loader is instantiated in PyYaml
-                self._root = os.path.split(stream.name)[0]
-                super().__init__(stream)
-
-            def include(self, node):
-                # We allow two types of includes
-                # !include <filename> => ScalarNode
-                # and
-                # !include <filename> <selector> => SequenceNode
-                if isinstance(node, yaml.nodes.ScalarNode):
-                    nodes = [self.construct_scalar(node)]
-                elif isinstance(node, yaml.nodes.SequenceNode):
-                    nodes = self.construct_sequence(node)
-                else:
-                    raise ValueError("We don't support Mapping Nodes to date")
-
-                filename = join_paths(self._root, nodes[0], 'file')
-
-                with open(filename, 'r', encoding='utf-8') as f:
-                    # We want to enable a deep search for keys
-                    def recursive_lookup(k, d):
-                        if k in d:
-                            return d[k]
-                        for v in d.values():
-                            if isinstance(v, dict):
-                                return recursive_lookup(k, v)
-                        return None
-
-                    # We can use load here as the Loader extends SafeLoader
-                    if len(nodes) == 1:
-                        # There is no selector specified
-                        return yaml.load(f, Loader)
-
-                    return recursive_lookup(nodes[1], yaml.load(f, Loader))
-
-        Loader.add_constructor('!include', Loader.include)
-
-        usage_scenario_file = join_paths(self._folder, self._original_filename, 'file')
+        usage_scenario_file = utils.join_paths(self._folder, self._original_filename, 'file')
 
         # We set the working folder now to the actual location of the usage_scenario
         if '/' in self._original_filename:
@@ -568,8 +484,8 @@ class Runner:
                 self.__notes_helper.add_note({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
                 # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
-                context_path = join_paths(self._folder, context, 'directory')
-                join_paths(context_path, dockerfile, 'file')
+                context_path = utils.join_paths(self._folder, context, 'directory')
+                utils.join_paths(context_path, dockerfile, 'file')
 
                 docker_build_command = ['docker', 'run', '--rm',
                     '-v', f"{self._folder}:/workspace:ro", # this is the folder where the usage_scenario is!
@@ -623,7 +539,6 @@ class Runner:
         if 'networks' in self._usage_scenario:
             print(TerminalColors.HEADER, '\nSetting up networks', TerminalColors.ENDC)
             for network in self._usage_scenario['networks']:
-                network = f"{network}_{self._parallel_id}"
                 print('Creating network: ', network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
                 subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
@@ -676,12 +591,11 @@ class Runner:
         # Check if there are service dependencies defined with 'depends_on'.
         # If so, change the order of the services accordingly.
         services_ordered = self.order_services(services)
-        #DMM:MARK
         for service_name, service in services_ordered.items():
             if 'container_name' in service:
-                container_name = f"{service['container_name']}_{self._parallel_id}"
+                container_name = f"{service['container_name']}"
             else:
-                container_name = f"{service_name}_{self._parallel_id}"
+                container_name = f"{service_name}"
 
             print(TerminalColors.HEADER, '\nSetting up container: ', container_name, TerminalColors.ENDC)
 
@@ -815,7 +729,6 @@ class Runner:
 
             if 'networks' in service:
                 for network in service['networks']:
-                    network = f"{network}_{self._parallel_id}"
                     docker_run_string.append('--net')
                     docker_run_string.append(network)
             elif self.__join_default_network:
@@ -864,21 +777,20 @@ class Runner:
             # In the future we want to implement an health check to know if dependent containers are actually ready.
             if 'depends_on' in service:
                 for dependent_container in service['depends_on']:
-                    dependent_container_name = f"{dependent_container}_{self._parallel_id}"
-                    print(f"Waiting for dependent container {dependent_container_name}")
+                    print(f"Waiting for dependent container {dependent_container}")
                     time_waited = 0
                     state = ''
                     health = 'healthy' # default because some containers have no health
                     max_waiting_time = config['measurement']['boot']['wait_time_dependencies']
                     while time_waited < max_waiting_time:
                         status_output = subprocess.check_output(
-                            ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container_name],
+                            ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
                             stderr=subprocess.STDOUT,
                             encoding='UTF-8',
                         )
 
                         state = status_output.strip()
-                        print(f"State of container '{dependent_container_name}': {state}")
+                        print(f"State of container '{dependent_container}': {state}")
 
                         if isinstance(service['depends_on'], dict) \
                             and 'condition' in service['depends_on'][dependent_container]:
@@ -886,7 +798,7 @@ class Runner:
                             condition = service['depends_on'][dependent_container]['condition']
                             if condition == 'service_healthy':
                                 ps = subprocess.run(
-                                    ["docker", "container", "inspect", "-f", "{{.State.Health.Status}}", dependent_container_name],
+                                    ["docker", "container", "inspect", "-f", "{{.State.Health.Status}}", dependent_container],
                                     check=False,
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT, # put both in one stream
@@ -894,10 +806,10 @@ class Runner:
                                 )
                                 health = ps.stdout.strip()
                                 if ps.returncode != 0 or health == '<nil>':
-                                    raise RuntimeError(f"Health check for dependent_container '{dependent_container_name}' was requested, but container has no healthcheck implemented! (Output was: {health})")
+                                    raise RuntimeError(f"Health check for dependent_container '{dependent_container}' was requested, but container has no healthcheck implemented! (Output was: {health})")
                                 if health == 'unhealthy':
                                     raise RuntimeError('ontainer healthcheck failed terminally with status "unhealthy")')
-                                print(f"Health of container '{dependent_container_name}': {health}")
+                                print(f"Health of container '{dependent_container}': {health}")
                             elif condition == 'service_started':
                                 pass
                             else:
@@ -911,9 +823,9 @@ class Runner:
                         time_waited += 1
 
                     if state != 'running':
-                        raise RuntimeError(f"Dependent container '{dependent_container_name}' of '{container_name}' is not running but {state} after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running but {state} after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
                     if health != 'healthy':
-                        raise RuntimeError(f"Dependent container '{dependent_container_name}' of '{container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
 
             if 'command' in service:  # must come last
                 for cmd in service['command'].split():
@@ -1073,8 +985,6 @@ class Runner:
 
             self.start_phase(el['name'].replace('[', '').replace(']',''), transition=False)
 
-            #DMM:MARK ['container']
-            el['container'] = f"{el['container']}_{self._parallel_id}"
             for inner_el in el['commands']:
                 if 'note' in inner_el:
                     self.__notes_helper.add_note({'note': inner_el['note'], 'detail_name': el['container'], 'timestamp': int(time.time_ns() / 1_000)})
