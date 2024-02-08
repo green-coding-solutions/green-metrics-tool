@@ -19,13 +19,14 @@ def make_proj_dir(dir_name, usage_scenario_path, docker_compose_path=None):
     if not os.path.exists('tmp/' + dir_name):
         os.mkdir('tmp/' + dir_name)
 
-    shutil.copy2(usage_scenario_path, os.path.join(CURRENT_DIR, 'tmp' ,dir_name))
+    dir_path = os.path.join(CURRENT_DIR, 'tmp' ,dir_name)
+    shutil.copy2(usage_scenario_path, dir_path)
     # copy over compose.yml and Dockerfile (from stress for now)
     if docker_compose_path is not None:
         shutil.copy2(docker_compose_path, os.path.join(CURRENT_DIR, 'tmp' ,dir_name))
         dockerfile = os.path.join(CURRENT_DIR, 'stress-application/Dockerfile')
         shutil.copy2(dockerfile, os.path.join(CURRENT_DIR, 'tmp' ,dir_name))
-    return dir_name
+    return dir_path
 
 def replace_include_in_usage_scenario(usage_scenario_path, docker_compose_filename):
     with open(usage_scenario_path, 'r', encoding='utf-8') as file:
@@ -34,8 +35,8 @@ def replace_include_in_usage_scenario(usage_scenario_path, docker_compose_filena
     with open(usage_scenario_path, 'w', encoding='utf-8') as file:
         file.write(data)
 
-def parallelize_runner(runner, parallel_id):
-    runner._tmp_folder = f"/tmp/green-metrics-tool/{parallel_id}"
+def parallelize_runner_folders(runner, parallel_id):
+    runner._tmp_folder = f"/tmp/gmt_tests_{parallel_id}/green-metrics-tool/"
     runner._folder = f"{runner._tmp_folder}/repo"
 
 def edit_yml_with_id(yml_path, parallel_id):
@@ -78,11 +79,11 @@ def edit_yml_with_id(yml_path, parallel_id):
 
     # Save the updated YAML file
     with open(yml_path, 'w', encoding='utf-8') as fp:
-        yaml.dump(yml_data, fp)
+        yaml.dump(yml_data, fp, sort_keys=False) #sort_keys=False preserves the original order
 
-
-
-def parallelize_files(proj_dir, usage_scenario_file, docker_compose='compose.yml', parallel_id=1234):
+def parallelize_files(proj_dir, usage_scenario_file, docker_compose='compose.yml', parallel_id=None):
+    if parallel_id is None:
+        parallel_id = utils.randomword(12)
     if docker_compose is None:
         docker_compose = 'compose.yml'
     usage_scenario_path = os.path.join(proj_dir, usage_scenario_file)
@@ -93,38 +94,46 @@ def parallelize_files(proj_dir, usage_scenario_file, docker_compose='compose.yml
     edit_yml_with_id(usage_scenario_path, parallel_id)
 
 
-def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='folder', branch=None,
-        debug_mode=False, allow_unsafe=False, no_file_cleanup=False,
+def setup_runner(name=None, usage_scenario="usage_scenario.yml", docker_compose=None, uri='default',
+        uri_type='folder', branch=None, debug_mode=False, allow_unsafe=False, no_file_cleanup=False,
         skip_unsafe=False, verbose_provider_boot=False, dir_name=None, dev_no_build=False, skip_system_checks=True,
-        dev_no_sleeps=True, dev_no_metrics=True, parallel_id=None):
-    usage_scenario_path = os.path.join(CURRENT_DIR, 'data/usage_scenarios/', usage_scenario)
-    if docker_compose is not None:
-        docker_compose_path = os.path.join(CURRENT_DIR, 'data/docker-compose-files/', docker_compose)
-    else:
-        docker_compose_path = os.path.join(CURRENT_DIR, 'data/docker-compose-files/compose.yml')
+        dev_no_sleeps=True, dev_no_metrics=True, parallel_id=None, create_tmp_directory=True, do_parallelize_files=True):
 
+    if parallel_id is None:
+        parallel_id = utils.randomword(12)
 
+    # parallelization of files only for uri_type folders, so far
+    # because url type means we are checking out a repo, and that happens already too late
     if uri_type == 'folder':
         if dir_name is None:
-            dir_name = utils.randomword(12)
-        make_proj_dir(dir_name=dir_name, usage_scenario_path=usage_scenario_path, docker_compose_path=docker_compose_path)
+            dir_name = parallel_id
+
+        if create_tmp_directory:
+            if docker_compose is not None:
+                docker_compose_path = os.path.join(CURRENT_DIR, 'data/docker-compose-files/', docker_compose)
+            else:
+                docker_compose_path = os.path.join(CURRENT_DIR, 'data/docker-compose-files/compose.yml')
+            usage_scenario_path = os.path.join(CURRENT_DIR, 'data/usage_scenarios/', usage_scenario)
+            make_proj_dir(dir_name=dir_name, usage_scenario_path=usage_scenario_path, docker_compose_path=docker_compose_path)
+
         uri = os.path.join(CURRENT_DIR, 'tmp/', dir_name)
-        parallelize_files(uri, usage_scenario, docker_compose, parallel_id)
+        if do_parallelize_files:
+            parallelize_files(uri, usage_scenario, docker_compose, parallel_id)
     elif uri_type == 'URL':
         if uri[0:8] != 'https://' and uri[0:7] != 'http://':
             raise ValueError("Invalid uri for URL")
     else:
         raise ValueError("Invalid uri_type")
 
+    if name is None:
+        name = f'test_{parallel_id}'
 
-    RUN_NAME = 'test_' + utils.randomword(12)
-
-    runner = Runner(name=RUN_NAME, uri=uri, uri_type=uri_type, filename=usage_scenario, branch=branch,
+    runner = Runner(name=name, uri=uri, uri_type=uri_type, filename=usage_scenario, branch=branch,
         debug_mode=debug_mode, allow_unsafe=allow_unsafe, no_file_cleanup=no_file_cleanup,
         skip_unsafe=skip_unsafe, verbose_provider_boot=verbose_provider_boot, dev_no_build=dev_no_build,
         skip_system_checks=skip_system_checks, dev_no_sleeps=dev_no_sleeps, dev_no_metrics=dev_no_metrics)
 
-    parallelize_runner(runner, parallel_id)
+    parallelize_runner_folders(runner, parallel_id)
 
     return runner
 

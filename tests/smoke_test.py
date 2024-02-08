@@ -2,6 +2,7 @@ import io
 import os
 import subprocess
 import re
+import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -10,7 +11,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from lib.db import DB
 from lib import utils
 from lib.global_config import GlobalConfig
-from runner import Runner
+from tests import test_functions as Tests
 
 run_stderr = None
 run_stdout = None
@@ -28,7 +29,7 @@ def setup_module():
         subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=False)
+        runner = Tests.setup_runner(usage_scenario="stress_application.yml", name=RUN_NAME, uri=uri, uri_type='folder', dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=False)
         runner.run()
 
     #pylint: disable=global-statement
@@ -36,15 +37,18 @@ def setup_module():
     run_stderr = err.getvalue()
     run_stdout = out.getvalue()
 
+@pytest.mark.xdist_group(name="systems_checks")
 def test_no_errors():
     # Assert that there is no std.err output
     assert run_stderr == ''
 
+@pytest.mark.xdist_group(name="systems_checks")
 def test_cleanup_success():
     # Assert that Cleanup has run
     assert re.search(
         'MEASUREMENT SUCCESSFULLY COMPLETED', run_stdout)
 
+@pytest.mark.xdist_group(name="systems_checks")
 def test_db_rows_are_written_and_presented():
     # for every metric provider, check that there were rows written in the DB with info for that provider
     # also check (in the same test, to save on a DB call) that the output to STD.OUT

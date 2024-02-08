@@ -10,10 +10,8 @@ from contextlib import redirect_stdout, redirect_stderr
 import pytest
 
 from tests import test_functions as Tests
-
 from lib import utils
 from lib.global_config import GlobalConfig
-from runner import Runner
 
 GlobalConfig().override_config(config_name='test-config.yml')
 
@@ -31,9 +29,19 @@ def check_if_container_running(container_name):
 
 def test_volume_load_no_escape():
     parallel_id = utils.randomword(12)
-    tmp_dir = os.path.join(CURRENT_DIR, 'tmp', parallel_id, 'basic_stress_w_import.yml')
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', docker_compose='volume_load_etc_passwords.yml', dir_name=parallel_id, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False, parallel_id=parallel_id)
-    Tests.replace_include_in_usage_scenario(tmp_dir, 'volume_load_etc_passwords.yml')
+
+    usage_scenario_file="basic_stress_w_import.yml"
+    usage_scenario_path = os.path.join(CURRENT_DIR, 'data/usage_scenarios/', usage_scenario_file)
+    docker_compose_file="volume_load_etc_passwords.yml"
+    docker_compose_path=os.path.join(CURRENT_DIR, 'data/docker-compose-files/', docker_compose_file)
+
+    Tests.make_proj_dir(dir_name=parallel_id, usage_scenario_path=usage_scenario_path, docker_compose_path=docker_compose_path)
+
+    tmp_usage_scenario = os.path.join(CURRENT_DIR, 'tmp', parallel_id, usage_scenario_file)
+    Tests.replace_include_in_usage_scenario(tmp_usage_scenario, 'volume_load_etc_passwords.yml')
+
+    runner = Tests.setup_runner( usage_scenario=usage_scenario_file, docker_compose=docker_compose_file,
+                parallel_id=parallel_id, create_tmp_directory=False)
 
     try:
         with pytest.raises(RuntimeError) as e:
@@ -42,23 +50,13 @@ def test_volume_load_no_escape():
         container_running = check_if_container_running(f"test-container_{parallel_id}")
         runner.cleanup()
 
-    expected_error = 'Service \'test-container\' volume path (/etc/passwd) is outside allowed folder:'
+    container_name = f'test-container_{parallel_id}'
+    expected_error = f'Service \'{container_name}\' volume path (/etc/passwd) is outside allowed folder:'
     assert str(e.value).startswith(expected_error), Tests.assertion_info(expected_error, str(e.value))
-    assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
+    assert container_running is False, Tests.assertion_info(f'{container_name} stopped', f'{container_name} was still running!')
 
-def create_tmp_dir():
-    tmp_dir_name = utils.randomword(12)
-    if not os.path.exists(os.path.join(CURRENT_DIR, 'tmp/')):
-        os.mkdir(os.path.join(CURRENT_DIR, 'tmp/'))
-    os.mkdir('tmp/' + tmp_dir_name)
-    tmp_dir = os.path.join(CURRENT_DIR, f'tmp/{tmp_dir_name}')
-    return tmp_dir, tmp_dir_name
-
-def copy_compose_and_edit_directory(compose_file, tmp_dir):
-    tmp_compose_file = os.path.join(tmp_dir, 'docker-compose.yml')
-    shutil.copyfile(
-        os.path.join(CURRENT_DIR, f'data/docker-compose-files/{compose_file}'),
-        tmp_compose_file)
+def edit_compose_file(compose_file, tmp_dir):
+    tmp_compose_file = os.path.join(tmp_dir, compose_file)
 
     #regex replace CURRENT_DIR in docker-compose.yml with temp proj directory where test-file exists
     with open(tmp_compose_file, 'r', encoding='utf-8') as file:
@@ -68,16 +66,21 @@ def copy_compose_and_edit_directory(compose_file, tmp_dir):
         file.write(data)
 
 def test_load_files_from_within_gmt():
-    tmp_dir, tmp_dir_name = create_tmp_dir()
-    Tests.create_test_file(tmp_dir)
-
-    # copy compose file over so that we can edit it safely
-    copy_compose_and_edit_directory('volume_load_within_proj.yml', tmp_dir)
-
-    # setup runner and run test
     parallel_id = utils.randomword(12)
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False, parallel_id=parallel_id)
-    Tests.replace_include_in_usage_scenario(os.path.join(tmp_dir, 'basic_stress_w_import.yml'), 'docker-compose.yml')
+
+    usage_scenario_file="basic_stress_w_import.yml"
+    usage_scenario_path = os.path.join(CURRENT_DIR, 'data/usage_scenarios/', usage_scenario_file)
+    docker_compose_file="volume_load_within_proj.yml"
+    docker_compose_path=os.path.join(CURRENT_DIR, 'data/docker-compose-files/', docker_compose_file)
+
+    dir_path = Tests.make_proj_dir(dir_name=parallel_id, usage_scenario_path=usage_scenario_path, docker_compose_path=docker_compose_path)
+    tmp_usage_scenario = os.path.join(CURRENT_DIR, 'tmp', parallel_id, usage_scenario_file)
+    Tests.replace_include_in_usage_scenario(tmp_usage_scenario, docker_compose_file)
+    edit_compose_file(docker_compose_file, dir_path)
+    Tests.create_test_file(dir_path)
+
+    runner = Tests.setup_runner(usage_scenario=usage_scenario_file, docker_compose=docker_compose_file,
+                parallel_id=parallel_id, create_tmp_directory=False)
 
     try:
         Tests.run_until(runner, 'setup_services')
@@ -97,56 +100,81 @@ def test_load_files_from_within_gmt():
     assert "File mounted" in out, Tests.assertion_info('/tmp/test-file mounted', f"out: {out} | err: {err}")
 
 def test_symlinks_should_fail():
-    tmp_dir, tmp_dir_name = create_tmp_dir()
-    # make a symlink to /etc/passwords in tmp_dir
-    symlink = os.path.join(tmp_dir, 'symlink')
-    os.symlink('/etc/passwd', os.path.join(tmp_dir, 'symlink'))
-
-    copy_compose_and_edit_directory('volume_load_symlinks_negative.yml', tmp_dir)
-
     parallel_id = utils.randomword(12)
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False, parallel_id=parallel_id)
-    Tests.replace_include_in_usage_scenario(os.path.join(tmp_dir, 'basic_stress_w_import.yml'), 'docker-compose.yml')
 
+    usage_scenario_file="basic_stress_w_import.yml"
+    usage_scenario_path = os.path.join(CURRENT_DIR, 'data/usage_scenarios/', usage_scenario_file)
+    docker_compose_file="volume_load_symlinks_negative.yml"
+    docker_compose_path=os.path.join(CURRENT_DIR, 'data/docker-compose-files/', docker_compose_file)
+
+    dir_path = Tests.make_proj_dir(dir_name=parallel_id, usage_scenario_path=usage_scenario_path, docker_compose_path=docker_compose_path)
+    tmp_usage_scenario = os.path.join(CURRENT_DIR, 'tmp', parallel_id, usage_scenario_file)
+    Tests.replace_include_in_usage_scenario(tmp_usage_scenario, docker_compose_file)
+    edit_compose_file(docker_compose_file, dir_path)
+
+    # make a symlink to /etc/passwords in tmp_dir
+    symlink = os.path.join(dir_path, 'symlink')
+    os.symlink('/etc/passwd', os.path.join(dir_path, 'symlink'))
+
+    runner = Tests.setup_runner( usage_scenario=usage_scenario_file, docker_compose=docker_compose_file,
+                parallel_id=parallel_id, create_tmp_directory=False)
+
+    container_name = f'test-container_{parallel_id}'
     try:
         with pytest.raises(RuntimeError) as e:
             Tests.run_until(runner, 'setup_services')
     finally:
-        container_running = check_if_container_running(f"test-container_{parallel_id}")
+        container_running = check_if_container_running(container_name)
         runner.cleanup()
 
-    expected_error = f"Service 'test-container' volume path ({symlink}) is outside allowed folder:"
+    expected_error = f"Service '{container_name}' volume path ({symlink}) is outside allowed folder:"
     assert str(e.value).startswith(expected_error), Tests.assertion_info(expected_error, str(e.value))
-    assert container_running is False, Tests.assertion_info(f"test-container_{parallel_id} stopped", f"test-container_{parallel_id} was still running!")
+    assert container_running is False, Tests.assertion_info(f"{container_name} stopped", f"{container_name} was still running!")
 
 def test_non_bind_mounts_should_fail():
-    tmp_dir_name = create_tmp_dir()[1]
-    tmp_dir_usage = os.path.join(CURRENT_DIR, 'tmp', tmp_dir_name, 'basic_stress_w_import.yml')
-
     parallel_id = utils.randomword(12)
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', docker_compose='volume_load_non_bind_mounts.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False, parallel_id=parallel_id)
-    Tests.replace_include_in_usage_scenario(tmp_dir_usage, 'volume_load_non_bind_mounts.yml')
 
+    usage_scenario_file="basic_stress_w_import.yml"
+    usage_scenario_path = os.path.join(CURRENT_DIR, 'data/usage_scenarios/', usage_scenario_file)
+    docker_compose_file="volume_load_non_bind_mounts.yml"
+    docker_compose_path=os.path.join(CURRENT_DIR, 'data/docker-compose-files/', docker_compose_file)
+
+    Tests.make_proj_dir(dir_name=parallel_id, usage_scenario_path=usage_scenario_path, docker_compose_path=docker_compose_path)
+    tmp_usage_scenario = os.path.join(CURRENT_DIR, 'tmp', parallel_id, usage_scenario_file)
+    Tests.replace_include_in_usage_scenario(tmp_usage_scenario, docker_compose_file)
+
+    runner = Tests.setup_runner(usage_scenario=usage_scenario_file, docker_compose=docker_compose_file,
+                parallel_id=parallel_id, create_tmp_directory=False)
+
+    container_name=f'test-container_{parallel_id}'
     try:
         with pytest.raises(RuntimeError) as e:
             Tests.run_until(runner, 'setup_services')
     finally:
-        container_running = check_if_container_running(f"test-container_{parallel_id}")
+        container_running = check_if_container_running(container_name)
         runner.cleanup()
 
     expected_error = 'volume path does not exist'
     assert expected_error in str(e.value), Tests.assertion_info(expected_error, str(e.value))
-    assert container_running is False, Tests.assertion_info(f"test-container_{parallel_id} stopped", f"test-container_{parallel_id} was still running!")
+    assert container_running is False, Tests.assertion_info(f"{container_name} stopped", f"{container_name} was still running!")
 
 def test_load_volume_references():
-    tmp_dir, tmp_dir_name = create_tmp_dir()
-    Tests.create_test_file(tmp_dir)
-
-    copy_compose_and_edit_directory('volume_load_references.yml', tmp_dir)
-
     parallel_id = utils.randomword(12)
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False, parallel_id=parallel_id)
-    Tests.replace_include_in_usage_scenario(os.path.join(tmp_dir, 'basic_stress_w_import.yml'), 'docker-compose.yml')
+
+    usage_scenario_file="basic_stress_w_import.yml"
+    usage_scenario_path = os.path.join(CURRENT_DIR, 'data/usage_scenarios/', usage_scenario_file)
+    docker_compose_file="volume_load_references.yml"
+    docker_compose_path=os.path.join(CURRENT_DIR, 'data/docker-compose-files/', docker_compose_file)
+
+    dir_path = Tests.make_proj_dir(dir_name=parallel_id, usage_scenario_path=usage_scenario_path, docker_compose_path=docker_compose_path)
+    tmp_usage_scenario = os.path.join(CURRENT_DIR, 'tmp', parallel_id, usage_scenario_file)
+    Tests.replace_include_in_usage_scenario(tmp_usage_scenario, docker_compose_file)
+    edit_compose_file(docker_compose_file, dir_path)
+
+    Tests.create_test_file(dir_path)
+    runner = Tests.setup_runner(
+                usage_scenario=usage_scenario_file, docker_compose=docker_compose_file, dir_name=parallel_id,
+                parallel_id=parallel_id, create_tmp_directory=False)
 
     try:
         Tests.run_until(runner, 'setup_services')
@@ -165,11 +193,27 @@ def test_load_volume_references():
         Tests.cleanup(runner)
     assert "File mounted" in out, Tests.assertion_info('/tmp/test-file mounted', f"out: {out} | err: {err}")
 
+def prepare_subdir_tmp_directory(parallel_id):
+    test_case_path=os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
+    tmp_dir_path=os.path.join(CURRENT_DIR, 'tmp', parallel_id)
+    shutil.copytree(test_case_path, tmp_dir_path)
+
+    usage_scenario_path=os.path.join(tmp_dir_path, 'usage_scenario.yml')
+    compose_yaml_path=os.path.join(tmp_dir_path, 'compose.yaml')
+    subdir_usage_scenario_path=os.path.join(tmp_dir_path, 'subdir/', 'usage_scenario_subdir.yml')
+    subdir2_usage_scenario_path=os.path.join(tmp_dir_path, 'subdir/subdir2', 'usage_scenario_subdir2.yml')
+
+    Tests.edit_yml_with_id(usage_scenario_path, parallel_id)
+    Tests.edit_yml_with_id(compose_yaml_path, parallel_id)
+    Tests.edit_yml_with_id(subdir_usage_scenario_path, parallel_id)
+    Tests.edit_yml_with_id(subdir2_usage_scenario_path, parallel_id)
+
+    return tmp_dir_path
+
 def test_volume_loading_subdirectories_root():
-    uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
-    RUN_NAME = 'test_' + utils.randomword(12)
     parallel_id = utils.randomword(12)
-    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False, parallel_id=parallel_id)
+    prepare_subdir_tmp_directory(parallel_id)
+    runner = Tests.setup_runner(do_parallelize_files=False, parallel_id=parallel_id, create_tmp_directory=False)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -191,14 +235,14 @@ def test_volume_loading_subdirectories_root():
     expect_mounted_testfile_2 = f"stdout from process: ['docker', 'exec', 'test-container_{parallel_id}', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
     assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, f"expected output not in {run_stdout}")
 
-    expect_mounted_testfile_3 = f"stdout from process: ['docker', 'exec', 'test-container-root_{parallel_id}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
+    expect_mounted_testfile_3 = f"stdout from process: [s'docker', 'exec', 'test-container-root_{parallel_id}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
 def test_volume_loading_subdirectories_subdir():
-    uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
-    RUN_NAME = 'test_' + utils.randomword(12)
     parallel_id = utils.randomword(12)
-    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', filename="subdir/usage_scenario_subdir.yml", skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False, parallel_id=parallel_id)
+    prepare_subdir_tmp_directory(parallel_id)
+    runner = Tests.setup_runner(usage_scenario='subdir/usage_scenario_subdir.yml',
+                do_parallelize_files=False, parallel_id=parallel_id, create_tmp_directory=False)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -214,11 +258,11 @@ def test_volume_loading_subdirectories_subdir():
     expect_mounted_testfile_3 = f"stdout from process: ['docker', 'exec', 'test-container_{parallel_id}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-mounted'] testfile3-content"
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
-def HELP_test_volume_loading_subdirectories_subdir2():
-    uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
-    RUN_NAME = 'test_' + utils.randomword(12)
+def test_volume_loading_subdirectories_subdir2():
     parallel_id = utils.randomword(12)
-    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', filename="subdir/subdir2/usage_scenario_subdir2.yml", skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False, parallel_id=parallel_id)
+    prepare_subdir_tmp_directory(parallel_id)
+    runner = Tests.setup_runner(usage_scenario='subdir/subdir2/usage_scenario_subdir2.yml',
+                do_parallelize_files=False, parallel_id=parallel_id, create_tmp_directory=False)
 
     out = io.StringIO()
     err = io.StringIO()

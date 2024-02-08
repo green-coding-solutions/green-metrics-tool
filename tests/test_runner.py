@@ -35,6 +35,7 @@ def test_check_system(skip_system_checks, expectation):
         del GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.foo.machine.provider.SomeProvider']
         del GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.bar.machine.provider.SomeOtherProvider']
 
+@pytest.mark.xdist_group(name="systems_checks")
 def test_reporters_still_running():
     if GlobalConfig().config['measurement']['metric-providers']['linux'] is None:
         GlobalConfig().config['measurement']['metric-providers']['linux'] = {}

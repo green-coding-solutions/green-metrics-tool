@@ -339,25 +339,28 @@ def test_depends_on_error_not_running():
         Tests.assertion_info(f"test-container-2_{parallel_id} is not running", str(e.value))
 
 def test_depends_on_error_cyclic_dependency():
-    runner = Tests.setup_runner(usage_scenario='depends_on_error_cycle.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id=utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_cycle.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
     try:
         with pytest.raises(RuntimeError) as e:
             Tests.run_until(runner, 'setup_services')
     finally:
         runner.cleanup()
-
-    assert "Cycle found in depends_on definition with service 'test-container-1'" in str(e.value) , \
-        Tests.assertion_info("cycle in depends_on with test-container-1", str(e.value))
+    container_name=f"test-container-1_{parallel_id}"
+    assert f"Cycle found in depends_on definition with service '{container_name}'" in str(e.value) , \
+        Tests.assertion_info(f"cycle in depends_on with {container_name}", str(e.value))
 
 def test_depends_on_error_unsupported_condition():
-    runner = Tests.setup_runner(usage_scenario='depends_on_error_unsupported_condition.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    parallel_id = utils.randomword(12)
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_unsupported_condition.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
     try:
         with pytest.raises(RuntimeError) as e:
             Tests.run_until(runner, 'setup_services')
     finally:
         runner.cleanup()
 
-    message = "Unsupported condition in healthcheck for service \'test-container-1\':  service_completed_successfully"
+    container_name=f"test-container-1_{parallel_id}"
+    message = f"Unsupported condition in healthcheck for service \'{container_name}\':  service_completed_successfully"
     assert message in str(e.value) , \
         Tests.assertion_info(message, str(e.value))
 
@@ -528,6 +531,7 @@ def test_uri_local_dir_missing():
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
     # basic positive case
+@pytest.mark.serial
 def test_uri_github_repo():
     uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
     RUN_NAME = 'test_' + utils.randomword(12)
@@ -559,6 +563,7 @@ def test_uri_local_branch():
     # basic positive case, branch prepped ahead of time
     # this branch has a different usage_scenario file name - basic_stress
     # that makes sure that it really is pulling a different branch
+@pytest.mark.serial
 def test_uri_github_repo_branch():
     uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
     RUN_NAME = 'test_' + utils.randomword(12)
@@ -580,6 +585,7 @@ def test_uri_github_repo_branch():
     # give incorrect branch name
     ## Is the expected_exception OK or should it have a more graceful error?
     ## ATM this is just the default console error of a failed git command
+@pytest.mark.serial
 def test_uri_github_repo_branch_missing():
     runner = Tests.setup_runner(usage_scenario='basic_stress.yml',
         uri='https://github.com/green-coding-berlin/pytest-dummy-repo',
@@ -597,6 +603,7 @@ def test_uri_github_repo_branch_missing():
 
 # #   --name NAME
 # #    A name which will be stored to the database to discern this run from others
+@pytest.mark.serial
 def test_name_is_in_db():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
     RUN_NAME = 'test_' + utils.randomword(12)
@@ -614,6 +621,7 @@ def test_name_is_in_db():
 # --filename FILENAME
 #    An optional alternative filename if you do not want to use "usage_scenario.yml"
     # basic positive case
+@pytest.mark.serial
 def test_different_filename():
     usage_scenario_path = os.path.join(CURRENT_DIR, 'data/usage_scenarios/', 'basic_stress.yml')
     dir_name = utils.randomword(12)
@@ -654,6 +662,7 @@ def test_different_filename_missing():
 
 #   --no-file-cleanup
 #    Do not delete files in /tmp/green-metrics-tool
+@pytest.mark.serial
 def test_no_file_cleanup():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
     RUN_NAME = 'test_' + utils.randomword(12)
@@ -671,10 +680,11 @@ def test_no_file_cleanup():
 #pylint: disable=unused-variable
 def test_skip_and_allow_unsafe_both_true():
     with pytest.raises(RuntimeError) as e:
-        runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+        runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, allow_unsafe=True, dev_no_build=True)
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
     assert str(e.value) == expected_exception, Tests.assertion_info('', str(e.value))
 
+@pytest.mark.serial
 def test_debug(monkeypatch):
     monkeypatch.setattr('sys.stdin', io.StringIO('Enter'))
     uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
@@ -697,7 +707,7 @@ def test_debug(monkeypatch):
     # can check for this note in the DB and the notes are about 2s apart
 
 def test_read_detached_process_no_exit():
-    runner = Tests.setup_runner(usage_scenario='stress_detached_no_exit.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='stress_detached_no_exit.yml', dev_no_build=True)
     out = io.StringIO()
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
@@ -711,7 +721,7 @@ def test_read_detached_process_no_exit():
         Tests.assertion_info('NOT successful run completed', out.getvalue())
 
 def test_read_detached_process_after_exit():
-    runner = Tests.setup_runner(usage_scenario='stress_detached_exit.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='stress_detached_exit.yml', dev_no_build=True)
     out = io.StringIO()
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
