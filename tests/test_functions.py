@@ -38,6 +38,7 @@ def replace_include_in_usage_scenario(usage_scenario_path, docker_compose_filena
 def parallelize_runner_folders(runner, parallel_id):
     runner._tmp_folder = f"/tmp/gmt_tests-{parallel_id}/green-metrics-tool/"
     runner._folder = f"{runner._tmp_folder}/repo"
+    runner._tmp_image_name = f"gmt_run_tmp_{parallel_id}"
 
 def edit_yml_with_id(yml_path, parallel_id):
     with open(yml_path, 'r', encoding='utf-8') as fp:
