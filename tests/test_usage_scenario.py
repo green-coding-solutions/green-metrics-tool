@@ -742,6 +742,7 @@ def test_read_detached_process_failure():
             runner.run()
         finally:
             runner.cleanup()
+    print (out.getvalue())
     assert '\'g4jiorejf\']\' had bad returncode: 126' in str(e.value), \
         Tests.assertion_info('\'g4jiorejf\']\' had bad returncode: 126', str(e.value))
 
