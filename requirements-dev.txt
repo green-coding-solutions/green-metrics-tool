@@ -1,7 +1,6 @@
 -r requirements.txt
 pydantic==2.6.0
 pytest==8.0.0
-requests==2.31.0
 pylint==3.0.3
 fastapi==0.109.0
 starlette>=0.32

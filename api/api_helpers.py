@@ -1,8 +1,11 @@
+import ipaddress
+import json
 import uuid
 import faulthandler
 from functools import cache
 from html import escape as html_escape
 import numpy as np
+import requests
 import scipy.stats
 
 from psycopg.rows import dict_row as psycopg_rows_dict_row
@@ -12,6 +15,7 @@ from pydantic import BaseModel
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
 from lib.db import DB
+from lib.global_config import GlobalConfig
 
 def rescale_energy_value(value, unit):
     # We only expect values to be mJ for energy!
@@ -561,3 +565,120 @@ def get_t_stat(length):
     dof = length-1
     t_crit = np.abs(scipy.stats.t.ppf((.05)/2,dof)) # for two sided!
     return t_crit/np.sqrt(length)
+
+
+def get_geo(ip):
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+        if ip_obj.is_private:
+            return('52.53721666833642', '13.424863870661927')
+    except ValueError:
+        return (None, None)
+
+    query = "SELECT ip_address, data FROM ip_data WHERE created_at > NOW() - INTERVAL '24 hours' AND ip_address=%s;"
+    db_data = DB().fetch_all(query, (ip,))
+
+    if db_data is not None and len(db_data) != 0:
+        return (db_data[0][1].get('latitude'), db_data[0][1].get('longitude'))
+
+    latitude, longitude = get_geo_ipapi_co(ip)
+
+    if latitude is False:
+        latitude, longitude = get_geo_ip_api_com(ip)
+    if latitude is False:
+        latitude, longitude = get_geo_ip_ipinfo(ip)
+
+    #If all 3 fail there is something bigger wrong
+    return (latitude, longitude)
+
+
+def get_geo_ipapi_co(ip):
+
+    response = requests.get(f"https://ipapi.co/{ip}/json/", timeout=10)
+    print(f"Accessing https://ipapi.co/{ip}/json/")
+    if response.status_code == 200:
+        resp_data = response.json()
+
+        if 'error' in resp_data or 'latitude' not in resp_data or 'longitude' not in resp_data:
+            return (None, None)
+
+        resp_data['source'] = 'ipapi.co'
+
+        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
+        DB().query(query=query, params=(ip, json.dumps(resp_data)))
+
+        return (resp_data.get('latitude'), resp_data.get('longitude'))
+
+    return (False, False)
+
+def get_geo_ip_api_com(ip):
+
+    response = requests.get(f"http://ip-api.com/json/{ip}", timeout=10)
+    print(f"Accessing http://ip-api.com/json/{ip}")
+    if response.status_code == 200:
+        resp_data = response.json()
+
+        if ('status' in resp_data and resp_data.get('status') == 'fail') or 'lat' not in resp_data or 'lon' not in resp_data:
+            return (None, None)
+
+        resp_data['latitude'] = resp_data.get('lat')
+        resp_data['longitude'] = resp_data.get('lon')
+        resp_data['source'] = 'ip-api.com'
+
+        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
+        DB().query(query=query, params=(ip, json.dumps(resp_data)))
+
+        return (resp_data.get('latitude'), resp_data.get('longitude'))
+
+    return (False, False)
+
+def get_geo_ip_ipinfo(ip):
+
+    response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=10)
+    print(f"Accessing https://ipinfo.io/{ip}/json")
+    if response.status_code == 200:
+        resp_data = response.json()
+
+        if 'bogon' in resp_data or 'loc' not in resp_data:
+            return (None, None)
+
+        lat_lng = resp_data.get('loc').split(',')
+
+        resp_data['latitude'] = lat_lng[0]
+        resp_data['longitude'] = lat_lng[1]
+        resp_data['source'] = 'ipinfo.io'
+
+        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
+        DB().query(query=query, params=(ip, json.dumps(resp_data)))
+
+        return (resp_data.get('latitude'), resp_data.get('longitude'))
+
+    return (False, False)
+
+def get_carbon_intensity(latitude, longitude):
+
+    if latitude is None or longitude is None:
+        return None
+
+    query = "SELECT latitude, longitude, data FROM carbon_intensity WHERE created_at > NOW() - INTERVAL '1 hours' AND latitude=%s AND longitude=%s;"
+    db_data = DB().fetch_all(query, (latitude, longitude))
+
+    if db_data is not None and len(db_data) != 0:
+        return db_data[0][2].get('carbonIntensity')
+
+    if not (token := GlobalConfig().config.get('electricity_maps_token')):
+        raise ValueError('You need to specify an electricitymap token in the config!')
+
+    headers = {'auth-token': token }
+    params = {'lat': latitude, 'lon': longitude }
+
+    response = requests.get('https://api.electricitymap.org/v3/carbon-intensity/latest', params=params, headers=headers, timeout=10)
+    print(f"Accessing electricitymap with {latitude} {longitude}")
+    if response.status_code == 200:
+        resp_data = response.json()
+        query = "INSERT INTO carbon_intensity (latitude, longitude, data) VALUES (%s, %s, %s)"
+        DB().query(query=query, params=(latitude, longitude, json.dumps(resp_data)))
+
+        return resp_data.get('carbonIntensity')
+
+    return None

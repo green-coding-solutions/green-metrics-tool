@@ -7,9 +7,6 @@ class GMTMenu extends HTMLElement {
         this.innerHTML = `
         <div id="menu" class="ui inverted vertical menu">
             <div class="item-container">
-                <div class="item" href="/index.html">
-                    <hr>
-                </div>
                 <a class="item" href="/index.html">
                     <b><i class="home icon"></i>Home</b>
                 </a>
@@ -33,6 +30,9 @@ class GMTMenu extends HTMLElement {
                 </a>
                 <a class="item" href="/hog.html">
                     <b><i class="piggy bank icon"></i>Power Hog</b>
+                </a>
+                <a class="item" href="/carbondb-details.html">
+                    <b><i class="journal whills icon"></i>CarbonDB</b>
                 </a>
                 <a class="item" href="/settings.html">
                     <b><i class="cogs icon"></i>Settings</b>

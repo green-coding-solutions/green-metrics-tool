@@ -19,7 +19,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, validator
+from typing import Optional
+from uuid import UUID
 
 import anybadge
 
@@ -27,7 +29,7 @@ from api.object_specifications import Measurement
 from api.api_helpers import (add_phase_stats_statistics, determine_comparison_case,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value, get_timeline_query,
-                         get_run_info, get_machine_list)
+                         get_run_info, get_machine_list, get_geo, get_carbon_intensity)
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -1202,6 +1204,116 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
         num_value_padding_chars=1,
         default_color='green')
     return Response(content=str(badge), media_type="image/svg+xml")
+
+
+class EnergyData(BaseModel):
+    type: str
+    company: Optional[UUID] = None
+    machine: UUID
+    project: Optional[UUID] = None
+    tags: Optional[str] = None
+    time_stamp: str
+    energy_value: str
+
+    @validator('company', 'project', 'tags', pre=True, always=True)
+    def empty_str_to_none(self, v):
+        if v == '':
+            return None
+        return v
+
+@app.post('/v1/carbondb/add')
+async def carbondb_add(request: Request, energydatas: List[EnergyData]):
+
+    client_ip = request.headers.get("x-forwarded-for")
+    if client_ip:
+        client_ip = client_ip.split(",")[0]
+    else:
+        client_ip = request.client.host
+
+    latitude, longitude = get_geo(client_ip)
+    carbon_intensity = get_carbon_intensity(latitude, longitude)
+
+    query_list = []
+    params_list = []
+    for e in energydatas:
+
+        e = html_escape_multi(e)
+
+        fields_to_check = {
+            'type': e.type,
+            'energy_value': e.energy_value,
+            'time_stamp': e.time_stamp,
+        }
+
+        for field_name, field_value in fields_to_check.items():
+            if field_value is None or field_value.strip() == '':
+                raise RequestValidationError(f"{field_name.capitalize()} is empty. Ignoring everything!")
+
+        if DB().fetch_one('SELECT id FROM carbondb_energy_data WHERE time_stamp=%s AND machine=%s AND energy_value=%s',
+                          params=(e.time_stamp, e.machine, e.energy_value)):
+            continue
+
+        energy_kwh = float(e.energy_value) * 2.77778e-7
+        co2_value = energy_kwh * carbon_intensity
+
+        query_list.append("""
+            INSERT INTO
+                carbondb_energy_data (
+                    type,
+                    company,
+                    machine,
+                    project,
+                    tags,
+                    time_stamp,
+                    energy_value,
+                    co2_value,
+                    carbon_intensity,
+                    latitude,
+                    longitude,
+                    ip_address)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """)
+        params_list.append( (
+            e.type,
+            e.company,
+            e.machine,
+            e.project,
+            [tag.strip() for tag in e.tags.split(',')] if e.tags else [],
+            int(e.time_stamp),
+            float(e.energy_value),
+            co2_value,
+            carbon_intensity,
+            latitude,
+            longitude,
+            client_ip
+        ) )
+
+    DB().query(query=query_list, params=params_list)
+
+    return ORJSONResponse({'success': True}, status_code=202)
+
+
+@app.get('/v1/carbondb/machine/day/{machine_uuid}')
+async def carbondb_get_machine_details(machine_uuid: str):
+
+    if machine_uuid is None or not is_valid_uuid(machine_uuid):
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty or malformed'}, status_code=400)
+
+    query = """
+        SELECT
+            *
+        FROM
+            carbondb_energy_data_day
+        WHERE
+            machine = %s
+        ORDER BY
+            date
+    """
+
+    data = DB().fetch_all(query, (machine_uuid,))
+
+    return ORJSONResponse({'success': True, 'data': data})
 
 
 if __name__ == '__main__':
