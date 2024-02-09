@@ -210,6 +210,9 @@ def prepare_subdir_tmp_directory(parallel_id):
 
     return tmp_dir_path
 
+#TODO: figure out why this isn't working nicely during parallelization
+# its failing in the VM, despite the fact that the stdout does indeed have the expected strings in them
+@pytest.mark.serial
 def test_volume_loading_subdirectories_root():
     parallel_id = utils.randomword(12)
     prepare_subdir_tmp_directory(parallel_id)
