@@ -592,9 +592,9 @@ class Runner:
         services_ordered = self.order_services(services)
         for service_name, service in services_ordered.items():
             if 'container_name' in service:
-                container_name = f"{service['container_name']}"
+                container_name = service['container_name']
             else:
-                container_name = f"{service_name}"
+                container_name = service_name
 
             print(TerminalColors.HEADER, '\nSetting up container: ', container_name, TerminalColors.ENDC)
 
