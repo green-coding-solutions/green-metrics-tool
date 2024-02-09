@@ -210,8 +210,6 @@ def prepare_subdir_tmp_directory(parallel_id):
 
     return tmp_dir_path
 
-#TODO: figure out why this isn't working nicely during parallelization
-# its failing in the VM, despite the fact that the stdout does indeed have the expected strings in them
 @pytest.mark.serial
 def test_volume_loading_subdirectories_root():
     parallel_id = utils.randomword(12)
@@ -238,7 +236,7 @@ def test_volume_loading_subdirectories_root():
     expect_mounted_testfile_2 = f"stdout from process: ['docker', 'exec', 'test-container-{parallel_id}', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
     assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, f"expected output not in {run_stdout}")
 
-    expect_mounted_testfile_3 = f"stdout from process: [s'docker', 'exec', 'test-container-root-{parallel_id}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
+    expect_mounted_testfile_3 = f"stdout from process: ['docker', 'exec', 'test-container-root-{parallel_id}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
 def test_volume_loading_subdirectories_subdir():

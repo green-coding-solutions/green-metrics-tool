@@ -67,7 +67,7 @@ def test_insert_job():
 @pytest.mark.serial
 def test_simple_run_job():
     name = utils.randomword(12)
-    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
 
     Job.insert(name, url,  'Test Email', 'main', filename, 1)
