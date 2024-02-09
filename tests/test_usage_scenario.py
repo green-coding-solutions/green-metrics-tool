@@ -46,7 +46,7 @@ def get_env_vars(runner, parallel_id):
         Tests.run_until(runner, 'setup_services')
 
         ps = subprocess.run(
-            ['docker', 'exec', f"test-container_{parallel_id}", '/bin/sh',
+            ['docker', 'exec', f"test-container-{parallel_id}", '/bin/sh',
             '-c', 'env'],
             check=True,
             stderr=subprocess.PIPE,
@@ -105,7 +105,7 @@ def get_port_bindings(runner, parallel_id):
     try:
         Tests.run_until(runner, 'setup_services')
         ps = subprocess.run(
-                ['docker', 'port', f"test-container_{parallel_id}", '9018'],
+                ['docker', 'port', f"test-container-{parallel_id}", '9018'],
                 check=True,
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -133,7 +133,7 @@ def test_port_bindings_skip_unsafe_true():
     # fail the test
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception):
         _, docker_port_err = get_port_bindings(runner, parallel_id)
-        expected_container_error = f"Error: No public port \'9018/tcp\' published for test-container_{parallel_id}\n"
+        expected_container_error = f"Error: No public port \'9018/tcp\' published for test-container-{parallel_id}\n"
         assert docker_port_err == expected_container_error, \
             Tests.assertion_info(f"Container Error: {expected_container_error}", docker_port_err)
     expected_warning = 'Found ports entry but not running in unsafe mode. Skipping'
@@ -145,7 +145,7 @@ def test_port_bindings_no_skip_or_allow():
     runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True, parallel_id=parallel_id)
     with pytest.raises(Exception) as e:
         _, docker_port_err = get_port_bindings(runner, parallel_id)
-        expected_container_error = f"Error: No public port \'9018/tcp\' published for test-container_{parallel_id}\n"
+        expected_container_error = f"Error: No public port \'9018/tcp\' published for test-container-{parallel_id}\n"
         assert docker_port_err == expected_container_error, \
             Tests.assertion_info(f"Container Error: {expected_container_error}", docker_port_err)
     expected_error = 'Found "ports" but neither --skip-unsafe nor --allow-unsafe is set'
@@ -166,7 +166,7 @@ def test_setup_commands_one_command():
             Tests.run_until(runner, 'setup_services')
         finally:
             runner.cleanup()
-    assert f"Running command:  docker exec test-container_{parallel_id} sh -c ps -a" in out.getvalue(), \
+    assert f"Running command:  docker exec test-container-{parallel_id} sh -c ps -a" in out.getvalue(), \
         Tests.assertion_info('stdout message: Running command: docker exec  ps -a', out.getvalue())
     assert '1 root      0:00 /bin/sh' in out.getvalue(), \
         Tests.assertion_info('container stdout showing /bin/sh as process 1', 'different message in container stdout')
@@ -183,15 +183,15 @@ def test_setup_commands_multiple_commands():
         finally:
             runner.cleanup()
 
-    expected_pattern = re.compile(fr"Running command:  docker exec test-container_{parallel_id} echo hello world.*\
+    expected_pattern = re.compile(fr"Running command:  docker exec test-container-{parallel_id} echo hello world.*\
 \s*Stdout: hello world.*\
 \s*Stderr:.*\
-\s*Running command:  docker exec test-container_{parallel_id} ps -a.*\
+\s*Running command:  docker exec test-container-{parallel_id} ps -a.*\
 \s*Stdout:\s+PID\s+USER\s+TIME\s+COMMAND.*\
 \s*1\s+root\s+\d:\d\d\s+/bin/sh.*\
 \s*1\d+\s+root\s+\d:\d\d\s+ps -a.*\
 \s*Stderr:.*\
-\s*Running command:  docker exec test-container_{parallel_id} echo goodbye world.*\
+\s*Running command:  docker exec test-container-{parallel_id} echo goodbye world.*\
 \s*Stdout: goodbye world.*\
 ", re.MULTILINE)
 
@@ -208,7 +208,7 @@ def get_contents_of_bound_volume(runner, parallel_id):
     try:
         Tests.run_until(runner, 'setup_services')
         ps = subprocess.run(
-                ['docker', 'exec', f"test-container_{parallel_id}", 'ls', '/tmp/test-data'],
+                ['docker', 'exec', f"test-container-{parallel_id}", 'ls', '/tmp/test-data'],
                 check=True,
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -245,9 +245,9 @@ def test_depends_on_order():
             runner.cleanup()
 
     # Expected order: test-container-2, test-container-4, test-container-3, test-container-1
-    assert_order(out.getvalue(), f"test-container-2_{parallel_id}", f"test-container-4_{parallel_id}")
-    assert_order(out.getvalue(), f"test-container-4_{parallel_id}", f"test-container-3_{parallel_id}")
-    assert_order(out.getvalue(), f"test-container-3_{parallel_id}", f"test-container-1_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-2-{parallel_id}", f"test-container-4-{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-4-{parallel_id}", f"test-container-3-{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-3-{parallel_id}", f"test-container-1-{parallel_id}")
 
 
 def test_depends_on_huge():
@@ -263,67 +263,67 @@ def test_depends_on_huge():
             runner.cleanup()
 
     # For test-container-20
-    assert_order(out.getvalue(), f"test-container-16_{parallel_id}", f"test-container-20_{parallel_id}")
-    assert_order(out.getvalue(), f"test-container-15_{parallel_id}", f"test-container-20_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-16-{parallel_id}", f"test-container-20-{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-15-{parallel_id}", f"test-container-20-{parallel_id}")
 
     # For test-container-19
-    assert_order(out.getvalue(), f"test-container-14_{parallel_id}", f"test-container-19_{parallel_id}")
-    assert_order(out.getvalue(), f"test-container-13_{parallel_id}", f"test-container-19_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-14-{parallel_id}", f"test-container-19-{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-13-{parallel_id}", f"test-container-19-{parallel_id}")
 
     # For test-container-18
-    assert_order(out.getvalue(), f"test-container-12_{parallel_id}", f"test-container-18_{parallel_id}")
-    assert_order(out.getvalue(), f"test-container-11_{parallel_id}", f"test-container-18_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-12-{parallel_id}", f"test-container-18-{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-11-{parallel_id}", f"test-container-18-{parallel_id}")
 
     # For test-container-17
-    assert_order(out.getvalue(), f"test-container-10_{parallel_id}", f"test-container-17_{parallel_id}")
-    assert_order(out.getvalue(), f"test-container-9_{parallel_id}", f"test-container-17_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-10-{parallel_id}", f"test-container-17-{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-9-{parallel_id}", f"test-container-17-{parallel_id}")
 
     # For test-container-16
-    assert_order(out.getvalue(), f"test-container-8_{parallel_id}", f"test-container-16_{parallel_id}")
-    assert_order(out.getvalue(), f"test-container-7_{parallel_id}", f"test-container-16_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-8-{parallel_id}", f"test-container-16-{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-7-{parallel_id}", f"test-container-16-{parallel_id}")
 
     # For test-container-15
-    assert_order(out.getvalue(), f"test-container-6_{parallel_id}", f"test-container-15_{parallel_id}")
-    assert_order(out.getvalue(), f"test-container-5_{parallel_id}", f"test-container-15_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-6-{parallel_id}", f"test-container-15-{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-5-{parallel_id}", f"test-container-15-{parallel_id}")
 
     # For test-container-14
-    assert_order(out.getvalue(), f"test-container-4_{parallel_id}", f"test-container-14_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-4-{parallel_id}", f"test-container-14-{parallel_id}")
 
     # For test-container-13
-    assert_order(out.getvalue(), f"test-container-3_{parallel_id}", f"test-container-13_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-3-{parallel_id}", f"test-container-13-{parallel_id}")
 
     # For test-container-12
-    assert_order(out.getvalue(), f"test-container-2_{parallel_id}", f"test-container-12_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-2-{parallel_id}", f"test-container-12-{parallel_id}")
 
     # For test-container-11
-    assert_order(out.getvalue(), f"test-container-1_{parallel_id}", f"test-container-11_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-1-{parallel_id}", f"test-container-11-{parallel_id}")
 
     # For test-container-10
-    assert_order(out.getvalue(), f"test-container-4_{parallel_id}", f"test-container-10_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-4-{parallel_id}", f"test-container-10-{parallel_id}")
 
     # For test-container-9
-    assert_order(out.getvalue(), f"test-container-3_{parallel_id}", f"test-container-9_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-3-{parallel_id}", f"test-container-9-{parallel_id}")
 
     # For test-container-8
-    assert_order(out.getvalue(), f"test-container-2_{parallel_id}", f"test-container-8_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-2-{parallel_id}", f"test-container-8-{parallel_id}")
 
     # For test-container-7
-    assert_order(out.getvalue(), f"test-container-1_{parallel_id}", f"test-container-7_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-1-{parallel_id}", f"test-container-7-{parallel_id}")
 
     # For test-container-6
-    assert_order(out.getvalue(), f"test-container-4_{parallel_id}", f"test-container-6_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-4-{parallel_id}", f"test-container-6-{parallel_id}")
 
     # For test-container-5
-    assert_order(out.getvalue(), f"test-container-3_{parallel_id}", f"test-container-5_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-3-{parallel_id}", f"test-container-5-{parallel_id}")
 
     # For test-container-4
-    assert_order(out.getvalue(), f"test-container-2_{parallel_id}", f"test-container-4_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-2-{parallel_id}", f"test-container-4-{parallel_id}")
 
     # For test-container-3
-    assert_order(out.getvalue(), f"test-container-1_{parallel_id}", f"test-container-3_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-1-{parallel_id}", f"test-container-3-{parallel_id}")
 
     # For test-container-2
-    assert_order(out.getvalue(), f"test-container-1_{parallel_id}", f"test-container-2_{parallel_id}")
+    assert_order(out.getvalue(), f"test-container-1-{parallel_id}", f"test-container-2-{parallel_id}")
 
 
 def test_depends_on_error_not_running():
@@ -335,8 +335,8 @@ def test_depends_on_error_not_running():
     finally:
         runner.cleanup()
 
-    assert f"Dependent container 'test-container-2_{parallel_id}' of 'test-container-1_{parallel_id}' is not running" in str(e.value) , \
-        Tests.assertion_info(f"test-container-2_{parallel_id} is not running", str(e.value))
+    assert f"Dependent container 'test-container-2-{parallel_id}' of 'test-container-1-{parallel_id}' is not running" in str(e.value) , \
+        Tests.assertion_info(f"test-container-2-{parallel_id} is not running", str(e.value))
 
 def test_depends_on_error_cyclic_dependency():
     parallel_id=utils.randomword(12)
@@ -346,7 +346,7 @@ def test_depends_on_error_cyclic_dependency():
             Tests.run_until(runner, 'setup_services')
     finally:
         runner.cleanup()
-    container_name=f"test-container-1_{parallel_id}"
+    container_name=f"test-container-1-{parallel_id}"
     assert f"Cycle found in depends_on definition with service '{container_name}'" in str(e.value) , \
         Tests.assertion_info(f"cycle in depends_on with {container_name}", str(e.value))
 
@@ -359,7 +359,7 @@ def test_depends_on_error_unsupported_condition():
     finally:
         runner.cleanup()
 
-    container_name=f"test-container-1_{parallel_id}"
+    container_name=f"test-container-1-{parallel_id}"
     message = f"Unsupported condition in healthcheck for service \'{container_name}\':  service_completed_successfully"
     assert message in str(e.value) , \
         Tests.assertion_info(message, str(e.value))
@@ -387,9 +387,9 @@ def test_depends_on_healthcheck():
     try:
         with redirect_stdout(out), redirect_stderr(err):
             runner.run()
-        message = f"Health of container \'test-container-2_{parallel_id}\': starting"
+        message = f"Health of container \'test-container-2-{parallel_id}\': starting"
         assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
-        message2 = f"Health of container \'test-container-2_{parallel_id}\': healthy"
+        message2 = f"Health of container \'test-container-2-{parallel_id}\': healthy"
         assert message2 in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
     finally:
@@ -405,7 +405,7 @@ def test_depends_on_healthcheck_error_missing():
     finally:
         runner.cleanup()
 
-    expected_exception = f"Health check for dependent_container 'test-container-2_{parallel_id}' was requested, but container has no healthcheck implemented!"
+    expected_exception = f"Health check for dependent_container 'test-container-2-{parallel_id}' was requested, but container has no healthcheck implemented!"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
@@ -467,7 +467,7 @@ def test_container_is_in_network():
     try:
         Tests.run_until(runner, 'setup_services')
         ps = subprocess.run(
-            ['docker', 'network', 'inspect', f"gmt-test-network_{parallel_id}"],
+            ['docker', 'network', 'inspect', f"gmt-test-network-{parallel_id}"],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -476,7 +476,7 @@ def test_container_is_in_network():
         inspect = ps.stdout
     finally:
         Tests.cleanup(runner)
-    assert f"test-container_{parallel_id}" in inspect, Tests.assertion_info(f"test-container_{parallel_id}", inspect)
+    assert f"test-container-{parallel_id}" in inspect, Tests.assertion_info(f"test-container-{parallel_id}", inspect)
 
 # command: [str] (optional)
 #    Command to be executed when container is started.
@@ -488,7 +488,7 @@ def test_cmd_ran():
     try:
         Tests.run_until(runner, 'setup_services')
         ps = subprocess.run(
-            ['docker', 'exec', f"test-container_{parallel_id}", 'ps', '-a'],
+            ['docker', 'exec', f"test-container-{parallel_id}", 'ps', '-a'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,

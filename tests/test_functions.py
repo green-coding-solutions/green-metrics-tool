@@ -36,7 +36,7 @@ def replace_include_in_usage_scenario(usage_scenario_path, docker_compose_filena
         file.write(data)
 
 def parallelize_runner_folders(runner, parallel_id):
-    runner._tmp_folder = f"/tmp/gmt_tests_{parallel_id}/green-metrics-tool/"
+    runner._tmp_folder = f"/tmp/gmt_tests-{parallel_id}/green-metrics-tool/"
     runner._folder = f"{runner._tmp_folder}/repo"
 
 def edit_yml_with_id(yml_path, parallel_id):
@@ -46,7 +46,7 @@ def edit_yml_with_id(yml_path, parallel_id):
         # Update services
         services_copy = dict(yml_data.get('services', {}))
         for service_name, service_info in services_copy.items():
-            new_service_name = f"{service_name}_{parallel_id}"
+            new_service_name = f"{service_name}-{parallel_id}"
             yml_data['services'][new_service_name] = service_info
             del yml_data['services'][service_name]
 
@@ -54,28 +54,34 @@ def edit_yml_with_id(yml_path, parallel_id):
             service_networks = service_info.get('networks')
             if service_networks:
                 if isinstance(service_networks, list):
-                    service_info['networks'] = [f"{network}_{parallel_id}" for network in service_networks]
+                    service_info['networks'] = [f"{network}-{parallel_id}" for network in service_networks]
                 elif isinstance(service_networks, dict):
-                    service_info['networks'] = {f"{key}_{parallel_id}": value for key, value in service_networks.items()}
+                    service_info['networks'] = {f"{key}-{parallel_id}": value for key, value in service_networks.items()}
 
             if 'container_name' in service_info:
-                service_info['container_name'] = f"{service_info['container_name']}_{parallel_id}"
+                service_info['container_name'] = f"{service_info['container_name']}-{parallel_id}"
 
             if 'depends_on' in service_info:
-                service_info['depends_on'] = [f"{dep}_{parallel_id}" for dep in service_info['depends_on']]
+                if isinstance(service_info['depends_on'], list):
+                    service_info['depends_on'] = [f"{dep}-{parallel_id}" for dep in service_info['depends_on']]
+                elif isinstance(service_info['depends_on'], dict):
+                    service_info['depends_on'] = {f"{key}-{parallel_id}": value for key, value in service_info['depends_on'].items()}
+                else:
+                    service_info['depends_on'] = f"{service_info['depends_on']}-{parallel_id}"
+
 
         # top level networks
         networks = yml_data.get('networks')
         if networks:
             if isinstance(networks, list):
-                yml_data['networks'] = [f"{network}_{parallel_id}" for network in networks]
+                yml_data['networks'] = [f"{network}-{parallel_id}" for network in networks]
             elif isinstance(networks, dict):
-                yml_data['networks'] = {f"{key}_{parallel_id}": value for key, value in networks.items()}
+                yml_data['networks'] = {f"{key}-{parallel_id}": value for key, value in networks.items()}
 
         # Update container names in the flow section
         for item in yml_data.get('flow', []):
             if 'container' in item:
-                item['container'] = f"{item['container']}_{parallel_id}"
+                item['container'] = f"{item['container']}-{parallel_id}"
 
     # Save the updated YAML file
     with open(yml_path, 'w', encoding='utf-8') as fp:
@@ -116,9 +122,11 @@ def setup_runner(name=None, usage_scenario="usage_scenario.yml", docker_compose=
             usage_scenario_path = os.path.join(CURRENT_DIR, 'data/usage_scenarios/', usage_scenario)
             make_proj_dir(dir_name=dir_name, usage_scenario_path=usage_scenario_path, docker_compose_path=docker_compose_path)
 
-        uri = os.path.join(CURRENT_DIR, 'tmp/', dir_name)
+        tmp_dir_path = os.path.join(CURRENT_DIR, 'tmp/', dir_name)
+        if uri == 'default':
+            uri = tmp_dir_path
         if do_parallelize_files:
-            parallelize_files(uri, usage_scenario, docker_compose, parallel_id)
+            parallelize_files(tmp_dir_path, usage_scenario, docker_compose, parallel_id)
     elif uri_type == 'URL':
         if uri[0:8] != 'https://' and uri[0:7] != 'http://':
             raise ValueError("Invalid uri for URL")
@@ -126,7 +134,7 @@ def setup_runner(name=None, usage_scenario="usage_scenario.yml", docker_compose=
         raise ValueError("Invalid uri_type")
 
     if name is None:
-        name = f'test_{parallel_id}'
+        name = f'test-{parallel_id}'
 
     runner = Runner(name=name, uri=uri, uri_type=uri_type, filename=usage_scenario, branch=branch,
         debug_mode=debug_mode, allow_unsafe=allow_unsafe, no_file_cleanup=no_file_cleanup,

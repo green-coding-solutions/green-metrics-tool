@@ -72,7 +72,6 @@ class Runner:
         self._uri_type = uri_type
         self._original_filename = filename
         self._branch = branch
-        #DMM:MARK
         self._tmp_folder = "/tmp/green-metrics-tool"
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
@@ -280,7 +279,6 @@ class Runner:
                                 check=True, encoding='UTF-8')
         for line in result.stdout.splitlines():
             for running_container in line.split(','): # if docker container has multiple tags, they will be split by comma, so we only want to
-                #DMM:MARK
                 for service_name in self._usage_scenario.get('services', {}):
                     if 'container_name' in self._usage_scenario['services'][service_name]:
                         container_name = self._usage_scenario['services'][service_name]['container_name']

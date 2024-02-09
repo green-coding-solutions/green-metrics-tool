@@ -47,10 +47,10 @@ def test_volume_load_no_escape():
         with pytest.raises(RuntimeError) as e:
             Tests.run_until(runner, 'setup_services')
     finally:
-        container_running = check_if_container_running(f"test-container_{parallel_id}")
+        container_running = check_if_container_running(f"test-container-{parallel_id}")
         runner.cleanup()
 
-    container_name = f'test-container_{parallel_id}'
+    container_name = f'test-container-{parallel_id}'
     expected_error = f'Service \'{container_name}\' volume path (/etc/passwd) is outside allowed folder:'
     assert str(e.value).startswith(expected_error), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info(f'{container_name} stopped', f'{container_name} was still running!')
@@ -86,7 +86,7 @@ def test_load_files_from_within_gmt():
         Tests.run_until(runner, 'setup_services')
         # check that the volume was loaded
         ps = subprocess.run(
-            ['docker', 'exec', f"test-container_{parallel_id}", '/bin/sh',
+            ['docker', 'exec', f"test-container-{parallel_id}", '/bin/sh',
             '-c', 'test -f /tmp/test-file && echo "File mounted"'],
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -119,7 +119,7 @@ def test_symlinks_should_fail():
     runner = Tests.setup_runner( usage_scenario=usage_scenario_file, docker_compose=docker_compose_file,
                 parallel_id=parallel_id, create_tmp_directory=False)
 
-    container_name = f'test-container_{parallel_id}'
+    container_name = f'test-container-{parallel_id}'
     try:
         with pytest.raises(RuntimeError) as e:
             Tests.run_until(runner, 'setup_services')
@@ -146,7 +146,7 @@ def test_non_bind_mounts_should_fail():
     runner = Tests.setup_runner(usage_scenario=usage_scenario_file, docker_compose=docker_compose_file,
                 parallel_id=parallel_id, create_tmp_directory=False)
 
-    container_name=f'test-container_{parallel_id}'
+    container_name=f'test-container-{parallel_id}'
     try:
         with pytest.raises(RuntimeError) as e:
             Tests.run_until(runner, 'setup_services')
@@ -180,7 +180,7 @@ def test_load_volume_references():
         Tests.run_until(runner, 'setup_services')
         # check that the volume was loaded
         ps = subprocess.run(
-            ['docker', 'exec', f"test-container-2_{parallel_id}", '/bin/sh',
+            ['docker', 'exec', f"test-container-2-{parallel_id}", '/bin/sh',
             '-c', 'test -f /tmp/test-file && echo "File mounted"'],
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -223,19 +223,19 @@ def test_volume_loading_subdirectories_root():
     run_stdout = out.getvalue()
     assert run_stderr == '', Tests.assertion_info('stderr empty', f"stderr: {run_stderr}")
 
-    expect_content_testfile_root = f"stdout from process: ['docker', 'exec', 'test-container-root_{parallel_id}', 'grep', 'testfile-root-content', '/tmp/testfile-root'] testfile-root-content"
+    expect_content_testfile_root = f"stdout from process: ['docker', 'exec', 'test-container-root-{parallel_id}', 'grep', 'testfile-root-content', '/tmp/testfile-root'] testfile-root-content"
     assert expect_content_testfile_root in run_stdout, Tests.assertion_info(expect_content_testfile_root, f"expected output not in {run_stdout}")
 
-    expect_extra_testfile_root = f"stdout from process: ['docker', 'exec', 'test-container-root_{parallel_id}', 'grep', 'testfile-root-content', '/tmp/testfile-root-extra-copied'] testfile-root-content"
+    expect_extra_testfile_root = f"stdout from process: ['docker', 'exec', 'test-container-root-{parallel_id}', 'grep', 'testfile-root-content', '/tmp/testfile-root-extra-copied'] testfile-root-content"
     assert expect_extra_testfile_root in run_stdout, Tests.assertion_info(expect_extra_testfile_root, f"expected output not in {run_stdout}")
 
-    expect_mounted_testfile = f"stdout from process: ['docker', 'exec', 'test-container_{parallel_id}', 'grep', 'testfile-content', '/tmp/testfile-correctly-mounted'] testfile-content"
+    expect_mounted_testfile = f"stdout from process: ['docker', 'exec', 'test-container-{parallel_id}', 'grep', 'testfile-content', '/tmp/testfile-correctly-mounted'] testfile-content"
     assert expect_mounted_testfile in run_stdout, Tests.assertion_info(expect_mounted_testfile, f"expected output not in {run_stdout}")
 
-    expect_mounted_testfile_2 = f"stdout from process: ['docker', 'exec', 'test-container_{parallel_id}', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
+    expect_mounted_testfile_2 = f"stdout from process: ['docker', 'exec', 'test-container-{parallel_id}', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
     assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, f"expected output not in {run_stdout}")
 
-    expect_mounted_testfile_3 = f"stdout from process: [s'docker', 'exec', 'test-container-root_{parallel_id}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
+    expect_mounted_testfile_3 = f"stdout from process: [s'docker', 'exec', 'test-container-root-{parallel_id}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
 def test_volume_loading_subdirectories_subdir():
@@ -252,10 +252,10 @@ def test_volume_loading_subdirectories_subdir():
     run_stdout = out.getvalue()
     assert run_stderr == '', Tests.assertion_info('stderr empty', f"stderr: {run_stderr}")
 
-    expect_mounted_testfile_2 = f"stdout from process: ['docker', 'exec', 'test-container_{parallel_id}', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
+    expect_mounted_testfile_2 = f"stdout from process: ['docker', 'exec', 'test-container-{parallel_id}', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
     assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, f"expected output not in {run_stdout}")
 
-    expect_mounted_testfile_3 = f"stdout from process: ['docker', 'exec', 'test-container_{parallel_id}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-mounted'] testfile3-content"
+    expect_mounted_testfile_3 = f"stdout from process: ['docker', 'exec', 'test-container-{parallel_id}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-mounted'] testfile3-content"
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
 def test_volume_loading_subdirectories_subdir2():
@@ -272,14 +272,14 @@ def test_volume_loading_subdirectories_subdir2():
     run_stdout = out.getvalue()
     assert run_stderr == '', Tests.assertion_info('stderr empty', f"stderr: {run_stderr}")
 
-    expect_mounted_testfile_2 = f"stdout from process: ['docker', 'exec', 'test-container_{parallel_id}', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
+    expect_mounted_testfile_2 = f"stdout from process: ['docker', 'exec', 'test-container-{parallel_id}', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-mounted'] testfile2-content"
     assert expect_mounted_testfile_2 in run_stdout, Tests.assertion_info(expect_mounted_testfile_2, "expected output not in {run_stdout}")
 
-    expect_copied_testfile_2 = f"stdout from process: ['docker', 'exec', 'test-container_{parallel_id}', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-copied'] testfile2-content"
+    expect_copied_testfile_2 = f"stdout from process: ['docker', 'exec', 'test-container-{parallel_id}', 'grep', 'testfile2-content', '/tmp/testfile2-correctly-copied'] testfile2-content"
     assert expect_copied_testfile_2 in run_stdout, Tests.assertion_info(expect_copied_testfile_2, f"expected output not in {run_stdout}")
 
-    expect_copied_testfile_3 = f"stdout from process: ['docker', 'exec', 'test-container_{parallel_id}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
+    expect_copied_testfile_3 = f"stdout from process: ['docker', 'exec', 'test-container-{parallel_id}', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
     assert expect_copied_testfile_3 in run_stdout, Tests.assertion_info(expect_copied_testfile_3, f"expected output not in {run_stdout}")
 
-    expect_copied_testfile_4 = f"stdout from process: ['docker', 'exec', 'test-container_{parallel_id}', 'grep', 'testfile4-content', '/tmp/testfile4-correctly-copied'] testfile4-content"
+    expect_copied_testfile_4 = f"stdout from process: ['docker', 'exec', 'test-container-{parallel_id}', 'grep', 'testfile4-content', '/tmp/testfile4-correctly-copied'] testfile4-content"
     assert expect_copied_testfile_4 in run_stdout, Tests.assertion_info(expect_copied_testfile_4, f"expected output not in {run_stdout}")

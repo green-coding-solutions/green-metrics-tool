@@ -3,6 +3,7 @@ import os
 import subprocess
 import re
 import pytest
+import shutil
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -21,15 +22,20 @@ RUN_NAME = 'test_' + utils.randomword(12)
 # Runs once per file before any test(
 #pylint: disable=expression-not-assigned
 def setup_module():
+    parallel_id = utils.randomword(12)
+    test_case_path=os.path.join(CURRENT_DIR, 'stress-application/')
+    tmp_dir_path=os.path.join(CURRENT_DIR, 'tmp', parallel_id)
+    shutil.copytree(test_case_path, tmp_dir_path)
+
     out = io.StringIO()
     err = io.StringIO()
     GlobalConfig(config_name='test-config.yml').config
     with redirect_stdout(out), redirect_stderr(err):
-        uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
+        uri = os.path.abspath(tmp_dir_path)
         subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = Tests.setup_runner(usage_scenario="stress_application.yml", name=RUN_NAME, uri=uri, uri_type='folder', dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=False)
+        runner = Tests.setup_runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=False, create_tmp_directory=False, parallel_id=parallel_id)
         runner.run()
 
     #pylint: disable=global-statement
