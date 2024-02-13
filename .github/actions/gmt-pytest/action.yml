@@ -86,7 +86,7 @@ runs:
       shell: bash
 
     - name: Run Tests
-      if: inputs.run-examples-directory-tests == false
+      if: inputs.run-examples-directory-tests == 'false'
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/tests
       run: |
@@ -95,7 +95,7 @@ runs:
         python3 -m pytest -m "serial" -rA | tee -a /tmp/test-results.txt
 
     - name: Run Tests (examples directory)
-      if: inputs.run-examples-directory-tests == true
+      if: inputs.run-examples-directory-tests == 'true'
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/tests
       run: |

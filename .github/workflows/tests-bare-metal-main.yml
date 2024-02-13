@@ -38,7 +38,7 @@ jobs:
         with:
          metrics-to-turn-off: 'Machine Sensors Debug MacOS'
          github-token: ${{ secrets.GITHUB_TOKEN }}
-         run-examples-directory-tests: False
+         run-examples-directory-tests: false
 
       - name: Eco CI Energy Estimation - Get Measurement
         uses: green-coding-berlin/eco-ci-energy-estimation@main
