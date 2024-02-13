@@ -2,6 +2,7 @@ import pytest
 import os
 import shutil
 from lib.db import DB
+import subprocess
 
 ## VERY IMPORTANT to override the config file here
 ## otherwise it will automatically connect to non-test DB and delete all your real data
@@ -32,6 +33,15 @@ def cleanup_temp_directories():
                 shutil.rmtree(item_path)
     if os.path.exists("/tmp/gmt-test-data/"):
         shutil.rmtree("/tmp/gmt-test-data/")
+
+def build_image_fixture():
+    uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
+    subprocess.run(['docker', 'compose', '-f', uri+'/compose_gmt_run_tmp.yml', 'build'], check=True)
+    GlobalConfig().override_config(config_name='test-config.yml')
+
+def pytest_sessionstart(session):
+    if not hasattr(session.config, 'workerinput'):
+        build_image_fixture()
 
 def pytest_sessionfinish(session):
     if not hasattr(session.config, 'workerinput'):

@@ -82,7 +82,6 @@ class Runner:
         self._run_id = None
         self._commit_hash = None
         self._commit_timestamp = None
-        self._tmp_image_name = 'gmt_run_tmp'
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
@@ -444,7 +443,7 @@ class Runner:
         name = re.sub(r'[^A-Za-z0-9_]', '', name)
         # only lowercase letters are allowed for tags
         name = name.lower()
-        name = f"{name}_{self._tmp_image_name}"
+        name = f"{name}_gmt_run_tmp"
         return name
 
     def build_docker_images(self):

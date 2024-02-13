@@ -38,7 +38,6 @@ def replace_include_in_usage_scenario(usage_scenario_path, docker_compose_filena
 def parallelize_runner_folders(runner, parallel_id):
     runner._tmp_folder = f"/tmp/gmt_tests-{parallel_id}/green-metrics-tool/"
     runner._folder = f"{runner._tmp_folder}/repo"
-    runner._tmp_image_name = f"gmt_run_tmp_{parallel_id}"
 
 def edit_yml_with_id(yml_path, parallel_id):
     with open(yml_path, 'r', encoding='utf-8') as fp:
@@ -103,7 +102,7 @@ def parallelize_files(proj_dir, usage_scenario_file, docker_compose='compose.yml
 
 def setup_runner(name=None, usage_scenario="usage_scenario.yml", docker_compose=None, uri='default',
         uri_type='folder', branch=None, debug_mode=False, allow_unsafe=False, no_file_cleanup=False,
-        skip_unsafe=False, verbose_provider_boot=False, dir_name=None, dev_no_build=False, skip_system_checks=True,
+        skip_unsafe=False, verbose_provider_boot=False, dir_name=None, dev_no_build=True, skip_system_checks=True,
         dev_no_sleeps=True, dev_no_metrics=True, parallel_id=None, create_tmp_directory=True, do_parallelize_files=True):
 
     if parallel_id is None:
