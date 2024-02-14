@@ -199,10 +199,10 @@ def determine_baseline_energy(mp, energy_provider, idle_time, provider_interval)
     energy_provider_key = next(iter(data_energy_idle))
     data_energy_idle = data_energy_idle[energy_provider_key]
 
-    return check_energy_idle_values(data_energy_idle, timings['start_energy_idle'], timings['end_energy_idle'])
+    return check_energy_idle_values(data_energy_idle, timings['start_energy_idle'], timings['end_energy_idle'], provider_interval)
 
 
-def check_energy_idle_values(data, timing_start, timing_end):
+def check_energy_idle_values(data, timing_start, timing_end, provider_interval):
     # global timings # we just read
 
     # Remove boot and stop values
@@ -230,6 +230,7 @@ def check_energy_idle_values(data, timing_start, timing_end):
                         Please make sure that the are no jobs running in the background. Aborting!''')
         logging.info('\n%s', data)
         logging.info('Mean Energy: %s mJ', round(mean_value,2))
+        logging.info('Mean Power: %s W', round(mean_value/provider_interval,2))
         logging.info('Std. Dev: %s mJ', round(std_value,2))
         logging.info('Std. Dev (rel): %s %%', round((std_value / mean_value) * 100,2))
         logging.info('Allowed threshold: %s', threshold)
@@ -240,13 +241,14 @@ def check_energy_idle_values(data, timing_start, timing_end):
 
     logging.info(f"{GREEN}System Baseline / Idle measurement successful{NC}")
     logging.info('Mean Energy: %s mJ', round(mean_value,2))
+    logging.info('Mean Power: %s W', round(mean_value/provider_interval,2))
     logging.info('Std. Dev: %s mJ', round(std_value,2))
     logging.info('Std. Dev (rel): %s %%', round((std_value / mean_value) * 100,2))
     logging.info('----------------------------------------------------------')
 
     return mean_value, std_value
 
-def check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time, energy_idle_mean_value):
+def check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time, energy_idle_mean_value, provider_interval):
     # global timings # we just read
     global docker_sleeper
 
@@ -278,12 +280,13 @@ def check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time
 
     data_energy_idle = data_all_idle[energy_provider_key]
 
-    energy_all_mean_value, energy_all_std_value = check_energy_idle_values(data_energy_idle, timings['start_all_idle'], timings['end_all_idle'])
+    energy_all_mean_value, energy_all_std_value = check_energy_idle_values(data_energy_idle, timings['start_all_idle'], timings['end_all_idle'], provider_interval)
 
     logging.info('Provider energy overhead measurement succesful.')
 
     logging.info(f"Energy overhead is: {energy_all_mean_value - energy_idle_mean_value} mJ")
     logging.info(f"Energy overhead (rel.): {((energy_all_mean_value - energy_idle_mean_value) / energy_idle_mean_value) * 100} %")
+    logging.info(f"Power overhead is: {(energy_all_mean_value - energy_idle_mean_value) / provider_interval} W")
     logging.info('-----------------------------------------------------------------------------------------')
 
     return energy_all_mean_value, energy_all_std_value
@@ -566,7 +569,7 @@ def main(idle_time,
     energy_provider_key = energy_provider.rsplit('.', 1)[1]
 
     logging.info(f"{MAGENTA}Determining provider overhead for GMT when running configured set of providers ...{NC}")
-    energy_all_mean_value, energy_all_std_value = check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time, energy_idle_mean_value)
+    energy_all_mean_value, energy_all_std_value = check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time, energy_idle_mean_value, provider_interval)
 
     logging.info(f"{MAGENTA}Determining idle values for energy and temperature to caclulate cooldown calibration settings ...{NC}")
     data_idle, energy_mean, energy_std, temp_mean, temp_std, energy_provider_name, temp_provider_name = determine_idle_energy_and_temp(mp, energy_provider, temp_provider, idle_time, provider_interval)
