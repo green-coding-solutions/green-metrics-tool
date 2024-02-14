@@ -109,7 +109,7 @@ def start_metric_providers(containers=None):
         metric_provider.start_profiling(containers)
 
     logging.debug('Waiting for Metric Providers to boot ...')
-    countdown_bar(len(metric_providers) * 2, 'Booting Metric Providers')
+    countdown_bar(5, 'Booting Metric Providers')
 
     for metric_provider in metric_providers:
         stderr_read = metric_provider.get_stderr()
@@ -134,6 +134,9 @@ def stop_metric_providers(force=False, containers=None):
 
         if force is False:
             data[metric_provider.__class__.__name__] = metric_provider.read_metrics(1, containers=containers)
+            if isinstance(data[metric_provider.__class__.__name__], int):
+                # If df returns an int the data has already been committed to the db
+                continue
             if data[metric_provider.__class__.__name__] is None or data[metric_provider.__class__.__name__].shape[0] == 0:
                 raise RuntimeError(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
 
@@ -232,7 +235,8 @@ def check_energy_idle_values(data, timing_start, timing_end):
         logging.info('Allowed threshold: %s', threshold)
         logging.info('Outliers: %s', outliers)
 
-        raise SystemExit('System not stable.')
+        if input("System is not stable, do you still want to continue?? [Y/n] ").lower() not in ('y', ''):
+            raise SystemExit('System not stable.')
 
     logging.info(f"{GREEN}System Baseline / Idle measurement successful{NC}")
     logging.info('Mean Energy: %s mJ', round(mean_value,2))
@@ -632,7 +636,7 @@ if __name__ == '__main__':
 
     if args.dev:
         args.idle_time = 15
-        args.stress_time = 12
+        args.stress_time = 15
         args.cooldown_time = 30
         args.provider_interval = 1000
         args.log_level = 'debug'
