@@ -155,6 +155,8 @@ docker compose -f docker/compose.yml pull
 print_message "Updating python requirements"
 python3 -m pip install --upgrade pip
 python3 -m pip install -r requirements.txt
+python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
+
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
