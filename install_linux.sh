@@ -131,7 +131,7 @@ make_file="Makefile"
 find "$parent_dir" -type d |
 while IFS= read -r subdir; do
     make_path="$subdir/$make_file"
-    if [[ -f "$make_path" ]]; then
+    if [[ -f "$make_path" ]] && [[ ! "$make_path" == *"mac/"* ]]; then
         echo "Installing $subdir/metric-provider-binary ..."
         rm -f $subdir/metric-provider-binary 2> /dev/null
         make -C $subdir

@@ -133,6 +133,20 @@ if ! command -v stdbuf &> /dev/null; then
     brew install coreutils
 fi
 
+print_message "Building binaries ..."
+metrics_subdir="metric_providers"
+parent_dir="./$metrics_subdir"
+make_file="Makefile"
+find "$parent_dir" -type d |
+while IFS= read -r subdir; do
+    make_path="$subdir/$make_file"
+    if [[ -f "$make_path" ]] && [[ "$make_path" == *"mac/"* ]]; then
+        echo "Installing $subdir/metric-provider-binary ..."
+        rm -f $subdir/metric-provider-binary 2> /dev/null
+        make -C $subdir
+    fi
+done
+
 print_message "Building / Updating docker containers"
 docker compose -f docker/compose.yml down
 docker compose -f docker/compose.yml build
