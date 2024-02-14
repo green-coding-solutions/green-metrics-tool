@@ -12,6 +12,7 @@ import os
 from enum import Enum
 import subprocess
 import psutil
+import locale
 
 from psycopg import OperationalError as psycopg_OperationalError
 
@@ -39,7 +40,7 @@ def check_db():
         os._exit(1)
     return True
 
-def check_one_psu_provider():
+def check_one_energy_and_scope_machine_provider():
     metric_providers = utils.get_metric_providers(GlobalConfig().config).keys()
     energy_machine_providers = [provider for provider in metric_providers if ".energy" in provider and ".machine" in provider]
     return len(energy_machine_providers) <= 1
@@ -68,17 +69,20 @@ def check_docker_daemon():
                             check=False, encoding='UTF-8')
     return result.returncode == 0
 
+def check_utf_encoding():
+    return locale.getpreferredencoding().lower() == sys.getdefaultencoding().lower() == 'utf-8'
 
 ######## END CHECK FUNCTIONS ########
 
 start_checks = [
     (check_db, Status.ERROR, 'db online', 'This text will never be triggered, please look in the function itself'),
-    (check_one_psu_provider, Status.ERROR, 'single PSU provider', 'Please only select one PSU provider'),
+    (check_one_energy_and_scope_machine_provider, Status.ERROR, 'single energy scope machine provider', 'Please only select one provider with energy and scope machine'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
     (check_free_disk, Status.ERROR, '1GB free hdd space', 'We recommend to free up some disk space'),
     (check_free_memory, Status.ERROR, 'free memory', 'No free memory! Please kill some programs'),
-    (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.berlin/docs/installation/]'),
-    (check_containers_running, Status.WARN, 'Running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.berlin/docs/installation/installation-cluster/].'),
+    (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.io/docs/installation/]'),
+    (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
+    (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output.'),
 
 ]
 

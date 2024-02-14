@@ -1,6 +1,6 @@
 (async () => {
     try {
-        var machines_json = await makeAPICall('/v1/machines/');
+        var machines_json = await makeAPICall('/v1/machines');
 
         machines_json.data.forEach(machine => {
                 if(machine[2] == false) return;

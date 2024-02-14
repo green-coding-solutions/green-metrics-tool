@@ -89,20 +89,28 @@ git submodule update --init
 print_message "Setting up python venv"
 python3 -m venv venv
 source venv/bin/activate
-# This will set the include path for the project
+
+print_message "Setting GMT in include path for python via .pth file"
 find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
+print_message "Adding hardware_info_root.py to sudoers file"
+PYTHON_PATH=$(which python3)
+PWD=$(pwd)
+echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
+
+print_message "Setting the hardare hardware_info to be owned by root"
+sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
+sudo chown root: $PWD/lib/hardware_info_root.py
+sudo chmod 755 $PWD/lib/hardware_info_root.py
 
 print_message "Adding powermetrics to sudoers file"
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/powermetrics" | sudo tee /etc/sudoers.d/green_coding_powermetrics
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall -9 powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics_sigkill
 
-
+print_message "Writing to /etc/hosts file..."
 etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
 etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
-
-print_message "Writing to /etc/hosts file..."
 
 # Entry 1 is needed for the local resolution of the containers through the jobs.py and runner.py
 if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
@@ -128,6 +136,7 @@ fi
 print_message "Building / Updating docker containers"
 docker compose -f docker/compose.yml down
 docker compose -f docker/compose.yml build
+docker compose -f docker/compose.yml pull
 
 print_message "Updating python requirements"
 python3 -m pip install --upgrade pip

@@ -7,18 +7,18 @@ type: software
 authors:
   - given-names: Arne
     family-names: Tarara
-    email: arne@green-coding.berlin
-    affiliation: Green Coding Berlin
+    email: arne@green-coding.io
+    affiliation: Green Coding Solutions GmbH
   - given-names: Dan
     family-names: Mateas
-    email: dan@green-coding.berlin
-    affiliation: Green Coding Berlin
+    email: dan@green-coding.io
+    affiliation: Green Coding Solutions GmbH
   - given-names: Geerd-Dietger
     family-names: Hoffmann
-    email: didi@green-coding.berlin
-    affiliation: Green Coding Berlin
+    email: didi@green-coding.io
+    affiliation: Green Coding Solutions GmbH
 repository-code: 'https://github.com/green-coding-berlin/green-metrics-tool'
-url: 'https://www.green-coding.berlin/'
+url: 'https://www.green-coding.io/'
 repository: 'https://github.com/green-coding-berlin/'
 abstract: >-
   The Green Metrics Tool is a developer tool indented for

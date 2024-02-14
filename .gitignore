@@ -13,7 +13,9 @@ metric-provider-binary
 static-binary
 .pytest_cache
 test-compose.yml
-test-config.yml
 tests/structure.sql
 tools/sgx_enable
 venv/
+lib/hardware_info_root.py
+tools/cluster/cleanup.sh
+node_modules/

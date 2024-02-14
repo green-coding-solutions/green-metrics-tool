@@ -1,0 +1,20 @@
+---
+name: Test depends_on
+author: Arne Tarara <arne@green-coding.io>
+description: test
+
+services:
+  test-container-1:
+    image: alpine
+    depends_on:
+      test-container-2:
+        condition: service_completed_successfully
+  test-container-2:
+    image: alpine
+
+flow:
+  - name: dummy
+    container: test-container-1
+    commands:
+      - type: console
+        command: pwd

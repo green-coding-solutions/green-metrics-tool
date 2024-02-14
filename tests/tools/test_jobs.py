@@ -68,7 +68,7 @@ def test_insert_job():
     job_id = Job.insert('Test Name', 'Test URL',  'Test Email', 'Test Branch', 'Test filename', 1)
     assert job_id is not None
     job = Job.get_job('run')
-    assert job.state == 'WAITING'
+    assert job._state == 'WAITING'
 
 def test_simple_run_job():
     name = utils.randomword(12)

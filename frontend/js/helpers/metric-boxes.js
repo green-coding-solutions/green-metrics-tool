@@ -65,15 +65,15 @@ class PhaseMetrics extends HTMLElement {
             </div>
             <div class="ui card network-energy">
                 <div class="ui content">
-                    <div class="ui top blue attached label overflow-ellipsis">Network Energy <span class="si-unit"></span></div>
+                    <div class="ui top blue attached label overflow-ellipsis">Network Transmission Energy<span class="si-unit"></span></div>
                     <div class="description">
                         <div class="ui fluid mini statistic">
                             <div class="value">
                                 <i class="battery three quarters icon"></i> <span>N/A</span>
                             </div>
                         </div>
-                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
-                            <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Estimated external energy cost for network infrastructure. See details under formula.">
+                            <u><a href="https://www.green-coding.io/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
                         </div>
                         <div class="ui bottom left attached label">
@@ -92,7 +92,7 @@ class PhaseMetrics extends HTMLElement {
                             </div>
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="CO2 cost of usage phase">
-                            <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
+                            <u><a href="https://www.green-coding.io/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
                         </div>
                         <div class="ui bottom left attached label">
@@ -103,15 +103,15 @@ class PhaseMetrics extends HTMLElement {
             </div>
             <div class="ui card network-co2">
                 <div class="ui content">
-                    <div class="ui top black attached label overflow-ellipsis">Network CO2 <span class="si-unit"></span></div>
+                    <div class="ui top black attached label overflow-ellipsis">Network Transmission CO2 <span class="si-unit"></span></div>
                     <div class="description">
                         <div class="ui fluid mini statistic">
                             <div class="value">
                                 <i class="burn icon"></i> <span>N/A</span>
                             </div>
                         </div>
-                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Transfer cost of data through routers, data-centers and transmission networks.">
-                            <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Estimated external CO2 cost for network infrastructure. See details under formula.">
+                            <u><a href="https://www.green-coding.io/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
                         </div>
                         <div class="ui bottom left attached label">
@@ -130,7 +130,7 @@ class PhaseMetrics extends HTMLElement {
                             </div>
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="CO2 (manufacturing) attr. to lifetime share of phase duration.">
-                            <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
+                            <u><a href="https://www.green-coding.io/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
                         </div>
                         <div class="ui bottom left attached label">
@@ -224,8 +224,8 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
     if(comparison_case !== null) {
         tr.innerHTML = `
-            <td data-position="bottom left" data-inverted="" data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}"><i class="question circle icon"></i>${METRIC_MAPPINGS[metric_name]['clean_name']}</td>
-            <td>${METRIC_MAPPINGS[metric_name]['source']}</td>
+            <td data-position="bottom left" data-inverted="" data-tooltip="${getPretty(metric_name, 'explanation')}"><i class="question circle icon"></i>${getPretty(metric_name, 'clean_name')}</td>
+            <td>${getPretty(metric_name, 'source')}</td>
             <td>${scope}</td>
             <td>${detail_name}</td>
             <td>${metric_data.type}</td>
@@ -239,8 +239,8 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
 
     } else {
         tr.innerHTML = `
-            <td data-position="bottom left" data-inverted="" data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}"><i class="question circle icon"></i>${METRIC_MAPPINGS[metric_name]['clean_name']}</td>
-            <td>${METRIC_MAPPINGS[metric_name]['source']}</td>
+            <td data-position="bottom left" data-inverted="" data-tooltip="${getPretty(metric_name, 'explanation')}"><i class="question circle icon"></i>${getPretty(metric_name, 'clean_name')}</td>
+            <td>${getPretty(metric_name, 'source')}</td>
             <td>${scope}</td>
             <td>${detail_name}</td>
             <td>${metric_data.type}</td>
@@ -252,9 +252,9 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
 
 
     updateKeyMetric(
-        phase, metric_name, METRIC_MAPPINGS[metric_name]['clean_name'], detail_name,
-        value , std_dev_text, unit,
-        METRIC_MAPPINGS[metric_name]['explanation'], METRIC_MAPPINGS[metric_name]['source']
+        phase, metric_name, getPretty(metric_name, 'clean_name'), detail_name,
+        value , std_dev_text, unit, detail_data.mean, metric_data.unit,
+        getPretty(metric_name, 'explanation'), getPretty(metric_name, 'source')
     );
 }
 
@@ -297,8 +297,8 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
 
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
     tr.innerHTML = `
-        <td data-position="bottom left" data-inverted="" data-tooltip="${METRIC_MAPPINGS[metric_name]['explanation']}"><i class="question circle icon"></i>${METRIC_MAPPINGS[metric_name]['clean_name']}</td>
-        <td>${METRIC_MAPPINGS[metric_name]['source']}</td>
+        <td data-position="bottom left" data-inverted="" data-tooltip="${getPretty(metric_name, 'explanation')}"><i class="question circle icon"></i>${getPretty(metric_name, 'clean_name')}</td>
+        <td>${getPretty(metric_name, 'source')}</td>
         <td>${scope}</td>
         <td>${detail_name}</td>
         <td>${metric_data.type}</td>
@@ -309,9 +309,9 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
         <td>${extra_label}</td>`;
 
     updateKeyMetric(
-        phase, metric_name, METRIC_MAPPINGS[metric_name]['clean_name'], detail_name,
-        value, '', metric_data.unit,
-        METRIC_MAPPINGS[metric_name]['explanation'], METRIC_MAPPINGS[metric_name]['source']
+        phase, metric_name, getPretty(metric_name, 'clean_name'), detail_name,
+        value, '', metric_data.unit, null, null,
+        getPretty(metric_name, 'explanation'), getPretty(metric_name, 'source')
     );
 
 }
@@ -321,7 +321,7 @@ const calculateCO2 = (phase, total_CO2_in_ug) => {
     if(display_in_metric_units == 'true') display_in_metric_units = true;
     else display_in_metric_units = false;
 
-    // network via formula: https://www.green-coding.berlin/co2-formulas/
+    // network via formula: https://www.green-coding.io/co2-formulas/
     let total_CO2_in_kg = total_CO2_in_ug / 1_000_000_000;
     const [component_co2_value, component_co2_unit] = rescaleCO2Value(total_CO2_in_kg)
 
@@ -354,7 +354,7 @@ const calculateCO2 = (phase, total_CO2_in_ug) => {
     }
 }
 
-const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std_dev_text, unit, explanation, source) => {
+const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std_dev_text, unit, raw_value, raw_unit, explanation, source) => {
 
     let selector = null;
     // key metrics are already there, cause we want a fixed order, so we just replace
@@ -380,6 +380,9 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
 
 
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerText = `${(value)} ${std_dev_text}`
+
+    document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value`).setAttribute('title', `${raw_value} [${raw_unit}]`)
+
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .si-unit`).innerText = `[${unit}]`
     if(std_dev_text != '') document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(AVG + STD.DEV)`;
     else if(String(value).indexOf('%') !== -1) document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .metric-type`).innerText = `(Diff. in %)`;
