@@ -88,6 +88,7 @@
 #define TIME_UNIT_OFFSET    0x10
 #define TIME_UNIT_MASK        0xF000
 
+
 static int open_msr(int core) {
 
     char msr_filename[BUFSIZ];
@@ -231,6 +232,7 @@ static int detect_cpu(void) {
 
     return model;
 }
+
 
 #define MAX_CPUS    1024
 #define MAX_PACKAGES    16
@@ -397,6 +399,23 @@ static int setup_measurement_units(int measurement_mode) {
     return 0;
 }
 
+static int check_system() {
+    int fd = open_msr(0);
+    if (fd < 0) {
+        fprintf(stderr, "Couldn't open MSR 0\n");
+        exit(127);
+    }
+    long long msr_data = read_msr(fd, energy_status);
+
+    if(msr_data <= 0) {
+        fprintf(stderr, "rapl MSR had 0 or negative values: %lld\n", msr_data);
+        exit(127);
+    }
+    close(fd);
+    return 0;
+
+}
+
 static int rapl_msr() {
     int fd;
     long long result;
@@ -460,14 +479,16 @@ int main(int argc, char **argv) {
     int c;
     int cpu_model;
     int measure_mode = MEASURE_ENERGY_PKG;
+    int check_system_flag = 0;
 
-    while ((c = getopt (argc, argv, "hi:d")) != -1) {
+    while ((c = getopt (argc, argv, "hi:dc")) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-h] [-m]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
-            printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n\n");
-            printf("\t-d      : measure the dram energy instead of the entire package");
+            printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
+            printf("\t-d      : measure the dram energy instead of the entire package\n");
+            printf("\t-c      : check system and exit\n");
             exit(0);
         case 'i':
             msleep_time = atoi(optarg);
@@ -475,11 +496,15 @@ int main(int argc, char **argv) {
         case 'd':
             measure_mode=MEASURE_DRAM;
             break;
+        case 'c':
+            check_system_flag = 1;
+            break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
             exit(-1);
         }
     }
+
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -487,6 +512,11 @@ int main(int argc, char **argv) {
     detect_packages();
     check_availability(cpu_model, measure_mode);
     setup_measurement_units(measure_mode);
+
+    if(check_system_flag){
+        exit(check_system()); 
+    }
+
     while(1) {
         rapl_msr();
     }

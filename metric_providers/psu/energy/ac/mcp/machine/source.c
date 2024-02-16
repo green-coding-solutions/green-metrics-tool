@@ -211,26 +211,29 @@ int f511_init(const char *port)
     return fd;
 }
 
-
-
 int main(int argc, char **argv) {
 
     int c;
+    int check_system_flag = 0;
     struct timeval now;
     int fd;
     int result;
     int data[2]; // The MCP has two outlets where you can measure.
 
 
-    while ((c = getopt (argc, argv, "hi:d")) != -1) {
+    while ((c = getopt (argc, argv, "hi:dc")) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-h] [-m]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
-            printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n\n");
+            printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
+            printf("\t-c      : check system and exit\n\n");
             exit(0);
         case 'i':
             msleep_time = atoi(optarg);
+            break;
+        case 'c':
+            check_system_flag = 1;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -241,9 +244,13 @@ int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
 
     fd = f511_init("/dev/ttyACM0");
+
     if(fd < 0) {
         fprintf(stderr, "Error. Connection could not be opened\n");
         return -1;
+    }
+    else if(check_system_flag) {
+        exit(0);
     }
 
     while (1) {

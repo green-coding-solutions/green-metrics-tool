@@ -662,7 +662,7 @@ def test_no_file_cleanup():
     name = 'test_' + utils.randomword(12)
     subprocess.run(
         ['python3', '../runner.py', '--name', name, '--uri', uri ,
-         '--no-file-cleanup', '--config-override', 'test-config.yml', '--skip-system-checks'],
+         '--no-file-cleanup', '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,

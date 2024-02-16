@@ -18,7 +18,7 @@ jobs:
           submodules: 'true'
 
       - name: Eco CI Energy Estimation - Initialize
-        uses: green-coding-berlin/eco-ci-energy-estimation@v2
+        uses: green-coding-solutions/eco-ci-energy-estimation@v2
         with:
           task: start-measurement
 
@@ -30,13 +30,13 @@ jobs:
          run-examples-directory-tests: false
 
       - name: Eco CI Energy Estimation - Get Measurement
-        uses: green-coding-berlin/eco-ci-energy-estimation@v2
+        uses: green-coding-solutions/eco-ci-energy-estimation@v2
         with:
           task: get-measurement
           branch: main
 
       - name: Eco CI Energy Estimation - End Measurement
-        uses: green-coding-berlin/eco-ci-energy-estimation@v2
+        uses: green-coding-solutions/eco-ci-energy-estimation@v2
         with:
           task: display-results
           branch: main

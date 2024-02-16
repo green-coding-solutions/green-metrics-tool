@@ -39,7 +39,7 @@ class Job:
         self._run_id = run_id
 
     def check_measurement_job_running(self):
-        query = "SELECT * FROM jobs WHERE state = 'RUNNING' AND machine_id = %s"
+        query = "SELECT id FROM jobs WHERE state = 'RUNNING' AND machine_id = %s"
         params = (self._machine_id,)
         data = DB().fetch_one(query, params=params)
         if data:
@@ -50,7 +50,7 @@ class Job:
         return False
 
     def check_email_job_running(self):
-        query = "SELECT * FROM jobs WHERE state = 'NOTIFYING'"
+        query = "SELECT id FROM jobs WHERE state = 'NOTIFYING'"
         data = DB().fetch_one(query)
         if data:
             error_helpers.log_error('Notifying-Job was still running: ', data)
@@ -189,7 +189,7 @@ class Job:
                 OR
                 (state = 'FAILED' AND updated_at < NOW() - INTERVAL '14 DAYS')
                 OR
-                (state = 'FINISHED' AND updated_at < NOW() - INTERVAL '14 DAYS' AND email IS NULL)
+                (state = 'FINISHED' AND updated_at < NOW() - INTERVAL '14 DAYS')
             '''
         DB().query(query)
 
