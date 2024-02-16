@@ -199,10 +199,10 @@ def determine_baseline_energy(mp, energy_provider, idle_time, provider_interval)
     energy_provider_key = next(iter(data_energy_idle))
     data_energy_idle = data_energy_idle[energy_provider_key]
 
-    return check_energy_idle_values(data_energy_idle, timings['start_energy_idle'], timings['end_energy_idle'], provider_interval)
+    return check_energy_values(data_energy_idle, timings['start_energy_idle'], timings['end_energy_idle'], provider_interval)
 
 
-def check_energy_idle_values(data, timing_start, timing_end, provider_interval):
+def check_energy_values(data, timing_start, timing_end, provider_interval):
     # global timings # we just read
 
     # Remove boot and stop values
@@ -248,7 +248,7 @@ def check_energy_idle_values(data, timing_start, timing_end, provider_interval):
 
     return mean_value, std_value
 
-def check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time, energy_idle_mean_value, provider_interval):
+def check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time, energy_baseline_mean_value, provider_interval):
     # global timings # we just read
     global docker_sleeper
 
@@ -280,13 +280,13 @@ def check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time
 
     data_energy_idle = data_all_idle[energy_provider_key]
 
-    energy_all_mean_value, energy_all_std_value = check_energy_idle_values(data_energy_idle, timings['start_all_idle'], timings['end_all_idle'], provider_interval)
+    energy_all_mean_value, energy_all_std_value = check_energy_values(data_energy_idle, timings['start_all_idle'], timings['end_all_idle'], provider_interval)
 
-    logging.info('Provider energy overhead measurement succesful.')
+    logging.info(f"{GREEN}Provider idle energy overhead measurement successful.{NC}")
 
-    logging.info(f"Energy overhead is: {energy_all_mean_value - energy_idle_mean_value} mJ")
-    logging.info(f"Energy overhead (rel.): {((energy_all_mean_value - energy_idle_mean_value) / energy_idle_mean_value) * 100} %")
-    logging.info(f"Power overhead is: {(energy_all_mean_value - energy_idle_mean_value) / provider_interval} W")
+    logging.info(f"Idle Energy overhead is: {energy_all_mean_value - energy_baseline_mean_value} mJ")
+    logging.info(f"Idle Energy overhead (rel.): {((energy_all_mean_value - energy_baseline_mean_value) / energy_baseline_mean_value) * 100} %")
+    logging.info(f"Idle Power overhead is: {(energy_all_mean_value - energy_baseline_mean_value) / provider_interval} W")
     logging.info('-----------------------------------------------------------------------------------------')
 
     return energy_all_mean_value, energy_all_std_value
@@ -309,15 +309,18 @@ def check_values(data):
         group = group.iloc[2:]
         # make sure that there are no massive peaks in standard deviation. If so exit with notification
         mean_value = group['value'].mean()
+        max_value = group['value'].max()
         std_value = group['value'].std()
 
         if group.iloc[0]['unit'] == 'centi°C':
             display_unit = '°C'
             display_value = mean_value / 100
+            display_max = max_value / 100
             display_std = std_value / 100
         elif group.iloc[0]['unit'] == 'mJ':
             display_unit = group.iloc[0]['unit']
             display_value = mean_value
+            display_max = max_value
             display_std = std_value
         else:
             raise SystemExit(f"Unknown unit detected for {name}: {group.iloc[0]['unit']}; Only expecting mJ and centi°C.")
@@ -333,15 +336,18 @@ def check_values(data):
                             Please make sure that the are no jobs running in the background. Aborting!''')
             logging.info('\n%s', group)
             logging.info('Mean Value: %s %s', round(display_value,2), display_unit)
+            logging.info('Max Value: %s %s', round(display_max,2), display_unit)
             logging.info('Std. Dev: %s %s', round(display_std,2), display_unit)
             logging.info('Std. Dev (rel): %s %%', round(display_std / display_value, 2)) # /100 * 100 = 1, therefore omitted
             logging.info('Allowed threshold: %s', threshold)
             logging.info('Outliers: %s', outliers)
 
-            raise SystemExit(4)
+            if input("System is not stable, do you still want to continue?? [Y/n] ").lower() not in ('y', ''):
+                raise SystemExit(4)
 
         logging.info(f"Idle measurement for {name} completed")
         logging.info('Mean Value: %s %s', round(display_value,2), display_unit)
+        logging.info('Max Value: %s %s', round(display_max,2), display_unit)
         logging.info('Std. Dev: %s %s', round(display_std,2), display_unit)
         logging.info('Std. Dev (rel): %s %%', round(display_std / display_value, 2)) # /100 * 100 = 1, therefore omitted
         logging.info('----------------------------------------------------------')
@@ -378,7 +384,7 @@ def determine_idle_energy_and_temp(mp, energy_provider, temp_provider, idle_time
 
     return data_idle, energy_mean, energy_std, temp_mean, temp_std, energy_provider_name, temp_provider_name
 
-def stress_system(stress_command, stress_time, cooldown_time, temp_mean, temp_std, temp_provider, temperature_increase):
+def stress_system(stress_command, stress_time, cooldown_time, temp_mean, temp_std, temp_provider, temperature_increase, energy_provider_name, energy_baseline_mean_value, energy_all_mean_value, provider_interval):
     # global metric_providers # we just read
     # global timings # we just read
 
@@ -436,16 +442,29 @@ def stress_system(stress_command, stress_time, cooldown_time, temp_mean, temp_st
                 logging.info(f"\n{group}")
                 logging.info(f"Mean from from idle: {round(temp_mean[name]/100,2)}°")
                 logging.info(f"Mean+std from idle : {round((temp_mean[name] + (temp_std[name] * STD_THRESHOLD_MULTI)/100),2)}°")
-                raise SystemExit(3)
+                if input("System is still to hot. No meaningful data could be derived. Do you want to continue?? [Y/n] ").lower() not in ('y', ''):
+                    raise SystemExit(3)
 
         return norm_times
 
     cooldown_times = get_cooldown_time(data_stress[temp_provider_name])
     biggest_time = max(cooldown_times.values())
 
+    print(data_stress)
+    data_energy_stress = data_stress[energy_provider_name]
+    energy_stress_mean_value, _ = check_energy_values(data_energy_stress, timings['start_stress'], timings['end_stress'], provider_interval)
+
+    logging.info(f"{GREEN}Provider effective energy overhead measurement successful.{NC}")
+
+    logging.info(f"Peak system energy is: {energy_stress_mean_value} mJ")
+    logging.info(f"Peak system power is: {energy_stress_mean_value / provider_interval} W")
+
+    logging.info(f"Effective energy overhead (rel.) is: {((energy_all_mean_value - energy_baseline_mean_value) / (energy_stress_mean_value - energy_baseline_mean_value)) * 100} %")
+    logging.info('-----------------------------------------------------------------------------------------')
+
     return data_stress, round(((biggest_time - timings['start_cooldown']) / 1_000_000),2) + 30 # We add 30 secs just to be sure
 
-def save_value(energy_mean, energy_std, temp_mean, temp_std, energy_idle_mean_value, energy_idle_std_value, energy_all_mean_value, energy_all_std_value, cdt_seconds):
+def save_value(energy_mean, energy_std, temp_mean, temp_std, energy_baseline_mean_value, energy_baseline_std_value, energy_all_mean_value, energy_all_std_value, cdt_seconds):
     def modify_sleep_time_in_client_section(lines, new_value):
         inside_client_section = False
         modified_lines = []
@@ -477,10 +496,10 @@ def save_value(energy_mean, energy_std, temp_mean, temp_std, energy_idle_mean_va
                 'energy_stress_std': [{k: str(v)} for k, v in energy_std.items()],
                 'temp_mean': [{k: str(v)} for k, v in temp_mean.items()],
                 'temp_std': [{k: str(v)} for k, v in temp_std.items()],
-                'energy_idle_mean': energy_idle_mean_value,
-                'energy_idle_std': energy_idle_std_value,
-                'energy_idle_all_mean': energy_all_mean_value,
-                'energy_idle_all_std': energy_all_std_value,
+                'energy_baseline_mean': energy_baseline_mean_value,
+                'energy_baseline_std': energy_baseline_std_value,
+                'energy_baseline_all_mean': energy_all_mean_value,
+                'energy_baseline_all_std': energy_all_std_value,
 
             }
         }
@@ -565,22 +584,22 @@ def main(idle_time,
     energy_provider, temp_provider = check_minimum_provider_configuration(mp)
 
     logging.info(f"{MAGENTA}Determining baseline of system with no load ...{NC}")
-    energy_idle_mean_value, energy_idle_std_value = determine_baseline_energy(mp, energy_provider, idle_time, provider_interval)
+    energy_baseline_mean_value, energy_baseline_std_value = determine_baseline_energy(mp, energy_provider, idle_time, provider_interval)
     energy_provider_key = energy_provider.rsplit('.', 1)[1]
 
     logging.info(f"{MAGENTA}Determining provider overhead for GMT when running configured set of providers ...{NC}")
-    energy_all_mean_value, energy_all_std_value = check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time, energy_idle_mean_value, provider_interval)
+    energy_all_mean_value, energy_all_std_value = check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time, energy_baseline_mean_value, provider_interval)
 
     logging.info(f"{MAGENTA}Determining idle values for energy and temperature to caclulate cooldown calibration settings ...{NC}")
     data_idle, energy_mean, energy_std, temp_mean, temp_std, energy_provider_name, temp_provider_name = determine_idle_energy_and_temp(mp, energy_provider, temp_provider, idle_time, provider_interval)
 
     logging.info(f"{MAGENTA}Stressing system to determine max. system temperature under load ...{NC}")
-    data_stress, cdt_seconds = stress_system(stress_command, stress_time, cooldown_time, temp_mean, temp_std, temp_provider, temperature_increase)
+    data_stress, cdt_seconds = stress_system(stress_command, stress_time, cooldown_time, temp_mean, temp_std, temp_provider, temperature_increase, energy_provider_name, energy_baseline_mean_value, energy_all_mean_value, provider_interval)
 
     logging.info(f"{MAGENTA}Your calculated cooldown time is {cdt_seconds} seconds.{NC}")
 
     if write_config or input("Do you want to save the values in the config.yml? [Y/n] ").lower() in ('y', ''):
-        save_value(energy_mean, energy_std, temp_mean, temp_std, energy_idle_mean_value, energy_idle_std_value, energy_all_mean_value, energy_all_std_value, cdt_seconds)
+        save_value(energy_mean, energy_std, temp_mean, temp_std, energy_baseline_mean_value, energy_baseline_std_value, energy_all_mean_value, energy_all_std_value, cdt_seconds)
 
     if input('Do you want to see a summary? [Y/n]').lower() in ('y', ''):
         show_summary(data_idle, data_stress, temp_provider_name, energy_provider_name, temp_mean, energy_mean)
