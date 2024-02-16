@@ -199,10 +199,10 @@ def determine_baseline_energy(mp, energy_provider, idle_time, provider_interval)
     energy_provider_key = next(iter(data_energy_idle))
     data_energy_idle = data_energy_idle[energy_provider_key]
 
-    return check_energy_values(data_energy_idle, timings['start_energy_idle'], timings['end_energy_idle'], provider_interval)
+    return check_energy_values(data_energy_idle, timings['start_energy_idle'], timings['end_energy_idle'], provider_interval, 'Baseline')
 
 
-def check_energy_values(data, timing_start, timing_end, provider_interval):
+def check_energy_values(data, timing_start, timing_end, provider_interval, mode):
     # global timings # we just read
 
     # Remove boot and stop values
@@ -226,8 +226,8 @@ def check_energy_values(data, timing_start, timing_end, provider_interval):
 
     outliers = data[out_mask]
     if not outliers.empty or (std_value / mean_value) > 0.03:
-        logging.error('''here are outliers in your Baseline / Idle data or the StdDev is > 3%. It looks like your system is not in a stable state!
-                        Please make sure that the are no jobs running in the background. Aborting!''')
+        logging.error(f"""here are outliers in your {mode} data or the StdDev is > 3%. It looks like your system is not in a stable state!
+                        Please make sure that the are no jobs running in the background. Aborting!""")
         logging.info('\n%s', data)
         logging.info('Mean Energy: %s mJ', round(mean_value,2))
         logging.info('Mean Power: %s W', round(mean_value/provider_interval,2))
@@ -239,7 +239,7 @@ def check_energy_values(data, timing_start, timing_end, provider_interval):
         if input("System is not stable, do you still want to continue?? [Y/n] ").lower() not in ('y', ''):
             raise SystemExit('System not stable.')
 
-    logging.info(f"{GREEN}System Baseline / Idle measurement successful{NC}")
+    logging.info(f"{GREEN}System {mode} measurement successful{NC}")
     logging.info('Mean Energy: %s mJ', round(mean_value,2))
     logging.info('Mean Power: %s W', round(mean_value/provider_interval,2))
     logging.info('Std. Dev: %s mJ', round(std_value,2))
@@ -280,7 +280,7 @@ def check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time
 
     data_energy_idle = data_all_idle[energy_provider_key]
 
-    energy_all_mean_value, energy_all_std_value = check_energy_values(data_energy_idle, timings['start_all_idle'], timings['end_all_idle'], provider_interval)
+    energy_all_mean_value, energy_all_std_value = check_energy_values(data_energy_idle, timings['start_all_idle'], timings['end_all_idle'], provider_interval, 'Idle')
 
     logging.info(f"{GREEN}Provider idle energy overhead measurement successful.{NC}")
 
@@ -345,7 +345,7 @@ def check_values(data):
             if input("System is not stable, do you still want to continue?? [Y/n] ").lower() not in ('y', ''):
                 raise SystemExit(4)
 
-        logging.info(f"Idle measurement for {name} completed")
+        logging.info(f"Measurement for {name} completed")
         logging.info('Mean Value: %s %s', round(display_value,2), display_unit)
         logging.info('Max Value: %s %s', round(display_max,2), display_unit)
         logging.info('Std. Dev: %s %s', round(display_std,2), display_unit)
@@ -450,9 +450,8 @@ def stress_system(stress_command, stress_time, cooldown_time, temp_mean, temp_st
     cooldown_times = get_cooldown_time(data_stress[temp_provider_name])
     biggest_time = max(cooldown_times.values())
 
-    print(data_stress)
     data_energy_stress = data_stress[energy_provider_name]
-    energy_stress_mean_value, _ = check_energy_values(data_energy_stress, timings['start_stress'], timings['end_stress'], provider_interval)
+    energy_stress_mean_value, _ = check_energy_values(data_energy_stress, timings['start_stress'], timings['end_stress'], provider_interval, 'Load')
 
     logging.info(f"{GREEN}Provider effective energy overhead measurement successful.{NC}")
 
