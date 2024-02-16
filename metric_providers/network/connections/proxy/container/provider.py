@@ -31,9 +31,10 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
         self._extra_switches = ['-d', '-c', self._conf_file]
         self._host_ip = host_ip
 
-    def check_system(self):
-        super().check_system()
+    def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
+        super().check_system(check_command=None)
 
+        # check tinyproxy version
         output = subprocess.check_output(['tinyproxy', '-v'], stderr=subprocess.STDOUT, text=True)
         version_string = output.strip().split()[1].split('-')[0]
         if parse(version_string) >= parse('1.11'):

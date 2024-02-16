@@ -116,10 +116,10 @@ git submodule update --init
 
 print_message "Installing needed binaries for building ..."
 if lsb_release -is | grep -q "Fedora"; then
-    sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy lshw
+    sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy stress-ng lshw
 else
     sudo apt-get update
-    sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy lshw
+    sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw
 fi
 sudo systemctl stop tinyproxy
 sudo systemctl disable tinyproxy
@@ -215,10 +215,12 @@ if [[ $no_build != true ]] ; then
         print_message "Docker is running in rootless mode. Using non-sudo call ..."
         docker compose -f docker/compose.yml down
         docker compose -f docker/compose.yml build
+        docker compose -f docker/compose.yml pull
     else
         print_message "Docker is running in default root mode. Using sudo call ..."
         sudo docker compose -f docker/compose.yml down
         sudo docker compose -f docker/compose.yml build
+        sudo docker compose -f docker/compose.yml pull
     fi
 
     print_message "Updating python requirements"

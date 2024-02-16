@@ -2,7 +2,8 @@ import os
 from io import StringIO
 import pandas
 
-from metric_providers.base import BaseMetricProvider
+from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
+from lib.global_config import GlobalConfig
 
 class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
     def __init__(self, *, resolution, CPUChips, TDP, skip_check=False):
@@ -25,6 +26,26 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
     # All work is done by reading system cpu utilization file
     def start_profiling(self, containers=None):
         self._has_started = True
+
+
+    def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
+        # We want to skip both the normal binary check, as well as the parallel provider check
+        # as there is no metric_provider_executable to check
+        super().check_system(check_command=None, check_parallel_provider=False)
+
+        config = GlobalConfig().config
+        file_path = os.path.dirname(os.path.abspath(__file__))
+        provider_name = file_path[file_path.find("metric_providers") + len("metric_providers") + 1:].replace("/", ".") + ".provider." + self.__class__.__name__
+        provider_config = config['measurement']['metric-providers']['common'][provider_name]
+
+        if not provider_config['CPUChips']:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease set the CPUChips config option for PsuEnergyAcSdiaMachineProvider in the config.yml")
+        if not provider_config['TDP']:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease set the TDP config option for PsuEnergyAcSdiaMachineProvider in the config.yml")
+
+        if 'cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider' not in config['measurement']['metric-providers']['linux']:
+            raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease activate the CpuUtilizationProcfsSystemProvider in the config.yml\n \
+                This is required to run PsuEnergyAcSdiaMachineProvider")
 
     def read_metrics(self, run_id, containers=None):
 
