@@ -21,12 +21,6 @@ def register_machine_fixture():
     machine = Machine(machine_id=1, description='test-machine')
     machine.register()
 
-
-# This should be done once per module
-# @pytest.fixture(autouse=True, scope="module", name="build_image")
-# def build_image_fixture():
-#     subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/../stress-application/compose.yml", 'build'], check=True)
-
 def get_job(job_id):
     query = """
             SELECT

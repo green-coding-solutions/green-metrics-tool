@@ -30,8 +30,8 @@ def run_runner():
             CURRENT_DIR, 'stress-application/'))
 
     # Run the application
-    RUN_NAME = 'test_' + utils.randomword(12)
-    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', verbose_provider_boot=True, skip_system_checks=True)
+    name = 'test_' + utils.randomword(12)
+    runner = Runner(name=name, uri=uri, uri_type='folder', verbose_provider_boot=True, skip_system_checks=True)
     return runner.run()
 
 # Rethink how to do this test entirely

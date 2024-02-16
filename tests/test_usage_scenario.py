@@ -498,9 +498,9 @@ def test_cmd_ran():
 #     / or a remote git repository starting with http(s)://
 def test_uri_local_dir():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
-    RUN_NAME = 'test_' + utils.randomword(12)
+    name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,'--config-override', 'test-config.yml',
+        ['python3', '../runner.py', '--name', name, '--uri', uri ,'--config-override', 'test-config.yml',
         '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
@@ -508,7 +508,7 @@ def test_uri_local_dir():
         encoding='UTF-8'
     )
 
-    uri_in_db = utils.get_run_data(RUN_NAME)['uri']
+    uri_in_db = utils.get_run_data(name)['uri']
     assert uri_in_db == uri, Tests.assertion_info(f"uri: {uri}", uri_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
@@ -527,9 +527,9 @@ def test_uri_local_dir_missing():
 @pytest.mark.serial
 def test_uri_github_repo():
     uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
-    RUN_NAME = 'test_' + utils.randomword(12)
+    name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,'--config-override', 'test-config.yml',
+        ['python3', '../runner.py', '--name', name, '--uri', uri ,'--config-override', 'test-config.yml',
         '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
@@ -537,7 +537,7 @@ def test_uri_github_repo():
         encoding='UTF-8'
     )
 
-    uri_in_db = utils.get_run_data(RUN_NAME)['uri']
+    uri_in_db = utils.get_run_data(name)['uri']
     assert uri_in_db == uri, Tests.assertion_info(f"uri: {uri}", uri_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
@@ -559,9 +559,9 @@ def test_uri_local_branch():
 @pytest.mark.serial
 def test_uri_github_repo_branch():
     uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
-    RUN_NAME = 'test_' + utils.randomword(12)
+    name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
+        ['python3', '../runner.py', '--name', name, '--uri', uri ,
         '--branch', 'test-branch' , '--filename', 'basic_stress.yml',
         '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
         check=True,
@@ -570,7 +570,7 @@ def test_uri_github_repo_branch():
         encoding='UTF-8'
     )
 
-    branch_in_db = utils.get_run_data(RUN_NAME)['branch']
+    branch_in_db = utils.get_run_data(name)['branch']
     assert branch_in_db == 'test-branch', Tests.assertion_info('branch: test-branch', branch_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
@@ -599,17 +599,17 @@ def test_uri_github_repo_branch_missing():
 @pytest.mark.serial
 def test_name_is_in_db():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
-    RUN_NAME = 'test_' + utils.randomword(12)
+    name = 'test_' + utils.randomword(12)
     subprocess.run(
-        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,'--config-override', 'test-config.yml',
+        ['python3', '../runner.py', '--name', name, '--uri', uri ,'--config-override', 'test-config.yml',
         '--skip-system-checks', '--dev-no-metrics', '--dev-no-sleeps', '--dev-no-build'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
-    name_in_db = utils.get_run_data(RUN_NAME)['name']
-    assert name_in_db == RUN_NAME, Tests.assertion_info(f"name: {RUN_NAME}", name_in_db)
+    name_in_db = utils.get_run_data(name)['name']
+    assert name_in_db == name, Tests.assertion_info(f"name: {name}", name_in_db)
 
 # --filename FILENAME
 #    An optional alternative filename if you do not want to use "usage_scenario.yml"
@@ -621,10 +621,10 @@ def test_different_filename():
     compose_path = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/compose.yml'))
     Tests.make_proj_dir(dir_name=dir_name, usage_scenario_path=usage_scenario_path, docker_compose_path=compose_path)
     uri = os.path.join(CURRENT_DIR, 'tmp/', dir_name)
-    RUN_NAME = 'test_' + utils.randomword(12)
-
+    name = 'test_' + dir_name
+    print(name)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
+        ['python3', '../runner.py', '--name', name, '--uri', uri ,
          '--filename', 'basic_stress.yml', '--config-override', 'test-config.yml',
          '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
         check=True,
@@ -633,9 +633,10 @@ def test_different_filename():
         encoding='UTF-8'
     )
 
+    print(ps.stdout)
     with open(usage_scenario_path, 'r', encoding='utf-8') as f:
         usage_scenario_contents = yaml.safe_load(f)
-    usage_scenario_in_db = utils.get_run_data(RUN_NAME)['usage_scenario']
+    usage_scenario_in_db = utils.get_run_data(name)['usage_scenario']
     assert usage_scenario_in_db == usage_scenario_contents,\
         Tests.assertion_info(usage_scenario_contents, usage_scenario_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
@@ -643,9 +644,9 @@ def test_different_filename():
 # if that filename is missing...
 def test_different_filename_missing():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, '..', 'stress-application/'))
-    RUN_NAME = 'test_' + utils.randomword(12)
+    name = 'test_' + utils.randomword(12)
 
-    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', filename='basic_stress.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+    runner = Runner(name=name, uri=uri, uri_type='folder', filename='basic_stress.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
 
     with pytest.raises(FileNotFoundError) as e:
         runner.run()
@@ -658,9 +659,9 @@ def test_different_filename_missing():
 @pytest.mark.serial
 def test_no_file_cleanup():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
-    RUN_NAME = 'test_' + utils.randomword(12)
+    name = 'test_' + utils.randomword(12)
     subprocess.run(
-        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
+        ['python3', '../runner.py', '--name', name, '--uri', uri ,
          '--no-file-cleanup', '--config-override', 'test-config.yml', '--skip-system-checks'],
         check=True,
         stderr=subprocess.PIPE,
@@ -681,9 +682,9 @@ def test_skip_and_allow_unsafe_both_true():
 def test_debug(monkeypatch):
     monkeypatch.setattr('sys.stdin', io.StringIO('Enter'))
     uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
-    RUN_NAME = 'test_' + utils.randomword(12)
+    name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
+        ['python3', '../runner.py', '--name', name, '--uri', uri ,
          '--debug', '--config-override', 'test-config.yml', '--skip-system-checks',
           '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
         check=True,
@@ -743,9 +744,9 @@ def test_read_detached_process_failure():
     ## rethink this one
 def wip_test_verbose_provider_boot():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
-    RUN_NAME = 'test_' + utils.randomword(12)
+    name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
+        ['python3', '../runner.py', '--name', name, '--uri', uri ,
          '--verbose-provider-boot', '--config-override', 'test-config.yml',
          '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
         check=True,
@@ -753,7 +754,7 @@ def wip_test_verbose_provider_boot():
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
-    run_id = utils.get_run_data(RUN_NAME)['id']
+    run_id = utils.get_run_data(name)['id']
     query = """
             SELECT
                 time, note
