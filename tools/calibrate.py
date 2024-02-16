@@ -153,7 +153,7 @@ def check_minimum_provider_configuration(mp):
         return check_provider(mp, ['.energy', '.machine'])
 
     def rapl_provider(mp):
-        return check_provider(mp, ['cpu', '.energy', '.RAPL'])
+        return check_provider(mp, ['cpu', '.energy', '.rapl'])
 
     def temp_provider(mp):
         return check_provider(mp, ['lm_sensors', '.temperature'])
