@@ -21,6 +21,12 @@ def register_machine_fixture():
     machine = Machine(machine_id=1, description='test-machine')
     machine.register()
 
+
+# This should be done once per module
+# @pytest.fixture(autouse=True, scope="module", name="build_image")
+# def build_image_fixture():
+#     subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/../stress-application/compose.yml", 'build'], check=True)
+
 def get_job(job_id):
     query = """
             SELECT
@@ -35,13 +41,23 @@ def get_job(job_id):
 
     return data
 
-#@pytest.mark.xdist_group(name="jobs")
 @pytest.mark.serial
-def test_no_job_to_process():
-    # make sure jobs table is empty
-    DB().query('TRUNCATE TABLE jobs RESTART IDENTITY CASCADE')
+def test_no_run_job():
     ps = subprocess.run(
             ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+    print(ps.stderr)
+    assert 'No job to process. Exiting' in ps.stdout,\
+        Tests.assertion_info('No job to process. Exiting', ps.stdout)
+
+@pytest.mark.serial
+def test_no_email_job():
+    ps = subprocess.run(
+            ['python3', '../tools/jobs.py', 'email', '--config-override', 'test-config.yml'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -50,15 +66,15 @@ def test_no_job_to_process():
     assert 'No job to process. Exiting' in ps.stdout,\
         Tests.assertion_info('No job to process. Exiting', ps.stdout)
 
-#@pytest.mark.xdist_group(name="jobs")
 @pytest.mark.serial
 def test_insert_job():
     job_id = Job.insert('Test Name', 'Test URL',  'Test Email', 'Test Branch', 'Test filename', 1)
     assert job_id is not None
     job = Job.get_job('run')
     assert job._state == 'WAITING'
+    ## cleanup
+    DB().query('TRUNCATE TABLE jobs RESTART IDENTITY CASCADE')
 
-#@pytest.mark.xdist_group(name="jobs")
 @pytest.mark.serial
 def test_simple_run_job():
     name = utils.randomword(12)

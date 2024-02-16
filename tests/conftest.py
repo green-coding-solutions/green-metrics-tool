@@ -34,6 +34,13 @@ def cleanup_temp_directories():
     if os.path.exists("/tmp/gmt-test-data/"):
         shutil.rmtree("/tmp/gmt-test-data/")
 
+    # remove all files/folders under gmt_tests-* in /tmp
+    for item in os.listdir("/tmp"):
+        if item.startswith('gmt_tests-'):
+            item_path = os.path.join("/tmp", item)
+            if os.path.isdir(item_path):
+                shutil.rmtree(item_path)
+
 def build_image_fixture():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
     subprocess.run(['docker', 'compose', '-f', uri+'/compose_gmt_run_tmp.yml', 'build'], check=True)
