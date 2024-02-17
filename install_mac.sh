@@ -9,9 +9,9 @@ function print_message {
     echo "$1"
 }
 
-function generate_random_password() {
+generate_random_password() {
     local length=$1
-    LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length"
+    LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | dd bs=1 count="$length" 2>/dev/null
     echo
 }
 
