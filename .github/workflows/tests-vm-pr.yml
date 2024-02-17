@@ -20,5 +20,6 @@ jobs:
       - name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
-         metrics-to-turn-off: '--categories RAPL Machine Sensors Debug CGroupV2 MacOS'
+         metrics-to-turn-off: '--categories RAPL Machine Sensors Debug CGroupV2 MacOS GPU --providers PsuEnergyAcSdiaMachineProvider'
          github-token: ${{ secrets.GITHUB_TOKEN }}
+

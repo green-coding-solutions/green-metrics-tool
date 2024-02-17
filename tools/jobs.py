@@ -39,7 +39,7 @@ class Job:
         self._run_id = run_id
 
     def check_measurement_job_running(self):
-        query = "SELECT * FROM jobs WHERE state = 'RUNNING' AND machine_id = %s"
+        query = "SELECT id FROM jobs WHERE state = 'RUNNING' AND machine_id = %s"
         params = (self._machine_id,)
         data = DB().fetch_one(query, params=params)
         if data:
@@ -50,7 +50,7 @@ class Job:
         return False
 
     def check_email_job_running(self):
-        query = "SELECT * FROM jobs WHERE state = 'NOTIFYING'"
+        query = "SELECT id FROM jobs WHERE state = 'NOTIFYING'"
         data = DB().fetch_one(query)
         if data:
             error_helpers.log_error('Notifying-Job was still running: ', data)
@@ -156,7 +156,7 @@ class Job:
         else:
             query = f"{query} j.state = 'FINISHED' AND j.email IS NOT NULL "
 
-        if config['machine']['jobs_processing'] == 'random':
+        if config['cluster']['client']['jobs_processing'] == 'random':
             query = f"{query} ORDER BY RANDOM()"
         else:
             query = f"{query} ORDER BY j.created_at ASC"  # default case == 'fifo'
@@ -189,7 +189,7 @@ class Job:
                 OR
                 (state = 'FAILED' AND updated_at < NOW() - INTERVAL '14 DAYS')
                 OR
-                (state = 'FINISHED' AND updated_at < NOW() - INTERVAL '14 DAYS' AND email IS NULL)
+                (state = 'FINISHED' AND updated_at < NOW() - INTERVAL '14 DAYS')
             '''
         DB().query(query)
 
@@ -201,14 +201,14 @@ def handle_job_exception(exce, job):
     if GlobalConfig().config['admin']['no_emails'] is False:
         if job is not None:
             email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
-            'Base exception occurred in jobs.py: ', exce), run_id=job.run_id, name=job.name, machine=job.machine_description)
+            'Base exception occurred in jobs.py: ', exce), run_id=job._run_id, name=job._name, machine=job._machine_description)
         else:
             email_helpers.send_error_email(GlobalConfig().config['admin']['email'], error_helpers.format_error(
             'Base exception occurred in jobs.py: ', exce))
 
         # reduced error message to client
-        if job.email and GlobalConfig().config['admin']['email'] != job.email:
-            email_helpers.send_error_email(job.email, exce, run_id=job.run_id, name=job.name, machine=job.machine_description)
+        if job._email and GlobalConfig().config['admin']['email'] != job._email:
+            email_helpers.send_error_email(job._email, exce, run_id=job._run_id, name=job._name, machine=job._machine_description)
 
 if __name__ == '__main__':
     #pylint: disable=broad-except,invalid-name

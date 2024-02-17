@@ -1,6 +1,6 @@
 ---
 name: Test depends_on
-author: David Kopp
+author: Arne Tarara <arne@green-coding.io>
 description: test
 
 services:
@@ -8,7 +8,7 @@ services:
     image: alpine
     depends_on:
       test-container-2:
-        condition: service_started
+        condition: service_completed_successfully
   test-container-2:
     image: alpine
 

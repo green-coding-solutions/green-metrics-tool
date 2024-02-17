@@ -1,12 +1,11 @@
 import os
 from pathlib import Path
 import subprocess
-import signal
-import sys
 from io import StringIO
 import pandas
 
 from lib.system_checks import ConfigurationCheckError
+from lib import process_helpers
 
 class MetricProviderConfigurationError(ConfigurationCheckError):
     pass
@@ -22,7 +21,8 @@ class BaseMetricProvider:
         current_dir,
         metric_provider_executable='metric-provider-binary',
         sudo=False,
-        disable_buffer=True
+        disable_buffer=True,
+        skip_check=False,
     ):
         self._metric_name = metric_name
         self._metrics = metrics
@@ -34,6 +34,7 @@ class BaseMetricProvider:
         self._has_started = False
         self._disable_buffer = disable_buffer
         self._rootless = None
+        self._skip_check = skip_check
 
         self._tmp_folder = '/tmp/green-metrics-tool'
         self._ps = None
@@ -43,16 +44,55 @@ class BaseMetricProvider:
 
         self._filename = f"{self._tmp_folder}/{self._metric_name}.log"
 
-        self.check_system()
+        if not self._skip_check:
+            self.check_system()
 
-    # this is the default function that will be overridden in the children
-    def check_system(self):
-        pass
+    # this is the default function that can be overridden in the children
+    # by default we expect the executable to have a -c switch to test functionality
+    def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
+        if check_command is not None:
+            if check_command == "default":
+                call_string = self._metric_provider_executable
+                if self._metric_provider_executable[0] != '/':
+                    call_string = f"{self._current_dir}/{call_string}"
+                check_command = [f"{call_string}", '-c']
+
+            ps = subprocess.run(check_command, capture_output=True, encoding='UTF-8', check=False)
+            if ps.returncode != 0:
+                if check_error_message is None:
+                    check_error_message = ps.stderr
+                raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nError: {check_error_message}\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
+
+        ## Check if another instance of the same metric provider is already running
+        if check_parallel_provider:
+            cmd = ['pgrep', '-f', self._metric_provider_executable]
+            result = subprocess.run(cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                check=False, encoding='UTF-8')
+            if result.returncode == 1:
+                pass
+            elif result.returncode == 0:
+                raise MetricProviderConfigurationError(f"Another instance of the {self._metric_name} metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.")
+            else:
+                raise subprocess.CalledProcessError(result.stderr, cmd)
+
+        return True
 
     # implemented as getter function and not direct access, so it can be overloaded
     # some child classes might not actually have _ps attribute set
+    #
+    # This function has to go through quite some hoops to read the stderr
+    # The preferred way to communicate with processes is through communicate()
+    # However this function ALWAYS waits for the process to terminate and it does not allow reading from processes
+    # in chunks while they are running. Thus we we cannot set encoding='UTF-8' in Popen and must decode here.
     def get_stderr(self):
-        return self._ps.stderr.read()
+        stderr_read = ''
+        if self._ps.stderr is not None:
+            stderr_read = self._ps.stderr.read()
+            if isinstance(stderr_read, bytes):
+                stderr_read = stderr_read.decode('utf-8')
+        return stderr_read
 
     def has_started(self):
         return self._has_started
@@ -113,7 +153,7 @@ class BaseMetricProvider:
             call_string += ' '.join(self._extra_switches)
 
         # This needs refactoring see https://github.com/green-coding-berlin/green-metrics-tool/issues/45
-        if self._metrics.get('container_id') is not None:
+        if (self._metrics.get('container_id') is not None) and (containers is not None):
             call_string += ' -s '
             call_string += ','.join(containers.keys())
 
@@ -132,7 +172,9 @@ class BaseMetricProvider:
             [call_string],
             shell=True,
             preexec_fn=os.setsid,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            #encoding='UTF-8' # we cannot set this option here as reading later will then flake with "can't concat NoneType to bytes"
+                              # see get_stderr() for additional details
             # since we are launching the command with shell=True we cannot use ps.terminate() / ps.kill().
             # This would just kill the executing shell, but not it's child and make the process an orphan.
             # therefore we use os.setsid here and later call os.getpgid(pid) to get process group that the shell
@@ -146,20 +188,7 @@ class BaseMetricProvider:
     def stop_profiling(self):
         if self._ps is None:
             return
-        try:
-            print(f"Killing process with id: {self._ps.pid}")
-            ps_group_id = os.getpgid(self._ps.pid)
-            print(f" and process group {ps_group_id}")
-            os.killpg(ps_group_id, signal.SIGTERM)
-            try:
-                self._ps.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                # If the process hasn't gracefully exited after 5 seconds we kill it
-                os.killpg(ps_group_id, signal.SIGKILL)
-                print("Killed the process with SIGKILL. This could lead to corrupted metric log files!")
 
-        except ProcessLookupError:
-            print(f"Could not find process-group for {self._ps.pid}",
-                    file=sys.stderr)  # process/-group may have already closed
-
+        process_helpers.kill_pg(self._ps, self._metric_provider_executable)
         self._ps = None
+        self._has_started = False

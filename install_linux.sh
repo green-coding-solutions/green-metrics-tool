@@ -116,15 +116,13 @@ git submodule update --init
 
 print_message "Installing needed binaries for building ..."
 if lsb_release -is | grep -q "Fedora"; then
-    sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy lshw
-    sudo systemctl stop tinyproxy
-    sudo systemctl disable tinyproxy
+    sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy stress-ng lshw
 else
     sudo apt-get update
-    sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy lshw
-    sudo systemctl stop tinyproxy
-    sudo systemctl disable tinyproxy
+    sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw
 fi
+sudo systemctl stop tinyproxy
+sudo systemctl disable tinyproxy
 
 print_message "Building binaries ..."
 metrics_subdir="metric_providers"
@@ -155,7 +153,11 @@ rm lib/sgx-software-enable/sgx_enable.o
 print_message "Adding hardware_info_root.py to sudoers file"
 PYTHON_PATH=$(which python3)
 PWD=$(pwd)
-echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
+echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
+# remove old file name
+sudo rm -f /etc/sudoers.d/green_coding_hardware_info
+
 
 print_message "Setting the hardare hardware_info to be owned by root"
 sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
@@ -177,7 +179,11 @@ fi
 
 
 print_message "Adding IPMI to sudoers file"
-echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/ipmi_get_machine_energy_stat
+echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+# remove old file name
+sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
+
 
 if [[ $no_hosts != true ]] ; then
 
@@ -209,10 +215,12 @@ if [[ $no_build != true ]] ; then
         print_message "Docker is running in rootless mode. Using non-sudo call ..."
         docker compose -f docker/compose.yml down
         docker compose -f docker/compose.yml build
+        docker compose -f docker/compose.yml pull
     else
         print_message "Docker is running in default root mode. Using sudo call ..."
         sudo docker compose -f docker/compose.yml down
         sudo docker compose -f docker/compose.yml build
+        sudo docker compose -f docker/compose.yml pull
     fi
 
     print_message "Updating python requirements"

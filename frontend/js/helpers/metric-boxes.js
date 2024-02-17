@@ -73,7 +73,7 @@ class PhaseMetrics extends HTMLElement {
                             </div>
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Estimated external energy cost for network infrastructure. See details under formula.">
-                            <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
+                            <u><a href="https://www.green-coding.io/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
                         </div>
                         <div class="ui bottom left attached label">
@@ -92,7 +92,7 @@ class PhaseMetrics extends HTMLElement {
                             </div>
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="CO2 cost of usage phase">
-                            <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
+                            <u><a href="https://www.green-coding.io/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
                         </div>
                         <div class="ui bottom left attached label">
@@ -111,7 +111,7 @@ class PhaseMetrics extends HTMLElement {
                             </div>
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Estimated external CO2 cost for network infrastructure. See details under formula.">
-                            <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
+                            <u><a href="https://www.green-coding.io/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
                         </div>
                         <div class="ui bottom left attached label">
@@ -130,7 +130,7 @@ class PhaseMetrics extends HTMLElement {
                             </div>
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="CO2 (manufacturing) attr. to lifetime share of phase duration.">
-                            <u><a href="https://www.green-coding.berlin/co2-formulas/">via Formula</a></u>
+                            <u><a href="https://www.green-coding.io/co2-formulas/">via Formula</a></u>
                             <i class="question circle icon"></i>
                         </div>
                         <div class="ui bottom left attached label">
@@ -321,7 +321,7 @@ const calculateCO2 = (phase, total_CO2_in_ug) => {
     if(display_in_metric_units == 'true') display_in_metric_units = true;
     else display_in_metric_units = false;
 
-    // network via formula: https://www.green-coding.berlin/co2-formulas/
+    // network via formula: https://www.green-coding.io/co2-formulas/
     let total_CO2_in_kg = total_CO2_in_ug / 1_000_000_000;
     const [component_co2_value, component_co2_unit] = rescaleCO2Value(total_CO2_in_kg)
 
