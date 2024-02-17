@@ -47,9 +47,9 @@ if [[ -f config.yml ]]; then
     password_from_file=$(awk '/postgresql:/ {flag=1; next} flag && /password:/ {print $2; exit}' config.yml)
 fi
 
-default_password=${password_from_file:-$(generate_random_password 12)}
 
 if [[ -z "$db_pw" ]] ; then
+    default_password=${password_from_file:-$(generate_random_password 12)}
     read -sp "Please enter the new password to be set for the PostgreSQL DB (default: $default_password): " db_pw
     echo "" # force a newline, because read -sp will consume it
     db_pw=${db_pw:-"$default_password"}
