@@ -4,6 +4,7 @@ import faulthandler
 # Is the redundant call problematic
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
+import io
 import zlib
 import base64
 import json
@@ -1208,15 +1209,16 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
 
 class EnergyData(BaseModel):
     type: str
-    company: Optional[UUID] = None
+    company: Optional[str] = None
     machine: UUID
-    project: Optional[UUID] = None
+    project: Optional[str] = None
     tags: Optional[str] = None
     time_stamp: str
     energy_value: str
 
     @validator('company', 'project', 'tags', pre=True, always=True)
-    def empty_str_to_none(self, v):
+    @classmethod
+    def empty_str_to_none(cls, v):
         if v == '':
             return None
         return v
@@ -1233,10 +1235,9 @@ async def carbondb_add(request: Request, energydatas: List[EnergyData]):
     latitude, longitude = get_geo(client_ip)
     carbon_intensity = get_carbon_intensity(latitude, longitude)
 
-    query_list = []
-    params_list = []
-    for e in energydatas:
+    data_rows = []
 
+    for e in energydatas:
         e = html_escape_multi(e)
 
         fields_to_check = {
@@ -1249,47 +1250,31 @@ async def carbondb_add(request: Request, energydatas: List[EnergyData]):
             if field_value is None or field_value.strip() == '':
                 raise RequestValidationError(f"{field_name.capitalize()} is empty. Ignoring everything!")
 
-        if DB().fetch_one('SELECT id FROM carbondb_energy_data WHERE time_stamp=%s AND machine=%s AND energy_value=%s',
-                          params=(e.time_stamp, e.machine, e.energy_value)):
-            continue
-
         energy_kwh = float(e.energy_value) * 2.77778e-7
         co2_value = energy_kwh * carbon_intensity
 
-        query_list.append("""
-            INSERT INTO
-                carbondb_energy_data (
-                    type,
-                    company,
-                    machine,
-                    project,
-                    tags,
-                    time_stamp,
-                    energy_value,
-                    co2_value,
-                    carbon_intensity,
-                    latitude,
-                    longitude,
-                    ip_address)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-            """)
-        params_list.append( (
-            e.type,
-            e.company,
-            e.machine,
-            e.project,
-            [tag.strip() for tag in e.tags.split(',')] if e.tags else [],
-            int(e.time_stamp),
-            float(e.energy_value),
-            co2_value,
-            carbon_intensity,
-            latitude,
-            longitude,
-            client_ip
-        ) )
+        company_uuid = e.company if e.company is not None else ''
+        project_uuid = e.project if e.company is not None else ''
+        tags_clean = e.tags if e.tags is not None else ''
 
-    DB().query(query=query_list, params=params_list)
+        row = f"{e.type},{company_uuid},{e.machine},{project_uuid},{'|'.join([tag.strip() for tag in tags_clean.split(',')] if tags_clean else [])},{int(e.time_stamp)},{e.energy_value},{co2_value},{carbon_intensity},{latitude},{longitude},{client_ip}"
+        data_rows.append(row)
+
+    data_str = "\n".join(data_rows)
+    data_file = io.StringIO(data_str)
+
+    columns = ['type', 'company', 'machine', 'project', 'tags', 'time_stamp', 'energy_value', 'co2_value', 'carbon_intensity', 'latitude', 'longitude', 'ip_address']
+
+    DB().copy_from(file=data_file, table='carbondb_energy_data', columns=columns)
+
+    DB().query("""
+        DELETE FROM carbondb_energy_data
+        WHERE ctid NOT IN (
+            SELECT min(ctid)
+            FROM carbondb_energy_data
+            GROUP BY time_stamp, machine, energy_value
+        )
+    """)
 
     return ORJSONResponse({'success': True}, status_code=202)
 

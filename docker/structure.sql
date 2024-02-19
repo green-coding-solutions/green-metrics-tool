@@ -320,8 +320,9 @@ CREATE TRIGGER carbondb_energy_data_moddatetime
 CREATE INDEX idx_carbondb_company ON carbondb_energy_data(company);
 CREATE INDEX idx_carbondb_machine ON carbondb_energy_data(machine);
 CREATE INDEX idx_carbondb_project ON carbondb_energy_data(project);
-CREATE INDEX idx_carbondb_time_stamp ON carbondb_energy_data(time_stamp);
-CREATE INDEX idx_carbondb_energy_value ON carbondb_energy_data(energy_value);
+
+CREATE INDEX idx_carbondb_energy_data_grouping ON carbondb_energy_data (time_stamp, machine, energy_value);
+
 
 CREATE TABLE carbondb_energy_data_day (
     id SERIAL PRIMARY KEY,
@@ -345,10 +346,10 @@ CREATE TRIGGER carbondb_energy_data_day_moddatetime
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
 
-
 CREATE INDEX idx_carbondb_hour_company ON carbondb_energy_data_day(company);
 CREATE INDEX idx_carbondb_hour_machine ON carbondb_energy_data_day(machine);
 CREATE INDEX idx_carbondb_hour_project ON carbondb_energy_data_day(project);
+
 
 ALTER TABLE IF EXISTS public.carbondb_energy_data_day
     ADD CONSTRAINT unique_machine_project_date UNIQUE (machine, date);

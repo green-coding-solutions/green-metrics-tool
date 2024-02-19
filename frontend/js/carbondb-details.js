@@ -4,7 +4,6 @@ $(document).ready(function () {
     }
 
     (async () => {
-        let mData
         const machine_uuid = getURLParameter('machine_uuid')
         try {
 
@@ -17,7 +16,6 @@ $(document).ready(function () {
             showNotification('No data', 'We could not find any data. Did you follow a correct URL?')
             return
         }
-        console.log(measurements)
 
 
         const table_td_string = measurements.data.map(subArr => `
@@ -25,7 +23,7 @@ $(document).ready(function () {
 
                     <td>${subArr[6]}</td>
                     <td>${subArr[7].toFixed(4)}</td>
-                    <td>${subArr[8].toFixed(8)}</td>
+                    <td>${subArr[8].toFixed(4)}</td>
                     <td>${subArr[9]}</td>
                     <td>${subArr[10]}</td>
             <tr>
@@ -65,7 +63,7 @@ $(document).ready(function () {
         $("#sum_energy").html(sumEnergy.toFixed(2));
         $("#sum_co2eq").html(sumCO2.toFixed(6));
         $("#sum_records").html(sumCount);
-        $("#avg_carbon_intensity").html(averageCarbonIntensity);
+        $("#avg_carbon_intensity").html(averageCarbonIntensity.toFixed(0));
 
     })();
 });

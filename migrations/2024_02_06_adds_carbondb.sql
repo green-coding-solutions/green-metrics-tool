@@ -27,6 +27,7 @@ CREATE INDEX idx_carbondb_company ON carbondb_energy_data(company);
 CREATE INDEX idx_carbondb_machine ON carbondb_energy_data(machine);
 CREATE INDEX idx_carbondb_project ON carbondb_energy_data(project);
 
+CREATE INDEX idx_carbondb_energy_data_grouping ON carbondb_energy_data (time_stamp, machine, energy_value);
 
 CREATE TABLE carbondb_energy_data_day (
     id SERIAL PRIMARY KEY,
