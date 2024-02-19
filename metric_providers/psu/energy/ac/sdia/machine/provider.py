@@ -53,10 +53,10 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
 
         if os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'):
             filename = '/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'
-        elif os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_mac_system.log'):
-            filename = '/tmp/green-metrics-tool/cpu_utilization_mac_system.log'
+        elif os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_mach_system.log'):
+            filename = '/tmp/green-metrics-tool/cpu_utilization_mach_system.log'
         else:
-            raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log or /tmp/green-metrics-tool/cpu_utilization_mac_system.log file. \
+            raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log or /tmp/green-metrics-tool/cpu_utilization_mach_system.log file. \
                 Did you activate the CpuUtilizationProcfsSystemProvider or CpuUtilizationMacSystemProvider in the config.yml too? \
                 This is required to run PsuEnergyAcXgboostMachineProvider')
 
