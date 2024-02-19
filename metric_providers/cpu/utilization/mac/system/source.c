@@ -35,7 +35,7 @@ void loop_utilization(unsigned int msleep_time) {
             }
 
             gettimeofday(&now, NULL);
-            printf("%ld%06i %i\n", now.tv_sec, now.tv_usec, (int)(ut_total * 100 / numCPUsU));
+            printf("%ld%06i %i\n", now.tv_sec, now.tv_usec, (int)( (ut_total / (float)numCPUsU)*100*100) );
 
             if (prevCpuInfo) {
                 size_t prevCpuInfoSize = sizeof(integer_t) * numPrevCpuInfo;
