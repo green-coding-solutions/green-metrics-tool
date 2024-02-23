@@ -5,7 +5,7 @@ on:
 
 jobs:
   run-tests:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     permissions:
       packages: write
       contents: read
@@ -17,9 +17,26 @@ jobs:
           ref: ${{ github.ref }}
           submodules: 'true'
 
+      - name: Eco CI Energy Estimation - Initialize
+        uses: green-coding-solutions/eco-ci-energy-estimation@v2
+        with:
+          task: start-measurement
+
       - name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
-         metrics-to-turn-off: '--categories RAPL Machine Sensors Debug CGroupV2 MacOS GPU --providers PsuEnergyAcSdiaMachineProvider'
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Eco CI Energy Estimation - Get Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v2
+        with:
+          task: get-measurement
+          branch: main
+
+      - name: Eco CI Energy Estimation - End Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v2
+        with:
+          task: display-results
+          branch: main
+          pr-comment: true
+        
