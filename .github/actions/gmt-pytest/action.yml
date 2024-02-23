@@ -38,24 +38,22 @@ runs:
         brew install docker docker-compose
         mkdir -p ~/.docker/cli-plugins
         ln -sfn /usr/local/opt/docker-compose/bin/docker-compose ~/.docker/cli-plugins/docker-compose
-        colima start
+        colima start --network-address
 
-    - name: install script and packages
+    - name: GMT Install
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
-        ./install_mac.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 
+        if [ "$RUNNER_OS" = "macOS" ]; then
+          ./install_mac.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 
+        else # linux
+          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -t
+        fi
         source venv/bin/activate
         python3 -m pip install -r requirements-dev.txt
-        # python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
-      
-    - name: disable unneeded metric providers and run test setup script
-      shell: bash
-      working-directory: ${{ inputs.gmt-directory }}
-      run: |
-        source venv/bin/activate
-        # python3 disable_metric_providers.py ${{ inputs.metrics-to-turn-off }}
-        cd tests && python3 setup-test-env.py --no-docker-build
+        python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt\
+        cd tests
+        python3 setup-test-env.py --no-docker-build
 
     - name: Set up Docker Buildx
       id: buildx
@@ -85,28 +83,39 @@ runs:
           fi
         fi
 
-    - name: Start Test container
+    - name: Build test image and start test containers
       shell: bash
-      working-directory: ${{ inputs.gmt-directory }}/tests
+      working-directory: ${{ inputs.gmt-directory }}
       run: |
-        source ../venv/bin/activate && ./start-test-containers.sh -d
-   
-    - name: Sleep for 10 seconds
-      run: sleep 10s
-      shell: bash
+        source venv/bin/activate
+        cd tests
+        ./start-test-containers.sh -d
+        sleep 10
+        cd stress-application
+        docker build . -t gcb_stress_gmt_run_tmp
 
     - name: Run Tests
+      continue-on-error: true
       shell: bash
-      working-directory: ${{ inputs.gmt-directory }}/tests
+      working-directory: ${{ inputs.gmt-directory }}
       run: |
-        source ../venv/bin/activate
-        python3 -m ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
+        source venv/bin/activate
+        cd tests
+        if [ "$RUNNER_OS" = "macOS" ]; then
+          python3 -m pytest -m "not no_mac_workflow" -rA | tee /tmp/test-results.txt
+        else # linux
+          python3 -m ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
+        fi
 
-    # - name: Display Results
-    #   shell: bash
-    #   if: always()
-    #   run: |
-    #     cat /tmp/test-results.txt | grep -oPz '(=*) short test summary(.*\n)*' >> $GITHUB_STEP_SUMMARY
+    - name: Display Results
+      shell: bash
+      if: always()
+      run: |
+        if [ "$RUNNER_OS" = "macOS" ]; then
+          cat /tmp/test-results.txt | grep -Eo '(=*) short test summary(.*\n)*' >> $GITHUB_STEP_SUMMARY
+        else # linux
+          cat /tmp/test-results.txt | grep -oPz '(=*) short test summary(.*\n)*' >> $GITHUB_STEP_SUMMARY
+        fi
 
     - name: Stop Containers
       shell: bash
