@@ -20,7 +20,7 @@ api_url=''
 metrics_url=''
 no_build=false
 
-while getopts "p:a:m:" o; do
+while getopts "p:a:m:n" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
