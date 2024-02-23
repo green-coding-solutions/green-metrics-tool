@@ -48,12 +48,17 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
 
     def read_metrics(self, run_id, containers=None):
 
-        if not os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'):
-            raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log file. \
-                Did you activate the CpuUtilizationProcfsSystemProvider in the config.yml too? \
+        filename = None
+        if os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'):
+            filename = '/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'
+        elif os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_mach_system.log'):
+            filename = '/tmp/green-metrics-tool/cpu_utilization_mach_system.log'
+        else:
+            raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log or /tmp/green-metrics-tool/cpu_utilization_mach_system.log file. \
+                Did you activate the CpuUtilizationProcfsSystemProvider or CpuUtilizationMacSystemProvider in the config.yml too? \
                 This is required to run PsuEnergyAcXgboostMachineProvider')
 
-        with open('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log', 'r', encoding='utf-8') as file:
+        with open(filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
         # remove the last line from the string, as it may be broken due to the output buffering of the metrics reporter
         csv_data = csv_data[:csv_data.rfind('\n')]
@@ -83,6 +88,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
         if self.Hardware_Availability_Year:
             Z['Hardware_Availability_Year'] = self.Hardware_Availability_Year
 
+        mlmodel.set_silent()
 
         Z = Z.rename(columns={'value': 'utilization'})
         Z.utilization = Z.utilization / 100

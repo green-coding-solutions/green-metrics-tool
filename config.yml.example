@@ -125,6 +125,8 @@ measurement:
     #--- MacOS: On Mac you only need this provider. Please remove all others!
       powermetrics.provider.PowermetricsProvider:
         resolution: 99
+      cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
+        resolution: 99
     #--- Architecture - Common
     common:
 #      network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
