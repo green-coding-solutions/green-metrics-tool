@@ -18,6 +18,7 @@ function generate_random_password() {
 db_pw=''
 api_url=''
 metrics_url=''
+no_build=false
 
 while getopts "p:a:m:" o; do
     case "$o" in
@@ -29,6 +30,9 @@ while getopts "p:a:m:" o; do
             ;;
         m)
             metrics_url=${OPTARG}
+            ;;
+        n)
+            no_build=true
             ;;
     esac
 done
@@ -145,16 +149,17 @@ while IFS= read -r subdir; do
     fi
 done
 
-print_message "Building / Updating docker containers"
-docker compose -f docker/compose.yml down
-docker compose -f docker/compose.yml build
-docker compose -f docker/compose.yml pull
+if [[ $no_build != true ]] ; then
+    print_message "Building / Updating docker containers"
+    docker compose -f docker/compose.yml down
+    docker compose -f docker/compose.yml build
+    docker compose -f docker/compose.yml pull
 
-print_message "Updating python requirements"
-python3 -m pip install --upgrade pip
-python3 -m pip install -r requirements.txt
-python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
-
+    print_message "Updating python requirements"
+    python3 -m pip install --upgrade pip
+    python3 -m pip install -r requirements.txt
+    python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
+fi
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"

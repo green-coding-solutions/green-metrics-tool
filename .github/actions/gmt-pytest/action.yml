@@ -45,7 +45,7 @@ runs:
       working-directory: ${{ inputs.gmt-directory }}
       run: |
         if [ "$RUNNER_OS" = "macOS" ]; then
-          ./install_mac.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 
+          ./install_mac.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n
         else # linux
           ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -t
         fi
