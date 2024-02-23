@@ -1,10 +1,6 @@
 name: 'GMT Pytest'
 description:  'Run Pytest with setup and teardown'
 inputs:
-  metrics-to-turn-off:
-    description: 'a list of metrics to turn off that is passed to the disable metrics script'
-    required: false
-    default: ''
   gmt-directory:
     description: 'The root directory of the gmt repository'
     required: false
@@ -51,7 +47,7 @@ runs:
         fi
         source venv/bin/activate
         python3 -m pip install -r requirements-dev.txt
-        python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt\
+        python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
         cd tests
         python3 setup-test-env.py --no-docker-build
 
