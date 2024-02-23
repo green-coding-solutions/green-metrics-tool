@@ -88,6 +88,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
         if self.Hardware_Availability_Year:
             Z['Hardware_Availability_Year'] = self.Hardware_Availability_Year
 
+        mlmodel.set_silent()
 
         Z = Z.rename(columns={'value': 'utilization'})
         Z.utilization = Z.utilization / 100
