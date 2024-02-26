@@ -1,4 +1,3 @@
-modified:   .github/workflows/setup-docker.yml
 name: Install Docker on macOS
 
 on: [push] # or any other event
