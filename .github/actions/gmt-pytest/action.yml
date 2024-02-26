@@ -31,9 +31,8 @@ runs:
         path: venv
         key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}
 
-    - uses: fawazahmed0/action-debug@main
-      with:
-          credentials: "user:password123456"
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
 
     - name: install script and packages
       shell: bash
