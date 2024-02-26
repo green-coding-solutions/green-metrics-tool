@@ -35,7 +35,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
-        ./install_mac.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -t
+        ./install_mac.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142
 
     - name: Start Test container
       shell: bash
@@ -62,7 +62,7 @@ runs:
       shell: bash
       if: always()
       run: |
-        cat /tmp/test-results.txt | grep -oPz '(=*) short test summary(.*\n)*' >> $GITHUB_STEP_SUMMARY
+        cat /tmp/test-results.txt
 
     - name: Stop Containers
       shell: bash
