@@ -18,11 +18,6 @@ jobs:
       with:
         colima-network-address: 'true'
 
-    - name: Verify Docker installation
-      run: |
-        docker --version
-        docker run hello-world
-
     - name: 'Setup, Run, and Teardown Tests'
       uses: ./.github/actions/gmt-pytest
       with:

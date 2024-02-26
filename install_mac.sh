@@ -109,8 +109,8 @@ echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics" | sudo tee /etc/sudo
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall -9 powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics_sigkill
 
 print_message "Writing to /etc/hosts file..."
-etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
-etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
+etc_hosts_line_1="192.168.106.2 green-coding-postgres-container"
+etc_hosts_line_2="192.168.106.2 ${host_api_url} ${host_metrics_url}"
 
 # Entry 1 is needed for the local resolution of the containers through the jobs.py and runner.py
 if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then

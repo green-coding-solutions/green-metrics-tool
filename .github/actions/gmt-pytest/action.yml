@@ -31,14 +31,12 @@ runs:
         path: venv
         key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}
 
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v3
-
     - name: install script and packages
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
         ./install_mac.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142
+        source venv/bin/activate && pip install -r requirements-dev.txt
 
     - name: Start Test container
       shell: bash
