@@ -45,10 +45,6 @@ runs:
         source ../venv/bin/activate && python3 setup-test-env.py
         source ../venv/bin/activate && ./start-test-containers.sh -d
 
-    - name: Sleep for 10 seconds
-      run: sleep 10s
-      shell: bash
-
     - name: Run Tests
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/tests
