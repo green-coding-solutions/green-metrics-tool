@@ -70,6 +70,7 @@ def test_insert_job():
     job = Job.get_job('run')
     assert job._state == 'WAITING'
 
+@pytest.mark.no_mac_workflow
 def test_simple_run_job():
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'

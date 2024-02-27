@@ -16,8 +16,9 @@ function generate_random_password() {
 db_pw=''
 api_url=''
 metrics_url=''
+no_build=false
 
-while getopts "p:a:m:" o; do
+while getopts "p:a:m:n" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -27,6 +28,9 @@ while getopts "p:a:m:" o; do
             ;;
         m)
             metrics_url=${OPTARG}
+            ;;
+        n)
+            no_build=true
             ;;
     esac
 done
@@ -40,7 +44,6 @@ if [[ -z $metrics_url ]] ; then
     read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.internal:9142): " metrics_url
     metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
 fi
-
 
 if [[ -z "$db_pw" ]] ; then
     if [[ -f config.yml ]]; then
@@ -128,7 +131,7 @@ if [[ ${host_metrics_url} == *".green-coding.internal"* ]];then
 fi
 
 if ! command -v stdbuf &> /dev/null; then
-    print_message "Trying to install 'coreutils' via homebew. If this fails (because you do not have brew or use another package manager), please install it manually ..."
+    print_message "Trying to install 'coreutils' via homebrew. If this fails (because you do not have brew or use another package manager), please install it manually ..."
     brew install coreutils
 fi
 
@@ -146,16 +149,17 @@ while IFS= read -r subdir; do
     fi
 done
 
-print_message "Building / Updating docker containers"
-docker compose -f docker/compose.yml down
-docker compose -f docker/compose.yml build
-docker compose -f docker/compose.yml pull
+if [[ $no_build != true ]] ; then
+    print_message "Building / Updating docker containers"
+    docker compose -f docker/compose.yml down
+    docker compose -f docker/compose.yml build
+    docker compose -f docker/compose.yml pull
 
-print_message "Updating python requirements"
-python3 -m pip install --upgrade pip
-python3 -m pip install -r requirements.txt
-python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
-
+    print_message "Updating python requirements"
+    python3 -m pip install --upgrade pip
+    python3 -m pip install -r requirements.txt
+    python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
+fi
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"

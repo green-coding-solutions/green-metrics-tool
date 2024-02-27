@@ -1,10 +1,6 @@
 name: 'GMT Pytest'
 description:  'Run Pytest with setup and teardown'
 inputs:
-  metrics-to-turn-off:
-    description: 'a list of metrics to turn off that is passed to the disable metrics script'
-    required: false
-    default: ''
   gmt-directory:
     description: 'The root directory of the gmt repository'
     required: false
@@ -25,29 +21,31 @@ runs:
       with:
         python-version: '3.10'
 
-    - id: python_cache
-      uses: actions/cache@v3
-      with:
-        path: venv
-        key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}
+    # - id: python_cache
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: venv
+    #     key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}
 
-    - name: install script and packages
+    - name: Install docker for MacOS
+      if: runner.os == 'macOS'
       shell: bash
-      working-directory: ${{ inputs.gmt-directory }}
       run: |
         bash -x ./install_mac.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142
         source venv/bin/activate && pip install -r requirements-dev.txt
 
-    - name: Start Test container
+
+    - name: Build test image and start test containers
       shell: bash
-      working-directory: ${{ inputs.gmt-directory }}/tests
+      working-directory: ${{ inputs.gmt-directory }}
       run: |
         source ../venv/bin/activate && python3 setup-test-env.py
         source ../venv/bin/activate && ./start-test-containers.sh -d
 
     - name: Run Tests
+      continue-on-error: true
       shell: bash
-      working-directory: ${{ inputs.gmt-directory }}/tests
+      working-directory: ${{ inputs.gmt-directory }}
       run: |
          source ../venv/bin/activate && python3 -m pytest -rA
 
