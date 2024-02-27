@@ -10,9 +10,7 @@ function print_message {
 }
 
 function generate_random_password() {
-    local length=$1
-    LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length"
-    echo
+    echo "yourfixedinputstring" | tr -dc 'A-Za-z0-9' | head -c "$length"
 }
 
 db_pw=''
@@ -43,13 +41,14 @@ if [[ -z $metrics_url ]] ; then
     metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
 fi
 
-if [[ -f config.yml ]]; then
-    password_from_file=$(awk '/postgresql:/ {flag=1; next} flag && /password:/ {print $2; exit}' config.yml)
-fi
-
-default_password=${password_from_file:-$(generate_random_password 12)}
 
 if [[ -z "$db_pw" ]] ; then
+    if [[ -f config.yml ]]; then
+        password_from_file=$(awk '/postgresql:/ {flag=1; next} flag && /password:/ {print $2; exit}' config.yml)
+    fi
+
+    default_password=${password_from_file:-$(generate_random_password 12)}
+
     read -sp "Please enter the new password to be set for the PostgreSQL DB (default: $default_password): " db_pw
     echo "" # force a newline, because read -sp will consume it
     db_pw=${db_pw:-"$default_password"}
