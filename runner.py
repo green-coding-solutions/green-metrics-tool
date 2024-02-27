@@ -532,7 +532,7 @@ class Runner:
 
         # Create directory /tmp/green-metrics-tool/docker_images
         temp_dir = f"{self._tmp_folder}/docker_images"
-        self._tmp_folder(temp_dir)
+        self.initialize_folder(temp_dir)
 
         # technically the usage_scenario needs no services and can also operate on an empty list
         # This use case is when you have running containers on your host and want to benchmark some code running in them
