@@ -27,10 +27,11 @@ from api.object_specifications import Measurement
 from api.api_helpers import (add_phase_stats_statistics, determine_comparison_case,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value, get_timeline_query,
-                         get_run_info, get_machine_list)
+                         get_run_info, get_machine_list, get_artifact, store_artifact)
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
+from lib.diff import get_diffable_row, diff_rows
 from lib import email_helpers
 from lib import error_helpers
 from tools.jobs import Job
@@ -1071,6 +1072,28 @@ async def get_run(run_id: str):
     data = html_escape_multi(data)
 
     return ORJSONResponse({'success': True, 'data': data})
+
+@app.get('/v1/diff')
+async def diff(ids: str):
+    if ids is None or not ids.strip():
+        raise RequestValidationError('run_ids are empty')
+    ids = ids.split(',')
+    if not all(is_valid_uuid(id) for id in ids):
+        raise RequestValidationError('One of Run IDs is not a valid UUID or empty')
+    if len(ids) != 2:
+        raise RequestValidationError('Run IDs != 2. Only exactly 2 Run IDs can be diffed.')
+
+    if artifact := get_artifact('diff', str(ids)):
+        return ORJSONResponse({'success': True, 'data': artifact})
+
+    a = get_diffable_row(ids[0])
+    b = get_diffable_row(ids[1])
+    diff_runs = diff_rows(a,b)
+
+    store_artifact('diff', str(ids), diff_runs)
+
+    return ORJSONResponse({'success': True, 'data': diff_runs})
+
 
 @app.get('/robots.txt')
 async def robots_txt():

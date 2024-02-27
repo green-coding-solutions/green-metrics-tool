@@ -4,10 +4,27 @@ const getURLParams = () => {
     return url_params;
 }
 
+async function fetchDiff() {
+    document.querySelector('#loader-question').remove();
+    const url_params = getURLParams();
+    document.querySelector('#diff-pre').insertAdjacentHTML('beforebegin', '<h2>Configuration and Settings diff</h2>')
+    try {
+        let api_url = '/v1/diff?ids=';
+        params.forEach( id => {
+            api_url = `${api_url}${id}`
+        });
+        const diff_data = (await makeAPICall(api_url)).data
+        document.querySelector('#diff-pre').insertAdjacentHTML('beforeend', diff_data)
+    } catch (err) {
+        showNotification('Could not get diff data from API', err);
+    }
+}
+
 $(document).ready( (e) => {
     (async () => {
 
-        let url_params = getURLParams();
+        const url_params = getURLParams();
+
         if(url_params.get('ids') == null
             || url_params.get('ids') == ''
             || url_params.get('ids') == 'null') {
@@ -15,9 +32,9 @@ $(document).ready( (e) => {
             throw "Error";
         }
 
+        params = url_params.getAll('ids');
+        const runs = params[0].split(",").length
         try {
-            params = url_params.getAll('ids');
-            runs = params[0].split(",").length
             let api_url = '/v1/compare?ids=';
             params.forEach( id => {
                 api_url = `${api_url}${id}`
@@ -37,6 +54,8 @@ $(document).ready( (e) => {
         Object.keys(phase_stats_data['common_info']).forEach(function(key) {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${key}</strong></td><td>${phase_stats_data['common_info'][key]}</td></tr>`)
           });
+
+        document.querySelector('#fetch-diff').addEventListener('click', fetchDiff);
 
         displayComparisonMetrics(phase_stats_data)
 

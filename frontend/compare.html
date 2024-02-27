@@ -20,7 +20,6 @@
     <script src="/dist/js/accordion.min.js" defer></script>
     <script src="/dist/js/tab.min.js" defer></script>
     <script src="/dist/js/echarts.min.js" defer></script>
-    <script src="/dist/js/json2yaml.js" defer></script>
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
     <script src="/js/helpers/phase-stats.js" defer></script>
@@ -42,6 +41,17 @@
                 </a></div>
                 <div class="description">
                     <table class="table-hover" id="run-data-top"></table>
+                    <pre id="diff-pre"></pre>
+                    <div id="loader-question" class="ui icon info message blue">
+                        <i class="info circle icon"></i>
+                        <div class="content">
+                            <div class="header">
+                                Configuration and Settings diff
+                            </div>
+                            <p>Please click the button below to fetch data. We opted to only show this detailed data on request.</p>
+                            <button id="fetch-diff" class="blue ui button">Fetch Diff</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div><!-- end ui full-width-card card -->
