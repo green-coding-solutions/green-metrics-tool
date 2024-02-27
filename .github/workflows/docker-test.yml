@@ -1,0 +1,24 @@
+name: Install Docker on macOS
+
+on: [push] # or any other event
+
+jobs:
+  install-docker:
+    runs-on: macos-13
+
+    steps:
+    - name: 'Checkout repository'
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.ref }}
+        submodules: 'true'
+
+    - name: Setup Docker on macOS
+      uses: douglascamata/setup-docker-macos-action@v1-alpha
+      with:
+        colima-network-address: 'true'
+
+    - name: 'Setup, Run, and Teardown Tests'
+      uses: ./.github/actions/gmt-pytest
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}

@@ -31,87 +31,23 @@ runs:
       if: runner.os == 'macOS'
       shell: bash
       run: |
-        brew install docker docker-compose
-        mkdir -p ~/.docker/cli-plugins
-        ln -sfn /usr/local/opt/docker-compose/bin/docker-compose ~/.docker/cli-plugins/docker-compose
-        colima start --network-address
+        bash -x ./install_mac.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142
+        source venv/bin/activate && pip install -r requirements-dev.txt
 
-    - name: GMT Install
-      shell: bash
-      working-directory: ${{ inputs.gmt-directory }}
-      run: |
-        if [ "$RUNNER_OS" = "macOS" ]; then
-          ./install_mac.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n
-        else # linux
-          ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -t
-        fi
-        source venv/bin/activate
-        python3 -m pip install -r requirements-dev.txt
-        python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
-        cd tests
-        python3 setup-test-env.py --no-docker-build
-
-    - name: Set up Docker Buildx
-      id: buildx
-      uses: docker/setup-buildx-action@master
-
-    - name: Login to Docker Registry
-      uses: docker/login-action@v2
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ inputs.github-token }}
-
-    - name: Build docker-compose
-      id: build-docker-compose
-      shell: bash
-      working-directory: ${{ inputs.gmt-directory }}/docker
-      run: |
-        { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --file docker-compose-cache.json 2>&1); DOCKER_EXIT_CODE=$?; } || true
-        if [ "$DOCKER_EXIT_CODE" -ne 0 ]; then
-          echo "Docker build failed with exit code $DOCKER_EXIT_CODE"
-          echo "buildx output:"
-          echo $DOCKER_OUTPUT
-          if echo "$DOCKER_OUTPUT" | grep -q "403 Forbidden"; then
-            echo "Docker build failed due to permissions issue. Continuing..."
-          else
-              exit 1
-          fi
-        fi
 
     - name: Build test image and start test containers
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
-        source venv/bin/activate
-        cd tests
-        ./start-test-containers.sh -d
-        sleep 10
-        cd stress-application
-        docker build . -t gcb_stress_gmt_run_tmp
+        source ../venv/bin/activate && python3 setup-test-env.py
+        source ../venv/bin/activate && ./start-test-containers.sh -d
 
     - name: Run Tests
       continue-on-error: true
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
-        source venv/bin/activate
-        cd tests
-        if [ "$RUNNER_OS" = "macOS" ]; then
-          python3 -m pytest -m "not no_mac_workflow" -rA | tee /tmp/test-results.txt
-        else # linux
-          python3 -m ${{ inputs.tests-command }} -rA | tee /tmp/test-results.txt
-        fi
-
-    - name: Display Results
-      shell: bash
-      if: always()
-      run: |
-        if [ "$RUNNER_OS" = "macOS" ]; then
-          cat /tmp/test-results.txt | grep -Eo '(=*) short test summary(.*\n)*' >> $GITHUB_STEP_SUMMARY
-        else # linux
-          cat /tmp/test-results.txt | grep -oPz '(=*) short test summary(.*\n)*' >> $GITHUB_STEP_SUMMARY
-        fi
+         source ../venv/bin/activate && python3 -m pytest -rA
 
     - name: Stop Containers
       shell: bash

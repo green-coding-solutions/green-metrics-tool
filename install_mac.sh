@@ -10,9 +10,7 @@ function print_message {
 }
 
 function generate_random_password() {
-    local length=$1
-    LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length"
-    echo
+    echo "yourfixedinputstring" | tr -dc 'A-Za-z0-9' | head -c "$length"
 }
 
 db_pw=''
@@ -51,7 +49,9 @@ if [[ -z "$db_pw" ]] ; then
     if [[ -f config.yml ]]; then
         password_from_file=$(awk '/postgresql:/ {flag=1; next} flag && /password:/ {print $2; exit}' config.yml)
     fi
+
     default_password=${password_from_file:-$(generate_random_password 12)}
+
     read -sp "Please enter the new password to be set for the PostgreSQL DB (default: $default_password): " db_pw
     echo "" # force a newline, because read -sp will consume it
     db_pw=${db_pw:-"$default_password"}
@@ -111,8 +111,8 @@ echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics" | sudo tee /etc/sudo
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall -9 powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics_sigkill
 
 print_message "Writing to /etc/hosts file..."
-etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
-etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
+etc_hosts_line_1="192.168.106.2 green-coding-postgres-container"
+etc_hosts_line_2="192.168.106.2 ${host_api_url} ${host_metrics_url}"
 
 # Entry 1 is needed for the local resolution of the containers through the jobs.py and runner.py
 if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then

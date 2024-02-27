@@ -123,8 +123,6 @@ measurement:
     #--- Architecture - MacOS
     macos:
     #--- MacOS: On Mac you only need this provider. Please remove all others!
-      powermetrics.provider.PowermetricsProvider:
-        resolution: 99
       cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
         resolution: 99
     #--- Architecture - Common
@@ -137,16 +135,16 @@ measurement:
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        TDP: 65
-#      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
-#        resolution: 99
+      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
+        resolution: 99
       #-- This is a default configuration. Please change this to your system!
-#        CPUChips: 1
-#        HW_CPUFreq: 3200
-#        CPUCores: 4
-#        CPUThreads: 4
-#        TDP: 65
-#        HW_MemAmountGB: 16
-#        Hardware_Availability_Year: 2011
+        CPUChips: 1
+        HW_CPUFreq: 3200
+        CPUCores: 4
+        CPUThreads: 4
+        TDP: 65
+        HW_MemAmountGB: 16
+        Hardware_Availability_Year: 2011
   #--- END
 
 
