@@ -111,6 +111,7 @@ mac_info_list = [
     [rpwr, 'Mac Version', 'sw_vers -productVersion', r'(?P<o>.*)'],
     [rpwr, 'Build Version', 'sw_vers -buildVersion', r'(?P<o>.*)'],
     [rpwr, 'Uname', 'uname -a', r'(?P<o>.*)'],
+    [rpwr, 'Uptime', '/usr/bin/uptime', r'(?P<o>.*)'],
     [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Containers', 'docker ps -a', r'(?P<o>.*)'],
