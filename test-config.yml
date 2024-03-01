@@ -50,6 +50,7 @@ machine:
   base_temperature_feature: false
 
 measurement:
+  system_check_threshold: 3
   idle-time-start: 0
   idle-time-end: 0
   flow-process-runtime: 3800
