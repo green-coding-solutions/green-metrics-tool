@@ -20,7 +20,7 @@
 
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
-    <script src="/js/carbondb-details.js" defer></script>
+    <script src="/js/carbondb-lists.js" defer></script>
 
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
@@ -35,7 +35,7 @@
         </h1>
         <div class="ui full-width-card segment card">
             <div class="content">
-                <div class="header">Your machine stats</div>
+                <div class="header">Your stats</div>
                 <div class="description">
                     <div class="ui four statistics">
                         <div class="statistic">
@@ -54,47 +54,24 @@
                                 Sum CO2eq
                             </div>
                         </div>
-                        <div class="statistic">
-                            <div class="value">
-                                <i class="plug icon"></i><div id="avg_carbon_intensity"></div>
-                            </div>
-                            <div class="label">
-                                Average Carbon Intensity
-                            </div>
-                      </div>
-                      <div class="statistic">
-                        <div class="value">
-                            <i class="server icon"></i><div id="sum_records"></div>
-                        </div>
-                        <div class="label">
-                            Records received
-                        </div>
-                      </div>
-                    </div>
-                </div>
-                <p>&NonBreakingSpace;</p>
-                <div class="header">Your machine details</div>
-                <div class="description">
-                    <div class="ui relaxed  list" id="detail_list">
                     </div>
                 </div>
             </div>
         </div>
-        <div class="ui message">
-            <div class="header">
-              Why can I only see days?
-            </div>
-                <p>
-                    This is the free version of the Green Metrics Tool. Because saving all the values would be quite expensive we
-                    only offer daily statistic for free. If you want detailed data please check out our <a href="">plaid plans</a>.
-                    You can see how this would look like on our <a href="">demo machine</a>.
-                </p>
-          </div>
         <div class="ui raised segment">
             <div class="ui teal ribbon label">
                 <i class="car battery icon"></i> Overall energy statistics
             </div>
             <p></p>
+            <div class="ui clearing segment" id="filter_tags_container">
+                <div class="ui  ribbon label">
+                    Filtered by:
+                </div>
+                <span id="filter_tags"></span>
+                <button class="ui icon button" id="js_remove_filters">
+                    <i class="ban icon"></i>
+                </button>
+            </div>
             <div id="energy_table"></div>
         </div>
     </div>

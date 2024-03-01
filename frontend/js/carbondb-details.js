@@ -17,6 +17,66 @@ $(document).ready(function () {
             return
         }
 
+        let types = new Set();
+        let companies = new Set();
+        let machines = new Set();
+        let projects = new Set();
+        let tags = new Set();
+
+        measurements.data.forEach(item => {
+            types.add(item[1]);
+            companies.add(item[2]);
+            machines.add(item[3]);
+            projects.add(item[4]);
+            item[5].forEach(tag => tags.add(tag));
+        });
+
+        types = Array.from(types);
+        companies = Array.from(companies);
+        machines = Array.from(machines);
+        projects = Array.from(projects);
+        tags = Array.from(tags);
+
+        let info_string = ``
+
+        if (types.length > 0){
+            info_string += `
+            <div class="item">
+                <div class="content">
+                    <b>Type</b>: ${types.map(c => `${c} `).join('')}
+                </div>
+            </div>
+            `
+        }
+        if (companies.length > 0){
+            info_string += `
+            <div class="item">
+                <div class="content">
+                    <b>Company:</b> ${companies.map(c => `<a href="/carbondb-lists.html?company_uuid=${c}">${c}</a><br>`).join('')}
+                </div>
+            </div>
+            `
+        }
+        if (projects.length > 0){
+            info_string += `
+            <div class="item">
+                <div class="content">
+                    <b>Project</b>: ${projects.map(c => `<a href="/carbondb-lists.html?project_uuid=${c}">${c}</a><br>`).join('')}
+                </div>
+            </div>
+            `
+        }
+        if (tags.length > 0){
+            info_string += `
+            <div class="item">
+                <div class="content">
+                    <b>Tags:</b> ${tags.map(c => `<div class="ui tag label">${c}</div>`).join('')}
+                </div>
+            </div>
+            `
+        }
+
+        $('#detail_list').append(info_string);
 
         const table_td_string = measurements.data.map(subArr => `
             <tr>
@@ -24,7 +84,7 @@ $(document).ready(function () {
                     <td>${subArr[6]}</td>
                     <td>${subArr[7].toFixed(4)}</td>
                     <td>${subArr[8].toFixed(4)}</td>
-                    <td>${subArr[9]}</td>
+                    <td>${subArr[9].toFixed(2)}</td>
                     <td>${subArr[10]}</td>
             <tr>
         `).join(' ');

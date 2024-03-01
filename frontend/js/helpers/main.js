@@ -31,7 +31,7 @@ class GMTMenu extends HTMLElement {
                 <a class="item" href="/hog.html">
                     <b><i class="piggy bank icon"></i>Power Hog</b>
                 </a>
-                <a class="item" href="/carbondb-details.html">
+                <a class="item" href="/carbondb.html">
                     <b><i class="journal whills icon"></i>CarbonDB</b>
                 </a>
                 <a class="item" href="/settings.html">

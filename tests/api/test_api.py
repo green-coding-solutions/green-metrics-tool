@@ -68,8 +68,34 @@ def test_ci_measurement_add():
     for key in measurement.model_dump().keys():
         if key == 'workflow':
             assert data['workflow_id'] == measurement.model_dump()[key], Tests.assertion_info(f"workflow_id: {data['workflow_id']}", measurement.model_dump()[key])
+        elif key in ['cb_company_uuid', 'cb_project_uuid', 'cb_machine_uuid']:
+            pass
         else:
             assert data[key] == measurement.model_dump()[key], Tests.assertion_info(f"{key}: {data[key]}", measurement.model_dump()[key])
+
+def test_carbonDB_measurement_add():
+    measurement = CI_Measurement(energy_value=123,
+                        energy_unit='mJ',
+                        repo='testRepo',
+                        branch='testBranch',
+                        cpu='testCPU',
+                        cpu_util_avg=50,
+                        commit_hash='1234asdf',
+                        workflow='testWorkflow',
+                        run_id='testRunID',
+                        source='testSource',
+                        label='testLabel',
+                        duration=20,
+                        workflow_name='testWorkflowName',
+                        cb_machine_uuid='fa4e21ee-c733-465c-bc4a-ce5c02eed63b')
+
+    response = requests.post(f"{API_URL}/v1/ci/measurement/add", json=measurement.model_dump(), timeout=15)
+    assert response.status_code == 201, Tests.assertion_info('success', response.text)
+    query = """
+            SELECT * FROM carbondb_energy_data
+            """
+    data = DB().fetch_one(query, row_factory=psycopg.rows.dict_row)
+    assert data is not None or data != []
 
 
 def todo_test_get_runs():

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Standard Meta -->
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <link rel="shortcut icon" href="/images/favicon.ico">
+    <link rel="icon" href="/images/favicon.ico">
+    <link rel="icon" href="/images/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" href="/images/favicon-32x32.png" sizes="32x32">
+    <!-- Site Properties -->
+    <title>Green Metrics Tool</title>
+    <meta name="referrer" content="no-referrer-when-downgrade" />
+    <meta name="description" content="Measuring the energy of your software" />
+    <script src="/dist/js/jquery.min.js" defer></script>
+    <script src="/dist/js/toast.min.js" defer></script>
+    <script src="/dist/js/transition.min.js" defer></script>
+    <script src="/dist/js/transition.min.js" defer></script>
+
+    <script src="/js/helpers/config.js" defer></script>
+    <script src="/js/helpers/main.js" defer></script>
+
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
+    <link rel="stylesheet" type="text/css" href="/dist/css/datatables.min.css">
+</head>
+<body class="preload">
+    <gmt-menu></gmt-menu>
+    <div class="main ui container" id="main">
+        <h1 class="ui header float left">
+            <a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a>
+            Green Metrics Tool - CarbonDB
+        </h1>
+        <div class="ui full-width-card segment card">
+            <div class="content">
+                <div class="header">What is CarbonDB?
+                </div>
+                <div class="description">
+                    <p>The idea behind CarbonDB is that a lot of components in your stack produce different amounts of CO2 based on how much energy they consume, how long the hardware is used, what time and where certain operations are computed and many more. For companies it is vital to record all this data so they can a) improve their stack and also b) report the data as will be required by new EU laws. </p>
+                    <p>The solution is a central database in which all the different services can report their usage and then there is a central point where analytics and further operations can be performed</p>
+                    <p>You can read all about it under: <a href='https://www.green-coding.io/projects/carbondb/'>https://www.green-coding.io/projects/carbondb/</a></p>
+                </div>
+                <p>&NonBreakingSpace;</p>
+                <div class="header">Why am I not seeing any data?</div>
+                <div class="description">
+                    We don't require you to create an account to use our service. You create your own key when installing the tools that push to carbonDB. So only you know the keys.
+                    <ul>
+                        <li>You can access your company data under: <a href="/carbondb-lists.html?company_uuid=">/carbondb-lists.html?company_uuid=THE_ID_YOU_SET</a></li>
+                        <li>You can access your project data under: <a href="/carbondb-lists.html?project_uuid=">/carbondb-lists.html?project_uuid=THE_ID_YOU_SET</a></li>
+                        <li>You can access your machine data under: <a href="/carbondb-details.html?machine_uuid=">/carbondb-lists.html?machine_uuid=THE_ID_YOU_SET</a></li>
+                    </ul>
+
+
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

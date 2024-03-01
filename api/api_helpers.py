@@ -1,9 +1,12 @@
+import io
 import ipaddress
 import json
 import uuid
 import faulthandler
 from functools import cache
 from html import escape as html_escape
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import ORJSONResponse
 import numpy as np
 import requests
 import scipy.stats
@@ -669,6 +672,10 @@ def get_carbon_intensity(latitude, longitude):
     if not (token := GlobalConfig().config.get('electricity_maps_token')):
         raise ValueError('You need to specify an electricitymap token in the config!')
 
+    if token == 'testing':
+        # If we are running tests we always return 1000
+        return 1000
+
     headers = {'auth-token': token }
     params = {'lat': latitude, 'lon': longitude }
 
@@ -682,3 +689,61 @@ def get_carbon_intensity(latitude, longitude):
         return resp_data.get('carbonIntensity')
 
     return None
+
+def carbondb_add(client_ip, energydatas):
+
+    latitude, longitude = get_geo(client_ip)
+    carbon_intensity = get_carbon_intensity(latitude, longitude)
+
+    data_rows = []
+
+    for e in energydatas:
+
+        if not isinstance(e, dict):
+            e = e.dict()
+
+        e = html_escape_multi(e)
+
+        fields_to_check = {
+            'type': e['type'],
+            'energy_value': e['energy_value'],
+            'time_stamp': e['time_stamp'],
+        }
+
+        for field_name, field_value in fields_to_check.items():
+            if field_value is None or str(field_value).strip() == '':
+                raise RequestValidationError(f"{field_name.capitalize()} is empty. Ignoring everything!")
+
+        if 'ip' in e:
+            # An ip has been given with the data. Let's use this:
+            latitude, longitude = get_geo(e['ip'])
+            carbon_intensity = get_carbon_intensity(latitude, longitude)
+
+        energy_kwh = float(e['energy_value']) * 2.77778e-7
+        co2_value = energy_kwh * carbon_intensity
+
+        company_uuid = e['company'] if e['company'] is not None else ''
+        project_uuid = e['project'] if e['company'] is not None else ''
+        tags_clean = "{" + ",".join([f'"{tag.strip()}"' for tag in e['tags'].split(',') if e['tags']]) + "}" if e['tags'] is not None else ''
+
+        row = f"{e['type']}|{company_uuid}|{e['machine']}|{project_uuid}|{tags_clean}|{int(e['time_stamp'])}|{e['energy_value']}|{co2_value}|{carbon_intensity}|{latitude}|{longitude}|{client_ip}"
+        data_rows.append(row)
+        print(row)
+
+    data_str = "\n".join(data_rows)
+    data_file = io.StringIO(data_str)
+
+    columns = ['type', 'company', 'machine', 'project', 'tags', 'time_stamp', 'energy_value', 'co2_value', 'carbon_intensity', 'latitude', 'longitude', 'ip_address']
+
+    DB().copy_from(file=data_file, table='carbondb_energy_data', columns=columns, sep='|')
+
+    DB().query("""
+        DELETE FROM carbondb_energy_data
+        WHERE ctid NOT IN (
+            SELECT min(ctid)
+            FROM carbondb_energy_data
+            GROUP BY time_stamp, machine, energy_value
+        )
+    """)
+
+    return ORJSONResponse({'success': True}, status_code=202)
