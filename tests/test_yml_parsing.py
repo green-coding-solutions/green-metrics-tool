@@ -1,5 +1,6 @@
 import os
 import unittest
+import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -11,6 +12,7 @@ GlobalConfig().override_config(config_name='test-config.yml')
 
 class TestYML(unittest.TestCase):
 
+    @pytest.mark.serial # the editing of the yml files makes the result_obj too different, this can be fixed later
     def test_includes(self):
         test_dir = os.path.join(CURRENT_DIR, 'data/usage_scenarios/')
         test_root_file = 'import_one_root.yml'
@@ -27,6 +29,7 @@ class TestYML(unittest.TestCase):
 
         self.assertEqual(result_obj, runner._usage_scenario)
 
+    @pytest.mark.serial # the editing of the yml files makes the result_obj too different, this can be fixed later
     def test_(self):
         test_dir = os.path.join(CURRENT_DIR, 'data/usage_scenarios/')
         test_root_file = 'import_two_root.yml'
@@ -48,7 +51,7 @@ class TestYML(unittest.TestCase):
         print(f"expect: {result_obj}")
         self.assertEqual(result_obj, runner._usage_scenario)
 
-
+    @pytest.mark.serial #the parallization uses the yml loader, so this test will always fail before the assert
     def test_invalid_path(self):
         name = 'test_' + utils.randomword(12)
         test_dir = os.path.join(CURRENT_DIR, 'data/usage_scenarios/')

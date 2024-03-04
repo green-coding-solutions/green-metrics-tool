@@ -27,6 +27,7 @@ jobs:
         with:
          metrics-to-turn-off: '--categories RAPL Machine Sensors Debug CGroupV2 MacOS GPU --providers PsuEnergyAcSdiaMachineProvider'
          github-token: ${{ secrets.GITHUB_TOKEN }}
+         run-examples-directory-tests: false
 
       - name: Eco CI Energy Estimation - Get Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@v2

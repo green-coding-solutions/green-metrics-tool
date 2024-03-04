@@ -1,5 +1,4 @@
 import os
-import subprocess
 import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -24,11 +23,6 @@ def reset_config_fixture():
     config['measurement']['idle-time-end'] = idle_time_end
     config['measurement']['flow-process-runtime'] = flow_process_runtime
 
-@pytest.fixture(autouse=True, scope="module", name="build_image")
-def build_image_fixture():
-    uri = os.path.abspath(os.path.join(
-            CURRENT_DIR, 'stress-application/'))
-    subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
 #pylint: disable=expression-not-assigned
 def run_runner():
@@ -36,8 +30,8 @@ def run_runner():
             CURRENT_DIR, 'stress-application/'))
 
     # Run the application
-    RUN_NAME = 'test_' + utils.randomword(12)
-    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', verbose_provider_boot=True, dev_repeat_run=True, skip_system_checks=True)
+    name = 'test_' + utils.randomword(12)
+    runner = Runner(name=name, uri=uri, uri_type='folder', verbose_provider_boot=True, skip_system_checks=True)
     return runner.run()
 
 # Rethink how to do this test entirely

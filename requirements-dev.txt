@@ -6,6 +6,7 @@ pylint==3.1.0
 fastapi==0.110.0
 starlette>=0.32
 anybadge==1.14.0
+pytest-xdist==3.5.0
 
 # just to clear the pylint errors for the files in /api
 scipy==1.12.0

@@ -35,10 +35,21 @@ def test_check_system(skip_system_checks, expectation):
         del GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.foo.machine.provider.SomeProvider']
         del GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.bar.machine.provider.SomeOtherProvider']
 
+@pytest.mark.xdist_group(name="systems_checks")
 def test_reporters_still_running():
-    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dev_no_sleeps=True, dev_no_build=True, dev_no_metrics=False)
+    if GlobalConfig().config['measurement']['metric-providers']['linux'] is None:
+        GlobalConfig().config['measurement']['metric-providers']['linux'] = {}
 
-    runner2 = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dev_no_sleeps=True, dev_no_build=True, dev_no_metrics=False)
+    real_provider = {
+        'cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider': {
+            'resolution': 99
+        }
+    }
+    GlobalConfig().config['measurement']['metric-providers']['linux'].update(real_provider)
+
+    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dev_no_metrics=False)
+
+    runner2 = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dev_no_metrics=False)
 
     runner.check_system('start') # should not fail
 
@@ -54,3 +65,4 @@ def test_reporters_still_running():
     finally:
         Tests.cleanup(runner)
         Tests.cleanup(runner2)
+        del GlobalConfig().config['measurement']['metric-providers']['linux']['cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider']

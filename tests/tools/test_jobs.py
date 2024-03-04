@@ -21,12 +21,6 @@ def register_machine_fixture():
     machine = Machine(machine_id=1, description='test-machine')
     machine.register()
 
-
-# This should be done once per module
-@pytest.fixture(autouse=True, scope="module", name="build_image")
-def build_image_fixture():
-    subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/../stress-application/compose.yml", 'build'], check=True)
-
 def get_job(job_id):
     query = """
             SELECT
@@ -41,6 +35,7 @@ def get_job(job_id):
 
     return data
 
+@pytest.mark.serial
 def test_no_run_job():
     ps = subprocess.run(
             ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
@@ -53,6 +48,7 @@ def test_no_run_job():
     assert 'No job to process. Exiting' in ps.stdout,\
         Tests.assertion_info('No job to process. Exiting', ps.stdout)
 
+@pytest.mark.serial
 def test_no_email_job():
     ps = subprocess.run(
             ['python3', '../tools/jobs.py', 'email', '--config-override', 'test-config.yml'],
@@ -64,15 +60,19 @@ def test_no_email_job():
     assert 'No job to process. Exiting' in ps.stdout,\
         Tests.assertion_info('No job to process. Exiting', ps.stdout)
 
+@pytest.mark.serial
 def test_insert_job():
     job_id = Job.insert('Test Name', 'Test URL',  'Test Email', 'Test Branch', 'Test filename', 1)
     assert job_id is not None
     job = Job.get_job('run')
     assert job._state == 'WAITING'
+    ## cleanup
+    DB().query('TRUNCATE TABLE jobs RESTART IDENTITY CASCADE')
 
+@pytest.mark.serial
 def test_simple_run_job():
     name = utils.randomword(12)
-    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
 
     Job.insert(name, url,  'Test Email', 'main', filename, 1)
@@ -94,6 +94,7 @@ def test_simple_run_job():
 #pylint: disable=unused-variable # for the time being, until I get the mocking to work
 ## This test doesn't really make sense anymore as is, since we don't have "email jobs" in the same way,
 ## more that we send an email after a run job is finished.
+@pytest.mark.serial
 def todo_test_simple_email_job():
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'

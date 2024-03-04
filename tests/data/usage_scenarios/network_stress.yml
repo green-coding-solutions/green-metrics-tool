@@ -6,7 +6,7 @@ description: test
 
 networks:
   gmt-test-network:
-    
+
 services:
   test-container:
     type: container

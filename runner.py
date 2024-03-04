@@ -38,51 +38,12 @@ from lib.db import DB
 from lib.global_config import GlobalConfig
 from lib.notes import Notes
 from lib import system_checks
+from lib.yml_helpers import Loader
 
 from tools.machine import Machine
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
-
-# This function takes a path and a file and joins them while making sure that no one is trying to escape the
-# path with `..`, symbolic links or similar.
-# We always return the same error message including the path and file parameter, never `filename` as
-# otherwise we might disclose if certain files exist or not.
-def join_paths(path, path2, mode='file'):
-    filename = os.path.realpath(os.path.join(path, path2))
-
-    # If the original path is a symlink we need to resolve it.
-    path = os.path.realpath(path)
-
-    # This is a special case in which the file is '.'
-    if filename == path.rstrip('/'):
-        return filename
-
-    if not filename.startswith(path):
-        raise ValueError(f"{path2} must not be in folder above {path}")
-
-    # To double check we also check if it is in the files allow list
-
-    if mode == 'file':
-        folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
-    elif mode == 'directory':
-        folder_content = [str(item) for item in Path(path).rglob("*") if item.is_dir()]
-    else:
-        raise RuntimeError(f"Unknown mode supplied for join_paths: {mode}")
-
-    if filename not in folder_content:
-        raise ValueError(f"{mode.capitalize()} '{path2}' not in '{path}'")
-
-    # Another way to implement this. This is checking the third time but we want to be extra secure 👾
-    if Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
-        raise ValueError(f"{mode.capitalize()} '{path2}' not in folder '{path}'")
-
-    if os.path.exists(filename):
-        return filename
-
-    raise FileNotFoundError(f"{path2} in {path} not found")
-
-
 
 class Runner:
     def __init__(self,
@@ -241,47 +202,7 @@ class Runner:
     # Inspiration from https://github.com/tanbro/pyyaml-include which we can't use as it doesn't
     # do security checking and has no option to select when imported
     def load_yml_file(self):
-        #pylint: disable=too-many-ancestors
-        class Loader(yaml.SafeLoader):
-            def __init__(self, stream):
-                # We need to find our own root as the Loader is instantiated in PyYaml
-                self._root = os.path.split(stream.name)[0]
-                super().__init__(stream)
-
-            def include(self, node):
-                # We allow two types of includes
-                # !include <filename> => ScalarNode
-                # and
-                # !include <filename> <selector> => SequenceNode
-                if isinstance(node, yaml.nodes.ScalarNode):
-                    nodes = [self.construct_scalar(node)]
-                elif isinstance(node, yaml.nodes.SequenceNode):
-                    nodes = self.construct_sequence(node)
-                else:
-                    raise ValueError("We don't support Mapping Nodes to date")
-
-                filename = join_paths(self._root, nodes[0], 'file')
-
-                with open(filename, 'r', encoding='utf-8') as f:
-                    # We want to enable a deep search for keys
-                    def recursive_lookup(k, d):
-                        if k in d:
-                            return d[k]
-                        for v in d.values():
-                            if isinstance(v, dict):
-                                return recursive_lookup(k, v)
-                        return None
-
-                    # We can use load here as the Loader extends SafeLoader
-                    if len(nodes) == 1:
-                        # There is no selector specified
-                        return yaml.load(f, Loader)
-
-                    return recursive_lookup(nodes[1], yaml.load(f, Loader))
-
-        Loader.add_constructor('!include', Loader.include)
-
-        usage_scenario_file = join_paths(self._folder, self._original_filename, 'file')
+        usage_scenario_file = utils.join_paths(self._folder, self._original_filename, 'file')
 
         # We set the working folder now to the actual location of the usage_scenario
         if '/' in self._original_filename:
@@ -563,8 +484,8 @@ class Runner:
                 self.__notes_helper.add_note({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
                 # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
-                context_path = join_paths(self._folder, context, 'directory')
-                join_paths(context_path, dockerfile, 'file')
+                context_path = utils.join_paths(self._folder, context, 'directory')
+                utils.join_paths(context_path, dockerfile, 'file')
 
                 docker_build_command = ['docker', 'run', '--rm',
                     '-v', f"{self._folder}:/workspace:ro", # this is the folder where the usage_scenario is!
@@ -671,7 +592,6 @@ class Runner:
         # If so, change the order of the services accordingly.
         services_ordered = self.order_services(services)
         for service_name, service in services_ordered.items():
-
             if 'container_name' in service:
                 container_name = service['container_name']
             else:
@@ -816,7 +736,6 @@ class Runner:
                 # if this is true only one entry is in self.__networks
                 docker_run_string.append('--net')
                 docker_run_string.append(self.__networks[0])
-
 
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]

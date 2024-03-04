@@ -2,48 +2,40 @@ import io
 import os
 import subprocess
 import re
+import pytest
+import shutil
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from contextlib import redirect_stdout, redirect_stderr
-import pytest
 
 from lib.db import DB
 from lib import utils
 from lib.global_config import GlobalConfig
-from runner import Runner
+from tests import test_functions as Tests
 
 run_stderr = None
 run_stdout = None
 
 RUN_NAME = 'test_' + utils.randomword(12)
 
-
-# override per test cleanup, as the module setup requires writing to DB
-@pytest.fixture(autouse=False)
-def cleanup_after_test():
-    pass
-
-#pylint: disable=unused-argument # unused arguement off for now - because there are no running tests in this file
-def cleanup_after_module(autouse=True, scope="module"):
-    yield
-    tables = DB().fetch_all("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
-    for table in tables:
-        table_name = table[0]
-        DB().query(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE')
-
 # Runs once per file before any test(
 #pylint: disable=expression-not-assigned
-def setup_module(module):
+def setup_module():
+    parallel_id = utils.randomword(12)
+    test_case_path=os.path.join(CURRENT_DIR, 'stress-application/')
+    tmp_dir_path=os.path.join(CURRENT_DIR, 'tmp', parallel_id)
+    shutil.copytree(test_case_path, tmp_dir_path)
+
     out = io.StringIO()
     err = io.StringIO()
     GlobalConfig(config_name='test-config.yml').config
     with redirect_stdout(out), redirect_stderr(err):
-        uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
+        uri = os.path.abspath(tmp_dir_path)
         subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=False)
+        runner = Tests.setup_runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_no_metrics=False, skip_system_checks=False, create_tmp_directory=False, parallel_id=parallel_id)
         runner.run()
 
     #pylint: disable=global-statement
@@ -51,15 +43,18 @@ def setup_module(module):
     run_stderr = err.getvalue()
     run_stdout = out.getvalue()
 
+@pytest.mark.xdist_group(name="systems_checks")
 def test_no_errors():
     # Assert that there is no std.err output
     assert run_stderr == ''
 
+@pytest.mark.xdist_group(name="systems_checks")
 def test_cleanup_success():
     # Assert that Cleanup has run
     assert re.search(
         'MEASUREMENT SUCCESSFULLY COMPLETED', run_stdout)
 
+@pytest.mark.xdist_group(name="systems_checks")
 def test_db_rows_are_written_and_presented():
     # for every metric provider, check that there were rows written in the DB with info for that provider
     # also check (in the same test, to save on a DB call) that the output to STD.OUT
