@@ -57,6 +57,7 @@ machine:
   base_temperature_feature: False
 
 measurement:
+  system_check_threshold: 3 # Can be 1=INFO, 2=WARN or 3=ERROR
   idle-time-start: 10
   idle-time-end: 5
   flow-process-runtime: 3800
@@ -124,6 +125,8 @@ measurement:
     macos:
     #--- MacOS: On Mac you only need this provider. Please remove all others!
       powermetrics.provider.PowermetricsProvider:
+        resolution: 99
+      cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
         resolution: 99
     #--- Architecture - Common
     common:

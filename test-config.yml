@@ -50,6 +50,7 @@ machine:
   base_temperature_feature: false
 
 measurement:
+  system_check_threshold: 3
   idle-time-start: 0
   idle-time-end: 0
   flow-process-runtime: 3800
@@ -61,7 +62,7 @@ measurement:
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
         resolution: 99
     macos:
-      powermetrics.provider.PowermetricsProvider:
+      cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
         resolution: 99
     common:
       psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
