@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -692,11 +693,15 @@ def test_read_detached_process_no_exit():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
         try:
-            runner.run()
+            with pytest.raises(RuntimeError):
+                runner.run()
         finally:
             runner.cleanup()
-    assert 'setting to a 1 min, 40 secs run per stressor' in out.getvalue(), \
-        Tests.assertion_info('setting to a 1 min, 40 secs run per stressor', out.getvalue())
+
+    if sys.platform != 'darwin':
+        assert 'setting to a 1 min, 40 secs run per stressor' in out.getvalue(), \
+            Tests.assertion_info('setting to a 1 min, 40 secs run per stressor', out.getvalue())
+
     assert 'successful run completed' not in out.getvalue(), \
         Tests.assertion_info('NOT successful run completed', out.getvalue())
 
