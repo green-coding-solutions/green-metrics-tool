@@ -24,7 +24,7 @@ from pydantic import BaseModel, ValidationError
 import anybadge
 
 from api.object_specifications import Measurement
-from api.api_helpers import (add_phase_stats_statistics, determine_comparison_case,
+from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics, determine_comparison_case,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value, get_timeline_query,
                          get_run_info, get_machine_list)
@@ -148,7 +148,7 @@ async def get_notes(run_id):
         return Response(status_code=204) # No-Content
 
     escaped_data = [html_escape_multi(note) for note in data]
-    return ORJSONResponse({'success': True, 'data': escaped_data})
+    return ORJSONResponseObjKeep({'success': True, 'data': escaped_data})
 
 @app.get('/v1/network/{run_id}')
 async def get_network(run_id):
@@ -164,7 +164,7 @@ async def get_network(run_id):
     data = DB().fetch_all(query, (run_id,))
 
     escaped_data = html_escape_multi(data)
-    return ORJSONResponse({'success': True, 'data': escaped_data})
+    return ORJSONResponseObjKeep({'success': True, 'data': escaped_data})
 
 
 # return a list of all possible registered machines
@@ -361,7 +361,7 @@ async def get_phase_stats_single(run_id: str):
     except RuntimeError:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': phase_stats_object})
+    return ORJSONResponseObjKeep({'success': True, 'data': phase_stats_object})
 
 
 # This route gets the measurements to be displayed in a timeline chart
@@ -379,16 +379,14 @@ async def get_measurements_single(run_id: str):
 
     # extremely important to order here, cause the charting library in JS cannot do that automatically!
 
-    query = f" {query} ORDER BY measurements.metric ASC, measurements.detail_name ASC, measurements.time ASC"
+    query = f"{query} ORDER BY measurements.metric ASC, measurements.detail_name ASC, measurements.time ASC"
 
-    params = params = (run_id, )
-
-    data = DB().fetch_all(query, params=params)
+    data = DB().fetch_all(query, params=(run_id, ))
 
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 @app.get('/v1/timeline')
 async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, start_date: str | None = None, end_date: str | None = None, metrics: str | None = None, phase: str | None = None, sorting: str | None = None,):
@@ -1070,7 +1068,27 @@ async def get_run(run_id: str):
 
     data = html_escape_multi(data)
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return ORJSONResponseObjKeep({'success': True, 'data': data})
+
+@app.get('/v1/optimizations/{run_id}')
+async def get_optimizations(run_id: str):
+    if run_id is None or not is_valid_uuid(run_id):
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
+
+    query = """
+            SELECT title, label, criticality, reporter, icon, description, link
+            FROM optimizations
+            WHERE optimizations.run_id = %s
+            """
+
+    data = DB().fetch_all(query, params=(run_id, ))
+
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
+
+    return ORJSONResponseObjKeep({'success': True, 'data': data})
+
+
 
 @app.get('/robots.txt')
 async def robots_txt():

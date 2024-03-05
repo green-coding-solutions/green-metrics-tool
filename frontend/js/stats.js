@@ -305,9 +305,15 @@ async function makeBaseAPICalls(url_params) {
     } catch (err) {
         showNotification('Could not get network intercepts data from API', err);
     }
+    try {
+        optimizations_data = await makeAPICall('/v1/optimizations/' + url_params.get('id'))
+    } catch (err) {
+        showNotification('Could not get optimizations data from API', err);
+    }
 
 
-    return [run_data?.data, phase_stats_data?.data, network_data?.data];
+
+    return [run_data?.data, phase_stats_data?.data, network_data?.data, optimizations_data?.data];
 }
 
 const renderBadges = (url_params) => {
@@ -336,6 +342,58 @@ const displayNetworkIntercepts = (network_data) => {
         }
     }
 }
+
+const displayOptimizationsData = (optimizations_data) => {
+    console.log(optimizations_data);
+
+    const optimizationTemplate = `
+            <div class="content">
+                <div class="header">{{header}}
+                    <span class="right floated time">
+                        <div class="ui label"><i class="{{subsystem_icon}} icon"></i>{{subsystem}}</div>
+                        <div class="ui {{label_colour}} label">{{label}}</div>
+                    </span>
+                </div>
+                <div class="description">
+                    <p>{{description}}</p>
+                </div>
+                <div class="extra content">
+                    <span class="right floated time">
+                    {{link}}
+                    </span>
+                </div>
+            </div>
+    `;
+    const container = document.getElementById("optimizationsContainer");
+
+    optimizations_data.forEach(optimization => {
+        let optimizationHTML = optimizationTemplate
+            .replace("{{header}}", optimization[0])
+            .replace("{{label}}", optimization[1])
+            .replace("{{label_colour}}", optimization[2])
+            .replace("{{description}}", optimization[5])
+            .replace("{{subsystem}}", optimization[3])
+            .replace("{{subsystem_icon}}", optimization[4])
+
+        if (optimization[6]){
+            optimizationHTML = optimizationHTML.replace("{{link}}", `
+            <a class="ui mini icon primary basic button" href="${optimization[6]}">
+                <i class="angle right icon"></i>
+            </a>`);
+        }else{
+            optimizationHTML = optimizationHTML.replace("{{link}}", "");
+        }
+
+        const optimizationElement = document.createElement("div");
+        optimizationElement.classList.add("ui", "horizontal", "fluid", "card");
+        optimizationElement.innerHTML = optimizationHTML;
+        container.appendChild(optimizationElement);
+
+    });
+
+    $('#optimization_count').html(optimizations_data.length)
+}
+
 
 const getURLParams = () => {
     const query_string = window.location.search;
@@ -397,7 +455,7 @@ $(document).ready( (e) => {
             return;
         }
 
-        let [run_data, phase_stats_data, network_data] = await makeBaseAPICalls(url_params);
+        let [run_data, phase_stats_data, network_data, optimizations_data] = await makeBaseAPICalls(url_params);
 
         if (run_data == undefined) return;
 
@@ -406,6 +464,8 @@ $(document).ready( (e) => {
         fillRunData(run_data);
 
         displayNetworkIntercepts(network_data);
+
+        displayOptimizationsData(optimizations_data);
 
         if(phase_stats_data != null) {
             displayComparisonMetrics(phase_stats_data)

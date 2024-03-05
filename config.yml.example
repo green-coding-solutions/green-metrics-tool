@@ -177,3 +177,8 @@ sci:
     # For fixed values get the number from https://ember-climate.org/insights/research/global-electricity-review-2022/
     # The number 475 that comes as default is for Germany from 2022
     I: 436
+# electricity_maps_token: 'something'
+
+#optimization:
+#  ignore:
+#    - example_optimization_test

@@ -80,3 +80,7 @@ sci:
   RS: 1
   TE: 194000
   I: 475
+
+optimization:
+  ignore:
+    - example_optimization_test

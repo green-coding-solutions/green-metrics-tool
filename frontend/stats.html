@@ -52,7 +52,7 @@
                         <a class="item" data-tab="five">Usage Scenario</a>
                         <a class="item" data-tab="six">Logs</a>
                         <a class="item" data-tab="seven">Network</a>
-                        <a class="item" data-tab="eight">Optimizations<div class="ui red label">17</div></a>
+                        <a class="item" data-tab="eight">Optimizations<div class="ui red label" id="optimization_count">0</div></a>
                     </div>
                     <div class="ui tab segment" data-tab="one">
                         <table class="table-hover" id="run-data-top"></table>
@@ -118,11 +118,8 @@
                         <table class="table-hover" id="network-intercepts"></table>
                     </div>
 
-
-
-
                     <div class="ui active tab segment" data-tab="eight">
-                        <p>This is a list of potential optimizations we have detected based off your run. We are constantly adding new features so please check our <a href="#">documentation</a> for more details. If you think a warning does not apply to you, you can add an ignore into your <code>usage_sceanrio.yml</code> file.</p>
+                        <p>This is a list of potential optimizations we have detected based off your run. We are constantly adding new features so please check our <a href="https://docs.green-coding.io/">documentation</a> for more details. If you think a warning does not apply to you, you can add an ignore into your <code>usage_sceanrio.yml</code> file or your GMT config.</p>
                         <p>&NonBreakingSpace;</p>
                         <div id="optimizationsContainer" class="ui container"></div>
                     </div>
@@ -389,127 +386,6 @@
         </div>
         <div id="chart-container"></div>
 
-        <div class="ui full-width-card card">
-            <div class="content">
-                <div class="header"><a class="ui orange ribbon label" href="#">
-                    <h3>Optimizations</h3>
-                </a></div>
-                <div class="description">
-                    <p>This is a list of potential optimizations we have detected based off your run. We are constantly adding new features so please check our <a href="#">documentation</a> for more details. If you think a warning does not apply to you, you can add an ignore into your <code>usage_sceanrio.yml</code> file.</p>
-                </div>
-                <p>&NonBreakingSpace;</p>
-
-                <div id="optimizationsContainer2" class="ui container"></div>
-            </div>
-
-            </div>
-            <div class="clearing" style="display:block; height: 10px;"></div>
-
-        </div>
-
-
     </div>
 </body>
-
-<script>
-    const optimizations = [
-        {
-            "header": "Docker container boot time",
-            "label": "docker-boot-time",
-            "label_colour": "orange",
-            "subsystem": "Docker",
-            "subsystem_icon": "docker",
-            "description": "The container takes very long to become usable ~ 456s. Containers are meant to be started and killed quite fast.",
-        },
-        {
-            "header": "Cpu container resource allocation",
-            "label": "docker-cpu-allocation",
-            "label_colour": "red",
-            "subsystem": "Docker",
-            "subsystem_icon": "docker",
-            "description": "Container 'app' is maybe overprovisioned. CPU utilization was '2%'. Max was '31%'.",
-        },
-        {
-            "header": "Low IPC count",
-            "label": "low-ipc-count",
-            "label_colour": "red",
-            "subsystem": "cpu",
-            "subsystem_icon": "microchip",
-            "description": "The ipc count is 1. This is a sign that you are not using all features of the processor.",
-        },
-        {
-            "header": "High page faults",
-            "label": "high-page-faults",
-            "label_colour": "red",
-            "subsystem": "memory",
-            "subsystem_icon": "memory",
-            "description": "Your system is experiencing a lot of page faults. See documentation for a detailed description on how to maybe fix this.",
-        },
-        {
-            "header": "Code with high optimization potential found",
-            "label": "ai-low-code-quality",
-            "label_colour": "yellow",
-            "subsystem": "Ai",
-            "subsystem_icon": "brain",
-            "description": "This piece of code was rated a 18/100 by our Green Coding AI. We think this can be optimized<pre>object_specification.py:473:return [line.strip().split(',') for line in open(file_path, 'r')]</pre>",
-        },
-        {
-            "header": "Energy hotspots",
-            "label": "energy-hotspots",
-            "label_colour": "orange",
-            "subsystem": "Benchmark",
-            "subsystem_icon": "charging station",
-            "description": "We have detected energy hotspots in the flame graph. See documentation on how to run your code with full profiling enabled.",
-        },
-        // {
-        //     "header": "",
-        //     "label": "",
-        //     "label_colour": "",
-        //     "subsystem": "Docker",
-        //     "subsystem_icon": "docker",
-        //     "description": "",
-        // },
-    ];
-    const optimizationTemplate = `
-            <div class="content">
-                <div class="header">{{header}}
-                    <span class="right floated time">
-                        <div class="ui label"><i class="{{subsystem_icon}} icon"></i>{{subsystem}}</div>
-                        <div class="ui {{label_colour}} label">{{label}}</div>
-                    </span>
-                </div>
-                <div class="description">
-                    <p>{{description}}</p>
-                </div>
-                <div class="extra content">
-                    <span class="right floated time">
-                        <button class="ui mini icon primary basic button">
-                            <i class="info icon"></i>
-                        </button>
-                    </span>
-                </div>
-            </div>
-    `;
-    const container = document.getElementById("optimizationsContainer");
-    const container2 = document.getElementById("optimizationsContainer2");
-
-    optimizations.forEach(optimization => {
-        const optimizationHTML = optimizationTemplate
-            .replace("{{header}}", optimization.header)
-            .replace("{{label}}", optimization.label)
-            .replace("{{label_colour}}", optimization.label_colour)
-            .replace("{{description}}", optimization.description)
-            .replace("{{subsystem}}", optimization.subsystem)
-            .replace("{{subsystem_icon}}", optimization.subsystem_icon)
-
-        const optimizationElement = document.createElement("div");
-        optimizationElement.classList.add("ui", "horizontal", "fluid", "card");
-
-        optimizationElement.innerHTML = optimizationHTML;
-
-        container.appendChild(optimizationElement);
-        container2.appendChild(optimizationElement.cloneNode(true));
-
-    });
-</script>
 </html>
