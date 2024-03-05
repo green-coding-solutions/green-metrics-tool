@@ -71,6 +71,13 @@ async def fetch_all_data(run_id):
         get_phase_stats_single(run_id)
     )
 
+    for obj in [run, measurements, network, notes, phase]:
+        if obj.status_code == 204:
+            obj.content = {
+                'success': True,
+                'data': []
+            }
+
     if run.content['success'] and measurements.content['success'] and network.content['success'] \
             and notes.content['success'] and phase.content['success']:
         run_data = run.content['data']

@@ -39,7 +39,6 @@ from lib.global_config import GlobalConfig
 from lib.notes import Notes
 from lib import system_checks
 
-import optimization_providers.base
 
 
 from tools.machine import Machine
@@ -1631,6 +1630,9 @@ if __name__ == '__main__':
             error_helpers.log_error(f"Could not find config override file on local system. Please double check: {CURRENT_DIR}/{args.config_override}")
             sys.exit(1)
         GlobalConfig(config_name=args.config_override)
+
+    # We need to import this here as we need the correct config file
+    import optimization_providers.base
 
     print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
     keep_files = optimization_providers.base.import_reporters()
