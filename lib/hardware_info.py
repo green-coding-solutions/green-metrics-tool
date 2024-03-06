@@ -7,11 +7,19 @@ import os
 import platform
 import pprint
 import subprocess
+import psutil
 import sys
 
 REGEX_PARAMS = re.MULTILINE | re.IGNORECASE
 
 CURRENT_PATH = os.path.dirname(__file__)
+
+def call_function(func, arguments=None, attribute=None):
+    if arguments is None:
+        arguments = []
+    if attribute:
+        return getattr(func(*arguments), attribute)
+    return func(*arguments)
 
 def read_file_with_regex(file, regex, params=REGEX_PARAMS):
     '''Reads the content of a file and then tries to match the regex and returns the match described by 'o' '''
@@ -60,6 +68,7 @@ def read_directory_recursive(directory):
 rfwr = read_file_with_regex
 rpwr = read_process_with_regex
 rdr = read_directory_recursive
+cf = call_function
 
 # pylint: disable=unnecessary-lambda-assignment
 # read_process_with_regex with duplicates removed (single)
@@ -74,6 +83,10 @@ linux_info_list = [
     [rpwr, 'Linux Version', '/usr/bin/hostnamectl', r'Kernel:\s*(?P<o>.*)'],
     [rpwr, 'Operating System', '/usr/bin/hostnamectl', r'Operating System:\s*(?P<o>.*)'],
     [rpwr, 'Architecture', '/usr/bin/hostnamectl', r'Architecture:\s*(?P<o>.*)'],
+    [cf, 'CPU Utilization', psutil.cpu_percent, [0.1]],
+    [cf, 'Free Memory', psutil.virtual_memory, [], 'available'],
+    [cf, 'Disk Usage', psutil.disk_usage, ['/'], 'free'],
+    [rpwr, 'Uptime', '/usr/bin/uptime', r'(?P<o>.*)'],
     [rpwr, 'Hardware Vendor', '/usr/bin/hostnamectl', r'Hardware Vendor:\s*(?P<o>.*)'],
     [rpwr, 'Hardware Model', '/usr/bin/hostnamectl', r'Hardware Model:\s*(?P<o>.*)'],
     [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
@@ -110,6 +123,10 @@ mac_info_list = [
     [rpwr, 'Mac Version', 'sw_vers -productVersion', r'(?P<o>.*)'],
     [rpwr, 'Build Version', 'sw_vers -buildVersion', r'(?P<o>.*)'],
     [rpwr, 'Uname', 'uname -a', r'(?P<o>.*)'],
+    [cf, 'CPU Utilization', psutil.cpu_percent, [0.1]],
+    [cf, 'Free Memory', psutil.virtual_memory, [], 'available'],
+    [cf, 'Disk Usage', psutil.disk_usage, ['/'], 'free'],
+    [rpwr, 'Uptime', '/usr/bin/uptime', r'(?P<o>.*)'],
     [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Containers', 'docker ps -a', r'(?P<o>.*)'],

@@ -226,6 +226,11 @@ METRIC_MAPPINGS = {
         'source': 'procfs',
         'explanation': 'CPU Utilization of total system',
     },
+    'cpu_utilization_mach_system': {
+        'clean_name': 'CPU %',
+        'source': 'mach',
+        'explanation': 'CPU Utilization of total system',
+    },
     'memory_energy_rapl_msr_component': {
         'clean_name': 'Memory Energy (DRAM)',
         'source': 'RAPL',
