@@ -14,16 +14,11 @@
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <meta name="description" content="Measuring the energy of your software" />
     <script src="/dist/js/jquery.min.js" defer></script>
-    <script src="/dist/js/datatables.min.js" defer></script>
-    <script src="/dist/js/echarts.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
-    <script src="/dist/js/modal.min.js" defer></script>
-    <script src="/dist/js/dimmer.min.js" defer></script>
-
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
-    <script src="/js/hog-details.js" defer></script>
+    <script src="/js/carbondb-lists.js" defer></script>
 
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
@@ -34,54 +29,49 @@
     <div class="main ui container" id="main">
         <h1 class="ui header float left">
             <a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a>
-            Green Metrics Tool - Power HOG
+            Green Metrics Tool - CarbonDB
         </h1>
         <div class="ui full-width-card segment card">
             <div class="content">
-                <div class="header">Your machine stats</div>
+                <div class="header">Your stats</div>
                 <div class="description">
-                    <p>You can click on a bar that you want more details about. Please note that we don't show this one bar
-                        as the surrounding processes might also influence the results. Please use the zoom to look at one specific bar.
-                    </p>
-                </p>
+                    <div class="ui four statistics">
+                        <div class="statistic">
+                            <div class="value">
+                                <i class="battery three quarters icon"></i><div id="sum_energy"></div>
+                            </div>
+                            <div class="label">
+                                Sum Energy (J)
+                            </div>
+                        </div>
+                        <div class="statistic">
+                            <div class="value">
+                                <i class="burn icon"></i><div id="sum_co2eq"></div>
+                            </div>
+                            <div class="label">
+                                Sum CO2eq
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div id="chart-container" style="width: 100%;height:600px;"></div>
-
-        <div id="table-loader" class="ui active centered inline loader text">Loading and processing data</div>
-
         <div class="ui raised segment">
             <div class="ui teal ribbon label">
                 <i class="car battery icon"></i> Overall energy statistics
             </div>
             <p></p>
-            <div id="energy_segment"></div>
-        </div>
-
-
-        <div class="ui raised segment">
-            <div class="ui teal ribbon label">
-                <i class="microchip icon"></i> Per process energy statistics
+            <div class="ui clearing segment" id="filter_tags_container">
+                <div class="ui  ribbon label">
+                    Filtered by:
+                </div>
+                <span id="filter_tags"></span>
+                <button class="ui icon button" id="js_remove_filters">
+                    <i class="ban icon"></i>
+                </button>
             </div>
-            <p></p>
-            <table id="process-table" class="ui celled striped table">
-          </div>
+            <div id="energy_table"></div>
+        </div>
     </div>
-    <div class="ui overlay large modal" id="task-details">
-        <div class="header">Details</div>
-        <div class="scrolling content" id="modal-content">
-            <div class="ui loading segment" id="coaliton-segment">
-                <p></p>
-            </div>
-            <div class="ui loading segment" id="task-segment">
-                <p></p>
-            </div>
-        </div>
-        <div class="actions">
-            <div class="ui approve button">Ok</div>
-          </div>
-
-      </div>
 </body>
 </html>

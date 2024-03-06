@@ -80,3 +80,5 @@ sci:
   RS: 1
   TE: 194000
   I: 475
+
+electricity_maps_token: 'testing'
