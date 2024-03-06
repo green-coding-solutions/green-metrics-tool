@@ -23,14 +23,17 @@ REPORTER_ICON = 'diagnoses'
 
 @register_reporter('message_optimization', Criticality.INFO, REPORTER_NAME, REPORTER_ICON)
 def message_optimization(self, run, measurements, repo_path, network, notes, phases):
-    self.add_optimization('Why am I not seeing more data', '''We offer the core GMT free of charge and make everything
-                          free and open source.
-                          This is because we really believe in FOSS. But we need to eat at the end of the day so we decided
-                          to only publish the reporters if you give us a little money. This is to support the development
-                          of this tool. So if you work for a company maybe consider supporting us. If you want to use this
-                          tool for research, are an NGO or a student please reach out to us and we will give you a key.
-                          If you don't want to see this message and you are running your own cluster just add the
-                          `message_optimization` to the ignore list into your config file.
+    self.add_optimization('Why am I not seeing more data', '''
+                          The Green Metrics Tool is a FOSS software that empowers users to make software more sustainable
+                          by measuring energy and carbon. We believe that FOSS is the most beneficial way to go here as
+                          transparency is key to create trust, adoption and awareness of the carbon emissions of software.
+                          Some features like hosting, automated measurements and also optimizations we use as our angle
+                          to support the free continuous development of the tool. So if you use this tool professionally
+                          and want to take the step from awareness and measurement to optimization maybe consider
+                          supporting us. If you want to use this tool for research, are an NGO or a student please reach
+                          out to us - We have special free and reduced priced options. If you don't want to see this
+                          message and you are running your own cluster just add the message_optimization to the ignore
+                          list into your config file.
                           ''', 'https://www.green-coding.io/projects/green-metrics-tool/')
 
 # @register_reporter('example_optimization_test', Criticality.CRITICAL, REPORTER_NAME, REPORTER_ICON, need_files=True)
