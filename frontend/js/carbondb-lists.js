@@ -52,7 +52,7 @@ $(document).ready(function () {
         const ftags = getQueryParameters('tag');
         if (ftags.length > 0) {
             $('#filter_tags_container').show();
-            const tagsFilterHtml = ftags.map(tag => `<a class="ui tag label" href="${window.location}&tag=${tag}">${tag}</a>`).join(' ');
+            const tagsFilterHtml = ftags.map(tag => `<a class="ui tag label" href="${window.location}&tag=${escapeString(tag)}">${escapeString(tag)}</a>`).join(' ');
             $('#filter_tags').append(tagsFilterHtml);
             $('#js_remove_filters').click(function(){
                 const url = new URL(window.location.href);
@@ -67,7 +67,7 @@ $(document).ready(function () {
         }
 
         const table_td_string = measurements.map(subArr => {
-            const tagsHtml = subArr[4].map(tag => `<a class="ui tag label" href="${window.location}&tag=${tag}">${tag}</a>`).join(' ');
+            const tagsHtml = subArr[4].map(tag => `<a class="ui tag label" href="${window.location}&tag=${escapeString(tag)}">${escapeString(tag)}</a>`).join(' ');
             return `
                 <tr>
                     <td><a href='/carbondb-details.html?machine_uuid=${subArr[0]}'>${subArr[0]}</a></td>
