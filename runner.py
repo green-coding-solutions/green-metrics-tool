@@ -1104,6 +1104,7 @@ class Runner:
                                 docker_exec_command,
                                 stderr=stderr_behaviour,
                                 stdout=stdout_behaviour,
+                                preexec_fn=os.setsid,
                                 encoding='UTF-8',
                             )
                             if stderr_behaviour == subprocess.PIPE:
@@ -1169,7 +1170,7 @@ class Runner:
             for ps in ps_to_kill_tmp:
                 print(f"Trying to kill detached process '{ps['cmd']}'' of current flow")
                 try:
-                    process_helpers.kill_ps(ps['ps'], ps['cmd'])
+                    process_helpers.kill_pg(ps['ps'], ps['cmd'])
                 except ProcessLookupError as process_exc: # Process might have done expected exit already. However all other errors shall bubble
                     print(f"Could not kill {ps['cmd']}. Exception: {process_exc}")
 
@@ -1235,7 +1236,7 @@ class Runner:
         for ps in self.__ps_to_kill:
             try:
                 # we never need to kill a process group here, even if started in shell mode, as we funnel through docker exec
-                process_helpers.kill_ps(ps['ps'], ps['cmd'])
+                process_helpers.kill_pg(ps['ps'], ps['cmd'])
             except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
                 ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
         if ps_errors:
@@ -1395,7 +1396,7 @@ class Runner:
         ps_errors = []
         for ps in self.__ps_to_kill:
             try:
-                process_helpers.kill_ps(ps['ps'], ps['cmd'])
+                process_helpers.kill_pg(ps['ps'], ps['cmd'])
             except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
                 ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
         if ps_errors:
