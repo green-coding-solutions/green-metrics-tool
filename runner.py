@@ -1099,7 +1099,7 @@ class Runner:
 
                         if cmd_obj.get('detach', False) is True:
                             print('Process should be detached. Running asynchronously and detaching ...')
-                            #pylint: disable=consider-using-with
+                            #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
                             ps = subprocess.Popen(
                                 docker_exec_command,
                                 stderr=stderr_behaviour,
@@ -1232,15 +1232,12 @@ class Runner:
     def read_and_cleanup_processes(self):
         print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
 
-        ps_errors = []
         for ps in self.__ps_to_kill:
             try:
                 # we never need to kill a process group here, even if started in shell mode, as we funnel through docker exec
                 process_helpers.kill_pg(ps['ps'], ps['cmd'])
-            except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
-                ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
-        if ps_errors:
-            raise RuntimeError(ps_errors)
+            except ProcessLookupError as exc: # Process might have done expected exit already.
+                print(f"Could not kill {ps['cmd']}. Exception: {exc}")
         self.__ps_to_kill.clear() # we need to clear, so we do not kill twice later
 
         for ps in self.__ps_to_read:
@@ -1393,14 +1390,11 @@ class Runner:
         if continue_measurement is False:
             self.remove_docker_images()
 
-        ps_errors = []
         for ps in self.__ps_to_kill:
             try:
                 process_helpers.kill_pg(ps['ps'], ps['cmd'])
             except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
-                ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
-        if ps_errors:
-            raise RuntimeError(ps_errors)
+                print(f"Could not kill {ps['cmd']}. Exception: {exc}")
 
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
