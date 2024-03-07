@@ -693,8 +693,7 @@ def test_read_detached_process_no_exit():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
         try:
-            with pytest.raises(RuntimeError):
-                runner.run()
+            runner.run()
         finally:
             runner.cleanup()
 

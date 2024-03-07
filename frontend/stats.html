@@ -52,6 +52,7 @@
                         <a class="item" data-tab="five">Usage Scenario</a>
                         <a class="item" data-tab="six">Logs</a>
                         <a class="item" data-tab="seven">Network</a>
+                        <a class="item" data-tab="eight">Optimizations<div class="ui red label" id="optimization_count">0</div></a>
                     </div>
                     <div class="ui tab segment" data-tab="one">
                         <table class="table-hover" id="run-data-top"></table>
@@ -116,6 +117,14 @@
                         <div class="ui divider" id="network-divider"></div>
                         <table class="table-hover" id="network-intercepts"></table>
                     </div>
+
+                    <div class="ui active tab segment" data-tab="eight">
+                        <p>This is a list of potential optimizations we have detected based off your run. We are constantly adding new features so please check our <a href="https://docs.green-coding.io/">documentation</a> for more details. If you think a warning does not apply to you, you can add an ignore into your <code>usage_sceanrio.yml</code> file or your GMT config.</p>
+                        <p>&NonBreakingSpace;</p>
+                        <div id="optimizationsContainer" class="ui container"></div>
+                    </div>
+
+
 
                 </div>
             </div>
@@ -359,7 +368,7 @@
                     <button id="fetch-time-series" class="blue ui button">Fetch time series</button>
                 </div>
                 <ul></ul>
-            </div>
+         </div>
 
         <div class="ui two cards" id="api-loader" style="display:none;">
             <div class="card" style="min-height: 300px">
@@ -376,7 +385,7 @@
             </div>
         </div>
         <div id="chart-container"></div>
-        <div class="clearing" style="display:block; height: 10px;"></div>
+
     </div>
 </body>
 </html>

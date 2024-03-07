@@ -81,4 +81,8 @@ sci:
   TE: 194000
   I: 475
 
+optimization:
+  ignore:
+    - example_optimization_test
+
 electricity_maps_token: 'testing'

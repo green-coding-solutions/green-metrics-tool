@@ -1,3 +1,4 @@
+import typing
 import io
 import ipaddress
 import json
@@ -5,6 +6,7 @@ import uuid
 import faulthandler
 from functools import cache
 from html import escape as html_escape
+from starlette.background import BackgroundTask
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import ORJSONResponse
 import numpy as np
@@ -569,6 +571,19 @@ def get_t_stat(length):
     t_crit = np.abs(scipy.stats.t.ppf((.05)/2,dof)) # for two sided!
     return t_crit/np.sqrt(length)
 
+# As the ORJSONResponse renders the object on init we need to keep the original around as otherwise we need to reparse
+# it when we use these functions in our code. The header is a copy from starlette/responses.py JSONResponse
+class ORJSONResponseObjKeep(ORJSONResponse):
+    def __init__(
+        self,
+        content: typing.Any,
+        status_code: int = 200,
+        headers: typing.Optional[typing.Dict[str, str]] = None,
+        media_type: typing.Optional[str] = None,
+        background: typing.Optional[BackgroundTask] = None,
+    ) -> None:
+        self.content = content
+        super().__init__(content, status_code, headers, media_type, background)
 
 def get_geo(ip):
     try:
@@ -747,3 +762,4 @@ def carbondb_add(client_ip, energydatas):
     """)
 
     return ORJSONResponse({'success': True}, status_code=202)
+  
