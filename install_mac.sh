@@ -10,16 +10,15 @@ function print_message {
 }
 
 function generate_random_password() {
-    local length=$1
-    LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length"
-    echo
+    echo "yourfixedinputstring" | tr -dc 'A-Za-z0-9' | head -c "$length"
 }
 
 db_pw=''
 api_url=''
 metrics_url=''
+no_build=false
 
-while getopts "p:a:m:" o; do
+while getopts "p:a:m:n" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -29,6 +28,9 @@ while getopts "p:a:m:" o; do
             ;;
         m)
             metrics_url=${OPTARG}
+            ;;
+        n)
+            no_build=true
             ;;
     esac
 done
@@ -43,13 +45,13 @@ if [[ -z $metrics_url ]] ; then
     metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
 fi
 
-if [[ -f config.yml ]]; then
-    password_from_file=$(awk '/postgresql:/ {flag=1; next} flag && /password:/ {print $2; exit}' config.yml)
-fi
-
-default_password=${password_from_file:-$(generate_random_password 12)}
-
 if [[ -z "$db_pw" ]] ; then
+    if [[ -f config.yml ]]; then
+        password_from_file=$(awk '/postgresql:/ {flag=1; next} flag && /password:/ {print $2; exit}' config.yml)
+    fi
+
+    default_password=${password_from_file:-$(generate_random_password 12)}
+
     read -sp "Please enter the new password to be set for the PostgreSQL DB (default: $default_password): " db_pw
     echo "" # force a newline, because read -sp will consume it
     db_pw=${db_pw:-"$default_password"}
@@ -109,8 +111,8 @@ echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics" | sudo tee /etc/sudo
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall -9 powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics_sigkill
 
 print_message "Writing to /etc/hosts file..."
-etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
-etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
+etc_hosts_line_1="192.168.106.2 green-coding-postgres-container"
+etc_hosts_line_2="192.168.106.2 ${host_api_url} ${host_metrics_url}"
 
 # Entry 1 is needed for the local resolution of the containers through the jobs.py and runner.py
 if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
@@ -129,7 +131,7 @@ if [[ ${host_metrics_url} == *".green-coding.internal"* ]];then
 fi
 
 if ! command -v stdbuf &> /dev/null; then
-    print_message "Trying to install 'coreutils' via homebew. If this fails (because you do not have brew or use another package manager), please install it manually ..."
+    print_message "Trying to install 'coreutils' via homebrew. If this fails (because you do not have brew or use another package manager), please install it manually ..."
     brew install coreutils
 fi
 
@@ -147,16 +149,17 @@ while IFS= read -r subdir; do
     fi
 done
 
-print_message "Building / Updating docker containers"
-docker compose -f docker/compose.yml down
-docker compose -f docker/compose.yml build
-docker compose -f docker/compose.yml pull
+if [[ $no_build != true ]] ; then
+    print_message "Building / Updating docker containers"
+    docker compose -f docker/compose.yml down
+    docker compose -f docker/compose.yml build
+    docker compose -f docker/compose.yml pull
 
-print_message "Updating python requirements"
-python3 -m pip install --upgrade pip
-python3 -m pip install -r requirements.txt
-python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
-
+    print_message "Updating python requirements"
+    python3 -m pip install --upgrade pip
+    python3 -m pip install -r requirements.txt
+    python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
+fi
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"

@@ -72,7 +72,7 @@ def get_env_vars(runner):
 
 # Test allowed characters
 def test_env_variable_allowed_characters():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_allowed.yml', skip_unsafe=False, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_allowed.yml', skip_unsafe=False)
     env_var_output = get_env_vars(runner)
 
     assert 'TESTALLOWED=alpha-num123_' in env_var_output, Tests.assertion_info('TESTALLOWED=alpha-num123_', env_var_output)
@@ -82,7 +82,7 @@ def test_env_variable_allowed_characters():
 
 # Test too long values
 def test_env_variable_too_long():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml')
     with pytest.raises(RuntimeError) as e:
         get_env_vars(runner)
 
@@ -90,7 +90,7 @@ def test_env_variable_too_long():
 
 # Test skip_unsafe=true
 def test_env_variable_skip_unsafe_true():
-    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', skip_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='env_vars_stress_forbidden.yml', skip_unsafe=True)
     env_var_output = get_env_vars(runner)
 
     # Only allowed values should be in env vars, forbidden ones should be skipped
@@ -126,14 +126,14 @@ def get_port_bindings(runner):
     return port, err
 
 def test_port_bindings_allow_unsafe_true():
-    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', allow_unsafe=True)
     port, _ = get_port_bindings(runner)
     assert port.startswith('0.0.0.0:9017'), Tests.assertion_info('0.0.0.0:9017', port)
 
 def test_port_bindings_skip_unsafe_true():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', skip_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', skip_unsafe=True)
 
     # need to catch exception here as otherwise the subprocess returning an error will
     # fail the test
@@ -147,7 +147,7 @@ def test_port_bindings_skip_unsafe_true():
         Tests.assertion_info(f"Warning: {expected_warning}", 'no/different warning')
 
 def test_port_bindings_no_skip_or_allow():
-    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='port_bindings_stress.yml')
     with pytest.raises(Exception) as e:
         _, docker_port_err = get_port_bindings(runner)
         expected_container_error = 'Error: No public port \'9018/tcp\' published for test-container\n'
@@ -163,7 +163,7 @@ def test_port_bindings_no_skip_or_allow():
 def test_setup_commands_one_command():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='setup_commands_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='setup_commands_stress.yml')
 
     with redirect_stdout(out), redirect_stderr(err):
         try:
@@ -178,7 +178,7 @@ def test_setup_commands_one_command():
 def test_setup_commands_multiple_commands():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='setup_commands_multiple_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='setup_commands_multiple_stress.yml')
 
     with redirect_stdout(out), redirect_stderr(err):
         try:
@@ -238,7 +238,7 @@ def assert_order(text, first, second):
 def test_depends_on_order():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='depends_on.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='depends_on.yml')
 
     with redirect_stdout(out), redirect_stderr(err):
         try:
@@ -255,7 +255,7 @@ def test_depends_on_order():
 def test_depends_on_huge():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='depends_on_huge.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='depends_on_huge.yml')
 
     with redirect_stdout(out), redirect_stderr(err):
         try:
@@ -328,7 +328,7 @@ def test_depends_on_huge():
 
 
 def test_depends_on_error_not_running():
-    runner = Tests.setup_runner(usage_scenario='depends_on_error_not_running.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_not_running.yml')
     try:
         with pytest.raises(RuntimeError) as e:
             Tests.run_until(runner, 'setup_services')
@@ -339,7 +339,7 @@ def test_depends_on_error_not_running():
         Tests.assertion_info('test-container-2 is not running', str(e.value))
 
 def test_depends_on_error_cyclic_dependency():
-    runner = Tests.setup_runner(usage_scenario='depends_on_error_cycle.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_cycle.yml')
     try:
         with pytest.raises(RuntimeError) as e:
             Tests.run_until(runner, 'setup_services')
@@ -350,7 +350,7 @@ def test_depends_on_error_cyclic_dependency():
         Tests.assertion_info('cycle in depends_on with test-container-1', str(e.value))
 
 def test_depends_on_error_unsupported_condition():
-    runner = Tests.setup_runner(usage_scenario='depends_on_error_unsupported_condition.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='depends_on_error_unsupported_condition.yml')
     try:
         with pytest.raises(RuntimeError) as e:
             Tests.run_until(runner, 'setup_services')
@@ -362,7 +362,7 @@ def test_depends_on_error_unsupported_condition():
         Tests.assertion_info(message, str(e.value))
 
 def test_depends_on_long_form():
-    runner = Tests.setup_runner(usage_scenario='depends_on_long_form.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='depends_on_long_form.yml')
     out = io.StringIO()
     err = io.StringIO()
 
@@ -376,7 +376,7 @@ def test_depends_on_long_form():
         runner.cleanup()
 
 def test_depends_on_healthcheck():
-    runner = Tests.setup_runner(usage_scenario='healthcheck.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='healthcheck.yml')
     out = io.StringIO()
     err = io.StringIO()
 
@@ -392,7 +392,7 @@ def test_depends_on_healthcheck():
         runner.cleanup()
 
 def test_depends_on_healthcheck_error_missing():
-    runner = Tests.setup_runner(usage_scenario='healthcheck_error_missing.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='healthcheck_error_missing.yml')
 
     try:
         with pytest.raises(RuntimeError) as e:
@@ -406,9 +406,10 @@ def test_depends_on_healthcheck_error_missing():
 
 #volumes: [array] (optional)
 #Array of volumes to be mapped. Only read of runner.py is executed with --allow-unsafe flag
+@pytest.mark.no_mac_workflow
 def test_volume_bindings_allow_unsafe_true():
     create_test_file('/tmp/gmt-test-data')
-    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', allow_unsafe=True)
     ls = get_contents_of_bound_volume(runner)
     assert 'test-file' in ls, Tests.assertion_info('test-file', ls)
 
@@ -416,7 +417,7 @@ def test_volumes_bindings_skip_unsafe_true():
     create_test_file('/tmp/gmt-test-data')
     out = io.StringIO()
     err = io.StringIO()
-    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', skip_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', skip_unsafe=True)
 
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception):
         ls = get_contents_of_bound_volume(runner)
@@ -427,7 +428,7 @@ def test_volumes_bindings_skip_unsafe_true():
 
 def test_volumes_bindings_no_skip_or_allow():
     create_test_file('/tmp/gmt-test-data')
-    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='volume_bindings_stress.yml')
     with pytest.raises(RuntimeError) as e:
         ls = get_contents_of_bound_volume(runner)
         assert ls == '', Tests.assertion_info('empty list', ls)
@@ -436,7 +437,7 @@ def test_volumes_bindings_no_skip_or_allow():
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_network_created():
-    runner = Tests.setup_runner(usage_scenario='network_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='network_stress.yml')
     try:
         Tests.run_until(runner, 'setup_networks')
         ps = subprocess.run(
@@ -452,7 +453,7 @@ def test_network_created():
     assert 'gmt-test-network' in ls, Tests.assertion_info('gmt-test-network', ls)
 
 def test_container_is_in_network():
-    runner = Tests.setup_runner(usage_scenario='network_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='network_stress.yml')
     try:
         Tests.run_until(runner, 'setup_services')
         ps = subprocess.run(
@@ -472,7 +473,7 @@ def test_container_is_in_network():
 #    When container does not have a daemon running typically a shell
 #    is started here to have the container running like bash or sh
 def test_cmd_ran():
-    runner = Tests.setup_runner(usage_scenario='cmd_stress.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='cmd_stress.yml')
     try:
         Tests.run_until(runner, 'setup_services')
         ps = subprocess.run(
@@ -508,7 +509,7 @@ def test_uri_local_dir():
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 def test_uri_local_dir_missing():
-    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', uri='/tmp/missing', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', uri='/tmp/missing')
     try:
         with pytest.raises(FileNotFoundError) as e:
             runner.run()
@@ -538,7 +539,7 @@ def test_uri_github_repo():
 ## --branch BRANCH
 #    Optionally specify the git branch when targeting a git repository
 def test_uri_local_branch():
-    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', branch='test-branch', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', branch='test-branch')
     out = io.StringIO()
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(RuntimeError) as e:
@@ -575,10 +576,7 @@ def test_uri_github_repo_branch_missing():
     runner = Tests.setup_runner(usage_scenario='basic_stress.yml',
         uri='https://github.com/green-coding-berlin/pytest-dummy-repo',
         uri_type='URL',
-        branch='missing-branch',
-        dev_no_sleeps=True,
-        dev_no_build=True,
-        dev_no_metrics=True,
+        branch='missing-branch'
     )
     with pytest.raises(subprocess.CalledProcessError) as e:
         runner.run()
@@ -662,7 +660,7 @@ def test_no_file_cleanup():
 #pylint: disable=unused-variable
 def test_skip_and_allow_unsafe_both_true():
     with pytest.raises(RuntimeError) as e:
-        runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, allow_unsafe=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+        runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, allow_unsafe=True)
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
     assert str(e.value) == expected_exception, Tests.assertion_info('', str(e.value))
 
@@ -688,7 +686,7 @@ def test_debug(monkeypatch):
     # can check for this note in the DB and the notes are about 2s apart
 
 def test_read_detached_process_no_exit():
-    runner = Tests.setup_runner(usage_scenario='stress_detached_no_exit.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='stress_detached_no_exit.yml')
     out = io.StringIO()
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
@@ -706,7 +704,7 @@ def test_read_detached_process_no_exit():
         Tests.assertion_info('NOT successful run completed', out.getvalue())
 
 def test_read_detached_process_after_exit():
-    runner = Tests.setup_runner(usage_scenario='stress_detached_exit.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='stress_detached_exit.yml')
     out = io.StringIO()
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
@@ -718,7 +716,7 @@ def test_read_detached_process_after_exit():
         Tests.assertion_info('successful run completed', out.getvalue())
 
 def test_read_detached_process_failure():
-    runner = Tests.setup_runner(usage_scenario='stress_detached_failure.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Tests.setup_runner(usage_scenario='stress_detached_failure.yml')
 
     out = io.StringIO()
     err = io.StringIO()

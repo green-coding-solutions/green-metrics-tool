@@ -113,7 +113,7 @@ class Runner:
         self._uri_type = uri_type
         self._original_filename = filename
         self._branch = branch
-        self._tmp_folder = '/tmp/green-metrics-tool'
+        self._tmp_folder = '/Users/runner/tmp/green-metrics-tool'
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
         self._sci = {'R_d': None, 'R': 0}

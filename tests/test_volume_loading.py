@@ -39,7 +39,7 @@ def check_if_container_running(container_name):
 def test_volume_load_no_escape():
     tmp_dir_name = utils.randomword(12)
     tmp_dir = os.path.join(CURRENT_DIR, 'tmp', tmp_dir_name, 'basic_stress_w_import.yml')
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', docker_compose='volume_load_etc_passwords.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False)
+    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', docker_compose='volume_load_etc_passwords.yml', dir_name=tmp_dir_name)
     Tests.replace_include_in_usage_scenario(tmp_dir, 'volume_load_etc_passwords.yml')
 
     try:
@@ -82,7 +82,7 @@ def test_load_files_from_within_gmt():
     copy_compose_and_edit_directory('volume_load_within_proj.yml', tmp_dir)
 
     # setup runner and run test
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False)
+    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name)
     Tests.replace_include_in_usage_scenario(os.path.join(tmp_dir, 'basic_stress_w_import.yml'), 'docker-compose.yml')
 
     try:
@@ -110,7 +110,7 @@ def test_symlinks_should_fail():
 
     copy_compose_and_edit_directory('volume_load_symlinks_negative.yml', tmp_dir)
 
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False)
+    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name)
     Tests.replace_include_in_usage_scenario(os.path.join(tmp_dir, 'basic_stress_w_import.yml'), 'docker-compose.yml')
 
     try:
@@ -127,7 +127,7 @@ def test_symlinks_should_fail():
 def test_non_bind_mounts_should_fail():
     tmp_dir_name = create_tmp_dir()[1]
     tmp_dir_usage = os.path.join(CURRENT_DIR, 'tmp', tmp_dir_name, 'basic_stress_w_import.yml')
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', docker_compose='volume_load_non_bind_mounts.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False)
+    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', docker_compose='volume_load_non_bind_mounts.yml', dir_name=tmp_dir_name)
     Tests.replace_include_in_usage_scenario(tmp_dir_usage, 'volume_load_non_bind_mounts.yml')
 
     try:
@@ -147,7 +147,7 @@ def test_load_volume_references():
 
     copy_compose_and_edit_directory('volume_load_references.yml', tmp_dir)
 
-    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False)
+    runner = Tests.setup_runner(usage_scenario='basic_stress_w_import.yml', dir_name=tmp_dir_name)
     Tests.replace_include_in_usage_scenario(os.path.join(tmp_dir, 'basic_stress_w_import.yml'), 'docker-compose.yml')
 
     try:
@@ -167,6 +167,7 @@ def test_load_volume_references():
         Tests.cleanup(runner)
     assert "File mounted" in out, Tests.assertion_info('/tmp/test-file mounted', f"out: {out} | err: {err}")
 
+@pytest.mark.no_mac_workflow
 def test_volume_loading_subdirectories_root():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
     RUN_NAME = 'test_' + utils.randomword(12)
@@ -195,6 +196,7 @@ def test_volume_loading_subdirectories_root():
     expect_mounted_testfile_3 = "stdout from process: ['docker', 'exec', 'test-container-root', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-copied'] testfile3-content"
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
+@pytest.mark.no_mac_workflow
 def test_volume_loading_subdirectories_subdir():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
     RUN_NAME = 'test_' + utils.randomword(12)
@@ -214,6 +216,7 @@ def test_volume_loading_subdirectories_subdir():
     expect_mounted_testfile_3 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile3-content', '/tmp/testfile3-correctly-mounted'] testfile3-content"
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
+@pytest.mark.no_mac_workflow
 def test_volume_loading_subdirectories_subdir2():
     uri = os.path.join(CURRENT_DIR, 'data/test_cases/subdir_volume_loading')
     RUN_NAME = 'test_' + utils.randomword(12)
