@@ -1,3 +1,5 @@
+#pylint: disable=consider-using-enumerate
+
 import psycopg
 
 from lib.global_config import GlobalConfig
@@ -39,7 +41,11 @@ class DB:
         # None is actually the default cursor factory
         cur = self._conn.cursor(row_factory=row_factory)
         try:
-            cur.execute(query, params)
+            if isinstance(query, list) and isinstance(params, list) and len(query) == len(params):
+                for i in range(len(query)):
+                    cur.execute(query[i], params[i])
+            else:
+                cur.execute(query, params)
             self._conn.commit()
             if return_type == 'one':
                 ret = cur.fetchone()

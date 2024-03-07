@@ -1,4 +1,5 @@
 import faulthandler
+import time
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic
@@ -19,12 +20,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, validator
+from typing import Optional
+from uuid import UUID
 
 import anybadge
 
 from api.object_specifications import Measurement
-from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics, determine_comparison_case,
+from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics, carbondb_add, determine_comparison_case,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value, get_timeline_query,
                          get_run_info, get_machine_list)
@@ -1112,9 +1115,12 @@ class CI_Measurement(BaseModel):
     label: str
     duration: int
     workflow_name: str = None
+    cb_company_uuid: Optional[str] = ''
+    cb_project_uuid: Optional[str] = ''
+    cb_machine_uuid: Optional[str] = ''
 
 @app.post('/v1/ci/measurement/add')
-async def post_ci_measurement_add(measurement: CI_Measurement):
+async def post_ci_measurement_add(request: Request, measurement: CI_Measurement):
     for key, value in measurement.model_dump().items():
         match key:
             case 'unit':
@@ -1124,7 +1130,7 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
                     raise RequestValidationError("Unit is unsupported - only mJ currently accepted")
                 continue
 
-            case 'label' | 'workflow_name':  # Optional fields
+            case 'label' | 'workflow_name' | 'cb_company_uuid' | 'cb_project_uuid' | 'cb_machine_uuid':  # Optional fields
                 continue
 
             case _:
@@ -1146,6 +1152,33 @@ async def post_ci_measurement_add(measurement: CI_Measurement):
             measurement.commit_hash, measurement.duration, measurement.cpu_util_avg, measurement.workflow_name)
 
     DB().query(query=query, params=params)
+
+    # If one of these is specified we add the data to the CarbonDB
+    if measurement.cb_company_uuid != '' or measurement.cb_project_uuid != '' or measurement.cb_machine_uuid != '':
+
+        if measurement.cb_machine_uuid == '':
+            raise ValueError("You need to specify a machine")
+
+        client_ip = request.headers.get("x-forwarded-for")
+        if client_ip:
+            client_ip = client_ip.split(",")[0]
+        else:
+            client_ip = request.client.host
+
+        energydata = {
+            'type': 'machine.ci',
+            'energy_value': measurement.energy_value * 0.001,
+            'time_stamp': int(time.time() * 1e6),
+            'company': measurement.cb_company_uuid,
+            'project': measurement.cb_project_uuid,
+            'machine': measurement.cb_machine_uuid,
+            'tags': f"{measurement.label},{measurement.repo},{measurement.branch},{measurement.workflow}"
+        }
+
+        # If there is an error the function will raise an Error
+        carbondb_add(client_ip, [energydata])
+
+
     return ORJSONResponse({'success': True}, status_code=201)
 
 @app.get('/v1/ci/measurements')
@@ -1221,6 +1254,85 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
         default_color='green')
     return Response(content=str(badge), media_type="image/svg+xml")
 
+
+class EnergyData(BaseModel):
+    type: str
+    company: Optional[str] = None
+    machine: UUID
+    project: Optional[str] = None
+    tags: Optional[str] = None
+    time_stamp: str
+    energy_value: str
+
+    @validator('company', 'project', 'tags', pre=True, always=True)
+    @classmethod
+    def empty_str_to_none(cls, v):
+        if v == '':
+            return None
+        return v
+
+@app.post('/v1/carbondb/add')
+async def add_carbondb(request: Request, energydatas: List[EnergyData]):
+
+    client_ip = request.headers.get("x-forwarded-for")
+    if client_ip:
+        client_ip = client_ip.split(",")[0]
+    else:
+        client_ip = request.client.host
+
+    return carbondb_add(client_ip, energydatas)
+
+
+@app.get('/v1/carbondb/machine/day/{machine_uuid}')
+async def carbondb_get_machine_details(machine_uuid: str):
+
+    if machine_uuid is None or not is_valid_uuid(machine_uuid):
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty or malformed'}, status_code=400)
+
+    query = """
+        SELECT
+            *
+        FROM
+            carbondb_energy_data_day
+        WHERE
+            machine = %s
+        ORDER BY
+            date
+        ;
+    """
+
+    data = DB().fetch_all(query, (machine_uuid,))
+
+    return ORJSONResponse({'success': True, 'data': data})
+
+@app.get('/v1/carbondb/{cptype}/{uuid}')
+async def carbondb_get_company_project_details(cptype: str, uuid: str):
+
+    if uuid is None or not is_valid_uuid(uuid):
+        return ORJSONResponse({'success': False, 'err': 'uuid is empty or malformed'}, status_code=400)
+
+    if cptype.lower() != 'project' and cptype.lower() != 'company':
+        return ORJSONResponse({'success': False, 'err': 'type needs to be company or project'}, status_code=400)
+
+    query = f"""
+        SELECT
+            machine,
+            SUM(energy_sum),
+            SUM(co2_sum),
+            AVG(carbon_intensity_avg),
+            ARRAY_AGG(DISTINCT u.tag) AS all_tags
+        FROM
+            public.carbondb_energy_data_day e,
+            LATERAL unnest(e.tags) AS u(tag)
+        WHERE
+            {cptype.lower()}=%s
+        GROUP BY
+            machine
+        ;
+    """
+    data = DB().fetch_all(query, (uuid,))
+
+    return ORJSONResponse({'success': True, 'data': data})
 
 if __name__ == '__main__':
     app.run()

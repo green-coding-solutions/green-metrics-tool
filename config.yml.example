@@ -177,8 +177,12 @@ sci:
     # For fixed values get the number from https://ember-climate.org/insights/research/global-electricity-review-2022/
     # The number 475 that comes as default is for Germany from 2022
     I: 436
-# electricity_maps_token: 'something'
 
 #optimization:
 #  ignore:
 #    - example_optimization_test
+
+# In order to get the carbon intensity we use electricity maps which requires a token.
+# You can get this under https://api-portal.electricitymaps.com/
+# This is a free service please note that you need to pay if you want to use this commercially!
+#electricity_maps_token: '123'

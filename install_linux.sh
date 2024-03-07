@@ -20,12 +20,13 @@ db_pw=''
 api_url=''
 metrics_url=''
 no_build=false
+no_python=false
 no_hosts=false
 ask_tmpfs=true
 
 reboot_echo_flag=false
 
-while getopts "p:a:m:nht" o; do
+while getopts "p:a:m:nhtb" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -36,11 +37,14 @@ while getopts "p:a:m:nht" o; do
         m)
             metrics_url=${OPTARG}
             ;;
-        n)
+        b)
             no_build=true
             ;;
         h)
             no_hosts=true
+            ;;
+        n)
+            no_python=true
             ;;
         t)
             ask_tmpfs=false
@@ -222,12 +226,15 @@ if [[ $no_build != true ]] ; then
         sudo docker compose -f docker/compose.yml build
         sudo docker compose -f docker/compose.yml pull
     fi
+fi
 
+if [[ $no_python != true ]] ; then
     print_message "Updating python requirements"
     python3 -m pip install --upgrade pip
     python3 -m pip install -r requirements.txt
     python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 fi
+
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
