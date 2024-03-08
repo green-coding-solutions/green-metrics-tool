@@ -738,7 +738,7 @@ def carbondb_add(client_ip, energydatas):
         co2_value = energy_kwh * carbon_intensity
 
         company_uuid = e['company'] if e['company'] is not None else ''
-        project_uuid = e['project'] if e['company'] is not None else ''
+        project_uuid = e['project'] if e['project'] is not None else ''
         tags_clean = "{" + ",".join([f'"{tag.strip()}"' for tag in e['tags'].split(',') if e['tags']]) + "}" if e['tags'] is not None else ''
 
         row = f"{e['type']}|{company_uuid}|{e['machine']}|{project_uuid}|{tags_clean}|{int(e['time_stamp'])}|{e['energy_value']}|{co2_value}|{carbon_intensity}|{latitude}|{longitude}|{client_ip}"
@@ -762,4 +762,3 @@ def carbondb_add(client_ip, energydatas):
     """)
 
     return ORJSONResponse({'success': True}, status_code=202)
-  
