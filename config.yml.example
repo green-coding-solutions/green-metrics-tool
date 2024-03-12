@@ -174,8 +174,8 @@ sci:
     # I is the Carbon Intensity at the location of this machine
     # The value can either be a number in gCO2e/kWh or a carbon intensity provider that fetches this number dynamically
     # https://docs.green-coding.io/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/
-    # For fixed values get the number from https://ember-climate.org/insights/research/global-electricity-review-2022/
-    # The number 475 that comes as default is for Germany from 2022
+    # For fixed values get the number from https://ember-climate.org/insights/research/global-electricity-review-2023/
+    # The number 436 that comes as default is for Germany from 2022
     I: 436
 
 #optimization:
