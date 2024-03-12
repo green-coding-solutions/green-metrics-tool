@@ -9,14 +9,19 @@ async function fetchDiff() {
     document.querySelector('#loader-diff').style.display = '';
 
     const url_params = getURLParams();
-    document.querySelector('#diff-pre').insertAdjacentHTML('beforebegin', '<h2>Configuration and Settings diff</h2>')
+    document.querySelector('#diff-container').insertAdjacentHTML('beforebegin', '<h2>Configuration and Settings diff</h2>')
     try {
         let api_url = '/v1/diff?ids=';
         params.forEach( id => {
             api_url = `${api_url}${id}`
         });
-        const diff_data = (await makeAPICall(api_url)).data
-        document.querySelector('#diff-pre').insertAdjacentHTML('beforeend', diff_data)
+        const diffString = (await makeAPICall(api_url)).data
+        const targetElement = document.getElementById('diff-container');
+        const configuration = { drawFileList: true, matching: 'lines', highlight: true };
+
+        const diff2htmlUi = new Diff2HtmlUI(targetElement, diffString, configuration);
+        diff2htmlUi.draw();
+        diff2htmlUi.highlightCode();
     } catch (err) {
         showNotification('Could not get diff data from API', err);
     }
@@ -26,7 +31,6 @@ async function fetchDiff() {
 
 $(document).ready( (e) => {
     (async () => {
-
         const url_params = getURLParams();
 
         if(url_params.get('ids') == null

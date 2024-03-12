@@ -7,7 +7,7 @@ faulthandler.enable()  # will catch segfaults and write to stderr
 from lib.db import DB
 from deepdiff import DeepDiff
 from psycopg.rows import dict_row as psycopg_rows_dict_row
-
+import json
 
 def get_diffable_row(uuid):
     query = """SELECT
@@ -30,9 +30,11 @@ def get_diffable_row(uuid):
     return DB().fetch_one(query, (uuid, ), row_factory=psycopg_rows_dict_row)
 
 def diff_rows(row_a,row_b):
-    diff_string = []
+    unified_diff = []
     for field in row_a:
-        diff = DeepDiff(row_a[field], row_b[field],
+        field_a = json.dumps(row_a[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_a[field], (dict, list))  else str(row_a[field])
+        field_b = json.dumps(row_b[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_b[field], (dict, list)) else str(row_b[field])
+        diff = DeepDiff(field_a, field_b,
             exclude_paths=[
                 "root['job_id']",
                 "root['Processes']",
@@ -45,36 +47,40 @@ def diff_rows(row_a,row_b):
                 r"root\['CPU complete dump'\]\['/sys/devices/system/cpu/cpufreq/policy\d+/scaling_cur_freq']"
             ]
         )
-        for diff_type in diff:
-            diff_string.append('\n\n')
-            diff_string.append(str(field))
-            diff_string.append(' -> ')
-            diff_string.append(str(diff_type))
-            diff_string.append('\n###########################################\n')
+        for key, value in diff.items():
+            if key == "dictionary_item_added":
+                unified_diff.append(f"diff --git a/{field} b/{field}\n---\n+++\n@@ -1 +1 @@")
+                for v in value:
+                    unified_diff.append(f"+ {key}: {v}")
+            elif key == "iterable_item_added":
+                unified_diff.append(f"diff --git a/{field} b/{field}\n---\n+++\n@@ -1 +1 @@")
+                for k, v in value.items():
+                    unified_diff.append(f"+ {k}: {v}")
+            elif key == "iterable_item_removed":
+                unified_diff.append(f"diff --git a/{field} b/{field}\n---\n+++\n@@ -1 +1 @@")
+                for k, v in value.items():
+                    unified_diff.append(f"+ {k}: {v}")
+            elif key == "dictionary_item_removed":
+                unified_diff.append(f"diff --git a/{field} b/{field}\n---\n+++\n@@ -1 +1 @@")
+                for v in value:
+                    unified_diff.append(f"- {key}: {v}")
+            elif key == "values_changed":
+                for k, v in value.items():
 
-            if diff_type == 'dictionary_item_removed':
-                for el in diff[diff_type]:
-                    diff_string.append('-')
-                    diff_string.append(str(el))
-                    diff_string.append('\n')
-            elif diff_type == 'dictionary_item_added':
-                for el in diff[diff_type]:
-                    diff_string.append('+')
-                    diff_string.append(str(el))
-                    diff_string.append('\n')
-            else:
-                for inner_el in diff[diff_type]:
-                    diff_string.append('----------')
-                    diff_string.append(str(inner_el))
-                    diff_string.append('-----------------------------\n')
-                    if diff[diff_type][inner_el].get('diff', False):
-                        diff_string.append(str(diff[diff_type][inner_el]['diff']))
+                    if v.get('diff', False):
+                        unified_diff.append(f"diff --git a/{field} b/{field}")
+                        unified_diff.append(str(v['diff']))
                     else:
-                        diff_string.append(str(diff[diff_type][inner_el]))
-                    diff_string.append('\n\n')
-    return "".join(diff_string)
+                        unified_diff.append(f"diff --git a/{field} b/{field}\n---\n+++\n@@ -1 +1 @@")
+                        unified_diff.append(f"- {k}: {v['old_value']}")
+                        unified_diff.append(f"+ {k}: {v['new_value']}")
+            else:
+                raise RuntimeError(f"Unknown diff mode: {key}")
+        unified_diff.append("\n")
+
+    return "\n".join(unified_diff)
 
 if __name__ == '__main__':
-    a = get_diffable_row('f814b51e-e953-4984-932c-1e537dcf8cc0')
-    b = get_diffable_row('709fe691-1813-4006-8bb3-781582f9dc6c')
+    a = get_diffable_row('6f34b31e-f35c-4601-ae0d-6fd04a951aaf')
+    b = get_diffable_row('70ed5b3f-fa90-43fe-abcc-d4bf8048786a')
     print(diff_rows(a,b))
