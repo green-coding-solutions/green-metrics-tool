@@ -287,6 +287,7 @@ async function makeBaseAPICalls(url_params) {
     let run_data = null;
     let phase_stats_data = null;
     let network_data = null;
+    let optimizations_data = null;
 
     try {
         run_data = await makeAPICall('/v1/run/' + url_params.get('id'))
@@ -344,7 +345,6 @@ const displayNetworkIntercepts = (network_data) => {
 }
 
 const displayOptimizationsData = (optimizations_data) => {
-    console.log(optimizations_data);
 
     const optimizationTemplate = `
             <div class="content">
