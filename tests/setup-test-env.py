@@ -7,14 +7,11 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib import utils
 
-BASE_CONFIG_NAME = 'config.yml'
 BASE_COMPOSE_NAME = 'compose.yml.example'
-TEST_CONFIG_NAME = 'test-config.yml'
 TEST_COMPOSE_NAME = 'test-compose.yml'
+
 current_dir = os.path.abspath(os.path.dirname(__file__))
-base_config_path = os.path.join(current_dir, f"../{BASE_CONFIG_NAME}")
 base_compose_path = os.path.join(current_dir, f"../docker/{BASE_COMPOSE_NAME}")
-test_config_path = os.path.join(current_dir, f"../{TEST_CONFIG_NAME}")
 test_compose_path = os.path.join(current_dir, f"../docker/{TEST_COMPOSE_NAME}")
 
 DB_PW = 'testpw'

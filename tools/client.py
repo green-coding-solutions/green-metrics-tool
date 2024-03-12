@@ -16,6 +16,8 @@ from lib.repo_info import get_repo_info
 from tools import validate
 from tools.temperature import get_temperature
 from lib import email_helpers
+from lib import error_helpers
+
 
 # We currently have this dynamically as it will probably change quite a bit
 STATUS_LIST = ['cooldown', 'job_no', 'job_start', 'job_error', 'job_end', 'cleanup_start', 'cleanup_end', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
@@ -69,72 +71,80 @@ def do_cleanup(cur_temp, cooldown_time_after_job):
 
 # pylint: disable=broad-except
 if __name__ == '__main__':
-    config_main = GlobalConfig().config
-    client_main = config_main['cluster']['client']
-    cwl = client_main['control_workload']
-    cooldown_time = 0
-    last_cooldown_time = 0
-
-    while True:
-        job = Job.get_job('run')
-        if job and job.check_measurement_job_running():
-            print('Job is still running. This is usually an error case! Continuing for now ...')
-            time.sleep(client_main['sleep_time_no_job'])
-            continue
-
-
-        current_temperature = get_temperature(
-            GlobalConfig().config['machine']['base_temperature_chip'],
-            GlobalConfig().config['machine']['base_temperature_feature']
-        )
-
-        if current_temperature > config_main['machine']['base_temperature_value']:
-            print(f"Machine is still too hot: {current_temperature}°. Sleeping for 1 minute")
-            set_status('cooldown', current_temperature, last_cooldown_time)
-            cooldown_time += 60
-            time.sleep(60)
-            continue
-
-        print('Machine is cool enough. Continuing')
-        last_cooldown_time = cooldown_time
+    try:
+        config_main = GlobalConfig().config
+        client_main = config_main['cluster']['client']
+        cwl = client_main['control_workload']
         cooldown_time = 0
+        last_cooldown_time = 0
 
-        if validate.is_validation_needed(config_main['machine']['id'], client_main['time_between_control_workload_validations']):
-            set_status('measurement_control_start', current_temperature, last_cooldown_time)
-            validate.run_workload(cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
-            set_status('measurement_control_end', current_temperature, last_cooldown_time)
+        while True:
+            job = Job.get_job('run')
+            if job and job.check_measurement_job_running():
+                print('Job is still running. This is usually an error case! Continuing for now ...')
+                time.sleep(client_main['sleep_time_no_job'])
+                continue
 
-            stddev_data = validate.get_workload_stddev(cwl['uri'], cwl['filename'], cwl['branch'], config_main['machine']['id'], cwl['comparison_window'], cwl['phase'], cwl['metrics'])
-            print('get_workload_stddev returned: ', stddev_data)
 
-            try:
-                message = validate.validate_workload_stddev(stddev_data, cwl['threshold'])
-                if config_main['admin']['no_emails'] is False and client_main['send_control_workload_status_mail']:
-                    email_helpers.send_admin_email(f"Machine is operating normally. All STDDEV below {cwl['threshold'] * 100} %", "\n".join(message))
-            except Exception as exception:
-                validate.handle_validate_exception(exception)
-                set_status('measurement_control_error', current_temperature, last_cooldown_time)
-                # the process will now go to sleep for 'time_between_control_workload_validations''
-                # This is as long as the next validation is needed and thus it will loop
-                # endlessly in validation until manually handled, which is what we want.
-                time.sleep(client_main['time_between_control_workload_validations'])
-            finally:
+            current_temperature = get_temperature(
+                GlobalConfig().config['machine']['base_temperature_chip'],
+                GlobalConfig().config['machine']['base_temperature_feature']
+            )
+
+            if current_temperature > config_main['machine']['base_temperature_value']:
+                print(f"Machine is still too hot: {current_temperature}°. Sleeping for 1 minute")
+                set_status('cooldown', current_temperature, last_cooldown_time)
+                cooldown_time += 60
+                time.sleep(60)
+                continue
+
+            print('Machine is cool enough. Continuing')
+            last_cooldown_time = cooldown_time
+            cooldown_time = 0
+
+            if validate.is_validation_needed(config_main['machine']['id'], client_main['time_between_control_workload_validations']):
+                set_status('measurement_control_start', current_temperature, last_cooldown_time)
+                validate.run_workload(cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
+                set_status('measurement_control_end', current_temperature, last_cooldown_time)
+
+                stddev_data = validate.get_workload_stddev(cwl['uri'], cwl['filename'], cwl['branch'], config_main['machine']['id'], cwl['comparison_window'], cwl['phase'], cwl['metrics'])
+                print('get_workload_stddev returned: ', stddev_data)
+
+                try:
+                    message = validate.validate_workload_stddev(stddev_data, cwl['threshold'])
+                    if config_main['admin']['no_emails'] is False and client_main['send_control_workload_status_mail']:
+                        email_helpers.send_admin_email(f"Machine is operating normally. All STDDEV below {cwl['threshold'] * 100} %", "\n".join(message))
+                except Exception as exception:
+                    validate.handle_validate_exception(exception)
+                    set_status('measurement_control_error', current_temperature, last_cooldown_time)
+                    # the process will now go to sleep for 'time_between_control_workload_validations''
+                    # This is as long as the next validation is needed and thus it will loop
+                    # endlessly in validation until manually handled, which is what we want.
+                    time.sleep(client_main['time_between_control_workload_validations'])
+                finally:
+                    do_cleanup(current_temperature, last_cooldown_time)
+
+            elif job:
+                set_status('job_start', current_temperature, last_cooldown_time, run_id=job._run_id)
+                try:
+                    job.process(docker_prune=True)
+                    set_status('job_end', current_temperature, last_cooldown_time, run_id=job._run_id)
+                except Exception as exc:
+                    set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
+                    handle_job_exception(exc, job)
+                finally:
+                    do_cleanup(current_temperature, last_cooldown_time)
+
+            else:
                 do_cleanup(current_temperature, last_cooldown_time)
+                set_status('job_no', current_temperature, last_cooldown_time)
+                if client_main['shutdown_on_job_no'] is True:
+                    subprocess.check_output(['sudo', 'shutdown'])
+                time.sleep(client_main['sleep_time_no_job'])
+    except Exception as exc:
+        error_helpers.log_error('client.py: ', exc, error_helpers.format_error(
+            'client.py: ', exc))
 
-        elif job:
-            set_status('job_start', current_temperature, last_cooldown_time, run_id=job._run_id)
-            try:
-                job.process(docker_prune=True)
-                set_status('job_end', current_temperature, last_cooldown_time, run_id=job._run_id)
-            except Exception as exc:
-                set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
-                handle_job_exception(exc, job)
-            finally:
-                do_cleanup(current_temperature, last_cooldown_time)
-
-        else:
-            do_cleanup(current_temperature, last_cooldown_time)
-            set_status('job_no', current_temperature, last_cooldown_time)
-            if client_main['shutdown_on_job_no'] is True:
-                subprocess.check_output(['sudo', 'shutdown'])
-            time.sleep(client_main['sleep_time_no_job'])
+        if config_main['admin']['no_emails'] is False:
+            email_helpers.send_error_email(config_main['admin']['email'], error_helpers.format_error(
+                'client.py: ', exc), machine=config_main['machine']['description'])

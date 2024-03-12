@@ -35,7 +35,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
-        ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -t
+        ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -b -t
         source venv/bin/activate
         python3 -m pip install -r requirements-dev.txt
         python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt

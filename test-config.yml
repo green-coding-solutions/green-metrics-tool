@@ -53,6 +53,7 @@ machine:
   base_temperature_feature: false
 
 measurement:
+  system_check_threshold: 3
   idle-time-start: 0
   idle-time-end: 0
   flow-process-runtime: 3800
@@ -82,3 +83,9 @@ sci:
   RS: 1
   TE: 194000
   I: 475
+
+optimization:
+  ignore:
+    - example_optimization_test
+
+electricity_maps_token: 'testing'

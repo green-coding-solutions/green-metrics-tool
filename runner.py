@@ -39,6 +39,8 @@ from lib.global_config import GlobalConfig
 from lib.notes import Notes
 from lib import system_checks
 
+
+
 from tools.machine import Machine
 
 def arrows(text):
@@ -162,6 +164,10 @@ class Runner:
                 RETURNING id
                 """, params=(self._job_id, self._name, self._uri, self._branch, self._original_filename, self._commit_hash, self._commit_timestamp, json.dumps(self._arguments)))[0]
         return self._run_id
+
+    def get_optimizations_ignore(self):
+        return self._usage_scenario.get('optimizations_ignore', [])
+
 
     def initialize_folder(self, path):
         shutil.rmtree(path, ignore_errors=True)
@@ -1099,11 +1105,12 @@ class Runner:
 
                         if cmd_obj.get('detach', False) is True:
                             print('Process should be detached. Running asynchronously and detaching ...')
-                            #pylint: disable=consider-using-with
+                            #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
                             ps = subprocess.Popen(
                                 docker_exec_command,
                                 stderr=stderr_behaviour,
                                 stdout=stdout_behaviour,
+                                preexec_fn=os.setsid,
                                 encoding='UTF-8',
                             )
                             if stderr_behaviour == subprocess.PIPE:
@@ -1169,7 +1176,7 @@ class Runner:
             for ps in ps_to_kill_tmp:
                 print(f"Trying to kill detached process '{ps['cmd']}'' of current flow")
                 try:
-                    process_helpers.kill_ps(ps['ps'], ps['cmd'])
+                    process_helpers.kill_pg(ps['ps'], ps['cmd'])
                 except ProcessLookupError as process_exc: # Process might have done expected exit already. However all other errors shall bubble
                     print(f"Could not kill {ps['cmd']}. Exception: {process_exc}")
 
@@ -1231,15 +1238,12 @@ class Runner:
     def read_and_cleanup_processes(self):
         print(TerminalColors.HEADER, '\nReading process stdout/stderr (if selected) and cleaning them up', TerminalColors.ENDC)
 
-        ps_errors = []
         for ps in self.__ps_to_kill:
             try:
                 # we never need to kill a process group here, even if started in shell mode, as we funnel through docker exec
-                process_helpers.kill_ps(ps['ps'], ps['cmd'])
-            except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
-                ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
-        if ps_errors:
-            raise RuntimeError(ps_errors)
+                process_helpers.kill_pg(ps['ps'], ps['cmd'])
+            except ProcessLookupError as exc: # Process might have done expected exit already.
+                print(f"Could not kill {ps['cmd']}. Exception: {exc}")
         self.__ps_to_kill.clear() # we need to clear, so we do not kill twice later
 
         for ps in self.__ps_to_read:
@@ -1392,14 +1396,11 @@ class Runner:
         if continue_measurement is False:
             self.remove_docker_images()
 
-        ps_errors = []
         for ps in self.__ps_to_kill:
             try:
-                process_helpers.kill_ps(ps['ps'], ps['cmd'])
+                process_helpers.kill_pg(ps['ps'], ps['cmd'])
             except ProcessLookupError as exc: # Process might have done expected exit already. However all other errors shall bubble
-                ps_errors.append(f"Could not kill {ps['cmd']}. Exception: {exc}")
-        if ps_errors:
-            raise RuntimeError(ps_errors)
+                print(f"Could not kill {ps['cmd']}. Exception: {exc}")
 
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
@@ -1625,9 +1626,24 @@ if __name__ == '__main__':
             sys.exit(1)
         GlobalConfig(config_name=args.config_override)
 
+    # We need to import this here as we need the correct config file
+    import optimization_providers.base
+
+    print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
+    keep_files = optimization_providers.base.import_reporters()
+    if keep_files and args.no_file_cleanup:
+        optimization_cleanup = False
+        file_cleanup_param = False
+    elif keep_files and not args.no_file_cleanup:
+        optimization_cleanup = True
+        file_cleanup_param = True
+    elif not keep_files:
+        optimization_cleanup = False
+        file_cleanup_param = args.no_file_cleanup
+
     runner = Runner(name=args.name, uri=args.uri, uri_type=run_type, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
-                    no_file_cleanup=args.no_file_cleanup, skip_system_checks=args.skip_system_checks,
+                    no_file_cleanup=file_cleanup_param, skip_system_checks=args.skip_system_checks,
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                     full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
                     dev_no_build=args.dev_no_build, dev_no_metrics=args.dev_no_metrics,
@@ -1636,7 +1652,7 @@ if __name__ == '__main__':
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
     try:
-        runner.run()  # Start main code
+        run_id = runner.run()  # Start main code
 
         # this code should live at a different position.
         # From a user perspective it makes perfect sense to run both jobs directly after each other
@@ -1646,11 +1662,20 @@ if __name__ == '__main__':
         print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
 
         # get all the metrics from the measurements table grouped by metric
-        # loop over them issueing separate queries to the DB
+        # loop over them issuing separate queries to the DB
         from tools.phase_stats import build_and_store_phase_stats
 
-        print("Run id is", runner._run_id)
         build_and_store_phase_stats(runner._run_id, runner._sci)
+
+        print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
+
+        repo_path = runner._tmp_folder if optimization_cleanup else None
+
+        optimization_providers.base.run_reporters(runner._run_id, repo_path, runner.get_optimizations_ignore())
+
+        if optimization_cleanup:
+            print('Removing files')
+            subprocess.run(['rm', '-Rf', repo_path], stderr=subprocess.DEVNULL, check=True)
 
 
         print(TerminalColors.OKGREEN,'\n\n####################################################################################')

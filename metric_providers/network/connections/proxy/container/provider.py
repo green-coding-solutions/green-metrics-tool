@@ -79,9 +79,9 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
                 date_str, connection_type, protocol = match.groups()
                 # parse the date and time
                 try:
-                    date = datetime.strptime(date_str, '%b %d %H:%M:%S.%f').replace(year=datetime.now().year)
+                    date = datetime.strptime(f"{datetime.now().year} {date_str}", '%Y %b %d %H:%M:%S.%f')
                 except ValueError:
-                    date = datetime.strptime(date_str, '%b %d %H:%M:%S').replace(year=datetime.now().year)
+                    date = datetime.strptime(f"{datetime.now().year} {date_str}", '%Y %b %d %H:%M:%S')
 
                 time =  int(date.replace(tzinfo=timezone.utc).timestamp() * 1000)
 

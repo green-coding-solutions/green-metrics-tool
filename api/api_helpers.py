@@ -1,8 +1,16 @@
+import typing
+import io
+import ipaddress
+import json
 import uuid
 import faulthandler
 from functools import cache
 from html import escape as html_escape
+from starlette.background import BackgroundTask
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import ORJSONResponse
 import numpy as np
+import requests
 import scipy.stats
 
 from psycopg.rows import dict_row as psycopg_rows_dict_row
@@ -578,3 +586,195 @@ def get_t_stat(length):
     dof = length-1
     t_crit = np.abs(scipy.stats.t.ppf((.05)/2,dof)) # for two sided!
     return t_crit/np.sqrt(length)
+
+# As the ORJSONResponse renders the object on init we need to keep the original around as otherwise we need to reparse
+# it when we use these functions in our code. The header is a copy from starlette/responses.py JSONResponse
+class ORJSONResponseObjKeep(ORJSONResponse):
+    def __init__(
+        self,
+        content: typing.Any,
+        status_code: int = 200,
+        headers: typing.Optional[typing.Dict[str, str]] = None,
+        media_type: typing.Optional[str] = None,
+        background: typing.Optional[BackgroundTask] = None,
+    ) -> None:
+        self.content = content
+        super().__init__(content, status_code, headers, media_type, background)
+
+def get_geo(ip):
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+        if ip_obj.is_private:
+            return('52.53721666833642', '13.424863870661927')
+    except ValueError:
+        return (None, None)
+
+    query = "SELECT ip_address, data FROM ip_data WHERE created_at > NOW() - INTERVAL '24 hours' AND ip_address=%s;"
+    db_data = DB().fetch_all(query, (ip,))
+
+    if db_data is not None and len(db_data) != 0:
+        return (db_data[0][1].get('latitude'), db_data[0][1].get('longitude'))
+
+    latitude, longitude = get_geo_ipapi_co(ip)
+
+    if latitude is False:
+        latitude, longitude = get_geo_ip_api_com(ip)
+    if latitude is False:
+        latitude, longitude = get_geo_ip_ipinfo(ip)
+
+    #If all 3 fail there is something bigger wrong
+    return (latitude, longitude)
+
+
+def get_geo_ipapi_co(ip):
+
+    response = requests.get(f"https://ipapi.co/{ip}/json/", timeout=10)
+    print(f"Accessing https://ipapi.co/{ip}/json/")
+    if response.status_code == 200:
+        resp_data = response.json()
+
+        if 'error' in resp_data or 'latitude' not in resp_data or 'longitude' not in resp_data:
+            return (None, None)
+
+        resp_data['source'] = 'ipapi.co'
+
+        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
+        DB().query(query=query, params=(ip, json.dumps(resp_data)))
+
+        return (resp_data.get('latitude'), resp_data.get('longitude'))
+
+    return (False, False)
+
+def get_geo_ip_api_com(ip):
+
+    response = requests.get(f"http://ip-api.com/json/{ip}", timeout=10)
+    print(f"Accessing http://ip-api.com/json/{ip}")
+    if response.status_code == 200:
+        resp_data = response.json()
+
+        if ('status' in resp_data and resp_data.get('status') == 'fail') or 'lat' not in resp_data or 'lon' not in resp_data:
+            return (None, None)
+
+        resp_data['latitude'] = resp_data.get('lat')
+        resp_data['longitude'] = resp_data.get('lon')
+        resp_data['source'] = 'ip-api.com'
+
+        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
+        DB().query(query=query, params=(ip, json.dumps(resp_data)))
+
+        return (resp_data.get('latitude'), resp_data.get('longitude'))
+
+    return (False, False)
+
+def get_geo_ip_ipinfo(ip):
+
+    response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=10)
+    print(f"Accessing https://ipinfo.io/{ip}/json")
+    if response.status_code == 200:
+        resp_data = response.json()
+
+        if 'bogon' in resp_data or 'loc' not in resp_data:
+            return (None, None)
+
+        lat_lng = resp_data.get('loc').split(',')
+
+        resp_data['latitude'] = lat_lng[0]
+        resp_data['longitude'] = lat_lng[1]
+        resp_data['source'] = 'ipinfo.io'
+
+        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
+        DB().query(query=query, params=(ip, json.dumps(resp_data)))
+
+        return (resp_data.get('latitude'), resp_data.get('longitude'))
+
+    return (False, False)
+
+def get_carbon_intensity(latitude, longitude):
+
+    if latitude is None or longitude is None:
+        return None
+
+    query = "SELECT latitude, longitude, data FROM carbon_intensity WHERE created_at > NOW() - INTERVAL '1 hours' AND latitude=%s AND longitude=%s;"
+    db_data = DB().fetch_all(query, (latitude, longitude))
+
+    if db_data is not None and len(db_data) != 0:
+        return db_data[0][2].get('carbonIntensity')
+
+    if not (token := GlobalConfig().config.get('electricity_maps_token')):
+        raise ValueError('You need to specify an electricitymap token in the config!')
+
+    if token == 'testing':
+        # If we are running tests we always return 1000
+        return 1000
+
+    headers = {'auth-token': token }
+    params = {'lat': latitude, 'lon': longitude }
+
+    response = requests.get('https://api.electricitymap.org/v3/carbon-intensity/latest', params=params, headers=headers, timeout=10)
+    print(f"Accessing electricitymap with {latitude} {longitude}")
+    if response.status_code == 200:
+        resp_data = response.json()
+        query = "INSERT INTO carbon_intensity (latitude, longitude, data) VALUES (%s, %s, %s)"
+        DB().query(query=query, params=(latitude, longitude, json.dumps(resp_data)))
+
+        return resp_data.get('carbonIntensity')
+
+    return None
+
+def carbondb_add(client_ip, energydatas):
+
+    latitude, longitude = get_geo(client_ip)
+    carbon_intensity = get_carbon_intensity(latitude, longitude)
+
+    data_rows = []
+
+    for e in energydatas:
+
+        if not isinstance(e, dict):
+            e = e.dict()
+
+        e = html_escape_multi(e)
+
+        fields_to_check = {
+            'type': e['type'],
+            'energy_value': e['energy_value'],
+            'time_stamp': e['time_stamp'],
+        }
+
+        for field_name, field_value in fields_to_check.items():
+            if field_value is None or str(field_value).strip() == '':
+                raise RequestValidationError(f"{field_name.capitalize()} is empty. Ignoring everything!")
+
+        if 'ip' in e:
+            # An ip has been given with the data. Let's use this:
+            latitude, longitude = get_geo(e['ip'])
+            carbon_intensity = get_carbon_intensity(latitude, longitude)
+
+        energy_kwh = float(e['energy_value']) * 2.77778e-7
+        co2_value = energy_kwh * carbon_intensity
+
+        company_uuid = e['company'] if e['company'] is not None else ''
+        project_uuid = e['project'] if e['project'] is not None else ''
+        tags_clean = "{" + ",".join([f'"{tag.strip()}"' for tag in e['tags'].split(',') if e['tags']]) + "}" if e['tags'] is not None else ''
+
+        row = f"{e['type']}|{company_uuid}|{e['machine']}|{project_uuid}|{tags_clean}|{int(e['time_stamp'])}|{e['energy_value']}|{co2_value}|{carbon_intensity}|{latitude}|{longitude}|{client_ip}"
+        data_rows.append(row)
+        print(row)
+
+    data_str = "\n".join(data_rows)
+    data_file = io.StringIO(data_str)
+
+    columns = ['type', 'company', 'machine', 'project', 'tags', 'time_stamp', 'energy_value', 'co2_value', 'carbon_intensity', 'latitude', 'longitude', 'ip_address']
+
+    DB().copy_from(file=data_file, table='carbondb_energy_data', columns=columns, sep='|')
+
+    DB().query("""
+        DELETE FROM carbondb_energy_data
+        WHERE ctid NOT IN (
+            SELECT min(ctid)
+            FROM carbondb_energy_data
+            GROUP BY time_stamp, machine, energy_value
+        )
+    """)
+
+    return ORJSONResponse({'success': True}, status_code=202)
