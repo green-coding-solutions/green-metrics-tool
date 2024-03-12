@@ -5,7 +5,9 @@ const getURLParams = () => {
 }
 
 async function fetchDiff() {
-    document.querySelector('#loader-question').remove();
+    document.querySelector('#diff-question').remove();
+    document.querySelector('#loader-diff').style.display = '';
+
     const url_params = getURLParams();
     document.querySelector('#diff-pre').insertAdjacentHTML('beforebegin', '<h2>Configuration and Settings diff</h2>')
     try {
@@ -18,6 +20,8 @@ async function fetchDiff() {
     } catch (err) {
         showNotification('Could not get diff data from API', err);
     }
+    document.querySelector('#loader-diff').remove();
+
 }
 
 $(document).ready( (e) => {
@@ -54,6 +58,11 @@ $(document).ready( (e) => {
         Object.keys(phase_stats_data['common_info']).forEach(function(key) {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${key}</strong></td><td>${phase_stats_data['common_info'][key]}</td></tr>`)
           });
+
+        document.querySelector('#loader-compare-meta').remove();
+        document.querySelector('#loader-compare-run').remove();
+        document.querySelector('#diff-question').style.display = '';
+
 
         document.querySelector('#fetch-diff').addEventListener('click', fetchDiff);
 

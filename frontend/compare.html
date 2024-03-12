@@ -36,13 +36,23 @@
         <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Comparison of runs in repo</h1>
         <div class="ui full-width-card card">
             <div class="content">
-                <div class="header"><a class="ui red ribbon label" href="#">
-                    <h3>Run Data</h3>
-                </a></div>
+                <div class="header">
+                    <a class="ui red ribbon label" href="#">
+                        <h3>Run Data</h3>
+                    </a>
+                </div>
+
                 <div class="description">
+
                     <table class="table-hover" id="run-data-top"></table>
+                    <div class="ui segment" id="loader-compare-meta">
+                      <div class="ui active inverted dimmer">
+                        <div class="ui text loader">Loading run metadata</div>
+                      </div>
+                      <p><br><br><br></p>
+                    </div>
                     <pre id="diff-pre"></pre>
-                    <div id="loader-question" class="ui icon info message blue">
+                    <div id="diff-question" class="ui icon info message blue" style="display:none;">
                         <i class="info circle icon"></i>
                         <div class="content">
                             <div class="header">
@@ -51,6 +61,12 @@
                             <p>Please click the button below to fetch data. We opted to only show this detailed data on request.</p>
                             <button id="fetch-diff" class="blue ui button">Fetch Diff</button>
                         </div>
+                    </div>
+                    <div class="ui segment inverted" id="loader-diff" style="display:none;">
+                      <div class="ui active dimmer">
+                        <div class="ui text loader">Loading run diff</div>
+                      </div>
+                      <p><br><br><br></p>
                     </div>
                 </div>
             </div>
@@ -290,6 +306,11 @@
                 </a></div>
             </div>
             <div class="description">
+                <div id="loader-compare-run">
+                  <div class="ui active text loader">Loading run comparison data</div>
+                  <p><br><br><br></p>
+                </div>
+
                 <div class="bar-chart">
                     <div class="chart-title"></div>
                     <div class="statistics-chart"></div>
