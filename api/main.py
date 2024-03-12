@@ -38,7 +38,7 @@ from tools.jobs import Job
 from tools.timeline_projects import TimelineProject
 
 from enum import Enum
-ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE'])
+ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
 
 
 app = FastAPI()
@@ -282,6 +282,10 @@ async def compare_in_repo(ids: str):
     if not all(is_valid_uuid(id) for id in ids):
         raise RequestValidationError('One of Run IDs is not a valid UUID or empty')
 
+
+    if artifact := get_artifact(ArtifactType.COMPARE, str(ids)):
+        return ORJSONResponse({'success': True, 'data': json.loads(artifact)})
+
     try:
         case = determine_comparison_case(ids)
     except RuntimeError as err:
@@ -349,6 +353,9 @@ async def compare_in_repo(ids: str):
     except RuntimeError as err:
         raise RequestValidationError(str(err)) from err
 
+    store_artifact(ArtifactType.COMPARE, str(ids), json.dumps(phase_stats_object))
+
+
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
 
@@ -357,6 +364,9 @@ async def get_phase_stats_single(run_id: str):
     if run_id is None or not is_valid_uuid(run_id):
         raise RequestValidationError('Run ID is not a valid UUID or empty')
 
+    if artifact := get_artifact(ArtifactType.STATS, str(run_id)):
+        return ORJSONResponse({'success': True, 'data': json.loads(artifact)})
+
     try:
         phase_stats = get_phase_stats([run_id])
         phase_stats_object = get_phase_stats_object(phase_stats, None)
@@ -364,6 +374,8 @@ async def get_phase_stats_single(run_id: str):
 
     except RuntimeError:
         return Response(status_code=204) # No-Content
+
+    store_artifact(ArtifactType.STATS, str(run_id), json.dumps(phase_stats_object))
 
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
@@ -419,6 +431,10 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
     if detail_name is None or detail_name.strip() == '':
         raise RequestValidationError('Detail Name is mandatory')
 
+    if artifact := get_artifact(ArtifactType.BADGE, f"{uri}_{filename}_{machine_id}_{branch}_{metrics}_{detail_name}"):
+        return Response(content=str(artifact), media_type="image/svg+xml")
+
+
     query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, '[RUNTIME]', detail_name=detail_name, limit_365=True)
 
     query = f"""
@@ -445,6 +461,9 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
         value=xml_escape(f"{cost} {data[3]} per day"),
         num_value_padding_chars=1,
         default_color='orange')
+
+    store_artifact(ArtifactType.BADGE, f"{uri}_{filename}_{machine_id}_{branch}_{metrics}_{detail_name}", str(badge), ex=60*60*12) # 12 hour storage
+
     return Response(content=str(badge), media_type="image/svg+xml")
 
 
@@ -454,6 +473,9 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
 
     if run_id is None or not is_valid_uuid(run_id):
         raise RequestValidationError('Run ID is not a valid UUID or empty')
+
+    if artifact := get_artifact(ArtifactType.BADGE, str(run_id)):
+        return Response(content=str(artifact), media_type="image/svg+xml")
 
     query = '''
         SELECT
@@ -498,6 +520,9 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
         value=xml_escape(badge_value),
         num_value_padding_chars=1,
         default_color='cornflowerblue')
+
+    store_artifact(ArtifactType.BADGE, str(run_id), str(badge))
+
     return Response(content=str(badge), media_type="image/svg+xml")
 
 
