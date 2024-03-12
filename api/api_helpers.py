@@ -27,7 +27,7 @@ def get_artifact(artifact_type: Enum, key: str, decode_responses=True):
 
 def store_artifact(artifact_type: Enum, key:str, data):
     r = redis.Redis(host='green-coding-redis-container', port=6379, db=artifact_type.value, protocol=3)
-    r.set(key, data)
+    r.set(key, data, ex=2592000) # Expiration => 2592000 = 30 days
 
 def rescale_energy_value(value, unit):
     # We only expect values to be mJ for energy!
