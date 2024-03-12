@@ -41,7 +41,7 @@ $(document).ready( (e) => {
         }
 
         params = url_params.getAll('ids');
-        const runs = params[0].split(",").length
+        const run_count = params[0].split(",").length
         try {
             let api_url = '/v1/compare?ids=';
             params.forEach( id => {
@@ -57,7 +57,7 @@ $(document).ready( (e) => {
         let comparison_details = phase_stats_data.comparison_details.map((el) => replaceRepoIcon(el));
         comparison_details = comparison_details.join(' vs. ')
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${phase_stats_data.comparison_case}</td></tr>`)
-        document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Number of runs compared</strong></td><td>${runs}</td></tr>`)
+        document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Number of runs compared</strong></td><td>${run_count}</td></tr>`)
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${comparison_details}</td></tr>`)
         Object.keys(phase_stats_data['common_info']).forEach(function(key) {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${key}</strong></td><td>${phase_stats_data['common_info'][key]}</td></tr>`)
