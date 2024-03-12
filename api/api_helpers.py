@@ -4,7 +4,6 @@ from functools import cache
 from html import escape as html_escape
 import numpy as np
 import scipy.stats
-import json
 
 from psycopg.rows import dict_row as psycopg_rows_dict_row
 
@@ -14,14 +13,21 @@ faulthandler.enable()  # will catch segfaults and write to STDERR
 
 from lib.db import DB
 
-def get_artifact(artifact_type, key):
-    data = DB().fetch_one("SELECT data->'data' from artifacts WHERE type = %s AND key = %s", (artifact_type, key))
+import redis
+from enum import Enum
+
+
+def get_artifact(artifact_type: Enum, key: str, decode_responses=True):
+    r = redis.Redis(host='green-coding-redis-container', port=6379, db=artifact_type.value, protocol=3, decode_responses=decode_responses)
+
+    data = r.get(key)
     if data is None or data == []:
         return None
-    return data[0]
+    return data
 
-def store_artifact(artifact_type, key, data):
-    DB().query('INSERT INTO artifacts(type, key, data) VALUES (%s, %s, %s)', (artifact_type, key, json.dumps({'data': data})))
+def store_artifact(artifact_type: Enum, key:str, data):
+    r = redis.Redis(host='green-coding-redis-container', port=6379, db=artifact_type.value, protocol=3)
+    r.set(key, data)
 
 def rescale_energy_value(value, unit):
     # We only expect values to be mJ for energy!

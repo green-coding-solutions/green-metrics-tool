@@ -37,6 +37,9 @@ from lib import error_helpers
 from tools.jobs import Job
 from tools.timeline_projects import TimelineProject
 
+from enum import Enum
+ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE'])
+
 
 app = FastAPI()
 
@@ -1083,14 +1086,14 @@ async def diff(ids: str):
     if len(ids) != 2:
         raise RequestValidationError('Run IDs != 2. Only exactly 2 Run IDs can be diffed.')
 
-    if artifact := get_artifact('diff', str(ids)):
+    if artifact := get_artifact(ArtifactType.DIFF, str(ids)):
         return ORJSONResponse({'success': True, 'data': artifact})
 
     a = get_diffable_row(ids[0])
     b = get_diffable_row(ids[1])
     diff_runs = diff_rows(a,b)
 
-    store_artifact('diff', str(ids), diff_runs)
+    store_artifact(ArtifactType.DIFF, str(ids), diff_runs)
 
     return ORJSONResponse({'success': True, 'data': diff_runs})
 
