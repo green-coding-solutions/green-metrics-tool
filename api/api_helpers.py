@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
+from lib.global_config import GlobalConfig
 from lib.db import DB
 
 import redis
@@ -18,7 +19,7 @@ from enum import Enum
 
 
 def get_artifact(artifact_type: Enum, key: str, decode_responses=True):
-    r = redis.Redis(host='green-coding-redis-container', port=6379, db=artifact_type.value, protocol=3, decode_responses=decode_responses)
+    r = redis.Redis(host=GlobalConfig().config['redis']['host'], port=6379, db=artifact_type.value, protocol=3, decode_responses=decode_responses)
 
     data = r.get(key)
     if data is None or data == []:
@@ -26,7 +27,7 @@ def get_artifact(artifact_type: Enum, key: str, decode_responses=True):
     return data
 
 def store_artifact(artifact_type: Enum, key:str, data):
-    r = redis.Redis(host='green-coding-redis-container', port=6379, db=artifact_type.value, protocol=3)
+    r = redis.Redis(host=GlobalConfig().config['redis']['host'], port=6379, db=artifact_type.value, protocol=3)
     r.set(key, data, ex=2592000) # Expiration => 2592000 = 30 days
 
 def rescale_energy_value(value, unit):

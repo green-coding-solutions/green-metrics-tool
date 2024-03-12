@@ -8,6 +8,9 @@ postgresql:
   password: PLEASE_CHANGE_THIS
   port: 9573
 
+redis:
+  host: green-coding-redis-container
+
 smtp:
   server: SMTP_SERVER
   sender: SMTP_SENDER

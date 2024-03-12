@@ -10,7 +10,5 @@ orjson==3.9.14
 scipy==1.12.0
 schema==0.7.5
 deepdiff==6.7.1
-
-#cluster deps
 redis==5.0.3
 hiredis==2.3.2
