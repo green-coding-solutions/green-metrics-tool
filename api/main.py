@@ -1322,8 +1322,8 @@ async def carbondb_get_company_project_details(cptype: str, uuid: str):
             AVG(carbon_intensity_avg),
             ARRAY_AGG(DISTINCT u.tag) AS all_tags
         FROM
-            public.carbondb_energy_data_day e,
-            LATERAL unnest(e.tags) AS u(tag)
+            public.carbondb_energy_data_day e
+			LEFT JOIN LATERAL unnest(e.tags) AS u(tag) ON true
         WHERE
             {cptype.lower()}=%s
         GROUP BY
@@ -1335,4 +1335,5 @@ async def carbondb_get_company_project_details(cptype: str, uuid: str):
     return ORJSONResponse({'success': True, 'data': data})
 
 if __name__ == '__main__':
+    #pylint: disable=no-member
     app.run()
