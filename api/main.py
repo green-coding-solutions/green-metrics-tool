@@ -463,9 +463,11 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
         num_value_padding_chars=1,
         default_color='orange')
 
-    store_artifact(ArtifactType.BADGE, f"{uri}_{filename}_{machine_id}_{branch}_{metrics}_{detail_name}", str(badge), ex=60*60*12) # 12 hour storage
+    badge_str = str(badge)
 
-    return Response(content=str(badge), media_type="image/svg+xml")
+    store_artifact(ArtifactType.BADGE, f"{uri}_{filename}_{machine_id}_{branch}_{metrics}_{detail_name}", badge_str, ex=60*60*12) # 12 hour storage
+
+    return Response(content=badge_str, media_type="image/svg+xml")
 
 
 # A route to return all of the available entries in our catalog.
@@ -475,7 +477,7 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
     if run_id is None or not is_valid_uuid(run_id):
         raise RequestValidationError('Run ID is not a valid UUID or empty')
 
-    if artifact := get_artifact(ArtifactType.BADGE, str(run_id)):
+    if artifact := get_artifact(ArtifactType.BADGE, f"{run_id}_{metric}"):
         return Response(content=str(artifact), media_type="image/svg+xml")
 
     query = '''
@@ -522,9 +524,11 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
         num_value_padding_chars=1,
         default_color='cornflowerblue')
 
-    store_artifact(ArtifactType.BADGE, str(run_id), str(badge))
+    badge_str = str(badge)
 
-    return Response(content=str(badge), media_type="image/svg+xml")
+    store_artifact(ArtifactType.BADGE, f"{run_id}_{metric}", badge_str)
+
+    return Response(content=badge_str, media_type="image/svg+xml")
 
 
 @app.get('/v1/timeline-projects')
