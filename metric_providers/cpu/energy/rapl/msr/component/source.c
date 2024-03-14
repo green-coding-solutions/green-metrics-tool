@@ -206,7 +206,7 @@ static int detect_cpu(void) {
 
     if (vendor==CPU_VENDOR_INTEL) {
         if (family!=6) {
-            fprintf(stderr, "Wrong CPU family %d\n",family);
+            fprintf(stderr, "Maybe unsupported CPU family (%d). Please check vendor documentation and make a Pull-Request if wrong.\n",family);
             return -1;
         }
 
@@ -221,8 +221,8 @@ static int detect_cpu(void) {
         msr_pkg_energy_status=MSR_AMD_PKG_ENERGY_STATUS;
         msr_pp0_energy_status=MSR_AMD_PP0_ENERGY_STATUS;
 
-        if (family!=23) {
-            fprintf(stderr, "Wrong CPU family %d\n",family);
+        if (family!=23 && family!=25) {
+            fprintf(stderr, "Maybe unsupported CPU family (%d). Please check vendor documentation and make a Pull-Request if wrong.\n",family);
             return -1;
         }
         model=CPU_AMD_FAM17H;
