@@ -11,4 +11,8 @@ while getopts "i:" o; do
     esac
 done
 
-nvidia-smi --query-gpu=power.draw --format=csv,noheader,nounits -lms $i | awk '{ "date +%s%N" | getline timestamp; print timestamp " " $0 }'
+
+while true; do
+    echo -en $(($(date +%s%N)/1000)) $(nvidia-smi --query-gpu=power.draw --format=csv,noheader,nounits| awk '{ gsub("\\.", ""); print }')"\n"
+    sleep ${i:-0.1}
+done
