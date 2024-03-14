@@ -712,7 +712,7 @@ async def hog_add(measurements: List[HogMeasurement]):
                     energy_impact,
                     thermal_pressure,
                     settings)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """
         params = (
@@ -756,7 +756,7 @@ async def hog_add(measurements: List[HogMeasurement]):
                         diskio_byteswritten,
                         intr_wakeups,
                         idle_wakeups)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """
             params = (
@@ -791,7 +791,7 @@ async def hog_add(measurements: List[HogMeasurement]):
                             diskio_byteswritten,
                             intr_wakeups,
                             idle_wakeups)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                     """
                 params = (
