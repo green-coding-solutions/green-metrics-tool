@@ -457,23 +457,19 @@ $(document).ready( (e) => {
 
         let [run_data, phase_stats_data, network_data, optimizations_data] = await makeBaseAPICalls(url_params);
 
-        if (run_data == undefined) return;
+        if (run_data == null) return; // no need to process any further if even core data not available
 
         renderBadges(url_params);
 
         fillRunData(run_data);
 
-        displayNetworkIntercepts(network_data);
+        if (network_data != null) displayNetworkIntercepts(network_data);
 
-        displayOptimizationsData(optimizations_data);
+        if (optimizations_data != null) displayOptimizationsData(optimizations_data);
 
-        if(phase_stats_data != null) {
-            displayComparisonMetrics(phase_stats_data)
-        }
+        if(phase_stats_data != null) displayComparisonMetrics(phase_stats_data)
 
-        if (localStorage.getItem('fetch_time_series') === 'true') {
-            getTimeSeries(url_params);
-        }
+        if (localStorage.getItem('fetch_time_series') === 'true') getTimeSeries(url_params);
 
         // after all charts instances have been placed
         // the flexboxes might have rearranged. We need to trigger resize
