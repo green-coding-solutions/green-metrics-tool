@@ -3,7 +3,6 @@ pydantic==2.6.3
 pytest==8.1.1
 requests==2.31.0
 pylint==3.1.0
-fastapi==0.110.0
 starlette>=0.32
 anybadge==1.14.0
 
