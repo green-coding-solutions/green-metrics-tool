@@ -7,7 +7,7 @@ faulthandler.enable()  # will catch segfaults and write to STDERR
 
 import zlib
 import base64
-import json
+import orjson
 from typing import List
 from xml.sax.saxutils import escape as xml_escape
 import math
@@ -287,7 +287,7 @@ async def compare_in_repo(ids: str):
 
 
     if artifact := get_artifact(ArtifactType.COMPARE, str(ids)):
-        return ORJSONResponse({'success': True, 'data': json.loads(artifact)})
+        return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
 
     try:
         case = determine_comparison_case(ids)
@@ -356,7 +356,7 @@ async def compare_in_repo(ids: str):
     except RuntimeError as err:
         raise RequestValidationError(str(err)) from err
 
-    store_artifact(ArtifactType.COMPARE, str(ids), json.dumps(phase_stats_object))
+    store_artifact(ArtifactType.COMPARE, str(ids), orjson.dumps(phase_stats_object)) # pylint: disable=no-member
 
 
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
@@ -368,7 +368,7 @@ async def get_phase_stats_single(run_id: str):
         raise RequestValidationError('Run ID is not a valid UUID or empty')
 
     if artifact := get_artifact(ArtifactType.STATS, str(run_id)):
-        return ORJSONResponse({'success': True, 'data': json.loads(artifact)})
+        return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
 
     try:
         phase_stats = get_phase_stats([run_id])
@@ -378,7 +378,7 @@ async def get_phase_stats_single(run_id: str):
     except RuntimeError:
         return Response(status_code=204) # No-Content
 
-    store_artifact(ArtifactType.STATS, str(run_id), json.dumps(phase_stats_object))
+    store_artifact(ArtifactType.STATS, str(run_id), orjson.dumps(phase_stats_object)) # pylint: disable=no-member
 
     return ORJSONResponseObjKeep({'success': True, 'data': phase_stats_object})
 
@@ -672,7 +672,7 @@ async def hog_add(measurements: List[HogMeasurement]):
     for measurement in measurements:
         decoded_data = base64.b64decode(measurement.data)
         decompressed_data = zlib.decompress(decoded_data)
-        measurement_data = json.loads(decompressed_data.decode())
+        measurement_data = orjson.loads(decompressed_data.decode()) # pylint: disable=no-member
 
         # For some reason we sometimes get NaN in the data.
         measurement_data = replace_nan_with_zero(measurement_data)
@@ -760,7 +760,7 @@ async def hog_add(measurements: List[HogMeasurement]):
             cpu_energy_data['energy_impact'],
             measurement_data['thermal_pressure'],
             measurement.settings,
-            json.dumps(measurement_data),
+            orjson.dumps(measurement_data), # pylint: disable=no-member
         )
 
         measurement_db_id = DB().fetch_one(query=query, params=params)[0]
@@ -805,7 +805,7 @@ async def hog_add(measurements: List[HogMeasurement]):
                 coalition['diskio_byteswritten'],
                 coalition['intr_wakeups'],
                 coalition['idle_wakeups'],
-                json.dumps(coalition)
+                orjson.dumps(coalition) # pylint: disable=no-member
             )
 
             coaltion_db_id = DB().fetch_one(query=query, params=params)[0]
@@ -844,7 +844,7 @@ async def hog_add(measurements: List[HogMeasurement]):
                     task.get('diskio_byteswritten', 0),
                     task.get('intr_wakeups', 0),
                     task.get('idle_wakeups', 0),
-                    json.dumps(task)
+                    orjson.dumps(task) # pylint: disable=no-member
 
                 )
                 DB().fetch_one(query=query, params=params)
@@ -1390,4 +1390,4 @@ async def carbondb_get_company_project_details(cptype: str, uuid: str):
     return ORJSONResponse({'success': True, 'data': data})
 
 if __name__ == '__main__':
-    app.run()
+    app.run() # pylint: disable=no-member
