@@ -744,9 +744,8 @@ async def hog_add(measurements: List[HogMeasurement]):
                     ane_energy,
                     energy_impact,
                     thermal_pressure,
-                    settings,
-                    data)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    settings)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """
         params = (
@@ -760,7 +759,6 @@ async def hog_add(measurements: List[HogMeasurement]):
             cpu_energy_data['energy_impact'],
             measurement_data['thermal_pressure'],
             measurement.settings,
-            orjson.dumps(measurement_data), # pylint: disable=no-member
         )
 
         measurement_db_id = DB().fetch_one(query=query, params=params)[0]
@@ -790,9 +788,8 @@ async def hog_add(measurements: List[HogMeasurement]):
                         diskio_bytesread,
                         diskio_byteswritten,
                         intr_wakeups,
-                        idle_wakeups,
-                        data)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        idle_wakeups)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """
             params = (
@@ -805,7 +802,6 @@ async def hog_add(measurements: List[HogMeasurement]):
                 coalition['diskio_byteswritten'],
                 coalition['intr_wakeups'],
                 coalition['idle_wakeups'],
-                orjson.dumps(coalition) # pylint: disable=no-member
             )
 
             coaltion_db_id = DB().fetch_one(query=query, params=params)[0]
@@ -827,9 +823,8 @@ async def hog_add(measurements: List[HogMeasurement]):
                             diskio_bytesread,
                             diskio_byteswritten,
                             intr_wakeups,
-                            idle_wakeups,
-                            data)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            idle_wakeups)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                     """
                 params = (
@@ -844,8 +839,6 @@ async def hog_add(measurements: List[HogMeasurement]):
                     task.get('diskio_byteswritten', 0),
                     task.get('intr_wakeups', 0),
                     task.get('idle_wakeups', 0),
-                    orjson.dumps(task) # pylint: disable=no-member
-
                 )
                 DB().fetch_one(query=query, params=params)
 
@@ -1377,8 +1370,8 @@ async def carbondb_get_company_project_details(cptype: str, uuid: str):
             AVG(carbon_intensity_avg),
             ARRAY_AGG(DISTINCT u.tag) AS all_tags
         FROM
-            public.carbondb_energy_data_day e,
-            LATERAL unnest(e.tags) AS u(tag)
+            public.carbondb_energy_data_day e
+			LEFT JOIN LATERAL unnest(e.tags) AS u(tag) ON true
         WHERE
             {cptype.lower()}=%s
         GROUP BY

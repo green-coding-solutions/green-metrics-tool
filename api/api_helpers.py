@@ -759,7 +759,6 @@ def carbondb_add(client_ip, energydatas):
 
         row = f"{e['type']}|{company_uuid}|{e['machine']}|{project_uuid}|{tags_clean}|{int(e['time_stamp'])}|{e['energy_value']}|{co2_value}|{carbon_intensity}|{latitude}|{longitude}|{client_ip}"
         data_rows.append(row)
-        print(row)
 
     data_str = "\n".join(data_rows)
     data_file = io.StringIO(data_str)

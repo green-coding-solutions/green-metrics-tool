@@ -28,7 +28,7 @@ $(document).ready(function () {
             companies.add(item[2]);
             machines.add(item[3]);
             projects.add(item[4]);
-            item[5].forEach(tag => tags.add(tag));
+            item[5]?.forEach(tag => tags.add(tag));
         });
 
         types = Array.from(types);
