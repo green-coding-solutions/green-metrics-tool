@@ -64,6 +64,7 @@ CREATE TABLE runs (
     phases JSON,
     logs text,
     invalid_run text,
+    failed boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
