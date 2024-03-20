@@ -1309,7 +1309,7 @@ class Runner:
 
     def set_run_failed(self):
         if not self._run_id:
-            raise RuntimeError('Cannot set run to failed as no run_id is yet set!')
+            return # Nothing to do, but also no hard error needed
 
         DB().query("""
             UPDATE runs
