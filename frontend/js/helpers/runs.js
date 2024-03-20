@@ -97,8 +97,12 @@ const getRunsTable = (el, url, include_uri=true, include_button=true, searching=
             title: 'Name',
             render: function(el, type, row) {
 
-                if(row[9] == null) el = `${el} (in progress 🔥)`;
+                // only show Failed OR in Progress
+                if(row[10] == true) el = `${el} <span class="ui red horizontal label">Failed</span>`;
+                else if(row[9] == null) el = `${el} (in progress 🔥)`;
+
                 if(row[5] != null) el = `${el} <span class="ui yellow horizontal label" title="${row[5]}">invalidated</span>`;
+
                 return `<a href="/stats.html?id=${row[0]}" target="_blank">${el}</a>`
             },
         },

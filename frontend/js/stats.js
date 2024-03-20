@@ -92,6 +92,9 @@ const fillRunData = (run_data, key = null) => {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${commit_link}" target="_blank">${run_data?.[item]}</a></td></tr>`)
         } else if(item == 'name' || item == 'filename') {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]}</td></tr>`)
+        } else if(item == 'failed' && run_data?.[item] == true) {
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Status</strong></td><td><span class="ui red horizontal label">This run has failed. Please see logs for details</span></td></tr>`)
+
         } else if(item == 'uri') {
             let entry = run_data?.[item];
             if(run_data?.[item].indexOf('http') === 0) entry = `<a href="${run_data?.[item]}">${run_data?.[item]}</a>`;
