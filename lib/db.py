@@ -21,31 +21,19 @@ class DB:
             # Users are required to use the mask of the API requests to read the data.
             # force domain socket connection by not supplying host
             # pylint: disable=consider-using-f-string
-            if config['postgresql']['host'] is None:
-                self._pool = ConnectionPool(
-                    "postgresql://%s:%s@localhost:%s/%s" % (
-                        config['postgresql']['user'],
-                        config['postgresql']['password'],
-                        config['postgresql']['port'],
-                        config['postgresql']['dbname'],
-                    ),
-                    min_size=1,
-                    max_size=2,
-                    open=True
-                )
-            else:
-                self._pool = ConnectionPool(
-                    "postgresql://%s:%s@%s:%s/%s" % (
-                        config['postgresql']['user'],
-                        config['postgresql']['password'],
-                        config['postgresql']['host'],
-                        config['postgresql']['port'],
-                        config['postgresql']['dbname'],
-                    ),
-                    min_size=1,
-                    max_size=2,
-                    open=True
-                )
+
+            self._pool = ConnectionPool(
+                "postgresql://%s:%s@%s:%s/%s" % (
+                    config['postgresql']['user'],
+                    config['postgresql']['password'],
+                    config['postgresql']['host'],
+                    config['postgresql']['port'],
+                    config['postgresql']['dbname'],
+                ),
+                min_size=1,
+                max_size=2,
+                open=True
+            )
 
     def __query(self, query, params=None, return_type=None, row_factory=None):
         ret = False
