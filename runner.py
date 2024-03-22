@@ -827,6 +827,15 @@ class Runner:
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
 
+            if 'deploy' in service:
+                if memory := service['deploy'].get('resources', {}).get('limits', {}).get('memory', None):
+                    docker_run_string.append('-m')
+                    docker_run_string.append(str(memory))
+                if cpus := service['deploy'].get('resources', {}).get('limits', {}).get('cpus', None):
+                    docker_run_string.append('--cpus')
+                    docker_run_string.append(str(cpus))
+
+
             if 'healthcheck' in service:  # must come last
                 if 'disable' in service['healthcheck'] and service['healthcheck']['disable'] is True:
                     docker_run_string.append('--no-healthcheck')
@@ -855,6 +864,7 @@ class Runner:
                         docker_run_string.append(service['healthcheck']['start_period'])
                     if 'start_interval' in service['healthcheck']:
                         raise RuntimeError('start_interval is not supported atm in healthcheck')
+
 
             docker_run_string.append(self.clean_image_name(service['image']))
 
