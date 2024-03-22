@@ -2,12 +2,11 @@
 source /var/www/startup/venv/bin/activate
 
 /var/www/startup/venv/bin/gunicorn \
---workers=2 \
+--workers=8 \
 --access-logfile=- \
 --error-logfile=- \
 --worker-tmp-dir=/dev/shm \
---threads=4 \
---worker-class=gthread \
+--worker-class=uvicorn.workers.UvicornWorker \
 --bind unix:/tmp/green-coding-api.sock \
 -m 007 \
 --user www-data \

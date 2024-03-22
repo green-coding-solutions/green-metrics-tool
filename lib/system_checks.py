@@ -34,7 +34,7 @@ class ConfigurationCheckError(Exception):
 ######## CHECK FUNCTIONS ########
 def check_db():
     try:
-        DB()
+        DB().query('SELECT 1')
     except psycopg_OperationalError:
         error_helpers.log_error('DB is not available. Did you start the docker containers?')
         os._exit(1)
