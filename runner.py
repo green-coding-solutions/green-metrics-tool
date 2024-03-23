@@ -983,6 +983,8 @@ class Runner:
 
         print(TerminalColors.HEADER, '\nCurrent known containers: ', self.__containers, TerminalColors.ENDC)
 
+    # This method only exists to make logs read-only available outside of the self context
+    # Internally we are still using normal __stdout_logs access to read and not funnel through this method
     def get_logs(self):
         return self.__stdout_logs
 
@@ -1207,7 +1209,7 @@ class Runner:
             else: # implicit 1
                 self.__phases.popitem(last=True)
 
-    # this function should never be called twice to avoid double logging of metrics
+    # this method should never be called twice to avoid double logging of metrics
     def stop_metric_providers(self):
         if self._dev_no_metrics:
             return
@@ -1314,6 +1316,17 @@ class Runner:
             SET start_measurement=%s, end_measurement=%s
             WHERE id = %s
             """, params=(self.__start_measurement, self.__end_measurement, self._run_id))
+
+    def set_run_failed(self):
+        if not self._run_id:
+            return # Nothing to do, but also no hard error needed
+
+        DB().query("""
+            UPDATE runs
+            SET failed = TRUE
+            WHERE id = %s
+            """, params=(self._run_id, ))
+
 
     def store_phases(self):
         print(TerminalColors.HEADER, '\nUpdating phases in DB', TerminalColors.ENDC)
@@ -1427,8 +1440,8 @@ class Runner:
 
     def run(self):
         '''
-            The run function is just a wrapper for the intended sequential flow of a GMT run.
-            Mainly designed to call the functions individually for testing, but also
+            The run method is just a wrapper for the intended sequential flow of a GMT run.
+            Mainly designed to call the methods individually for testing, but also
             if the flow ever needs to repeat certain blocks.
 
             The runner is to be thought of as a state machine.
@@ -1518,6 +1531,7 @@ class Runner:
 
         except BaseException as exc:
             self.add_to_log(exc.__class__.__name__, str(exc))
+            self.set_run_failed()
             raise exc
         finally:
             try:
