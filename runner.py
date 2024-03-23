@@ -1399,10 +1399,6 @@ class Runner:
             subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
         self.__networks.clear()
 
-        if continue_measurement is False and self._no_file_cleanup is not True:
-            print('Removing files')
-            subprocess.run(['rm', '-Rf', self._tmp_folder], stderr=subprocess.DEVNULL, check=True)
-
         if continue_measurement is False:
             self.remove_docker_images()
 
@@ -1569,7 +1565,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', type=str, help='A name which will be stored to the database to discern this run from others')
     parser.add_argument('--filename', type=str, default='usage_scenario.yml', help='An optional alternative filename if you do not want to use "usage_scenario.yml"')
     parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be located in the same directory as the regular configuration file. Pass in only the name.')
-    parser.add_argument('--no-file-cleanup', action='store_true', help='Do not delete files in /tmp/green-metrics-tool')
+    parser.add_argument('--file-cleanup', action='store_true', help='Delete all temporary files that the runner produced')
     parser.add_argument('--debug', action='store_true', help='Activate steppable debug mode')
     parser.add_argument('--allow-unsafe', action='store_true', help='Activate unsafe volume bindings, ports and complex environment vars')
     parser.add_argument('--skip-unsafe', action='store_true', help='Skip unsafe volume bindings, ports and complex environment vars')
@@ -1636,24 +1632,9 @@ if __name__ == '__main__':
             sys.exit(1)
         GlobalConfig(config_name=args.config_override)
 
-    # We need to import this here as we need the correct config file
-    import optimization_providers.base
-
-    print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
-    keep_files = optimization_providers.base.import_reporters()
-    if keep_files and args.no_file_cleanup:
-        optimization_cleanup = False
-        file_cleanup_param = False
-    elif keep_files and not args.no_file_cleanup:
-        optimization_cleanup = True
-        file_cleanup_param = True
-    elif not keep_files:
-        optimization_cleanup = False
-        file_cleanup_param = args.no_file_cleanup
-
     runner = Runner(name=args.name, uri=args.uri, uri_type=run_type, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
-                    no_file_cleanup=file_cleanup_param, skip_system_checks=args.skip_system_checks,
+                    skip_system_checks=args.skip_system_checks,
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                     full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
                     dev_no_build=args.dev_no_build, dev_no_metrics=args.dev_no_metrics,
@@ -1677,15 +1658,14 @@ if __name__ == '__main__':
 
         build_and_store_phase_stats(runner._run_id, runner._sci)
 
+        # We need to import this here as we need the correct config file
+        import optimization_providers.base
+        print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
+        optimization_providers.base.import_reporters()
+
         print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
 
-        repo_path = runner._tmp_folder if optimization_cleanup else None
-
-        optimization_providers.base.run_reporters(runner._run_id, repo_path, runner.get_optimizations_ignore())
-
-        if optimization_cleanup:
-            print('Removing files')
-            subprocess.run(['rm', '-Rf', repo_path], stderr=subprocess.DEVNULL, check=True)
+        optimization_providers.base.run_reporters(runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
 
         print(TerminalColors.OKGREEN,'\n\n####################################################################################')

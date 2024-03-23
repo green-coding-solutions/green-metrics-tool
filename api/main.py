@@ -711,9 +711,8 @@ async def hog_add(measurements: List[HogMeasurement]):
                     ane_energy,
                     energy_impact,
                     thermal_pressure,
-                    settings,
-                    data)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    settings)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """
         params = (
@@ -727,7 +726,6 @@ async def hog_add(measurements: List[HogMeasurement]):
             cpu_energy_data['energy_impact'],
             measurement_data['thermal_pressure'],
             measurement.settings,
-            json.dumps(measurement_data),
         )
 
         measurement_db_id = DB().fetch_one(query=query, params=params)[0]
@@ -757,9 +755,8 @@ async def hog_add(measurements: List[HogMeasurement]):
                         diskio_bytesread,
                         diskio_byteswritten,
                         intr_wakeups,
-                        idle_wakeups,
-                        data)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        idle_wakeups)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """
             params = (
@@ -772,7 +769,6 @@ async def hog_add(measurements: List[HogMeasurement]):
                 coalition['diskio_byteswritten'],
                 coalition['intr_wakeups'],
                 coalition['idle_wakeups'],
-                json.dumps(coalition)
             )
 
             coaltion_db_id = DB().fetch_one(query=query, params=params)[0]
@@ -794,9 +790,8 @@ async def hog_add(measurements: List[HogMeasurement]):
                             diskio_bytesread,
                             diskio_byteswritten,
                             intr_wakeups,
-                            idle_wakeups,
-                            data)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            idle_wakeups)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                     """
                 params = (
@@ -811,8 +806,6 @@ async def hog_add(measurements: List[HogMeasurement]):
                     task.get('diskio_byteswritten', 0),
                     task.get('intr_wakeups', 0),
                     task.get('idle_wakeups', 0),
-                    json.dumps(task)
-
                 )
                 DB().fetch_one(query=query, params=params)
 
