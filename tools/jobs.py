@@ -117,6 +117,14 @@ class Job:
             # Start main code. Only URL is allowed for cron jobs
             self._run_id = runner.run()
             build_and_store_phase_stats(self._run_id, runner._sci)
+
+            # We need to import this here as we need the correct config file
+            import optimization_providers.base
+            print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
+            optimization_providers.base.import_reporters()
+            print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
+            optimization_providers.base.run_reporters(runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
+
             self.update_state('FINISHED')
         except Exception as exc:
             self._run_id = runner._run_id # might not be set yet, but we try
