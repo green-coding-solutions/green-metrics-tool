@@ -1175,7 +1175,8 @@ async def post_ci_measurement_add(request: Request, measurement: CI_Measurement)
     return ORJSONResponse({'success': True}, status_code=201)
 
 @app.get('/v1/ci/measurements')
-async def get_ci_measurements(repo: str, branch: str, workflow: str):
+async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: str, end_date: str):
+
     query = """
         SELECT energy_value, energy_unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg,
                (SELECT workflow_name FROM ci_measurements AS latest_workflow
@@ -1185,10 +1186,13 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str):
                 ORDER BY latest_workflow.created_at DESC
                 LIMIT 1) AS workflow_name
         FROM ci_measurements
-        WHERE repo = %s AND branch = %s AND workflow_id = %s
+        WHERE
+            repo = %s AND branch = %s AND workflow_id = %s
+            AND DATE(created_at) >= TO_DATE(%s, 'YYYY-MM-DD')
+            AND DATE(created_at) <= TO_DATE(%s, 'YYYY-MM-DD')
         ORDER BY run_id ASC, created_at ASC
     """
-    params = (repo, branch, workflow)
+    params = (repo, branch, workflow, start_date, end_date)
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
