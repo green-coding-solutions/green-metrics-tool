@@ -179,7 +179,7 @@ CREATE TABLE ci_measurements (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
-CREATE INDEX "ci_measurements_get" ON ci_measurements(repo, branch, workflow_id, run_id, created_at);
+CREATE INDEX "ci_measurements_subselect" ON ci_measurements(repo, branch, workflow_id, created_at);
 CREATE TRIGGER ci_measurements_moddatetime
     BEFORE UPDATE ON ci_measurements
     FOR EACH ROW
