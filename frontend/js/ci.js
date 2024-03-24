@@ -443,11 +443,12 @@ $(document).ready((e) => {
             chart_instance.setOption(options);
 
             chart_instance.off('legendselectchanged') // remove
+            // we need to re-bind the handler here and can also not really refactor that
+            // without using a global variable. echarts .on does not allow to pass data to the handler
             chart_instance.on('legendselectchanged', function (params) {
                 // get list of all legends that are on
                 const selectedLegends = params.selected;
                 const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[5]]);
-
                 displayStatsTable(filteredMeasurements);
             });
         });
