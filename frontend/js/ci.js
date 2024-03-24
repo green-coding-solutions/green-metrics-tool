@@ -163,23 +163,6 @@ const getEChartsOptions = () => {
     };
 }
 
-const filterMeasurements = (measurements, start_date, end_date) => {
-    const filteredMeasurements = [];
-    const discardMeasurements = [];
-
-    measurements.forEach(measurement => {
-        const run_id = measurement[2];
-        const timestamp = new Date(measurement[3]);
-
-        if (timestamp >= start_date && timestamp <= end_date){
-            filteredMeasurements.push(measurement);
-        } else {
-            discardMeasurements.push(run_id);
-        }
-    });
-
-    return filteredMeasurements;
-}
 
 const getChartOptions = (measurements, chart_element) => {
     const options = getEChartsOptions();
@@ -235,28 +218,9 @@ const displayGraph = (measurements) => {
     const element = createChartContainer("#chart-container", "run-energy");
 
     const options = getChartOptions(measurements, element); // iterates
-
     const chart_instance = echarts.init(element);
     chart_instance.setOption(options);
 
-    // we want to listen for the zoom event to display a line or a icon with the grand total in the chart
-    // => Look at what cool stuff can be display!
-
-    // trigger the dataZoom event manually when this function. Similar how we do resize
-
-    // the dataZoom callback needs to walk the dataset.source everytime on zoom and only add up all values that
-    // are >= startValue <=  endValue
-    // either copying element or reducing it by checking if int or not
-
-    
-
-    chart_instance.on('dataZoom', function (evt) {
-        let sum = 0;
-        if (!('startValue' in evt.batch[0])) return
-        for (let i = evt.batch[0].startValue; i <= evt.batch[0].endValue; i++) {
-            sum = sum + options.dataset.source[i].slice(1).reduce((partialSum, a) => partialSum + a, 0);
-        }
-    })
     window.onresize = function () { // set callback when ever the user changes the viewport
         chart_instance.resize();
     }
@@ -274,7 +238,7 @@ const displayStatsTable = (measurements) => {
     full_run_stats = calculateStats(fullRunArray.energy, fullRunArray.time, fullRunArray.cpu_util)
 
     full_run_stats_node.innerHTML += `
-                            <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)">Full Run <i class="question circle icon small"></i> </td>
+                            <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)" data-position="top left">All steps <i class="question circle icon small"></i> </td>
                             <td class="td-index">${numberFormatter.format(full_run_stats.energy.average)} mJ</td>
                             <td class="td-index">${numberFormatter.format(full_run_stats.energy.stdDeviation)} mJ</td>
                             <td class="td-index">${full_run_stats.energy.stdDevPercent}%</td>
@@ -292,7 +256,7 @@ const displayStatsTable = (measurements) => {
         const label_stats = calculateStats(labelsArray[label].energy, labelsArray[label].time, labelsArray[label].cpu_util)
         const label_stats_node = document.createElement("tr")
         label_stats_node.innerHTML += `
-                                        <td class="td-index" data-tooltip="stats for the series of steps represented by the ${label} label">${label}</td>
+                                        <td class="td-index" data-tooltip="stats for the series of steps represented by the ${label} label"  data-position="top left">${label} <i class="question circle icon small"></i></td>
                                         <td class="td-index">${numberFormatter.format(label_stats.energy.average)} mJ</td>
                                         <td class="td-index">${numberFormatter.format(label_stats.energy.stdDeviation)} mJ</td>
                                         <td class="td-index">${label_stats.energy.stdDevPercent}%</td>
@@ -308,9 +272,9 @@ const displayStatsTable = (measurements) => {
     };
 }
 
-const displayCITable = (measurements, url_params) => {
+const displayCITable = (measurements, repo) => {
 
-    const repo_esc = escapeString(url_params.get('repo'))
+    document.querySelector("#ci-table").innerHTML = ''; // clear
 
     measurements.forEach(el => {
         const li_node = document.createElement("tr");
@@ -331,10 +295,10 @@ const displayCITable = (measurements, url_params) => {
         const run_id_esc = escapeString(run_id)
 
         if(source == 'github') {
-            run_link = `https://github.com/${repo_esc}/actions/runs/${run_id_esc}`;
+            run_link = `https://github.com/${repo}/actions/runs/${run_id_esc}`;
         }
         else if (source == 'gitlab') {
-            run_link = `https://gitlab.com/${repo_esc}/-/pipelines/${run_id_esc}`
+            run_link = `https://gitlab.com/${repo}/-/pipelines/${run_id_esc}`
         }
 
         const run_link_node = `<a href="${run_link}" target="_blank">${run_id_esc}</a>`
@@ -371,47 +335,63 @@ function dateTimePicker() {
     });
 }
 
+const getLastRunBadge = async (repo, branch, workflow_id) => {
+    try {
+        const link_node = document.createElement("a")
+        const img_node = document.createElement("img")
+        img_node.src = `${API_URL}/v1/ci/badge/get?repo=${repo}&branch=${branch}&workflow=${workflow_id}`
+        link_node.href = window.location.href
+        link_node.appendChild(img_node)
+        document.querySelector("span.energy-badge-container").appendChild(link_node)
+        document.querySelector(".copy-badge").addEventListener('click', copyToClipboard)
+    } catch (err) {
+        showNotification('Could not get badge data from API', err);
+    }
+}
+
+const getMeasurements = async (repo, branch, workflow_id, start_date = null, end_date = null) => {
+    try {
+        if(end_date == null) end_date = dateToYMD(new Date(), short=true);
+        if(start_date == null) start_date = dateToYMD(new Date((new Date()).setDate((new Date).getDate() -30)), short=true);
+        const api_string=`/v1/ci/measurements?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`;
+        return await makeAPICall(api_string);
+    } catch (err) {
+        showNotification('Could not get data from API', err);
+        throw err
+    }
+}
+
 $(document).ready((e) => {
     (async () => {
         const query_string = window.location.search;
         const url_params = (new URLSearchParams(query_string))
 
-        if (url_params.get('repo') == null || url_params.get('repo') == '' || url_params.get('repo') == 'null') {
+        let branch = escapeString(url_params.get('branch'));
+        let repo = escapeString(url_params.get('repo'));
+        let workflow_id = escapeString(url_params.get('workflow'));
+
+        if (repo == null || repo == '' || repo == 'null') {
             showNotification('No Repo', 'Repo parameter in URL is empty or not present. Did you follow a correct URL?');
             return;
         }
-        if (url_params.get('branch') == null || url_params.get('branch') == '' || url_params.get('branch') == 'null') {
+        if (branch == null || branch == '' || branch == 'null') {
             showNotification('No Branch', 'Branch parameter in URL is empty or not present. Did you follow a correct URL?');
             return;
         }
-        if (url_params.get('workflow') == null || url_params.get('workflow') == '' || url_params.get('workflow') == 'null') {
+        if (workflow_id == null || workflow_id == '' || workflow_id == 'null') {
             showNotification('No Workflow', 'Workflow parameter in URL is empty or not present. Did you follow a correct URL?');
             return;
         }
 
-        try {
-            const link_node = document.createElement("a")
-            const img_node = document.createElement("img")
-            img_node.src = `${API_URL}/v1/ci/badge/get?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`
-            link_node.href = window.location.href
-            link_node.appendChild(img_node)
-            document.querySelector("span.energy-badge-container").appendChild(link_node)
-            document.querySelector(".copy-badge").addEventListener('click', copyToClipboard)
-        } catch (err) {
-            showNotification('Could not get badge data from API', err);
-        }
+        getLastRunBadge(repo, branch, workflow_id) // async
 
-        try {
-            const api_string=`/v1/ci/measurements?repo=${url_params.get('repo')}&branch=${url_params.get('branch')}&workflow=${url_params.get('workflow')}`;
-            var measurements = await makeAPICall(api_string);
-        } catch (err) {
-            showNotification('Could not get data from API', err);
-            return;
-        }
+        $('#rangestart input').val(new Date((new Date()).setDate((new Date).getDate() -30))) // set default on load
+        $('#rangeend input').val(new Date()) // set default on load
+
+        let measurements = await getMeasurements(repo, branch, workflow_id)
 
         let repo_link = ''
         const source = measurements.data[0][8]
-        const workflow_id = escapeString(url_params.get('workflow'))
         let workflow_name = measurements.data[0][10]
 
         if (workflow_name == '' || workflow_name == null) {
@@ -419,20 +399,20 @@ $(document).ready((e) => {
         }
 
         if(source == 'github') {
-            repo_link = `https://github.com/${escapeString(url_params.get('repo'))}`;
+            repo_link = `https://github.com/${repo}`;
         }
         else if(source == 'gitlab') {
-            repo_link = `https://gitlab.com/${escapeString(url_params.get('repo'))}`;
+            repo_link = `https://gitlab.com/${repo}`;
         }
 
-        const repo_link_node = `<a href="${repo_link}" target="_blank">${escapeString(url_params.get('repo'))}</a>`
+        const repo_link_node = `<a href="${repo_link}" target="_blank">${repo}</a>`
         const ci_data_node = document.querySelector('#ci-data')
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Repository:</strong></td><td>${repo_link_node}</td></tr>`)
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params.get('branch'))}</td></tr>`)
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow ID:</strong></td><td>${escapeString(workflow_id)}</td></tr>`)
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(workflow_name)}</td></tr>`)
 
-        displayCITable(measurements.data, url_params); // Iterates I (total: 1)
+        displayCITable(measurements.data, repo); // Iterates I (total: 1)
         
         chart_instance = displayGraph(measurements.data) // iterates I (total: 2)
 
@@ -449,35 +429,27 @@ $(document).ready((e) => {
         });
 
         // When the user selects a subset of the measurement data via the date-picker
-        $('#submit').on('click', function () {
-            const startDate = new Date($('#rangestart input').val());
-            const endDate = new Date($('#rangeend input').val());
+        $('#submit').on('click', async function () {
+            const startDate = dateToYMD(new Date($('#rangestart input').val()), short=true);
+            const endDate = dateToYMD(new Date($('#rangeend input').val()), short=true);
 
-            const filteredMeasurements = filterMeasurements(measurements.data, startDate, endDate); // iterates I
-            displayStatsTable(filteredMeasurements); //iterates II
-            const options = getChartOptions(filteredMeasurements); //iterates I
-
-            /*   The following functionality is to "remember" a user's legend settings as they date switch
-            *    it is turned off because if the user selects a subset that doesn't contain a cpu
-            *    that cpu is treated as "off" even if the user didn't select it off themselves
-            *    and therefore it is "misremembered" from a user point of view
-            *
-            *    So for now, changing the date resets the legends to all true
-            *
-            // get the selected legends of the old chart instance, to remember what the user toggled on/off
-            const selectedLegends = chart_instance.getOption().legend[0].selected;
-            
-            // go through options and turn off all legends that are not selected
-            for(const legend in options.legend.selected) {
-                if (!selectedLegends[legend]) {
-                    options.legend.selected[legend] = false;
-                }
-            }
-            */
+            const measurements = await getMeasurements(repo, branch, workflow_id, startDate, endDate); // iterates I
+            displayStatsTable(measurements.data); //iterates II
+            displayCITable(measurements.data, repo); // Iterates I (total: 1)
 
             // set new chart instance options
+            const options = getChartOptions(measurements.data); //iterates I
             chart_instance.clear();
             chart_instance.setOption(options);
+
+            chart_instance.off('legendselectchanged') // remove
+            chart_instance.on('legendselectchanged', function (params) {
+                // get list of all legends that are on
+                const selectedLegends = params.selected;
+                const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[5]]);
+
+                displayStatsTable(filteredMeasurements);
+            });
         });
 
         setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);
