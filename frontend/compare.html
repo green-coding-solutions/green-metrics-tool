@@ -20,14 +20,16 @@
     <script src="/dist/js/accordion.min.js" defer></script>
     <script src="/dist/js/tab.min.js" defer></script>
     <script src="/dist/js/echarts.min.js" defer></script>
-    <script src="/dist/js/json2yaml.js" defer></script>
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
     <script src="/js/helpers/phase-stats.js" defer></script>
     <script src="/js/helpers/metric-boxes.js" defer></script>
     <script src="/js/helpers/converters.js" defer></script>
     <script src="/js/helpers/charts.js" defer></script>
+    <script type="text/javascript" src="/dist/js/diff2html-ui.min.js"></script>
     <script src="/js/compare.js" defer></script>
+
+    <link rel="stylesheet" type="text/css" href="/dist/css/diff2html.min.css" />
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
@@ -37,11 +39,38 @@
         <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> Comparison of runs in repo</h1>
         <div class="ui full-width-card card">
             <div class="content">
-                <div class="header"><a class="ui red ribbon label" href="#">
-                    <h3>Run Data</h3>
-                </a></div>
+                <div class="header">
+                    <a class="ui red ribbon label" href="#">
+                        <h3>Run Data</h3>
+                    </a>
+                </div>
+
                 <div class="description">
+
                     <table class="table-hover" id="run-data-top"></table>
+                    <div class="ui segment" id="loader-compare-meta">
+                      <div class="ui active inverted dimmer">
+                        <div class="ui text loader">Loading run metadata</div>
+                      </div>
+                      <p><br><br><br></p>
+                    </div>
+                    <div id="diff-container"></div>
+                    <div id="diff-question" class="ui icon info message blue" style="display:none;">
+                        <i class="info circle icon"></i>
+                        <div class="content">
+                            <div class="header">
+                                Configuration and Settings diff
+                            </div>
+                            <p>Please click the button below to fetch data. We opted to only show this detailed data on request.</p>
+                            <button id="fetch-diff" class="blue ui button">Fetch Diff</button>
+                        </div>
+                    </div>
+                    <div class="ui segment inverted" id="loader-diff" style="display:none;">
+                      <div class="ui active dimmer">
+                        <div class="ui text loader">Loading run diff</div>
+                      </div>
+                      <p><br><br><br></p>
+                    </div>
                 </div>
             </div>
         </div><!-- end ui full-width-card card -->
@@ -280,6 +309,11 @@
                 </a></div>
             </div>
             <div class="description">
+                <div id="loader-compare-run">
+                  <div class="ui active text loader">Loading run comparison data</div>
+                  <p><br><br><br></p>
+                </div>
+
                 <div class="bar-chart">
                     <div class="chart-title"></div>
                     <div class="statistics-chart"></div>
