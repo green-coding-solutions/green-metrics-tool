@@ -1,4 +1,6 @@
+import json
 import os
+import time
 import pytest
 import requests
 import psycopg
@@ -16,6 +18,8 @@ API_URL = config['cluster']['api_url']
 
 from api.main import Software
 from api.main import CI_Measurement
+
+import hog_data
 
 @pytest.fixture(autouse=True, name="register_machine")
 def register_machine_fixture():
@@ -110,3 +114,42 @@ def todo_test_get_runs():
     res_json = response.json()
     assert response.status_code == 200
     assert res_json['data'][0][0] == str(pid)
+
+
+
+def test_hogDB_add():
+    hog_data_obj  = [
+    {
+        "time": 1710668240000,
+        "data": hog_data.hog_string,
+        "settings": json.dumps({"powermetrics": 5000, "upload_delta": 3, "upload_data": True, "resolve_coalitions": ["com.googlecode.iterm2", "com.apple.terminal", "com.vix.cron"], "client_version": "0.5"}),
+        "machine_uuid": "371ee758-d4e6-11ee-a082-7e27a1187d3d",
+        "row_id": 51},
+    ]
+
+    response = requests.post(f"{API_URL}/v1/hog/add", json=hog_data_obj, timeout=15)
+    assert response.status_code == 204
+
+    queries = ['SELECT * FROM hog_tasks', 'SELECT * FROM hog_coalitions', 'SELECT * FROM hog_measurements']
+    for q in queries:
+        data = DB().fetch_one(q, row_factory=psycopg.rows.dict_row)
+        assert data is not None or data != []
+
+
+def test_carbonDB_add():
+    energydata = [{
+        'type': 'machine.ci',
+        'energy_value': '1',
+        'time_stamp': str(int(time.time() * 1e6)),
+        'company': '',
+        'project': '',
+        'machine': 'f6d93b14-31c3-4565-9833-675371c67f2f',
+        'tags': "x,y"
+    }]
+
+
+    response = requests.post(f"{API_URL}/v1/carbondb/add", json=energydata, timeout=15)
+    assert response.status_code == 202
+
+    data = DB().fetch_one('SELECT * FROM carbondb_energy_data', row_factory=psycopg.rows.dict_row)
+    assert data is not None or data != []
