@@ -265,6 +265,7 @@ CREATE TRIGGER hog_coalitions_moddatetime
 
 CREATE INDEX idx_coalition_energy_impact ON hog_coalitions(energy_impact);
 CREATE INDEX idx_coalition_name ON hog_coalitions(name);
+CREATE INDEX idx_coalition_measurement ON hog_coalitions(measurement);
 
 CREATE TABLE hog_tasks (
     id SERIAL PRIMARY KEY,
