@@ -34,7 +34,7 @@ def replace_include_in_usage_scenario(usage_scenario_path, docker_compose_filena
 
 
 def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='folder', branch=None,
-        debug_mode=False, allow_unsafe=False, no_file_cleanup=False,
+        debug_mode=False, allow_unsafe=False,
         skip_unsafe=False, verbose_provider_boot=False, dir_name=None, dev_no_build=False, skip_system_checks=True,
         dev_no_sleeps=True, dev_no_metrics=True):
     usage_scenario_path = os.path.join(CURRENT_DIR, 'data/usage_scenarios/', usage_scenario)
@@ -52,7 +52,7 @@ def setup_runner(usage_scenario, docker_compose=None, uri='default', uri_type='f
     RUN_NAME = 'test_' + utils.randomword(12)
 
     return Runner(name=RUN_NAME, uri=uri, uri_type=uri_type, filename=usage_scenario, branch=branch,
-        debug_mode=debug_mode, allow_unsafe=allow_unsafe, no_file_cleanup=no_file_cleanup,
+        debug_mode=debug_mode, allow_unsafe=allow_unsafe,
         skip_unsafe=skip_unsafe, verbose_provider_boot=verbose_provider_boot, dev_no_build=dev_no_build,
         skip_system_checks=skip_system_checks, dev_no_sleeps=dev_no_sleeps, dev_no_metrics=dev_no_metrics)
 
