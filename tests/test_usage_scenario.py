@@ -670,7 +670,7 @@ def test_file_cleanup():
         encoding='UTF-8'
     )
     assert not os.path.exists('/tmp/green-metrics-tool'), \
-        Tests.assertion_info('tmp directory exists', os.path.exists('/tmp/green-metrics-tool'))
+        Tests.assertion_info('tmp directory exists', not os.path.exists('/tmp/green-metrics-tool'))
 
 #pylint: disable=unused-variable
 def test_skip_and_allow_unsafe_both_true():

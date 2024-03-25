@@ -89,7 +89,7 @@ def join_paths(path, path2, mode='file'):
 class Runner:
     def __init__(self,
         name, uri, uri_type, filename='usage_scenario.yml', branch=None,
-        debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_system_checks=False,
+        debug_mode=False, allow_unsafe=False,  skip_system_checks=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
         dev_no_sleeps=False, dev_no_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, docker_prune=False, job_id=None):
@@ -101,7 +101,6 @@ class Runner:
         self._name = name
         self._debugger = DebugHelper(debug_mode)
         self._allow_unsafe = allow_unsafe
-        self._no_file_cleanup = no_file_cleanup
         self._skip_unsafe = skip_unsafe
         self._skip_system_checks = skip_system_checks
         self._verbose_provider_boot = verbose_provider_boot
@@ -1681,6 +1680,8 @@ if __name__ == '__main__':
 
         optimization_providers.base.run_reporters(runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
+        if args.file_cleanup:
+            shutil.rmtree(runner._tmp_folder)
 
         print(TerminalColors.OKGREEN,'\n\n####################################################################################')
         print(f"Please access your report on the URL {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={runner._run_id}")
