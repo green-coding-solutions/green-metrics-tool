@@ -1263,11 +1263,10 @@ class EnergyData(BaseModel):
 
     @field_validator('company', 'project', 'tags')
     @classmethod
-    def empty_str_to_none(cls, values, field):
-        value = values.get(field.name)
-        if value == '':
+    def empty_str_to_none(cls, values, _):
+        if values == '':
             return None
-        return value
+        return values
 
 @app.post('/v1/carbondb/add')
 async def add_carbondb(request: Request, energydatas: List[EnergyData]):
