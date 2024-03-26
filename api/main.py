@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pydantic import BaseModel, ValidationError, validator
+from pydantic import BaseModel, ValidationError, field_validator
 from typing import Optional
 from uuid import UUID
 
@@ -1261,12 +1261,12 @@ class EnergyData(BaseModel):
     time_stamp: str
     energy_value: str
 
-    @validator('company', 'project', 'tags', pre=True, always=True)
+    @field_validator('company', 'project', 'tags')
     @classmethod
-    def empty_str_to_none(cls, v):
-        if v == '':
+    def empty_str_to_none(cls, values, _):
+        if values == '':
             return None
-        return v
+        return values
 
 @app.post('/v1/carbondb/add')
 async def add_carbondb(request: Request, energydatas: List[EnergyData]):
