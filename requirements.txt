@@ -5,13 +5,8 @@ psycopg_pool==3.2.1
 pyserial==3.5
 psutil==5.9.8
 schema==0.7.5
-anybadge==1.14.0
-requests==2.31.0
-fastapi==0.110.0
-orjson==3.10.0
 
 # calibration script dep
 tqdm==4.66.2
 plotext==5.2.8
 docker==7.0.0
-
