@@ -8,4 +8,3 @@ anybadge==1.14.0
 
 # just to clear the pylint errors for the files in /api
 scipy==1.12.0
-orjson==3.10.0
