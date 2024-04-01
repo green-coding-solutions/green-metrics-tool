@@ -176,6 +176,11 @@ CREATE TABLE ci_measurements (
     label text,
     duration bigint,
     source text,
+    lat text,
+    lon text,
+    city text,
+    co2i text,
+    co2eq text,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );

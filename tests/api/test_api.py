@@ -77,6 +77,36 @@ def test_ci_measurement_add():
         else:
             assert data[key] == measurement.model_dump()[key], Tests.assertion_info(f"{key}: {data[key]}", measurement.model_dump()[key])
 
+
+def test_ci_measurement_add_co2():
+    measurement = CI_Measurement(energy_value=123,
+                        energy_unit='mJ',
+                        repo='testRepo',
+                        branch='testBranch',
+                        cpu='testCPU',
+                        cpu_util_avg=50,
+                        commit_hash='1234asdf',
+                        workflow='testWorkflow',
+                        run_id='testRunID',
+                        source='testSource',
+                        label='testLabel',
+                        duration=20,
+                        workflow_name='testWorkflowName',
+                        lat="18.2972",
+                        lon="77.2793",
+                        city="Nine Mile",
+                        co2i="100",
+                        co2eq="0.1234567893453245"
+                        )
+    response = requests.post(f"{API_URL}/v1/ci/measurement/add", json=measurement.model_dump(), timeout=15)
+    assert response.status_code == 201, Tests.assertion_info('success', response.text)
+    query = """
+            SELECT * FROM ci_measurements WHERE run_id = %s
+            """
+    data = DB().fetch_one(query, (measurement.run_id, ), row_factory=psycopg.rows.dict_row)
+    assert data is not None
+
+
 def test_carbonDB_measurement_add():
     measurement = CI_Measurement(energy_value=123,
                         energy_unit='mJ',
