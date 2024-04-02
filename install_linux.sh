@@ -232,6 +232,7 @@ if [[ $no_python != true ]] ; then
     print_message "Updating python requirements"
     python3 -m pip install --upgrade pip
     python3 -m pip install -r requirements.txt
+    python3 -m pip install -r docker/requirements.txt
     python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 fi
 
