@@ -8,6 +8,6 @@ pandas==2.2.1
 PyYAML==6.0.1
 anybadge==1.14.0
 orjson==3.10.0
-scipy==1.12.0
+scipy==1.13.0
 schema==0.7.5
 requests==2.31.0
