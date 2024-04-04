@@ -149,7 +149,7 @@ def test_carbonDB_add():
 
 
     response = requests.post(f"{API_URL}/v1/carbondb/add", json=energydata, timeout=15)
-    assert response.status_code == 202
+    assert response.status_code == 204
 
     data = DB().fetch_one('SELECT * FROM carbondb_energy_data', row_factory=psycopg.rows.dict_row)
     assert data is not None or data != []
