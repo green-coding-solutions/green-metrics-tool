@@ -16,4 +16,4 @@ class PsuEnergyDcRaplMsrMachineProvider(BaseMetricProvider):
 
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
         call_string = f"{self._current_dir}/{self._metric_provider_executable}"
-        super().check_system(check_command=[f"{call_string}", '-c', '-d'])
+        super().check_system(check_command=[f"{call_string}", '-c', '-p'])
