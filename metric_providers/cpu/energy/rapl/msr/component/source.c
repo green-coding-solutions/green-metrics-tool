@@ -394,7 +394,7 @@ static int setup_measurement_units(int measurement_mode) {
         }
         else if(measurement_mode == MEASURE_PSYS) {
             energy_status = MSR_PLATFORM_ENERGY_STATUS;
-            energy_units[j] = cpu_energy_units[j];
+            energy_units[j] = cpu_energy_units[j]; // are identical according to March 2024 Intel Dev Manual to CPU
         }
         else {
             fprintf(stderr,"Unknown measurement mode: %d\n",measurement_mode);

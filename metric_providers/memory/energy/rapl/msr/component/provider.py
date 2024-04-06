@@ -6,7 +6,7 @@ class MemoryEnergyRaplMsrComponentProvider(BaseMetricProvider):
     def __init__(self, resolution, skip_check=False):
         super().__init__(
             metric_name='memory_energy_rapl_msr_component',
-            metrics={'time': int, 'value': int, 'package_id': str},
+            metrics={'time': int, 'value': int, 'dram_id': str},
             resolution=resolution,
             unit='mJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
