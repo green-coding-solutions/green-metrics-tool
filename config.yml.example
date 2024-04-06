@@ -95,6 +95,8 @@ measurement:
 #        resolution: 99
 #      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
 #        resolution: 99
+#      psu.energy.dc.rapl.msr.machine.provider.PsuEnergyDcRaplMsrMachineProvider:
+#        resolution: 99
     #--- GPU - Only enable these if you have GPUs with power measurement enabled in your machine
 #      gpu.energy.nvidia.smi.component.provider.GpuEnergyNvidiaSmiComponentProvider:
 #        resolution: 99
