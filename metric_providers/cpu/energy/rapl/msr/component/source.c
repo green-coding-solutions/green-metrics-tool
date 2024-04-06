@@ -510,7 +510,6 @@ int main(int argc, char **argv) {
             break;
         case 'p':
             measurement_mode=MEASURE_PSYS;
-            printf("Setting measurement mode to %d", measurement_mode);
             break;
         case 'c':
             check_system_flag = 1;
