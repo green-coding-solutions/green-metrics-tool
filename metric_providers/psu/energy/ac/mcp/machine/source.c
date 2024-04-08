@@ -261,7 +261,7 @@ int main(int argc, char **argv) {
         }
         // The MCP returns the current power consumption in 10mW steps.
         gettimeofday(&now, NULL);
-        printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (long)(data[0]*10*((double)msleep_time/1000)) );
+        printf("%ld%06ld %d\n", now.tv_sec, now.tv_usec, data[0]);
         usleep(msleep_time*1000);
     }
     close(fd);
