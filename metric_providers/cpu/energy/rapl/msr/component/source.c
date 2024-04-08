@@ -269,6 +269,7 @@ static int detect_packages(void) {
 
 #define MEASURE_ENERGY_PKG 1
 #define MEASURE_DRAM 2
+#define MEASURE_PSYS 3
 
 int dram_avail=0;
 int different_units=0;
@@ -337,7 +338,7 @@ static int check_availability(int cpu_model, int measurement_mode) {
     }
 
     if(measurement_mode == MEASURE_DRAM && !dram_avail) {
-        fprintf(stderr,"DRAM not available for your processer.\n");
+        fprintf(stderr,"DRAM not available for your processer. %d \n", measurement_mode);
         exit(-1);
     }
 
@@ -391,6 +392,10 @@ static int setup_measurement_units(int measurement_mode) {
             energy_status = MSR_DRAM_ENERGY_STATUS;
             energy_units[j] = dram_energy_units[j];
         }
+        else if(measurement_mode == MEASURE_PSYS) {
+            energy_status = MSR_PLATFORM_ENERGY_STATUS;
+            energy_units[j] = cpu_energy_units[j]; // are identical according to March 2024 Intel Dev Manual to CPU
+        }
         else {
             fprintf(stderr,"Unknown measurement mode: %d\n",measurement_mode);
             exit(-1);
@@ -416,7 +421,7 @@ static int check_system() {
 
 }
 
-static int rapl_msr() {
+static int rapl_msr(int measurement_mode) {
     int fd;
     long long result;
     double package_before[MAX_PACKAGES],package_after[MAX_PACKAGES];
@@ -460,7 +465,13 @@ static int rapl_msr() {
         // For now, skip reporting this value. in the future, we can use a branchless alternative
         if(energy_output>=0) {
             gettimeofday(&now, NULL);
-            printf("%ld%06ld %ld Package_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), j);
+            if (measurement_mode == MEASURE_ENERGY_PKG) {
+                printf("%ld%06ld %ld Package_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), j);
+            } else if (measurement_mode == MEASURE_DRAM) {
+                printf("%ld%06ld %ld DRAM_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), j);
+            } else if (measurement_mode == MEASURE_PSYS) {
+                printf("%ld%06ld %ld PSYS_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), j);
+            }
         }
         /*
         else {
@@ -478,23 +489,27 @@ int main(int argc, char **argv) {
 
     int c;
     int cpu_model;
-    int measure_mode = MEASURE_ENERGY_PKG;
+    int measurement_mode = MEASURE_ENERGY_PKG;
     int check_system_flag = 0;
 
-    while ((c = getopt (argc, argv, "hi:dc")) != -1) {
+    while ((c = getopt (argc, argv, "hi:dcp")) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-h] [-m]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
-            printf("\t-d      : measure the dram energy instead of the entire package\n");
+            printf("\t-d      : measure the dram energy instead of the CPU package\n");
+            printf("\t-p      : measure the psys energy instead of the CPU package\n");
             printf("\t-c      : check system and exit\n");
             exit(0);
         case 'i':
             msleep_time = atoi(optarg);
             break;
         case 'd':
-            measure_mode=MEASURE_DRAM;
+            measurement_mode=MEASURE_DRAM;
+            break;
+        case 'p':
+            measurement_mode=MEASURE_PSYS;
             break;
         case 'c':
             check_system_flag = 1;
@@ -510,15 +525,15 @@ int main(int argc, char **argv) {
 
     cpu_model=detect_cpu();
     detect_packages();
-    check_availability(cpu_model, measure_mode);
-    setup_measurement_units(measure_mode);
+    check_availability(cpu_model, measurement_mode);
+    setup_measurement_units(measurement_mode);
 
     if(check_system_flag){
         exit(check_system()); 
     }
 
     while(1) {
-        rapl_msr();
+        rapl_msr(measurement_mode);
     }
 
     return 0;
