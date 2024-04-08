@@ -1111,6 +1111,11 @@ class CI_Measurement(BaseModel):
     cb_company_uuid: Optional[str] = ''
     cb_project_uuid: Optional[str] = ''
     cb_machine_uuid: Optional[str] = ''
+    lat: Optional[str] = ''
+    lon: Optional[str] = ''
+    city: Optional[str] = ''
+    co2i: Optional[str] = ''
+    co2eq: Optional[str] = ''
 
 @app.post('/v1/ci/measurement/add')
 async def post_ci_measurement_add(request: Request, measurement: CI_Measurement):
@@ -1123,7 +1128,7 @@ async def post_ci_measurement_add(request: Request, measurement: CI_Measurement)
                     raise RequestValidationError("Unit is unsupported - only mJ currently accepted")
                 continue
 
-            case 'label' | 'workflow_name' | 'cb_company_uuid' | 'cb_project_uuid' | 'cb_machine_uuid':  # Optional fields
+            case 'label' | 'workflow_name' | 'cb_company_uuid' | 'cb_project_uuid' | 'cb_machine_uuid' | 'lat' | 'lon' | 'city' | 'co2i' | 'co2eq':  # Optional fields
                 continue
 
             case _:
@@ -1137,12 +1142,31 @@ async def post_ci_measurement_add(request: Request, measurement: CI_Measurement)
 
     query = """
         INSERT INTO
-            ci_measurements (energy_value, energy_unit, repo, branch, workflow_id, run_id, label, source, cpu, commit_hash, duration, cpu_util_avg, workflow_name)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ci_measurements (energy_value,
+                            energy_unit,
+                            repo,
+                            branch,
+                            workflow_id,
+                            run_id,
+                            label,
+                            source,
+                            cpu,
+                            commit_hash,
+                            duration,
+                            cpu_util_avg,
+                            workflow_name,
+                            lat,
+                            lon,
+                            city,
+                            co2i,
+                            co2eq
+                            )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
     params = (measurement.energy_value, measurement.energy_unit, measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
-            measurement.commit_hash, measurement.duration, measurement.cpu_util_avg, measurement.workflow_name)
+            measurement.commit_hash, measurement.duration, measurement.cpu_util_avg, measurement.workflow_name,
+            measurement.lat, measurement.lon, measurement.city, measurement.co2i, measurement.co2eq)
 
     DB().query(query=query, params=params)
 
@@ -1184,7 +1208,7 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
                 AND latest_workflow.branch = ci_measurements.branch
                 AND latest_workflow.workflow_id = ci_measurements.workflow_id
                 ORDER BY latest_workflow.created_at DESC
-                LIMIT 1) AS workflow_name
+                LIMIT 1) AS workflow_name, lat, lon, city, co2i, co2eq
         FROM ci_measurements
         WHERE
             repo = %s AND branch = %s AND workflow_id = %s

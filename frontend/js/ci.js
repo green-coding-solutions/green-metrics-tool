@@ -89,7 +89,7 @@ const createStatsArrays = (measurements) => {  // iterates 2n times (1 full, 1 b
         if (energy != null) {
             measurementsByLabel[label].energy.push(energy);
             measurementsByRun[run_id].energy += energy;
-        } 
+        }
         if (time != null) {
             measurementsByLabel[label].time.push(time);
             measurementsByRun[run_id].time += time;
@@ -172,7 +172,7 @@ const getChartOptions = (measurements, chart_element) => {
     const labels = []
 
     measurements.forEach(measurement => { // iterate over all measurements, which are in row order
-        let [value, unit, run_id, timestamp, label, cpu, commit_hash, duration, source, cpu_util] = measurement;
+        let [value, unit, run_id, timestamp, label, cpu, commit_hash, duration, source, cpu_util, workflow_name, lat, lon, city, co2i, co2eq] = measurement;
         cpu_util = cpu_util ? cpu_util : '--';
         options.series.push({
             type: 'bar',
@@ -187,7 +187,21 @@ const getChartOptions = (measurements, chart_element) => {
         })
         legend.add(cpu)
 
-        labels.push({value: value, unit: unit, run_id: run_id, labels: [label], cpu_util: cpu_util, duration: duration, commit_hash: commit_hash, timestamp: dateToYMD(new Date(timestamp))})
+        labels.push({
+            value: value,
+            unit: unit,
+            run_id: run_id,
+            labels: [label],
+            cpu_util: cpu_util,
+            duration: duration,
+            commit_hash: commit_hash,
+            timestamp: dateToYMD(new Date(timestamp)),
+            lat: lat,
+            lon: lon,
+            city: city,
+            co2i: co2i,
+            co2eq: co2eq
+        })
     });
 
     options.legend.data = Array.from(legend)
@@ -207,6 +221,9 @@ const getChartOptions = (measurements, chart_element) => {
                     value: ${escapeString(labels[params.componentIndex].value)} ${escapeString(labels[params.componentIndex].unit)}<br>
                     duration: ${escapeString(labels[params.componentIndex].duration)} seconds<br>
                     avg. cpu. utilization: ${escapeString(labels[params.componentIndex].cpu_util)}%<br>
+                    location of run: ${escapeString(labels[params.componentIndex].city || 'N/A')}<br>
+                    grid intensity: ${escapeString(labels[params.componentIndex].co2i || 'N/A')}<br>
+                    co2eq: ${escapeString(labels[params.componentIndex].co2eq || 'N/A')}<br>
                     `;
         }
     };
@@ -289,9 +306,14 @@ const displayCITable = (measurements, repo) => {
         const tooltip = `title="${commit_hash}"`;
         const source = el[8];
         const cpu_avg = el[9] ? el[9] : '--';
+        const lat = el[11];
+        const lon = el[12];
+        const city = el[13];
+        const co2i = el[14];
+        const co2eq = el[15];
 
         let run_link = '';
-        
+
         const run_id_esc = escapeString(run_id)
 
         if(source == 'github') {
@@ -302,11 +324,15 @@ const displayCITable = (measurements, repo) => {
         }
 
         const run_link_node = `<a href="${run_link}" target="_blank">${run_id_esc}</a>`
-
+        let city_string = ''
+        if (city){
+            city_string = `${escapeString(city)} (${escapeString(lat)},${escapeString(lon)})`
+        }
         const created_at = el[3]
 
         const label = el[4]
         const duration = el[7]
+
 
         li_node.innerHTML = `
                             <td class="td-index">${run_link_node}</td>\
@@ -317,6 +343,9 @@ const displayCITable = (measurements, repo) => {
                             <td class="td-index">${escapeString(cpu_avg)}%</td>
                             <td class="td-index">${escapeString(duration)} seconds</td>
                             <td class="td-index" ${escapeString(tooltip)}>${escapeString(short_hash)}</td>\
+                            <td class="td-index">${city_string}</td>
+                            <td class="td-index">${escapeString(co2i)}</td>
+                            <td class="td-index">${escapeString(co2eq)}</td>
                             `;
         document.querySelector("#ci-table").appendChild(li_node);
     });
@@ -413,7 +442,7 @@ $(document).ready((e) => {
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(workflow_name)}</td></tr>`)
 
         displayCITable(measurements.data, repo); // Iterates I (total: 1)
-        
+
         chart_instance = displayGraph(measurements.data) // iterates I (total: 2)
 
         displayStatsTable(measurements.data) // iterates II (total: 4)
