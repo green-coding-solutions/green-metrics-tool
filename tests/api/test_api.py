@@ -70,7 +70,7 @@ def test_ci_measurement_add():
             """
     data = DB().fetch_one(query, (measurement.run_id, ), row_factory=psycopg.rows.dict_row)
     assert data is not None
-    for key in measurement.model_dump().keys():
+    for key in measurement.model_dump():
         if key == 'workflow':
             assert data['workflow_id'] == measurement.model_dump()[key], Tests.assertion_info(f"workflow_id: {data['workflow_id']}", measurement.model_dump()[key])
         elif key in ['cb_company_uuid', 'cb_project_uuid', 'cb_machine_uuid']:
@@ -145,7 +145,7 @@ def test_carbonDB_measurement_add():
             """
     data = DB().fetch_one(query, row_factory=psycopg.rows.dict_row)
     assert data is not None or data != []
-    assert exp_data == {key: data[key] for key in exp_data.keys() if key in data}, "The specified keys do not have the same values in both dictionaries."
+    assert exp_data == {key: data[key] for key in exp_data if key in data}, "The specified keys do not have the same values in both dictionaries."
 
 
 def todo_test_get_runs():
@@ -207,9 +207,9 @@ def test_carbonDB_add():
         'longitude': 13.424863870661927
         }
 
-    response = requests.post(f"{API_URL}/v1/carbondb/add", json=energydata, timeout=15)
+    response = requests.post(f"{API_URL}/v1/carbondb/add", json=[energydata], timeout=15)
     assert response.status_code == 204
 
     data = DB().fetch_one('SELECT * FROM carbondb_energy_data', row_factory=psycopg.rows.dict_row)
     assert data is not None or data != []
-    assert exp_data == {key: data[key] for key in exp_data.keys() if key in data}, "The specified keys do not have the same values in both dictionaries."
+    assert exp_data == {key: data[key] for key in exp_data if key in data}, "The specified keys do not have the same values in both dictionaries."
