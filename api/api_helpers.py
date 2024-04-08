@@ -760,4 +760,4 @@ def carbondb_add(client_ip, energydatas):
         )
     """)
 
-    return ORJSONResponse({'success': True}, status_code=202)
+    return ORJSONResponse({'success': True}, status_code=204)
