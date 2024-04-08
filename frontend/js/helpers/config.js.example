@@ -9,10 +9,27 @@ METRICS_URL = "__METRICS_URL__"
 
 METRIC_MAPPINGS = {
 
+    'psu_co2_dc_rapl_msr_machine': {
+        'clean_name': 'Machine CO2',
+        'source': 'RAPL',
+        'explanation': 'Machine CO2 calculated by formula via RAPL PSYS Domain',
+    },
+
+    'psu_energy_dc_rapl_msr_machine': {
+        'clean_name': 'Machine Energy',
+        'source': 'RAPL',
+        'explanation': 'Full machine energy (DC) as reported by RAPL PSYS Domain',
+    },
+    'psu_power_dc_rapl_msr_machine': {
+        'clean_name': 'Machine Power',
+        'source': 'RAPL',
+        'explanation': 'Full machine power (DC) as reported by RAPL PSYS Domain',
+    },
+
     'psu_co2_ac_mcp_machine': {
         'clean_name': 'Machine CO2',
         'source': 'mcp',
-        'explanation': 'Machine CO2 as reported by mcp',
+        'explanation': 'Machine CO2 calculated by formula via mcp',
     },
 
     'psu_energy_ac_mcp_machine': {
@@ -23,7 +40,7 @@ METRIC_MAPPINGS = {
     'psu_power_ac_mcp_machine': {
         'clean_name': 'Machine Power',
         'source': 'mcp',
-        'explanation': 'Full machine power (AC) as reported by PowerSpy2',
+        'explanation': 'Full machine power (AC) as reported by mcp',
     },
 
     'embodied_carbon_share_machine': {
