@@ -20,21 +20,20 @@
     - https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/20005473B.pdf
 */
 
-// Set address pointer to 0xa (active power), read 32 bits
-const unsigned char f501_read_active_power[] = { 0x41, 0x0, 0xa, 0x44 };
-const unsigned char f501_read_apparent_power_divisor[] =
-    { 0x41, 0x00, 0x40, 0x52 };
-const unsigned char f501_set_apparent_power_divisor[] =
-    { 0x41, 0x00, 0x40, 0x57, 0x00, 0x03 };
-const unsigned char f501_set_accumulation_interval[] =
-    { 0x41, 0x00, 0x5A, 0x57, 0x00, 0x00 };
-const unsigned char f501_read_range[] = { 0x41, 0x00, 0x48, 0x44 };
-
+// we read both channels in one frame here, so 8 byte
 const unsigned char f511_read_active_power[] = { 0x41, 0x0, 0x16, 0x4E, 8 };
-const unsigned char f511_read_active_power1[] = { 0x41, 0x0, 0x16, 0x4E, 4 };
-const unsigned char f511_read_active_power2[] = { 0x41, 0x0, 0x1a, 0x4E, 4 };
-const unsigned char f511_set_accumulation_interval[] =
-    { 0x41, 0x00, 0xA8, 0x4D, 2, 0x00, 0x00 };
+
+// least significant bit first. So 0x01 0x00 will set to 0x0001
+// the accumulation interval is 2^N*(1/f). f is typically 50 Hz. So N=1 would equal to 40ms max resolution
+// although 2^0 can be technically set we see that the powerfactor then gets calculated wrongly and
+// sometimes even a negative active power will be reported. This seems to be an undersampling issue.
+// setting N = 1 should be the smallest value
+// factory default is N = 4. It is unclear if this has any accuracy benefit since it was used in factory calibration.
+
+const unsigned char f511_set_accumulation_interval[] = { 0x41, 0x00, 0xA8, 0x4D, 2, 0x01, 0x00 };  // N = 1
+// const unsigned char f511_set_accumulation_interval[] = { 0x41, 0x00, 0xA8, 0x4D, 2, 0x02, 0x00 };  // N = 2
+// const unsigned char f511_set_accumulation_interval[] = { 0x41, 0x00, 0xA8, 0x4D, 2, 0x03, 0x00 };  // N = 3
+// const unsigned char f511_set_accumulation_interval[] = { 0x41, 0x00, 0xA8, 0x4D, 2, 0x04, 0x00 };  // N = 4 (factory default)
 
 /* This variable ist just global for consitency with our other metric_provider source files */
 static unsigned int msleep_time=1000;
@@ -180,9 +179,9 @@ int f511_get_power(int *ch1, int *ch2, int fd)
             sizeof(f511_read_active_power), (unsigned char *)&reply, fd);
     if (res > 0) {
         *ch1 = (reply[3] << 24) + (reply[2] << 16)
-            + (reply[1] << 8) + reply[0];
+            + (reply[1] << 8) + reply[0]; // change from LSB to MSB
         *ch2 = (reply[7] << 24) + (reply[6] << 16)
-            + (reply[5] << 8) + reply[4];
+            + (reply[5] << 8) + reply[4];  // change from LSB to MSB
         return 0;
     } else {
         return -1;
