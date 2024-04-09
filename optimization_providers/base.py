@@ -5,6 +5,8 @@ from pathlib import Path
 import asyncio
 
 from lib.global_config import GlobalConfig
+from lib import utils
+
 from api.main import get_measurements_single, get_network, get_notes, get_phase_stats_single, get_run
 
 class Criticality(Enum):
@@ -41,13 +43,16 @@ class Reporter:
     def run(self, *args, **kwargs):
         self.function(self, *args, **kwargs)
 
-def register_reporter(tag, criticality, name, icon, need_files=False):
+def register_reporter(tag, criticality, name, icon, need_files=False, req_providers=None):
+    req_providers = [] if req_providers is None else req_providers
     def decorator(func):
         #pylint: disable=global-statement
         global keep_files
         reporter = Reporter(func, tag, criticality, name, icon)
 
-        if reporter.tag not in ignore_tags:
+        providers = [key.split('.')[-1] for key in utils.get_metric_providers(GlobalConfig().config).keys()]
+
+        if reporter.tag not in ignore_tags and all(item in providers for item in req_providers):
             reporters.append(reporter)
             if need_files:
                 keep_files = True
@@ -114,7 +119,7 @@ def import_reporters():
         #pylint: disable=broad-exception-caught
         try:
             importlib.import_module(module_path)
-            print(f"Successfully imported {module_path}")
+            print(f"Trying to import {module_path}")
         except Exception as e:
             print(f"Failed to import {module_path}: {e}")
 

@@ -64,6 +64,7 @@ CREATE TABLE runs (
     phases JSON,
     logs text,
     invalid_run text,
+    failed boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -175,10 +176,15 @@ CREATE TABLE ci_measurements (
     label text,
     duration bigint,
     source text,
+    lat text,
+    lon text,
+    city text,
+    co2i text,
+    co2eq text,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
-CREATE INDEX "ci_measurements_get" ON ci_measurements(repo, branch, workflow_id, run_id, created_at);
+CREATE INDEX "ci_measurements_subselect" ON ci_measurements(repo, branch, workflow_id, created_at);
 CREATE TRIGGER ci_measurements_moddatetime
     BEFORE UPDATE ON ci_measurements
     FOR EACH ROW
@@ -264,6 +270,7 @@ CREATE TRIGGER hog_coalitions_moddatetime
 
 CREATE INDEX idx_coalition_energy_impact ON hog_coalitions(energy_impact);
 CREATE INDEX idx_coalition_name ON hog_coalitions(name);
+CREATE INDEX idx_coalition_measurement ON hog_coalitions(measurement);
 
 CREATE TABLE hog_tasks (
     id SERIAL PRIMARY KEY,

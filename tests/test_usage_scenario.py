@@ -642,14 +642,13 @@ def test_different_filename_missing():
     assert expected_exception in str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
-#   --no-file-cleanup
-#    Do not delete files in /tmp/green-metrics-tool
+#   Check that default is to leave the files
 def test_no_file_cleanup():
     uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
     RUN_NAME = 'test_' + utils.randomword(12)
     subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
-         '--no-file-cleanup', '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
+         '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -657,6 +656,21 @@ def test_no_file_cleanup():
     )
     assert os.path.exists('/tmp/green-metrics-tool'), \
         Tests.assertion_info('tmp directory exists', os.path.exists('/tmp/green-metrics-tool'))
+
+#   Check that the temp dir is deleted when using --file-cleanup
+def test_file_cleanup():
+    uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
+    RUN_NAME = 'test_' + utils.randomword(12)
+    subprocess.run(
+        ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
+         '--file-cleanup', '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+    assert not os.path.exists('/tmp/green-metrics-tool'), \
+        Tests.assertion_info('tmp directory exists', not os.path.exists('/tmp/green-metrics-tool'))
 
 #pylint: disable=unused-variable
 def test_skip_and_allow_unsafe_both_true():

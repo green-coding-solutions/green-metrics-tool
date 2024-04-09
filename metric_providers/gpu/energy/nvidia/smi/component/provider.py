@@ -7,7 +7,7 @@ class GpuEnergyNvidiaSmiComponentProvider(BaseMetricProvider):
         super().__init__(
             metric_name='gpu_energy_nvidia_smi_component',
             metrics={'time': int, 'value': int},
-            resolution=resolution,
+            resolution=0.001 * resolution,
             unit='mJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='metric-provider-nvidia-smi-wrapper.sh',
@@ -40,7 +40,8 @@ class GpuEnergyNvidiaSmiComponentProvider(BaseMetricProvider):
         intervals = df['time'].diff()
         intervals[0] = intervals.mean()  # approximate first interval
         df['interval'] = intervals  # in microseconds
-        df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_000, axis=1)
+        # value is initially not in Watts, but in centiWatts. So we just divide by 1_000_00
+        df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_000_00, axis=1)
         df['value'] = df.value.fillna(0) # maybe not needed
         df['value'] = df.value.astype(int)
 

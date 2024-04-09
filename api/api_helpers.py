@@ -138,7 +138,7 @@ def get_run_info(run_id):
                     LEFT JOIN categories as t on t.id = elements) as categories,
                 filename, start_measurement, end_measurement,
                 measurement_config, machine_specs, machine_id, usage_scenario,
-                created_at, invalid_run, phases, logs
+                created_at, invalid_run, phases, logs, failed
             FROM runs
             WHERE id = %s
             """
@@ -776,4 +776,4 @@ def carbondb_add(client_ip, energydatas):
         )
     """)
 
-    return ORJSONResponse({'success': True}, status_code=202)
+    return ORJSONResponse({'success': True}, status_code=204)

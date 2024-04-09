@@ -89,7 +89,7 @@ def join_paths(path, path2, mode='file'):
 class Runner:
     def __init__(self,
         name, uri, uri_type, filename='usage_scenario.yml', branch=None,
-        debug_mode=False, allow_unsafe=False, no_file_cleanup=False, skip_system_checks=False,
+        debug_mode=False, allow_unsafe=False,  skip_system_checks=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
         dev_no_sleeps=False, dev_no_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, docker_prune=False, job_id=None):
@@ -101,7 +101,6 @@ class Runner:
         self._name = name
         self._debugger = DebugHelper(debug_mode)
         self._allow_unsafe = allow_unsafe
-        self._no_file_cleanup = no_file_cleanup
         self._skip_unsafe = skip_unsafe
         self._skip_system_checks = skip_system_checks
         self._verbose_provider_boot = verbose_provider_boot
@@ -827,6 +826,15 @@ class Runner:
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
 
+            if 'deploy' in service:
+                if memory := service['deploy'].get('resources', {}).get('limits', {}).get('memory', None):
+                    docker_run_string.append('-m')
+                    docker_run_string.append(str(memory))
+                if cpus := service['deploy'].get('resources', {}).get('limits', {}).get('cpus', None):
+                    docker_run_string.append('--cpus')
+                    docker_run_string.append(str(cpus))
+
+
             if 'healthcheck' in service:  # must come last
                 if 'disable' in service['healthcheck'] and service['healthcheck']['disable'] is True:
                     docker_run_string.append('--no-healthcheck')
@@ -855,6 +863,7 @@ class Runner:
                         docker_run_string.append(service['healthcheck']['start_period'])
                     if 'start_interval' in service['healthcheck']:
                         raise RuntimeError('start_interval is not supported atm in healthcheck')
+
 
             docker_run_string.append(self.clean_image_name(service['image']))
 
@@ -973,6 +982,8 @@ class Runner:
 
         print(TerminalColors.HEADER, '\nCurrent known containers: ', self.__containers, TerminalColors.ENDC)
 
+    # This method only exists to make logs read-only available outside of the self context
+    # Internally we are still using normal __stdout_logs access to read and not funnel through this method
     def get_logs(self):
         return self.__stdout_logs
 
@@ -1197,7 +1208,7 @@ class Runner:
             else: # implicit 1
                 self.__phases.popitem(last=True)
 
-    # this function should never be called twice to avoid double logging of metrics
+    # this method should never be called twice to avoid double logging of metrics
     def stop_metric_providers(self):
         if self._dev_no_metrics:
             return
@@ -1305,6 +1316,17 @@ class Runner:
             WHERE id = %s
             """, params=(self.__start_measurement, self.__end_measurement, self._run_id))
 
+    def set_run_failed(self):
+        if not self._run_id:
+            return # Nothing to do, but also no hard error needed
+
+        DB().query("""
+            UPDATE runs
+            SET failed = TRUE
+            WHERE id = %s
+            """, params=(self._run_id, ))
+
+
     def store_phases(self):
         print(TerminalColors.HEADER, '\nUpdating phases in DB', TerminalColors.ENDC)
         # internally PostgreSQL stores JSON ordered. This means our name-indexed dict will get
@@ -1389,10 +1411,6 @@ class Runner:
             subprocess.run(['docker', 'network', 'rm', network_name], stderr=subprocess.DEVNULL, check=False)
         self.__networks.clear()
 
-        if continue_measurement is False and self._no_file_cleanup is not True:
-            print('Removing files')
-            subprocess.run(['rm', '-Rf', self._tmp_folder], stderr=subprocess.DEVNULL, check=True)
-
         if continue_measurement is False:
             self.remove_docker_images()
 
@@ -1421,8 +1439,8 @@ class Runner:
 
     def run(self):
         '''
-            The run function is just a wrapper for the intended sequential flow of a GMT run.
-            Mainly designed to call the functions individually for testing, but also
+            The run method is just a wrapper for the intended sequential flow of a GMT run.
+            Mainly designed to call the methods individually for testing, but also
             if the flow ever needs to repeat certain blocks.
 
             The runner is to be thought of as a state machine.
@@ -1512,6 +1530,7 @@ class Runner:
 
         except BaseException as exc:
             self.add_to_log(exc.__class__.__name__, str(exc))
+            self.set_run_failed()
             raise exc
         finally:
             try:
@@ -1559,7 +1578,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', type=str, help='A name which will be stored to the database to discern this run from others')
     parser.add_argument('--filename', type=str, default='usage_scenario.yml', help='An optional alternative filename if you do not want to use "usage_scenario.yml"')
     parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be located in the same directory as the regular configuration file. Pass in only the name.')
-    parser.add_argument('--no-file-cleanup', action='store_true', help='Do not delete files in /tmp/green-metrics-tool')
+    parser.add_argument('--file-cleanup', action='store_true', help='Delete all temporary files that the runner produced')
     parser.add_argument('--debug', action='store_true', help='Activate steppable debug mode')
     parser.add_argument('--allow-unsafe', action='store_true', help='Activate unsafe volume bindings, ports and complex environment vars')
     parser.add_argument('--skip-unsafe', action='store_true', help='Skip unsafe volume bindings, ports and complex environment vars')
@@ -1626,24 +1645,9 @@ if __name__ == '__main__':
             sys.exit(1)
         GlobalConfig(config_name=args.config_override)
 
-    # We need to import this here as we need the correct config file
-    import optimization_providers.base
-
-    print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
-    keep_files = optimization_providers.base.import_reporters()
-    if keep_files and args.no_file_cleanup:
-        optimization_cleanup = False
-        file_cleanup_param = False
-    elif keep_files and not args.no_file_cleanup:
-        optimization_cleanup = True
-        file_cleanup_param = True
-    elif not keep_files:
-        optimization_cleanup = False
-        file_cleanup_param = args.no_file_cleanup
-
     runner = Runner(name=args.name, uri=args.uri, uri_type=run_type, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
-                    no_file_cleanup=file_cleanup_param, skip_system_checks=args.skip_system_checks,
+                    skip_system_checks=args.skip_system_checks,
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                     full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
                     dev_no_build=args.dev_no_build, dev_no_metrics=args.dev_no_metrics,
@@ -1667,16 +1671,17 @@ if __name__ == '__main__':
 
         build_and_store_phase_stats(runner._run_id, runner._sci)
 
+        # We need to import this here as we need the correct config file
+        import optimization_providers.base
+        print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
+        optimization_providers.base.import_reporters()
+
         print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
 
-        repo_path = runner._tmp_folder if optimization_cleanup else None
+        optimization_providers.base.run_reporters(runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
-        optimization_providers.base.run_reporters(runner._run_id, repo_path, runner.get_optimizations_ignore())
-
-        if optimization_cleanup:
-            print('Removing files')
-            subprocess.run(['rm', '-Rf', repo_path], stderr=subprocess.DEVNULL, check=True)
-
+        if args.file_cleanup:
+            shutil.rmtree(runner._tmp_folder)
 
         print(TerminalColors.OKGREEN,'\n\n####################################################################################')
         print(f"Please access your report on the URL {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={runner._run_id}")

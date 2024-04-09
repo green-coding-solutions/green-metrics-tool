@@ -1,7 +1,4 @@
 postgresql:
-  # leave the host line empty if you do want to use Unix Domain socket connection
-  # We use container internal networking as it is easier to to setup a test-container-setup
-  # and the performance is identical to socket connections in our internal tests
   host: green-coding-postgres-container
   user: postgres
   dbname: green-coding
@@ -100,6 +97,8 @@ measurement:
 #      psu.energy.ac.mcp.machine.provider.PsuEnergyAcMcpMachineProvider:
 #        resolution: 99
 #      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
+#        resolution: 99
+#      psu.energy.dc.rapl.msr.machine.provider.PsuEnergyDcRaplMsrMachineProvider:
 #        resolution: 99
     #--- GPU - Only enable these if you have GPUs with power measurement enabled in your machine
 #      gpu.energy.nvidia.smi.component.provider.GpuEnergyNvidiaSmiComponentProvider:

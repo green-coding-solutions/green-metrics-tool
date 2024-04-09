@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pydantic import BaseModel, ValidationError, validator
+from pydantic import BaseModel, ValidationError, field_validator
 from typing import Optional
 from uuid import UUID
 
@@ -230,7 +230,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
 async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None):
 
     query = """
-            SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement
+            SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement, r.failed
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE 1=1
@@ -1166,6 +1166,11 @@ class CI_Measurement(BaseModel):
     cb_company_uuid: Optional[str] = ''
     cb_project_uuid: Optional[str] = ''
     cb_machine_uuid: Optional[str] = ''
+    lat: Optional[str] = ''
+    lon: Optional[str] = ''
+    city: Optional[str] = ''
+    co2i: Optional[str] = ''
+    co2eq: Optional[str] = ''
 
 @app.post('/v1/ci/measurement/add')
 async def post_ci_measurement_add(request: Request, measurement: CI_Measurement):
@@ -1178,7 +1183,7 @@ async def post_ci_measurement_add(request: Request, measurement: CI_Measurement)
                     raise RequestValidationError("Unit is unsupported - only mJ currently accepted")
                 continue
 
-            case 'label' | 'workflow_name' | 'cb_company_uuid' | 'cb_project_uuid' | 'cb_machine_uuid':  # Optional fields
+            case 'label' | 'workflow_name' | 'cb_company_uuid' | 'cb_project_uuid' | 'cb_machine_uuid' | 'lat' | 'lon' | 'city' | 'co2i' | 'co2eq':  # Optional fields
                 continue
 
             case _:
@@ -1192,12 +1197,31 @@ async def post_ci_measurement_add(request: Request, measurement: CI_Measurement)
 
     query = """
         INSERT INTO
-            ci_measurements (energy_value, energy_unit, repo, branch, workflow_id, run_id, label, source, cpu, commit_hash, duration, cpu_util_avg, workflow_name)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ci_measurements (energy_value,
+                            energy_unit,
+                            repo,
+                            branch,
+                            workflow_id,
+                            run_id,
+                            label,
+                            source,
+                            cpu,
+                            commit_hash,
+                            duration,
+                            cpu_util_avg,
+                            workflow_name,
+                            lat,
+                            lon,
+                            city,
+                            co2i,
+                            co2eq
+                            )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
     params = (measurement.energy_value, measurement.energy_unit, measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
-            measurement.commit_hash, measurement.duration, measurement.cpu_util_avg, measurement.workflow_name)
+            measurement.commit_hash, measurement.duration, measurement.cpu_util_avg, measurement.workflow_name,
+            measurement.lat, measurement.lon, measurement.city, measurement.co2i, measurement.co2eq)
 
     DB().query(query=query, params=params)
 
@@ -1230,7 +1254,8 @@ async def post_ci_measurement_add(request: Request, measurement: CI_Measurement)
     return ORJSONResponse({'success': True}, status_code=201)
 
 @app.get('/v1/ci/measurements')
-async def get_ci_measurements(repo: str, branch: str, workflow: str):
+async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: str, end_date: str):
+
     query = """
         SELECT energy_value, energy_unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg,
                (SELECT workflow_name FROM ci_measurements AS latest_workflow
@@ -1238,12 +1263,15 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str):
                 AND latest_workflow.branch = ci_measurements.branch
                 AND latest_workflow.workflow_id = ci_measurements.workflow_id
                 ORDER BY latest_workflow.created_at DESC
-                LIMIT 1) AS workflow_name
+                LIMIT 1) AS workflow_name, lat, lon, city, co2i, co2eq
         FROM ci_measurements
-        WHERE repo = %s AND branch = %s AND workflow_id = %s
+        WHERE
+            repo = %s AND branch = %s AND workflow_id = %s
+            AND DATE(created_at) >= TO_DATE(%s, 'YYYY-MM-DD')
+            AND DATE(created_at) <= TO_DATE(%s, 'YYYY-MM-DD')
         ORDER BY run_id ASC, created_at ASC
     """
-    params = (repo, branch, workflow)
+    params = (repo, branch, workflow, start_date, end_date)
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
@@ -1312,12 +1340,12 @@ class EnergyData(BaseModel):
     time_stamp: str
     energy_value: str
 
-    @validator('company', 'project', 'tags', pre=True, always=True)
+    @field_validator('company', 'project', 'tags')
     @classmethod
-    def empty_str_to_none(cls, v):
-        if v == '':
+    def empty_str_to_none(cls, values, _):
+        if values == '':
             return None
-        return v
+        return values
 
 @app.post('/v1/carbondb/add')
 async def add_carbondb(request: Request, energydatas: List[EnergyData]):
