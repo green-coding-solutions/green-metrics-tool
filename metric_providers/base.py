@@ -168,6 +168,8 @@ class BaseMetricProvider:
 
         call_string += f" > {self._filename}"
 
+        call_string = f"taskset -c 0 {call_string}"
+
         if self._disable_buffer:
             call_string = f"stdbuf -o0 {call_string}"
 
