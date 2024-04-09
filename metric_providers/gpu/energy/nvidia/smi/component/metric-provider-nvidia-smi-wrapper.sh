@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-i=''
+i='100'
 
 while getopts "i:" o; do
     case "$o" in
@@ -11,8 +11,9 @@ while getopts "i:" o; do
     esac
 done
 
+i=$(bc <<< "scale=3; $i / 1000")
 
 while true; do
-    echo -en $(($(date +%s%N)/1000)) $(nvidia-smi --query-gpu=power.draw --format=csv,noheader,nounits| awk '{ gsub("\\.", ""); print }')"\n"
-    sleep ${i:-0.1}
+    echo -en $(($(date +%s%N)/1000)) $(nvidia-smi --query-gpu=power.draw --format=csv,noheader,nounits| awk '{ gsub("\\.", ""); print }')"0\n"
+    sleep $i
 done
