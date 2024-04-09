@@ -1,7 +1,7 @@
 #! /bin/bash
 set -euo pipefail
 
-i=''
+i='100'
 check_system=false
 while getopts "i:c" o; do
     case "$o" in
@@ -13,6 +13,8 @@ while getopts "i:c" o; do
             ;;
     esac
 done
+
+i=$(bc <<< "scale=3; $i / 1000")
 
 if $check_system; then
     first_line=$(sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics | head -1)
@@ -32,7 +34,6 @@ fi
 
 
 while true; do
-    echo -en $(($(date +%s%N)/1000)) $(sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics | head -1 |  awk '{print $4}')"\n"
-    sleep ${i:-0.1}
-
+    echo -en $(($(date +%s%N)/1000)) $(sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics | head -1 |  awk '{print $4}')"000\n"
+    sleep $i
 done

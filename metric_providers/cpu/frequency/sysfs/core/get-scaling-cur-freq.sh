@@ -3,7 +3,7 @@ set -euo pipefail
 
 cores=$(cat /proc/cpuinfo | grep processor | awk '{print $3}')
 check_system=false
-i=''
+i='100'
 
 while getopts "i:c" o; do
     case "$o" in
@@ -15,6 +15,8 @@ while getopts "i:c" o; do
             ;;
     esac
 done
+
+i=$(bc <<< "scale=3; $i / 1000")
 
 if $check_system; then
     file_path="/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"
@@ -37,5 +39,5 @@ while true; do
     for core in $cores; do
         echo -en $(($(date +%s%N)/1000)) $(cat /sys/devices/system/cpu/cpu${core}/cpufreq/scaling_cur_freq) "${core}\n"
     done
-    sleep ${i:-0.1}
+    sleep $i
 done

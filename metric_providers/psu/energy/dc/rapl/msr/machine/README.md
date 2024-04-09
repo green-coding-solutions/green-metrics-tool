@@ -6,7 +6,7 @@ It will require `sudo` rights as it will set the UID bit.
 
 # Running
 
-Just run `./metric-provider-binary -d`.
+Just run `./metric-provider-binary -p`.
 
 You can specify a resoltion for the output frequency in *ms* through the `-i` flag.
 

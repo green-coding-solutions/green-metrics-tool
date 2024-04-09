@@ -7,7 +7,7 @@ class CpuFrequencySysfsCoreProvider(BaseMetricProvider):
         super().__init__(
             metric_name='cpu_frequency_sysfs_core',
             metrics={'time': int, 'value': int, 'core_id': int},
-            resolution=0.001*resolution,
+            resolution=resolution,
             unit='Hz',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='get-scaling-cur-freq.sh',
