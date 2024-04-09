@@ -28,6 +28,7 @@ from enum import Enum
 
 
 def get_artifact(artifact_type: Enum, key: str, decode_responses=True):
+    data = None
     try:
         r = redis.Redis(host=GlobalConfig().config['redis']['host'], port=6379, db=artifact_type.value, protocol=3, decode_responses=decode_responses)
 
