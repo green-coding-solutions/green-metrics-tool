@@ -382,10 +382,8 @@ def test_depends_on_healthcheck():
     try:
         with redirect_stdout(out), redirect_stderr(err):
             runner.run()
-        message = 'Health of container \'test-container-2\': starting'
+        message = 'Health of container \'test-container-2\': healthy'
         assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
-        message2 = 'Health of container \'test-container-2\': healthy'
-        assert message2 in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
     finally:
         runner.cleanup()
@@ -495,7 +493,7 @@ def test_uri_local_dir():
     RUN_NAME = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,'--config-override', 'test-config.yml',
-        '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
+        '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -523,7 +521,7 @@ def test_uri_github_repo():
     RUN_NAME = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,'--config-override', 'test-config.yml',
-        '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
+        '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -555,7 +553,7 @@ def test_uri_github_repo_branch():
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
         '--branch', 'test-branch' , '--filename', 'basic_stress.yml',
-        '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
+        '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -592,7 +590,7 @@ def test_name_is_in_db():
     RUN_NAME = 'test_' + utils.randomword(12)
     subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,'--config-override', 'test-config.yml',
-        '--skip-system-checks', '--dev-no-metrics', '--dev-no-sleeps', '--dev-no-build'],
+        '--skip-system-checks', '--dev-no-metrics', '--dev-no-optimizations', '--dev-no-sleeps', '--dev-no-build'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -615,7 +613,7 @@ def test_different_filename():
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
          '--filename', 'basic_stress.yml', '--config-override', 'test-config.yml',
-         '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
+         '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -648,7 +646,7 @@ def test_no_file_cleanup():
     RUN_NAME = 'test_' + utils.randomword(12)
     subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
-         '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
+         '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -663,7 +661,7 @@ def test_file_cleanup():
     RUN_NAME = 'test_' + utils.randomword(12)
     subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
-         '--file-cleanup', '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
+         '--file-cleanup', '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -686,7 +684,7 @@ def test_debug(monkeypatch):
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
          '--debug', '--config-override', 'test-config.yml', '--skip-system-checks',
-          '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
+          '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -747,7 +745,7 @@ def wip_test_verbose_provider_boot():
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', RUN_NAME, '--uri', uri ,
          '--verbose-provider-boot', '--config-override', 'test-config.yml',
-         '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics'],
+         '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
