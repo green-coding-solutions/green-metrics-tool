@@ -26,8 +26,10 @@ from lib import error_helpers
 import redis
 from enum import Enum
 
-
 def get_artifact(artifact_type: Enum, key: str, decode_responses=True):
+    if not GlobalConfig().config['redis']['host']:
+        return None
+
     data = None
     try:
         r = redis.Redis(host=GlobalConfig().config['redis']['host'], port=6379, db=artifact_type.value, protocol=3, decode_responses=decode_responses)
@@ -39,6 +41,9 @@ def get_artifact(artifact_type: Enum, key: str, decode_responses=True):
     return None if data is None or data == [] else data
 
 def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
+    if not GlobalConfig().config['redis']['host']:
+        return
+
     try:
         r = redis.Redis(host=GlobalConfig().config['redis']['host'], port=6379, db=artifact_type.value, protocol=3)
         r.set(key, data, ex=ex) # Expiration => 2592000 = 30 days

@@ -22,7 +22,7 @@ REPORTER_NAME = 'GMT core'
 REPORTER_ICON = 'diagnoses'
 
 @register_reporter('message_optimization', Criticality.INFO, REPORTER_NAME, REPORTER_ICON)
-def message_optimization(self, run, measurements, repo_path, network, notes, phases):
+def message_optimization(self, run, measurements, repo_path, network, notes, phase_stats):
     self.add_optimization('Why am I not seeing more data', '''
                           The Green Metrics Tool is a FOSS software that empowers users to make software more sustainable
                           by measuring energy and carbon. We believe that FOSS is the most beneficial way to go here as
@@ -37,5 +37,5 @@ def message_optimization(self, run, measurements, repo_path, network, notes, pha
                           ''', 'https://www.green-coding.io/projects/green-metrics-tool/')
 
 # @register_reporter('example_optimization_test', Criticality.CRITICAL, REPORTER_NAME, REPORTER_ICON, need_files=True)
-# def example_optimization_test(self, run, measurements, repo_path, network, notes, phases):
+# def example_optimization_test(self, run, measurements, repo_path, network, notes, phase_stats):
 #     self.add_optimization('You should never see this', 'This is a test for the ignore list!!!')
