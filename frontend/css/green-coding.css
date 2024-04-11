@@ -238,7 +238,7 @@ a,
     margin-bottom: 40px;
 }
 
-.usage-scenario {
+.usage-scenario, #diff-pre {
     word-wrap: break-word;
     white-space: pre-wrap;
 }

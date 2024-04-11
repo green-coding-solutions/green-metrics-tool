@@ -19,8 +19,36 @@ from pydantic import BaseModel
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
-from lib.db import DB
 from lib.global_config import GlobalConfig
+from lib.db import DB
+from lib import error_helpers
+
+import redis
+from enum import Enum
+
+def get_artifact(artifact_type: Enum, key: str, decode_responses=True):
+    if not GlobalConfig().config['redis']['host']:
+        return None
+
+    data = None
+    try:
+        r = redis.Redis(host=GlobalConfig().config['redis']['host'], port=6379, db=artifact_type.value, protocol=3, decode_responses=decode_responses)
+
+        data = r.get(key)
+    except redis.RedisError as e:
+        error_helpers.log_error(e)
+
+    return None if data is None or data == [] else data
+
+def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
+    if not GlobalConfig().config['redis']['host']:
+        return
+
+    try:
+        r = redis.Redis(host=GlobalConfig().config['redis']['host'], port=6379, db=artifact_type.value, protocol=3)
+        r.set(key, data, ex=ex) # Expiration => 2592000 = 30 days
+    except redis.RedisError as e:
+        error_helpers.log_error(e)
 
 def rescale_energy_value(value, unit):
     # We only expect values to be mJ for energy!
@@ -517,18 +545,18 @@ def add_phase_stats_statistics(phase_stats_object):
                         t_stat = get_t_stat(len(key_obj['values']))
 
                         # JSON does not recognize the numpy data types. Sometimes int64 is returned
-                        key_obj['mean'] = float(np.mean(key_obj['values']))
-                        key_obj['stddev'] = float(np.std(key_obj['values']))
-                        key_obj['max_mean'] = np.max(key_obj['values']) # overwrite with max of list
-                        key_obj['min_mean'] = np.min(key_obj['values']) # overwrite with min of list
-                        key_obj['ci'] = key_obj['stddev']*t_stat
+                        key_obj['mean'] = np.mean(key_obj['values']).item()
+                        key_obj['stddev'] = np.std(key_obj['values']).item()
+                        key_obj['max_mean'] = np.max(key_obj['values']).item() # overwrite with max of list
+                        key_obj['min_mean'] = np.min(key_obj['values']).item() # overwrite with min of list
+                        key_obj['ci'] = (key_obj['stddev']*t_stat).item()
 
                         if len(key_obj['values']) > 2:
                             data_c = key_obj['values'].copy()
                             pop_mean = data_c.pop()
                             _, p_value = scipy.stats.ttest_1samp(data_c, pop_mean)
                             if not np.isnan(p_value):
-                                key_obj['p_value'] = p_value
+                                key_obj['p_value'] = p_value.item()
                                 if key_obj['p_value'] > 0.05:
                                     key_obj['is_significant'] = False
                                 else:
@@ -553,7 +581,7 @@ def add_phase_stats_statistics(phase_stats_object):
                     _, p_value = scipy.stats.ttest_ind(detail['data'][key1]['values'], detail['data'][key2]['values'], equal_var=False)
 
                     if not np.isnan(p_value):
-                        detail['p_value'] = p_value
+                        detail['p_value'] = p_value.item()
                         if detail['p_value'] > 0.05:
                             detail['is_significant'] = False
                         else:

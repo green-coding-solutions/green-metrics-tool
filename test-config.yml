@@ -5,6 +5,9 @@ postgresql:
   password: testpw
   port: 9573
 
+redis:
+  host: test-green-coding-redis-container
+
 smtp:
   server: null
   sender: null

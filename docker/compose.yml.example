@@ -59,6 +59,14 @@ services:
       - PATH_TO_GREEN_METRICS_TOOL_REPO:/var/www/green-metrics-tool:ro
       # - TEST_CONFIG_SETUP:/var/www/green-metrics-tool/config.yml
 
+  green-coding-redis:
+    image: redis:alpine
+    container_name: green-coding-redis-container
+    volumes:
+      - green-coding-redis-data:/data
+    command: redis-server --save 60 1 --loglevel warning
+
+
 # Although it would help us very much performance-wise the
 # Shared volume with only temporary data, green-coding-shared-tmp, must be
 # of type overlayfs and cannot be tmpfs (https://docs.docker.com/storage/tmpfs/)
@@ -66,3 +74,4 @@ services:
 volumes:
   green-coding-postgres-data:
   green-coding-shared-tmp:
+  green-coding-redis-data:

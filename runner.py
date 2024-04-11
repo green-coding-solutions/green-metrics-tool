@@ -92,7 +92,7 @@ class Runner:
         debug_mode=False, allow_unsafe=False,  skip_system_checks=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
         dev_no_sleeps=False, dev_no_build=False, dev_no_metrics=False,
-        dev_flow_timetravel=False, docker_prune=False, job_id=None):
+        dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -110,6 +110,7 @@ class Runner:
         self._dev_no_build = dev_no_build
         self._dev_no_metrics = dev_no_metrics
         self._dev_flow_timetravel = dev_flow_timetravel
+        self._dev_no_optimizations = dev_no_optimizations
         self._uri = uri
         self._uri_type = uri_type
         self._original_filename = filename
@@ -1590,6 +1591,7 @@ if __name__ == '__main__':
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
     parser.add_argument('--dev-no-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
+    parser.add_argument('--dev-no-optimizations', action='store_true', help='Disable analysis after run to find possible optimizations.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
     args = parser.parse_args()
@@ -1651,7 +1653,8 @@ if __name__ == '__main__':
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                     full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
                     dev_no_build=args.dev_no_build, dev_no_metrics=args.dev_no_metrics,
-                    dev_flow_timetravel=args.dev_flow_timetravel, docker_prune=args.docker_prune)
+                    dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
+                    docker_prune=args.docker_prune)
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
@@ -1672,13 +1675,14 @@ if __name__ == '__main__':
         build_and_store_phase_stats(runner._run_id, runner._sci)
 
         # We need to import this here as we need the correct config file
-        import optimization_providers.base
-        print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
-        optimization_providers.base.import_reporters()
+        if not runner._dev_no_optimizations:
+            import optimization_providers.base
+            print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
+            optimization_providers.base.import_reporters()
 
-        print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
+            print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
 
-        optimization_providers.base.run_reporters(runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
+            optimization_providers.base.run_reporters(runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
         if args.file_cleanup:
             shutil.rmtree(runner._tmp_folder)

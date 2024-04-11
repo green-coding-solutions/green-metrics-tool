@@ -7,7 +7,7 @@ faulthandler.enable()  # will catch segfaults and write to STDERR
 
 import zlib
 import base64
-import json
+import orjson
 from typing import List
 from xml.sax.saxutils import escape as xml_escape
 import math
@@ -30,14 +30,18 @@ from api.object_specifications import Measurement
 from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics, carbondb_add, determine_comparison_case,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value, get_timeline_query,
-                         get_run_info, get_machine_list)
+                         get_run_info, get_machine_list, get_artifact, store_artifact)
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
+from lib.diff import get_diffable_row, diff_rows
 from lib import email_helpers
 from lib import error_helpers
 from tools.jobs import Job
 from tools.timeline_projects import TimelineProject
+
+from enum import Enum
+ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
 
 
 app = FastAPI()
@@ -281,6 +285,10 @@ async def compare_in_repo(ids: str):
     if not all(is_valid_uuid(id) for id in ids):
         raise RequestValidationError('One of Run IDs is not a valid UUID or empty')
 
+
+    if artifact := get_artifact(ArtifactType.COMPARE, str(ids)):
+        return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
+
     try:
         case = determine_comparison_case(ids)
     except RuntimeError as err:
@@ -348,6 +356,9 @@ async def compare_in_repo(ids: str):
     except RuntimeError as err:
         raise RequestValidationError(str(err)) from err
 
+    store_artifact(ArtifactType.COMPARE, str(ids), orjson.dumps(phase_stats_object)) # pylint: disable=no-member
+
+
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
 
 
@@ -356,6 +367,9 @@ async def get_phase_stats_single(run_id: str):
     if run_id is None or not is_valid_uuid(run_id):
         raise RequestValidationError('Run ID is not a valid UUID or empty')
 
+    if artifact := get_artifact(ArtifactType.STATS, str(run_id)):
+        return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
+
     try:
         phase_stats = get_phase_stats([run_id])
         phase_stats_object = get_phase_stats_object(phase_stats, None)
@@ -363,6 +377,8 @@ async def get_phase_stats_single(run_id: str):
 
     except RuntimeError:
         return Response(status_code=204) # No-Content
+
+    store_artifact(ArtifactType.STATS, str(run_id), orjson.dumps(phase_stats_object)) # pylint: disable=no-member
 
     return ORJSONResponseObjKeep({'success': True, 'data': phase_stats_object})
 
@@ -416,6 +432,10 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
     if detail_name is None or detail_name.strip() == '':
         raise RequestValidationError('Detail Name is mandatory')
 
+    if artifact := get_artifact(ArtifactType.BADGE, f"{uri}_{filename}_{machine_id}_{branch}_{metrics}_{detail_name}"):
+        return Response(content=str(artifact), media_type="image/svg+xml")
+
+
     query, params = get_timeline_query(uri,filename,machine_id, branch, metrics, '[RUNTIME]', detail_name=detail_name, limit_365=True)
 
     query = f"""
@@ -442,7 +462,12 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
         value=xml_escape(f"{cost} {data[3]} per day"),
         num_value_padding_chars=1,
         default_color='orange')
-    return Response(content=str(badge), media_type="image/svg+xml")
+
+    badge_str = str(badge)
+
+    store_artifact(ArtifactType.BADGE, f"{uri}_{filename}_{machine_id}_{branch}_{metrics}_{detail_name}", badge_str, ex=60*60*12) # 12 hour storage
+
+    return Response(content=badge_str, media_type="image/svg+xml")
 
 
 # A route to return all of the available entries in our catalog.
@@ -451,6 +476,9 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
 
     if run_id is None or not is_valid_uuid(run_id):
         raise RequestValidationError('Run ID is not a valid UUID or empty')
+
+    if artifact := get_artifact(ArtifactType.BADGE, f"{run_id}_{metric}"):
+        return Response(content=str(artifact), media_type="image/svg+xml")
 
     query = '''
         SELECT
@@ -495,7 +523,12 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
         value=xml_escape(badge_value),
         num_value_padding_chars=1,
         default_color='cornflowerblue')
-    return Response(content=str(badge), media_type="image/svg+xml")
+
+    badge_str = str(badge)
+
+    store_artifact(ArtifactType.BADGE, f"{run_id}_{metric}", badge_str)
+
+    return Response(content=badge_str, media_type="image/svg+xml")
 
 
 @app.get('/v1/timeline-projects')
@@ -639,7 +672,7 @@ async def hog_add(measurements: List[HogMeasurement]):
     for measurement in measurements:
         decoded_data = base64.b64decode(measurement.data)
         decompressed_data = zlib.decompress(decoded_data)
-        measurement_data = json.loads(decompressed_data.decode())
+        measurement_data = orjson.loads(decompressed_data.decode()) # pylint: disable=no-member
 
         # For some reason we sometimes get NaN in the data.
         measurement_data = replace_nan_with_zero(measurement_data)
@@ -1086,6 +1119,28 @@ async def get_optimizations(run_id: str):
 
 
 
+@app.get('/v1/diff')
+async def diff(ids: str):
+    if ids is None or not ids.strip():
+        raise RequestValidationError('run_ids are empty')
+    ids = ids.split(',')
+    if not all(is_valid_uuid(id) for id in ids):
+        raise RequestValidationError('One of Run IDs is not a valid UUID or empty')
+    if len(ids) != 2:
+        raise RequestValidationError('Run IDs != 2. Only exactly 2 Run IDs can be diffed.')
+
+    if artifact := get_artifact(ArtifactType.DIFF, str(ids)):
+        return ORJSONResponse({'success': True, 'data': artifact})
+
+    a = get_diffable_row(ids[0])
+    b = get_diffable_row(ids[1])
+    diff_runs = diff_rows(a,b)
+
+    store_artifact(ArtifactType.DIFF, str(ids), diff_runs)
+
+    return ORJSONResponse({'success': True, 'data': diff_runs})
+
+
 @app.get('/robots.txt')
 async def robots_txt():
     data =  "User-agent: *\n"
@@ -1356,5 +1411,4 @@ async def carbondb_get_company_project_details(cptype: str, uuid: str):
     return ORJSONResponse({'success': True, 'data': data})
 
 if __name__ == '__main__':
-    #pylint: disable=no-member
-    app.run()
+    app.run() # pylint: disable=no-member

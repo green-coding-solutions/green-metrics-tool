@@ -297,7 +297,6 @@ CREATE TRIGGER hog_tasks_moddatetime
 
 CREATE INDEX idx_task_coalition ON hog_tasks(coalition);
 
-
 CREATE TABLE optimizations (
     id SERIAL PRIMARY KEY,
     run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE ,
