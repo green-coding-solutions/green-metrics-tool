@@ -1250,7 +1250,6 @@ async def post_ci_measurement_add(request: Request, measurement: CI_Measurement)
         # If there is an error the function will raise an Error
         carbondb_add(client_ip, [energydata])
 
-
     return ORJSONResponse({'success': True}, status_code=201)
 
 @app.get('/v1/ci/measurements')
@@ -1356,7 +1355,9 @@ async def add_carbondb(request: Request, energydatas: List[EnergyData]):
     else:
         client_ip = request.client.host
 
-    return carbondb_add(client_ip, energydatas)
+    carbondb_add(client_ip, energydatas)
+
+    return Response(status_code=204)
 
 
 @app.get('/v1/carbondb/machine/day/{machine_uuid}')

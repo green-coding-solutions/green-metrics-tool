@@ -787,5 +787,3 @@ def carbondb_add(client_ip, energydatas):
             GROUP BY time_stamp, machine, energy_value
         )
     """)
-
-    return ORJSONResponse({'success': True}, status_code=204)
