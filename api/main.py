@@ -531,9 +531,9 @@ async def get_timeline_projects():
 
 
 @app.get('/v1/jobs')
-async def get_jobs(job_type:str, machine_id: int | None = None, state: str | None = None):
+async def get_jobs(machine_id: int | None = None, state: str | None = None):
 
-    params = [job_type]
+    params = []
     machine_id_condition = ''
     state_condition = ''
 
@@ -551,7 +551,7 @@ async def get_jobs(job_type:str, machine_id: int | None = None, state: str | Non
         LEFT JOIN machines as m on m.id = j.machine_id
         LEFT JOIN runs as r on r.job_id = j.id
         WHERE
-            job_type = %s
+            j.type = 'run'
             {machine_id_condition}
             {state_condition}
         ORDER BY j.updated_at DESC, j.created_at ASC
