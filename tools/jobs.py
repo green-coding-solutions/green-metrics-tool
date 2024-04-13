@@ -14,6 +14,7 @@ from lib import error_helpers
 from lib.job.base import Job
 from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
+from lib.system_checks import ConfigurationCheckError
 
 """
     The jobs.py file is effectively a state machine that can insert a job in the 'WAITING'
@@ -71,12 +72,16 @@ if __name__ == '__main__':
 
         if job_main:
             error_helpers.log_error('Base exception occurred in jobs.py: ', exception=exception, run_id=job_main._run_id, name=job_main._name, machine=job_main._machine_description)
-            if job_main._email: # reduced error message to client
-                Job.insert(
-                    'email',
-                    email=job_main._email,
-                    name='Measurement Job on Green Metrics Tool Cluster failed',
-                    message=f"Run-ID: {job_main._run_id}\nName: {job_main._name}\nMachine: {job_main._machine_description}\n\nDetails can also be found in the log under: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={job_main._run_id}\n\nError message: {exception}\n"
-                )
+
+            # reduced error message to client, but only if no ConfigurationCheckError
+            # TODO: Refactor this to have the check in the system-checks directly and retry on warn level errors
+            if job_main._email and not isinstance(exception, ConfigurationCheckError):
+                if job_main._email:
+                    Job.insert(
+                        'email',
+                        email=job_main._email,
+                        name='Measurement Job on Green Metrics Tool Cluster failed',
+                        message=f"Run-ID: {job_main._run_id}\nName: {job_main._name}\nMachine: {job_main._machine_description}\n\nDetails can also be found in the log under: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={job_main._run_id}\n\nError message: {exception}\n"
+                    )
         else:
             error_helpers.log_error('Base exception occurred in jobs.py: ', exception=exception)
