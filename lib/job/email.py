@@ -16,7 +16,7 @@ from lib.job.base import Job
 class EmailJob(Job):
 
     def check_job_running(self):
-        query = "SELECT id FROM jobs WHERE job_type = 'email' AND state = 'RUNNING'"
+        query = "SELECT id FROM jobs WHERE type = 'email' AND state = 'RUNNING'"
         return DB().fetch_one(query)
 
     #pylint: disable=arguments-differ

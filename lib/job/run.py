@@ -20,7 +20,7 @@ import optimization_providers.base
 class RunJob(Job):
 
     def check_job_running(self):
-        query = "SELECT id FROM jobs WHERE job_type = 'run' AND state = 'RUNNING' AND machine_id = %s"
+        query = "SELECT id FROM jobs WHERE type = 'run' AND state = 'RUNNING' AND machine_id = %s"
         return DB().fetch_one(query, params=(self._machine_id, ))
 
     #pylint: disable=arguments-differ
