@@ -16,7 +16,7 @@ smtp:
   user: SMTP_AUTH_USER
 
 admin:
-  # This address will get an email, for any error or new project added etc.
+  # This address will get an email, for notifications in the system like an added job through the interface
   notification_email: False
   # Takes a file path to log all the errors to it. This is disabled if False
   error_file: False
