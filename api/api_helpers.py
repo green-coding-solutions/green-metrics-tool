@@ -36,7 +36,7 @@ def get_artifact(artifact_type: Enum, key: str, decode_responses=True):
 
         data = r.get(key)
     except redis.RedisError as e:
-        error_helpers.log_error(e)
+        error_helpers.log_error('Redis get_artifact failed', exception=e)
 
     return None if data is None or data == [] else data
 
@@ -48,7 +48,7 @@ def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
         r = redis.Redis(host=GlobalConfig().config['redis']['host'], port=6379, db=artifact_type.value, protocol=3)
         r.set(key, data, ex=ex) # Expiration => 2592000 = 30 days
     except redis.RedisError as e:
-        error_helpers.log_error(e)
+        error_helpers.log_error('Redis store_artifact failed', exception=e)
 
 def rescale_energy_value(value, unit):
     # We only expect values to be mJ for energy!

@@ -35,9 +35,8 @@ from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics, 
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.diff import get_diffable_row, diff_rows
-from lib import email_helpers
 from lib import error_helpers
-from tools.jobs import Job
+from lib.job.base import Job
 from tools.timeline_projects import TimelineProject
 
 from enum import Enum
@@ -46,44 +45,9 @@ ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
 
 app = FastAPI()
 
-async def log_exception(request: Request, exc, body=None, details=None):
-    error_message = f"""
-        Error in API call
-
-        URL: {request.url}
-
-        Query-Params: {request.query_params}
-
-        Client: {request.client}
-
-        Headers: {str(request.headers)}
-
-        Body: {body}
-
-        Optional details: {details}
-
-        Exception: {exc}
-    """
-    error_helpers.log_error(error_message)
-
-    # This saves us from crawler requests to the IP directly, or to our DNS reverse PTR etc.
-    # which would create email noise
-    request_url = str(request.url).replace('https://', '').replace('http://', '')
-    api_url = GlobalConfig().config['cluster']['api_url'].replace('https://', '').replace('http://', '')
-
-    if not request_url.startswith(api_url):
-        return
-
-    if GlobalConfig().config['admin']['no_emails'] is False:
-        email_helpers.send_error_email(
-            GlobalConfig().config['admin']['email'],
-            error_helpers.format_error(error_message),
-            run_id=None,
-        )
-
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    await log_exception(request, exc, body=exc.body, details=exc.errors())
+    error_helpers.log_error('Error in API call - validation_exception_handler', request=request, body=exc.body, details=exc.errors(), exception=exc)
     return ORJSONResponse(
         status_code=422, # HTTP_422_UNPROCESSABLE_ENTITY
         content=jsonable_encoder({'success': False, 'err': exc.errors(), 'body': exc.body}),
@@ -92,7 +56,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
     body = await request.body()
-    await log_exception(request, exc, body=body, details=exc.detail)
+    error_helpers.log_error('Error in API call - http_exception_handler', request=request, body=body, details=exc.detail, exception=exc)
     return ORJSONResponse(
         status_code=exc.status_code,
         content=jsonable_encoder({'success': False, 'err': exc.detail}),
@@ -105,7 +69,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
         body = await request.body()
         return await call_next(request)
     except Exception as exc:
-        await log_exception(request, exc, body=body)
+        error_helpers.log_error('Error in API call - catch_exceptions_middleware', request=request, body=body, exception=exc)
         return ORJSONResponse(
             content={
                 'success': False,
@@ -567,9 +531,9 @@ async def get_timeline_projects():
 
 
 @app.get('/v1/jobs')
-async def get_jobs(machine_id: int | None = None, state: str | None = None):
+async def get_jobs(job_type:str, machine_id: int | None = None, state: str | None = None):
 
-    params = []
+    params = [job_type]
     machine_id_condition = ''
     state_condition = ''
 
@@ -581,14 +545,13 @@ async def get_jobs(machine_id: int | None = None, state: str | None = None):
         state_condition = 'AND j.state = %s'
         params.append(state)
 
-
     query = f"""
         SELECT j.id, r.id as run_id, j.name, j.url, j.filename, j.branch, m.description, j.state, j.updated_at, j.created_at
         FROM jobs as j
         LEFT JOIN machines as m on m.id = j.machine_id
         LEFT JOIN runs as r on r.job_id = j.id
         WHERE
-            1=1
+            job_type = %s
             {machine_id_condition}
             {state_condition}
         ORDER BY j.updated_at DESC, j.created_at ASC
@@ -1071,16 +1034,18 @@ async def software_add(software: Software):
         raise RequestValidationError(f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")
 
     # notify admin of new add
-    if GlobalConfig().config['admin']['no_emails'] is False:
-        email_helpers.send_admin_email(f"New run added from Web Interface: {software.name}", software)
+    if notification_email := GlobalConfig().config['admin']['notification_email']:
+        Job.insert('email', name='New run added from Web Interface', message=str(software), email=notification_email)
 
-    if software.schedule_mode == 'one-off':
-        Job.insert(software.name, software.url,  software.email, software.branch, software.filename, software.machine_id)
-    elif software.schedule_mode == 'variance':
-        for _ in range(0,10):
-            Job.insert(software.name, software.url,  software.email, software.branch, software.filename, software.machine_id)
+    amount = 1
+    if software.schedule_mode == 'variance':
+        amount = 10
     else:
         TimelineProject.insert(software.name, software.url, software.branch, software.filename, software.machine_id, software.schedule_mode)
+
+    # even for timeline projects we do at least one run
+    for _ in range(0,amount):
+        Job.insert('run', name=software.name, url=software.url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id)
 
     return ORJSONResponse({'success': True}, status_code=202)
 

@@ -9,13 +9,12 @@ import time
 import subprocess
 import json
 
-from tools.jobs import Job, handle_job_exception
+from lib.job.base import Job
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.repo_info import get_repo_info
 from tools import validate
 from tools.temperature import get_temperature
-from lib import email_helpers
 from lib import error_helpers
 
 
@@ -71,21 +70,15 @@ def do_cleanup(cur_temp, cooldown_time_after_job):
 
 # pylint: disable=broad-except
 if __name__ == '__main__':
+    config_main = GlobalConfig().config
+
     try:
-        config_main = GlobalConfig().config
         client_main = config_main['cluster']['client']
         cwl = client_main['control_workload']
         cooldown_time = 0
         last_cooldown_time = 0
 
         while True:
-            job = Job.get_job('run')
-            if job and job.check_measurement_job_running():
-                print('Job is still running. This is usually an error case! Continuing for now ...')
-                time.sleep(client_main['sleep_time_no_job'])
-                continue
-
-
             current_temperature = get_temperature(
                 GlobalConfig().config['machine']['base_temperature_chip'],
                 GlobalConfig().config['machine']['base_temperature_feature']
@@ -112,8 +105,13 @@ if __name__ == '__main__':
 
                 try:
                     message = validate.validate_workload_stddev(stddev_data, cwl['threshold'])
-                    if config_main['admin']['no_emails'] is False and client_main['send_control_workload_status_mail']:
-                        email_helpers.send_admin_email(f"Machine is operating normally. All STDDEV below {cwl['threshold'] * 100} %", "\n".join(message))
+                    if client_main['send_control_workload_status_mail'] and config_main['admin']['notification_email']:
+                        Job.insert(
+                            'email',
+                            email=config_main['admin']['notification_email'],
+                            name=f"Machine is operating normally. All STDDEV below {cwl['threshold'] * 100} %",
+                            message='\n'.join(message)
+                        )
                 except Exception as exception:
                     validate.handle_validate_exception(exception)
                     set_status('measurement_control_error', current_temperature, last_cooldown_time)
@@ -124,14 +122,16 @@ if __name__ == '__main__':
                 finally:
                     do_cleanup(current_temperature, last_cooldown_time)
 
-            elif job:
+            elif job := Job.get_job('run'):
                 set_status('job_start', current_temperature, last_cooldown_time, run_id=job._run_id)
                 try:
+                    # TODO
                     job.process(docker_prune=True)
                     set_status('job_end', current_temperature, last_cooldown_time, run_id=job._run_id)
                 except Exception as exc:
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
-                    handle_job_exception(exc, job)
+                    error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc)
+                    time.sleep(client_main['sleep_time_no_job']) # include some buffer between failed jobs
                 finally:
                     do_cleanup(current_temperature, last_cooldown_time)
 
@@ -142,9 +142,4 @@ if __name__ == '__main__':
                     subprocess.check_output(['sudo', 'shutdown'])
                 time.sleep(client_main['sleep_time_no_job'])
     except Exception as exc:
-        error_helpers.log_error('client.py: ', exc, error_helpers.format_error(
-            'client.py: ', exc))
-
-        if config_main['admin']['no_emails'] is False:
-            email_helpers.send_error_email(config_main['admin']['email'], error_helpers.format_error(
-                'client.py: ', exc), machine=config_main['machine']['description'])
+        error_helpers.log_error('Processing in cluster failed (client.py)', exception=exc, machine=config_main['machine']['description'])

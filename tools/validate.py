@@ -24,7 +24,6 @@ faulthandler.enable()  # will catch segfaults and write to stderr
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.terminal_colors import TerminalColors
-from lib import email_helpers
 from lib import error_helpers
 
 from runner import Runner
@@ -122,13 +121,8 @@ def handle_validate_exception(exc):
     config = GlobalConfig().config
     control_workload = config['cluster']['client']['control_workload']
 
-    error_helpers.log_error('handle_validate_exception: ', exc, f"Please check under {config['cluster']['metrics_url']}/timeline.html?uri={control_workload['uri']}&branch={control_workload['branch']}&filename={control_workload['filename']}&machine_id={config['machine']['id']}")
+    error_helpers.log_error('handle_validate_exception: ', exception=exc, details=f"Please check under {config['cluster']['metrics_url']}/timeline.html?uri={control_workload['uri']}&branch={control_workload['branch']}&filename={control_workload['filename']}&machine_id={config['machine']['id']}", name='Measurement control Workload (on boot)', machine=config['machine']['description'])
 
-    if config['admin']['no_emails'] is False:
-        email_helpers.send_error_email(config['admin']['email'], error_helpers.format_error(
-            'handle_validate_exception: ', exc, f"Please check under {config['cluster']['metrics_url']}/timeline.html?uri={control_workload['uri']}&branch={control_workload['branch']}&filename={control_workload['filename']}&machine_id={config['machine']['id']}"), name='Measurement control Workload (on boot)', machine=config['machine']['description'])
-
-# pylint: disable=broad-except
 if __name__ == '__main__':
     import argparse
 

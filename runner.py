@@ -1397,7 +1397,7 @@ class Runner:
                     metric_provider.stop_profiling()
                 # pylint: disable=broad-exception-caught
                 except Exception as exc:
-                    error_helpers.log_error(f"Could not stop profiling on {metric_provider.__class__.__name__}: {str(exc)}")
+                    error_helpers.log_error(f"Could not stop profiling on {metric_provider.__class__.__name__}", exception=exc)
             self.__metric_providers.clear()
 
 
@@ -1629,11 +1629,11 @@ if __name__ == '__main__':
         run_type = 'folder'
         if not Path(args.uri).is_dir():
             parser.print_help()
-            error_helpers.log_error('Could not find folder on local system. Please double check: ', args.uri)
+            error_helpers.log_error('Could not find folder on local system. Please double check: ', uri=args.uri)
             sys.exit(1)
     else:
         parser.print_help()
-        error_helpers.log_error('Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ', args.uri)
+        error_helpers.log_error('Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ', uri=args.uri)
         sys.exit(1)
 
     if args.config_override is not None:
@@ -1692,13 +1692,13 @@ if __name__ == '__main__':
         print('####################################################################################\n\n', TerminalColors.ENDC)
 
     except FileNotFoundError as e:
-        error_helpers.log_error('File or executable not found', e, "\n", f"Run-ID: {runner._run_id}")
+        error_helpers.log_error('File or executable not found', exception=e, run_id=runner._run_id)
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error('Command failed', 'Stdout:', e.stdout, 'Stderr:', e.stderr, "\n", f"Run-ID: {runner._run_id}")
+        error_helpers.log_error('Command failed', stdout=e.stdout, stderr=e.stderr, run_id=runner._run_id)
     except RuntimeError as e:
-        error_helpers.log_error('RuntimeError occured in runner.py: ', e, "\n", f"Run-ID: {runner._run_id}")
+        error_helpers.log_error('RuntimeError occured in runner.py', exception=e, run_id=runner._run_id)
     except BaseException as e:
-        error_helpers.log_error('Base exception occured in runner.py: ', e, "\n", f"Run-ID: {runner._run_id}")
+        error_helpers.log_error('Base exception occured in runner.py', exception=e, run_id=runner._run_id)
     finally:
         if args.print_logs:
             for container_id_outer, std_out in runner.get_logs().items():

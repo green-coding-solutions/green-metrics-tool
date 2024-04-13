@@ -16,10 +16,10 @@ smtp:
   user: null
 
 admin:
-  email: myemail@dev.local
-  bcc_email: ''
-  no_emails: true
-
+  notification_email: False
+  error_file: False
+  error_email: False
+  email_bcc: False
 
 cluster:
   api_url: http://api.green-coding.internal:9142
@@ -47,7 +47,6 @@ cluster:
 machine:
   id: 1
   description: Development machine for testing
-  error_log_file: false
   base_temperature_value: false
   base_temperature_chip: false
   base_temperature_feature: false
