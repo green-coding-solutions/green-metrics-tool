@@ -53,8 +53,6 @@ cluster:
 machine:
   id: 1
   description: "Development machine for testing"
-  # Takes a file path to log all the errors to it. This is disabled if False
-  error_log_file: False
   base_temperature_value: False
   base_temperature_chip: False
   base_temperature_feature: False
