@@ -26,14 +26,16 @@ CREATE TRIGGER machines_moddatetime
 
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,
+    type text,
     state text,
     name text,
     email text,
     url text,
-    branch text NOT NULL,
-    filename text NOT NULL,
+    branch text,
+    filename text,
     categories int[],
     machine_id int REFERENCES machines(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    message text,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );

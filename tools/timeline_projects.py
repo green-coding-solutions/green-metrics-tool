@@ -11,7 +11,7 @@ from psycopg.rows import dict_row as psycopg_rows_dict_row
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.db import DB
-from tools.jobs import Job
+from lib.job.base import Job
 
 """
     This file schedules new Timeline Projects by inserting jobs in the jobs table

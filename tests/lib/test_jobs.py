@@ -10,7 +10,7 @@ from lib.db import DB
 from lib import utils
 from lib.global_config import GlobalConfig
 from tools.machine import Machine
-from tools.jobs import Job
+from lib.job.base import Job
 from tests import test_functions as Tests
 
 GlobalConfig().override_config(config_name='test-config.yml')
@@ -65,7 +65,13 @@ def test_no_email_job():
         Tests.assertion_info('No job to process. Exiting', ps.stdout)
 
 def test_insert_job():
-    job_id = Job.insert('Test Name', 'Test URL',  'Test Email', 'Test Branch', 'Test filename', 1)
+    name = utils.randomword(12)
+    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    filename = 'usage_scenario.yml'
+    branch = 'main'
+    machine_id = 1
+
+    job_id = Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
     assert job_id is not None
     job = Job.get_job('run')
     assert job._state == 'WAITING'
@@ -74,8 +80,10 @@ def test_simple_run_job():
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
+    branch = 'main'
+    machine_id = 1
 
-    Job.insert(name, url,  'Test Email', 'main', filename, 1)
+    Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
 
     ps = subprocess.run(
             ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml', '--skip-system-checks'],
@@ -91,19 +99,43 @@ def test_simple_run_job():
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
+def test_simple_run_job_missing_filename_branch():
+    name = utils.randomword(12)
+    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    machine_id = 1
+
+    with pytest.raises(RuntimeError):
+        Job.insert('run', name=name, url=url, email=None, machine_id=machine_id)
+
+
+def test_simple_run_job_wrong_machine_id():
+    name = utils.randomword(12)
+    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    filename = 'usage_scenario.yml'
+    branch = 'main'
+    machine_id = 100
+
+    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+        Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+
+
 #pylint: disable=unused-variable # for the time being, until I get the mocking to work
 ## This test doesn't really make sense anymore as is, since we don't have "email jobs" in the same way,
 ## more that we send an email after a run job is finished.
 def todo_test_simple_email_job():
-    name = utils.randomword(12)
-    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    subject = utils.randomword(12)
     email = 'fakeemailaddress'
-    filename = 'usage_scenario.yml'
+    message = 'simple job'
 
-    Job.insert(name, url, email, 'main', filename, 1)
+    Job.insert(
+        'email',
+        email=email,
+        name=subject,
+        message=message,
+    )
 
     # Why is this patch not working :-(
-    with patch('email_helpers.send_report_email') as send_email:
+    with patch('email_helpers.send_email') as send_email:
         ps = subprocess.run(
                 ['python3', '../tools/jobs.py', 'email', '--config-override', 'test-config.yml'],
                 check=True,
