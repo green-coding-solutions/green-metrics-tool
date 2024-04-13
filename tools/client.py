@@ -79,6 +79,12 @@ if __name__ == '__main__':
         last_cooldown_time = 0
 
         while True:
+            job = Job.get_job('run')
+            if job and job.check_measurement_job_running():
+                print('Job is still running. This is usually an error case! Continuing for now ...')
+                time.sleep(client_main['sleep_time_no_job'])
+                continue
+
             current_temperature = get_temperature(
                 GlobalConfig().config['machine']['base_temperature_chip'],
                 GlobalConfig().config['machine']['base_temperature_feature']
@@ -122,16 +128,14 @@ if __name__ == '__main__':
                 finally:
                     do_cleanup(current_temperature, last_cooldown_time)
 
-            elif job := Job.get_job('run'):
+            elif job:
                 set_status('job_start', current_temperature, last_cooldown_time, run_id=job._run_id)
                 try:
-                    # TODO
                     job.process(docker_prune=True)
                     set_status('job_end', current_temperature, last_cooldown_time, run_id=job._run_id)
                 except Exception as exc:
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
                     error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc)
-                    time.sleep(client_main['sleep_time_no_job']) # include some buffer between failed jobs
                 finally:
                     do_cleanup(current_temperature, last_cooldown_time)
 

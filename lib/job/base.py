@@ -35,15 +35,9 @@ class Job(ABC):
         self._run_id = run_id
         self._message = message
 
+    @abstractmethod
     def check_job_running(self):
-        params = None
-        if self._machine_id:
-            query = "SELECT id FROM jobs WHERE state = 'RUNNING' and machine_id = %s"
-            params = (self._machine_id,)
-        else:
-            query = "SELECT id FROM jobs WHERE state = 'RUNNING'"
-
-        return DB().fetch_one(query, params=params)
+        pass
 
     def update_state(self, state):
         query_update = "UPDATE jobs SET state = %s WHERE id=%s"
@@ -146,5 +140,7 @@ class Job(ABC):
                 (state = 'FAILED' AND updated_at < NOW() - INTERVAL '14 DAYS')
                 OR
                 (state = 'FINISHED' AND updated_at < NOW() - INTERVAL '14 DAYS')
+                OR
+                (state = 'RUNNING' AND type = 'email' AND updated_at < NOW() - INTERVAL '5 MINUTES')
             '''
         DB().query(query)

@@ -10,6 +10,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.job.base import Job
 from lib.global_config import GlobalConfig
+from lib.db import DB
 from lib.terminal_colors import TerminalColors
 from tools.phase_stats import build_and_store_phase_stats
 from runner import Runner
@@ -17,6 +18,10 @@ import optimization_providers.base
 
 
 class RunJob(Job):
+
+    def check_job_running(self):
+        query = "SELECT id FROM jobs WHERE job_type = 'run' AND state = 'RUNNING' AND machine_id = %s"
+        return DB().fetch_one(query, params=(self._machine_id, ))
 
     #pylint: disable=arguments-differ
     def _process(self, skip_system_checks=False, docker_prune=False, full_docker_prune=False):
