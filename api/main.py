@@ -47,7 +47,16 @@ app = FastAPI()
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    error_helpers.log_error('Error in API call - validation_exception_handler', request=request, body=exc.body, details=exc.errors(), exception=exc)
+    error_helpers.log_error(
+        'Error in API call - validation_exception_handler',
+        url=request.url,
+        query_params=request.query_params,
+        client=request.client,
+        headers=request.headers,
+        body=exc.body,
+        details=exc.errors(),
+        exception=exc
+    )
     return ORJSONResponse(
         status_code=422, # HTTP_422_UNPROCESSABLE_ENTITY
         content=jsonable_encoder({'success': False, 'err': exc.errors(), 'body': exc.body}),
@@ -56,7 +65,16 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
     body = await request.body()
-    error_helpers.log_error('Error in API call - http_exception_handler', request=request, body=body, details=exc.detail, exception=exc)
+    error_helpers.log_error(
+        'Error in API call - http_exception_handler',
+        url=request.url,
+        query_params=request.query_params,
+        client=request.client,
+        headers=request.headers,
+        body=body,
+        details=exc.detail,
+        exception=exc
+    )
     return ORJSONResponse(
         status_code=exc.status_code,
         content=jsonable_encoder({'success': False, 'err': exc.detail}),
@@ -69,7 +87,15 @@ async def catch_exceptions_middleware(request: Request, call_next):
         body = await request.body()
         return await call_next(request)
     except Exception as exc:
-        error_helpers.log_error('Error in API call - catch_exceptions_middleware', request=request, body=body, exception=exc)
+        error_helpers.log_error(
+            'Error in API call - catch_exceptions_middleware',
+            url=request.url,
+            query_params=request.query_params,
+            client=request.client,
+            headers=request.headers,
+            body=body,
+            exception=exc
+        )
         return ORJSONResponse(
             content={
                 'success': False,
@@ -77,7 +103,6 @@ async def catch_exceptions_middleware(request: Request, call_next):
             },
             status_code=500,
         )
-
 
 # Binding the Exception middleware must confusingly come BEFORE the CORS middleware.
 # Otherwise CORS will not be sent in response
