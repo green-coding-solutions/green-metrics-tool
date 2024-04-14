@@ -80,7 +80,7 @@ if __name__ == '__main__':
 
         while True:
             job = Job.get_job('run')
-            if job and job.check_measurement_job_running():
+            if job and job.check_job_running():
                 print('Job is still running. This is usually an error case! Continuing for now ...')
                 time.sleep(client_main['sleep_time_no_job'])
                 continue
