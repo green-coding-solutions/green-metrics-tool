@@ -1037,13 +1037,12 @@ async def software_add(software: Software):
     if notification_email := GlobalConfig().config['admin']['notification_email']:
         Job.insert('email', name='New run added from Web Interface', message=str(software), email=notification_email)
 
-    amount = 1
-    if software.schedule_mode == 'variance':
-        amount = 10
-    else:
+
+    if software.schedule_mode in ['time', 'commit']:
         TimelineProject.insert(software.name, software.url, software.branch, software.filename, software.machine_id, software.schedule_mode)
 
     # even for timeline projects we do at least one run
+    amount = 10 if software.schedule_mode == 'variance' else 1
     for _ in range(0,amount):
         Job.insert('run', name=software.name, url=software.url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id)
 
