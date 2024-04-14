@@ -49,7 +49,8 @@ class RunJob(Job):
             print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
             optimization_providers.base.run_reporters(runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
-            Job.insert(
+            if self._email:
+                Job.insert(
                     'email',
                     email=self._email,
                     name='Measurement Job successfully processed on Green Metrics Tool Cluster',
