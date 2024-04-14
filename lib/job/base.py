@@ -12,6 +12,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
+from lib.configuration_check_error import ConfigurationCheckError
 
 """
     The jobs.py file is effectively a state machine that can insert a job in the 'WAITING'
@@ -56,6 +57,10 @@ class Job(ABC):
             self._process(**kwargs) # uses child class function
             self.update_state('FINISHED')
             return
+
+        except ConfigurationCheckError as exc:
+            self.update_state('WAITING') # set back to waiting, as not the run itself has failed
+            raise exc
 
         except Exception as exc:
             self.update_state('FAILED')

@@ -16,7 +16,7 @@ from lib.repo_info import get_repo_info
 from tools import validate
 from tools.temperature import get_temperature
 from lib import error_helpers
-
+from lib.configuration_check_error import ConfigurationCheckError, Status
 
 # We currently have this dynamically as it will probably change quite a bit
 STATUS_LIST = ['cooldown', 'job_no', 'job_start', 'job_error', 'job_end', 'cleanup_start', 'cleanup_end', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
@@ -133,6 +133,15 @@ if __name__ == '__main__':
                 try:
                     job.process(docker_prune=True)
                     set_status('job_end', current_temperature, last_cooldown_time, run_id=job._run_id)
+                except ConfigurationCheckError as exc:
+                    set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
+                    if exc.status == Status.WARN:
+                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, status=exc.status, sleep_duration=600)
+                        time.sleep(600)
+                    else:
+                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, status=exc.status, sleep_duration=client_main['time_between_control_workload_validations'])
+                        time.sleep(client_main['time_between_control_workload_validations'])
+
                 except Exception as exc:
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
                     error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc)

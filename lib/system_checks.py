@@ -9,7 +9,6 @@
 
 import sys
 import os
-from enum import Enum
 import subprocess
 import psutil
 import locale
@@ -21,15 +20,14 @@ from lib import error_helpers
 from lib.db import DB
 from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
-
-Status = Enum('Status', ['INFO', 'WARN', 'ERROR'])
+from lib.configuration_check_error import ConfigurationCheckError, Status
 
 GMT_Resources = {
     'free_disk': 1024 ** 3, # 1GB in bytes
     'free_memory':  1024 ** 3, # 1GB in bytes
 }
-class ConfigurationCheckError(Exception):
-    pass
+
+
 
 ######## CHECK FUNCTIONS ########
 def check_db():
@@ -121,4 +119,4 @@ def check_start():
 
             if retval is False and check[1].value >= GlobalConfig().config['measurement']['system_check_threshold']:
                 # Error needs to raise
-                raise ConfigurationCheckError(check[3])
+                raise ConfigurationCheckError(check[3], check[1])
