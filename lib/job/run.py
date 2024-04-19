@@ -12,6 +12,7 @@ from lib.job.base import Job
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.terminal_colors import TerminalColors
+from lib.system_checks import ConfigurationCheckError
 from tools.phase_stats import build_and_store_phase_stats
 from runner import Runner
 import optimization_providers.base
@@ -59,4 +60,12 @@ class RunJob(Job):
 
         except Exception as exc:
             self._run_id = runner._run_id # might not be set yet, but we try
+            if self._email and not isinstance(exc, ConfigurationCheckError): # reduced error message to client, but only if no ConfigurationCheckError
+
+                Job.insert(
+                    'email',
+                    email=self._email,
+                    name='Measurement Job on Green Metrics Tool Cluster failed',
+                    message=f"Run-ID: {self._run_id}\nName: {self._name}\n\nDetails can also be found in the log under: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={self._run_id}\n\nError message: {exc}\n"
+                )
             raise exc
