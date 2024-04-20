@@ -829,10 +829,10 @@ class Runner:
 
             if 'deploy' in service:
                 if memory := service['deploy'].get('resources', {}).get('limits', {}).get('memory', None):
-                    docker_run_string.append('-m')
+                    docker_run_string.append('--memory') # value in bytes
                     docker_run_string.append(str(memory))
                 if cpus := service['deploy'].get('resources', {}).get('limits', {}).get('cpus', None):
-                    docker_run_string.append('--cpus')
+                    docker_run_string.append('--cpus') # value in cores
                     docker_run_string.append(str(cpus))
 
 
