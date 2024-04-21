@@ -136,15 +136,15 @@ if __name__ == '__main__':
                 except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
                     if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
-                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, status=exc.status, sleep_duration=600)
+                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, status=exc.status, run_id=job._run_id, sleep_duration=600)
                         time.sleep(600)
                     else: # Hard fails won't resolve on it's own. We sleep until next cluster validation
-                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, status=exc.status, sleep_duration=client_main['time_between_control_workload_validations'])
+                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, status=exc.status, run_id=job._run_id, sleep_duration=client_main['time_between_control_workload_validations'])
                         time.sleep(client_main['time_between_control_workload_validations'])
 
                 except Exception as exc:
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
-                    error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc)
+                    error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, run_id=job._run_id)
                 finally:
                     do_cleanup(current_temperature, last_cooldown_time)
 
