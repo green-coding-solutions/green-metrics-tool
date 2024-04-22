@@ -164,7 +164,7 @@ const getEChartsOptions = () => {
 }
 
 
-const getChartOptions = (measurements, chart_element) => {
+const getChartOptions = (measurements) => {
     const options = getEChartsOptions();
     options.title.text = `Workflow energy cost per run [mJ]`;
 
@@ -231,18 +231,14 @@ const getChartOptions = (measurements, chart_element) => {
 }
 
 
-const displayGraph = (measurements) => {
-    const element = createChartContainer("#chart-container", "run-energy");
+const displayGraph = (chart_instance, measurements) => {
 
-    const options = getChartOptions(measurements, element); // iterates
-    const chart_instance = echarts.init(element);
+    const options = getChartOptions(measurements); // iterates
     chart_instance.setOption(options);
 
     window.onresize = function () { // set callback when ever the user changes the viewport
         chart_instance.resize();
     }
-
-    return chart_instance;
 }
 
 const displayStatsTable = (measurements) => {
@@ -379,15 +375,44 @@ const getLastRunBadge = async (repo, branch, workflow_id) => {
 }
 
 const getMeasurements = async (repo, branch, workflow_id, start_date = null, end_date = null) => {
-    try {
-        if(end_date == null) end_date = dateToYMD(new Date(), short=true);
-        if(start_date == null) start_date = dateToYMD(new Date((new Date()).setDate((new Date).getDate() -30)), short=true);
-        const api_string=`/v1/ci/measurements?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`;
-        return await makeAPICall(api_string);
-    } catch (err) {
-        showNotification('Could not get data from API', err);
-        throw err
-    }
+    if(end_date == null) end_date = dateToYMD(new Date(), short=true);
+    if(start_date == null) start_date = dateToYMD(new Date((new Date()).setDate((new Date).getDate() -30)), short=true);
+    const api_string=`/v1/ci/measurements?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`;
+    return await makeAPICall(api_string);
+}
+
+const bindRefreshButton = (repo, branch, workflow_id, chart_instance) => {
+    // When the user selects a subset of the measurement data via the date-picker
+    $('#submit').on('click', async function () {
+        const startDate = dateToYMD(new Date($('#rangestart input').val()), short=true);
+        const endDate = dateToYMD(new Date($('#rangeend input').val()), short=true);
+
+        let measurements = null;
+        try {
+            measurements = await getMeasurements(repo, branch, workflow_id, startDate, endDate); // iterates I
+        } catch (err) {
+            showNotification('Could not get data from API', err);
+            return; // abort
+        }
+
+        displayStatsTable(measurements.data); //iterates II
+        displayCITable(measurements.data, repo); // Iterates I (total: 1)
+
+        // set new chart instance options
+        const options = getChartOptions(measurements.data); //iterates I
+        chart_instance.clear();
+        chart_instance.setOption(options);
+
+        chart_instance.off('legendselectchanged') // remove
+        // we need to re-bind the handler here and can also not really refactor that
+        // without using a global variable. echarts .on does not allow to pass data to the handler
+        chart_instance.on('legendselectchanged', function (params) {
+            // get list of all legends that are on
+            const selectedLegends = params.selected;
+            const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[5]]);
+            displayStatsTable(filteredMeasurements);
+        });
+    });
 }
 
 $(document).ready((e) => {
@@ -398,6 +423,7 @@ $(document).ready((e) => {
         let branch = escapeString(url_params.get('branch'));
         let repo = escapeString(url_params.get('repo'));
         let workflow_id = escapeString(url_params.get('workflow'));
+        const ci_data_node = document.querySelector('#ci-data')
 
         if (repo == null || repo == '' || repo == 'null') {
             showNotification('No Repo', 'Repo parameter in URL is empty or not present. Did you follow a correct URL?');
@@ -412,21 +438,37 @@ $(document).ready((e) => {
             return;
         }
 
+        const element = createChartContainer("#chart-container", "run-energy");
+        const chart_instance = echarts.init(element);
+
+        bindRefreshButton(repo, branch, workflow_id, chart_instance)
+
+        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params.get('branch'))}</td></tr>`)
+        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow ID:</strong></td><td>${escapeString(workflow_id)}</td></tr>`)
+
         getLastRunBadge(repo, branch, workflow_id) // async
 
         $('#rangestart input').val(new Date((new Date()).setDate((new Date).getDate() -30))) // set default on load
         $('#rangeend input').val(new Date()) // set default on load
+        dateTimePicker();
 
-        let measurements = await getMeasurements(repo, branch, workflow_id)
+        let measurements = null;
+        try {
+            measurements = await getMeasurements(repo, branch, workflow_id)
+        } catch (err) {
+            showNotification('Could not get data from API', err);
+            return; // abort
+        }
 
-        let repo_link = ''
         const source = measurements.data[0][8]
         let workflow_name = measurements.data[0][10]
 
         if (workflow_name == '' || workflow_name == null) {
             workflow_name = workflow_id ;
         }
+        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(workflow_name)}</td></tr>`)
 
+        let repo_link = ''
         if(source == 'github') {
             repo_link = `https://github.com/${repo}`;
         }
@@ -435,18 +477,13 @@ $(document).ready((e) => {
         }
 
         const repo_link_node = `<a href="${repo_link}" target="_blank">${repo}</a>`
-        const ci_data_node = document.querySelector('#ci-data')
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Repository:</strong></td><td>${repo_link_node}</td></tr>`)
-        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params.get('branch'))}</td></tr>`)
-        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow ID:</strong></td><td>${escapeString(workflow_id)}</td></tr>`)
-        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(workflow_name)}</td></tr>`)
 
         displayCITable(measurements.data, repo); // Iterates I (total: 1)
 
-        chart_instance = displayGraph(measurements.data) // iterates I (total: 2)
+        displayGraph(chart_instance, measurements.data) // iterates I (total: 2)
 
         displayStatsTable(measurements.data) // iterates II (total: 4)
-        dateTimePicker();
 
         // On legend change, recalculate stats table
         chart_instance.on('legendselectchanged', function (params) {
@@ -455,31 +492,6 @@ $(document).ready((e) => {
             const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[5]]);
 
             displayStatsTable(filteredMeasurements);
-        });
-
-        // When the user selects a subset of the measurement data via the date-picker
-        $('#submit').on('click', async function () {
-            const startDate = dateToYMD(new Date($('#rangestart input').val()), short=true);
-            const endDate = dateToYMD(new Date($('#rangeend input').val()), short=true);
-
-            const measurements = await getMeasurements(repo, branch, workflow_id, startDate, endDate); // iterates I
-            displayStatsTable(measurements.data); //iterates II
-            displayCITable(measurements.data, repo); // Iterates I (total: 1)
-
-            // set new chart instance options
-            const options = getChartOptions(measurements.data); //iterates I
-            chart_instance.clear();
-            chart_instance.setOption(options);
-
-            chart_instance.off('legendselectchanged') // remove
-            // we need to re-bind the handler here and can also not really refactor that
-            // without using a global variable. echarts .on does not allow to pass data to the handler
-            chart_instance.on('legendselectchanged', function (params) {
-                // get list of all legends that are on
-                const selectedLegends = params.selected;
-                const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[5]]);
-                displayStatsTable(filteredMeasurements);
-            });
         });
 
         setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);
