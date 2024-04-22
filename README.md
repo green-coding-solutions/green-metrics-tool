@@ -1,7 +1,7 @@
 [![Tests Status - Main](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-main.yml/badge.svg)](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-main.yml)
 
 
-[![Energy Used](https://api.green-coding.io/v1/ci/badge/get/?repo=green-coding-berlin/green-metrics-tool&branch=dev&workflow=45267392)](https://metrics.green-coding.io/ci.html?repo=green-coding-berlin/green-metrics-tool&branch=dev&workflow=45267392) (This is the energy cost of running our CI-Pipelines on Github. [Find out more about Eco-CI](https://www.green-coding.io/projects/eco-ci/))
+[![Energy Used](https://api.green-coding.io/v1/ci/badge/get/?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393)](https://metrics.green-coding.io/ci.html?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393) (This is the energy cost of running our CI-Pipelines on Github. [Find out more about Eco-CI](https://www.green-coding.io/projects/eco-ci/))
 
 # Introduction
 
