@@ -737,6 +737,46 @@ def test_read_detached_process_failure():
     assert '\'g4jiorejf\']\' had bad returncode: 126' in str(e.value), \
         Tests.assertion_info('\'g4jiorejf\']\' had bad returncode: 126', str(e.value))
 
+def test_invalid_container_name():
+    runner = Tests.setup_runner(usage_scenario='invalid_container_name.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+        try:
+            runner.run()
+        finally:
+            runner.cleanup()
+    assert 'Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed' in str(e.value), \
+        Tests.assertion_info('Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed', str(e.value))
+
+def test_invalid_container_name_2():
+    runner = Tests.setup_runner(usage_scenario='invalid_container_name_2.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+        try:
+            runner.run()
+        finally:
+            runner.cleanup()
+    assert 'Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed' in str(e.value), \
+        Tests.assertion_info('Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed', str(e.value))
+
+def test_duplicate_container_name():
+    runner = Tests.setup_runner(usage_scenario='duplicate_container_name.yml', dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+        try:
+            runner.run()
+        finally:
+            runner.cleanup()
+    assert "Container name 'number-1' was already assigned. Please choose unique container names." in str(e.value), \
+        Tests.assertion_info("Container name 'number-1' was already assigned. Please choose unique container names.", str(e.value))
+
+
 
     ## rethink this one
 def wip_test_verbose_provider_boot():

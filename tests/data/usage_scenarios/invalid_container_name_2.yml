@@ -1,0 +1,18 @@
+---
+name: Container name invalid test
+author: Arne Tarara
+description: Container name invalid test
+
+services:
+  my-service:
+    container_name: 8zhfiuw:-3tjfuehuis
+    image: alpine
+
+flow:
+  - name: Small-Stress
+    container: highload-api-cont
+    commands:
+      - type: console
+        command: echo "asd"
+        shell: bash
+        note: Starting a little stress
