@@ -39,13 +39,13 @@ function* colorIterator() {
     }
 }
 
-const generateColoredValues = (values) => {
+const generateColoredValues = (values, key) => {
     const color_iterator = colorIterator()
-    let last_commit_hash = null
+    let last_hash = null
     let color = null;
     return values.map((value) => {
-        if(last_commit_hash != value.commit_hash) {
-            last_commit_hash = value.commit_hash
+        if(last_hash != value[key]) {
+            last_hash = value[key]
             color = color_iterator.next().value
         }
         return {value: value.value, itemStyle: {color: color}}
@@ -57,7 +57,7 @@ const populateMachines = async () => {
     try {
         const machines_select = document.querySelector('select[name="machine_id"]');
 
-        machines_data = (await makeAPICall('/v1/machines/'))
+        machines_data = (await makeAPICall('/v1/machines'))
         machines_data.data.forEach(machine => {
             let newOption = new Option(machine[1],machine[0]);
             machines_select.add(newOption,undefined);
@@ -159,7 +159,7 @@ const loadCharts = async () => {
     let prun_id = null
 
     phase_stats_data.forEach( (data) => {
-        let [run_id, run_name, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp] = data
+        let [run_id, run_name, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp, gmt_hash] = data
 
 
         if (series[`${metric_name} - ${detail_name}`] == undefined) {
@@ -167,7 +167,7 @@ const loadCharts = async () => {
         }
 
         series[`${metric_name} - ${detail_name}`].labels.push(commit_timestamp)
-        series[`${metric_name} - ${detail_name}`].values.push({value: value, commit_hash: commit_hash})
+        series[`${metric_name} - ${detail_name}`].values.push({value: value, commit_hash: commit_hash, gmt_hash: gmt_hash})
         series[`${metric_name} - ${detail_name}`].notes.push({
             run_name: run_name,
             created_at: created_at,
@@ -176,6 +176,7 @@ const loadCharts = async () => {
             phase: phase,
             run_id: run_id,
             prun_id: prun_id,
+            gmt_hash: gmt_hash,
         })
 
         prun_id = run_id
@@ -185,10 +186,10 @@ const loadCharts = async () => {
         let badge = `
                 <div class="field">
                     <div class="header title">
-                        <strong>${METRIC_MAPPINGS[series[my_series].metric_name]['clean_name']}</strong> via
-                        <strong>${METRIC_MAPPINGS[series[my_series].metric_name]['source']}</strong>
+                        <strong>${getPretty(series[my_series].metric_name, 'clean_name')}</strong> via
+                        <strong>${getPretty(series[my_series].metric_name, 'source')}</strong>
                          - ${series[my_series].detail_name}
-                        <i data-tooltip="${METRIC_MAPPINGS[series[my_series].metric_name]['explanation']}" data-position="bottom center" data-inverted>
+                        <i data-tooltip="${getPretty(series[my_series].metric_name, 'explanation')}" data-position="bottom center" data-inverted>
                             <i class="question circle icon link"></i>
                         </i>
                     </div>
@@ -199,11 +200,11 @@ const loadCharts = async () => {
         document.querySelector("#badge-container").innerHTML += badge;
 
 
-        const element = createChartContainer("#chart-container", `${METRIC_MAPPINGS[series[my_series].metric_name]['clean_name']} via ${METRIC_MAPPINGS[series[my_series].metric_name]['source']} - ${series[my_series].detail_name} <i data-tooltip="${METRIC_MAPPINGS[series[my_series].metric_name]['explanation']}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
+        const element = createChartContainer("#chart-container", `${getPretty(series[my_series].metric_name, 'clean_name')} via ${getPretty(series[my_series].metric_name, 'source')} - ${series[my_series].detail_name} <i data-tooltip="${getPretty(series[my_series].metric_name, 'explanation')}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
 
         const chart_instance = echarts.init(element);
 
-        const my_values = generateColoredValues(series[my_series].values);
+        const my_values = generateColoredValues(series[my_series].values, $('.radio-coloring:checked').val());
 
         let data_series = [{
             name: my_series,
@@ -218,34 +219,53 @@ const loadCharts = async () => {
             }
         }]
 
-        let options = getLineBarChartOptions([], series[my_series].labels, data_series, 'Time', series[my_series].unit,  'category', null, false, null, true, false);
+        let options = getLineBarChartOptions([], series[my_series].labels, data_series, 'Time', series[my_series].unit,  'category', null, false, null, true, false, true);
 
         options.tooltip = {
-            trigger: 'item',
+            triggerOn: 'click',
             formatter: function (params, ticket, callback) {
-                if(params.componentType != 'series') return; // no notes for the MovingAverage
+                if(series[params.seriesName]?.notes == null) return; // no notes for the MovingAverage
                 return `<strong>${series[params.seriesName].notes[params.dataIndex].run_name}</strong><br>
+                        run_id: <a href="/stats.html?id=${series[params.seriesName].notes[params.dataIndex].run_id}"  target="_blank">${series[params.seriesName].notes[params.dataIndex].run_id}</a><br>
                         date: ${series[params.seriesName].notes[params.dataIndex].created_at}<br>
                         metric_name: ${params.seriesName}<br>
                         phase: ${series[params.seriesName].notes[params.dataIndex].phase}<br>
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
                         commit_timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
-                        commit_hash: ${series[params.seriesName].notes[params.dataIndex].commit_hash}<br>
+                        commit_hash: <a href="${$("#uri").text()}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}" target="_blank">${series[params.seriesName].notes[params.dataIndex].commit_hash}</a><br>
+                        gmt_hash: <a href="https://github.com/green-coding-berlin/green-metrics-tool/commit/${series[params.seriesName].notes[params.dataIndex].gmt_hash}" target="_blank">${series[params.seriesName].notes[params.dataIndex].gmt_hash}</a><br>
+
                         <br>
-                        <i>Click to diff measurement with previous</i>
+                        👉 <a href="/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].run_id},${series[params.seriesName].notes[params.dataIndex].prun_id}" target="_blank">Diff with previous run</a>
                         `;
             }
         };
 
-        chart_instance.on('click', function (params) {
-            if(params.componentType != 'series') return; // no notes for the MovingAverage
-            window.open(`/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].run_id},${series[params.seriesName].notes[params.dataIndex].prun_id}`, '_blank');
-
-        });
+        options.dataZoom = {
+            show: false,
+            start: 0,
+            end: 100,
+        };
 
 
         chart_instance.setOption(options);
         chart_instances.push(chart_instance);
+        chart_instance.on('datazoom', function(e, f) {
+            const data = chart_instance.getOption().series[0].data
+            const dataZoomOption = chart_instance.getOption().dataZoom[0];
+            const startPercent = dataZoomOption.start;
+            const endPercent = dataZoomOption.end;
+            const totalDataPoints = data.length;
+            const startIndex = Math.floor(startPercent / 100 * totalDataPoints);
+            const endIndex = Math.ceil(endPercent / 100 * totalDataPoints) - 1;
+            const { mean, stddev } = calculateStatistics(data.slice(startIndex, endIndex+1));
+
+            let options = chart_instance.getOption()
+            options.series[2].markArea.data[0][0].name = `StdDev: ${(stddev/mean * 100).toFixed(2)} %`
+            options.series[2].markArea.data[0][0].yAxis = mean + stddev
+            options.series[2].markArea.data[0][1].yAxis = mean - stddev;
+            chart_instance.setOption(options)
+        });
 
     }
 

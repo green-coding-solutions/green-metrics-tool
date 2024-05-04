@@ -57,10 +57,10 @@
         <div class="ui icon message blue">
             <i class="info circle icon"></i>
             <div class="content">
-                <p> Here you can see the energy measurements of the associated CI pipeline. </p>
+                <p> Here you can see the energy measurements of the associated CI/CD pipeline. </p>
                 <p> You can use the date picker or the legend (CPU) to filter which results are displayed on the chart. The energy measurement of a pipeline tends to be very strongly dependent on the CPU of the machine, so it is strongly recommended that you do any statistical analysis on a per CPU basis.
                 </p>
-                <p>The Stats Table will only display stats for the data shown in the chart, and exclude filtered data. It shows the stats for the full runs, and additionally for each label specifically.</p>
+                <p>The Stats Table will show aggregate data. It shows the stats for the full pipeline, and additionally for each label / step specifically.</p>
             </div>
         </div>
         <div class="ui form">
@@ -75,7 +75,7 @@
                     </div>
                 </div>
                 <div class="field">
-                    <label>End date (exclusive)</label>
+                    <label>End date (inclusive)</label>
                     <div class="ui calendar" id="rangeend">
                         <div class="ui input left icon">
                             <i class="calendar icon"></i>
@@ -85,7 +85,7 @@
                 </div>
                 <div class="field">
                     <label>&nbsp;</label>
-                    <button class="positive ui button" id="submit">Refresh Chart</button>
+                    <button class="positive ui button" id="submit">Refresh</button>
                 </div>
             </div>
         </div>
@@ -95,7 +95,7 @@
         </div>
         <div class = "ui segment" id="stats-container">
             <div class="header"><a class="ui teal ribbon label" href="#">
-                    <h3>Run Stats</h3>
+                    <h3>Pipeline stats</h3>
                 </a></div>
                 <br/>
             <div class="ui right floated icon">
@@ -128,7 +128,7 @@
             <div class="content">
             </div>
             <div class="header"><a class="ui teal ribbon label" href="#">
-                    <h3 data-tooltip="The Measurement Table shows all measurements your pipeline has made, without any filtering.">Measurements Table <i class="question circle icon "></i> </h3>
+                    <h3 data-tooltip="The runs table shows all measurements your pipeline has made in the selected timeframe" data-position="top left">Runs Table <i class="question circle icon "></i> </h3>
                 </a></div>
             <table class="ui sortable celled striped table" id="table">
             <thead>
@@ -141,6 +141,9 @@
                     <th> <div class="wrap" data-tooltip="Only accurate for runs after Aug 15, 2023. If '--%', you likely have no runs after that date.">Avg. CPU Util. <i class="question circle icon "></i> </div></th>
                     <th>Duration</th>
                     <th>Commit Hash</th>
+                    <th>Location</th>
+                    <th>Grid Intensity</th>
+                    <th>CO2eq of run</th>
                 </tr>
             </thead>
             <tbody id="ci-table"></tbody>

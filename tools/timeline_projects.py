@@ -11,7 +11,7 @@ from psycopg.rows import dict_row as psycopg_rows_dict_row
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.db import DB
-from tools.jobs import Job
+from lib.job.base import Job
 
 """
     This file schedules new Timeline Projects by inserting jobs in the jobs table
@@ -73,14 +73,14 @@ if __name__ == '__main__':
             if not last_scheduled:
                 print('Project was not scheduled yet ', url, branch, filename, machine_id)
                 DB().query('UPDATE timeline_projects SET last_scheduled = NOW() WHERE id = %s', params=(project_id,))
-                Job.insert(name, url, None, branch, filename, machine_id)
+                Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
                 print('\tInserted ')
             elif schedule_mode == 'time':
                 print('Project is on time schedule', url, branch, filename, machine_id)
                 if scheduled_today is False:
                     print('\tProject was not scheduled today', scheduled_today)
                     DB().query('UPDATE timeline_projects SET last_scheduled = NOW() WHERE id = %s', params=(project_id,))
-                    Job.insert(name, url, None, branch, filename, machine_id)
+                    Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
                     print('\tInserted')
             elif schedule_mode == 'commit':
                 print('Project is on time schedule', url, branch, filename, machine_id)

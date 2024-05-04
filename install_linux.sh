@@ -20,6 +20,7 @@ db_pw=''
 api_url=''
 metrics_url=''
 no_build=false
+no_python=false
 no_hosts=false
 ask_tmpfs=true
 install_ipmi=true
@@ -30,7 +31,7 @@ system_site_packages=false
 
 reboot_echo_flag=false
 
-while getopts "p:a:m:nhtisy" o; do
+while getopts "p:a:m:nhtbisy" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -41,11 +42,14 @@ while getopts "p:a:m:nhtisy" o; do
         m)
             metrics_url=${OPTARG}
             ;;
-        n)
+        b)
             no_build=true
             ;;
         h)
             no_hosts=true
+            ;;
+        n)
+            no_python=true
             ;;
         t)
             ask_tmpfs=false
@@ -130,11 +134,13 @@ git submodule update --init
 
 print_message "Installing needed binaries ..."
 if lsb_release -is | grep -q "Fedora"; then
-    sudo dnf -y install tinyproxy lshw
+    sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy stress-ng lshw
 else
     sudo apt-get update
-    sudo apt-get install -y tinyproxy lshw
+    sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw
 fi
+sudo systemctl stop tinyproxy
+sudo systemctl disable tinyproxy
 
 # This is a hacky patch for now for codespaces. Actually compile will fail if you do not install sensors atm!
 # we want to modularize it anyway in the near future, so this is deemed acceptable
@@ -155,7 +161,7 @@ make_file="Makefile"
 find "$parent_dir" -type d |
 while IFS= read -r subdir; do
     make_path="$subdir/$make_file"
-    if [[ -f "$make_path" ]]; then
+    if [[ -f "$make_path" ]] && [[ ! "$make_path" == *"/mach/"* ]]; then
         echo "Installing $subdir/metric-provider-binary ..."
         rm -f $subdir/metric-provider-binary 2> /dev/null
         make -C $subdir
@@ -193,12 +199,36 @@ rm lib/sgx-software-enable/sgx_enable.o
 print_message "Adding hardware_info_root.py to sudoers file"
 PYTHON_PATH=$(which python3)
 PWD=$(pwd)
-echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
+echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
+# remove old file name
+sudo rm -f /etc/sudoers.d/green_coding_hardware_info
+
 
 print_message "Setting the hardare hardware_info to be owned by root"
 sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
 sudo chown root:root $PWD/lib/hardware_info_root.py
 sudo chmod 755 $PWD/lib/hardware_info_root.py
+
+print_message "Setting the cluster cleanup.sh file to be owned by root"
+sudo cp -f $PWD/tools/cluster/cleanup_original.sh $PWD/tools/cluster/cleanup.sh
+sudo chown root:root $PWD/tools/cluster/cleanup.sh
+sudo chmod 755 $PWD/tools/cluster/cleanup.sh
+sudo chmod +x $PWD/tools/cluster/cleanup.sh
+
+print_message "Installing IPMI tools"
+if lsb_release -is | grep -q "Fedora"; then
+    sudo dnf -y install ipmitool
+else
+    sudo apt-get install -y freeipmi-tools ipmitool
+fi
+
+
+print_message "Adding IPMI to sudoers file"
+echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+# remove old file name
+sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
 
 if [[ $no_hosts != true ]] ; then
 
@@ -229,17 +259,24 @@ if [[ $no_build != true ]] ; then
     if docker info 2>/dev/null | grep rootless; then
         print_message "Docker is running in rootless mode. Using non-sudo call ..."
         docker compose -f docker/compose.yml down
+        docker compose -f docker/compose.yml build
         docker compose -f docker/compose.yml pull
     else
         print_message "Docker is running in default root mode. Using sudo call ..."
         sudo docker compose -f docker/compose.yml down
+        sudo docker compose -f docker/compose.yml build
         sudo docker compose -f docker/compose.yml pull
     fi
+fi
 
+if [[ $no_python != true ]] ; then
     print_message "Updating python requirements"
     python3 -m pip install --upgrade pip
     python3 -m pip install -r requirements.txt
+    python3 -m pip install -r docker/requirements.txt
+    python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 fi
+
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"

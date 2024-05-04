@@ -1,0 +1,33 @@
+name: Mac Tests
+run-name: Mac tests
+on:
+  # schedule:
+  #   - cron: '0 0 * * 7'
+  workflow_dispatch:
+
+jobs:
+  run-tests-main:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - id: check-date
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        uses: green-coding-solutions/eco-ci-activity-checker@v1
+        with:
+          branch: 'main'
+
+      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
+        name: 'Checkout repository'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          submodules: 'true'
+
+      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
+        name: 'Setup, Run, and Teardown Tests'
+        uses: ./.github/actions/gmt-pytest
+        with:
+         github-token: ${{ secrets.GITHUB_TOKEN }}

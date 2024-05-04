@@ -18,14 +18,27 @@ function generate_random_password() {
 db_pw=''
 api_url=''
 metrics_url=''
+no_build=false
+no_python=false
+no_hosts=false
 
-while getopts "p:a:m:" o; do
+
+while getopts "p:a:m:nhtb" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
             ;;
         a)
             api_url=${OPTARG}
+            ;;
+        b)
+            no_build=true
+            ;;
+        h)
+            no_hosts=true
+            ;;
+        n)
+            no_python=true
             ;;
         m)
             metrics_url=${OPTARG}
@@ -108,23 +121,25 @@ echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/powermetrics" | sudo tee /etc/sudoers.d/gr
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall -9 powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics_sigkill
 
-print_message "Writing to /etc/hosts file..."
-etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
-etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
+if [[ $no_hosts != true ]] ; then
+    print_message "Writing to /etc/hosts file..."
+    etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
+    etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
 
-# Entry 1 is needed for the local resolution of the containers through the jobs.py and runner.py
-if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
-    echo -e "\n$etc_hosts_line_1" | sudo tee -a /etc/hosts
-else
-    echo "Entry was already present..."
-fi
-
-# Entry 2 can be external URLs. These should not resolve to localhost if not explcitely wanted
-if [[ ${host_metrics_url} == *".green-coding.internal"* ]];then
-    if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
-        echo -e "\n$etc_hosts_line_2" | sudo tee -a /etc/hosts
+    # Entry 1 is needed for the local resolution of the containers through the jobs.py and runner.py
+    if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
+        echo -e "\n$etc_hosts_line_1" | sudo tee -a /etc/hosts
     else
         echo "Entry was already present..."
+    fi
+
+    # Entry 2 can be external URLs. These should not resolve to localhost if not explcitely wanted
+    if [[ ${host_metrics_url} == *".green-coding.internal"* ]];then
+        if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
+            echo -e "\n$etc_hosts_line_2" | sudo tee -a /etc/hosts
+        else
+            echo "Entry was already present..."
+        fi
     fi
 fi
 
@@ -137,9 +152,34 @@ print_message "Building / Updating docker containers"
 docker compose -f docker/compose.yml down
 docker compose -f docker/compose.yml pull
 
-print_message "Updating python requirements"
-python3 -m pip install --upgrade pip
-python3 -m pip install -r requirements.txt
+print_message "Building binaries ..."
+metrics_subdir="metric_providers"
+parent_dir="./$metrics_subdir"
+make_file="Makefile"
+find "$parent_dir" -type d |
+while IFS= read -r subdir; do
+    make_path="$subdir/$make_file"
+    if [[ -f "$make_path" ]] && [[ "$make_path" == *"/mach/"* ]]; then
+        echo "Installing $subdir/metric-provider-binary ..."
+        rm -f $subdir/metric-provider-binary 2> /dev/null
+        make -C $subdir
+    fi
+done
+
+if [[ $no_build != true ]] ; then
+    print_message "Building / Updating docker containers"
+    docker compose -f docker/compose.yml down
+    docker compose -f docker/compose.yml build
+    docker compose -f docker/compose.yml pull
+fi
+
+if [[ $no_python != true ]] ; then
+    print_message "Updating python requirements"
+    python3 -m pip install --upgrade pip
+    python3 -m pip install -r requirements.txt
+    python3 -m pip install -r docker/requirements.txt
+    python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
+fi
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"

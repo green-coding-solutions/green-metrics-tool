@@ -9,9 +9,9 @@
 
 import sys
 import os
-from enum import Enum
 import subprocess
 import psutil
+import locale
 
 from psycopg import OperationalError as psycopg_OperationalError
 
@@ -20,32 +20,34 @@ from lib import error_helpers
 from lib.db import DB
 from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
-
-Status = Enum('Status', ['ERROR', 'INFO', 'WARN'])
+from lib.configuration_check_error import ConfigurationCheckError, Status
 
 GMT_Resources = {
     'free_disk': 1024 ** 3, # 1GB in bytes
     'free_memory':  1024 ** 3, # 1GB in bytes
 }
-class ConfigurationCheckError(Exception):
-    pass
+
+
 
 ######## CHECK FUNCTIONS ########
 def check_db():
     try:
-        DB()
+        DB().query('SELECT 1')
     except psycopg_OperationalError:
         error_helpers.log_error('DB is not available. Did you start the docker containers?')
         os._exit(1)
     return True
 
-def check_one_psu_provider():
+def check_one_energy_and_scope_machine_provider():
     metric_providers = utils.get_metric_providers(GlobalConfig().config).keys()
     energy_machine_providers = [provider for provider in metric_providers if ".energy" in provider and ".machine" in provider]
     return len(energy_machine_providers) <= 1
 
 def check_tmpfs_mount():
     return not any(partition.mountpoint == '/tmp' and partition.fstype != 'tmpfs' for partition in psutil.disk_partitions())
+
+def check_cpu_utilization():
+    return psutil.cpu_percent(0.1) < 5.0
 
 def check_free_disk():
     free_space_bytes = psutil.disk_usage(os.path.dirname(os.path.abspath(__file__))).free
@@ -68,17 +70,21 @@ def check_docker_daemon():
                             check=False, encoding='UTF-8')
     return result.returncode == 0
 
+def check_utf_encoding():
+    return locale.getpreferredencoding().lower() == sys.getdefaultencoding().lower() == 'utf-8'
 
 ######## END CHECK FUNCTIONS ########
 
 start_checks = [
     (check_db, Status.ERROR, 'db online', 'This text will never be triggered, please look in the function itself'),
-    (check_one_psu_provider, Status.ERROR, 'single PSU provider', 'Please only select one PSU provider'),
+    (check_one_energy_and_scope_machine_provider, Status.ERROR, 'single energy scope machine provider', 'Please only select one provider with energy and scope machine'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
+    (check_cpu_utilization, Status.WARN, '< 5% CPU utilization', 'Your system seems to be busy. Utilization is above 5%. Consider terminating some processes for a more stable measurement.'),
     (check_free_disk, Status.ERROR, '1GB free hdd space', 'We recommend to free up some disk space'),
     (check_free_memory, Status.ERROR, 'free memory', 'No free memory! Please kill some programs'),
-    (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.berlin/docs/installation/]'),
-    (check_containers_running, Status.WARN, 'Running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.berlin/docs/installation/installation-cluster/].'),
+    (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.io/docs/installation/]'),
+    (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
+    (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output.'),
 
 ]
 
@@ -111,6 +117,6 @@ def check_start():
 
             print(f"Checking {formatted_key} : {output}")
 
-            if retval is False and check[1] == Status.ERROR:
+            if retval is False and check[1].value >= GlobalConfig().config['measurement']['system_check_threshold']:
                 # Error needs to raise
-                raise ConfigurationCheckError(check[3])
+                raise ConfigurationCheckError(check[3], check[1])

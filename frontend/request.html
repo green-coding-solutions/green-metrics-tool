@@ -39,7 +39,7 @@
                         to the statistics.</p>
                     <p>Your run will be put in a queue and processed in the next free slot.</p>
                     <p>The Green Metrics Tool expects a schema-correct
-                        <a href="https://docs.green-coding.berlin/docs/measuring/usage-scenario/">usage_scenario.yml</a> file in your repository root. Please check the <a href="https://github.com/green-coding-berlin/simple-example-application">Demo
+                        <a href="https://docs.green-coding.io/docs/measuring/usage-scenario/">usage_scenario.yml</a> file in your repository root. Please check the <a href="https://github.com/green-coding-berlin/simple-example-application">Demo
                             Software Repository</a> for example and documentation.<br/>
                         Override the usage scenario file name or provide relative path if it is not in the repository root with the optional filename field.
                     </p>
@@ -50,12 +50,12 @@
             <i class="info circle icon"></i>
             <div class="content">
                 <div class="header">
-                    Caveats of the free version
+                    Restrictions of the free version
                 </div>
                 <ul>
                     <li>Only public repositories are supported</li>
                     <li>Only one run per day per repository is supported</li>
-                    <li>For a premium account with no restrictions please contact us at <a href="mailto:info@green-coding.berlin"><strong>info@green-coding.berlin</strong></a></li>
+                    <li>For a premium account with no restrictions please contact us at <a href="mailto:info@green-coding.io"><strong>info@green-coding.io</strong></a></li>
                 </ul>
             </div>
         </div>
@@ -65,7 +65,7 @@
                 <form action="/" method="POST">
                     <div class="description" id="new-software-description">
                         <div class="ui fluid icon input" id="new-software-name-div">
-                            <input type="text" placeholder="Name (optional)" id="text-field-hero-input1" name="name">
+                            <input type="text" placeholder="Name" id="text-field-hero-input1" name="name" required>
                         </div>
                         <div class="ui fluid icon input">
                             <input type="text" placeholder="E-Mail" id="text-field-hero-input2" name="email" required>
@@ -77,7 +77,7 @@
                             <input type="text" placeholder="Filename (optional - default: usage_scenario.yml)" id="text-field-hero-input4" name="filename">
                         </div>
                         <div class="ui fluid icon input">
-                            <input type="text" placeholder="Branch (optional - default: main/master)" id="text-field-hero-input5" name="branch">
+                            <input type="text" placeholder="Branch (optional - default: main)" id="text-field-hero-input5" name="branch">
                         </div>
                         <div class="ui fluid icon input">
                             <select name="machine_id" class="ui fluid dropdown" required>
@@ -90,9 +90,10 @@
                                 <option value='one-off'>One-Off [Free - Fair use]</option>
                                 <option value='time'>Once per day [Premium / Free open source tier]</option>
                                 <option value='commit'>On every commit [Premium]</option>
-                                <option value='variance'>Variance test (3 measurements in a row) [Premium]</option>
+                                <option value='variance'>Variance test (10 measurements in a row) [Premium]</option>
                             </select>
                         </div>
+                        <p style="text-align: right;">Find the specifications of the machines <a href="https://docs.green-coding.io/docs/measuring/measurement-cluster/">in our documentation</a></p>
                         <br>
                         <button class="positive ui button">Submit software</button>
                     </div>

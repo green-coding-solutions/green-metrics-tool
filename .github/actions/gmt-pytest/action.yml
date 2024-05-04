@@ -29,17 +29,19 @@ runs:
       uses: actions/cache@v3
       with:
         path: venv
-        key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}
+        key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}-${{ hashFiles('docker/requirements.txt') }}-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}
 
     - name: install script and packages
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
-        ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -t
+        ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -b -t
         source venv/bin/activate
+        python3 -m pip install -r requirements.txt
         python3 -m pip install -r requirements-dev.txt
+        python3 -m pip install -r docker/requirements.txt
         python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
-      
+
     - name: disable unneeded metric providers and run test setup script
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
@@ -60,16 +62,28 @@ runs:
         password: ${{ inputs.github-token }}
 
     - name: Build docker-compose
+      id: build-docker-compose
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/docker
-      run: docker buildx bake --file test-compose.yml --file docker-compose-cache.json
+      run: |
+        { DOCKER_OUTPUT=$(docker buildx bake --file test-compose.yml --file docker-compose-cache.json 2>&1); DOCKER_EXIT_CODE=$?; } || true
+        if [ "$DOCKER_EXIT_CODE" -ne 0 ]; then
+          echo "Docker build failed with exit code $DOCKER_EXIT_CODE"
+          echo "buildx output:"
+          echo $DOCKER_OUTPUT
+          if echo "$DOCKER_OUTPUT" | grep -q "403 Forbidden"; then
+            echo "Docker build failed due to permissions issue. Continuing..."
+          else
+              exit 1
+          fi
+        fi
 
     - name: Start Test container
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/tests
       run: |
         source ../venv/bin/activate && ./start-test-containers.sh -d
-   
+
     - name: Sleep for 10 seconds
       run: sleep 10s
       shell: bash

@@ -3,49 +3,40 @@ import traceback
 
 from lib.terminal_colors import TerminalColors
 from lib.global_config import GlobalConfig
+from lib.job.base import Job
 
-
-def end_error(*errors):
-    log_error(*errors)
+def end_error(*messages, **kwargs):
+    log_error(*messages, **kwargs)
     sys.exit(1)
 
 
-def format_error(*errors):
-    err = 'Error: '
-
-    for error in errors:
-        err += str(error)
+def format_error(*messages, **kwargs):
+    err = '\n'.join(messages)
+    err += '\n\n'
+    err += '\n'.join([f"{key.capitalize()} ({value.__class__}): {value}" for key, value in kwargs.items()])
 
     error_string = f"""
-        \n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n
-        {err}
-        \n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n
-        {traceback.format_exc()}
-        \n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n
+\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n
+{traceback.format_exc()}
+\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n
+Error: {err}
+\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n
     """
 
     return error_string
 
 
-def log_error(*errors):
-    error_log_file = GlobalConfig().config['machine']['error_log_file']
+def log_error(*messages, **kwargs):
+    err = format_error(*messages, **kwargs)
 
-    if error_log_file:
+    if error_file := GlobalConfig().config['admin']['error_file']:
         try:
-            with open(error_log_file, 'a', encoding='utf-8') as file:
-                print('\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n', file=file)
-                print('Error: ', *errors, file=file)
-                print('\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n', file=file)
-                print(traceback.format_exc(), file=file)
-                print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n', file=file)
+            with open(error_file, 'a', encoding='utf-8') as file:
+                print(err, file=file)
         except (IOError ,FileNotFoundError, PermissionError):
             print(TerminalColors.FAIL, "\nError: Cannot create file in the specified location because file is not found or not writable", TerminalColors.ENDC, file=sys.stderr)
 
-    # For terminal logging we invert the order. It is better readable if the error is at the bottom
-    print(TerminalColors.FAIL,
-          '\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n', file=sys.stderr)
-    print(traceback.format_exc(), file=sys.stderr)
-    print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n', file=sys.stderr)
-    print('Error: ', *errors, file=sys.stderr)
-    print('\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n\n',
-          TerminalColors.ENDC, file=sys.stderr)
+    print(TerminalColors.FAIL, err, TerminalColors.ENDC, file=sys.stderr)
+
+    if error_email := GlobalConfig().config['admin']['error_email']:
+        Job.insert('email', email=error_email, name='Green Metrics Tool Error', message=err)

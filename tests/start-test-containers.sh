@@ -1,4 +1,6 @@
 #!/bin/bash
+set -euo pipefail
+
 echo "Running docker containers..."
 
 detach=false

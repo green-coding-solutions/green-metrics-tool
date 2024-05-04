@@ -9,10 +9,27 @@ METRICS_URL = "__METRICS_URL__"
 
 METRIC_MAPPINGS = {
 
+    'psu_co2_dc_rapl_msr_machine': {
+        'clean_name': 'Machine CO2',
+        'source': 'RAPL',
+        'explanation': 'Machine CO2 calculated by formula via RAPL PSYS Domain',
+    },
+
+    'psu_energy_dc_rapl_msr_machine': {
+        'clean_name': 'Machine Energy',
+        'source': 'RAPL',
+        'explanation': 'Full machine energy (DC) as reported by RAPL PSYS Domain',
+    },
+    'psu_power_dc_rapl_msr_machine': {
+        'clean_name': 'Machine Power',
+        'source': 'RAPL',
+        'explanation': 'Full machine power (DC) as reported by RAPL PSYS Domain',
+    },
+
     'psu_co2_ac_mcp_machine': {
         'clean_name': 'Machine CO2',
         'source': 'mcp',
-        'explanation': 'Machine CO2 as reported by mcp',
+        'explanation': 'Machine CO2 calculated by formula via mcp',
     },
 
     'psu_energy_ac_mcp_machine': {
@@ -23,7 +40,7 @@ METRIC_MAPPINGS = {
     'psu_power_ac_mcp_machine': {
         'clean_name': 'Machine Power',
         'source': 'mcp',
-        'explanation': 'Full machine power (AC) as reported by PowerSpy2',
+        'explanation': 'Full machine power (AC) as reported by mcp',
     },
 
     'embodied_carbon_share_machine': {
@@ -62,14 +79,14 @@ METRIC_MAPPINGS = {
         'explanation': 'Machine CO2 calculated by formula via XGBoost estimation',
     },
     'network_energy_formula_global': {
-        'clean_name': 'Network Energy',
+        'clean_name': 'Network Transmission',
         'source': 'Formula',
-        'explanation': 'Network Energy calculated by formula',
+        'explanation': 'Estimated external energy cost for network infrastructure.',
     },
     'network_co2_formula_global': {
-        'clean_name': 'Network CO2',
+        'clean_name': 'Network Transmission CO2',
         'source': 'Formula',
-        'explanation': 'Network CO2 calculated by formula',
+        'explanation': 'Estimated external CO2 cost for network infrastructure.',
     },
      'lm_sensors_temperature_component': {
         'clean_name': 'CPU Temperature',
@@ -149,12 +166,22 @@ METRIC_MAPPINGS = {
     'cores_power_powermetrics_component': {
         'clean_name': 'CPU Power (Cores)',
         'source': 'powermetrics',
-        'explanation': 'Power of the cores only without GPU, ANE, GPU, DRAM etc.',
+        'explanation': 'Power of the cores (M1) only without GPU, ANE, GPU, DRAM etc.',
     },
     'cores_energy_powermetrics_component': {
         'clean_name': 'CPU Energy (Cores)',
         'source': 'powermetrics',
-        'explanation': 'Energy of the cores only without GPU, ANE, GPU, DRAM etc.',
+        'explanation': 'Energy of the cores (M1) only without GPU, ANE, GPU, DRAM etc.',
+    },
+    'cpu_energy_powermetrics_component': {
+        'clean_name': 'CPU Energy (Package)',
+        'source': 'powermetrics',
+        'explanation': 'Energy of the Package (Intel) only without GPU, ANE, GPU, DRAM etc.',
+    },
+    'cpu_power_powermetrics_component': {
+        'clean_name': 'CPU Power (Package)',
+        'source': 'powermetrics',
+        'explanation': 'Power of the Package (Intel) only without GPU, ANE, GPU, DRAM etc.',
     },
     'cpu_time_powermetrics_vm': {
         'clean_name': 'CPU time',
@@ -189,7 +216,17 @@ METRIC_MAPPINGS = {
     'network_io_cgroup_container': {
         'clean_name': 'Network I/O',
         'source': 'cgroup',
-        'explanation': 'Network I/O. Details on docs.green-coding.berlin/docs/measuring/metric-providers/network-io-cgroup-container',
+        'explanation': 'Network I/O. Details on https://docs.green-coding.io/docs/measuring/metric-providers/network-io-cgroup-container',
+    },
+    'gpu_energy_nvidia_smi_component': {
+        'clean_name': 'GPU Energy',
+        'source': 'NVIDA SMI',
+        'explanation': 'Derived NVIDIA SMI based GPU energy',
+    },
+    'gpu_power_nvidia_smi_component': {
+        'clean_name': 'GPU Power',
+        'source': 'NVIDA SMI',
+        'explanation': 'NVIDIA SMI based GPU power',
     },
     'cpu_energy_rapl_msr_component': {
         'clean_name': 'CPU Energy (Package)',
@@ -204,6 +241,11 @@ METRIC_MAPPINGS = {
     'cpu_utilization_procfs_system': {
         'clean_name': 'CPU %',
         'source': 'procfs',
+        'explanation': 'CPU Utilization of total system',
+    },
+    'cpu_utilization_mach_system': {
+        'clean_name': 'CPU %',
+        'source': 'mach',
         'explanation': 'CPU Utilization of total system',
     },
     'memory_energy_rapl_msr_component': {
