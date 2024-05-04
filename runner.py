@@ -676,12 +676,18 @@ class Runner:
         # Check if there are service dependencies defined with 'depends_on'.
         # If so, change the order of the services accordingly.
         services_ordered = self.order_services(services)
+        known_container_names = []
         for service_name, service in services_ordered.items():
 
             if 'container_name' in service:
                 container_name = service['container_name']
             else:
                 container_name = service_name
+
+            if container_name in known_container_names:
+                raise RuntimeError(f"Container name '{container_name}' was already assigned. Please choose unique container names.")
+
+            known_container_names.append(container_name)
 
             print(TerminalColors.HEADER, '\nSetting up container: ', container_name, TerminalColors.ENDC)
 
@@ -936,11 +942,15 @@ class Runner:
 
             ps = subprocess.run(
                 docker_run_string,
-                check=True,
+                check=False,
                 stdout=subprocess.PIPE,
-                #stderr=subprocess.DEVNULL, // not setting will show in CLI
+                stderr=subprocess.PIPE,
                 encoding='UTF-8'
             )
+
+            if ps.returncode != 0:
+                print(f"Error: {ps.stderr} \n {ps.stdout}")
+                raise OSError(f"Docker run failed\nStderr: {ps.stderr}\nStdout: {ps.stdout}")
 
             container_id = ps.stdout.strip()
             self.__containers[container_id] = {
@@ -1299,7 +1309,7 @@ class Runner:
                     pass
 
                 if process_helpers.check_process_failed(ps['ps'], ps['detach']):
-                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}")
+                    raise RuntimeError(f"Process '{ps['cmd']}' had bad returncode: {ps['ps'].returncode}. Stderr: {stderr}; Detached process: {ps['detach']}. Please also check the stdout in the logs and / or enable stdout logging to debug further.")
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
