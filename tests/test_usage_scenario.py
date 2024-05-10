@@ -183,7 +183,7 @@ def test_context_include_escape():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(ValueError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
-    assert str(e.value).startswith('Directory: ../../../../ must not be in folder above root repo folder') , \
+    assert str(e.value).startswith('../../../../ must not be in folder above root repo folder') , \
         Tests.assertion_info('Root directory escape', str(e.value))
 
 

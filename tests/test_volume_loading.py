@@ -24,7 +24,7 @@ def test_volume_load_no_escape():
     finally:
         container_running = Tests.check_if_container_running('test-container')
 
-    expected_error = 'All: /etc/hosts must not be in folder above root repo folder'
+    expected_error = '/etc/hosts must not be in folder above root repo folder'
     assert str(e.value).startswith(expected_error), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
@@ -82,7 +82,7 @@ def test_symlinks_should_fail():
         container_running = Tests.check_if_container_running('test-container')
         os.remove(symlink_file)
 
-    expected_error = 'All: ../tmp/symlink must not be in folder above root repo folder'
+    expected_error = '../tmp/symlink must not be in folder above root repo folder'
     assert str(e.value).startswith(expected_error), Tests.assertion_info(expected_error, str(e.value))
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 

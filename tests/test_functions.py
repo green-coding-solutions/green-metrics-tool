@@ -3,26 +3,10 @@ import subprocess
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-from pathlib import Path
-
 from lib.global_config import GlobalConfig
-from lib import utils
 
 def assertion_info(expected, actual):
     return f"Expected: {expected}, Actual: {actual}"
-
-def create_test_file(path):
-    if not os.path.exists(path):
-        os.mkdir(path)
-    Path(f"{path}/test-file").touch()
-
-def create_tmp_dir():
-    tmp_dir_name = utils.randomword(12)
-    if not os.path.exists(os.path.join(CURRENT_DIR, 'tmp/')):
-        os.mkdir(os.path.join(CURRENT_DIR, 'tmp/'))
-    os.mkdir('tmp/' + tmp_dir_name)
-    tmp_dir = os.path.join(CURRENT_DIR, f'tmp/{tmp_dir_name}')
-    return tmp_dir, tmp_dir_name
 
 def check_if_container_running(container_name):
     ps = subprocess.run(

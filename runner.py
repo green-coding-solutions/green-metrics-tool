@@ -137,7 +137,7 @@ class Runner:
     # path with `..`, symbolic links or similar.
     # We always return the same error message including the path and file parameter, never `filename` as
     # otherwise we might disclose if certain files exist or not.
-    def join_paths(self, path, path2, mode='file', force_path_as_root=False):
+    def join_paths(self, path, path2, force_path_as_root=False):
         filename = os.path.realpath(os.path.join(path, path2))
 
         # If the original path is a symlink we need to resolve it.
@@ -148,17 +148,17 @@ class Runner:
             return filename
 
         if not filename.startswith(self._repo_folder):
-            raise ValueError(f"{mode.capitalize()}: {path2} must not be in folder above root repo folder {self._repo_folder}")
+            raise ValueError(f"{path2} must not be in folder above root repo folder {self._repo_folder}")
 
         if force_path_as_root and not filename.startswith(path):
-            raise RuntimeError(f"{mode.capitalize()}: {path2} must not be in folder above {path}")
+            raise RuntimeError(f"{path2} must not be in folder above {path}")
 
         # Another way to implement this. This is checking again but we want to be extra secure 👾
         if Path(self._repo_folder).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
-            raise ValueError(f"{mode.capitalize()}: {path2} must not be in folder above root repo folder {self._repo_folder}")
+            raise ValueError(f"{path2} must not be in folder above root repo folder {self._repo_folder}")
 
         if force_path_as_root and Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
-            raise RuntimeError(f"{mode.capitalize()}: {path2} must not be in folder above {path}")
+            raise RuntimeError(f"{path2} must not be in folder above {path}")
 
 
         if os.path.exists(filename):
@@ -267,7 +267,7 @@ class Runner:
                     raise ValueError("We don't support Mapping Nodes to date")
 
                 try:
-                    filename = runner_join_paths(self._root, nodes[0], mode='file', force_path_as_root=True)
+                    filename = runner_join_paths(self._root, nodes[0], force_path_as_root=True)
                 except RuntimeError as exc:
                     raise RuntimeError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
 
@@ -290,7 +290,7 @@ class Runner:
 
         Loader.add_constructor('!include', Loader.include)
 
-        usage_scenario_file = self.join_paths(self._repo_folder, self._original_filename, 'file')
+        usage_scenario_file = self.join_paths(self._repo_folder, self._original_filename)
 
         # We set the working folder now to the actual location of the usage_scenario
         if '/' in self._original_filename:
@@ -573,8 +573,8 @@ class Runner:
                 self.__notes_helper.add_note({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
                 # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
-                context_path = self.join_paths(self.__working_folder, context, 'directory')
-                self.join_paths(context_path, dockerfile, 'file')
+                context_path = self.join_paths(self.__working_folder, context)
+                self.join_paths(context_path, dockerfile)
 
                 docker_build_command = ['docker', 'run', '--rm',
                     '-v', f"{self._repo_folder}:/workspace:ro", # this is the folder where the usage_scenario is!
@@ -748,7 +748,7 @@ class Runner:
                         # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
                         # could create volumes that would linger on our system.
                         try:
-                            path = self.join_paths(self.__working_folder, vol[0], 'all')
+                            path = self.join_paths(self.__working_folder, vol[0])
                         except FileNotFoundError as exc:
                             raise RuntimeError(f"The volume {vol[0]} could not be loaded or found at the specified path.") from exc
                         if len(vol) == 3:
