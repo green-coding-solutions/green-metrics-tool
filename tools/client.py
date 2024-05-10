@@ -101,6 +101,7 @@ if __name__ == '__main__':
         last_cooldown_time = 0
         current_temperature = -1
 
+
         while True:
             job = Job.get_job('run')
             if job and job.check_job_running():
@@ -170,7 +171,8 @@ if __name__ == '__main__':
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
                     error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, run_id=job._run_id)
                 finally:
-                    do_cleanup(current_temperature, last_cooldown_time)
+                    if not args.testing:
+                        do_cleanup(current_temperature, last_cooldown_time)
 
             else:
                 do_cleanup(current_temperature, last_cooldown_time)

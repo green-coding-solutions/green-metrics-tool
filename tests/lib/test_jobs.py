@@ -86,7 +86,7 @@ def test_simple_run_job():
     Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
 
     ps = subprocess.run(
-            ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml', '--skip-system-checks'],
+            ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -99,8 +99,6 @@ def test_simple_run_job():
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
-# This is a very weak test as it does not fully test the client.py but just if the general execution can be started
-# Should be extended to proper test in the future. At the moment client.py needs to many guard clauses to implement this nicely
 def test_simple_cluster_run():
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
@@ -110,15 +108,19 @@ def test_simple_cluster_run():
 
     Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
 
-    with pytest.raises(subprocess.TimeoutExpired):
-        subprocess.run(
-                ['python3', '../tools/client.py', '--testing', '--config-override', 'test-config.yml'],
-                check=True,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                encoding='UTF-8',
-                timeout=25
-            )
+    ps = subprocess.run(
+            ['python3', '../tools/client.py', '--testing', '--config-override', 'test-config.yml'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+    assert ps.stderr == '', Tests.assertion_info('No Error', ps.stderr)
+    assert 'Successfully ended testing run of client.py' in ps.stdout,\
+        Tests.assertion_info('Successfully ended testing run of client.py', ps.stdout)
+
+    assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
+        Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
 def test_simple_run_job_missing_filename_branch():
     name = utils.randomword(12)
