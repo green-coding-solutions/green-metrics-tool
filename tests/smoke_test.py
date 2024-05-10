@@ -39,7 +39,7 @@ def setup_module(module):
     err = io.StringIO()
     GlobalConfig(config_name='test-config.yml').config
     with redirect_stdout(out), redirect_stderr(err):
-        uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
+        uri = os.path.abspath(os.path.join(CURRENT_DIR, 'data/stress-application/'))
         subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
 
         # Run the application

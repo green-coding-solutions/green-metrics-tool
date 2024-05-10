@@ -21,7 +21,7 @@ import random
 import shutil
 import yaml
 from collections import OrderedDict
-
+from datetime import datetime
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -46,49 +46,9 @@ from tools.machine import Machine
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
 
-# This function takes a path and a file and joins them while making sure that no one is trying to escape the
-# path with `..`, symbolic links or similar.
-# We always return the same error message including the path and file parameter, never `filename` as
-# otherwise we might disclose if certain files exist or not.
-def join_paths(path, path2, mode='file'):
-    filename = os.path.realpath(os.path.join(path, path2))
-
-    # If the original path is a symlink we need to resolve it.
-    path = os.path.realpath(path)
-
-    # This is a special case in which the file is '.'
-    if filename == path.rstrip('/'):
-        return filename
-
-    if not filename.startswith(path):
-        raise ValueError(f"{path2} must not be in folder above {path}")
-
-    # To double check we also check if it is in the files allow list
-
-    if mode == 'file':
-        folder_content = [str(item) for item in Path(path).rglob("*") if item.is_file()]
-    elif mode == 'directory':
-        folder_content = [str(item) for item in Path(path).rglob("*") if item.is_dir()]
-    else:
-        raise RuntimeError(f"Unknown mode supplied for join_paths: {mode}")
-
-    if filename not in folder_content:
-        raise ValueError(f"{mode.capitalize()} '{path2}' not in '{path}'")
-
-    # Another way to implement this. This is checking the third time but we want to be extra secure 👾
-    if Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
-        raise ValueError(f"{mode.capitalize()} '{path2}' not in folder '{path}'")
-
-    if os.path.exists(filename):
-        return filename
-
-    raise FileNotFoundError(f"{path2} in {path} not found")
-
-
-
 class Runner:
     def __init__(self,
-        name, uri, uri_type, filename='usage_scenario.yml', branch=None,
+        *, uri, uri_type, name=None, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False,  skip_system_checks=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
         dev_no_sleeps=False, dev_no_build=False, dev_no_metrics=False,
@@ -98,7 +58,10 @@ class Runner:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
 
         # variables that should not change if you call run multiple times
-        self._name = name
+        if name:
+            self._name = name
+        else:
+            self._name = f"Run {datetime.now()}"
         self._debugger = DebugHelper(debug_mode)
         self._allow_unsafe = allow_unsafe
         self._skip_unsafe = skip_unsafe
@@ -115,13 +78,13 @@ class Runner:
         self._uri_type = uri_type
         self._original_filename = filename
         self._branch = branch
-        self._tmp_folder = '/tmp/green-metrics-tool'
+        self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
         self._sci = {'R_d': None, 'R': 0}
         self._job_id = job_id
         self._arguments = locals()
-        self._folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
+        self._repo_folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
         self._run_id = None
         self._commit_hash = None
         self._commit_timestamp = None
@@ -145,6 +108,8 @@ class Runner:
         self.__services_to_pause_phase = {}
         self.__join_default_network = False
         self.__docker_params = []
+        self.__working_folder = self._repo_folder
+        self.__working_folder_rel = ''
 
         # we currently do not use this variable
         # self.__filename = self._original_filename # this can be changed later if working directory changes
@@ -167,6 +132,40 @@ class Runner:
 
     def get_optimizations_ignore(self):
         return self._usage_scenario.get('optimizations_ignore', [])
+
+    # This function takes a path and a file and joins them while making sure that no one is trying to escape the
+    # path with `..`, symbolic links or similar.
+    # We always return the same error message including the path and file parameter, never `filename` as
+    # otherwise we might disclose if certain files exist or not.
+    def join_paths(self, path, path2, mode='file', force_path_as_root=False):
+        filename = os.path.realpath(os.path.join(path, path2))
+
+        # If the original path is a symlink we need to resolve it.
+        path = os.path.realpath(path)
+
+        # This is a special case in which the file is '.'
+        if filename == path.rstrip('/'):
+            return filename
+
+        if not filename.startswith(self._repo_folder):
+            raise ValueError(f"{mode.capitalize()}: {path2} must not be in folder above root repo folder {self._repo_folder}")
+
+        if force_path_as_root and not filename.startswith(path):
+            raise RuntimeError(f"{mode.capitalize()}: {path2} must not be in folder above {path}")
+
+        # Another way to implement this. This is checking again but we want to be extra secure 👾
+        if Path(self._repo_folder).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
+            raise ValueError(f"{mode.capitalize()}: {path2} must not be in folder above root repo folder {self._repo_folder}")
+
+        if force_path_as_root and Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
+            raise RuntimeError(f"{mode.capitalize()}: {path2} must not be in folder above {path}")
+
+
+        if os.path.exists(filename):
+            return filename
+
+        raise FileNotFoundError(f"{path2} in {path} not found")
+
 
 
     def initialize_folder(self, path):
@@ -207,7 +206,7 @@ class Runner:
                         '--recurse-submodules',
                         '--shallow-submodules',
                         self._uri,
-                        self._folder
+                        self._repo_folder
                     ],
                     check=True,
                     capture_output=True,
@@ -223,7 +222,7 @@ class Runner:
                         '--recurse-submodules',
                         '--shallow-submodules',
                         self._uri,
-                        self._folder
+                        self._repo_folder
                     ],
                     check=True,
                     capture_output=True,
@@ -234,13 +233,13 @@ class Runner:
             if self._branch:
                 # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
-            self._folder = self._uri
+            self.__working_folder = self._repo_folder = self._uri
 
-        self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._folder, encoding='UTF-8').strip()
+        self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8').strip()
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
-        self._commit_hash, self._commit_timestamp = get_repo_info(self._folder)
+        self._commit_hash, self._commit_timestamp = get_repo_info(self._repo_folder)
 
     # This method loads the yml file and takes care that the includes work and are secure.
     # It uses the tagging infrastructure provided by https://pyyaml.org/wiki/PyYAMLDocumentation
@@ -248,6 +247,7 @@ class Runner:
     # do security checking and has no option to select when imported
     def load_yml_file(self):
         #pylint: disable=too-many-ancestors
+        runner_join_paths = self.join_paths
         class Loader(yaml.SafeLoader):
             def __init__(self, stream):
                 # We need to find our own root as the Loader is instantiated in PyYaml
@@ -266,7 +266,10 @@ class Runner:
                 else:
                     raise ValueError("We don't support Mapping Nodes to date")
 
-                filename = join_paths(self._root, nodes[0], 'file')
+                try:
+                    filename = runner_join_paths(self._root, nodes[0], mode='file', force_path_as_root=True)
+                except RuntimeError as exc:
+                    raise RuntimeError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
 
                 with open(filename, 'r', encoding='utf-8') as f:
                     # We want to enable a deep search for keys
@@ -287,13 +290,14 @@ class Runner:
 
         Loader.add_constructor('!include', Loader.include)
 
-        usage_scenario_file = join_paths(self._folder, self._original_filename, 'file')
+        usage_scenario_file = self.join_paths(self._repo_folder, self._original_filename, 'file')
 
         # We set the working folder now to the actual location of the usage_scenario
         if '/' in self._original_filename:
-            self._folder = usage_scenario_file.rsplit('/', 1)[0]
+            self.__working_folder_rel = self._original_filename.rsplit('/', 1)[0]
+            self.__working_folder = usage_scenario_file.rsplit('/', 1)[0]
             #self.__filename = usage_scenario_file.rsplit('/', 1)[1] # we currently do not use this variable
-            print("Working folder changed to ", self._folder)
+            print("Working folder changed to ", self.__working_folder)
 
 
         with open(usage_scenario_file, 'r', encoding='utf-8') as fp:
@@ -569,15 +573,15 @@ class Runner:
                 self.__notes_helper.add_note({'note': f"Building {service['image']}", 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
 
                 # Make sure the context docker file exists and is not trying to escape some root. We don't need the returns
-                context_path = join_paths(self._folder, context, 'directory')
-                join_paths(context_path, dockerfile, 'file')
+                context_path = self.join_paths(self.__working_folder, context, 'directory')
+                self.join_paths(context_path, dockerfile, 'file')
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-v', f"{self._folder}:/workspace:ro", # this is the folder where the usage_scenario is!
+                    '-v', f"{self._repo_folder}:/workspace:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
-                    f"--dockerfile=/workspace/{context}/{dockerfile}",
-                    '--context', f'dir:///workspace/{context}',
+                    f"--dockerfile=/workspace/{self.__working_folder_rel}/{context}/{dockerfile}",
+                    '--context', f'dir:///workspace/{self.__working_folder_rel}/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
                     '--no-push']
@@ -709,9 +713,9 @@ class Runner:
 
             docker_run_string.append('-v')
             if 'folder-destination' in service:
-                docker_run_string.append(f"{self._folder}:{service['folder-destination']}:ro")
+                docker_run_string.append(f"{self._repo_folder}:{service['folder-destination']}:ro")
             else:
-                docker_run_string.append(f"{self._folder}:/tmp/repo:ro")
+                docker_run_string.append(f"{self._repo_folder}:/tmp/repo:ro")
 
             if self.__docker_params:
                 docker_run_string[2:2] = self.__docker_params
@@ -730,7 +734,7 @@ class Runner:
                         docker_run_string.append('-v')
                         if volume.startswith('./'): # we have a bind-mount with relative path
                             vol = volume.split(':',1) # there might be an :ro etc at the end, so only split once
-                            path = os.path.realpath(os.path.join(self._folder, vol[0]))
+                            path = os.path.realpath(os.path.join(self.__working_folder, vol[0]))
                             if not os.path.exists(path):
                                 raise RuntimeError(f"Service '{service_name}' volume path does not exist: {path}")
                             docker_run_string.append(f"{path}:{vol[1]}")
@@ -743,21 +747,10 @@ class Runner:
                         vol = volume.split(':')
                         # We always assume the format to be ./dir:dir:[flag] as if we allow none bind mounts people
                         # could create volumes that would linger on our system.
-                        path = os.path.realpath(os.path.join(self._folder, vol[0]))
-
-                        # Check that the path starts with self._folder
-                        # We need to do this first, as telling first if path exists or not will tell about our filesystem structure
-                        if not path.startswith(self._folder):
-                            raise RuntimeError(f"Service '{service_name}' volume path ({vol[0]}) is outside allowed folder: {path}")
-
-                        if not os.path.exists(path):
-                            raise RuntimeError(f"Service '{service_name}' volume path does not exist: {path}")
-
-                        # To double check we also check if it is in the files allow list
-                        allowed_files_list = [str(item) for item in Path(self._folder).rglob("*")]
-                        if path not in allowed_files_list:
-                            raise RuntimeError(f"Service '{service_name}' volume '{path}' not in allowed file list:\n{chr(10).join(allowed_files_list)}\n\nOnly files from the supplied repository are allowed.")
-
+                        try:
+                            path = self.join_paths(self.__working_folder, vol[0], 'all')
+                        except FileNotFoundError as exc:
+                            raise RuntimeError(f"The volume {vol[0]} could not be loaded or found at the specified path.") from exc
                         if len(vol) == 3:
                             if vol[2] != 'ro':
                                 raise RuntimeError(f"Service '{service_name}': We only allow ro as parameter in volume mounts in unsafe mode")
@@ -1445,6 +1438,8 @@ class Runner:
         self.__end_measurement = None
         self.__join_default_network = False
         #self.__filename = self._original_filename # # we currently do not use this variable
+        self.__working_folder = self._repo_folder
+        self.__working_folder_rel = ''
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
@@ -1624,11 +1619,6 @@ if __name__ == '__main__':
     if args.full_docker_prune and GlobalConfig().config['postgresql']['host'] == 'green-coding-postgres-container':
         parser.print_help()
         error_helpers.log_error('--full-docker-prune is set while your database host is "green-coding-postgres-container".\nThe switch is only for remote measuring machines. It would stop the GMT images itself when running locally')
-        sys.exit(1)
-
-    if args.name is None:
-        parser.print_help()
-        error_helpers.log_error('Please supply --name')
         sys.exit(1)
 
     if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://':

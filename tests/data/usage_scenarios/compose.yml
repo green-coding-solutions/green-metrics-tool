@@ -1,7 +1,7 @@
-version: '2'
 services:
   stress:
-    build: .
     image: gcb_stress
+    build:
+      context: ../stress-application
     container_name: test-container
     restart: always

@@ -25,7 +25,7 @@ def register_machine_fixture():
 # This should be done once per module
 @pytest.fixture(autouse=True, scope="module", name="build_image")
 def build_image_fixture():
-    subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/../stress-application/compose.yml", 'build'], check=True)
+    subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/../data/stress-application/compose.yml", 'build'], check=True)
 
 def get_job(job_id):
     query = """
@@ -98,6 +98,27 @@ def test_simple_run_job():
         Tests.assertion_info('Successfully processed jobs queue item.', ps.stdout)
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
+
+# This is a very weak test as it does not fully test the client.py but just if the general execution can be started
+# Should be extended to proper test in the future. At the moment client.py needs to many guard clauses to implement this nicely
+def test_simple_cluster_run():
+    name = utils.randomword(12)
+    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    filename = 'usage_scenario.yml'
+    branch = 'main'
+    machine_id = 1
+
+    Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+
+    with pytest.raises(subprocess.TimeoutExpired):
+        subprocess.run(
+                ['python3', '../tools/client.py', '--testing', '--config-override', 'test-config.yml'],
+                check=True,
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                encoding='UTF-8',
+                timeout=25
+            )
 
 def test_simple_run_job_missing_filename_branch():
     name = utils.randomword(12)

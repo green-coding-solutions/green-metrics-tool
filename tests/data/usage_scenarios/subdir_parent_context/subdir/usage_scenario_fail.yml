@@ -1,0 +1,20 @@
+name: Cat Subdir
+author: Arne Tarara <arne@green-coding.io>
+version: 1
+description: Cat Subdir
+
+services:
+  test-container:
+    build:
+       context: ../../../../
+       dockerfile: Dockerfile
+    container_name: test-container
+    command: sh
+
+flow:
+  - name: Cat Subdir2
+    container: test-container
+    commands:
+      - type: console
+        command: echo "asd"
+        log-stdout: true
