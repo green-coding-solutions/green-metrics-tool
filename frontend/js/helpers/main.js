@@ -188,6 +188,22 @@ let closeMenu = function(e){
     localStorage.setItem('menu_closed', true)
 }
 
+async function sortDate() {
+    const button = document.querySelector('#sort-button')
+    button.addEventListener('click', sortName);
+    button.removeEventListener('click', sortDate);
+    button.querySelector('span').textContent = 'Sort name';
+    await getRepositories('date');
+}
+
+async function sortName() {
+    const button = document.querySelector('#sort-button')
+    button.addEventListener('click', sortDate);
+    button.removeEventListener('click', sortName);
+    button.querySelector('span').textContent = 'Sort date';
+    await getRepositories('name');
+}
+
 $(document).ready(function () {
     $(document).on('click','#menu-toggle.closed', openMenu);
     $(document).on('click','#menu-toggle.opened', closeMenu);

@@ -270,10 +270,14 @@ a,
     overflow: scroll;
 }
 
-#compare-button {
+#compare-button, #sort-button {
     float: right;
 }
 
 .wide.card {
     width: 400px !important;
+}
+
+.float-right {
+    float: right;
 }
