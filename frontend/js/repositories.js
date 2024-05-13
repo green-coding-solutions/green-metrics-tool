@@ -7,7 +7,7 @@ async function getRepositories(sort_by = 'date') {
     }
 
     const table_body = document.querySelector('#repositories-table tbody')
-    table_body = .innerHTML = '';
+    table_body.innerHTML = '';
 
     api_data.data.forEach(el => {
 
