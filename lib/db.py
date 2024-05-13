@@ -1,7 +1,8 @@
-import psycopg
+#pylint: disable=consider-using-enumerate
+
+from psycopg_pool import ConnectionPool
 
 from lib.global_config import GlobalConfig
-
 class DB:
 
     def __new__(cls):
@@ -11,7 +12,7 @@ class DB:
 
     def __init__(self):
 
-        if not hasattr(self, '_conn'):
+        if not hasattr(self, '_pool'):
             config = GlobalConfig().config
 
             # Important note: We are not using cursor_factory = psycopg2.extras.RealDictCursor
@@ -20,27 +21,33 @@ class DB:
             # Users are required to use the mask of the API requests to read the data.
             # force domain socket connection by not supplying host
             # pylint: disable=consider-using-f-string
-            if config['postgresql']['host'] is None:
-                self._conn = psycopg.connect("user=%s dbname=%s password=%s port=%s" % (
+
+            self._pool = ConnectionPool(
+                "postgresql://%s:%s@%s:%s/%s" % (
                     config['postgresql']['user'],
-                    config['postgresql']['dbname'],
                     config['postgresql']['password'],
-                    config['postgresql']['port']))
-            else:
-                self._conn = psycopg.connect("host=%s user=%s dbname=%s password=%s port=%s" % (
                     config['postgresql']['host'],
-                    config['postgresql']['user'],
+                    config['postgresql']['port'],
                     config['postgresql']['dbname'],
-                    config['postgresql']['password'],
-                    config['postgresql']['port']))
+                ),
+                min_size=1,
+                max_size=2,
+                open=True
+            )
 
     def __query(self, query, params=None, return_type=None, row_factory=None):
+        ret = False
 
-        # None is actually the default cursor factory
-        cur = self._conn.cursor(row_factory=row_factory)
-        try:
-            cur.execute(query, params)
-            self._conn.commit()
+        with self._pool.connection() as conn:
+            conn.autocommit = False # should be default, but we are explicit
+            cur = conn.cursor(row_factory=row_factory) # None is actually the default cursor factory
+            if isinstance(query, list) and isinstance(params, list) and len(query) == len(params):
+                for i in range(len(query)):
+                    # In error case the context manager will ROLLBACK the whole transaction
+                    cur.execute(query[i], params[i])
+            else:
+                cur.execute(query, params)
+            conn.commit()
             if return_type == 'one':
                 ret = cur.fetchone()
             elif return_type == 'all':
@@ -48,12 +55,6 @@ class DB:
             else:
                 ret = True
 
-        except psycopg.Error as exception:
-            self._conn.rollback()
-            cur.close()
-            raise exception
-
-        cur.close()
         return ret
 
     def query(self, query, params=None, row_factory=None):
@@ -66,17 +67,12 @@ class DB:
         return self.__query(query, params=params, return_type='all', row_factory=row_factory)
 
     def copy_from(self, file, table, columns, sep=','):
-        try:
-            cur = self._conn.cursor()
+        with self._pool.connection() as conn:
+            conn.autocommit = False # is implicit default
+            cur = conn.cursor()
             statement = f"COPY {table}({','.join(list(columns))}) FROM stdin (format csv, delimiter '{sep}')"
             with cur.copy(statement) as copy:
                 copy.write(file.read())
-            self._conn.commit()
-        except psycopg.Error as exception:
-            self._conn.rollback()
-            cur.close()
-            raise exception
-        cur.close()
 
 
 if __name__ == '__main__':

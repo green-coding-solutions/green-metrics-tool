@@ -2,7 +2,7 @@
 
 We are super happy if you are interested in contributing to the Green Metrics Tool.
 
-All contributions should be done via Pull Requests.
+All contributions should be done via Pull Requests. We use the standard forking workflow for Pull Requests. If you are not familiar with forks, you can find more information e.g. in [GitHub's documentation](https://docs.github.com/en/get-started/exploring-projects-on-github/contributing-to-a-project)
 
 Please see our: [Contribution Guidelines](https://docs.green-coding.org/docs/contributing/green-metrics-tool-contribution/)
 

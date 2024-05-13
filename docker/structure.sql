@@ -9,7 +9,13 @@ CREATE TABLE machines (
     description text,
     available boolean DEFAULT false,
     status_code text,
-    sleep_time_after_job integer,
+    jobs_processing text,
+    cooldown_time_after_job integer,
+    base_temperature integer,
+    current_temperature integer,
+    gmt_hash text,
+    gmt_timestamp timestamp with time zone,
+    configuration json,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -20,14 +26,16 @@ CREATE TRIGGER machines_moddatetime
 
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,
+    type text,
     state text,
     name text,
     email text,
     url text,
-    branch text NOT NULL,
-    filename text NOT NULL,
+    branch text,
+    filename text,
     categories int[],
     machine_id int REFERENCES machines(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    message text,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -58,6 +66,7 @@ CREATE TABLE runs (
     phases JSON,
     logs text,
     invalid_run text,
+    failed boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -169,10 +178,15 @@ CREATE TABLE ci_measurements (
     label text,
     duration bigint,
     source text,
+    lat text,
+    lon text,
+    city text,
+    co2i text,
+    co2eq text,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
-CREATE INDEX "ci_measurements_get" ON ci_measurements(repo, branch, workflow_id, run_id, created_at);
+CREATE INDEX "ci_measurements_subselect" ON ci_measurements(repo, branch, workflow_id, created_at);
 CREATE TRIGGER ci_measurements_moddatetime
     BEFORE UPDATE ON ci_measurements
     FOR EACH ROW
@@ -258,6 +272,7 @@ CREATE TRIGGER hog_coalitions_moddatetime
 
 CREATE INDEX idx_coalition_energy_impact ON hog_coalitions(energy_impact);
 CREATE INDEX idx_coalition_name ON hog_coalitions(name);
+CREATE INDEX idx_coalition_measurement ON hog_coalitions(measurement);
 
 CREATE TABLE hog_tasks (
     id SERIAL PRIMARY KEY,
@@ -283,3 +298,102 @@ CREATE TRIGGER hog_tasks_moddatetime
     EXECUTE PROCEDURE moddatetime (updated_at);
 
 CREATE INDEX idx_task_coalition ON hog_tasks(coalition);
+
+CREATE TABLE optimizations (
+    id SERIAL PRIMARY KEY,
+    run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE ,
+    title text NOT NULL,
+    label text,
+    criticality text,
+    reporter text,
+    icon text,
+    description text NOT NULL,
+    link text,
+
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+
+CREATE TRIGGER optimizations_moddatetime
+    BEFORE UPDATE ON optimizations
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);
+
+CREATE INDEX optimizations_runs ON optimizations(run_id);
+
+
+CREATE TABLE carbondb_energy_data (
+    id SERIAL PRIMARY KEY,
+    type TEXT NOT NULL,
+    company UUID,
+    machine UUID NOT NULL,
+    project UUID,
+    tags TEXT[],
+    time_stamp BIGINT NOT NULL,
+    energy_value FLOAT NOT NULL,
+    co2_value FLOAT,
+    carbon_intensity FLOAT,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    ip_address INET,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+
+CREATE TRIGGER carbondb_energy_data_moddatetime
+    BEFORE UPDATE ON carbondb_energy_data
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);
+
+
+CREATE INDEX idx_carbondb_company ON carbondb_energy_data(company);
+CREATE INDEX idx_carbondb_machine ON carbondb_energy_data(machine);
+CREATE INDEX idx_carbondb_project ON carbondb_energy_data(project);
+
+CREATE INDEX idx_carbondb_energy_data_grouping ON carbondb_energy_data (time_stamp, machine, energy_value);
+
+
+CREATE TABLE carbondb_energy_data_day (
+    id SERIAL PRIMARY KEY,
+    type TEXT NOT NULL,
+    company UUID,
+    machine UUID NOT NULL,
+    project UUID,
+    tags TEXT[],
+    date DATE NOT NULL,
+    energy_sum FLOAT NOT NULL,
+    co2_sum FLOAT,
+    carbon_intensity_avg FLOAT,
+    record_count INT,
+
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+
+CREATE TRIGGER carbondb_energy_data_day_moddatetime
+    BEFORE UPDATE ON carbondb_energy_data_day
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);
+
+CREATE INDEX idx_carbondb_hour_company ON carbondb_energy_data_day(company);
+CREATE INDEX idx_carbondb_hour_machine ON carbondb_energy_data_day(machine);
+CREATE INDEX idx_carbondb_hour_project ON carbondb_energy_data_day(project);
+
+
+ALTER TABLE IF EXISTS public.carbondb_energy_data_day
+    ADD CONSTRAINT unique_machine_project_date UNIQUE (machine, date);
+
+CREATE TABLE ip_data (
+    ip_address INET,
+    data JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (ip_address, created_at)
+);
+
+CREATE TABLE carbon_intensity (
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    data JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (latitude, longitude, created_at)
+);

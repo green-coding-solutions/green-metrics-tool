@@ -13,33 +13,36 @@ const updateCompareCount = () => {
     countButton.textContent = `Compare: ${checkedCount} Run(s)`;
 }
 
+let lastChecked = null;
 
-const allow_group_select_checkboxes = (checkbox_wrapper_id) => {
-    let lastChecked = null;
-    let checkboxes = document.querySelectorAll(checkbox_wrapper_id);
-
-    for (let i=0;i<checkboxes.length;i++){
-        checkboxes[i].setAttribute('data-index',i);
-        checkboxes[i].addEventListener("click",function(e){
-
-            if (lastChecked && e.shiftKey) {
-                let i = parseInt(lastChecked.getAttribute('data-index'));
-                let j = parseInt(this.getAttribute('data-index'));
-
-                if (i>j) {
-                    [i, j] = [j, i]
-                }
-
-                for (let c=0; c<checkboxes.length; c++) {
-                    if (i <= c && c <=j) {
-                        checkboxes[c].checked = this.checked;
-                    }
-                }
+function handleCheckboxClick(e){
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    if (lastChecked && e.shiftKey) {
+        let inBetween = false;
+        checkboxes.forEach(checkbox => {
+            if (checkbox === this || checkbox === lastChecked) {
+                inBetween = !inBetween;
             }
-            lastChecked = this;
-        });
+
+          if (inBetween) {
+            checkbox.checked = this.checked;
+          }
+        })
     }
+    lastChecked = this;
+};
+
+const allow_group_select_checkboxes = () => {
+
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+
+    checkboxes.forEach(checkbox => {
+        checkbox.removeEventListener('click', handleCheckboxClick);
+        checkbox.addEventListener('click', handleCheckboxClick);
+    });
 }
+
+
 
 const removeFilter = (paramName) => {
     const urlSearchParams = new URLSearchParams(window.location.search);
@@ -97,8 +100,12 @@ const getRunsTable = (el, url, include_uri=true, include_button=true, searching=
             title: 'Name',
             render: function(el, type, row) {
 
-                if(row[9] == null) el = `${el} (in progress 🔥)`;
+                // only show Failed OR in Progress
+                if(row[10] == true) el = `${el} <span class="ui red horizontal label">Failed</span>`;
+                else if(row[9] == null) el = `${el} (in progress 🔥)`;
+
                 if(row[5] != null) el = `${el} <span class="ui yellow horizontal label" title="${row[5]}">invalidated</span>`;
+
                 return `<a href="/stats.html?id=${row[0]}" target="_blank">${el}</a>`
             },
         },
@@ -155,9 +162,10 @@ const getRunsTable = (el, url, include_uri=true, include_button=true, searching=
         deferRender: true,
         drawCallback: function(settings) {
             document.querySelectorAll('input[type="checkbox"]').forEach((e) =>{
+                e.removeEventListener('change', updateCompareCount);
                 e.addEventListener('change', updateCompareCount);
             })
-            allow_group_select_checkboxes('input[type="checkbox"]');
+            allow_group_select_checkboxes();
             updateCompareCount();
         },
         order: [[columns.length-2, 'desc']] // API also orders, but we need to indicate order for the user

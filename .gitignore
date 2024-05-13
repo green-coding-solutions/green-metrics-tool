@@ -1,3 +1,4 @@
+.DS_Store
 __pycache__
 config.yml
 config.js
@@ -13,7 +14,6 @@ metric-provider-binary
 static-binary
 .pytest_cache
 test-compose.yml
-test-config.yml
 tests/structure.sql
 tools/sgx_enable
 venv/

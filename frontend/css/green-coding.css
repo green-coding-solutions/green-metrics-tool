@@ -95,21 +95,36 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
 }
 
  #menu {
+    display: flex;
+    flex-direction: column;
     width: 200px;
-    background: #333;
     height: 100%;
     min-height: 100vh;
     position: fixed;
     top: 0;
     left: 0px;
     margin-left:  0px;
-    background: rgb(47, 61, 79);
-    background: linear-gradient(180deg, rgb(47, 61, 79) 0%, rgb(47, 61, 79) 50%, rgb(80, 144, 113) 100%);
-
+    background: rgb(40, 56, 70);
+    /*background: linear-gradient(180deg, rgb(47, 61, 79) 0%, rgb(47, 61, 79) 50%, rgb(80, 144, 113) 100%);*/
+    border-radius: 0px;
  }
  #main {
      flex-grow:  1;
      margin: 20px 40px 0px 240px ;
+}
+.sticky-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.sticky-container img {
+    witdh: 250px;
+    margin:auto;
+    margin-bottom: 10px;
+}
+
+#menu .item-container {
+    flex:1;
 }
 
 /* Handle collapsing on click or on small window */
@@ -223,7 +238,7 @@ a,
     margin-bottom: 40px;
 }
 
-.usage-scenario {
+.usage-scenario, #diff-pre {
     word-wrap: break-word;
     white-space: pre-wrap;
 }

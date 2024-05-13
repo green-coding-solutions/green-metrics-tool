@@ -208,7 +208,42 @@ static int parse_containers(container_t** containers, char* containers_string, i
     return length;
 }
 
+static int check_system(int rootless_mode) {
+    const char* file_path_cpu_stat;
+    const char* file_path_proc_stat;
+    int found_error = 0;
 
+    if(rootless_mode) {
+        file_path_cpu_stat = "/sys/fs/cgroup/user.slice/cpu.stat";
+    } else {
+        file_path_cpu_stat = "/sys/fs/cgroup/system.slice/cpu.stat";
+    }
+    file_path_proc_stat = "/proc/stat";
+
+    FILE* fd = NULL;
+
+    fd = fopen(file_path_cpu_stat, "r");
+    if (fd == NULL) {
+        fprintf(stderr, "Couldn't open cpu.stat file at %s\n", file_path_cpu_stat);
+        found_error = 1;
+    }
+
+    fd = fopen(file_path_proc_stat, "r");
+    if (fd == NULL) {
+        fprintf(stderr, "Couldn't open /proc/stat file\n");
+        found_error = 1;
+    }
+
+    if (fd != NULL) {
+        fclose(fd);
+    }
+
+    if(found_error) {
+        exit(127);
+    }
+
+    return 0;
+}
 
 int main(int argc, char **argv) {
 
@@ -216,6 +251,7 @@ int main(int argc, char **argv) {
     int length = 0;
     int discover_containers = 0;
     int use_containers_string = 0;
+    int check_system_flag = 0;
     int rootless_mode = 0; // docker root is default
     char *containers_string = NULL;  // Dynamic buffer to store optarg
     container_t *containers = NULL;
@@ -231,16 +267,18 @@ int main(int argc, char **argv) {
         {"interval", no_argument, NULL, 'i'},
         {"containers", no_argument, NULL, 's'},
         {"monitor", no_argument, NULL, 'm'},
+        {"check", no_argument, NULL, 'c'},
         {NULL, 0, NULL, 0}
     };
 
-    while ((c = getopt_long(argc, argv, "ri:s:hm", long_options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "ri:s:hmc", long_options, NULL)) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-s      : string of container IDs separated by comma\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n\n");
+            printf("\t-c      : check system and exit\n\n");
 
             struct timespec res;
             double resolution;
@@ -255,11 +293,9 @@ int main(int argc, char **argv) {
         case 'i':
             msleep_time = atoi(optarg);
             break;
-
         case 'r':
             rootless_mode = 1;
             break;
-
         case 's':
             use_containers_string = 1;
             containers_string = (char *)malloc(strlen(optarg) + 1);  // Allocate memory
@@ -267,6 +303,8 @@ int main(int argc, char **argv) {
             break;
         case 'm':
             discover_containers = 1;
+        case 'c':
+            check_system_flag = 1;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -280,6 +318,12 @@ int main(int argc, char **argv) {
     } else if (use_containers_string == 1) {
         length = parse_containers(&containers, containers_string, rootless_mode);
     }
+
+    if(check_system_flag){
+        exit(check_system(rootless_mode));
+    }
+
+    int length = parse_containers(&containers, containers_string, rootless_mode);
 
     while(1) {
         if(discover_containers == 1) length = scan_directory(&containers, rootless_mode);

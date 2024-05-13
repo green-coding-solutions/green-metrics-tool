@@ -92,6 +92,9 @@ const fillRunData = (run_data, key = null) => {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${commit_link}" target="_blank">${run_data?.[item]}</a></td></tr>`)
         } else if(item == 'name' || item == 'filename') {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]}</td></tr>`)
+        } else if(item == 'failed' && run_data?.[item] == true) {
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Status</strong></td><td><span class="ui red horizontal label">This run has failed. Please see logs for details</span></td></tr>`)
+
         } else if(item == 'uri') {
             let entry = run_data?.[item];
             if(run_data?.[item].indexOf('http') === 0) entry = `<a href="${run_data?.[item]}">${run_data?.[item]}</a>`;
@@ -287,6 +290,7 @@ async function makeBaseAPICalls(url_params) {
     let run_data = null;
     let phase_stats_data = null;
     let network_data = null;
+    let optimizations_data = null;
 
     try {
         run_data = await makeAPICall('/v1/run/' + url_params.get('id'))
@@ -305,9 +309,15 @@ async function makeBaseAPICalls(url_params) {
     } catch (err) {
         showNotification('Could not get network intercepts data from API', err);
     }
+    try {
+        optimizations_data = await makeAPICall('/v1/optimizations/' + url_params.get('id'))
+    } catch (err) {
+        showNotification('Could not get optimizations data from API', err);
+    }
 
 
-    return [run_data?.data, phase_stats_data?.data, network_data?.data];
+
+    return [run_data?.data, phase_stats_data?.data, network_data?.data, optimizations_data?.data];
 }
 
 const renderBadges = (url_params) => {
@@ -336,6 +346,57 @@ const displayNetworkIntercepts = (network_data) => {
         }
     }
 }
+
+const displayOptimizationsData = (optimizations_data) => {
+
+    const optimizationTemplate = `
+            <div class="content">
+                <div class="header">{{header}}
+                    <span class="right floated time">
+                        <div class="ui label"><i class="{{subsystem_icon}} icon"></i>{{subsystem}}</div>
+                        <div class="ui {{label_colour}} label">{{label}}</div>
+                    </span>
+                </div>
+                <div class="description">
+                    <p>{{description}}</p>
+                </div>
+                <div class="extra content">
+                    <span class="right floated time">
+                    {{link}}
+                    </span>
+                </div>
+            </div>
+    `;
+    const container = document.getElementById("optimizationsContainer");
+
+    optimizations_data.forEach(optimization => {
+        let optimizationHTML = optimizationTemplate
+            .replace("{{header}}", optimization[0])
+            .replace("{{label}}", optimization[1])
+            .replace("{{label_colour}}", optimization[2])
+            .replace("{{description}}", optimization[5])
+            .replace("{{subsystem}}", optimization[3])
+            .replace("{{subsystem_icon}}", optimization[4])
+
+        if (optimization[6]){
+            optimizationHTML = optimizationHTML.replace("{{link}}", `
+            <a class="ui mini icon primary basic button" href="${optimization[6]}">
+                <i class="angle right icon"></i>
+            </a>`);
+        }else{
+            optimizationHTML = optimizationHTML.replace("{{link}}", "");
+        }
+
+        const optimizationElement = document.createElement("div");
+        optimizationElement.classList.add("ui", "horizontal", "fluid", "card");
+        optimizationElement.innerHTML = optimizationHTML;
+        container.appendChild(optimizationElement);
+
+    });
+
+    $('#optimization_count').html(optimizations_data.length)
+}
+
 
 const getURLParams = () => {
     const query_string = window.location.search;
@@ -397,23 +458,21 @@ $(document).ready( (e) => {
             return;
         }
 
-        let [run_data, phase_stats_data, network_data] = await makeBaseAPICalls(url_params);
+        let [run_data, phase_stats_data, network_data, optimizations_data] = await makeBaseAPICalls(url_params);
 
-        if (run_data == undefined) return;
+        if (run_data == null) return; // no need to process any further if even core data not available
 
         renderBadges(url_params);
 
         fillRunData(run_data);
 
-        displayNetworkIntercepts(network_data);
+        if (network_data != null) displayNetworkIntercepts(network_data);
 
-        if(phase_stats_data != null) {
-            displayComparisonMetrics(phase_stats_data)
-        }
+        if (optimizations_data != null) displayOptimizationsData(optimizations_data);
 
-        if (localStorage.getItem('fetch_time_series') === 'true') {
-            getTimeSeries(url_params);
-        }
+        if(phase_stats_data != null) displayComparisonMetrics(phase_stats_data)
+
+        if (localStorage.getItem('fetch_time_series') === 'true') getTimeSeries(url_params);
 
         // after all charts instances have been placed
         // the flexboxes might have rearranged. We need to trigger resize

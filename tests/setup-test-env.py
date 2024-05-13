@@ -7,14 +7,11 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib import utils
 
-BASE_CONFIG_NAME = 'config.yml'
 BASE_COMPOSE_NAME = 'compose.yml.example'
-TEST_CONFIG_NAME = 'test-config.yml'
 TEST_COMPOSE_NAME = 'test-compose.yml'
+
 current_dir = os.path.abspath(os.path.dirname(__file__))
-base_config_path = os.path.join(current_dir, f"../{BASE_CONFIG_NAME}")
 base_compose_path = os.path.join(current_dir, f"../docker/{BASE_COMPOSE_NAME}")
-test_config_path = os.path.join(current_dir, f"../{TEST_CONFIG_NAME}")
 test_compose_path = os.path.join(current_dir, f"../docker/{TEST_COMPOSE_NAME}")
 
 DB_PW = 'testpw'
@@ -41,29 +38,6 @@ def copy_sql_structure():
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
-
-def edit_config_file():
-    print('Creating test-config.yml...')
-    config = None
-    with open(base_config_path, encoding='utf8') as base_config_file:
-        config = yaml.safe_load(base_config_file)
-
-    # Reset SMTP
-    for smtp_entry in config.get('smtp'):
-        config['smtp'][smtp_entry] = None
-
-    config['postgresql']['host'] = 'test-green-coding-postgres-container'
-    config['postgresql']['dbname'] = 'test-green-coding'
-    config['postgresql']['password'] = DB_PW
-    config['admin']['no_emails'] = True
-
-    # change idle start/stop times to 0
-    config['measurement']['idle-time-start'] = 0
-    config['measurement']['idle-time-end'] = 0
-
-    with open(test_config_path, 'w', encoding='utf8') as test_config_file:
-        yaml.dump(config, test_config_file)
-
 
 def edit_compose_file():
     print('Creating test-compose.yml...')
@@ -141,7 +115,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     copy_sql_structure()
-    edit_config_file()
     edit_compose_file()
     edit_etc_hosts()
     if not args.no_docker_build:

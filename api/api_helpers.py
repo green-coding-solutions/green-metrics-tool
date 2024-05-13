@@ -1,8 +1,16 @@
+import typing
+import io
+import ipaddress
+import json
 import uuid
 import faulthandler
 from functools import cache
 from html import escape as html_escape
+from starlette.background import BackgroundTask
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import ORJSONResponse
 import numpy as np
+import requests
 import scipy.stats
 
 from psycopg.rows import dict_row as psycopg_rows_dict_row
@@ -11,7 +19,36 @@ from pydantic import BaseModel
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
+from lib.global_config import GlobalConfig
 from lib.db import DB
+from lib import error_helpers
+
+import redis
+from enum import Enum
+
+def get_artifact(artifact_type: Enum, key: str, decode_responses=True):
+    if not GlobalConfig().config['redis']['host']:
+        return None
+
+    data = None
+    try:
+        r = redis.Redis(host=GlobalConfig().config['redis']['host'], port=6379, db=artifact_type.value, protocol=3, decode_responses=decode_responses)
+
+        data = r.get(key)
+    except redis.RedisError as e:
+        error_helpers.log_error('Redis get_artifact failed', exception=e)
+
+    return None if data is None or data == [] else data
+
+def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
+    if not GlobalConfig().config['redis']['host']:
+        return
+
+    try:
+        r = redis.Redis(host=GlobalConfig().config['redis']['host'], port=6379, db=artifact_type.value, protocol=3)
+        r.set(key, data, ex=ex) # Expiration => 2592000 = 30 days
+    except redis.RedisError as e:
+        error_helpers.log_error('Redis store_artifact failed', exception=e)
 
 def rescale_energy_value(value, unit):
     # We only expect values to be mJ for energy!
@@ -92,11 +129,12 @@ def get_machine_list():
             GROUP BY machine_id
         ) SELECT
                 m.id, m.description, m.available,
-                m.status_code,
-                m.updated_at,
-                m.sleep_time_after_job,
+                m.status_code, m.updated_at, m.jobs_processing,
+                m.gmt_hash, m.gmt_timestamp,
+                m.base_temperature, m.current_temperature, m.cooldown_time_after_job,
                 (SELECT COUNT(id) FROM jobs as j WHERE j.machine_id = m.id AND j.state = 'WAITING') as job_amount,
-                (SELECT avg_duration FROM timings WHERE timings.machine_id = m.id )::int as avg_duration_seconds
+                (SELECT avg_duration FROM timings WHERE timings.machine_id = m.id )::int as avg_duration_seconds,
+                m.configuration
 
             FROM machines as m
             ORDER BY m.description DESC
@@ -112,7 +150,7 @@ def get_run_info(run_id):
                     LEFT JOIN categories as t on t.id = elements) as categories,
                 filename, start_measurement, end_measurement,
                 measurement_config, machine_specs, machine_id, usage_scenario,
-                created_at, invalid_run, phases, logs
+                created_at, invalid_run, phases, logs, failed
             FROM runs
             WHERE id = %s
             """
@@ -125,7 +163,7 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
 
-    if branch is None or branch.strip() != '':
+    if branch is None or branch.strip() == '':
         branch = 'main'
 
     params = [uri, filename, branch, machine_id, f"%{phase}"]
@@ -163,7 +201,7 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
     query = f"""
             SELECT
                 r.id, r.name, r.created_at, p.metric, p.detail_name, p.phase,
-                p.value, p.unit, r.commit_hash, r.commit_timestamp,
+                p.value, p.unit, r.commit_hash, r.commit_timestamp, r.gmt_hash,
                 row_number() OVER () AS row_num
             FROM runs as r
             LEFT JOIN phase_stats as p ON
@@ -507,18 +545,18 @@ def add_phase_stats_statistics(phase_stats_object):
                         t_stat = get_t_stat(len(key_obj['values']))
 
                         # JSON does not recognize the numpy data types. Sometimes int64 is returned
-                        key_obj['mean'] = float(np.mean(key_obj['values']))
-                        key_obj['stddev'] = float(np.std(key_obj['values']))
-                        key_obj['max_mean'] = np.max(key_obj['values']) # overwrite with max of list
-                        key_obj['min_mean'] = np.min(key_obj['values']) # overwrite with min of list
-                        key_obj['ci'] = key_obj['stddev']*t_stat
+                        key_obj['mean'] = np.mean(key_obj['values']).item()
+                        key_obj['stddev'] = np.std(key_obj['values']).item()
+                        key_obj['max_mean'] = np.max(key_obj['values']).item() # overwrite with max of list
+                        key_obj['min_mean'] = np.min(key_obj['values']).item() # overwrite with min of list
+                        key_obj['ci'] = (key_obj['stddev']*t_stat).item()
 
                         if len(key_obj['values']) > 2:
                             data_c = key_obj['values'].copy()
                             pop_mean = data_c.pop()
                             _, p_value = scipy.stats.ttest_1samp(data_c, pop_mean)
                             if not np.isnan(p_value):
-                                key_obj['p_value'] = p_value
+                                key_obj['p_value'] = p_value.item()
                                 if key_obj['p_value'] > 0.05:
                                     key_obj['is_significant'] = False
                                 else:
@@ -543,7 +581,7 @@ def add_phase_stats_statistics(phase_stats_object):
                     _, p_value = scipy.stats.ttest_ind(detail['data'][key1]['values'], detail['data'][key2]['values'], equal_var=False)
 
                     if not np.isnan(p_value):
-                        detail['p_value'] = p_value
+                        detail['p_value'] = p_value.item()
                         if detail['p_value'] > 0.05:
                             detail['is_significant'] = False
                         else:
@@ -560,3 +598,192 @@ def get_t_stat(length):
     dof = length-1
     t_crit = np.abs(scipy.stats.t.ppf((.05)/2,dof)) # for two sided!
     return t_crit/np.sqrt(length)
+
+# As the ORJSONResponse renders the object on init we need to keep the original around as otherwise we need to reparse
+# it when we use these functions in our code. The header is a copy from starlette/responses.py JSONResponse
+class ORJSONResponseObjKeep(ORJSONResponse):
+    def __init__(
+        self,
+        content: typing.Any,
+        status_code: int = 200,
+        headers: typing.Optional[typing.Dict[str, str]] = None,
+        media_type: typing.Optional[str] = None,
+        background: typing.Optional[BackgroundTask] = None,
+    ) -> None:
+        self.content = content
+        super().__init__(content, status_code, headers, media_type, background)
+
+def get_geo(ip):
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+        if ip_obj.is_private:
+            return('52.53721666833642', '13.424863870661927')
+    except ValueError:
+        return (None, None)
+
+    query = "SELECT ip_address, data FROM ip_data WHERE created_at > NOW() - INTERVAL '24 hours' AND ip_address=%s;"
+    db_data = DB().fetch_all(query, (ip,))
+
+    if db_data is not None and len(db_data) != 0:
+        return (db_data[0][1].get('latitude'), db_data[0][1].get('longitude'))
+
+    latitude, longitude = get_geo_ipapi_co(ip)
+
+    if latitude is False:
+        latitude, longitude = get_geo_ip_api_com(ip)
+    if latitude is False:
+        latitude, longitude = get_geo_ip_ipinfo(ip)
+
+    #If all 3 fail there is something bigger wrong
+    return (latitude, longitude)
+
+
+def get_geo_ipapi_co(ip):
+
+    response = requests.get(f"https://ipapi.co/{ip}/json/", timeout=10)
+    print(f"Accessing https://ipapi.co/{ip}/json/")
+    if response.status_code == 200:
+        resp_data = response.json()
+
+        if 'error' in resp_data or 'latitude' not in resp_data or 'longitude' not in resp_data:
+            return (None, None)
+
+        resp_data['source'] = 'ipapi.co'
+
+        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
+        DB().query(query=query, params=(ip, json.dumps(resp_data)))
+
+        return (resp_data.get('latitude'), resp_data.get('longitude'))
+
+    return (False, False)
+
+def get_geo_ip_api_com(ip):
+
+    response = requests.get(f"http://ip-api.com/json/{ip}", timeout=10)
+    print(f"Accessing http://ip-api.com/json/{ip}")
+    if response.status_code == 200:
+        resp_data = response.json()
+
+        if ('status' in resp_data and resp_data.get('status') == 'fail') or 'lat' not in resp_data or 'lon' not in resp_data:
+            return (None, None)
+
+        resp_data['latitude'] = resp_data.get('lat')
+        resp_data['longitude'] = resp_data.get('lon')
+        resp_data['source'] = 'ip-api.com'
+
+        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
+        DB().query(query=query, params=(ip, json.dumps(resp_data)))
+
+        return (resp_data.get('latitude'), resp_data.get('longitude'))
+
+    return (False, False)
+
+def get_geo_ip_ipinfo(ip):
+
+    response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=10)
+    print(f"Accessing https://ipinfo.io/{ip}/json")
+    if response.status_code == 200:
+        resp_data = response.json()
+
+        if 'bogon' in resp_data or 'loc' not in resp_data:
+            return (None, None)
+
+        lat_lng = resp_data.get('loc').split(',')
+
+        resp_data['latitude'] = lat_lng[0]
+        resp_data['longitude'] = lat_lng[1]
+        resp_data['source'] = 'ipinfo.io'
+
+        query = "INSERT INTO ip_data (ip_address, data) VALUES (%s, %s)"
+        DB().query(query=query, params=(ip, json.dumps(resp_data)))
+
+        return (resp_data.get('latitude'), resp_data.get('longitude'))
+
+    return (False, False)
+
+def get_carbon_intensity(latitude, longitude):
+
+    if latitude is None or longitude is None:
+        return None
+
+    query = "SELECT latitude, longitude, data FROM carbon_intensity WHERE created_at > NOW() - INTERVAL '1 hours' AND latitude=%s AND longitude=%s;"
+    db_data = DB().fetch_all(query, (latitude, longitude))
+
+    if db_data is not None and len(db_data) != 0:
+        return db_data[0][2].get('carbonIntensity')
+
+    if not (token := GlobalConfig().config.get('electricity_maps_token')):
+        raise ValueError('You need to specify an electricitymap token in the config!')
+
+    if token == 'testing':
+        # If we are running tests we always return 1000
+        return 1000
+
+    headers = {'auth-token': token }
+    params = {'lat': latitude, 'lon': longitude }
+
+    response = requests.get('https://api.electricitymap.org/v3/carbon-intensity/latest', params=params, headers=headers, timeout=10)
+    print(f"Accessing electricitymap with {latitude} {longitude}")
+    if response.status_code == 200:
+        resp_data = response.json()
+        query = "INSERT INTO carbon_intensity (latitude, longitude, data) VALUES (%s, %s, %s)"
+        DB().query(query=query, params=(latitude, longitude, json.dumps(resp_data)))
+
+        return resp_data.get('carbonIntensity')
+
+    return None
+
+def carbondb_add(client_ip, energydatas):
+
+    latitude, longitude = get_geo(client_ip)
+    carbon_intensity = get_carbon_intensity(latitude, longitude)
+
+    data_rows = []
+
+    for e in energydatas:
+
+        if not isinstance(e, dict):
+            e = e.dict()
+
+        e = html_escape_multi(e)
+
+        fields_to_check = {
+            'type': e['type'],
+            'energy_value': e['energy_value'],
+            'time_stamp': e['time_stamp'],
+        }
+
+        for field_name, field_value in fields_to_check.items():
+            if field_value is None or str(field_value).strip() == '':
+                raise RequestValidationError(f"{field_name.capitalize()} is empty. Ignoring everything!")
+
+        if 'ip' in e:
+            # An ip has been given with the data. Let's use this:
+            latitude, longitude = get_geo(e['ip'])
+            carbon_intensity = get_carbon_intensity(latitude, longitude)
+
+        energy_kwh = float(e['energy_value']) * 2.77778e-7
+        co2_value = energy_kwh * carbon_intensity
+
+        company_uuid = e['company'] if e['company'] is not None else ''
+        project_uuid = e['project'] if e['project'] is not None else ''
+        tags_clean = "{" + ",".join([f'"{tag.strip()}"' for tag in e['tags'].split(',') if e['tags']]) + "}" if e['tags'] is not None else ''
+
+        row = f"{e['type']}|{company_uuid}|{e['machine']}|{project_uuid}|{tags_clean}|{int(e['time_stamp'])}|{e['energy_value']}|{co2_value}|{carbon_intensity}|{latitude}|{longitude}|{client_ip}"
+        data_rows.append(row)
+
+    data_str = "\n".join(data_rows)
+    data_file = io.StringIO(data_str)
+
+    columns = ['type', 'company', 'machine', 'project', 'tags', 'time_stamp', 'energy_value', 'co2_value', 'carbon_intensity', 'latitude', 'longitude', 'ip_address']
+
+    DB().copy_from(file=data_file, table='carbondb_energy_data', columns=columns, sep='|')
+
+    DB().query("""
+        DELETE FROM carbondb_energy_data
+        WHERE ctid NOT IN (
+            SELECT min(ctid)
+            FROM carbondb_energy_data
+            GROUP BY time_stamp, machine, energy_value
+        )
+    """)
