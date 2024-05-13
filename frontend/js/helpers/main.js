@@ -190,17 +190,17 @@ let closeMenu = function(e){
 
 async function sortDate() {
     const button = document.querySelector('#sort-button')
-    button.addEventListener('click', sortName);
     button.removeEventListener('click', sortDate);
-    button.querySelector('span').textContent = 'Sort name';
+    button.addEventListener('click', sortName);
+    button.innerHTML = '<i class="font icon"></i>Sort name';
     await getRepositories('date');
 }
 
 async function sortName() {
     const button = document.querySelector('#sort-button')
-    button.addEventListener('click', sortDate);
     button.removeEventListener('click', sortName);
-    button.querySelector('span').textContent = 'Sort date';
+    button.addEventListener('click', sortDate);
+    button.innerHTML = '<i class="clock icon"></i>Sort date';
     await getRepositories('name');
 }
 
