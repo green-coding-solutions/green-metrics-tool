@@ -40,7 +40,7 @@ cluster:
       name: "Measurement control Workload"
       uri: "https://github.com/green-coding-berlin/measurement-control-workload"
       filename: "usage_scenario.yml"
-      branch: "main"
+      branch: "event-bound"
       comparison_window: 5
       threshold: 0.01
       phase: "004_[RUNTIME]"
