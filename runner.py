@@ -157,12 +157,15 @@ class Runner:
     def initialize_run(self):
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
 
+        monitor_run = self.__class__.__name__ == 'Monitor'
         # we also update the branch here again, as this might not be main in case of local filesystem
         self._run_id = DB().fetch_one("""
-                INSERT INTO runs (job_id, name, uri, email, branch, filename, commit_hash, commit_timestamp, runner_arguments, created_at)
-                VALUES (%s, %s, %s, 'manual', %s, %s, %s, %s, %s, NOW())
+                INSERT INTO runs (job_id, name, uri, email, branch, filename, commit_hash, commit_timestamp, runner_arguments, monitor_run, created_at)
+                VALUES (%s, %s, %s, 'manual', %s, %s, %s, %s, %s, %s, NOW())
                 RETURNING id
-                """, params=(self._job_id, self._name, self._uri, self._branch, self._original_filename, self._commit_hash, self._commit_timestamp, json.dumps(self._arguments)))[0]
+                """,
+                params=(self._job_id, self._name, self._uri, self._branch, self._original_filename, self._commit_hash, self._commit_timestamp, json.dumps(self._arguments), monitor_run),
+        )[0]
         return self._run_id
 
     def get_optimizations_ignore(self):
@@ -1451,6 +1454,39 @@ class Runner:
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
+    def _handle_except(self):
+        try:
+            self.read_container_logs()
+        except BaseException as exc:
+            self.add_to_log(exc.__class__.__name__, str(exc))
+            raise exc
+        finally:
+            try:
+                self.read_and_cleanup_processes()
+            except BaseException as exc:
+                self.add_to_log(exc.__class__.__name__, str(exc))
+                raise exc
+            finally:
+                try:
+                    self.save_notes_runner()
+                except BaseException as exc:
+                    self.add_to_log(exc.__class__.__name__, str(exc))
+                    raise exc
+                finally:
+                    try:
+                        self.stop_metric_providers()
+                    except BaseException as exc:
+                        self.add_to_log(exc.__class__.__name__, str(exc))
+                        raise exc
+                    finally:
+                        try:
+                            self.save_stdout_logs()
+                        except BaseException as exc:
+                            self.add_to_log(exc.__class__.__name__, str(exc))
+                            raise exc
+                        finally:
+                            self.cleanup()  # always run cleanup automatically after each run
+
     def run(self):
         '''
             The run method is just a wrapper for the intended sequential flow of a GMT run.
@@ -1547,37 +1583,7 @@ class Runner:
             self.set_run_failed()
             raise exc
         finally:
-            try:
-                self.read_container_logs()
-            except BaseException as exc:
-                self.add_to_log(exc.__class__.__name__, str(exc))
-                raise exc
-            finally:
-                try:
-                    self.read_and_cleanup_processes()
-                except BaseException as exc:
-                    self.add_to_log(exc.__class__.__name__, str(exc))
-                    raise exc
-                finally:
-                    try:
-                        self.save_notes_runner()
-                    except BaseException as exc:
-                        self.add_to_log(exc.__class__.__name__, str(exc))
-                        raise exc
-                    finally:
-                        try:
-                            self.stop_metric_providers()
-                        except BaseException as exc:
-                            self.add_to_log(exc.__class__.__name__, str(exc))
-                            raise exc
-                        finally:
-                            try:
-                                self.save_stdout_logs()
-                            except BaseException as exc:
-                                self.add_to_log(exc.__class__.__name__, str(exc))
-                                raise exc
-                            finally:
-                                self.cleanup()  # always run cleanup automatically after each run
+            self._handle_except()
 
         print(TerminalColors.OKGREEN, arrows('MEASUREMENT SUCCESSFULLY COMPLETED'), TerminalColors.ENDC)
 

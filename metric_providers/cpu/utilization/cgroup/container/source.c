@@ -64,6 +64,7 @@ static int scan_directory(container_t** containers, int rootless_mode) {
     }
 
     *containers = malloc(sizeof(container_t));
+    //printf("old length: %d\n", length);
 
     while ((entry = readdir(dir)) != NULL) {
         // Check if the entry is a directory and matches the format
@@ -71,17 +72,23 @@ static int scan_directory(container_t** containers, int rootless_mode) {
             strstr(entry->d_name, "docker-") == entry->d_name &&
             strstr(entry->d_name + docker_prefix_len, ".scope") != NULL &&
             strcmp(entry->d_name + strlen(entry->d_name) - scope_suffix_len, ".scope") == 0) {
-
+            // printf("Entry %s\n", entry->d_name);
             length++;
             *containers = realloc(*containers, length * sizeof(container_t));
             (*containers)[length-1].id = strdup(entry->d_name);
             (*containers)[length-1].active = 1;
-            sprintf((*containers)[length-1].path,
-                "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/%s/cpu.stat",
-                user_id, user_id, entry->d_name);
+            if(rootless_mode) {
+                sprintf((*containers)[length-1].path,
+                    "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/%s/cpu.stat",
+                    user_id, user_id, entry->d_name);
+            } else {
+                sprintf((*containers)[length-1].path,
+                    "/sys/fs/cgroup/system.slice/%s/cpu.stat",
+                    entry->d_name);
+            }
         }
     }
-    // printf("Found new length: %d\n", length);
+    //printf("Found new length: %d\n", length);
 
     closedir(dir);
     return length;
@@ -103,10 +110,10 @@ static int output_stats(container_t* containers, int length) {
     gettimeofday(&now, NULL);
 
     for(i=0; i<length; i++) {
-        //printf("Looking at %s ", containers[i].path);
+        // printf("Looking at %s ", containers[i].path);
         fd = fopen(containers[i].path, "r");
         if (fd == NULL) {
-            //printf("Warning, container has disappeared in 'before': %s\n", containers[i].path);
+            // printf("Warning, container has disappeared in 'before': %s\n", containers[i].path);
             containers[i].active = 0;
             continue;
         }
@@ -129,7 +136,7 @@ static int output_stats(container_t* containers, int length) {
 
         fd = fopen(containers[i].path, "r");
         if (fd == NULL) {
-            //printf("Warning, container has disappeared in 'after': %s\n", containers[i].path);
+            // printf("Warning, container has disappeared in 'after': %s\n", containers[i].path);
             containers[i].active = 0;
             continue;
         }
@@ -185,7 +192,7 @@ static int parse_containers(container_t** containers, char* containers_string, i
     int length = 0;
 
     for (; id != NULL; id = strtok(NULL, ",")) {
-        //printf("Token: %s\n", id);
+        // printf("Token: %s\n", id);
         length++;
         *containers = realloc(*containers, length * sizeof(container_t));
         (*containers)[length-1].id = strdup(id);
@@ -303,6 +310,7 @@ int main(int argc, char **argv) {
             break;
         case 'm':
             discover_containers = 1;
+            break;
         case 'c':
             check_system_flag = 1;
             break;
@@ -322,8 +330,6 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_system(rootless_mode));
     }
-
-    int length = parse_containers(&containers, containers_string, rootless_mode);
 
     while(1) {
         if(discover_containers == 1) length = scan_directory(&containers, rootless_mode);

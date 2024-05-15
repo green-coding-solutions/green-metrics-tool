@@ -1,5 +1,4 @@
 from optimization_providers.base import Criticality, register_reporter
-from lib import error_helpers
 
 REPORTER_NAME = 'container-timings'
 REPORTER_ICON = 'clock'
@@ -11,10 +10,13 @@ MAX_BOOT_DURATION = 5 # 5 seconds
 @register_reporter('container-build-time', Criticality.INFO, REPORTER_NAME, REPORTER_ICON, req_providers =[])
 def container_build_time(self, run, measurements, repo_path, network, notes, phases):
 
+    if len(run['phases']) < 2 or run['phases'][1] != '[INSTALLATION]':
+        self.add_optimization(
+            'Container build duration could not be analyzed',
+            'INSTALLATION phase was not present'
+        )
+        return
     installation_phase = run['phases'][1]
-    if installation_phase['name'] != '[INSTALLATION]':
-        error_helpers.log_error('Phase mapping in optimizations was not as expected', phases=run['phases'], run_id=run['id'])
-        raise RuntimeError('Phase mapping in optimizations was not as expected')
 
     duration = (installation_phase['end'] - installation_phase['start'])/1_000_000 # time is in microseconds
 
@@ -28,10 +30,13 @@ def container_build_time(self, run, measurements, repo_path, network, notes, pha
 @register_reporter('container-boot-time', Criticality.INFO, REPORTER_NAME, REPORTER_ICON, req_providers =[])
 def container_boot_time(self, run, measurements, repo_path, network, notes, phases):
 
+    if len(run['phases']) < 3 or run['phases'][2] != '[BOOT]':
+        self.add_optimization(
+            'Container boot duration could not be analyzed',
+            'BOOT phase was not present'
+        )
+        return
     boot_phase = run['phases'][2]
-    if boot_phase['name'] != '[BOOT]':
-        error_helpers.log_error('Phase mapping in optimizations was not as expected', phases=run['phases'], run_id=run['id'])
-        raise RuntimeError('Phase mapping in optimizations was not as expected')
 
     duration = (boot_phase['end'] - boot_phase['start'])/1_000_000 # time is in microseconds
 
