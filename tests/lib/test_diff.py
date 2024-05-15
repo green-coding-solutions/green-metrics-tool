@@ -14,7 +14,7 @@ config = GlobalConfig().config
 # If this test fails and an additional column should be diffed please add it to the file lib.diff.py::get_diffable_row()
 def test_run_signature():
 
-    expected_signature = 'id,job_id,name,uri,branch,commit_hash,commit_timestamp,email,categories,usage_scenario,filename,machine_specs,runner_arguments,machine_id,gmt_hash,measurement_config,start_measurement,end_measurement,phases,logs,invalid_run,failed,created_at,updated_at'
+    expected_signature = 'id,job_id,name,uri,branch,commit_hash,commit_timestamp,email,categories,usage_scenario,filename,machine_specs,runner_arguments,machine_id,gmt_hash,measurement_config,start_measurement,end_measurement,phases,logs,invalid_run,failed,monitor_run,created_at,updated_at'
     current_signature = DB().fetch_all("SELECT column_name FROM information_schema.columns WHERE table_name = 'runs' ORDER BY ordinal_position;")
     current_signature = ",".join([x[0] for x in current_signature])
 
