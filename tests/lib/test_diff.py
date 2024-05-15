@@ -8,7 +8,10 @@ config = GlobalConfig().config
 
 # For the diffing to work as expected it is important that we include a known set of columns
 # It might happen that at some point a dev adds a column to the table, but forgets to also add it
-# to the diffing. To prevent this, this Unit test checks if the table column signature is unchanged
+# to the diffing.
+# To prevent this, this Unit test checks if the table column signature is unchanged
+#
+# If this test fails and an additional column should be diffed please add it to the file lib.diff.py::get_diffable_row()
 def test_run_signature():
 
     expected_signature = 'id,job_id,name,uri,branch,commit_hash,commit_timestamp,email,categories,usage_scenario,filename,machine_specs,runner_arguments,machine_id,gmt_hash,measurement_config,start_measurement,end_measurement,phases,logs,invalid_run,failed,created_at,updated_at'
