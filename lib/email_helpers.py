@@ -1,26 +1,46 @@
 import smtplib
 import ssl
-
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from lib.global_config import GlobalConfig
 
 def send_email(receiver, subject, message):
+
     config = GlobalConfig().config
 
-    receiver = [receiver]
-    data = f"From: {config['smtp']['sender']}\n"
-    data += f"To: {receiver}\n"
-    data += f"Subject: {subject}\n"
+
+    message = f"{message}\n\n---\n{config['cluster']['metrics_url']}"
+    body_html = f"""
+    <html>
+      <body>
+        <pre>{message}</pre>
+      </body>
+    </html>
+    """
+
+    msg = MIMEMultipart("alternative")
+    msg["From"] = config['smtp']['sender']
+    msg["To"] = receiver
+    msg["Subject"] = subject
+
+
     if config['admin']['email_bcc']:
-        data += f"Bcc: {config['admin']['email_bcc']}\n"
+        receiver = [receiver] # make a list
+        msg['Bcc'] = config['admin']['email_bcc']
         receiver.append(config['admin']['email_bcc'])
-    data += f"\n{message}\n\n---\n{config['cluster']['metrics_url']}"
+
+    # Attach the plain text and HTML parts
+    part1 = MIMEText(message, "plain")
+    part2 = MIMEText(body_html, "html")
+    msg.attach(part1)
+    msg.attach(part2)
 
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL(config['smtp']['server'], config['smtp']['port'], context=context) as server:
         # No need to set server.auth manually. server.login will iterater over all available methods
         # see https://github.com/python/cpython/blob/main/Lib/smtplib.py
         server.login(config['smtp']['user'], config['smtp']['password'])
-        server.sendmail(config['smtp']['sender'], receiver, data.encode('utf-8'))
+        server.sendmail(config['smtp']['sender'], receiver, msg.as_string())
 
 if __name__ == '__main__':
     import argparse
