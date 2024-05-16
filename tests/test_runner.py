@@ -2,11 +2,14 @@ from contextlib import nullcontext as does_not_raise
 
 import pytest
 import re
+import os
 
 from runner import Runner
 from lib.global_config import GlobalConfig
 from lib.system_checks import ConfigurationCheckError
 from tests import test_functions as Tests
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 GlobalConfig().override_config(config_name='test-config.yml')
 
@@ -17,7 +20,7 @@ test_data = [
 
 @pytest.mark.parametrize("skip_system_checks,expectation", test_data)
 def test_check_system(skip_system_checks, expectation):
-    runner = Runner("foo", "baz", "bar", skip_system_checks=skip_system_checks)
+    runner = Runner(uri="not_relevant", uri_type="folder", skip_system_checks=skip_system_checks)
 
     if GlobalConfig().config['measurement']['metric-providers']['common'] is None:
         GlobalConfig().config['measurement']['metric-providers']['common'] = {}
@@ -36,21 +39,18 @@ def test_check_system(skip_system_checks, expectation):
         del GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.bar.machine.provider.SomeOtherProvider']
 
 def test_reporters_still_running():
-    runner = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dev_no_sleeps=True, dev_no_build=True, dev_no_metrics=False)
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False)
+    runner2 = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False)
 
-    runner2 = Tests.setup_runner(usage_scenario='basic_stress.yml', skip_unsafe=True, skip_system_checks=False, dev_no_sleeps=True, dev_no_build=True, dev_no_metrics=False)
 
-    runner.check_system('start') # should not fail
+    with Tests.RunUntilManager(runner) as context:
 
-    try:
-        Tests.run_until(runner, 'setup_services')
+        context.run_until('setup_services')
 
-        with pytest.raises(Exception) as e:
-            runner2.import_metric_providers()
+        with Tests.RunUntilManager(runner2) as context2:
 
-        expected_error = r'Another instance of the \w+ metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.'
-        assert re.match(expected_error, str(e.value)), Tests.assertion_info(expected_error, str(e.value))
+            with pytest.raises(Exception) as e:
+                context2.run_until('import_metric_providers')
 
-    finally:
-        Tests.cleanup(runner)
-        Tests.cleanup(runner2)
+            expected_error = r'Another instance of the \w+ metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.'
+            assert re.match(expected_error, str(e.value)), Tests.assertion_info(expected_error, str(e.value))

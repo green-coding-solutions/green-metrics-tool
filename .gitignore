@@ -8,7 +8,7 @@ frontend/js/helpers/config.js
 sftp-config.json
 TODO
 flows
-compose.yml
+docker/compose.yml
 metric-provider-binary
 .vscode
 static-binary

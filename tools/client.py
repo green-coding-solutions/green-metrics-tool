@@ -5,9 +5,11 @@ import faulthandler
 faulthandler.enable()  # will catch segfaults and write to stderr
 
 import os
+import sys
 import time
 import subprocess
 import json
+from pathlib import Path
 
 from lib.job.base import Job
 from lib.global_config import GlobalConfig
@@ -70,13 +72,35 @@ def do_cleanup(cur_temp, cooldown_time_after_job):
 
 # pylint: disable=broad-except
 if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--testing', action='store_true', help='End after processing one run for testing')
+    parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be located in the same directory as the regular configuration file. Pass in only the name.')
+
+    args = parser.parse_args()
+
+    if args.config_override is not None:
+        if args.config_override[-4:] != '.yml':
+            parser.print_help()
+            error_helpers.log_error('Config override file must be a yml file')
+            sys.exit(1)
+        if not Path(f"{CURRENT_DIR}/../{args.config_override}").is_file():
+            parser.print_help()
+            error_helpers.log_error(f"Could not find config override file on local system. Please double check: {CURRENT_DIR}/../{args.config_override}")
+            sys.exit(1)
+        GlobalConfig(config_name=args.config_override) # will create a singleton and subsequent calls will retrieve object with altered default config file
+
     config_main = GlobalConfig().config
+
 
     try:
         client_main = config_main['cluster']['client']
         cwl = client_main['control_workload']
         cooldown_time = 0
         last_cooldown_time = 0
+        current_temperature = -1
+
 
         while True:
             job = Job.get_job('run')
@@ -85,23 +109,24 @@ if __name__ == '__main__':
                 time.sleep(client_main['sleep_time_no_job'])
                 continue
 
-            current_temperature = get_temperature(
-                GlobalConfig().config['machine']['base_temperature_chip'],
-                GlobalConfig().config['machine']['base_temperature_feature']
-            )
+            if not args.testing:
+                current_temperature = get_temperature(
+                    GlobalConfig().config['machine']['base_temperature_chip'],
+                    GlobalConfig().config['machine']['base_temperature_feature']
+                )
 
-            if current_temperature > config_main['machine']['base_temperature_value']:
-                print(f"Machine is still too hot: {current_temperature}°. Sleeping for 1 minute")
-                set_status('cooldown', current_temperature, last_cooldown_time)
-                cooldown_time += 60
-                time.sleep(60)
-                continue
+                if current_temperature > config_main['machine']['base_temperature_value']:
+                    print(f"Machine is still too hot: {current_temperature}°. Sleeping for 1 minute")
+                    set_status('cooldown', current_temperature, last_cooldown_time)
+                    cooldown_time += 60
+                    time.sleep(60)
+                    continue
 
-            print('Machine is cool enough. Continuing')
-            last_cooldown_time = cooldown_time
-            cooldown_time = 0
+                print('Machine is cool enough. Continuing')
+                last_cooldown_time = cooldown_time
+                cooldown_time = 0
 
-            if validate.is_validation_needed(config_main['machine']['id'], client_main['time_between_control_workload_validations']):
+            if not args.testing and validate.is_validation_needed(config_main['machine']['id'], client_main['time_between_control_workload_validations']):
                 set_status('measurement_control_start', current_temperature, last_cooldown_time)
                 validate.run_workload(cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
                 set_status('measurement_control_end', current_temperature, last_cooldown_time)
@@ -146,7 +171,8 @@ if __name__ == '__main__':
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
                     error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, run_id=job._run_id)
                 finally:
-                    do_cleanup(current_temperature, last_cooldown_time)
+                    if not args.testing:
+                        do_cleanup(current_temperature, last_cooldown_time)
 
             else:
                 do_cleanup(current_temperature, last_cooldown_time)
@@ -154,5 +180,8 @@ if __name__ == '__main__':
                 if client_main['shutdown_on_job_no'] is True:
                     subprocess.check_output(['sudo', 'shutdown'])
                 time.sleep(client_main['sleep_time_no_job'])
+            if args.testing:
+                print('Successfully ended testing run of client.py')
+                break
     except Exception as exc:
         error_helpers.log_error('Processing in cluster failed (client.py)', exception=exc, machine=config_main['machine']['description'])

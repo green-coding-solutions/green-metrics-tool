@@ -25,7 +25,7 @@ def register_machine_fixture():
 # This should be done once per module
 @pytest.fixture(autouse=True, scope="module", name="build_image")
 def build_image_fixture():
-    subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/../stress-application/compose.yml", 'build'], check=True)
+    subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/../data/stress-application/compose.yml", 'build'], check=True)
 
 def get_job(job_id):
     query = """
@@ -86,7 +86,7 @@ def test_simple_run_job():
     Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
 
     ps = subprocess.run(
-            ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml', '--skip-system-checks'],
+            ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -96,6 +96,29 @@ def test_simple_run_job():
     assert ps.stderr == '', Tests.assertion_info('No Error', ps.stderr)
     assert 'Successfully processed jobs queue item.' in ps.stdout,\
         Tests.assertion_info('Successfully processed jobs queue item.', ps.stdout)
+    assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
+        Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
+
+def test_simple_cluster_run():
+    name = utils.randomword(12)
+    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    filename = 'usage_scenario.yml'
+    branch = 'main'
+    machine_id = 1
+
+    Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+
+    ps = subprocess.run(
+            ['python3', '../tools/client.py', '--testing', '--config-override', 'test-config.yml'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+    assert ps.stderr == '', Tests.assertion_info('No Error', ps.stderr)
+    assert 'Successfully ended testing run of client.py' in ps.stdout,\
+        Tests.assertion_info('Successfully ended testing run of client.py', ps.stdout)
+
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
