@@ -16,6 +16,7 @@ from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import date
 
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -397,7 +398,7 @@ async def get_measurements_single(run_id: str):
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 @app.get('/v1/timeline')
-async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, start_date: str | None = None, end_date: str | None = None, metrics: str | None = None, phase: str | None = None, sorting: str | None = None,):
+async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, start_date: date | None = None, end_date: date | None = None, metrics: str | None = None, phase: str | None = None, sorting: str | None = None,):
     if uri is None or uri.strip() == '':
         raise RequestValidationError('URI is empty')
 
@@ -1242,7 +1243,7 @@ async def post_ci_measurement_add(request: Request, measurement: CI_Measurement)
     return ORJSONResponse({'success': True}, status_code=201)
 
 @app.get('/v1/ci/measurements')
-async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: str, end_date: str):
+async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date):
 
     query = """
         SELECT energy_value, energy_unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg,
@@ -1259,7 +1260,7 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
             AND DATE(created_at) <= TO_DATE(%s, 'YYYY-MM-DD')
         ORDER BY run_id ASC, created_at ASC
     """
-    params = (repo, branch, workflow, start_date, end_date)
+    params = (repo, branch, workflow, str(start_date), str(end_date))
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:

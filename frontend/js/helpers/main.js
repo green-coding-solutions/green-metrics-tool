@@ -87,6 +87,7 @@ const replaceRepoIcon = (uri) => {
 };
 
 const showNotification = (message_title, message_text, type='warning') => {
+    const message = (typeof message_text === 'string') ? message_text : JSON.stringify(message_text);
     $('body')
       .toast({
         class: type,
@@ -94,7 +95,7 @@ const showNotification = (message_title, message_text, type='warning') => {
         position: 'top right',
         displayTime: 5000,
         title: message_title,
-        message: message_text,
+        message: message,
         className: {
             toast: 'ui message'
         }
