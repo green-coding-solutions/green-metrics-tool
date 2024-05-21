@@ -233,7 +233,9 @@ class Runner:
             if self._branch:
                 # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
                 raise RuntimeError('Specified --branch but using local URI. Did you mean to specify a github url?')
-            self.__working_folder = self._repo_folder = self._uri
+            # If the provided uri is a symlink we need to resolve it.
+            path = os.path.realpath(self._uri)
+            self.__working_folder = self._repo_folder = path
 
         self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8').strip()
 
