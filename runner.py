@@ -859,7 +859,7 @@ class Runner:
                         docker_run_string.append(service['healthcheck']['timeout'])
                     if 'retries' in service['healthcheck']:
                         docker_run_string.append('--health-retries')
-                        docker_run_string.append(service['healthcheck']['retries'])
+                        docker_run_string.append(str(service['healthcheck']['retries']))
                     if 'start_period' in service['healthcheck']:
                         docker_run_string.append('--health-start-period')
                         docker_run_string.append(service['healthcheck']['start_period'])

@@ -97,7 +97,7 @@ class SchemaChecker():
                     Optional("build"): Or(Or({str:str},list),str),
                     Optional("networks"): self.single_or_list(Use(self.contains_no_invalid_chars)),
                     Optional("environment"): self.single_or_list(Or(dict,str)),
-                    Optional("ports"): self.single_or_list(Or(str, int)),
+                    Optional("ports"): self.single_or_list(str),
                     Optional("depends_on"): Or([str],dict),
                     Optional("healthcheck"): {
                         Optional('test'): Or(list, str),
