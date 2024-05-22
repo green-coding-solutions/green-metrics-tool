@@ -779,11 +779,12 @@ def carbondb_add(client_ip, energydatas):
 
     DB().copy_from(file=data_file, table='carbondb_energy_data', columns=columns, sep='|')
 
-    DB().query("""
-        DELETE FROM carbondb_energy_data
-        WHERE ctid NOT IN (
-            SELECT min(ctid)
-            FROM carbondb_energy_data
-            GROUP BY time_stamp, machine, energy_value
-        )
-    """)
+# TODO: Fix dedupliation
+#    DB().query("""
+#        DELETE FROM carbondb_energy_data
+#        WHERE ctid NOT IN (
+#            SELECT min(ctid)
+#            FROM carbondb_energy_data
+#            GROUP BY time_stamp, machine, energy_value
+#        )
+#    """)
