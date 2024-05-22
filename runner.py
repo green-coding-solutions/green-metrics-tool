@@ -867,15 +867,15 @@ class Runner:
                         docker_run_string.append('--health-start-interval')
                         docker_run_string.append(service['healthcheck']['start_interval'])
 
+
             docker_run_string.append(self.clean_image_name(service['image']))
 
-            # Before starting the container, check if the dependent containers are "ready".
+            # Before starting the container, check if the dependent containers are ready.
             # If not, wait for some time. If the container is not ready after a certain time, throw an error.
-            # Currently we consider "ready" only as "running".
-            # In the future we want to implement an health check to know if dependent containers are actually ready.
+            # If a healthcheck is defined, the dependent container must become "healthy".
+            # If no healthcheck is defined, the container state "running" is sufficient.
             if 'depends_on' in service:
                 for dependent_container in service['depends_on']:
-                    print(f"Waiting for dependent container {dependent_container}")
                     time_waited = 0
                     state = ''
                     health = 'healthy' # default because some containers have no health
@@ -886,10 +886,10 @@ class Runner:
                             stderr=subprocess.STDOUT,
                             encoding='UTF-8',
                         )
-
                         state = status_output.strip()
-                        print(f"State of container '{dependent_container}': {state}")
-
+                        if time_waited == 0 or state != "running":
+                            print(f"State of dependent container '{dependent_container}': {state}")
+                        
                         if isinstance(service['depends_on'], dict) \
                             and 'condition' in service['depends_on'][dependent_container]:
 
@@ -903,12 +903,12 @@ class Runner:
                                     encoding='UTF-8'
                                 )
                                 health = ps.stdout.strip()
-                                if ps.returncode != 0 or health == '<nil>':
-                                    raise RuntimeError(f"Health check for dependent_container '{dependent_container}' was requested, but container has no healthcheck implemented! (Output was: {health})")
-                                if health == 'unhealthy':
-                                    raise RuntimeError('Container healthcheck failed terminally with status "unhealthy"')
+                                print(f"Health of dependent container '{dependent_container}': {health}")
 
-                                print(f"Health of container '{dependent_container}': {health}")
+                                if ps.returncode != 0 or health == '<nil>':
+                                    raise RuntimeError(f"Health check for dependent container '{dependent_container}' was requested by '{service_name}', but container has no healthcheck implemented! (Output was: {health})")
+                                if health == 'unhealthy':
+                                    raise RuntimeError(f'Health check of container "{dependent_container}" failed terminally with status "unhealthy" after {time_waited}s')
                             elif condition == 'service_started':
                                 pass
                             else:
@@ -917,12 +917,11 @@ class Runner:
                         if state == 'running' and health == 'healthy':
                             break
 
-                        print('Waiting for 1 second')
                         time.sleep(1)
                         time_waited += 1
 
                     if state != 'running':
-                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running but {state} after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running but '{state}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
                     if health != 'healthy':
                         raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
 

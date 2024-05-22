@@ -366,7 +366,7 @@ def test_depends_on_long_form():
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-    message = 'State of container'
+    message = 'State of dependent container'
     assert message in out.getvalue(), \
         Tests.assertion_info(message, out.getvalue())
 
@@ -377,7 +377,7 @@ def test_depends_on_healthcheck():
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-    message = 'Health of container \'test-container-2\': healthy'
+    message = 'Health of dependent container \'test-container-2\': healthy'
     assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
 def test_depends_on_healthcheck_error_missing():
@@ -386,7 +386,7 @@ def test_depends_on_healthcheck_error_missing():
     with pytest.raises(RuntimeError) as e:
         runner.run()
 
-    expected_exception = "Health check for dependent_container 'test-container-2' was requested, but container has no healthcheck implemented!"
+    expected_exception = "Health check for dependent container 'test-container-2' was requested by 'test-container-1', but container has no healthcheck implemented!"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
