@@ -864,8 +864,8 @@ class Runner:
                         docker_run_string.append('--health-start-period')
                         docker_run_string.append(service['healthcheck']['start_period'])
                     if 'start_interval' in service['healthcheck']:
-                        raise RuntimeError('start_interval is not supported atm in healthcheck')
-
+                        docker_run_string.append('--health-start-interval')
+                        docker_run_string.append(service['healthcheck']['start_interval'])
 
             docker_run_string.append(self.clean_image_name(service['image']))
 

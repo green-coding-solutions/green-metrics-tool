@@ -105,7 +105,7 @@ class SchemaChecker():
                         Optional('timeout'): str,
                         Optional('retries'): int,
                         Optional('start_period'): str,
-                        # Optional('start_interval'): str, docker CLI does not support this atm
+                        Optional('start_interval'): str,
                         Optional('disable'): bool,
                     },
                     Optional("setup-commands"): [str],
