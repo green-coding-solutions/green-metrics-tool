@@ -767,7 +767,7 @@ class Runner:
                     for ports in service['ports']:
                         print('Setting ports: ', service['ports'])
                         docker_run_string.append('-p')
-                        docker_run_string.append(ports)
+                        docker_run_string.append(str(ports)) # Ports can also be an int according to schema checker, but needs to be a string when we use subprocess
                 elif self._skip_unsafe:
                     print(TerminalColors.WARNING, arrows('Found ports entry but not running in unsafe mode. Skipping'), TerminalColors.ENDC)
                 else:
@@ -859,7 +859,7 @@ class Runner:
                         docker_run_string.append(service['healthcheck']['timeout'])
                     if 'retries' in service['healthcheck']:
                         docker_run_string.append('--health-retries')
-                        docker_run_string.append(str(service['healthcheck']['retries']))
+                        docker_run_string.append(str(service['healthcheck']['retries'])) # we need a str to pass to subprocess
                     if 'start_period' in service['healthcheck']:
                         docker_run_string.append('--health-start-period')
                         docker_run_string.append(service['healthcheck']['start_period'])
