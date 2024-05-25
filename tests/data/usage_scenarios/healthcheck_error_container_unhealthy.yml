@@ -1,0 +1,25 @@
+---
+name: Test Healthcheck
+author: David Kopp
+description: test
+
+services:
+  test-container-1:
+    image: alpine
+    depends_on:
+      test-container-2:
+        condition: service_healthy
+  test-container-2:
+    build:
+      context: ../slow-start-application
+    healthcheck:
+      test: pgrep 'helloworld' # process never runs, therefore it gets unhealthy
+      interval: 1s
+      retries: 3
+
+flow:
+  - name: dummy
+    container: test-container-1
+    commands:
+      - type: console
+        command: pwd
