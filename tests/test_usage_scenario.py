@@ -418,8 +418,7 @@ def test_depends_on_healthcheck_error_missing():
 def test_depends_on_healthcheck_error_container_unhealthy():
     # Test setup: Healthcheck test will never be successful, interval is set to 1s and retries to 3.
     # Container should become unhealthy after 3 seconds.
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_container_unhealthy.yml', 
-                    skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_container_unhealthy.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -432,8 +431,7 @@ def test_depends_on_healthcheck_error_container_unhealthy():
 def test_depends_on_healthcheck_error_max_waiting_time():
     # Test setup: Container would be healthy after 3 seconds, however, interval is set to 10s and there is no start interval.
     # Because max waiting time is configured to be 5s (test_config.yml), the healthcheck at 10s will never be executed.
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_max_waiting_time.yml', 
-                    skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_max_waiting_time.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -444,7 +442,7 @@ def test_depends_on_healthcheck_error_max_waiting_time():
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_network_created():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/network_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True)
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/network_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         ps = subprocess.run(
