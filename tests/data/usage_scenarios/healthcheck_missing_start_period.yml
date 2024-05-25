@@ -1,0 +1,25 @@
+---
+name: Test Healthcheck
+author: David Kopp
+description: test
+
+services:
+  test-container-1:
+    image: alpine
+    depends_on:
+      test-container-2:
+        condition: service_healthy
+  test-container-2:
+    build:
+      context: ../slow-start-application
+    healthcheck:
+      test: pgrep 'tail'
+      start_interval: 1s
+      interval: 1h # should not influence the measurement
+
+flow:
+  - name: dummy
+    container: test-container-1
+    commands:
+      - type: console
+        command: pwd

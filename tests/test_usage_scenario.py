@@ -405,6 +405,19 @@ Health of dependent container 'test-container-2': healthy
 """
     assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
+def test_depends_on_healthcheck_missing_start_period():
+    # Test setup: Container would be healthy after 3 seconds, however, no start_period is set (default 0s), therefore start_interval is not used.
+    # Because max waiting time is configured to be 5s (test_config.yml), exception is raised after 5s.
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_missing_start_period.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    expected_exception = "Dependent container 'test-container-2' of 'test-container-1' is not healthy but 'starting' after waiting for 5 sec"
+    assert str(e.value).startswith(expected_exception),\
+        Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
+
 def test_depends_on_healthcheck_error_missing():
     runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_missing.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
