@@ -16,6 +16,7 @@ services:
       test: pgrep 'tail'
       start_interval: 1s
       start_period: 5s
+      interval: 1h # should not influence the measurement
 
 flow:
   - name: dummy
