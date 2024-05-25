@@ -10,8 +10,7 @@ services:
       test-container-2:
         condition: service_healthy
   test-container-2:
-    build:
-      context: ../slow-start-application
+    image: alpine
     healthcheck:
       test: pgrep 'helloworld' # process never runs, therefore it gets unhealthy
       interval: 1s

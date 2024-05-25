@@ -371,7 +371,8 @@ def test_depends_on_long_form():
         Tests.assertion_info(message, out.getvalue())
 
 def test_depends_on_healthcheck_using_interval():
-    # Test setup: Container becomes healthy after 3 seconds, interval is set to 1s, retries is set to number bigger than 3.
+    # Test setup: Container has a startup time of 3 seconds, interval is set to 1s, retries is set to a number bigger than 3.
+    # Container should become healthy after 3 seconds.
     runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_using_interval.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     out = io.StringIO()
     err = io.StringIO()
@@ -385,7 +386,8 @@ def test_depends_on_healthcheck_using_interval():
 
 def test_depends_on_healthcheck_using_start_interval():
     # Using start_interval is preferable (available since Docker Engine version 25)
-    # Test setup: Container becomes healthy after 3 seconds, start_interval is set to 1s, start_period to 5s.
+    # Test setup: Container has a startup time of 3 seconds, start_interval is set to 1s, start_period to 5s
+    # Container should become healthy after 3 seconds.
     runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_using_start_interval.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     out = io.StringIO()
     err = io.StringIO()
@@ -401,7 +403,6 @@ Health of dependent container 'test-container-2': starting
 Health of dependent container 'test-container-2': starting
 Health of dependent container 'test-container-2': healthy
 """
-    # Expected is that the startup takes 3 seconds (therefore 3 times the message with 'starting')
     assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
 def test_depends_on_healthcheck_error_missing():
@@ -415,7 +416,8 @@ def test_depends_on_healthcheck_error_missing():
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_depends_on_healthcheck_error_container_unhealthy():
-    # Test setup: Container becomes unhealthy after 3 seconds, because interval is set to 1s and retries to 3s
+    # Test setup: Healthcheck test will never be successful, interval is set to 1s and retries to 3.
+    # Container should become unhealthy after 3 seconds.
     runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_container_unhealthy.yml', 
                     skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
@@ -428,7 +430,7 @@ def test_depends_on_healthcheck_error_container_unhealthy():
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_depends_on_healthcheck_error_max_waiting_time():
-    # Test setup: Container becomes healthy after 3 seconds, however, interval is set to 10s and there is no start interval.
+    # Test setup: Container would be healthy after 3 seconds, however, interval is set to 10s and there is no start interval.
     # Because max waiting time is configured to be 5s (test_config.yml), the healthcheck at 10s will never be executed.
     runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_max_waiting_time.yml', 
                     skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
