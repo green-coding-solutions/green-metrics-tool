@@ -366,19 +366,57 @@ def test_depends_on_long_form():
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-    message = 'State of container'
+    message = 'State of dependent container'
     assert message in out.getvalue(), \
         Tests.assertion_info(message, out.getvalue())
 
-def test_depends_on_healthcheck():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+def test_depends_on_healthcheck_using_interval():
+    # Test setup: Container has a startup time of 3 seconds, interval is set to 1s, retries is set to a number bigger than 3.
+    # Container should become healthy after 3 seconds.
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_using_interval.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     out = io.StringIO()
     err = io.StringIO()
 
     with redirect_stdout(out), redirect_stderr(err):
-        runner.run()
-    message = 'Health of container \'test-container-2\': healthy'
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    message = 'Health of dependent container \'test-container-2\': healthy'
     assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
+
+def test_depends_on_healthcheck_using_start_interval():
+    # Using start_interval is preferable (available since Docker Engine version 25)
+    # Test setup: Container has a startup time of 3 seconds, start_interval is set to 1s, start_period to 5s
+    # Container should become healthy after 3 seconds.
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_using_start_interval.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err):
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    message = """
+State of dependent container 'test-container-2': running
+Health of dependent container 'test-container-2': starting
+Health of dependent container 'test-container-2': starting
+Health of dependent container 'test-container-2': starting
+Health of dependent container 'test-container-2': healthy
+"""
+    assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
+
+def test_depends_on_healthcheck_missing_start_period():
+    # Test setup: Container would be healthy after 3 seconds, however, no start_period is set (default 0s), therefore start_interval is not used.
+    # Because max waiting time is configured to be 5s (test_config.yml), exception is raised after 5s.
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_missing_start_period.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    expected_exception = "Dependent container 'test-container-2' of 'test-container-1' is not healthy but 'starting' after waiting for 5 sec"
+    assert str(e.value).startswith(expected_exception),\
+        Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_depends_on_healthcheck_error_missing():
     runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_missing.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
@@ -386,10 +424,35 @@ def test_depends_on_healthcheck_error_missing():
     with pytest.raises(RuntimeError) as e:
         runner.run()
 
-    expected_exception = "Health check for dependent_container 'test-container-2' was requested, but container has no healthcheck implemented!"
+    expected_exception = "Health check for dependent container 'test-container-2' was requested by 'test-container-1', but container has no healthcheck implemented!"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
+def test_depends_on_healthcheck_error_container_unhealthy():
+    # Test setup: Healthcheck test will never be successful, interval is set to 1s and retries to 3.
+    # Container should become unhealthy after 3 seconds.
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_container_unhealthy.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    expected_exception = 'Health check of container "test-container-2" failed terminally with status "unhealthy" after 3s'
+    assert str(e.value).startswith(expected_exception),\
+        Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
+
+def test_depends_on_healthcheck_error_max_waiting_time():
+    # Test setup: Container would be healthy after 3 seconds, however, interval is set to 10s and there is no start interval.
+    # Because max waiting time is configured to be 5s (test_config.yml), the healthcheck at 10s will never be executed.
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_max_waiting_time.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    expected_exception = "Dependent container 'test-container-2' of 'test-container-1' is not healthy but 'starting' after waiting for 5 sec"
+    assert str(e.value).startswith(expected_exception),\
+        Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_network_created():
     runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/network_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
