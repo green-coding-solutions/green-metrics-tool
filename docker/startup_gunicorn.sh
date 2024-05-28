@@ -6,10 +6,10 @@ source /var/www/startup/venv/bin/activate
 --access-logfile=- \
 --error-logfile=- \
 --worker-tmp-dir=/dev/shm \
---worker-class=uvicorn.workers.UvicornWorker \
+--worker-class=uvicorn_worker.UvicornWorker \
 --bind unix:/tmp/green-coding-api.sock \
 -m 007 \
 --user www-data \
 --chdir /var/www/green-metrics-tool/api \
--k uvicorn.workers.UvicornWorker \
+-k uvicorn_worker.UvicornWorker \
 main:app
