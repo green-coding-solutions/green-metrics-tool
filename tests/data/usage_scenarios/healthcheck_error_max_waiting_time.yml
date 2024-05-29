@@ -14,7 +14,7 @@ services:
       context: ../slow-start-application
     healthcheck:
       test: pgrep 'tail'
-      interval: 10s
+      interval: 100s
 
 flow:
   - name: dummy

@@ -58,7 +58,7 @@ measurement:
   flow-process-runtime: 3800
   phase-transition-time: 1
   boot:
-    wait_time_dependencies: 5
+    wait_time_dependencies: 10
   metric-providers:
     linux:
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
