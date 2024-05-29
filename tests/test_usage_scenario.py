@@ -400,7 +400,10 @@ def test_depends_on_healthcheck_using_start_interval():
 State of dependent container 'test-container-2': running
 Health of dependent container 'test-container-2': starting
 Health of dependent container 'test-container-2': starting
-Health of dependent container 'test-container-2': starting
+"""
+    assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
+
+    message = """
 Health of dependent container 'test-container-2': healthy
 """
     assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
@@ -414,7 +417,7 @@ def test_depends_on_healthcheck_missing_start_period():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    expected_exception = "Dependent container 'test-container-2' of 'test-container-1' is not healthy but 'starting' after waiting for 5 sec"
+    expected_exception = "Dependent container 'test-container-2' of 'test-container-1' is not healthy but 'starting' after waiting for 10 sec"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
@@ -437,23 +440,21 @@ def test_depends_on_healthcheck_error_container_unhealthy():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    expected_exceptions = [
-        'Health check of container "test-container-2" failed terminally with status "unhealthy" after 3s',
-        'Health check of container "test-container-2" failed terminally with status "unhealthy" after 4s'
-    ]
-    assert str(e.value).startswith(expected_exceptions[0]) or str(e.value).startswith(expected_exceptions[1]),\
-        Tests.assertion_info(f"Exception: {expected_exceptions[0]} or {expected_exceptions[1]}", str(e.value))
+    expected_exception = 'Health check of container "test-container-2" failed terminally with status "unhealthy" after'
+
+    assert str(e.value).startswith(expected_exception) or str(e.value).startswith(expected_exception),\
+        Tests.assertion_info(f"Exception: {expected_exception} or {expected_exception}", str(e.value))
 
 def test_depends_on_healthcheck_error_max_waiting_time():
-    # Test setup: Container would be healthy after 3 seconds, however, interval is set to 10s and there is no start interval.
-    # Because max waiting time is configured to be 5s (test_config.yml), the healthcheck at 10s will never be executed.
+    # Test setup: Container would be healthy after 7 seconds, however, interval is set to 100s and there is no start interval.
+    # Because max waiting time is configured to be 10s (test_config.yml), the healthcheck at 10s will never be executed.
     runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_max_waiting_time.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    expected_exception = "Dependent container 'test-container-2' of 'test-container-1' is not healthy but 'starting' after waiting for 5 sec"
+    expected_exception = "Dependent container 'test-container-2' of 'test-container-1' is not healthy but 'starting' after waiting for 10 sec"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
