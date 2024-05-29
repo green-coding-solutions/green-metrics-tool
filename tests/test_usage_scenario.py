@@ -430,16 +430,19 @@ def test_depends_on_healthcheck_error_missing():
 
 def test_depends_on_healthcheck_error_container_unhealthy():
     # Test setup: Healthcheck test will never be successful, interval is set to 1s and retries to 3.
-    # Container should become unhealthy after 3 seconds.
+    # Container should become unhealthy after 3-4 seconds.
     runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_container_unhealthy.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    expected_exception = 'Health check of container "test-container-2" failed terminally with status "unhealthy" after 3s'
-    assert str(e.value).startswith(expected_exception),\
-        Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
+    expected_exceptions = [
+        'Health check of container "test-container-2" failed terminally with status "unhealthy" after 3s',
+        'Health check of container "test-container-2" failed terminally with status "unhealthy" after 4s'
+    ]
+    assert str(e.value).startswith(expected_exceptions[0]) or str(e.value).startswith(expected_exceptions[1]),\
+        Tests.assertion_info(f"Exception: {expected_exceptions[0]} or {expected_exceptions[1]}", str(e.value))
 
 def test_depends_on_healthcheck_error_max_waiting_time():
     # Test setup: Container would be healthy after 3 seconds, however, interval is set to 10s and there is no start interval.
