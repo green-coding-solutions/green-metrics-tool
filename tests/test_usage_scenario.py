@@ -529,7 +529,9 @@ def test_uri_local_dir_missing():
 
     with pytest.raises(FileNotFoundError) as e:
         runner.run()
-    expected_exception = 'No such file or directory: \'/tmp/missing\''
+
+
+    expected_exception = f"No such file or directory: '{os.path.realpath('/tmp/missing')}'"
 
     assert expected_exception in str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
