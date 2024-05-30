@@ -14,6 +14,7 @@
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <meta name="description" content="Measuring the energy of your software" />
     <script src="/dist/js/jquery.min.js" defer></script>
+    <script src="/dist/js/datatables.min.js" defer></script>
     <script src="/dist/js/accordion.min.js" defer></script>
     <script src="/dist/js/tablesort.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
@@ -23,6 +24,8 @@
     <script src="/js/ci-index.js" defer></script>
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
+    <link rel="stylesheet" type="text/css" href="/dist/css/datatables.min.css">
+
 </head>
 <body class="preload">
     <gmt-menu></gmt-menu>
@@ -40,10 +43,13 @@
             <div class="results"></div>
         </div>
 -->
-        <table id="projects-table" class="ui celled striped table">
+        <table id="repositories-table" class="ui celled striped table">
             <thead>
                 <tr>
-                    <th>Repository (<i class="icon code github"></i> / <i class="icon code gitlab"></i>)</th>
+                    <th>
+                        Repository (<i class="icon code github"></i> / <i class="icon code gitlab"></i>)
+                        <button id="sort-button" class="ui small button right purple"><i class="font icon"></i><span>Sort name</span></button>
+                    </th>
                 </tr>
             </thead>
             <tbody></tbody>
