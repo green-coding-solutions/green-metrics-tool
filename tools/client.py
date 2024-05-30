@@ -167,6 +167,9 @@ if __name__ == '__main__':
                         error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, sleep_duration=client_main['time_between_control_workload_validations'])
                         time.sleep(client_main['time_between_control_workload_validations'])
 
+                except subprocess.CalledProcessError as e:
+                    set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
+                    error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, stdout=e.stdout, stderr=e.stderr, run_id=job._run_id, name=job._name, url=job._url)
                 except Exception as exc:
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
                     error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, run_id=job._run_id, name=job._name, url=job._url)

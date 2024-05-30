@@ -43,9 +43,10 @@ def build_and_store_phase_stats(run_id, sci=None):
     for idx, phase in enumerate(phases[0]):
         network_io_bytes_total = [] # reset; # we use array here and sum later, because checking for 0 alone not enough
 
-        machine_co2 = None # reset
         cpu_utilization_containers = {} # reset
         cpu_utilization_machine = None
+        machine_co2_in_ug = None # reset
+        network_io_co2_in_ug = None
 
         select_query = """
             SELECT SUM(value), MAX(value), MIN(value), AVG(value), COUNT(value)
@@ -115,8 +116,8 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg, 'MEAN', power_max, power_min, 'mW'))
 
                 if metric.endswith('_machine'):
-                    machine_co2 = (value_sum / 3_600) * config['sci']['I'] # Note that if two providers for `*_energy_*_machine` are configured this value will be overridden!
-                    csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_co2_')}", detail_name, f"{idx:03}_{phase['name']}", machine_co2, 'TOTAL', None, None, 'ug'))
+                    machine_co2_in_ug = (value_sum / 3_600) * config['sci']['I']
+                    csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_co2_')}", detail_name, f"{idx:03}_{phase['name']}", machine_co2_in_ug, 'TOTAL', None, None, 'ug'))
 
                     if phase['name'] == '[IDLE]':
                         machine_energy_idle = value_sum
@@ -138,6 +139,8 @@ def build_and_store_phase_stats(run_id, sci=None):
             # co2 calculations
             network_io_co2_in_ug = network_io_in_kWh * config['sci']['I'] * 1_000_000
             csv_buffer.write(generate_csv_line(run_id, 'network_co2_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_co2_in_ug, 'TOTAL', None, None, 'ug'))
+        else:
+            network_io_co2_in_ug = 0
 
 
         if machine_power_idle and cpu_utilization_machine and cpu_utilization_containers:
@@ -158,9 +161,9 @@ def build_and_store_phase_stats(run_id, sci=None):
         embodied_carbon_share_ug = decimal.Decimal(embodied_carbon_share_g * 1_000_000)
         csv_buffer.write(generate_csv_line(run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 'ug'))
 
-        if phase['name'] == '[RUNTIME]' and machine_co2 is not None and sci is not None \
+        if phase['name'] == '[RUNTIME]' and machine_co2_in_ug is not None and sci is not None \
                          and sci.get('R', None) is not None and sci['R'] != 0:
-            csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_co2 + embodied_carbon_share_ug) / sci['R'], 'TOTAL', None, None, f"ugCO2e/{sci['R_d']}"))
+            csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_co2_in_ug + embodied_carbon_share_ug + network_io_co2_in_ug) / sci['R'], 'TOTAL', None, None, f"ugCO2e/{sci['R_d']}"))
 
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning
