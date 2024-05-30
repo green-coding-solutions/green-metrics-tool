@@ -35,10 +35,17 @@ def build_and_store_phase_stats(run_id, sci=None):
 
     csv_buffer = StringIO()
 
+    machine_power_idle = None
+    machine_energy_idle = None
+    machine_power_runtime = None
+    machine_energy_runtime = None
+
     for idx, phase in enumerate(phases[0]):
         network_io_bytes_total = [] # reset; # we use array here and sum later, because checking for 0 alone not enough
 
         machine_co2 = None # reset
+        cpu_utilization_containers = {} # reset
+        cpu_utilization_machine = None
 
         select_query = """
             SELECT SUM(value), MAX(value), MIN(value), AVG(value), COUNT(value)
@@ -82,6 +89,12 @@ def build_and_store_phase_stats(run_id, sci=None):
             ):
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", avg_value, 'MEAN', max_value, min_value, unit))
 
+                if phase['name'] == '[RUNTIME]':
+                    if metric in ('cpu_utilization_procfs_system', 'cpu_utilization_mach_system'):
+                        cpu_utilization_machine = avg_value
+                    if metric in ('cpu_utilization_cgroup_container', ):
+                        cpu_utilization_containers[detail_name] = avg_value
+
             elif metric == 'network_io_cgroup_container':
                 # These metrics are accumulating already. We only need the max here and deliver it as total
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", max_value-min_value, 'TOTAL', None, None, unit))
@@ -96,15 +109,21 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, unit))
                 # for energy we want to deliver an extra value, the watts.
                 # Here we need to calculate the average differently
-                power_sum = (value_sum * 10**6) / (phase['end'] - phase['start'])
+                power_avg = (value_sum * 10**6) / (phase['end'] - phase['start'])
                 power_max = (max_value * 10**6) / ((phase['end'] - phase['start']) / value_count)
                 power_min = (min_value * 10**6) / ((phase['end'] - phase['start']) / value_count)
-                csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_sum, 'MEAN', power_max, power_min, 'mW'))
+                csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg, 'MEAN', power_max, power_min, 'mW'))
 
                 if metric.endswith('_machine'):
-                    machine_co2 = (value_sum / 3_600) * config['sci']['I']
+                    machine_co2 = (value_sum / 3_600) * config['sci']['I'] # Note that if two providers for `*_energy_*_machine` are configured this value will be overridden!
                     csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_co2_')}", detail_name, f"{idx:03}_{phase['name']}", machine_co2, 'TOTAL', None, None, 'ug'))
 
+                    if phase['name'] == '[IDLE]':
+                        machine_energy_idle = value_sum
+                        machine_power_idle = power_avg
+                    elif phase['name'] == '[RUNTIME]':
+                        machine_energy_runtime = value_sum
+                        machine_power_runtime = power_avg
 
             else:
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, unit))
@@ -119,6 +138,17 @@ def build_and_store_phase_stats(run_id, sci=None):
             # co2 calculations
             network_io_co2_in_ug = network_io_in_kWh * config['sci']['I'] * 1_000_000
             csv_buffer.write(generate_csv_line(run_id, 'network_co2_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_co2_in_ug, 'TOTAL', None, None, 'ug'))
+
+
+        if machine_power_idle and cpu_utilization_machine and cpu_utilization_containers:
+            surplus_power_runtime = machine_power_runtime - machine_power_idle
+            surplus_energy_runtime = machine_energy_runtime - machine_energy_idle
+            total_container_utilization = sum(cpu_utilization_containers.values())
+
+            for detail_name, container_utilization in cpu_utilization_containers.items():
+                csv_buffer.write(generate_csv_line(run_id, 'psu_energy_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_energy_runtime * (container_utilization / total_container_utilization), 'TOTAL', None, None, 'mJ'))
+                csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * (container_utilization / total_container_utilization), 'TOTAL', None, None, 'mW'))
+
 
         duration = phase['end']-phase['start']
         csv_buffer.write(generate_csv_line(run_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", duration, 'TOTAL', None, None, 'us'))
