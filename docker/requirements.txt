@@ -13,5 +13,5 @@ schema==0.7.7
 deepdiff==7.0.1
 redis==5.0.4
 hiredis==2.3.2
-requests==2.32.2
+requests==2.32.3
 uvicorn-worker==0.2.0
