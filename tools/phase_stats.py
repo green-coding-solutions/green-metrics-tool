@@ -116,7 +116,7 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg, 'MEAN', power_max, power_min, 'mW'))
 
                 if metric.endswith('_machine'):
-                    machine_co2_in_ug = (value_sum / 3_600) * config['sci']['I']
+                    machine_co2_in_ug = decimal.Decimal((value_sum / 3_600) * config['sci']['I'])
                     csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_co2_')}", detail_name, f"{idx:03}_{phase['name']}", machine_co2_in_ug, 'TOTAL', None, None, 'ug'))
 
                     if phase['name'] == '[IDLE]':
@@ -137,10 +137,10 @@ def build_and_store_phase_stats(run_id, sci=None):
             network_io_in_mJ = network_io_in_kWh * 3_600_000_000
             csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_mJ, 'TOTAL', None, None, 'mJ'))
             # co2 calculations
-            network_io_co2_in_ug = network_io_in_kWh * config['sci']['I'] * 1_000_000
+            network_io_co2_in_ug = decimal.Decimal(network_io_in_kWh * config['sci']['I'] * 1_000_000)
             csv_buffer.write(generate_csv_line(run_id, 'network_co2_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_co2_in_ug, 'TOTAL', None, None, 'ug'))
         else:
-            network_io_co2_in_ug = 0
+            network_io_co2_in_ug = decimal.Decimal(0)
 
 
         if machine_power_idle and cpu_utilization_machine and cpu_utilization_containers:
