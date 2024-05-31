@@ -8,9 +8,6 @@ on:
 jobs:
   run-tests-main:
     runs-on: ubuntu-24.04
-    permissions:
-      packages: write
-      contents: read
     steps:
       - id: check-date
         if: ${{ github.event_name != 'workflow_dispatch' }}
