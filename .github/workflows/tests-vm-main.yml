@@ -7,10 +7,7 @@ on:
 
 jobs:
   run-tests-main:
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: read
+    runs-on: ubuntu-24.04
     steps:
       - id: check-date
         if: ${{ github.event_name != 'workflow_dispatch' }}

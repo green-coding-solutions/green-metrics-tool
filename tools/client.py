@@ -181,7 +181,7 @@ if __name__ == '__main__':
                 do_cleanup(current_temperature, last_cooldown_time)
                 set_status('job_no', current_temperature, last_cooldown_time)
                 if client_main['shutdown_on_job_no'] is True:
-                    subprocess.check_output(['sudo', 'shutdown'])
+                    subprocess.check_output(['sudo', 'systemctl', 'shutdown'])
                 time.sleep(client_main['sleep_time_no_job'])
             if args.testing:
                 print('Successfully ended testing run of client.py')
