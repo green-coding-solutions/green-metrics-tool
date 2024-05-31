@@ -1117,6 +1117,25 @@ async def get_optimizations(run_id: str):
 
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
+@app.get('/v1/ai/{run_id}')
+async def get_ai(run_id: str):
+    if run_id is None or not is_valid_uuid(run_id):
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
+
+    query = """
+            SELECT data
+            FROM ai_optimizations
+            WHERE run_id = %s
+            ORDER BY created_at DESC
+            """
+
+    data = DB().fetch_one(query, params=(run_id, ))
+
+    if data is None or data == []:
+        # If we have nothing we return empty. Will be the case most of the time
+        return ORJSONResponseObjKeep({'success': True, 'data': []})
+
+    return ORJSONResponseObjKeep({'success': True, 'data': data[0]})
 
 
 @app.get('/v1/diff')

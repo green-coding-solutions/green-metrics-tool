@@ -291,33 +291,40 @@ async function makeBaseAPICalls(url_params) {
     let phase_stats_data = null;
     let network_data = null;
     let optimizations_data = null;
+    let ai_data = null;
+    const id = url_params.get('id')
 
     try {
-        run_data = await makeAPICall('/v1/run/' + url_params.get('id'))
+        run_data = await makeAPICall('/v1/run/' + id)
     } catch (err) {
         showNotification('Could not get run data from API', err);
     }
 
     try {
-        phase_stats_data = await makeAPICall('/v1/phase_stats/single/' + url_params.get('id'))
+        phase_stats_data = await makeAPICall('/v1/phase_stats/single/' + id)
     } catch (err) {
         showNotification('Could not get phase_stats data from API', err);
     }
 
     try {
-        network_data = await makeAPICall('/v1/network/' + url_params.get('id'))
+        network_data = await makeAPICall('/v1/network/' + id)
     } catch (err) {
         showNotification('Could not get network intercepts data from API', err);
     }
     try {
-        optimizations_data = await makeAPICall('/v1/optimizations/' + url_params.get('id'))
+        optimizations_data = await makeAPICall('/v1/optimizations/' + id)
     } catch (err) {
         showNotification('Could not get optimizations data from API', err);
+    }
+    try {
+        ai_data = await makeAPICall('/v1/ai/' + id)
+    } catch (err) {
+        // Do nothing as ai data will be empty most of the time
     }
 
 
 
-    return [run_data?.data, phase_stats_data?.data, network_data?.data, optimizations_data?.data];
+    return [run_data?.data, phase_stats_data?.data, network_data?.data, optimizations_data?.data, ai_data?.data];
 }
 
 const renderBadges = (url_params) => {
@@ -397,6 +404,112 @@ const displayOptimizationsData = (optimizations_data) => {
     $('#optimization_count').html(optimizations_data.length)
 }
 
+function copyTextToClipboard(text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() {
+            console.log("Text successfully copied to clipboard");
+        }, function(err) {
+            console.error("Failed to copy text: ", err);
+        });
+    } else {
+        // Fallback for older browsers
+        var textArea = $('<textarea>');
+        $('body').append(textArea);
+        textArea.val(text).select();
+        document.execCommand('copy');
+        textArea.remove();
+    }
+}
+
+
+const displayAiData = (ai_data) => {
+    console.log(ai_data);
+
+    ai_data.sort((a, b) => a.rating - b.rating);
+
+    stats = {
+        'green':0,
+        'yellow':0,
+        'red':0
+    };
+
+    ai_data.forEach(d => {
+        if (d.rating > 75) {
+            d.color = "green";
+        } else if (d.rating > 35) {
+            d.color = "yellow";
+        } else if (d.rating > 0) {
+            d.color = "red";
+        } else {
+            console.log('Massive error. We need to report this');
+            return;
+        }
+
+        stats[d.color] += 1;
+    });
+
+
+    const progressBar = `
+        <div id="ai_progress" class="ui multiple progress" data-value="${stats['red']},${stats['yellow']},${stats['green']}" data-total=${ai_data.length}>
+            <div class="red bar"></div>
+            <div class="yellow bar"></div>
+            <div class="green bar"></div>
+        </div>
+        `
+
+    const aiTemplate = `
+        <div class="title">
+            <div class="ui {{color}} label">{{rating}}</div> {{filename}}:{{function_name}} <i class="dropdown icon"></i>
+        </div>
+        <div class="content">
+            <h4 class="ui horizontal divider header">
+            <i class="barcode icon"></i>
+                You code
+            </h4>
+            <pre>{{code}}</pre>
+            <h4 class="ui horizontal divider header">
+            <i class="brain icon"></i>
+                {{model}}
+            </h4>
+            <p>{{ret_val}}</p>
+            <button class="ui primary basic button copy-button">Improve this with AI</button>
+        </div>
+
+    `;
+    const container = document.getElementById("aiContainer");
+
+    container.innerHTML = progressBar;
+
+    ai_data.forEach(d => {
+        let optimizationHTML = aiTemplate
+            .replace("{{function_name}}", d.name)
+            .replace("{{rating}}", d.rating)
+            .replace("{{filename}}", d.filename)
+            .replace("{{code}}", d.code)
+            .replace("{{model}}", d.model)
+            .replace("{{color}}", d.color)
+            .replace("{{ret_val}}", (d.ret_val || '').replace(/\n/g, '<br>'))
+
+        const optimizationElement = document.createElement("div");
+        optimizationElement.classList.add("ui", "styled","fluid", "accordion");
+        optimizationElement.innerHTML = optimizationHTML;
+        container.appendChild(optimizationElement);
+
+    });
+
+    $('#ai_progress').progress();
+
+
+    $('body').on('click', '.copy-button', function() {
+        var code = $(this).closest('.content').find('pre').text();
+        copyTextToClipboard('You are a world class programmer. Please improve:' + code);
+        showNotification('Code copied', 'The code has been copied to the clipboard.')
+    });
+
+
+
+}
+
 
 const getURLParams = () => {
     const query_string = window.location.search;
@@ -458,7 +571,7 @@ $(document).ready( (e) => {
             return;
         }
 
-        let [run_data, phase_stats_data, network_data, optimizations_data] = await makeBaseAPICalls(url_params);
+        let [run_data, phase_stats_data, network_data, optimizations_data, ai_data] = await makeBaseAPICalls(url_params);
 
         if (run_data == null) return; // no need to process any further if even core data not available
 
@@ -469,6 +582,8 @@ $(document).ready( (e) => {
         if (network_data != null) displayNetworkIntercepts(network_data);
 
         if (optimizations_data != null) displayOptimizationsData(optimizations_data);
+
+        if (ai_data != null) displayAiData(ai_data);
 
         if(phase_stats_data != null) displayComparisonMetrics(phase_stats_data)
 

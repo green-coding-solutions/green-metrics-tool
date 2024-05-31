@@ -395,3 +395,12 @@ CREATE TABLE carbon_intensity (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (latitude, longitude, created_at)
 );
+
+CREATE TABLE ai_optimizations (
+    id SERIAL PRIMARY KEY,
+    run_id UUID,
+    data JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_ai_optimizations_run_id ON ai_optimizations(run_id);
