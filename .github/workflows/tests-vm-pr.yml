@@ -25,7 +25,7 @@ jobs:
 
       - name: 'Test'
         run: |
-            sleep 10
+            sleep 1
 
       - name: Eco CI Energy Estimation - Get Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@v3
