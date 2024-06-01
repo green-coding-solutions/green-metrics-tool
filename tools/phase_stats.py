@@ -155,7 +155,7 @@ def build_and_store_phase_stats(run_id, sci=None):
 
         if (phase['name'] == '[RUNTIME]') and machine_power_idle and cpu_utilization_machine and cpu_utilization_containers:
             surplus_power_runtime = machine_power_runtime - machine_power_idle
-            surplus_energy_runtime = machine_energy_runtime - (machine_power_idle * (duration / 10**6))
+            surplus_energy_runtime = machine_energy_runtime - (machine_power_idle * decimal.Decimal(duration / 10**6))
             total_container_utilization = sum(cpu_utilization_containers.values())
 
             for detail_name, container_utilization in cpu_utilization_containers.items():
