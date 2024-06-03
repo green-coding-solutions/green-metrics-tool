@@ -7,10 +7,7 @@ on:
 
 jobs:
   run-tests-main:
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: read
+    runs-on: ubuntu-24.04
     steps:
       - id: check-date
         if: ${{ github.event_name != 'workflow_dispatch' }}
@@ -29,6 +26,8 @@ jobs:
         uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: start-measurement
+          company-uuid: "20b269ce-cd67-4788-8614-030eaf5a0b47"
+          project-uuid: "00000001-BCA5-451B-9E60-3A2FD07FA28D"
 
       - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
         name: 'Setup, Run, and Teardown Tests'

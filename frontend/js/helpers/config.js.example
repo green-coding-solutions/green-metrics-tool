@@ -9,6 +9,19 @@ METRICS_URL = "__METRICS_URL__"
 
 METRIC_MAPPINGS = {
 
+
+    'psu_energy_cgroup_container': {
+        'clean_name': 'Container Energy',
+        'source': 'estimation',
+        'explanation': 'Container energy estimated via CPU-% share',
+    },
+
+    'psu_power_cgroup_container': {
+        'clean_name': 'Container Power',
+        'source': 'estimation',
+        'explanation': 'Container power estimated via CPU-% share',
+    },
+
     'psu_co2_dc_rapl_msr_machine': {
         'clean_name': 'Machine CO2',
         'source': 'RAPL',

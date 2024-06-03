@@ -16,6 +16,7 @@ from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import date
 
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -174,12 +175,15 @@ async def get_machines():
     return ORJSONResponse({'success': True, 'data': data})
 
 @app.get('/v1/repositories')
-async def get_repositories(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, ):
+async def get_repositories(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, sort_by: str = 'name'):
     query = """
-            SELECT DISTINCT(r.uri)
+            SELECT
+                r.uri,
+                MAX(r.created_at) as last_run
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE 1=1
+            GROUP BY r.uri
             """
     params = []
 
@@ -203,8 +207,10 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
         query = f"{query} AND m.description LIKE %s \n"
         params.append(f"%{machine}%")
 
-
-    query = f"{query} ORDER BY r.uri ASC"
+    if sort_by == 'name':
+        query = f"{query} ORDER BY r.uri ASC"
+    else:
+        query = f"{query} ORDER BY last_run DESC"
 
     data = DB().fetch_all(query, params=tuple(params))
     if data is None or data == []:
@@ -397,7 +403,7 @@ async def get_measurements_single(run_id: str):
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 @app.get('/v1/timeline')
-async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, start_date: str | None = None, end_date: str | None = None, metrics: str | None = None, phase: str | None = None, sorting: str | None = None,):
+async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, start_date: date | None = None, end_date: date | None = None, metrics: str | None = None, phase: str | None = None, sorting: str | None = None,):
     if uri is None or uri.strip() == '':
         raise RequestValidationError('URI is empty')
 
@@ -1242,7 +1248,7 @@ async def post_ci_measurement_add(request: Request, measurement: CI_Measurement)
     return ORJSONResponse({'success': True}, status_code=201)
 
 @app.get('/v1/ci/measurements')
-async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: str, end_date: str):
+async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date):
 
     query = """
         SELECT energy_value, energy_unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg,
@@ -1259,7 +1265,7 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
             AND DATE(created_at) <= TO_DATE(%s, 'YYYY-MM-DD')
         ORDER BY run_id ASC, created_at ASC
     """
-    params = (repo, branch, workflow, start_date, end_date)
+    params = (repo, branch, workflow, str(start_date), str(end_date))
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
@@ -1267,10 +1273,40 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
 
     return ORJSONResponse({'success': True, 'data': data})
 
-@app.get('/v1/ci/projects')
-async def get_ci_projects():
+@app.get('/v1/ci/repositories')
+async def get_ci_repositories(repo: str | None = None, sort_by: str = 'name'):
+
+    params = []
     query = """
-        SELECT repo, branch, workflow_id, source, MAX(created_at),
+        SELECT repo, source, MAX(created_at) as last_run
+        FROM ci_measurements
+        WHERE 1=1
+    """
+
+    if repo: # filter is currently not used, but may be a feature in the future
+        query = f"{query} AND ci_measurements.repo = %s  \n"
+        params.append(repo)
+
+    query = f"{query} GROUP BY repo, source"
+
+    if sort_by == 'date':
+        query = f"{query} ORDER BY last_run DESC"
+    else:
+        query = f"{query} ORDER BY repo ASC"
+
+    data = DB().fetch_all(query, params=tuple(params))
+    if data is None or data == []:
+        return Response(status_code=204) # No-Content
+
+    return ORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
+
+
+@app.get('/v1/ci/runs')
+async def get_ci_runs(repo: str, sort_by: str = 'name'):
+
+    params = []
+    query = """
+        SELECT repo, branch, workflow_id, source, MAX(created_at) as last_run,
                 (SELECT workflow_name FROM ci_measurements AS latest_workflow
                 WHERE latest_workflow.repo = ci_measurements.repo
                 AND latest_workflow.branch = ci_measurements.branch
@@ -1278,15 +1314,23 @@ async def get_ci_projects():
                 ORDER BY latest_workflow.created_at DESC
                 LIMIT 1) AS workflow_name
         FROM ci_measurements
-        GROUP BY repo, branch, workflow_id, source
-        ORDER BY repo ASC
+        WHERE 1=1
     """
 
-    data = DB().fetch_all(query)
+    query = f"{query} AND ci_measurements.repo = %s  \n"
+    params.append(repo)
+    query = f"{query} GROUP BY repo, branch, workflow_id, source"
+
+    if sort_by == 'date':
+        query = f"{query} ORDER BY last_run DESC"
+    else:
+        query = f"{query} ORDER BY repo ASC"
+
+    data = DB().fetch_all(query, params=tuple(params))
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
-    return ORJSONResponse({'success': True, 'data': data})
+    return ORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
 
 @app.get('/v1/ci/badge/get')
 async def get_ci_badge_get(repo: str, branch: str, workflow:str):

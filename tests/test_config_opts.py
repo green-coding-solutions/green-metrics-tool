@@ -1,11 +1,9 @@
 import os
-import subprocess
 import pytest
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.db import DB
-from lib import utils
 from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
 from runner import Runner
@@ -24,26 +22,11 @@ def reset_config_fixture():
     config['measurement']['idle-time-end'] = idle_time_end
     config['measurement']['flow-process-runtime'] = flow_process_runtime
 
-@pytest.fixture(autouse=True, scope="module", name="build_image")
-def build_image_fixture():
-    uri = os.path.abspath(os.path.join(
-            CURRENT_DIR, 'stress-application/'))
-    subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
-
-#pylint: disable=expression-not-assigned
-def run_runner():
-    uri = os.path.abspath(os.path.join(
-            CURRENT_DIR, 'stress-application/'))
-
-    # Run the application
-    RUN_NAME = 'test_' + utils.randomword(12)
-    runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', verbose_provider_boot=True, dev_repeat_run=True, skip_system_checks=True)
-    return runner.run()
-
 # Rethink how to do this test entirely
 def wip_test_idle_start_time(reset_config):
     config['measurement']['idle-time-start'] = 2
-    run_id = run_runner()
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    run_id = runner.run()
     query = """
             SELECT
                 time, note
@@ -68,7 +51,8 @@ def wip_test_idle_start_time(reset_config):
 # Rethink how to do this test entirely
 def wip_test_idle_end_time(reset_config):
     config['measurement']['idle-time-end'] = 2
-    run_id = run_runner()
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    run_id = runner.run()
     query = """
             SELECT
                 time, note
@@ -91,8 +75,9 @@ def wip_test_idle_end_time(reset_config):
 
 def wip_test_process_runtime_exceeded(reset_config):
     config['measurement']['flow-process-runtime'] = .1
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with pytest.raises(RuntimeError) as err:
-        run_runner()
+        runner.run()
     expected_exception = 'Process exceeded runtime of 0.1s: stress-ng -c 1 -t 1 -q'
     assert expected_exception in str(err.value), \
         Tests.assertion_info(expected_exception, str(err.value))

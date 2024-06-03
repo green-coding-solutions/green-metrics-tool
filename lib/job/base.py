@@ -71,7 +71,7 @@ class Job(ABC):
         pass
 
     @classmethod
-    def insert(cls, job_type, name=None, url=None, email=None, branch=None, filename=None, machine_id=None, message=None):
+    def insert(cls, job_type, *, name=None, url=None, email=None, branch=None, filename=None, machine_id=None, message=None):
 
         if job_type == 'run' and (not branch or not url or not filename or not machine_id):
             raise RuntimeError('For adding runs branch, url, filename and machine_id must be set')

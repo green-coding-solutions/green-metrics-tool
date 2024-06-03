@@ -12,4 +12,9 @@ RUN find venv -type d -name "site-packages" -exec sh -c 'echo /var/www/green-met
 
 COPY startup_gunicorn.sh /var/www/startup/startup_gunicorn.sh
 
+# even if this file does not exist it will still help by not creating
+# a permission error when trying /root/.postgresql/postgresql.crt
+ENV PGSSLCERT /tmp/postgresql.crt
+
+
 ENTRYPOINT ["/bin/bash", "/var/www/startup/startup_gunicorn.sh"]

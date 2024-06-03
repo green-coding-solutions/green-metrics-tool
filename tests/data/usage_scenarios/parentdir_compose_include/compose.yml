@@ -1,0 +1,6 @@
+---
+services:
+  test-container:
+    image: alpine
+    container_name: test-container
+    restart: always

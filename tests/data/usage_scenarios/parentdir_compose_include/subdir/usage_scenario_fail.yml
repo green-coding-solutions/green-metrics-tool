@@ -1,0 +1,15 @@
+---
+name: Test Stress
+author: Dan Mateas
+description: test
+
+# compose files should never be included when not in same folder as the usage_scenario
+# as this will garble very many assumptions like contextes and relative file paths!
+compose-file: !include ../compose.yml
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: echo 1

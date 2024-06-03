@@ -176,13 +176,13 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
         params.append(metrics)
 
     start_date_condition = ''
-    if start_date is not None and start_date.strip() != '':
-        start_date_condition =  "AND DATE(r.created_at) >= TO_DATE(%s, 'YYYY-MM-DD')"
+    if start_date is not None:
+        start_date_condition =  "AND DATE(r.created_at) >= %s"
         params.append(start_date)
 
     end_date_condition = ''
-    if end_date is not None and end_date.strip() != '':
-        end_date_condition =  "AND DATE(r.created_at) <= TO_DATE(%s, 'YYYY-MM-DD')"
+    if end_date is not None:
+        end_date_condition =  "AND DATE(r.created_at) <= %s"
         params.append(end_date)
 
     detail_name_condition = ''
@@ -778,12 +778,3 @@ def carbondb_add(client_ip, energydatas):
     columns = ['type', 'company', 'machine', 'project', 'tags', 'time_stamp', 'energy_value', 'co2_value', 'carbon_intensity', 'latitude', 'longitude', 'ip_address']
 
     DB().copy_from(file=data_file, table='carbondb_energy_data', columns=columns, sep='|')
-
-    DB().query("""
-        DELETE FROM carbondb_energy_data
-        WHERE ctid NOT IN (
-            SELECT min(ctid)
-            FROM carbondb_energy_data
-            GROUP BY time_stamp, machine, energy_value
-        )
-    """)

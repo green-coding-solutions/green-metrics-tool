@@ -1,5 +1,5 @@
 ---
-name: Test depends_on
+name: Test Healthcheck
 author: David Kopp
 description: test
 
@@ -10,10 +10,12 @@ services:
       test-container-2:
         condition: service_healthy
   test-container-2:
-    image: alpine
+    build:
+      context: ../slow-start-application
     healthcheck:
-      test: ls
-      interval: 1s
+      test: pgrep 'tail'
+      start_interval: 1s
+      interval: 1h # should not influence the measurement
 
 flow:
   - name: dummy

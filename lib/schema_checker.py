@@ -105,7 +105,7 @@ class SchemaChecker():
                         Optional('timeout'): str,
                         Optional('retries'): int,
                         Optional('start_period'): str,
-                        # Optional('start_interval'): str, docker CLI does not support this atm
+                        Optional('start_interval'): str,
                         Optional('disable'): bool,
                     },
                     Optional("setup-commands"): [str],
@@ -148,9 +148,9 @@ class SchemaChecker():
         for service_name in usage_scenario.get('services'):
             service = usage_scenario['services'][service_name]
             if 'image' not in service and 'build' not in service:
-                raise SchemaError("The 'image' key under services is required when 'build' key is not present.")
+                raise SchemaError(f"The 'image' key for service '{service_name}' is required when 'build' key is not present.")
             if 'cmd' in service:
-                raise SchemaError("The 'cmd' key under services is not supported anymore. Please migrate to 'command'")
+                raise SchemaError(f"The 'cmd' key for service '{service_name}' is not supported anymore. Please migrate to 'command'")
 
         usage_scenario_schema.validate(usage_scenario)
 

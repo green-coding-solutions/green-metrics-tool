@@ -47,9 +47,9 @@ cluster:
 machine:
   id: 1
   description: Development machine for testing
-  base_temperature_value: false
-  base_temperature_chip: false
-  base_temperature_feature: false
+  base_temperature_value: 10
+  base_temperature_chip: "asd"
+  base_temperature_feature: "asd"
 
 measurement:
   system_check_threshold: 3
@@ -58,7 +58,7 @@ measurement:
   flow-process-runtime: 3800
   phase-transition-time: 1
   boot:
-    wait_time_dependencies: 20
+    wait_time_dependencies: 10
   metric-providers:
     linux:
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:

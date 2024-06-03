@@ -5,10 +5,8 @@ on:
 
 jobs:
   run-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
-      packages: write
-      contents: read
       pull-requests: write
     steps:
       - name: 'Checkout repository'
@@ -21,6 +19,9 @@ jobs:
         uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: start-measurement
+          company-uuid: "20b269ce-cd67-4788-8614-030eaf5a0b47"
+          project-uuid: "00000001-BCA5-451B-9E60-3A2FD07FA28D"
+
 
       - name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest

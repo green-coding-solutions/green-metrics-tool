@@ -1,0 +1,29 @@
+---
+name: Test Stress
+author: Dan Mateas
+description: test
+
+services:
+  test-container:
+    build:
+      context: ../stress-application
+    image: gcb_stress
+    container_name: test-container
+    restart: always
+    volumes: &test-volume
+      - ../mounts/test-file:/tmp/test-file
+
+  test-container-2:
+    build:
+      context: ../stress-application
+    image: gcb_stress
+    container_name: test-container-2
+    restart: always
+    volumes: *test-volume
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: echo 1

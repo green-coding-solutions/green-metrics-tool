@@ -87,6 +87,7 @@ const replaceRepoIcon = (uri) => {
 };
 
 const showNotification = (message_title, message_text, type='warning') => {
+    const message = (typeof message_text === 'string') ? message_text : JSON.stringify(message_text);
     $('body')
       .toast({
         class: type,
@@ -94,7 +95,7 @@ const showNotification = (message_title, message_text, type='warning') => {
         position: 'top right',
         displayTime: 5000,
         title: message_title,
-        message: message_text,
+        message: message,
         className: {
             toast: 'ui message'
         }
@@ -186,6 +187,22 @@ let closeMenu = function(e){
     $('#main').removeClass('opened').addClass('closed');
     setTimeout(function(){window.dispatchEvent(new Event('resize'))}, 500) // needed for the graphs to resize
     localStorage.setItem('menu_closed', true)
+}
+
+async function sortDate() {
+    const button = document.querySelector('#sort-button')
+    button.removeEventListener('click', sortDate);
+    button.addEventListener('click', sortName);
+    button.innerHTML = '<i class="font icon"></i>Sort name';
+    await getRepositories('date');
+}
+
+async function sortName() {
+    const button = document.querySelector('#sort-button')
+    button.removeEventListener('click', sortName);
+    button.addEventListener('click', sortDate);
+    button.innerHTML = '<i class="clock icon"></i>Sort date';
+    await getRepositories('name');
 }
 
 $(document).ready(function () {
