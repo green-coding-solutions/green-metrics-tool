@@ -1509,7 +1509,7 @@ class Runner:
                 self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')
 
             self.start_phase('[IDLE]')
-            self.custom_sleep(5)
+            self.custom_sleep(10)
             self.end_phase('[IDLE]')
 
             if self._debugger.active:
