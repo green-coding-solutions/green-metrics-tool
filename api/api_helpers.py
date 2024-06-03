@@ -778,13 +778,3 @@ def carbondb_add(client_ip, energydatas):
     columns = ['type', 'company', 'machine', 'project', 'tags', 'time_stamp', 'energy_value', 'co2_value', 'carbon_intensity', 'latitude', 'longitude', 'ip_address']
 
     DB().copy_from(file=data_file, table='carbondb_energy_data', columns=columns, sep='|')
-
-# TODO: Fix dedupliation
-#    DB().query("""
-#        DELETE FROM carbondb_energy_data
-#        WHERE ctid NOT IN (
-#            SELECT min(ctid)
-#            FROM carbondb_energy_data
-#            GROUP BY time_stamp, machine, energy_value
-#        )
-#    """)
