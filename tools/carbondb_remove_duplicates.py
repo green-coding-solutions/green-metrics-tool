@@ -5,12 +5,12 @@ from lib.db import DB
 
 def remove_duplicates():
     DB().query("""
-       DELETE FROM carbondb_energy_data
-       WHERE ctid NOT IN (
-           SELECT min(ctid)
-           FROM carbondb_energy_data
-           GROUP BY time_stamp, machine, energy_value
-       )
+        DELETE FROM carbondb_energy_data a
+        USING carbondb_energy_data b
+        WHERE a.ctid < b.ctid
+        AND a.time_stamp = b.time_stamp
+        AND a.machine = b.machine
+        AND a.energy_value = b.energy_value;
     """)
 
 
