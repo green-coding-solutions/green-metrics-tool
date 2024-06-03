@@ -41,7 +41,7 @@ def compress_data():
             e.project,
             e.tags,
             DATE_TRUNC('day', TO_TIMESTAMP(e.time_stamp / 1000000))
-        ON CONFLICT (machine, date) DO UPDATE
+        ON CONFLICT (type, company, machine, project, tags, date) DO UPDATE
         SET
             energy_sum = EXCLUDED.energy_sum,
             co2_sum = EXCLUDED.co2_sum,

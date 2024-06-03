@@ -1,0 +1,2 @@
+ALTER TABLE carbondb_energy_data_day DROP CONSTRAINT unique_machine_project_date;
+CREATE UNIQUE INDEX idx_carbondb_unique_entry ON carbondb_energy_data_day(type, company, machine, project, tags, date );

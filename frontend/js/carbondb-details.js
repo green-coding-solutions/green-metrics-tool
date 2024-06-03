@@ -94,9 +94,9 @@ $(document).ready(function () {
         <thead>
             <tr>
                 <th>Date</th>
-                <th>Energy in J</th>
-                <th>CO2eq in g</th>
-                <th>Carbon Intensity</th>
+                <th>Energy (J)</th>
+                <th>CO2eq (g)</th>
+                <th>Intensity (gCO2e/kWh)</th>
                 <th>Records</th>
             </tr>
         </thead>

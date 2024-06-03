@@ -88,9 +88,9 @@ $(document).ready(function () {
         <thead>
             <tr>
                 <th>Machine</th>
-                <th>Sum Energy in J</th>
-                <th>Sum CO2eq in g</th>
-                <th>Average Carbon Intensity</th>
+                <th>Sum Energy (J)</th>
+                <th>Sum CO2eq (g)</th>
+                <th>Avg. Intensity (gCO2e/kWh)</th>
                 <th>Tags (click to filter)<th>
             </tr>
         </thead>
