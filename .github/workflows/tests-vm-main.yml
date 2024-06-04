@@ -23,7 +23,7 @@ jobs:
           submodules: 'true'
 
       - name: Eco CI Energy Estimation - Initialize
-        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        uses: green-coding-solutions/eco-ci-energy-estimation@containerized
         with:
           task: start-measurement
           company-uuid: "20b269ce-cd67-4788-8614-030eaf5a0b47"
@@ -37,13 +37,13 @@ jobs:
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Eco CI Energy Estimation - Get Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        uses: green-coding-solutions/eco-ci-energy-estimation@containerized
         with:
           task: get-measurement
           branch: main
 
       - name: Eco CI Energy Estimation - End Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        uses: green-coding-solutions/eco-ci-energy-estimation@containerized
         with:
           task: display-results
           branch: main
