@@ -67,6 +67,7 @@ CREATE TABLE runs (
     logs text,
     invalid_run text,
     failed boolean DEFAULT false,
+    monitor_run boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );

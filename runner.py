@@ -122,12 +122,15 @@ class Runner:
     def initialize_run(self):
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
 
+        monitor_run = self.__class__.__name__ == 'Monitor'
         # we also update the branch here again, as this might not be main in case of local filesystem
         self._run_id = DB().fetch_one("""
-                INSERT INTO runs (job_id, name, uri, email, branch, filename, commit_hash, commit_timestamp, runner_arguments, created_at)
-                VALUES (%s, %s, %s, 'manual', %s, %s, %s, %s, %s, NOW())
+                INSERT INTO runs (job_id, name, uri, email, branch, filename, commit_hash, commit_timestamp, runner_arguments, monitor_run, created_at)
+                VALUES (%s, %s, %s, 'manual', %s, %s, %s, %s, %s, %s, NOW())
                 RETURNING id
-                """, params=(self._job_id, self._name, self._uri, self._branch, self._original_filename, self._commit_hash, self._commit_timestamp, json.dumps(self._arguments)))[0]
+                """,
+                params=(self._job_id, self._name, self._uri, self._branch, self._original_filename, self._commit_hash, self._commit_timestamp, json.dumps(self._arguments), monitor_run),
+        )[0]
         return self._run_id
 
     def get_optimizations_ignore(self):
@@ -465,7 +468,7 @@ class Runner:
             self._run_id)
         )
 
-    def import_metric_providers(self):
+    def import_metric_providers(self, monitor=False):
         if self._dev_no_metrics:
             print(TerminalColors.HEADER, '\nSkipping import of metric providers', TerminalColors.ENDC)
             return
@@ -493,6 +496,8 @@ class Runner:
             if rootless and '.cgroup.' in module_path:
                 conf['rootless'] = True
 
+            if monitor and '.cgroup.' in module_path:
+                conf['monitor'] = True
             if self._skip_system_checks:
                 conf['skip_check'] = True
 
@@ -1034,8 +1039,9 @@ class Runner:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
 
-    def start_phase(self, phase, transition = True):
+    def start_phase(self, phase, transition=True):
         config = GlobalConfig().config
+
         print(TerminalColors.HEADER, f"\nStarting phase {phase}.", TerminalColors.ENDC)
 
         if transition:
@@ -1444,6 +1450,39 @@ class Runner:
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
+    def _handle_except(self):
+        try:
+            self.read_container_logs()
+        except BaseException as exc:
+            self.add_to_log(exc.__class__.__name__, str(exc))
+            raise exc
+        finally:
+            try:
+                self.read_and_cleanup_processes()
+            except BaseException as exc:
+                self.add_to_log(exc.__class__.__name__, str(exc))
+                raise exc
+            finally:
+                try:
+                    self.save_notes_runner()
+                except BaseException as exc:
+                    self.add_to_log(exc.__class__.__name__, str(exc))
+                    raise exc
+                finally:
+                    try:
+                        self.stop_metric_providers()
+                    except BaseException as exc:
+                        self.add_to_log(exc.__class__.__name__, str(exc))
+                        raise exc
+                    finally:
+                        try:
+                            self.save_stdout_logs()
+                        except BaseException as exc:
+                            self.add_to_log(exc.__class__.__name__, str(exc))
+                            raise exc
+                        finally:
+                            self.cleanup()  # always run cleanup automatically after each run
+
     def run(self):
         '''
             The run method is just a wrapper for the intended sequential flow of a GMT run.
@@ -1540,37 +1579,7 @@ class Runner:
             self.set_run_failed()
             raise exc
         finally:
-            try:
-                self.read_container_logs()
-            except BaseException as exc:
-                self.add_to_log(exc.__class__.__name__, str(exc))
-                raise exc
-            finally:
-                try:
-                    self.read_and_cleanup_processes()
-                except BaseException as exc:
-                    self.add_to_log(exc.__class__.__name__, str(exc))
-                    raise exc
-                finally:
-                    try:
-                        self.save_notes_runner()
-                    except BaseException as exc:
-                        self.add_to_log(exc.__class__.__name__, str(exc))
-                        raise exc
-                    finally:
-                        try:
-                            self.stop_metric_providers()
-                        except BaseException as exc:
-                            self.add_to_log(exc.__class__.__name__, str(exc))
-                            raise exc
-                        finally:
-                            try:
-                                self.save_stdout_logs()
-                            except BaseException as exc:
-                                self.add_to_log(exc.__class__.__name__, str(exc))
-                                raise exc
-                            finally:
-                                self.cleanup()  # always run cleanup automatically after each run
+            self._handle_except()
 
         print(TerminalColors.OKGREEN, arrows('MEASUREMENT SUCCESSFULLY COMPLETED'), TerminalColors.ENDC)
 
@@ -1673,6 +1682,8 @@ if __name__ == '__main__':
         # loop over them issuing separate queries to the DB
         from tools.phase_stats import build_and_store_phase_stats
 
+        print("Run id is", runner._run_id)
+        print("Aggregating and uploading phase_stats. This can take a while for longer runs ...")
         build_and_store_phase_stats(runner._run_id, runner._sci)
 
         # We need to import this here as we need the correct config file

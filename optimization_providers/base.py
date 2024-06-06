@@ -83,7 +83,7 @@ async def fetch_all_data(run_id):
         run, measurements, network, notes, phase_stats = await asyncio.gather(*tasks)
 
     #pylint: disable=no-member
-    return orjson.loads(run)['data'], orjson.loads(measurements)['data'], orjson.loads(network)['data'], orjson.loads(notes)['data'], orjson.loads(phase_stats)['data']
+    return orjson.loads(run)['data'], orjson.loads(measurements)['data'], orjson.loads(network).get('data', {}), orjson.loads(notes).get('data', {}), orjson.loads(phase_stats).get('data', {})
 
 #pylint: disable=dangerous-default-value
 def run_reporters(run_id, repo_path, optimizations_ignore=[]):
