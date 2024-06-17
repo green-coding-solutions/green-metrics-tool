@@ -1,5 +1,8 @@
 import os
 import pytest
+import io
+from contextlib import redirect_stdout, redirect_stderr
+import subprocess
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -9,7 +12,36 @@ from tests import test_functions as Tests
 from runner import Runner
 
 
-config = GlobalConfig(config_name='test-config.yml').config
+GlobalConfig().override_config(config_name='test-config.yml')
+config = GlobalConfig().config
+
+def test_global_timeout_short():
+
+    total_duration = config['measurement']['total-duration']
+
+    config['measurement']['total-duration'] = 2
+
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_build=False, dev_no_sleeps=True, dev_no_metrics=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    try:
+        with redirect_stdout(out), redirect_stderr(err):
+            runner.run()
+    except subprocess.TimeoutExpired as e:
+        assert str(e).startswith("Command '['docker', 'run', '--rm', '-v',") and f"timed out after {config['measurement']['total-duration']} seconds" in str(e), \
+        Tests.assertion_info('Unknown TimeoutExpired was raised', str(e))
+        return
+    except TimeoutError as e:
+        assert str(e) == f"Timeout of {config['measurement']['total-duration']} s was exceeded. This can be configured in 'total-duration'.", \
+        Tests.assertion_info(f"Timeout of {config['measurement']['total-duration']} s was exceeded. This can be configured in 'total-duration'.", str(e))
+        return
+    finally:
+        config['measurement']['total-duration'] = total_duration
+
+    assert False, \
+        Tests.assertion_info('Timeout was not raised', str(out.getvalue()))
+
 
 #pylint: disable=unused-argument # unused arguement off for now - because there are no running tests in this file
 @pytest.fixture(name="reset_config")
