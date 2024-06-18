@@ -16,7 +16,7 @@ jobs:
           submodules: 'true'
 
       - name: Eco CI Energy Estimation - Initialize
-        uses: green-coding-solutions/eco-ci-energy-estimation@v4.0-rc1
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4.0-rc2
         with:
           task: start-measurement
           company-uuid: "20b269ce-cd67-4788-8614-030eaf5a0b47"
@@ -27,12 +27,12 @@ jobs:
             sleep 1
 
       - name: Eco CI Energy Estimation - Get Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@v4.0-rc1
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4.0-rc2
         with:
           task: get-measurement
 
       - name: Eco CI Energy Estimation - End Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@v4.0-rc1
+        uses: green-coding-solutions/eco-ci-energy-estimation@v4.0-rc2
         with:
           task: display-results
           pr-comment: true
