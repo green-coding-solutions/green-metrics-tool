@@ -15,7 +15,7 @@ from runner import Runner
 GlobalConfig().override_config(config_name='test-config.yml')
 config = GlobalConfig().config
 
-def test_global_timeout_short():
+def test_global_timeout():
 
     total_duration = config['measurement']['total-duration']
 
