@@ -13,13 +13,12 @@ from runner import Runner
 
 
 GlobalConfig().override_config(config_name='test-config.yml')
-config = GlobalConfig().config
 
 def test_global_timeout():
 
-    total_duration = config['measurement']['total-duration']
-
-    config['measurement']['total-duration'] = 2
+    total_duration_new = 1
+    total_duration_before = GlobalConfig().config['measurement']['total-duration']
+    GlobalConfig().config['measurement']['total-duration'] = total_duration_new
 
     runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_build=False, dev_no_sleeps=True, dev_no_metrics=True)
 
@@ -29,15 +28,15 @@ def test_global_timeout():
         with redirect_stdout(out), redirect_stderr(err):
             runner.run()
     except subprocess.TimeoutExpired as e:
-        assert str(e).startswith("Command '['docker', 'run', '--rm', '-v',") and f"timed out after {config['measurement']['total-duration']} seconds" in str(e), \
-        Tests.assertion_info('Unknown TimeoutExpired was raised', str(e))
+        assert str(e).startswith("Command '['docker', 'run', '--rm', '-v',") and f"timed out after {total_duration_new} seconds" in str(e), \
+        Tests.assertion_info(f"Command '['docker', 'run', '--rm', '-v', ... timed out after {total_duration_new} seconds", str(e))
         return
     except TimeoutError as e:
-        assert str(e) == f"Timeout of {config['measurement']['total-duration']} s was exceeded. This can be configured in 'total-duration'.", \
-        Tests.assertion_info(f"Timeout of {config['measurement']['total-duration']} s was exceeded. This can be configured in 'total-duration'.", str(e))
+        assert str(e) == f"Timeout of {total_duration_new} s was exceeded. This can be configured in 'total-duration'.", \
+        Tests.assertion_info(f"Timeout of {total_duration_new} s was exceeded. This can be configured in 'total-duration'.", str(e))
         return
     finally:
-        config['measurement']['total-duration'] = total_duration
+        GlobalConfig().config['measurement']['total-duration'] = total_duration_before # reset
 
     assert False, \
         Tests.assertion_info('Timeout was not raised', str(out.getvalue()))
@@ -46,6 +45,7 @@ def test_global_timeout():
 #pylint: disable=unused-argument # unused arguement off for now - because there are no running tests in this file
 @pytest.fixture(name="reset_config")
 def reset_config_fixture():
+    config = GlobalConfig().config
     idle_start_time = config['measurement']['idle-time-start']
     idle_time_end = config['measurement']['idle-time-end']
     flow_process_runtime = config['measurement']['flow-process-runtime']
@@ -56,7 +56,7 @@ def reset_config_fixture():
 
 # Rethink how to do this test entirely
 def wip_test_idle_start_time(reset_config):
-    config['measurement']['idle-time-start'] = 2
+    GlobalConfig().config['measurement']['idle-time-start'] = 2
     runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     run_id = runner.run()
     query = """
@@ -82,7 +82,7 @@ def wip_test_idle_start_time(reset_config):
 
 # Rethink how to do this test entirely
 def wip_test_idle_end_time(reset_config):
-    config['measurement']['idle-time-end'] = 2
+    GlobalConfig().config['measurement']['idle-time-end'] = 2
     runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     run_id = runner.run()
     query = """
@@ -106,7 +106,7 @@ def wip_test_idle_end_time(reset_config):
         Tests.assertion_info('2s apart', f"timestamp difference of notes: {diff}s")
 
 def wip_test_process_runtime_exceeded(reset_config):
-    config['measurement']['flow-process-runtime'] = .1
+    GlobalConfig().config['measurement']['flow-process-runtime'] = .1
     runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with pytest.raises(RuntimeError) as err:
         runner.run()
