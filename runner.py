@@ -579,13 +579,15 @@ class Runner:
                 self.join_paths(context_path, dockerfile)
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-v', f"{self._repo_folder}:/workspace:ro", # this is the folder where the usage_scenario is!
+                    '-v', '/workspace',
+                    '-v', f"{self._repo_folder}:/tmp/repo:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
-                    f"--dockerfile=/workspace/{self.__working_folder_rel}/{context}/{dockerfile}",
-                    '--context', f'dir:///workspace/{self.__working_folder_rel}/{context}',
+                    f"--dockerfile=/tmp/repo/{self.__working_folder_rel}/{context}/{dockerfile}",
+                    '--context', f'dir:///tmp/repo/{self.__working_folder_rel}/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
+                    '--cleanup=true',
                     '--no-push']
 
                 if self.__docker_params:
