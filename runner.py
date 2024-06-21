@@ -103,6 +103,7 @@ class Runner:
         self.__metric_providers = []
         self.__notes_helper = Notes()
         self.__phases = OrderedDict()
+        self.__start_measurement_seconds = None
         self.__start_measurement = None
         self.__end_measurement = None
         self.__services_to_pause_phase = {}
@@ -540,6 +541,7 @@ class Runner:
         return name
 
     def build_docker_images(self):
+        config = GlobalConfig().config
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
         # Create directory /tmp/green-metrics-tool/docker_images
@@ -593,7 +595,7 @@ class Runner:
 
                 print(' '.join(docker_build_command))
 
-                ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
+                ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', timeout=config['measurement']['total-duration'], check=False)
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
@@ -1048,10 +1050,16 @@ class Runner:
             if stderr_read:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
+    def check_total_runtime_exceeded(self):
+        config = GlobalConfig().config
+        if (time.time() - self.__start_measurement_seconds) > config['measurement']['total-duration']:
+            raise TimeoutError(f"Timeout of {config['measurement']['total-duration']} s was exceeded. This can be configured in 'total-duration'.")
 
     def start_phase(self, phase, transition = True):
         config = GlobalConfig().config
         print(TerminalColors.HEADER, f"\nStarting phase {phase}.", TerminalColors.ENDC)
+
+        self.check_total_runtime_exceeded()
 
         if transition:
             # The force-sleep must go and we must actually check for the temperature baseline
@@ -1068,6 +1076,9 @@ class Runner:
         self.__phases[phase] = {'start': phase_time, 'name': phase}
 
     def end_phase(self, phase):
+
+        self.check_total_runtime_exceeded()
+
         phase_time = int(time.time_ns() / 1_000)
 
         if phase not in self.__phases:
@@ -1105,6 +1116,8 @@ class Runner:
                 self.start_phase(flow['name'].replace('[', '').replace(']',''), transition=False)
 
                 for cmd_obj in flow['commands']:
+                    self.check_total_runtime_exceeded()
+
                     if 'note' in cmd_obj:
                         self.__notes_helper.add_note({'note': cmd_obj['note'], 'detail_name': flow['container'], 'timestamp': int(time.time_ns() / 1_000)})
 
@@ -1151,14 +1164,14 @@ class Runner:
 
                             ps_to_kill_tmp.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
                         else:
-                            print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
+                            print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-duration']}s runtime ...")
                             ps = subprocess.run(
                                 docker_exec_command,
                                 stderr=stderr_behaviour,
                                 stdout=stdout_behaviour,
                                 encoding='UTF-8',
                                 check=False, # cause it will be checked later and also ignore-errors checked
-                                timeout=config['measurement']['flow-process-runtime'],
+                                timeout=config['measurement']['flow-process-duration'],
                             )
 
                         ps_to_read_tmp.append({
@@ -1322,6 +1335,8 @@ class Runner:
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
+        self.__start_measurement_seconds = time.time()
+
         self.__notes_helper.add_note({'note': 'Start of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__start_measurement})
 
     def end_measurement(self):
@@ -1448,6 +1463,7 @@ class Runner:
 
         if continue_measurement is False:
             self.__start_measurement = None
+            self.__start_measurement_seconds = None
             self.__notes_helper = Notes()
 
         self.__phases = OrderedDict()
@@ -1492,12 +1508,12 @@ class Runner:
             if self._debugger.active:
                 self._debugger.pause('metric-providers (non-container) start complete. Waiting to start measurement')
 
-            self.custom_sleep(config['measurement']['idle-time-start'])
+            self.custom_sleep(config['measurement']['pre-test-sleep'])
 
             self.start_measurement()
 
             self.start_phase('[BASELINE]')
-            self.custom_sleep(5)
+            self.custom_sleep(config['measurement']['baseline-duration'])
             self.end_phase('[BASELINE]')
 
             if self._debugger.active:
@@ -1524,7 +1540,7 @@ class Runner:
                 self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')
 
             self.start_phase('[IDLE]')
-            self.custom_sleep(5)
+            self.custom_sleep(config['measurement']['idle-duration'])
             self.end_phase('[IDLE]')
 
             if self._debugger.active:
@@ -1546,7 +1562,7 @@ class Runner:
 
             self.end_measurement()
             self.check_process_returncodes()
-            self.custom_sleep(config['measurement']['idle-time-end'])
+            self.custom_sleep(config['measurement']['post-test-sleep'])
             self.store_phases()
             self.update_start_and_end_times()
 
