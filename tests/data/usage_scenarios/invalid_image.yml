@@ -1,0 +1,17 @@
+---
+name: Image location invalid test
+author: Arne Tarara
+description: Image location invalid test
+
+services:
+  test-service:
+    image: 1j98t3gh4hih8723ztgifuwheksh87t34gt
+
+flow:
+  - name: Small-Stress
+    container: test-service
+    commands:
+      - type: console
+        command: echo "asd"
+        shell: bash
+        note: Starting a little stress

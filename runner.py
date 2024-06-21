@@ -615,9 +615,24 @@ class Runner:
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
-                    raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
+                    if __name__ == '__main__':
+                        print(TerminalColors.OKCYAN, '\nThe docker image could not be pulled. Since you are working locally we can try looking in your local images. Do you want that? (y/N).', TerminalColors.ENDC)
+                        if sys.stdin.readline().strip().lower() == 'y':
+                            try:
+                                subprocess.run(['docker', 'inspect', '--type=image', service['image']],
+                                                         stdout=subprocess.PIPE,
+                                                         stderr=subprocess.PIPE,
+                                                         encoding='UTF-8',
+                                                         check=True)
+                                print('Docker image found locally. Tagging now for use in cached runs ...')
+                            except subprocess.CalledProcessError:
+                                raise OSError(f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}") from subprocess.CalledProcessError
+                        else:
+                            raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
+                    else:
+                        raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
 
-                # tagging must be done in pull case, so we can get the correct container later
+                # tagging must be done in pull and local case, so we can get the correct container later
                 subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
 
 
