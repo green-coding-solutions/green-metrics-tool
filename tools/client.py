@@ -21,7 +21,7 @@ from lib import error_helpers
 from lib.configuration_check_error import ConfigurationCheckError, Status
 
 # We currently have this dynamically as it will probably change quite a bit
-STATUS_LIST = ['cooldown', 'job_no', 'job_start', 'job_error', 'job_end', 'cleanup_start', 'cleanup_end', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
+STATUS_LIST = ['cooldown', 'warmup', 'job_no', 'job_start', 'job_error', 'job_end', 'cleanup_start', 'cleanup_end', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def set_status(status_code, cur_temp, cooldown_time_after_job, data=None, run_id=None):
@@ -100,6 +100,7 @@ if __name__ == '__main__':
         cooldown_time = 0
         last_cooldown_time = 0
         current_temperature = -1
+        temperature_errors = 0
 
 
         while True:
@@ -110,6 +111,9 @@ if __name__ == '__main__':
                 continue
 
             if not args.testing:
+                if temperature_errors >= 10:
+                    raise RuntimeError('Temperature could not be stabilized in time. Pleae check logs ...')
+
                 current_temperature = get_temperature(
                     GlobalConfig().config['machine']['base_temperature_chip'],
                     GlobalConfig().config['machine']['base_temperature_feature']
@@ -119,10 +123,21 @@ if __name__ == '__main__':
                     print(f"Machine is still too hot: {current_temperature}°. Sleeping for 1 minute")
                     set_status('cooldown', current_temperature, last_cooldown_time)
                     cooldown_time += 60
+                    temperature_errors += 1
                     time.sleep(60)
                     continue
 
-                print('Machine is cool enough. Continuing')
+                if current_temperature <= (config_main['machine']['base_temperature_value'] - 5):
+                    print(f"Machine is too cool: {current_temperature}°. Warming up and retrying")
+                    set_status('warmup', current_temperature, last_cooldown_time)
+                    temperature_errors += 1
+                    current_time = time.time()
+                    while True:
+                        if time.time() > (current_time + 10):
+                            break
+                    continue # still retry loop and make all checks again
+
+                print('Machine is temperature is good. Continuing ...')
                 last_cooldown_time = cooldown_time
                 cooldown_time = 0
 
