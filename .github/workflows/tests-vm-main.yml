@@ -37,12 +37,14 @@ jobs:
          metrics-to-turn-off: '--categories RAPL Machine Sensors Debug CGroupV2 MacOS GPU --providers PsuEnergyAcSdiaMachineProvider'
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
       - name: Eco CI Energy Estimation - Get Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: get-measurement
           branch: main
 
+      - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
       - name: Eco CI Energy Estimation - End Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
