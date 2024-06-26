@@ -23,7 +23,7 @@ jobs:
           password: ${{ inputs.github-token }}
 
       - name: Build and push Docker container
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: /.devcontainer/containerized/Dockerfile  # Path to the Dockerfile
