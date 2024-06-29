@@ -21,6 +21,7 @@
     <script src="/js/helpers/converters.js" defer></script>
     <script src="/dist/js/math.min.js" defer></script>
     <script src="/dist/js/popup.min.js" defer></script>
+    <script src="/dist/js/tab.min.js" defer></script>
     <script src="/dist/js/tablesort.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
@@ -98,39 +99,46 @@
                     <h3>Pipeline stats</h3>
                 </a></div>
                 <br/>
-            <div class="ui right floated icon">
+            <div class="ui secondary menu">
+                <a class="item active" data-tab="one">Averages</a>
+                <a class="item" data-tab="two">Totals</a>
+            </div>
+            <div class="ui tab active right icon" data-tab="one">
                 <table class="ui sortable celled striped table">
                     <thead>
                         <tr>
-                            <th rowspan="2">Label</th>
-                            <th colspan="3">Energy</th>
-                            <th colspan="3">Time</th>
-                            <th rowspan="2"> <div data-tooltip="Only accurate for runs after Aug 15, 2023. If '--%', you likely have no runs after that date.">Avg. CPU Util. <i class="question circle icon "></i> </div></th>
-                            <th colspan="3">Total</th>
-                        </tr>
-                        <tr>
-                            <th>Average</th>
-                            <th>Std Dev</th>
-                            <th>Std Dev %</th>
-                            <th>Average</th>
-                            <th>Std Dev</th>
-                            <th>Std Dev %</th>
-                            <th>Energy</th>
-                            <th>Time</th>
+                            <th>Label</th>
+                            <th>Energy Avg. (± StdDev.)</th>
+                            <th>Time Avg. (± StdDev.)</th>
+                            <th> <div data-tooltip="Only accurate for runs after Aug 15, 2023. If '--%', you likely have no runs after that date.">CPU Util. Avg. (± StdDev.)<i class="question circle icon "></i> </div></th>
+                            <th>Grid Intensity Avg. (± StdDev.)</th>
+                            <th>Carbon Avg. (± StdDev.)</th>
                             <th>Count</th>
                         </tr>
                     </thead>
-                    <tbody id="label-stats-table"></tbody>
+                    <tbody id="label-stats-table-avg"></tbody>
+                </table>
+            </div>
+            <div class="ui tab right icon" data-tab="two">
+                <table class="ui sortable celled striped table">
+                    <thead>
+                        <tr>
+                            <th>Label</th>
+                            <th>Energy Total</th>
+                            <th>Time Total</th>
+                            <th>Carbon Total</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody id="label-stats-table-total"></tbody>
                 </table>
             </div>
         </div>
         <div class="ui segment" id="runs-table">
-            <div class="content">
-            </div>
             <div class="header"><a class="ui teal ribbon label" href="#">
                     <h3 data-tooltip="The runs table shows all measurements your pipeline has made in the selected timeframe" data-position="top left">Runs Table <i class="question circle icon "></i> </h3>
                 </a></div>
-            <table class="ui sortable celled striped table" id="table">
+            <table class="ui sortable celled striped table">
             <thead>
                 <tr>
                     <th>Run ID</th>
