@@ -152,11 +152,11 @@ const createStatsArrays = (measurements) => {  // iterates 2n times (1 full, 1 b
             measurementsByLabel[label].cpu_util.push(cpuUtil);
             measurementsByRun[run_id].cpu_util.push(cpuUtil);
         }
-        if (co2eq != null) {
+        if (co2eq != null && !isNaN(co2eq)) {
             measurementsByLabel[label].co2eq.push(co2eq);
             measurementsByRun[run_id].co2eq.push(co2eq);
         }
-        if (co2i != null) {
+        if (co2i != null && !isNaN(co2i)) {
             measurementsByLabel[label].co2i.push(co2i);
             measurementsByRun[run_id].co2i.push(co2i);
         }
