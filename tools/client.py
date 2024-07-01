@@ -155,7 +155,7 @@ if __name__ == '__main__':
                         Job.insert(
                             'email',
                             email=config_main['admin']['notification_email'],
-                            name=f"Machine is operating normally. All STDDEV below {cwl['threshold'] * 100} %",
+                            name=f"{config_main['machine']['description']} is operating normally. All STDDEV below {cwl['threshold'] * 100} %",
                             message='\n'.join(message)
                         )
                 except Exception as exception:
