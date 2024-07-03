@@ -222,7 +222,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/runs')
-async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None):
+async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None, uri_mode = 'none'):
 
     query = """
             SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement, r.failed
@@ -233,8 +233,12 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
     params = []
 
     if uri:
-        query = f"{query} AND r.uri LIKE %s  \n"
-        params.append(f"%{uri}%")
+        if uri_mode == 'exact':
+            query = f"{query} AND r.uri = %s  \n"
+            params.append(uri)
+        else:
+            query = f"{query} AND r.uri LIKE %s  \n"
+            params.append(f"%{uri}%")
 
     if branch:
         query = f"{query} AND r.branch LIKE %s  \n"
