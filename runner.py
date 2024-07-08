@@ -103,6 +103,7 @@ class Runner:
         self.__metric_providers = []
         self.__notes_helper = Notes()
         self.__phases = OrderedDict()
+        self.__start_measurement_seconds = None
         self.__start_measurement = None
         self.__end_measurement = None
         self.__services_to_pause_phase = {}
@@ -540,6 +541,7 @@ class Runner:
         return name
 
     def build_docker_images(self):
+        config = GlobalConfig().config
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
         # Create directory /tmp/green-metrics-tool/docker_images
@@ -579,13 +581,15 @@ class Runner:
                 self.join_paths(context_path, dockerfile)
 
                 docker_build_command = ['docker', 'run', '--rm',
-                    '-v', f"{self._repo_folder}:/workspace:ro", # this is the folder where the usage_scenario is!
+                    '-v', '/workspace',
+                    '-v', f"{self._repo_folder}:/tmp/repo:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
-                    f"--dockerfile=/workspace/{self.__working_folder_rel}/{context}/{dockerfile}",
-                    '--context', f'dir:///workspace/{self.__working_folder_rel}/{context}',
+                    f"--dockerfile=/tmp/repo/{self.__working_folder_rel}/{context}/{dockerfile}",
+                    '--context', f'dir:///tmp/repo/{self.__working_folder_rel}/{context}',
                     f"--destination={tmp_img_name}",
                     f"--tar-path=/output/{tmp_img_name}.tar",
+                    '--cleanup=true',
                     '--no-push']
 
                 if self.__docker_params:
@@ -593,7 +597,7 @@ class Runner:
 
                 print(' '.join(docker_build_command))
 
-                ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
+                ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', timeout=config['measurement']['total-duration'], check=False)
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
@@ -615,9 +619,24 @@ class Runner:
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
-                    raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
+                    if __name__ == '__main__':
+                        print(TerminalColors.OKCYAN, '\nThe docker image could not be pulled. Since you are working locally we can try looking in your local images. Do you want that? (y/N).', TerminalColors.ENDC)
+                        if sys.stdin.readline().strip().lower() == 'y':
+                            try:
+                                subprocess.run(['docker', 'inspect', '--type=image', service['image']],
+                                                         stdout=subprocess.PIPE,
+                                                         stderr=subprocess.PIPE,
+                                                         encoding='UTF-8',
+                                                         check=True)
+                                print('Docker image found locally. Tagging now for use in cached runs ...')
+                            except subprocess.CalledProcessError:
+                                raise OSError(f"Docker pull failed and image does not exist locally. Is your image name correct and are you connected to the internet: {service['image']}") from subprocess.CalledProcessError
+                        else:
+                            raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
+                    else:
+                        raise OSError(f"Docker pull failed. Is your image name correct and are you connected to the internet: {service['image']}")
 
-                # tagging must be done in pull case, so we can get the correct container later
+                # tagging must be done in pull and local case, so we can get the correct container later
                 subprocess.run(['docker', 'tag', service['image'], tmp_img_name], check=True)
 
 
@@ -1033,10 +1052,16 @@ class Runner:
             if stderr_read:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
+    def check_total_runtime_exceeded(self):
+        config = GlobalConfig().config
+        if (time.time() - self.__start_measurement_seconds) > config['measurement']['total-duration']:
+            raise TimeoutError(f"Timeout of {config['measurement']['total-duration']} s was exceeded. This can be configured in 'total-duration'.")
 
     def start_phase(self, phase, transition = True):
         config = GlobalConfig().config
         print(TerminalColors.HEADER, f"\nStarting phase {phase}.", TerminalColors.ENDC)
+
+        self.check_total_runtime_exceeded()
 
         if transition:
             # The force-sleep must go and we must actually check for the temperature baseline
@@ -1053,6 +1078,9 @@ class Runner:
         self.__phases[phase] = {'start': phase_time, 'name': phase}
 
     def end_phase(self, phase):
+
+        self.check_total_runtime_exceeded()
+
         phase_time = int(time.time_ns() / 1_000)
 
         if phase not in self.__phases:
@@ -1090,6 +1118,8 @@ class Runner:
                 self.start_phase(flow['name'].replace('[', '').replace(']',''), transition=False)
 
                 for cmd_obj in flow['commands']:
+                    self.check_total_runtime_exceeded()
+
                     if 'note' in cmd_obj:
                         self.__notes_helper.add_note({'note': cmd_obj['note'], 'detail_name': flow['container'], 'timestamp': int(time.time_ns() / 1_000)})
 
@@ -1136,14 +1166,14 @@ class Runner:
 
                             ps_to_kill_tmp.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
                         else:
-                            print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-runtime']}s runtime ...")
+                            print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-duration']}s runtime ...")
                             ps = subprocess.run(
                                 docker_exec_command,
                                 stderr=stderr_behaviour,
                                 stdout=stdout_behaviour,
                                 encoding='UTF-8',
                                 check=False, # cause it will be checked later and also ignore-errors checked
-                                timeout=config['measurement']['flow-process-runtime'],
+                                timeout=config['measurement']['flow-process-duration'],
                             )
 
                         ps_to_read_tmp.append({
@@ -1307,6 +1337,8 @@ class Runner:
 
     def start_measurement(self):
         self.__start_measurement = int(time.time_ns() / 1_000)
+        self.__start_measurement_seconds = time.time()
+
         self.__notes_helper.add_note({'note': 'Start of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__start_measurement})
 
     def end_measurement(self):
@@ -1433,6 +1465,7 @@ class Runner:
 
         if continue_measurement is False:
             self.__start_measurement = None
+            self.__start_measurement_seconds = None
             self.__notes_helper = Notes()
 
         self.__phases = OrderedDict()
@@ -1477,12 +1510,12 @@ class Runner:
             if self._debugger.active:
                 self._debugger.pause('metric-providers (non-container) start complete. Waiting to start measurement')
 
-            self.custom_sleep(config['measurement']['idle-time-start'])
+            self.custom_sleep(config['measurement']['pre-test-sleep'])
 
             self.start_measurement()
 
             self.start_phase('[BASELINE]')
-            self.custom_sleep(5)
+            self.custom_sleep(config['measurement']['baseline-duration'])
             self.end_phase('[BASELINE]')
 
             if self._debugger.active:
@@ -1509,7 +1542,7 @@ class Runner:
                 self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')
 
             self.start_phase('[IDLE]')
-            self.custom_sleep(10)
+            self.custom_sleep(config['measurement']['idle-duration'])
             self.end_phase('[IDLE]')
 
             if self._debugger.active:
@@ -1531,7 +1564,7 @@ class Runner:
 
             self.end_measurement()
             self.check_process_returncodes()
-            self.custom_sleep(config['measurement']['idle-time-end'])
+            self.custom_sleep(config['measurement']['post-test-sleep'])
             self.store_phases()
             self.update_start_and_end_times()
 

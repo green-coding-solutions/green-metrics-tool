@@ -24,8 +24,9 @@ RUN_NAME = 'test_' + utils.randomword(12)
 def cleanup_after_test():
     pass
 
-#pylint: disable=unused-argument # unused arguement off for now - because there are no running tests in this file
-def cleanup_after_module(autouse=True, scope="module"):
+#pylint: disable=unused-argument
+@pytest.fixture(autouse=True, scope='module')
+def cleanup_after_module():
     yield
     tables = DB().fetch_all("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
     for table in tables:
