@@ -19,8 +19,7 @@
             "extensions": 
             [
                 "ms-python.python",
-                "ms-azuretools.vscode-docker",
-                "redhat.vscode-yaml"
+                "ms-azuretools.vscode-docker"
             ]
         }
     }
