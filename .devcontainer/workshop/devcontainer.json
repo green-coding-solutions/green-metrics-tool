@@ -14,6 +14,14 @@
             "openFiles": [
                 ".devcontainer/splash.md"
             ]
+        },
+        "vscode": {
+            "extensions": 
+            [
+                "ms-python.python",
+                "ms-azuretools.vscode-docker",
+                "redhat.vscode-yaml"
+            ]
         }
     }
 }
