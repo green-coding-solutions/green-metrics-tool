@@ -47,12 +47,12 @@ class RunUntilManager:
             self.__runner.update_and_insert_specs()
 
             self.__runner.start_metric_providers(allow_other=True, allow_container=False)
-            self.__runner.custom_sleep(config['measurement']['idle-time-start'])
+            self.__runner.custom_sleep(config['measurement']['pre-test-sleep'])
 
             self.__runner.start_measurement()
 
             self.__runner.start_phase('[BASELINE]')
-            self.__runner.custom_sleep(5)
+            self.__runner.custom_sleep(config['measurement']['baseline-duration'])
             self.__runner.end_phase('[BASELINE]')
 
             self.__runner.start_phase('[INSTALLATION]')
@@ -71,7 +71,7 @@ class RunUntilManager:
             self.__runner.start_metric_providers(allow_container=True, allow_other=False)
 
             self.__runner.start_phase('[IDLE]')
-            self.__runner.custom_sleep(5)
+            self.__runner.custom_sleep(config['measurement']['idle-duration'])
             self.__runner.end_phase('[IDLE]')
 
             self.__runner.start_phase('[RUNTIME]')
@@ -84,7 +84,7 @@ class RunUntilManager:
 
             self.__runner.end_measurement()
             self.__runner.check_process_returncodes()
-            self.__runner.custom_sleep(config['measurement']['idle-time-end'])
+            self.__runner.custom_sleep(config['measurement']['post-test-sleep'])
             self.__runner.store_phases()
             self.__runner.update_start_and_end_times()
             self.__runner.read_and_cleanup_processes()

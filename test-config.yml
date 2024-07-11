@@ -53,10 +53,13 @@ machine:
 
 measurement:
   system_check_threshold: 3
-  idle-time-start: 0
-  idle-time-end: 0
-  flow-process-runtime: 3800
-  phase-transition-time: 1
+  pre-test-sleep: 0
+  idle-duration: 0
+  baseline-duration: 0
+  flow-process-duration: 1800 # half hour
+  total-duration: 3600 # one hour
+  post-test-sleep: 0
+  phase-transition-time: 0
   boot:
     wait_time_dependencies: 10
   metric-providers:

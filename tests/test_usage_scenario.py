@@ -755,6 +755,27 @@ def test_duplicate_container_name():
         Tests.assertion_info("Container name 'number-1' was already assigned. Please choose unique container names.", str(e.value))
 
 
+def test_failed_pull_does_not_trigger_cli():
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/invalid_image.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+        runner.run()
+
+    assert 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' in str(e.value), \
+        Tests.assertion_info('Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt', str(e.value))
+
+def test_failed_pull_does_not_trigger_cli_with_build_on():
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/invalid_image.yml', skip_system_checks=True, dev_no_build=False, dev_no_sleeps=True, dev_no_metrics=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+        runner.run()
+
+    assert 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' in str(e.value), \
+        Tests.assertion_info('Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt', str(e.value))
 
     ## rethink this one
 def wip_test_verbose_provider_boot():
