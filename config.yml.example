@@ -60,7 +60,7 @@ machine:
 measurement:
   system_check_threshold: 3 # Can be 1=INFO, 2=WARN or 3=ERROR
   pre-test-sleep: 5
-  idle-duration: 5
+  idle-duration: 10
   baseline-duration: 5
   flow-process-duration: 1800 # half hour
   total-duration: 3600 # one hour
