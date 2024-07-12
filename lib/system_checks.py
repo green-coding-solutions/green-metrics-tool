@@ -22,6 +22,8 @@ from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
 from lib.configuration_check_error import ConfigurationCheckError, Status
 
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 GMT_Resources = {
     'free_disk': 1024 ** 3, # 1GB in bytes
     'free_memory':  1024 ** 3, # 1GB in bytes
@@ -54,6 +56,14 @@ def check_free_disk():
 def check_free_memory():
     return psutil.virtual_memory().available >= GMT_Resources['free_memory']
 
+def check_energy_filtering():
+    result = subprocess.run(['sudo', 'python3', '-m', 'lib.hardware_info_root', '--read-rapl-energy-filtering'],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            cwd=os.path.abspath(os.path.join(CURRENT_DIR, '..')),
+                            check=True, encoding='UTF-8')
+    return "1" != result.stdout.strip()
+
 def check_containers_running():
     result = subprocess.run(['docker', 'ps', '--format', '{{.Names}}'],
                             stdout=subprocess.PIPE,
@@ -83,7 +93,7 @@ start_checks = [
     (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.io/docs/installation/]'),
     (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
     (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output.'),
-
+    (check_energy_filtering, Status.ERROR, 'rapl energy filtering', 'RAPL Energy filtering is active!'),
 ]
 
 

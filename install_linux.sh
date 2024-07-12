@@ -23,10 +23,16 @@ no_build=false
 no_python=false
 no_hosts=false
 ask_tmpfs=true
+no_ipmi=false
+no_sensors=false
+# The system site packages are only an option to choose if you are in temporary VMs anyway
+# Not recommended for classical developer system
+system_site_packages=false
+no_msr_tools=false
 
 reboot_echo_flag=false
 
-while getopts "p:a:m:nhtb" o; do
+while getopts "p:a:m:nhtbisyr" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -48,6 +54,19 @@ while getopts "p:a:m:nhtb" o; do
             ;;
         t)
             ask_tmpfs=false
+            ;;
+        i)
+            no_ipmi=true
+            ;;
+        s)
+            no_sensors=true
+            # currently unused
+            ;;
+        r)
+            no_msr_tools=true
+            ;;
+        y)
+            system_site_packages=true
             ;;
 
     esac
@@ -143,7 +162,11 @@ while IFS= read -r subdir; do
 done
 
 print_message "Setting up python venv"
-python3 -m venv venv
+if [[ $system_site_packages != false ]] ; then
+    python3 -m venv venv --system_site_packages
+else
+    python3 -m venv venv
+fi
 source venv/bin/activate
 
 print_message "Setting GMT in include path for python via .pth file"
@@ -158,6 +181,7 @@ print_message "Adding python3 lib.hardware_info_root to sudoers file"
 # Please note the -m as here we will later call python3 without venv. It must understand the .lib imports
 # and not depend on venv installed packages
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
 sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
 # remove old file name
 sudo rm -f /etc/sudoers.d/green_coding_hardware_info
@@ -173,19 +197,33 @@ sudo chown root:root $PWD/tools/cluster/cleanup.sh
 sudo chmod 755 $PWD/tools/cluster/cleanup.sh
 sudo chmod +x $PWD/tools/cluster/cleanup.sh
 
-print_message "Installing IPMI tools"
-if lsb_release -is | grep -q "Fedora"; then
-    sudo dnf -y install ipmitool
-else
-    sudo apt-get install -y freeipmi-tools ipmitool
+
+if [[ $no_msr_tools != true ]] ; then
+    print_message "Installing msr-tools"
+    print_message "Important: If this step fails it means msr-tools is not available on you system"
+    print_message "If you do not plan to use RAPL you can skip the installation by appending '-r'"
+    if lsb_release -is | grep -q "Fedora"; then
+        sudo dnf -y install msr-tools
+    else
+        sudo apt-get install -y msr-tools
+    fi
 fi
 
-
-print_message "Adding IPMI to sudoers file"
-echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
-sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
-# remove old file name
-sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
+if [[ $no_ipmi != true ]] ; then
+    print_message "Installing IPMI tools"
+    print_message "Important: If this step fails it means ipmitool is not available on you system"
+    print_message "If you do not plan to use IPMI you can skip the installation by appending '-i'"
+    if lsb_release -is | grep -q "Fedora"; then
+        sudo dnf -y install ipmitool
+    else
+        sudo apt-get install -y freeipmi-tools ipmitool
+    fi
+    print_message "Adding IPMI to sudoers file"
+    echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+    sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+    # remove old file name
+    sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
+fi
 
 
 if [[ $no_hosts != true ]] ; then

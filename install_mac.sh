@@ -108,6 +108,7 @@ find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth
 
 print_message "Adding python3 lib.hardware_info_root to sudoers file"
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root" | sudo tee /etc/sudoers.d/green_coding_hardware_info
+echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
 # remove old file name
 sudo rm -f /etc/sudoers.d/green_coding_hardware_info
 

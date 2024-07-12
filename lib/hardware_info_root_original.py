@@ -69,6 +69,9 @@ def get_values(list_of_tasks):
     return {x[1]: x[0](*x[2:]) for x in list_of_tasks}
 
 
+def read_rapl_energy_filtering():
+    return read_process_with_regex('rdmsr -d 0xbc', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL)
+
 # Defining shortcuts to make the lines shorter
 rfwr = read_file_with_regex
 rpwr = read_process_with_regex
@@ -79,6 +82,7 @@ root_info_list = [
     [rdr, 'Power Limits', '/sys/devices/virtual/powercap/intel-rapl'],
     [rdr, 'CPU Scheduling', '/sys/kernel/debug/sched'],
     [rpwr, 'Hardware Details', 'lshw', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    [cf, 'RAPL Energy Filtering', read_rapl_energy_filtering],
 ]
 
 def get_root_list():
@@ -92,4 +96,12 @@ if __name__ == '__main__':
     if platform.system() == 'Darwin':
         print('{}')
     else:
-        print(json.dumps(get_values(get_root_list())))
+        import argparse
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--read-rapl-energy-filtering', action='store_true', help='Read RAPL energy filtering')
+        args = parser.parse_args()
+
+        if args.read_rapl_energy_filtering is True:
+            print(read_rapl_energy_filtering(), end='')
+        else:
+            print(json.dumps(get_values(get_root_list())))
