@@ -154,14 +154,13 @@ make -C lib/sgx-software-enable
 mv lib/sgx-software-enable/sgx_enable tools/
 rm lib/sgx-software-enable/sgx_enable.o
 
-print_message "Adding hardware_info_root.py to sudoers file"
-PYTHON_PATH=$(which python3)
-PWD=$(pwd)
-echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+print_message "Adding python3 lib.hardware_info_root to sudoers file"
+# Please note the -m as here we will later call python3 without venv. It must understand the .lib imports
+# and not depend on venv installed packages
+echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root" | sudo tee /etc/sudoers.d/green-coding-hardware-info
 sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
 # remove old file name
 sudo rm -f /etc/sudoers.d/green_coding_hardware_info
-
 
 print_message "Setting the hardare hardware_info to be owned by root"
 sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
@@ -236,6 +235,8 @@ if [[ $no_python != true ]] ; then
     python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 fi
 
+# kill the sudo timestamp
+sudo -k
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"

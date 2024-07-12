@@ -440,12 +440,9 @@ class Runner:
         machine_specs = hardware_info.get_default_values()
 
         if len(hardware_info_root.get_root_list()) > 0:
-            python_file = os.path.abspath(os.path.join(CURRENT_DIR, 'lib/hardware_info_root.py'))
-            ps = subprocess.run(['sudo', sys.executable, python_file], stdout=subprocess.PIPE, check=True, encoding='UTF-8')
+            ps = subprocess.run(['sudo', '/usr/bin/python3', '-m', 'lib.hardware_info_root'], stdout=subprocess.PIPE, cwd=CURRENT_DIR, check=True, encoding='UTF-8')
             machine_specs_root = json.loads(ps.stdout)
-
             machine_specs.update(machine_specs_root)
-
 
         keys = ["measurement", "sci"]
         measurement_config = {key: config.get(key, None) for key in keys}
