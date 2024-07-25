@@ -1065,7 +1065,7 @@ async def software_add(software: Software):
         raise RequestValidationError('Machine does not exist')
 
 
-    if software.schedule_mode not in ['one-off', 'time', 'commit', 'variance']:
+    if software.schedule_mode not in ['one-off', 'daily', 'weekly', 'commit', 'variance']:
         raise RequestValidationError(f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")
 
     # notify admin of new add
@@ -1073,7 +1073,7 @@ async def software_add(software: Software):
         Job.insert('email', name='New run added from Web Interface', message=str(software), email=notification_email)
 
 
-    if software.schedule_mode in ['time', 'commit']:
+    if software.schedule_mode in ['daily', 'weekly', 'commit']:
         TimelineProject.insert(software.name, software.url, software.branch, software.filename, software.machine_id, software.schedule_mode)
 
     # even for timeline projects we do at least one run

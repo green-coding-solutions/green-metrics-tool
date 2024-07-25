@@ -1,5 +1,6 @@
 import smtplib
 import ssl
+from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from lib.global_config import GlobalConfig
@@ -22,7 +23,7 @@ def send_email(receiver, subject, message):
     msg["From"] = config['smtp']['sender']
     msg["To"] = receiver
     msg["Subject"] = subject
-
+    msg["Expires"] = (datetime.utcnow() + timedelta(days=7)).strftime('%a, %d %b %Y %H:%M:%S +0000')
 
     if config['admin']['email_bcc']:
         receiver = [receiver] # make a list
