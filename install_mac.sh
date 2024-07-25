@@ -15,6 +15,37 @@ function generate_random_password() {
     echo
 }
 
+function check_file_permissions() {
+    local file=$1
+
+    # Check if the file exists
+    if [ ! -e "$file" ]; then
+        echo "File '$file' does not exist."
+        return 1
+    fi
+
+    # Check if the file is owned by root
+    if [ "$(stat -f %Su "$file")" != "root" ]; then
+        echo "File '$file' is not owned by root."
+        return 1
+    fi
+
+    # Check if the file permissions are read-only for group and others using regex
+    permissions=$(stat -f %Sp "$file")
+    if [ -L "$file" ]; then
+        echo "File '$file' is a symbolic link. Following ..."
+        check_file_permissions $(readlink -f $file)
+        return $?
+    elif [[ ! $permissions =~ ^-r..r-.r-.$ ]]; then
+        echo "File '$file' is not read-only for group and others or not a regular file"
+        return 1
+    fi
+
+    echo "File $file is save to create sudoers entry for"
+
+    return 0
+}
+
 db_pw=''
 api_url=''
 metrics_url=''
@@ -106,17 +137,20 @@ source venv/bin/activate
 print_message "Setting GMT in include path for python via .pth file"
 find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
-print_message "Adding hardware_info_root.py to sudoers file"
-PYTHON_PATH=$(which python3)
-PWD=$(pwd)
-echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
+print_message "Adding python3 lib.hardware_info_root to sudoers file"
+check_file_permissions "/usr/bin/python3"
+echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root" | sudo tee /etc/sudoers.d/green_coding_hardware_info
+# remove old file name
+sudo rm -f /etc/sudoers.d/green_coding_hardware_info
 
 print_message "Setting the hardare hardware_info to be owned by root"
 sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
 sudo chown root: $PWD/lib/hardware_info_root.py
 sudo chmod 755 $PWD/lib/hardware_info_root.py
 
+
 print_message "Adding powermetrics to sudoers file"
+check_file_permissions "/usr/bin/powermetrics"
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/powermetrics" | sudo tee /etc/sudoers.d/green_coding_powermetrics
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall -9 powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics_sigkill

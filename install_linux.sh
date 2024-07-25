@@ -16,6 +16,36 @@ function generate_random_password() {
     echo
 }
 
+function check_file_permissions() {
+    local file=$1
+
+    # Check if the file exists
+    if [ ! -e "$file" ]; then
+        echo "File '$file' does not exist."
+        return 1
+    fi
+
+    # Check if the file is owned by root
+    if [ "$(stat -c %U "$file")" != "root" ]; then
+        echo "File '$file' is not owned by root."
+        return 1
+    fi
+
+    permissions=$(stat -c %A "$file")
+    if [ -L "$file" ]; then
+        echo "File '$file' is a symbolic link. Following ..."
+        check_file_permissions $(readlink -f $file)
+        return $?
+    elif [[ ! $permissions =~ ^-r..r-.r-.$ ]]; then
+        echo "File '$file' is not read-only for group and others or not a regular file"
+        return 1
+    fi
+
+    echo "File $file is save to create sudoers entry for"
+
+    return 0
+}
+
 db_pw=''
 api_url=''
 metrics_url=''
@@ -154,14 +184,14 @@ make -C lib/sgx-software-enable
 mv lib/sgx-software-enable/sgx_enable tools/
 rm lib/sgx-software-enable/sgx_enable.o
 
-print_message "Adding hardware_info_root.py to sudoers file"
-PYTHON_PATH=$(which python3)
-PWD=$(pwd)
-echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+print_message "Adding python3 lib.hardware_info_root to sudoers file"
+check_file_permissions "/usr/bin/python3"
+# Please note the -m as here we will later call python3 without venv. It must understand the .lib imports
+# and not depend on venv installed packages
+echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root" | sudo tee /etc/sudoers.d/green-coding-hardware-info
 sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
 # remove old file name
 sudo rm -f /etc/sudoers.d/green_coding_hardware_info
-
 
 print_message "Setting the hardare hardware_info to be owned by root"
 sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
@@ -183,6 +213,7 @@ fi
 
 
 print_message "Adding IPMI to sudoers file"
+check_file_permissions "/usr/sbin/ipmi-dcmi"
 echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
 sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
 # remove old file name
@@ -236,6 +267,8 @@ if [[ $no_python != true ]] ; then
     python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 fi
 
+# kill the sudo timestamp
+sudo -k
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"

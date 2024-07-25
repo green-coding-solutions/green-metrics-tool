@@ -27,8 +27,6 @@ GMT_Resources = {
     'free_memory':  1024 ** 3, # 1GB in bytes
 }
 
-
-
 ######## CHECK FUNCTIONS ########
 def check_db():
     try:
