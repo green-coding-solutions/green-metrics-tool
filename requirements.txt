@@ -8,6 +8,6 @@ schema==0.7.7
 aiohttp==3.10.0
 
 # calibration script dep
-tqdm==4.66.4
+tqdm==4.66.5
 plotext==5.2.8
 docker==7.1.0
