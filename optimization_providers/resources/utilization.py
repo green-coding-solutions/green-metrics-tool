@@ -38,7 +38,7 @@ def container_memory_utilization(self, run, measurements, repo_path, network, no
         if x := d.get('deploy', {}).get('resources', {}).get('limits', {}).get('memory', None):
             mem[s] = memory_to_bytes(x)
 
-    for service, measurement_stats in phases.get('data').get('[RUNTIME]').get('memory_total_cgroup_container').get('data').items():
+    for service, measurement_stats in phases.get('data', {}).get('[RUNTIME]', {}).get('memory_total_cgroup_container', {}).get('data', {}).items():
         if not service in mem:
             self.add_optimization(
                 f"You are not using Memory limits definitions on {service}",
@@ -46,7 +46,7 @@ def container_memory_utilization(self, run, measurements, repo_path, network, no
             )
             continue
 
-        data = measurement_stats.get('data')
+        data = measurement_stats.get('data', {})
         first_item = next(iter(data))
         actual_mem_max = data[first_item].get('max', None)
         if not actual_mem_max:
@@ -67,12 +67,12 @@ def container_memory_utilization(self, run, measurements, repo_path, network, no
 def container_cpu_utilization(self, run, measurements, repo_path, network, notes, phases):
 
     cpus = {}
-    for s, d in run.get('usage_scenario').get('services').items():
+    for s, d in run.get('usage_scenario', {}).get('services', {}).items():
         if x := d.get('deploy', {}).get('resources', {}).get('limits', {}).get('cpus', None):
             cpus[s] = x
 
 
-    for service, measurement_stats in phases.get('data').get('[RUNTIME]').get('cpu_utilization_cgroup_container').get('data').items():
+    for service, measurement_stats in phases.get('data', {}).get('[RUNTIME]', {}).get('cpu_utilization_cgroup_container', {}).get('data', {}).items():
         if not service in cpus:
             self.add_optimization(
                 f"You are not using CPU limits definitions on {service}",
@@ -80,7 +80,7 @@ def container_cpu_utilization(self, run, measurements, repo_path, network, notes
             )
             continue
 
-        data = measurement_stats.get('data')
+        data = measurement_stats.get('data', {})
 
         first_item = next(iter(data))
         actual_cpu_mean = data[first_item].get('mean', None)
