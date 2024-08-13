@@ -703,15 +703,15 @@ class Runner:
 
             if 'container_name' in service:
                 container_name = service['container_name']
+                print(TerminalColors.HEADER, '\nSetting up container (', container_name, ') for service:', service_name, TerminalColors.ENDC)
             else:
                 container_name = service_name
+                print(TerminalColors.HEADER, '\nSetting up container for service:', service_name, TerminalColors.ENDC)
 
             if container_name in known_container_names:
                 raise RuntimeError(f"Container name '{container_name}' was already assigned. Please choose unique container names.")
 
             known_container_names.append(container_name)
-
-            print(TerminalColors.HEADER, '\nSetting up container: ', container_name, TerminalColors.ENDC)
 
             print('Resetting container')
             # By using the -f we return with 0 if no container is found
@@ -886,49 +886,53 @@ class Runner:
 
             docker_run_string.append(self.clean_image_name(service['image']))
 
-            # Before starting the container, check if the dependent containers are ready.
-            # If not, wait for some time. If the container is not ready after a certain time, throw an error.
-            # If a healthcheck is defined, the dependent container must become "healthy".
+            # Before finally starting the container for the current service, check if the dependent services are ready.
+            # If not, wait for some time. If a dependent service is not ready after a certain time, throw an error.
+            # If a healthcheck is defined, the container of the dependent service must become "healthy".
             # If no healthcheck is defined, the container state "running" is sufficient.
             if 'depends_on' in service:
-                for dependent_container in service['depends_on']:
+                for dependent_service in service['depends_on']:
+                    dependent_container_name = dependent_service
+                    if 'container_name' in services[dependent_service]:
+                        dependent_container_name = services[dependent_service]["container_name"]
+
                     time_waited = 0
                     state = ''
                     health = 'healthy' # default because some containers have no health
                     max_waiting_time = config['measurement']['boot']['wait_time_dependencies']
                     while time_waited < max_waiting_time:
                         status_output = subprocess.check_output(
-                            ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
+                            ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container_name],
                             stderr=subprocess.STDOUT,
                             encoding='UTF-8',
                         )
                         state = status_output.strip()
                         if time_waited == 0 or state != "running":
-                            print(f"State of dependent container '{dependent_container}': {state}")
+                            print(f"Container state of dependent service '{dependent_service}': {state}")
 
                         if isinstance(service['depends_on'], dict) \
-                            and 'condition' in service['depends_on'][dependent_container]:
+                            and 'condition' in service['depends_on'][dependent_service]:
 
-                            condition = service['depends_on'][dependent_container]['condition']
+                            condition = service['depends_on'][dependent_service]['condition']
                             if condition == 'service_healthy':
                                 ps = subprocess.run(
-                                    ["docker", "container", "inspect", "-f", "{{.State.Health.Status}}", dependent_container],
+                                    ["docker", "container", "inspect", "-f", "{{.State.Health.Status}}", dependent_container_name],
                                     check=False,
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT, # put both in one stream
                                     encoding='UTF-8'
                                 )
                                 health = ps.stdout.strip()
-                                print(f"Health of dependent container '{dependent_container}': {health}")
+                                print(f"Container health of dependent service '{dependent_service}': {health}")
 
                                 if ps.returncode != 0 or health == '<nil>':
-                                    raise RuntimeError(f"Health check for dependent container '{dependent_container}' was requested by '{service_name}', but container has no healthcheck implemented! (Output was: {health})")
+                                    raise RuntimeError(f"Health check for service '{dependent_service}' was requested by '{service_name}', but service has no healthcheck implemented! (Output was: {health})")
                                 if health == 'unhealthy':
-                                    raise RuntimeError(f'Health check of container "{dependent_container}" failed terminally with status "unhealthy" after {time_waited}s')
+                                    raise RuntimeError(f'Health check of container "{dependent_container_name}" failed terminally with status "unhealthy" after {time_waited}s')
                             elif condition == 'service_started':
                                 pass
                             else:
-                                raise RuntimeError(f"Unsupported condition in healthcheck for service '{service_name}':  {condition}")
+                                raise RuntimeError(f"Unsupported condition in healthcheck for service '{service_name}': {condition}")
 
                         if state == 'running' and health == 'healthy':
                             break
@@ -937,9 +941,9 @@ class Runner:
                         time_waited += 1
 
                     if state != 'running':
-                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running but '{state}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                        raise RuntimeError(f"State check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not running but '{state}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
                     if health != 'healthy':
-                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                        raise RuntimeError(f"Health check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
 
             if 'command' in service:  # must come last
                 for cmd in service['command'].split():

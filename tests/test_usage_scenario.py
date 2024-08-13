@@ -328,7 +328,6 @@ def test_depends_on_huge():
     # For test-container-2
     assert_order(out.getvalue(), 'test-container-1', 'test-container-2')
 
-
 def test_depends_on_error_not_running():
     runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/depends_on_error_not_running.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
@@ -336,7 +335,7 @@ def test_depends_on_error_not_running():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert "Dependent container 'test-container-2' of 'test-container-1' is not running" in str(e.value) , \
+    assert "'test-container-2' is not running" in str(e.value) , \
         Tests.assertion_info('test-container-2 is not running', str(e.value))
 
 def test_depends_on_error_cyclic_dependency():
@@ -355,7 +354,7 @@ def test_depends_on_error_unsupported_condition():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    message = 'Unsupported condition in healthcheck for service \'test-container-1\':  service_completed_successfully'
+    message = 'Unsupported condition in healthcheck for service \'test-container-1\': service_completed_successfully'
     assert message in str(e.value) , \
         Tests.assertion_info(message, str(e.value))
 
@@ -366,9 +365,21 @@ def test_depends_on_long_form():
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-    message = 'State of dependent container'
+    message = 'Container state of dependent service'
     assert message in out.getvalue(), \
         Tests.assertion_info(message, out.getvalue())
+
+def test_depends_on_with_custom_container_name():
+    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/depends_on_custom_container_name.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err):
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    message = 'Container state of dependent service \'test-service-2\': running'
+    assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
 def test_depends_on_healthcheck_using_interval():
     # Test setup: Container has a startup time of 3 seconds, interval is set to 1s, retries is set to a number bigger than 3.
@@ -381,7 +392,7 @@ def test_depends_on_healthcheck_using_interval():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    message = 'Health of dependent container \'test-container-2\': healthy'
+    message = 'Container health of dependent service \'test-container-2\': healthy'
     assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
 def test_depends_on_healthcheck_using_start_interval():
@@ -397,14 +408,14 @@ def test_depends_on_healthcheck_using_start_interval():
             context.run_until('setup_services')
 
     message = """
-State of dependent container 'test-container-2': running
-Health of dependent container 'test-container-2': starting
-Health of dependent container 'test-container-2': starting
+Container state of dependent service 'test-container-2': running
+Container health of dependent service 'test-container-2': starting
+Container health of dependent service 'test-container-2': starting
 """
     assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
     message = """
-Health of dependent container 'test-container-2': healthy
+Container health of dependent service 'test-container-2': healthy
 """
     assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
@@ -417,7 +428,7 @@ def test_depends_on_healthcheck_missing_start_period():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    expected_exception = "Dependent container 'test-container-2' of 'test-container-1' is not healthy but 'starting' after waiting for 10 sec"
+    expected_exception = "Health check of dependent services of 'test-container-1' failed! Container 'test-container-2' is not healthy but 'starting' after waiting for 10 sec"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
@@ -427,7 +438,7 @@ def test_depends_on_healthcheck_error_missing():
     with pytest.raises(RuntimeError) as e:
         runner.run()
 
-    expected_exception = "Health check for dependent container 'test-container-2' was requested by 'test-container-1', but container has no healthcheck implemented!"
+    expected_exception = "Health check for service 'test-container-2' was requested by 'test-container-1', but service has no healthcheck implemented!"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
@@ -454,7 +465,7 @@ def test_depends_on_healthcheck_error_max_waiting_time():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    expected_exception = "Dependent container 'test-container-2' of 'test-container-1' is not healthy but 'starting' after waiting for 10 sec"
+    expected_exception = "Health check of dependent services of 'test-container-1' failed! Container 'test-container-2' is not healthy but 'starting' after waiting for 10 sec"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
