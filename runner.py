@@ -703,16 +703,17 @@ class Runner:
 
             if 'container_name' in service:
                 container_name = service['container_name']
-                print(TerminalColors.HEADER, '\nSetting up container (', container_name, ') for service:', service_name, TerminalColors.ENDC)
             else:
                 container_name = service_name
-                print(TerminalColors.HEADER, '\nSetting up container for service:', service_name, TerminalColors.ENDC)
 
             if container_name in known_container_names:
                 raise RuntimeError(f"Container name '{container_name}' was already assigned. Please choose unique container names.")
 
             known_container_names.append(container_name)
 
+            print(TerminalColors.HEADER, '\nSetting up container for service:', service_name, TerminalColors.ENDC)
+            print('Container name:', container_name)
+            
             print('Resetting container')
             # By using the -f we return with 0 if no container is found
             # we always reset container without checking if something is running, as we expect that a user understands
