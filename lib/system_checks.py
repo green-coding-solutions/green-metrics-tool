@@ -12,6 +12,7 @@ import os
 import subprocess
 import psutil
 import locale
+import platform
 
 from psycopg import OperationalError as psycopg_OperationalError
 
@@ -57,6 +58,10 @@ def check_free_memory():
     return psutil.virtual_memory().available >= GMT_Resources['free_memory']
 
 def check_energy_filtering():
+    if platform.system() != 'Linux':
+        print(TerminalColors.WARNING, '>>>> RAPL could not be checked as not running on Linux platform <<<<', TerminalColors.ENDC)
+        return True
+
     result = subprocess.run(['sudo', 'python3', '-m', 'lib.hardware_info_root', '--read-rapl-energy-filtering'],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
@@ -95,7 +100,6 @@ start_checks = [
     (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output.'),
     (check_energy_filtering, Status.ERROR, 'rapl energy filtering', 'RAPL Energy filtering is active!'),
 ]
-
 
 def check_start():
     print(TerminalColors.HEADER, '\nRunning System Checks', TerminalColors.ENDC)
