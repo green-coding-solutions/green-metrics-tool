@@ -181,7 +181,7 @@ static int check_system(int rootless_mode) {
     }
 
     if(found_error) {
-        exit(127);
+        exit(1);
     }
 
     return 0;

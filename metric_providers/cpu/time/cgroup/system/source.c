@@ -41,7 +41,7 @@ static int check_system() {
 
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open cpu.stat file at %s\n", check_path);
-        exit(127);
+        exit(1);
     }
     fclose(fd);
     return 0;

@@ -408,13 +408,13 @@ static int check_system() {
     int fd = open_msr(0);
     if (fd < 0) {
         fprintf(stderr, "Couldn't open MSR 0\n");
-        exit(127);
+        exit(1);
     }
     long long msr_data = read_msr(fd, energy_status);
 
     if(msr_data <= 0) {
         fprintf(stderr, "rapl MSR had 0 or negative values: %lld\n", msr_data);
-        exit(127);
+        exit(1);
     }
     close(fd);
     return 0;

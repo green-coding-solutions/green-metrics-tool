@@ -51,7 +51,7 @@ static int check_system() {
 
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open /proc/stat file\n");
-        exit(127);
+        exit(1);
     }
     fclose(fd);
     return 0;
