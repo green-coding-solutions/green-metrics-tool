@@ -16,7 +16,7 @@ typedef struct container_t { // struct is a specification and this static makes 
 // keep them local in scope to the file and not make them persist in state
 // between Threads.
 // in any case, none of these variables should change between threads
-static int user_id = 0;
+static int user_id = -1;
 static long int user_hz;
 static unsigned int msleep_time=1000;
 
