@@ -77,6 +77,10 @@ static int parse_containers(container_t** containers, char* containers_string, i
     }
 
     *containers = malloc(sizeof(container_t));
+    if (!containers) {
+        fprintf(stderr, "Could not allocate memory for containers string\n");
+        exit(1);
+    }
     char *id = strtok(containers_string,",");
     int length = 0;
 
@@ -84,6 +88,10 @@ static int parse_containers(container_t** containers, char* containers_string, i
         //printf("Token: %s\n", id);
         length++;
         *containers = realloc(*containers, length * sizeof(container_t));
+        if (!containers) {
+            fprintf(stderr, "Could not allocate memory for containers string\n");
+            exit(1);
+        }
         (*containers)[length-1].id = id;
         if(rootless_mode) {
             snprintf((*containers)[length-1].path,
@@ -162,6 +170,10 @@ int main(int argc, char **argv) {
             break;
         case 's':
             containers_string = (char *)malloc(strlen(optarg) + 1);  // Allocate memory
+            if (!containers_string) {
+                fprintf(stderr, "Could not allocate memory for containers string\n");
+                exit(1);
+            }
             strncpy(containers_string, optarg, strlen(optarg));
             break;
         case 'c':
