@@ -94,8 +94,7 @@ static int check_system(int rootless_mode) {
         check_path = "/sys/fs/cgroup/system.slice/memory.current";
     }
 
-    FILE* fd = NULL;
-    fd = fopen(check_path, "r");
+    FILE* fd = fopen(check_path, "r");
 
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open memory.current file at %s\n", check_path);

@@ -111,8 +111,7 @@ static int check_system(int rootless_mode) {
         check_path = "/sys/fs/cgroup/system.slice/io.stat";
     }
 
-    FILE* fd = NULL;
-    fd = fopen(check_path, "r");
+    FILE* fd = fopen(check_path, "r");
 
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open io.stat file at %s\n", check_path);

@@ -132,8 +132,7 @@ static int parse_containers(container_t** containers, char* containers_string, i
                 "/sys/fs/cgroup/system.slice/docker-%s.scope/cgroup.procs",
                 id);
         }
-        FILE* fd = NULL;
-        fd = fopen((*containers)[length-1].path, "r"); // check for general readability only once
+        FILE* fd = fopen((*containers)[length-1].path, "r"); // check for general readability only once
         if ( fd == NULL) {
                 fprintf(stderr, "Error - cgroup.procs file %s failed to open: errno: %d\n", (*containers)[length-1].path, errno);
                 exit(1);
@@ -161,9 +160,7 @@ static int check_system(int rootless_mode) {
         file_path_cgroup_procs = "/sys/fs/cgroup/system.slice/cgroup.procs";
     }
     
-    FILE* fd = NULL;
-
-    fd = fopen(file_path_cgroup_procs, "r");
+    FILE* fd = fopen(file_path_cgroup_procs, "r");
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open cgroup.procs file at %s\n", file_path_cgroup_procs);
         found_error = 1;

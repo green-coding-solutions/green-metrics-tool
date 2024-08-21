@@ -29,9 +29,7 @@ static unsigned int msleep_time=1000;
 
 static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
 
-    FILE* fd = NULL;
-
-    fd = fopen("/proc/stat", "r");
+    FILE* fd = fopen("/proc/stat", "r");
     if ( fd == NULL) {
         fprintf(stderr, "Error - file %s failed to open: errno: %d\n", "/proc/stat/", errno);
         exit(1);
@@ -80,8 +78,7 @@ static void output_stats() {
 static int check_system() {
     const char check_path[] = "/proc/stat";
     
-    FILE* fd = NULL;
-    fd = fopen(check_path, "r");
+    FILE* fd = fopen(check_path, "r");
 
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open %s file\n", check_path);

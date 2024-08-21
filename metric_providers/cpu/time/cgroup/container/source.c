@@ -22,8 +22,7 @@ static unsigned int msleep_time=1000;
 
 static long int read_cpu_cgroup(char* filename) {
     long int cpu_usage = -1;
-    FILE* fd = NULL;
-    fd = fopen(filename, "r");
+    FILE* fd = fopen(filename, "r");
     if ( fd == NULL) {
         fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Are you using --rootless mode? Errno: %d\n", filename, errno);
         exit(1);
@@ -85,8 +84,7 @@ static int check_system(int rootless_mode) {
         check_path = "/sys/fs/cgroup/system.slice/cpu.stat";
     }
     
-    FILE* fd = NULL;
-    fd = fopen(check_path, "r");
+    FILE* fd = fopen(check_path, "r");
 
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open cpu.stat file at %s\n", check_path);

@@ -41,10 +41,8 @@ static long int read_cpu_cgroup(FILE *fd) {
 }
 
 static long int get_cpu_stat(char* filename, int mode) {
-    FILE* fd = NULL;
     long int result=-1;
-
-    fd = fopen(filename, "r");
+    FILE* fd = fopen(filename, "r");
 
     if ( fd == NULL) {
         fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Are you using --rootless mode? Errno: %d\n", filename, errno);
@@ -162,9 +160,7 @@ static int check_system(int rootless_mode) {
     }
     file_path_proc_stat = "/proc/stat";
     
-    FILE* fd = NULL;
-
-    fd = fopen(file_path_cpu_stat, "r");
+    FILE* fd = fopen(file_path_cpu_stat, "r");
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open cpu.stat file at %s\n", file_path_cpu_stat);
         found_error = 1;

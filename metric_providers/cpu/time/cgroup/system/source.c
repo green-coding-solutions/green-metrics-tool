@@ -18,8 +18,7 @@ static unsigned int msleep_time=1000;
 static long int read_cpu_cgroup() {
 
     long int cpu_usage = -1;
-    FILE* fd = NULL;
-    fd = fopen("/sys/fs/cgroup/cpu.stat", "r"); // check for general readability only once
+    FILE* fd = fopen("/sys/fs/cgroup/cpu.stat", "r"); // check for general readability only once
     fscanf(fd, "usage_usec %ld", &cpu_usage);
     fclose(fd);
     return cpu_usage;
@@ -36,8 +35,7 @@ static void output_stats() {
 
 static int check_system() {
     const char check_path[] = "/sys/fs/cgroup/cpu.stat";
-    FILE* fd = NULL;
-    fd = fopen(check_path, "r");
+    FILE* fd = fopen(check_path, "r");
 
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open cpu.stat file at %s\n", check_path);
