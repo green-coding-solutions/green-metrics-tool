@@ -96,7 +96,7 @@ static unsigned long int get_network_cgroup(unsigned int pid) {
 
 }
 
-static int output_stats(container_t *containers, int length) {
+static void output_stats(container_t *containers, int length) {
 
     struct timeval now;
     int i;
@@ -106,8 +106,6 @@ static int output_stats(container_t *containers, int length) {
         printf("%ld%06ld %lu %s\n", now.tv_sec, now.tv_usec, get_network_cgroup(containers[i].pid), containers[i].id);
     }
     usleep(msleep_time*1000);
-
-    return 1;
 }
 
 static int parse_containers(container_t** containers, char* containers_string, int rootless_mode) {

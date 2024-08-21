@@ -33,7 +33,7 @@ static long int read_cpu_cgroup(char* filename) {
     return cpu_usage;
 }
 
-static int output_stats(container_t *containers, int length) {
+static void output_stats(container_t *containers, int length) {
     struct timeval now;
     gettimeofday(&now, NULL);
 
@@ -41,8 +41,6 @@ static int output_stats(container_t *containers, int length) {
         printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, read_cpu_cgroup(containers[i].path), containers[i].id);
     }
     usleep(msleep_time*1000);
-
-    return 1;
 }
 
 static int parse_containers(container_t** containers, char* containers_string, int rootless_mode) {

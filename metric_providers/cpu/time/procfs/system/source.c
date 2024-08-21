@@ -34,17 +34,13 @@ static long int read_cpu_proc() {
     return ((user_time+nice_time+system_time+idle_time+iowait_time+irq_time+softirq_time+steal_time)*1000000)/user_hz;
 }
 
-
-
-static int output_stats() {
+static void output_stats() {
 
     struct timeval now;
 
     gettimeofday(&now, NULL);
     printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, read_cpu_proc());
     usleep(msleep_time*1000);
-
-    return 1;
 }
 
 static int check_system() {

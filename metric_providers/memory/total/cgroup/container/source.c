@@ -40,7 +40,7 @@ static long int get_memory_cgroup(char* filename) {
 
 }
 
-static int output_stats(container_t *containers, int length) {
+static void output_stats(container_t *containers, int length) {
 
     struct timeval now;
     int i;
@@ -50,8 +50,6 @@ static int output_stats(container_t *containers, int length) {
         printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, get_memory_cgroup(containers[i].path), containers[i].id);
     }
     usleep(msleep_time*1000);
-
-    return 1;
 }
 
 static int parse_containers(container_t** containers, char* containers_string, int rootless_mode) {

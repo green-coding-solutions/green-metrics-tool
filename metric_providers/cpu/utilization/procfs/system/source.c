@@ -52,7 +52,7 @@ static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
 }
 
 
-static int output_stats() {
+static void output_stats() {
 
     long int  idle_reading, compute_time_reading;
     procfs_time_t main_cpu_reading_before;
@@ -75,8 +75,6 @@ static int output_stats() {
 
     // main output to Stdout
     printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (compute_time_reading*10000) / (compute_time_reading+idle_reading) ); // Deliberate integer conversion. Precision with 0.01% is good enough
-
-    return 1;
 }
 
 static int check_system() {

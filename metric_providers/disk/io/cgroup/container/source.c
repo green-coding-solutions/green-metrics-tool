@@ -56,7 +56,7 @@ static disk_io_t get_disk_cgroup(char* filename) {
     return disk_io;
 }
 
-static int output_stats(container_t *containers, int length) {
+static void output_stats(container_t *containers, int length) {
 
     struct timeval now;
     int i;
@@ -67,8 +67,6 @@ static int output_stats(container_t *containers, int length) {
         printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, disk_io.rbytes+disk_io.wbytes, containers[i].id);
     }
     usleep(msleep_time*1000);
-
-    return 1;
 }
 
 static int parse_containers(container_t** containers, char* containers_string, int rootless_mode) {

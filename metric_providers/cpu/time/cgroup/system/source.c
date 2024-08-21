@@ -25,15 +25,13 @@ static long int read_cpu_cgroup() {
     return cpu_usage;
 }
 
-static int output_stats() {
+static void output_stats() {
 
     struct timeval now;
     gettimeofday(&now, NULL);
 
     printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, read_cpu_cgroup());
     usleep(msleep_time*1000);
-
-    return 1;
 }
 
 static int check_system() {

@@ -62,7 +62,7 @@ static long int get_cpu_stat(char* filename, int mode) {
 }
 
 
-static int output_stats(container_t* containers, int length) {
+static void output_stats(container_t* containers, int length) {
 
     long int main_cpu_reading_before, main_cpu_reading_after, main_cpu_reading;
     long int cpu_readings_before[length];
@@ -71,7 +71,6 @@ static int output_stats(container_t* containers, int length) {
 
     struct timeval now;
     int i;
-
 
     // Get Energy Readings, set timestamp mark
     gettimeofday(&now, NULL);
@@ -116,7 +115,6 @@ static int output_stats(container_t* containers, int length) {
 
         printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, reading, containers[i].id);
     }
-    return 1;
 }
 
 static int parse_containers(container_t** containers, char* containers_string, int rootless_mode) {
