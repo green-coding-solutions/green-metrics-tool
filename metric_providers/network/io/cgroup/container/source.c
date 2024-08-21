@@ -9,9 +9,10 @@
 #include <sys/time.h>
 #include <ctype.h>
 #include <getopt.h>
+#include <limits.h>
 
 typedef struct container_t { // struct is a specification and this static makes no sense here
-    char path[BUFSIZ];
+    char path[PATH_MAX];
     char *id;
     unsigned int pid;
 } container_t;
@@ -46,8 +47,7 @@ static unsigned long int get_network_cgroup(unsigned int pid) {
     char buf[200], ifname[20];
     unsigned long int r_bytes, t_bytes, r_packets, t_packets;
 
-
-    char ns_path[BUFSIZ];
+    char ns_path[PATH_MAX];
     sprintf(ns_path, "/proc/%u/ns/net",pid);
 
     int fd_ns = open(ns_path, O_RDONLY);   /* Get descriptor for namespace */

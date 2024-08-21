@@ -6,9 +6,10 @@
 #include <time.h>
 #include <string.h> // for strtok
 #include <getopt.h>
+#include <limits.h>
 
 typedef struct container_t { // struct is a specification and this static makes no sense here
-    char path[BUFSIZ];
+    char path[PATH_MAX];
     char *id;
 } container_t;
 

@@ -36,6 +36,7 @@
 #include <string.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
+#include <limits.h>
 
 
 /* AMD Support */
@@ -91,7 +92,7 @@
 
 static int open_msr(int core) {
 
-    char msr_filename[BUFSIZ];
+    char msr_filename[PATH_MAX];
     int fd;
 
     sprintf(msr_filename, "/dev/cpu/%d/msr", core);
@@ -174,7 +175,7 @@ static int detect_cpu(void) {
 
     int vendor=-1,family,model=-1;
     char buffer[BUFSIZ],*result;
-    char vendor_string[BUFSIZ];
+    char vendor_string[1024];
 
     fff=fopen("/proc/cpuinfo","r");
     if (fff==NULL) return -1;
@@ -242,7 +243,7 @@ static int package_map[MAX_PACKAGES];
 
 static int detect_packages(void) {
 
-    char filename[BUFSIZ];
+    char filename[PATH_MAX];
     FILE *fff;
     int package;
     int i;
