@@ -59,11 +59,13 @@ static int parse_containers(container_t** containers, char* containers_string, i
         *containers = realloc(*containers, length * sizeof(container_t));
         (*containers)[length-1].id = id;
         if(rootless_mode) {
-            sprintf((*containers)[length-1].path,
+            snprintf((*containers)[length-1].path,
+                PATH_MAX,
                 "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/cpu.stat",
                 user_id, user_id, id);
         } else {
-            sprintf((*containers)[length-1].path,
+            snprintf((*containers)[length-1].path,
+                PATH_MAX,
                 "/sys/fs/cgroup/system.slice/docker-%s.scope/cpu.stat",
                 id);
         }

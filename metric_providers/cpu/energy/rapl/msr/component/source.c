@@ -95,7 +95,7 @@ static int open_msr(int core) {
     char msr_filename[PATH_MAX];
     int fd;
 
-    sprintf(msr_filename, "/dev/cpu/%d/msr", core);
+    snprintf(msr_filename, PATH_MAX, "/dev/cpu/%d/msr", core);
     fd = open(msr_filename, O_RDONLY);
     if ( fd < 0 ) {
         if ( errno == ENXIO ) {
@@ -251,7 +251,7 @@ static int detect_packages(void) {
     for(i=0;i<MAX_PACKAGES;i++) package_map[i]=-1;
 
     for(i=0;i<MAX_CPUS;i++) {
-        sprintf(filename,"/sys/devices/system/cpu/cpu%d/topology/physical_package_id",i);
+        snprintf(filename, PATH_MAX, "/sys/devices/system/cpu/cpu%d/topology/physical_package_id",i);
         fff=fopen(filename,"r");
         if (fff==NULL) break;
         fscanf(fff,"%d",&package);
