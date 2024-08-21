@@ -713,7 +713,7 @@ class Runner:
 
             print(TerminalColors.HEADER, '\nSetting up container for service:', service_name, TerminalColors.ENDC)
             print('Container name:', container_name)
-            
+
             print('Resetting container')
             # By using the -f we return with 0 if no container is found
             # we always reset container without checking if something is running, as we expect that a user understands
@@ -1521,14 +1521,14 @@ class Runner:
             self.end_phase('[BASELINE]')
 
             if self._debugger.active:
-                self._debugger.pause('Network setup complete. Waiting to start container build')
+                self._debugger.pause('Measurements started. Waiting to start container build')
 
             self.start_phase('[INSTALLATION]')
             self.build_docker_images()
             self.end_phase('[INSTALLATION]')
 
             if self._debugger.active:
-                self._debugger.pause('Network setup complete. Waiting to start container boot')
+                self._debugger.pause('Container build complete. Waiting to start container boot')
 
             self.start_phase('[BOOT]')
             self.setup_networks()
@@ -1536,7 +1536,7 @@ class Runner:
             self.end_phase('[BOOT]')
 
             if self._debugger.active:
-                self._debugger.pause('Container setup complete. Waiting to start container provider boot')
+                self._debugger.pause('Container setup complete. Waiting to start container providers')
 
             self.start_metric_providers(allow_container=True, allow_other=False)
 
