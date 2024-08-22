@@ -25,7 +25,6 @@ typedef struct disk_io_t { // struct is a specification and this static makes no
 static int user_id = -1;
 static unsigned int msleep_time=1000;
 
-
 static disk_io_t get_disk_cgroup(char* filename) {
     long int rbytes = -1;
     long int rbytes_sum = 0;
@@ -42,7 +41,6 @@ static disk_io_t get_disk_cgroup(char* filename) {
         rbytes_sum += rbytes;
         wbytes_sum += wbytes;
     }
-    ;
 
     fclose(fd);
 
