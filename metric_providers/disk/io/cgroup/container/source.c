@@ -7,9 +7,11 @@
 #include <getopt.h>
 #include <limits.h>
 
+#define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
+
 typedef struct container_t { // struct is a specification and this static makes no sense here
     char path[PATH_MAX];
-    char *id;
+    char id[DOCKER_CONTAINER_ID_BUFFER];
 } container_t;
 
 typedef struct disk_io_t { // struct is a specification and this static makes no sense here
@@ -90,7 +92,10 @@ static int parse_containers(container_t** containers, char* containers_string, i
             fprintf(stderr, "Could not allocate memory for containers string\n");
             exit(1);
         }
-        (*containers)[length-1].id = id;
+
+        strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
+        (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
+
         if(rootless_mode) {
             snprintf((*containers)[length-1].path,
                 PATH_MAX,
@@ -173,6 +178,7 @@ int main(int argc, char **argv) {
                 exit(1);
             }
             strncpy(containers_string, optarg, strlen(optarg));
+            containers_string[strlen(optarg)] = '\0'; // Ensure NUL termination if max length
             break;
         case 'c':
             check_system_flag = 1;
