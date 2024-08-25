@@ -25,14 +25,17 @@ class GMTMenu extends HTMLElement {
                 <a class="item" href="/ci-index.html">
                     <b><i class="seedling icon"></i>Eco-CI</b>
                 </a>
-                <a class="item" href="/status.html">
-                    <b><i class="database icon"></i>Status</b>
-                </a>
                 <a class="item" href="/hog.html">
                     <b><i class="piggy bank icon"></i>Power Hog</b>
                 </a>
                 <a class="item" href="/carbondb.html">
                     <b><i class="journal whills icon"></i>CarbonDB</b>
+                </a>
+                <a class="item" href="/status.html">
+                    <b><i class="database icon"></i>Status</b>
+                </a>
+                <a class="item" href="/authentication.html">
+                    <b><i class="users icon"></i>Authentication</b>
                 </a>
                 <a class="item" href="/settings.html">
                     <b><i class="cogs icon"></i>Settings</b>
@@ -140,6 +143,7 @@ const escapeString = (string) =>{
 
 async function makeAPICall(path, values=null) {
 
+
     if(values != null ) {
         var options = {
             method: "POST",
@@ -149,8 +153,13 @@ async function makeAPICall(path, values=null) {
             }
         }
     }  else {
-        var options = { method: 'GET' }
+        var options = { method: 'GET', headers: {} }
     }
+
+    let authentication_token = localStorage.getItem('authentication_token');
+    if(authentication_token == null) authentication_token = 'DEFAULT';
+
+    options.headers['X-Authentication'] = authentication_token;
 
     let json_response = null;
     if(localStorage.getItem('remove_idle') == 'true') path += "?remove_idle=true"

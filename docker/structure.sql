@@ -4,6 +4,30 @@ CREATE DATABASE "green-coding";
 CREATE EXTENSION "uuid-ossp";
 CREATE EXTENSION "moddatetime";
 
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name text,
+    token text NOT NULL,
+    capabilities JSONB NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+
+CREATE UNIQUE INDEX name_unique ON users(name text_ops);
+CREATE UNIQUE INDEX token_unique ON users(token text_ops);
+
+CREATE TRIGGER users_moddatetime
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);
+
+# Default password for authentication is DEFAULT
+INSERT INTO "public"."users"("name","token","capabilities","created_at","updated_at")
+VALUES
+(E'DEFAULT',E'89dbf71048801678ca4abfbaa3ea8f7c651aae193357a3e23d68e21512cd07f5',E'{"api":{"quotas":{},"routes":["/v1/carbondb/add","/v1/ci/measurement/add","/v1/software/add","/v1/hog/add","/v1/authentication/data"]},"data":{"runs":{"retention":2678400},"hog_tasks":{"retention":2678400},"measurements":{"retention":2678400},"hog_coalitions":{"retention":2678400},"ci_measurements":{"retention":2678400},"hog_measurements":{"retention":2678400}},"jobs":{"schedule_modes":["one-off","weekly","commit","variance"]},"machines":[1],"measurements":{"quotas":{},"settings":{"total-duration":86400,"flow-process-duration":86400}},"optimizations":["container_memory_utilization","container_cpu_utilization","message_optimization","container_build_time","container_boot_time","container_image_size"]}',E'2024-08-22 11:28:24.937262+00',NULL);
+
+
+
 CREATE TABLE machines (
     id SERIAL PRIMARY KEY,
     description text,
@@ -36,6 +60,7 @@ CREATE TABLE jobs (
     categories int[],
     machine_id int REFERENCES machines(id) ON DELETE SET NULL ON UPDATE CASCADE,
     message text,
+    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -67,6 +92,7 @@ CREATE TABLE runs (
     logs text,
     invalid_run text,
     failed boolean DEFAULT false,
+    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -183,6 +209,7 @@ CREATE TABLE ci_measurements (
     city text,
     co2i text,
     co2eq text,
+    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -217,6 +244,7 @@ CREATE TABLE timeline_projects (
     machine_id integer REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE NOT NULL,
     schedule_mode text NOT NULL,
     last_scheduled timestamp with time zone,
+    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -238,6 +266,7 @@ CREATE TABLE hog_measurements (
     thermal_pressure text,
     settings jsonb,
     data jsonb,
+    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -287,7 +316,6 @@ CREATE TABLE hog_tasks (
     diskio_byteswritten bigint,
     intr_wakeups bigint,
     idle_wakeups bigint,
-
     data jsonb,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone

@@ -11,15 +11,20 @@ import orjson
 from typing import List
 from xml.sax.saxutils import escape as xml_escape
 import math
-from fastapi import FastAPI, Request, Response
+from urllib.parse import urlparse
+
+from fastapi import FastAPI, Request, Response, Depends, HTTPException
 from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
+
 from datetime import date
 
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.datastructures import Headers as StarletteHeaders
 
 from pydantic import BaseModel, ValidationError, field_validator
 from typing import Optional
@@ -38,6 +43,8 @@ from lib.db import DB
 from lib.diff import get_diffable_row, diff_rows
 from lib import error_helpers
 from lib.job.base import Job
+from lib.user import User, UserAuthenticationError
+from lib.secure_variable import SecureVariable
 from tools.timeline_projects import TimelineProject
 
 from enum import Enum
@@ -53,7 +60,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         url=request.url,
         query_params=request.query_params,
         client=request.client,
-        headers=request.headers,
+        headers=obfuscate_authentication_token(request.headers),
         body=exc.body,
         details=exc.errors(),
         exception=exc
@@ -71,7 +78,7 @@ async def http_exception_handler(request, exc):
         url=request.url,
         query_params=request.query_params,
         client=request.client,
-        headers=request.headers,
+        headers=obfuscate_authentication_token(request.headers),
         body=body,
         details=exc.detail,
         exception=exc
@@ -84,6 +91,7 @@ async def http_exception_handler(request, exc):
 async def catch_exceptions_middleware(request: Request, call_next):
     #pylint: disable=broad-except
     body = None
+
     try:
         body = await request.body()
         return await call_next(request)
@@ -93,7 +101,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
             url=request.url,
             query_params=request.query_params,
             client=request.client,
-            headers=request.headers,
+            headers=obfuscate_authentication_token(request.headers),
             body=body,
             exception=exc
         )
@@ -121,6 +129,37 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+
+header_scheme = APIKeyHeader(
+    name='X-Authentication',
+    scheme_name='Header',
+    description='Authentication key - See https://docs.green-coding.io/authentication',
+    auto_error=False
+)
+
+def obfuscate_authentication_token(headers: StarletteHeaders):
+    headers_mut = headers.mutablecopy()
+    if 'X-Authentication' in headers_mut:
+        headers_mut['X-Authentication'] = '****OBFUSCATED****'
+    return headers_mut
+
+def authenticate(authentication_token=Depends(header_scheme), request: Request = None):
+    parsed_url = urlparse(str(request.url))
+    try:
+        user = User.authenticate(SecureVariable(authentication_token)) # Note that if no token is supplied this will authenticate as the DEFAULT user, which in FOSS systems has full capabilities
+
+        if parsed_url.path not in user._capabilities['api']['routes']:
+            raise HTTPException(status_code=401, detail="Route not allowed") from UserAuthenticationError
+
+        if parsed_url.path in user._capabilities['api']['quotas']:
+            if user._capabilities['api']['quotas'][parsed_url.path] <= 0:
+                raise HTTPException(status_code=401, detail="Quota exceeded") from UserAuthenticationError
+            user._capabilities['api']['quotas'][parsed_url.path] -= 1
+            user.update()
+
+    except UserAuthenticationError:
+        raise HTTPException(status_code=401, detail="Invalid token") from UserAuthenticationError
+    return user
 
 
 @app.get('/')
@@ -219,6 +258,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
     escaped_data = [html_escape_multi(run) for run in data]
 
     return ORJSONResponse({'success': True, 'data': escaped_data})
+
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/runs')
@@ -597,7 +637,6 @@ async def get_jobs(machine_id: int | None = None, state: str | None = None):
 
     return ORJSONResponse({'success': True, 'data': data})
 
-####
 
 class HogMeasurement(BaseModel):
     time: int
@@ -665,7 +704,10 @@ def validate_measurement_data(data):
     return True
 
 @app.post('/v1/hog/add')
-async def hog_add(measurements: List[HogMeasurement]):
+async def hog_add(
+    measurements: List[HogMeasurement],
+    user: User = Depends(authenticate), # pylint: disable=unused-argument
+    ):
 
     for measurement in measurements:
         decoded_data = base64.b64decode(measurement.data)
@@ -1025,9 +1067,6 @@ async def hog_get_task_details(machine_uuid: str, measurements_id_start: int, me
     return ORJSONResponse({'success': True, 'tasks_data': tasks_data, 'coalitions_data': coalitions_data})
 
 
-
-####
-
 class Software(BaseModel):
     name: str
     url: str
@@ -1038,7 +1077,7 @@ class Software(BaseModel):
     schedule_mode: str
 
 @app.post('/v1/software/add')
-async def software_add(software: Software):
+async def software_add(software: Software, user: User = Depends(authenticate)):
 
     software = html_escape_multi(software)
 
@@ -1064,22 +1103,26 @@ async def software_add(software: Software):
     if not DB().fetch_one('SELECT id FROM machines WHERE id=%s AND available=TRUE', params=(software.machine_id,)):
         raise RequestValidationError('Machine does not exist')
 
+    if not user.can_use_machine(software.machine_id):
+        raise RequestValidationError('Your user does not have the permissions to use that machine.')
 
     if software.schedule_mode not in ['one-off', 'daily', 'weekly', 'commit', 'variance']:
         raise RequestValidationError(f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")
 
-    # notify admin of new add
-    if notification_email := GlobalConfig().config['admin']['notification_email']:
-        Job.insert('email', name='New run added from Web Interface', message=str(software), email=notification_email)
-
+    if not user.can_schedule_job(software.schedule_mode):
+        raise RequestValidationError('Your user does not have the permissions to use that schedule mode.')
 
     if software.schedule_mode in ['daily', 'weekly', 'commit']:
-        TimelineProject.insert(software.name, software.url, software.branch, software.filename, software.machine_id, software.schedule_mode)
+        TimelineProject.insert(name=software.name, url=software.url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, user_id=user._id, schedule_mode=software.schedule_mode)
 
     # even for timeline projects we do at least one run
     amount = 10 if software.schedule_mode == 'variance' else 1
     for _ in range(0,amount):
-        Job.insert('run', name=software.name, url=software.url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id)
+        Job.insert('run', user_id=user._id, name=software.name, url=software.url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id)
+
+    # notify admin of new add
+    if notification_email := GlobalConfig().config['admin']['notification_email']:
+        Job.insert('email', user_id=user._id, name='New run added from Web Interface', message=str(software), email=notification_email)
 
     return ORJSONResponse({'success': True}, status_code=202)
 
@@ -1172,7 +1215,11 @@ class CI_Measurement(BaseModel):
     co2eq: Optional[str] = ''
 
 @app.post('/v1/ci/measurement/add')
-async def post_ci_measurement_add(request: Request, measurement: CI_Measurement):
+async def post_ci_measurement_add(
+    request: Request,
+    measurement: CI_Measurement,
+    user: User = Depends(authenticate) # pylint: disable=unused-argument
+    ):
     for key, value in measurement.model_dump().items():
         match key:
             case 'unit':
@@ -1384,7 +1431,11 @@ class EnergyData(BaseModel):
         return values
 
 @app.post('/v1/carbondb/add')
-async def add_carbondb(request: Request, energydatas: List[EnergyData]):
+async def add_carbondb(
+    request: Request,
+    energydatas: List[EnergyData],
+    user: User = Depends(authenticate) # pylint: disable=unused-argument
+    ):
 
     client_ip = request.headers.get("x-forwarded-for")
     if client_ip:
@@ -1447,6 +1498,18 @@ async def carbondb_get_company_project_details(cptype: str, uuid: str):
     data = DB().fetch_all(query, (uuid,))
 
     return ORJSONResponse({'success': True, 'data': data})
+
+# @app.get('/v1/authentication/new')
+# async def get_authentication_token(name: str = None):
+#     if name is not None and name.strip() == '':
+#         name = None
+#     return ORJSONResponse({'success': True, 'data': User.get_new(name)})
+
+@app.get('/v1/authentication/data')
+async def read_authentication_token(user: User = Depends(authenticate)):
+    return ORJSONResponse({'success': True, 'data': user.__dict__})
+
+
 
 if __name__ == '__main__':
     app.run() # pylint: disable=no-member

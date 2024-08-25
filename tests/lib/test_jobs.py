@@ -71,7 +71,7 @@ def test_insert_job():
     branch = 'main'
     machine_id = 1
 
-    job_id = Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+    job_id = Job.insert('run', user_id=1, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
     assert job_id is not None
     job = Job.get_job('run')
     assert job._state == 'WAITING'
@@ -83,7 +83,7 @@ def test_simple_run_job():
     branch = 'main'
     machine_id = 1
 
-    Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+    Job.insert('run', user_id=1, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
 
     ps = subprocess.run(
             ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
@@ -106,7 +106,7 @@ def test_simple_cluster_run():
     branch = 'main'
     machine_id = 1
 
-    Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+    Job.insert('run', user_id=1, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
 
     ps = subprocess.run(
             ['python3', '../tools/client.py', '--testing', '--config-override', 'test-config.yml'],
@@ -128,7 +128,7 @@ def test_simple_run_job_missing_filename_branch():
     machine_id = 1
 
     with pytest.raises(RuntimeError):
-        Job.insert('run', name=name, url=url, email=None, machine_id=machine_id)
+        Job.insert('run', user_id=1, name=name, url=url, email=None, machine_id=machine_id)
 
 
 def test_simple_run_job_wrong_machine_id():
@@ -139,7 +139,7 @@ def test_simple_run_job_wrong_machine_id():
     machine_id = 100
 
     with pytest.raises(psycopg.errors.ForeignKeyViolation):
-        Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+        Job.insert('run', user_id=1, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
 
 
 #pylint: disable=unused-variable # for the time being, until I get the mocking to work
@@ -152,6 +152,7 @@ def todo_test_simple_email_job():
 
     Job.insert(
         'email',
+        user_id=1,
         email=email,
         name=subject,
         message=message,

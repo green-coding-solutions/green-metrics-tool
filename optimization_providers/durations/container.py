@@ -8,7 +8,7 @@ MAX_INSTALL_DURATION = 300 # 5 Minutes
 MAX_BOOT_DURATION = 5 # 5 seconds
 
 # pylint: disable=unused-argument
-@register_reporter('container-build-time', Criticality.INFO, REPORTER_NAME, REPORTER_ICON, req_providers =[])
+@register_reporter('container_build_time', Criticality.INFO, REPORTER_NAME, REPORTER_ICON, req_providers =[])
 def container_build_time(self, run, measurements, repo_path, network, notes, phases):
 
     installation_phase = run['phases'][1]
@@ -25,7 +25,7 @@ def container_build_time(self, run, measurements, repo_path, network, notes, pha
         )
 
 # pylint: disable=unused-argument
-@register_reporter('container-boot-time', Criticality.INFO, REPORTER_NAME, REPORTER_ICON, req_providers =[])
+@register_reporter('container_boot_time', Criticality.INFO, REPORTER_NAME, REPORTER_ICON, req_providers =[])
 def container_boot_time(self, run, measurements, repo_path, network, notes, phases):
 
     boot_phase = run['phases'][2]

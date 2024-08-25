@@ -11,6 +11,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 from lib.job.base import Job
 from lib.global_config import GlobalConfig
 from lib.db import DB
+from lib.user import User
 from lib.terminal_colors import TerminalColors
 from lib.system_checks import ConfigurationCheckError
 from tools.phase_stats import build_and_store_phase_stats
@@ -27,6 +28,8 @@ class RunJob(Job):
     #pylint: disable=arguments-differ
     def _process(self, skip_system_checks=False, docker_prune=False, full_docker_prune=False):
 
+        user = User(self._user_id)
+
         runner = Runner(
             name=self._name,
             uri=self._url,
@@ -38,6 +41,9 @@ class RunJob(Job):
             full_docker_prune=full_docker_prune,
             docker_prune=docker_prune,
             job_id=self._id,
+            user_id=self._user_id,
+            measurement_flow_process_duration=user._capabilities['measurements']['settings']['flow-process-duration'],
+            measurement_total_duration=user._capabilities['measurements']['settings']['total-duration'],
         )
         try:
             # Start main code. Only URL is allowed for cron jobs
@@ -53,6 +59,7 @@ class RunJob(Job):
             if self._email:
                 Job.insert(
                     'email',
+                    user_id=self._user_id,
                     email=self._email,
                     name='Measurement Job successfully processed on Green Metrics Tool Cluster',
                     message=f"Your report is now accessible under the URL: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={self._run_id}"
@@ -64,6 +71,7 @@ class RunJob(Job):
 
                 Job.insert(
                     'email',
+                    user_id=self._user_id,
                     email=self._email,
                     name='Measurement Job on Green Metrics Tool Cluster failed',
                     message=f"Run-ID: {self._run_id}\nName: {self._name}\n\nDetails can also be found in the log under: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={self._run_id}\n\nError message: {exc}\n"

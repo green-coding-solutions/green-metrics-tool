@@ -154,6 +154,7 @@ if __name__ == '__main__':
                     if client_main['send_control_workload_status_mail'] and config_main['admin']['notification_email']:
                         Job.insert(
                             'email',
+                            user_id=None,
                             email=config_main['admin']['notification_email'],
                             name=f"{config_main['machine']['description']} is operating normally. All STDDEV below {cwl['threshold'] * 100} %",
                             message='\n'.join(message)
