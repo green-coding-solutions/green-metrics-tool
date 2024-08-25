@@ -240,6 +240,10 @@ class Runner:
 
         self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8').strip()
 
+        git_repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=self._repo_folder, encoding='UTF-8').strip()
+        if git_repo_root != self._repo_folder:
+            raise RuntimeError('Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename')
+
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
         self._commit_hash, self._commit_timestamp = get_repo_info(self._repo_folder)
