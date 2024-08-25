@@ -52,8 +52,8 @@ class User():
     def can_schedule_job(self, schedule_mode: str):
         return schedule_mode in self._capabilities['jobs']['schedule_modes']
 
-    @staticmethod
-    def authenticate(token: SecureVariable | None, silent=False):
+    @classmethod
+    def authenticate(cls, token: SecureVariable | None, silent=False):
         sha256_hash = hashlib.sha256()
         if token is None or token.get_value() is None:
             sha256_hash.update("DEFAULT".encode('UTF-8'))
@@ -71,7 +71,7 @@ class User():
 
         print('Successfully authenticated user ', user[1])
 
-        return user[0]
+        return cls(user[0])
 
     @staticmethod
     def get_new(name=None):
