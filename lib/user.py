@@ -22,7 +22,9 @@ class User():
 
 
     def __repr__(self):
-        return str(self.__dict__)
+        values = self.__dict__.copy()
+        del values['_id']
+        return str(values)
 
     def update(self):
         DB().query("""
@@ -162,5 +164,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()  # script will exit if arguments not present
 
-    fetched_user = User(args.token)
-    print("Users name is ", fetched_user._name, "and the caps are", fetched_user._capabilities)
+    authenticated_user_id = User.authenticate(SecureVariable(args.token))
+    print("User is", User(authenticated_user_id))
