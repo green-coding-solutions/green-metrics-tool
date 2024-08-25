@@ -1,4 +1,5 @@
 import pytest
+import subprocess
 
 from lib.db import DB
 
@@ -16,10 +17,15 @@ def pytest_collection_modifyitems(items):
 @pytest.fixture(autouse=True)
 def cleanup_after_test():
     yield
-    tables = DB().fetch_all("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
-    for table in tables:
-        table_name = table[0]
-        DB().query(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE')
+    DB().query('DROP schema "public" CASCADE')
+    subprocess.run(
+        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', 'psql --port 9573 < ./docker-entrypoint-initdb.d/structure.sql'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
 
 ### If you wish to turn off the above auto-cleanup per test, include the following in your
 ### test module:

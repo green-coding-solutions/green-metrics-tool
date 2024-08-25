@@ -28,10 +28,14 @@ def cleanup_after_test():
 @pytest.fixture(autouse=True, scope='module')
 def cleanup_after_module():
     yield
-    tables = DB().fetch_all("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
-    for table in tables:
-        table_name = table[0]
-        DB().query(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE')
+    DB().query('DROP schema "public" CASCADE')
+    subprocess.run(
+        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', 'psql --port 9573 < ./docker-entrypoint-initdb.d/structure.sql'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
 
 # Runs once per file before any test(
 #pylint: disable=expression-not-assigned

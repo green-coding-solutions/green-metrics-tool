@@ -66,6 +66,17 @@ class DB:
     def fetch_all(self, query, params=None, row_factory=None):
         return self.__query(query, params=params, return_type='all', row_factory=row_factory)
 
+    def import_csv(self, filename):
+        with self._pool.connection() as conn:
+            conn.autocommit = True
+            cur = conn.cursor()
+            with open(filename, 'r', encoding='utf-8') as sql_file:
+                sql_script = sql_file.read()
+                for statement in sql_script.split(';'):
+                    if statement.strip():
+                        cur.execute(statement)
+        conn.autocommit = False
+
     def copy_from(self, file, table, columns, sep=','):
         with self._pool.connection() as conn:
             conn.autocommit = False # is implicit default

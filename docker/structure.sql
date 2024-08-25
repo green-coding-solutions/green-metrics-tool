@@ -1,6 +1,8 @@
 CREATE DATABASE "green-coding";
 \c green-coding;
 
+CREATE SCHEMA IF NOT EXISTS "public";
+
 CREATE EXTENSION "uuid-ossp";
 CREATE EXTENSION "moddatetime";
 
