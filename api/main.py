@@ -109,14 +109,9 @@ async def catch_exceptions_middleware(request: Request, call_next):
 # Otherwise CORS will not be sent in response
 app.middleware('http')(catch_exceptions_middleware)
 
-origins = [
-    GlobalConfig().config['cluster']['metrics_url'],
-    GlobalConfig().config['cluster']['api_url'],
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=GlobalConfig().config['cluster']['cors_allowed_origins'],
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],

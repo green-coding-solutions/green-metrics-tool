@@ -30,6 +30,9 @@ admin:
 cluster:
   api_url: __API_URL__
   metrics_url: __METRICS_URL__
+  cors_allowed_origins:
+      - __API_URL__
+      - __METRICS_URL__
   client:
     sleep_time_no_job: 300
     jobs_processing: "random"
