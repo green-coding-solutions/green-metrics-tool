@@ -10,7 +10,7 @@ anybadge==1.14.0
 orjson==3.10.7
 scipy==1.14.1
 schema==0.7.7
-deepdiff==7.0.1
+deepdiff==8.0.0
 redis==5.0.8
 hiredis==3.0.0
 requests==2.32.3
