@@ -3,7 +3,7 @@ import os
 import subprocess
 import re
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
 from contextlib import redirect_stdout, redirect_stderr
 import pytest
@@ -40,11 +40,12 @@ def setup_module(module):
     err = io.StringIO()
     GlobalConfig(config_name='test-config.yml').config
     with redirect_stdout(out), redirect_stderr(err):
-        uri = os.path.abspath(os.path.join(CURRENT_DIR, 'data/stress-application/'))
-        subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
+        folder = 'tests/data/stress-application/'
+        filename = 'usage_scenario.yml'
+        subprocess.run(['docker', 'compose', '-f', GMT_DIR+folder+'compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=False)
+        runner = Runner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=False)
         runner.run()
 
     #pylint: disable=global-statement

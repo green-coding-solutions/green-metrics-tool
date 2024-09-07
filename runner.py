@@ -159,7 +159,7 @@ class Runner:
             raise ValueError(f"{path2} must not be in folder above root repo folder {self._repo_folder}")
 
         if force_path_as_root and Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
-            raise RuntimeError(f"{path2} must not be in folder above {path}")
+            raise ValueError(f"{path2} must not be in folder above {path}")
 
 
         if os.path.exists(filename):
@@ -276,7 +276,7 @@ class Runner:
                 try:
                     filename = runner_join_paths(self._root, nodes[0], force_path_as_root=True)
                 except RuntimeError as exc:
-                    raise RuntimeError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
+                    raise ValueError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
 
                 with open(filename, 'r', encoding='utf-8') as f:
                     # We want to enable a deep search for keys

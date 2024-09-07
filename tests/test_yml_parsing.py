@@ -1,7 +1,7 @@
 import os
 import unittest
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
 from lib import utils
 from lib.global_config import GlobalConfig
@@ -12,11 +12,10 @@ GlobalConfig().override_config(config_name='test-config.yml')
 class TestYML(unittest.TestCase):
 
     def test_includes(self):
-        test_dir = os.path.join(CURRENT_DIR, 'data/usage_scenarios/')
-        test_root_file = 'import_one_root.yml'
+        test_root_file = 'tests/data/usage_scenarios/import_one_root.yml'
         name = 'test_' + utils.randomword(12)
 
-        runner = Runner(name=name, uri=test_dir, uri_type='folder', filename=test_root_file)
+        runner = Runner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
         runner.checkout_repository() # We need to do this to setup the file paths correctly
 
         runner.load_yml_file()
@@ -28,11 +27,10 @@ class TestYML(unittest.TestCase):
         self.assertEqual(result_obj, runner._usage_scenario)
 
     def test_(self):
-        test_dir = os.path.join(CURRENT_DIR, 'data/usage_scenarios/')
-        test_root_file = 'import_two_root.yml'
+        test_root_file = 'tests/data/usage_scenarios/import_two_root.yml'
         name = 'test_' + utils.randomword(12)
 
-        runner = Runner(name=name, uri=test_dir, uri_type='folder', filename=test_root_file)
+        runner = Runner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
         runner.checkout_repository() # We need to do this to setup the file paths correctly
 
         runner.load_yml_file()
@@ -51,8 +49,7 @@ class TestYML(unittest.TestCase):
 
     def test_invalid_path(self):
         name = 'test_' + utils.randomword(12)
-        test_dir = os.path.join(CURRENT_DIR, 'data/usage_scenarios/')
-        test_root_file = 'import_error.yml'
-        runner = Runner(name=name, uri=test_dir, uri_type='folder', filename=test_root_file)
+        test_root_file = 'tests/data/usage_scenarios/import_error.yml'
+        runner = Runner(name=name, uri=GMT_DIR, uri_type='folder', filename=test_root_file)
         runner.checkout_repository() # We need to do this to setup the file paths correctly
         self.assertRaises(ValueError, runner.load_yml_file)
