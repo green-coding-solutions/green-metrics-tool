@@ -797,6 +797,19 @@ def test_failed_pull_does_not_trigger_cli_with_build_on():
     assert 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' in str(e.value), \
         Tests.assertion_info('Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt', str(e.value))
 
+def test_non_git_root_supplied():
+    runner = Runner(uri=f"{GMT_DIR}/tests/data/usage_scenarios/", uri_type='folder', filename='invalid_image.yml', skip_system_checks=True, dev_no_build=False, dev_no_sleeps=True, dev_no_metrics=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+        runner.run()
+
+    assert 'Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename' in str(e.value), \
+        Tests.assertion_info('Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename', str(e.value))
+
+
+
     ## rethink this one
 def wip_test_verbose_provider_boot():
     run_name = 'test_' + utils.randomword(12)
