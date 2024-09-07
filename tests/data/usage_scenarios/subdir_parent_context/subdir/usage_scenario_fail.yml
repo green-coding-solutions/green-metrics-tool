@@ -6,7 +6,7 @@ description: Cat Subdir
 services:
   test-container:
     build:
-       context: ../../../../
+       context: ../../../../../../
        dockerfile: Dockerfile
     container_name: test-container
     command: sh

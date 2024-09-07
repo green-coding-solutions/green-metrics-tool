@@ -159,7 +159,7 @@ class Runner:
             raise ValueError(f"{path2} must not be in folder above root repo folder {self._repo_folder}")
 
         if force_path_as_root and Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
-            raise RuntimeError(f"{path2} must not be in folder above {path}")
+            raise ValueError(f"{path2} must not be in folder above {path}")
 
 
         if os.path.exists(filename):
@@ -240,6 +240,10 @@ class Runner:
 
         self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8').strip()
 
+        git_repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=self._repo_folder, encoding='UTF-8').strip()
+        if git_repo_root != self._repo_folder:
+            raise RuntimeError('Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename')
+
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
         self._commit_hash, self._commit_timestamp = get_repo_info(self._repo_folder)
@@ -272,7 +276,7 @@ class Runner:
                 try:
                     filename = runner_join_paths(self._root, nodes[0], force_path_as_root=True)
                 except RuntimeError as exc:
-                    raise RuntimeError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
+                    raise ValueError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
 
                 with open(filename, 'r', encoding='utf-8') as f:
                     # We want to enable a deep search for keys
