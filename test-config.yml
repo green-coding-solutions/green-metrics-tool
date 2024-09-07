@@ -24,6 +24,9 @@ admin:
 cluster:
   api_url: http://api.green-coding.internal:9142
   metrics_url: http://metrics.green-coding.internal:9142
+  cors_allowed_origins:
+    - http://api.green-coding.internal:9142
+    - http://metrics.green-coding.internal:9142
   client:
     sleep_time_no_job: 300
     jobs_processing: random
