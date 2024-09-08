@@ -729,7 +729,7 @@ def get_carbon_intensity(latitude, longitude):
 
     return None
 
-def carbondb_add(client_ip, energydatas):
+def carbondb_add(client_ip, energydatas, user_id):
 
     latitude, longitude = get_geo(client_ip)
     carbon_intensity = get_carbon_intensity(latitude, longitude)
@@ -765,12 +765,12 @@ def carbondb_add(client_ip, energydatas):
         project_uuid = e['project'] if e['project'] is not None else ''
         tags_clean = "{" + ",".join([f'"{tag.strip()}"' for tag in e['tags'].split(',') if e['tags']]) + "}" if e['tags'] is not None else ''
 
-        row = f"{e['type']}|{company_uuid}|{e['machine']}|{project_uuid}|{tags_clean}|{int(e['time_stamp'])}|{e['energy_value']}|{co2_value}|{carbon_intensity}|{latitude}|{longitude}|{client_ip}"
+        row = f"{e['type']}|{company_uuid}|{e['machine']}|{project_uuid}|{tags_clean}|{int(e['time_stamp'])}|{e['energy_value']}|{co2_value}|{carbon_intensity}|{latitude}|{longitude}|{client_ip}|{user_id}"
         data_rows.append(row)
 
     data_str = "\n".join(data_rows)
     data_file = io.StringIO(data_str)
 
-    columns = ['type', 'company', 'machine', 'project', 'tags', 'time_stamp', 'energy_value', 'co2_value', 'carbon_intensity', 'latitude', 'longitude', 'ip_address']
+    columns = ['type', 'company', 'machine', 'project', 'tags', 'time_stamp', 'energy_value', 'co2_value', 'carbon_intensity', 'latitude', 'longitude', 'ip_address', 'user_id']
 
     DB().copy_from(file=data_file, table='carbondb_energy_data', columns=columns, sep='|')

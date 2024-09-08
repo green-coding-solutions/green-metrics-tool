@@ -778,8 +778,9 @@ async def hog_add(
                     ane_energy,
                     energy_impact,
                     thermal_pressure,
-                    settings)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    settings,
+                    user_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """
         params = (
@@ -793,6 +794,7 @@ async def hog_add(
             cpu_energy_data['energy_impact'],
             measurement_data['thermal_pressure'],
             measurement.settings,
+            user._id,
         )
 
         measurement_db_id = DB().fetch_one(query=query, params=params)[0]
@@ -1254,14 +1256,15 @@ async def post_ci_measurement_add(
                             lon,
                             city,
                             co2i,
-                            co2eq
+                            co2eq,
+                            user_id
                             )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
     params = (measurement.energy_value, measurement.energy_unit, measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
             measurement.commit_hash, measurement.duration, measurement.cpu_util_avg, measurement.workflow_name,
-            measurement.lat, measurement.lon, measurement.city, measurement.co2i, measurement.co2eq)
+            measurement.lat, measurement.lon, measurement.city, measurement.co2i, measurement.co2eq, user._id)
 
     DB().query(query=query, params=params)
 
@@ -1288,7 +1291,7 @@ async def post_ci_measurement_add(
         }
 
         # If there is an error the function will raise an Error
-        carbondb_add(client_ip, [energydata])
+        carbondb_add(client_ip, [energydata], user._id)
 
     return ORJSONResponse({'success': True}, status_code=201)
 
@@ -1437,7 +1440,7 @@ async def add_carbondb(
     else:
         client_ip = request.client.host
 
-    carbondb_add(client_ip, energydatas)
+    carbondb_add(client_ip, energydatas, user._id)
 
     return Response(status_code=204)
 
