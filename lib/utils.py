@@ -1,7 +1,6 @@
 import random
 import string
 import subprocess
-import psycopg
 
 from lib.db import DB
 
@@ -17,7 +16,7 @@ def get_run_data(run_name):
                 runs
             WHERE name = %s
             """
-    data = DB().fetch_one(query, (run_name, ), row_factory=psycopg.rows.dict_row)
+    data = DB().fetch_one(query, (run_name, ), fetch_mode='dict')
     if data is None or data == []:
         return None
     return data

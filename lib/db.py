@@ -1,6 +1,7 @@
 #pylint: disable=consider-using-enumerate
 
 from psycopg_pool import ConnectionPool
+import psycopg.rows
 
 from lib.global_config import GlobalConfig
 class DB:
@@ -35,8 +36,9 @@ class DB:
                 open=True
             )
 
-    def __query(self, query, params=None, return_type=None, row_factory=None):
+    def __query(self, query, params=None, return_type=None, fetch_mode=None):
         ret = False
+        row_factory = psycopg.rows.dict_row if fetch_mode == 'dict' else None
 
         with self._pool.connection() as conn:
             conn.autocommit = False # should be default, but we are explicit
@@ -57,14 +59,14 @@ class DB:
 
         return ret
 
-    def query(self, query, params=None, row_factory=None):
-        return self.__query(query, params=params, return_type=None, row_factory=row_factory)
+    def query(self, query, params=None, fetch_mode=None):
+        return self.__query(query, params=params, return_type=None, fetch_mode=fetch_mode)
 
-    def fetch_one(self, query, params=None, row_factory=None):
-        return self.__query(query, params=params, return_type='one', row_factory=row_factory)
+    def fetch_one(self, query, params=None, fetch_mode=None):
+        return self.__query(query, params=params, return_type='one', fetch_mode=fetch_mode)
 
-    def fetch_all(self, query, params=None, row_factory=None):
-        return self.__query(query, params=params, return_type='all', row_factory=row_factory)
+    def fetch_all(self, query, params=None, fetch_mode=None):
+        return self.__query(query, params=params, return_type='all', fetch_mode=fetch_mode)
 
     def copy_from(self, file, table, columns, sep=','):
         with self._pool.connection() as conn:

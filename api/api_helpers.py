@@ -12,9 +12,6 @@ from fastapi.responses import ORJSONResponse
 import numpy as np
 import requests
 import scipy.stats
-
-from psycopg.rows import dict_row as psycopg_rows_dict_row
-
 from pydantic import BaseModel
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
@@ -155,8 +152,7 @@ def get_run_info(run_id):
             WHERE id = %s
             """
     params = (run_id,)
-    return DB().fetch_one(query, params=params, row_factory=psycopg_rows_dict_row)
-
+    return DB().fetch_one(query, params=params, fetch_mode='dict')
 
 def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, limit_365=False, sorting='run'):
 

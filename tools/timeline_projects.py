@@ -6,7 +6,6 @@ faulthandler.enable()  # will catch segfaults and write to stderr
 
 import os
 import pprint
-from psycopg.rows import dict_row as psycopg_rows_dict_row
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -56,7 +55,7 @@ if __name__ == '__main__':
             LEFT JOIN machines as m on m.id = p.machine_id
             ORDER BY p.url ASC
         """
-        data = DB().fetch_all(query, row_factory=psycopg_rows_dict_row)
+        data = DB().fetch_all(query, fetch_mode='dict')
         pp = pprint.PrettyPrinter(indent=4)
         pp.pprint(data)
 
