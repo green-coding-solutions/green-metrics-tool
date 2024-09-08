@@ -12,6 +12,8 @@ ALTER TABLE "timeline_projects" ADD COLUMN "user_id" integer REFERENCES users(id
 ALTER TABLE "runs" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "ci_measurements" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "hog_measurements" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "carbondb_energy_data" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "carbondb_energy_data_day" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
 
 
 CREATE UNIQUE INDEX name_unique ON users(name text_ops);
