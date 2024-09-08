@@ -35,7 +35,7 @@ def get_job(job_id):
                 jobs
             WHERE id = %s
             """
-    data = DB().fetch_one(query, (job_id, ), row_factory=psycopg.rows.dict_row)
+    data = DB().fetch_one(query, (job_id, ), fetch_mode='dict')
     if (data is None or data == []):
         return None
 
