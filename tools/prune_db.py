@@ -43,5 +43,9 @@ if __name__ == '__main__':
                 join_condition = 'WHERE'
                 if table == 'measurements':
                     join_condition = 'USING runs WHERE measurements.run_id = runs.id AND'
+                elif table in 'hog_coalitions':
+                    join_condition = 'USING hog_measurements WHERE hog_coalitions.measurement = hog_measurements.id AND'
+                elif table in 'hog_tasks':
+                    join_condition = 'USING hog_measurements, hog_tasks WHERE hog_coalitions.measurement = hog_measurements.id AND hog_tasks.coalition = hog_coalitions.id AND'
                 DB().query(f"DELETE FROM {table} {join_condition} user_id = {user['id']} AND {table}.created_at < NOW() - INTERVAL '{retention['retention']} SECONDS'")
         print("Done")
