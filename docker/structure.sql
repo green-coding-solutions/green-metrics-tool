@@ -372,6 +372,7 @@ CREATE TABLE carbondb_energy_data (
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
     ip_address INET,
+    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -401,7 +402,7 @@ CREATE TABLE carbondb_energy_data_day (
     co2_sum FLOAT,
     carbon_intensity_avg FLOAT,
     record_count INT,
-
+    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
