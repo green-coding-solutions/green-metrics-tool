@@ -70,7 +70,6 @@ class User():
         sha256_hash = hashlib.sha256()
         if token is None or token.get_value() is None:
             sha256_hash.update("DEFAULT".encode('UTF-8'))
-            print(sha256_hash.hexdigest())
         else:
             sha256_hash.update(token.get_value().encode('UTF-8'))
 
@@ -81,8 +80,6 @@ class User():
                 """, params=((sha256_hash.hexdigest()), ))
         if not user:
             raise UserAuthenticationError('User with corresponding token not found') # do never output token everywhere cause it might land in logs
-
-        print('Successfully authenticated user ', user[1])
 
         return cls(user[0])
 
