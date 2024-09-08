@@ -39,4 +39,4 @@ def log_error(*messages, **kwargs):
     print(TerminalColors.FAIL, err, TerminalColors.ENDC, file=sys.stderr)
 
     if error_email := GlobalConfig().config['admin']['error_email']:
-        Job.insert('email', email=error_email, name='Green Metrics Tool Error', message=err)
+        Job.insert('email', user_id=None, email=error_email, name='Green Metrics Tool Error', message=err)
