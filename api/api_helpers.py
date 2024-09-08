@@ -749,8 +749,8 @@ def carbondb_add(client_ip, energydatas):
 
         fields_to_check = {
             'type': e['type'],
-            'energy_value': e['energy_value'],
-            'time_stamp': e['time_stamp'],
+            'energy_value': e['energy_value'], # is expected to be in J
+            'time_stamp': e['time_stamp'], # is expected to be in microseconds
         }
 
         for field_name, field_value in fields_to_check.items():
@@ -762,8 +762,8 @@ def carbondb_add(client_ip, energydatas):
             latitude, longitude = get_geo(e['ip'])
             carbon_intensity = get_carbon_intensity(latitude, longitude)
 
-        energy_kwh = float(e['energy_value']) * 2.77778e-7
-        co2_value = energy_kwh * carbon_intensity
+        energy_kwh = float(e['energy_value']) * 2.77778e-7 # kWh
+        co2_value = energy_kwh * carbon_intensity # results in g
 
         company_uuid = e['company'] if e['company'] is not None else ''
         project_uuid = e['project'] if e['project'] is not None else ''

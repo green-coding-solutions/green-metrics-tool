@@ -1415,8 +1415,8 @@ class EnergyData(BaseModel):
     machine: UUID
     project: Optional[str] = None
     tags: Optional[str] = None
-    time_stamp: str
-    energy_value: str
+    time_stamp: str # is expected to be in microseconds
+    energy_value: str # is expected to be in mJ
 
     @field_validator('company', 'project', 'tags')
     @classmethod
