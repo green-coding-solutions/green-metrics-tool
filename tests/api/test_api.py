@@ -4,7 +4,6 @@ import time
 from uuid import UUID
 import pytest
 import requests
-import psycopg
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -35,7 +34,7 @@ def get_job_id(run_name):
                 jobs
             WHERE name = %s
             """
-    data = DB().fetch_one(query, (run_name, ), row_factory=psycopg.rows.dict_row)
+    data = DB().fetch_one(query, (run_name, ), fetch_mode='dict')
     if data is None or data == []:
         return None
     return data['id']
@@ -68,7 +67,7 @@ def test_ci_measurement_add():
     query = """
             SELECT * FROM ci_measurements WHERE run_id = %s
             """
-    data = DB().fetch_one(query, (measurement.run_id, ), row_factory=psycopg.rows.dict_row)
+    data = DB().fetch_one(query, (measurement.run_id, ), fetch_mode='dict')
     assert data is not None
     for key in measurement.model_dump():
         if key == 'workflow':
@@ -105,7 +104,7 @@ def test_ci_measurement_add_co2():
     query = """
             SELECT * FROM ci_measurements WHERE run_id = %s
             """
-    data = DB().fetch_one(query, (measurement.run_id, ), row_factory=psycopg.rows.dict_row)
+    data = DB().fetch_one(query, (measurement.run_id, ), fetch_mode='dict')
     ndata = {k: v for k, v in data.items() if k not in ['id', 'created_at', 'updated_at', 'workflow_id', 'workflow_name']}
     assert CI_Measurement(workflow_name='testWorkflowName', workflow='testWorkflow', **ndata).model_dump() == measurement.model_dump()
 
@@ -143,7 +142,7 @@ def test_carbonDB_measurement_add():
     query = """
             SELECT * FROM carbondb_energy_data
             """
-    data = DB().fetch_one(query, row_factory=psycopg.rows.dict_row)
+    data = DB().fetch_one(query, fetch_mode='dict')
     assert data is not None or data != []
     assert exp_data == {key: data[key] for key in exp_data if key in data}, "The specified keys do not have the same values in both dictionaries."
 
@@ -178,7 +177,7 @@ def test_hogDB_add():
 
     queries = ['SELECT * FROM hog_tasks', 'SELECT * FROM hog_coalitions', 'SELECT * FROM hog_measurements']
     for q in queries:
-        data = DB().fetch_one(q, row_factory=psycopg.rows.dict_row)
+        data = DB().fetch_one(q, fetch_mode='dict')
         assert data is not None or data != []
 
 
@@ -210,6 +209,6 @@ def test_carbonDB_add():
     response = requests.post(f"{API_URL}/v1/carbondb/add", json=[energydata], timeout=15)
     assert response.status_code == 204
 
-    data = DB().fetch_one('SELECT * FROM carbondb_energy_data', row_factory=psycopg.rows.dict_row)
+    data = DB().fetch_one('SELECT * FROM carbondb_energy_data', fetch_mode='dict')
     assert data is not None or data != []
     assert exp_data == {key: data[key] for key in exp_data if key in data}, "The specified keys do not have the same values in both dictionaries."
