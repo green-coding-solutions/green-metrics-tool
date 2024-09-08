@@ -1,9 +1,3 @@
-ALTER TABLE "jobs" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "timeline_projects" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "runs" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "ci_measurements" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "hog_measurements" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
-
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name text,
@@ -12,6 +6,13 @@ CREATE TABLE users (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
+
+ALTER TABLE "jobs" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "timeline_projects" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "runs" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "ci_measurements" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "hog_measurements" ADD COLUMN "user_id" integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+
 
 CREATE UNIQUE INDEX name_unique ON users(name text_ops);
 CREATE UNIQUE INDEX token_unique ON users(token text_ops);
