@@ -2,15 +2,14 @@ import json
 import os
 import time
 from uuid import UUID
-import pytest
 import requests
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+from lib.user import User
 from lib.db import DB
 from lib import utils
 from lib.global_config import GlobalConfig
-from tools.machine import Machine
 from tests import test_functions as Tests
 
 config = GlobalConfig(config_name='test-config.yml').config
@@ -20,11 +19,6 @@ from api.main import Software
 from api.main import CI_Measurement
 
 import hog_data
-
-@pytest.fixture(autouse=True, name="register_machine")
-def register_machine_fixture():
-    machine = Machine(machine_id=1, description='test-machine')
-    machine.register()
 
 def get_job_id(run_name):
     query = """
@@ -212,3 +206,26 @@ def test_carbonDB_add():
     data = DB().fetch_one('SELECT * FROM carbondb_energy_data', fetch_mode='dict')
     assert data is not None or data != []
     assert exp_data == {key: data[key] for key in exp_data if key in data}, "The specified keys do not have the same values in both dictionaries."
+
+def test_route_forbidden():
+    user = User(1)
+    user._capabilities['api']['routes'] = []
+    user.update()
+
+    response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15)
+    assert response.status_code == 401
+    assert response.text == '{"success":false,"err":"Route not allowed"}'
+
+def test_can_read_authentication_data():
+    response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15)
+    assert response.status_code == 200
+    assert response.text == '{"success":true,"data":{"_id":1,"_name":"DEFAULT","_capabilities":{"api":{"quotas":{},"routes":["/v1/carbondb/add","/v1/ci/measurement/add","/v1/software/add","/v1/hog/add","/v1/authentication/data"]},"data":{"runs":{"retention":2678400},"hog_tasks":{"retention":2678400},"measurements":{"retention":2678400},"hog_coalitions":{"retention":2678400},"ci_measurements":{"retention":2678400},"hog_measurements":{"retention":2678400}},"jobs":{"schedule_modes":["one-off","daily","weekly","commit","variance"]},"machines":[1],"measurement":{"quotas":{},"settings":{"total-duration":86400,"flow-process-duration":86400}},"optimizations":["container_memory_utilization","container_cpu_utilization","message_optimization","container_build_time","container_boot_time","container_image_size"]}}}'
+
+def test_api_quota_exhausted():
+    user = User(1)
+    user._capabilities['api']['quotas'] = {'/v1/authentication/data': 0}
+    user.update()
+
+    response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15)
+    assert response.status_code == 401
+    assert response.text == '{"success":false,"err":"Quota exceeded"}'

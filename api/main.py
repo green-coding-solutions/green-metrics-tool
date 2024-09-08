@@ -143,14 +143,13 @@ def authenticate(authentication_token=Depends(header_scheme), request: Request =
     try:
         user = User.authenticate(SecureVariable(authentication_token)) # Note that if no token is supplied this will authenticate as the DEFAULT user, which in FOSS systems has full capabilities
 
-        if parsed_url.path not in user._capabilities['api']['routes']:
+        if not user.can_use_route(parsed_url.path):
             raise HTTPException(status_code=401, detail="Route not allowed") from UserAuthenticationError
 
-        if parsed_url.path in user._capabilities['api']['quotas']:
-            if user._capabilities['api']['quotas'][parsed_url.path] <= 0:
-                raise HTTPException(status_code=401, detail="Quota exceeded") from UserAuthenticationError
-            user._capabilities['api']['quotas'][parsed_url.path] -= 1
-            user.update()
+        if not user.has_api_quota(parsed_url.path):
+            raise HTTPException(status_code=401, detail="Quota exceeded") from UserAuthenticationError
+
+        user.deduct_api_quota(parsed_url.path, 1)
 
     except UserAuthenticationError:
         raise HTTPException(status_code=401, detail="Invalid token") from UserAuthenticationError

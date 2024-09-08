@@ -9,23 +9,18 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 from lib.db import DB
 from lib import utils
 from lib.global_config import GlobalConfig
-from tools.machine import Machine
 from lib.job.base import Job
+from lib.user import User
 from tests import test_functions as Tests
 
 GlobalConfig().override_config(config_name='test-config.yml')
 config = GlobalConfig().config
 
-@pytest.fixture(autouse=True, name="register_machine")
-def register_machine_fixture():
-    machine = Machine(machine_id=1, description='test-machine')
-    machine.register()
-
-
 # This should be done once per module
 @pytest.fixture(autouse=True, scope="module", name="build_image")
 def build_image_fixture():
-    subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/../data/stress-application/compose.yml", 'build'], check=True)
+    Tests.build_image_fixture()
+
 
 def get_job(job_id):
     query = """
@@ -76,7 +71,7 @@ def test_insert_job():
     job = Job.get_job('run')
     assert job._state == 'WAITING'
 
-def test_simple_run_job():
+def test_simple_run_job_no_quota():
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
@@ -99,7 +94,7 @@ def test_simple_run_job():
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
 
-def test_simple_cluster_run():
+def test_simple_run_job_quota_gets_deducted():
     name = utils.randomword(12)
     url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
@@ -108,19 +103,24 @@ def test_simple_cluster_run():
 
     Job.insert('run', user_id=1, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
 
+    user = User(1)
+    user._capabilities['measurement']['quotas'] = {'1': 10_000 * 60} # typical quota is 10.000 minutes
+    user.update()
+
     ps = subprocess.run(
-            ['python3', '../tools/client.py', '--testing', '--config-override', 'test-config.yml'],
+            ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
             encoding='UTF-8'
         )
-    assert ps.stderr == '', Tests.assertion_info('No Error', ps.stderr)
-    assert 'Successfully ended testing run of client.py' in ps.stdout,\
-        Tests.assertion_info('Successfully ended testing run of client.py', ps.stdout)
 
+    assert ps.stderr == '', Tests.assertion_info('No Error', ps.stderr)
+    assert 'Successfully processed jobs queue item.' in ps.stdout,\
+        Tests.assertion_info('Successfully processed jobs queue item.', ps.stdout)
     assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout,\
         Tests.assertion_info('MEASUREMENT SUCCESSFULLY COMPLETED', ps.stdout)
+    assert User(1)._capabilities['measurement']['quotas']['1'] < 10_000 * 60
 
 def test_simple_run_job_missing_filename_branch():
     name = utils.randomword(12)
@@ -140,6 +140,53 @@ def test_simple_run_job_wrong_machine_id():
 
     with pytest.raises(psycopg.errors.ForeignKeyViolation):
         Job.insert('run', user_id=1, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+
+def test_measurement_quota_exhausted():
+    name = utils.randomword(12)
+    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    filename = 'usage_scenario.yml'
+    branch = 'main'
+    machine_id = 1
+
+    Job.insert('run', user_id=1, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+
+    user = User(1)
+    user._capabilities['measurement']['quotas'] = {'1': 2678400}
+    user.update()
+    user.deduct_measurement_quota(machine_id=machine_id, amount=2678400)
+
+    ps = subprocess.run(
+        ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert 'Your user does not have enough measurement quota to run a job on the selected machine. Machine ID: 1' in ps.stderr, Tests.assertion_info('Quota exhaused', ps.stderr)
+
+def test_machine_not_allowed():
+    name = utils.randomword(12)
+    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    filename = 'usage_scenario.yml'
+    branch = 'main'
+    machine_id = 1
+    Job.insert('run', user_id=1, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+
+    user = User(1)
+    user._capabilities['machines'] = []
+    user.update()
+
+    ps = subprocess.run(
+        ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert 'Your user does not have the permissions to use the selected machine. Machine ID: 1' in ps.stderr, Tests.assertion_info('Machine forbidden', ps.stderr)
+
 
 
 #pylint: disable=unused-variable # for the time being, until I get the mocking to work

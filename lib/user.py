@@ -39,18 +39,31 @@ class User():
     def can_use_route(self, route: str):
         return route in self._capabilities['api']['routes']
 
-    def measurement_quota(self):
-        if 'quota' in self._capabilities['measurement']:
-            return self._capabilities['measurement']['quota']
-        return None # None means infinite amounts
-
-    def api_quota(self, route: str):
-        if route in self._capabilities['measurement']['quota']:
-            return self._capabilities['measurement']['quota'][route]
-        return None # None means infinite amounts
-
     def can_schedule_job(self, schedule_mode: str):
         return schedule_mode in self._capabilities['jobs']['schedule_modes']
+
+
+    def has_api_quota(self, route: str):
+        if route in self._capabilities['api']['quotas']:
+            return self._capabilities['api']['quotas'][route] > 0
+        return True # None means infinite amounts
+
+    def deduct_api_quota(self, route: str, amount: int):
+        if route in self._capabilities['api']['quotas']:
+            self._capabilities['api']['quotas'][route] -= amount
+            self.update()
+
+    def has_measurement_quota(self, machine_id: int):
+        machine_id = str(machine_id) # json does not support integer keys
+        if machine_id in self._capabilities['measurement']['quotas']:
+            return self._capabilities['measurement']['quotas'][machine_id] > 0
+        return True # None means infinite amounts
+
+    def deduct_measurement_quota(self, machine_id: int, amount: int):
+        machine_id = str(machine_id)  # json does not support integer keys
+        if machine_id in self._capabilities['measurement']['quotas']:
+            self._capabilities['measurement']['quotas'][machine_id] -= amount
+            self.update()
 
     @classmethod
     def authenticate(cls, token: SecureVariable | None, silent=False):
@@ -101,7 +114,7 @@ class User():
                     "variance",
                 ],
             },
-            "measurements": {
+            "measurement": {
                 "settings": {
                     "flow-process-duration": 3600,
                     "total-duration": 3600,

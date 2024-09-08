@@ -1,7 +1,6 @@
 import pytest
-import subprocess
 
-from lib.db import DB
+from tests import test_functions as Tests
 
 ## VERY IMPORTANT to override the config file here
 ## otherwise it will automatically connect to non-test DB and delete all your real data
@@ -13,18 +12,14 @@ def pytest_collection_modifyitems(items):
         if item.fspath.basename == 'test_functions.py':
             item.add_marker(pytest.mark.skip(reason='Skipping this file'))
 
-# should we hardcode test-db here?
+
+# Note: This fixture runs always
+# Pytest collects all fixtures before running any tests
+# no matter which order they are loaded in
 @pytest.fixture(autouse=True)
 def cleanup_after_test():
     yield
-    DB().query('DROP schema "public" CASCADE')
-    subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', 'psql --port 9573 < ./docker-entrypoint-initdb.d/structure.sql'],
-        check=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
+    Tests.reset_db()
 
 
 ### If you wish to turn off the above auto-cleanup per test, include the following in your

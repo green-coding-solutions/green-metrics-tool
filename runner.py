@@ -92,6 +92,7 @@ class Runner:
         self._user_id = user_id
         self._measurement_flow_process_duration = measurement_flow_process_duration
         self._measurement_total_duration = measurement_total_duration
+        self._last_measurement_duration = 0
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
@@ -1380,6 +1381,8 @@ class Runner:
             SET start_measurement=%s, end_measurement=%s
             WHERE id = %s
             """, params=(self.__start_measurement, self.__end_measurement, self._run_id))
+        self._last_measurement_duration = self.__end_measurement - self.__start_measurement
+
 
     def set_run_failed(self):
         if not self._run_id:

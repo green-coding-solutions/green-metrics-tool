@@ -11,6 +11,7 @@ import pytest
 from lib.db import DB
 from lib import utils
 from lib.global_config import GlobalConfig
+from tests import test_functions as Tests
 from runner import Runner
 
 run_stderr = None
@@ -28,14 +29,7 @@ def cleanup_after_test():
 @pytest.fixture(autouse=True, scope='module')
 def cleanup_after_module():
     yield
-    DB().query('DROP schema "public" CASCADE')
-    subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', 'psql --port 9573 < ./docker-entrypoint-initdb.d/structure.sql'],
-        check=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
+    Tests.reset_db()
 
 # Runs once per file before any test(
 #pylint: disable=expression-not-assigned
