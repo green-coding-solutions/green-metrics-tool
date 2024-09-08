@@ -20,7 +20,7 @@ if __name__ == '__main__':
         print("This will remove ALL runs and measurement data from the DB. Continue? (y/N)")
         answer = sys.stdin.readline()
         if answer.strip().lower() == 'y':
-            DB().query('DELETE FROM runs')
+            DB().query('TRUNCATE runs CASCADE')
             print("Done")
     else:
         print("This will remove all runs that have not ended, which includes failed ones, but also possibly running, so be sure no measurement is currently active. Continue? (y/N)")
