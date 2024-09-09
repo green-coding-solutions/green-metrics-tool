@@ -4,6 +4,10 @@ set -euo pipefail
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
+if [[ $(uname) != "Linux" ]]; then
+  echo "Error: This script can only be run on Linux."
+  exit 1
+fi
 
 function print_message {
     echo ""
