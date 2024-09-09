@@ -4,6 +4,11 @@ set -euo pipefail
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
+if [[ $(uname) != "Darwin" ]]; then
+  echo "Error: This script can only be run on macOS."
+  exit 1
+fi
+
 function print_message {
     echo ""
     echo "$1"
