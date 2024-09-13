@@ -1072,9 +1072,6 @@ class Runner:
         phase_time = int(time.time_ns() / 1_000)
         self.__notes_helper.add_note({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
-        if phase in self.__phases:
-            raise RuntimeError(f"'{phase}' as phase name has already used. Please set unique name for phases.")
-
         self.__phases[phase] = {'start': phase_time, 'name': phase}
 
     def end_phase(self, phase):

@@ -784,6 +784,26 @@ def test_invalid_phase_name():
     assert "Phase name 'This phase is / not ok!' includes disallowed values. Allowed values are: [\\.\\s0-9a-zA-Z_\\(\\)-]+" in str(e.value), \
         Tests.assertion_info("Phase name 'This phase is / not ok!' includes disallowed values. Allowed values are: [\\.\\s0-9a-zA-Z_\\(\\)-]+", str(e.value))
 
+def test_invalid_phase_name_runtime():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_phase_name_runtime.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+        runner.run()
+    assert "Phase name '[RUNTIME]' includes disallowed values. Allowed values are: [\\.\\s0-9a-zA-Z_\\(\\)-]+" == str(e.value), \
+        Tests.assertion_info("Phase name 'This phase is / not ok!' includes disallowed values. Allowed values are: [\\.\\s0-9a-zA-Z_\\(\\)-]+", str(e.value))
+
+def test_duplicate_phase_name():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/duplicate_phase_name.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+        runner.run()
+    assert "The 'name' field in 'flow' must be unique. 'This phase is ok' was already used." == str(e.value), \
+        Tests.assertion_info("The 'name' field in 'flow' must be unique. 'This phase is ok' was already used.", str(e.value))
+
 
 def test_failed_pull_does_not_trigger_cli():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_image.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
