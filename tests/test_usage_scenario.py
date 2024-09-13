@@ -771,8 +771,18 @@ def test_duplicate_container_name():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
-    assert "Container name 'number-1' was already assigned. Please choose unique container names." in str(e.value), \
-        Tests.assertion_info("Container name 'number-1' was already assigned. Please choose unique container names.", str(e.value))
+    assert "Container name 'number-1' was already used. Please choose unique container names." in str(e.value), \
+        Tests.assertion_info("Container name 'number-1' was already used. Please choose unique container names.", str(e.value))
+
+def test_invalid_phase_name():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_phase_name.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+        runner.run()
+    assert "Phase name 'This phase is / not ok!' includes disallowed values. Allowed values are: [\\.\\s0-9a-zA-Z_\\(\\)-]+" in str(e.value), \
+        Tests.assertion_info("Phase name 'This phase is / not ok!' includes disallowed values. Allowed values are: [\\.\\s0-9a-zA-Z_\\(\\)-]+", str(e.value))
 
 
 def test_failed_pull_does_not_trigger_cli():

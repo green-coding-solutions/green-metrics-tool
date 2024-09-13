@@ -1121,7 +1121,7 @@ class Runner:
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
             try:
-                self.start_phase(flow['name'].replace('[', '').replace(']',''), transition=False)
+                self.start_phase(flow['name'], transition=False)
 
                 for cmd_obj in flow['commands']:
                     self.check_total_runtime_exceeded()
@@ -1200,7 +1200,7 @@ class Runner:
                     if self._debugger.active:
                         self._debugger.pause('Waiting to start next command in flow')
 
-                self.end_phase(flow['name'].replace('[', '').replace(']',''))
+                self.end_phase(flow['name'])
                 self.__ps_to_kill += ps_to_kill_tmp
                 self.__ps_to_read += ps_to_read_tmp # will otherwise be discarded, bc they confuse execption handling
                 self.check_process_returncodes()

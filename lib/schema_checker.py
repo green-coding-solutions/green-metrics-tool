@@ -32,6 +32,12 @@ class SchemaChecker():
         if bad_values:
             raise SchemaError(f"{value} includes disallowed values: {bad_values}")
 
+    def is_valid_phase_name(self, value):
+        pattern = r'[\.\s0-9a-zA-Z_\(\)-]+'
+        if not re.fullmatch(pattern, value):
+            raise SchemaError(f"Phase name '{value}' includes disallowed values. Allowed values are: {pattern.replace('\\\\', '\\')}")
+
+
     ## If we ever want smarter validation for ports, here's a list of examples that we need to support:
     # - 3000
     # - 3000-3005
@@ -120,7 +126,7 @@ class SchemaChecker():
             },
 
             "flow": [{
-                "name": str,
+                "name": Use(self.is_valid_phase_name),
                 "container": Use(self.contains_no_invalid_chars),
                 "commands": [{
                     "type":"console",
