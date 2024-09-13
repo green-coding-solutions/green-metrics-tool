@@ -151,14 +151,22 @@ class SchemaChecker():
         if 'networks' in usage_scenario:
             self.validate_networks_no_invalid_chars(usage_scenario['networks'])
 
-        for service_name in usage_scenario.get('services'):
-            service = usage_scenario['services'][service_name]
+        known_container_names = []
+        for service_name, service in usage_scenario.get('services').items():
+            if 'container_name' in service:
+                container_name = service['container_name']
+            else:
+                container_name = service_name
+
+            if container_name in known_container_names:
+                raise SchemaError(f"Container name '{container_name}' was already used. Please choose unique container names.")
+            known_container_names.append(container_name)
+
             if 'image' not in service and 'build' not in service:
                 raise SchemaError(f"The 'image' key for service '{service_name}' is required when 'build' key is not present.")
             if 'cmd' in service:
                 raise SchemaError(f"The 'cmd' key for service '{service_name}' is not supported anymore. Please migrate to 'command'")
 
-        # Ensure that flow names are unique
         flow_names = [flow['name'] for flow in usage_scenario['flow']]
         if len(flow_names) != len(set(flow_names)):
             raise SchemaError("The 'name' field in 'flow' must be unique.")

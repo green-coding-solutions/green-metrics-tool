@@ -702,18 +702,12 @@ class Runner:
         # Check if there are service dependencies defined with 'depends_on'.
         # If so, change the order of the services accordingly.
         services_ordered = self.order_services(services)
-        known_container_names = []
         for service_name, service in services_ordered.items():
 
             if 'container_name' in service:
                 container_name = service['container_name']
             else:
                 container_name = service_name
-
-            if container_name in known_container_names:
-                raise RuntimeError(f"Container name '{container_name}' was already assigned. Please choose unique container names.")
-
-            known_container_names.append(container_name)
 
             print(TerminalColors.HEADER, '\nSetting up container for service:', service_name, TerminalColors.ENDC)
             print('Container name:', container_name)
