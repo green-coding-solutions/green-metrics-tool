@@ -18,6 +18,7 @@ from lib import utils
 from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
 from runner import Runner
+from lib.schema_checker import SchemaError
 
 GlobalConfig().override_config(config_name='test-config.yml')
 config = GlobalConfig().config
@@ -67,7 +68,7 @@ def test_env_variable_too_long():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert 'TEST_TOO_LONG' in str(e.value), Tests.assertion_info("Env var value is too long", str(e.value))
+    assert "- value of environment var 'TEST_TOO_LONG' is too long 1025 (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe" == str(e.value), Tests.assertion_info("Env var value is too long", str(e.value))
 
 # Test skip_unsafe=true
 def test_env_variable_skip_unsafe_true():
@@ -146,7 +147,7 @@ def test_port_bindings_no_skip_or_allow():
             assert docker_port_err == expected_container_error, \
                 Tests.assertion_info(f"Container Error: {expected_container_error}", docker_port_err)
     expected_error = 'Found "ports" but neither --skip-unsafe nor --allow-unsafe is set'
-    assert expected_error in str(e.value), \
+    assert expected_error == str(e.value), \
         Tests.assertion_info(f"Exception: {expected_error}", str(e.value))
 
 def test_compose_include_not_same_dir():
@@ -335,8 +336,8 @@ def test_depends_on_error_not_running():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert "'test-container-2' is not running" in str(e.value) , \
-        Tests.assertion_info('test-container-2 is not running', str(e.value))
+    assert "State check of dependent services of 'test-container-1' failed! Container 'test-container-2' is not running but 'exited' after waiting for 10 sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container." == str(e.value) , \
+        Tests.assertion_info("State check of dependent services of 'test-container-1' failed! Container 'test-container-2' is not running but 'exited' after waiting for 10 sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.", str(e.value))
 
 def test_depends_on_error_cyclic_dependency():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_cycle.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
@@ -345,8 +346,8 @@ def test_depends_on_error_cyclic_dependency():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert "Cycle found in depends_on definition with service 'test-container-1'" in str(e.value) , \
-        Tests.assertion_info('cycle in depends_on with test-container-1', str(e.value))
+    assert "Cycle found in depends_on definition with service 'test-container-1'!" == str(e.value) , \
+        Tests.assertion_info("Cycle found in depends_on definition with service 'test-container-1'!", str(e.value))
 
 def test_depends_on_error_unsupported_condition():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_unsupported_condition.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
@@ -355,7 +356,7 @@ def test_depends_on_error_unsupported_condition():
             context.run_until('setup_services')
 
     message = 'Unsupported condition in healthcheck for service \'test-container-1\': service_completed_successfully'
-    assert message in str(e.value) , \
+    assert message == str(e.value) , \
         Tests.assertion_info(message, str(e.value))
 
 def test_depends_on_long_form():
@@ -545,9 +546,9 @@ def test_uri_local_dir_missing():
         runner.run()
 
 
-    expected_exception = f"No such file or directory: '{os.path.realpath('/tmp/missing')}'"
+    expected_exception = f"[Errno 2] No such file or directory: '{os.path.realpath('/tmp/missing')}'"
 
-    assert expected_exception in str(e.value),\
+    assert expected_exception == str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
     # basic positive case
@@ -612,8 +613,8 @@ def test_uri_github_repo_branch_missing():
     runner = Runner(uri='https://github.com/green-coding-berlin/pytest-dummy-repo', uri_type='URL', branch='missing-branch', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with pytest.raises(subprocess.CalledProcessError) as e:
         runner.run()
-    expected_exception = 'returned non-zero exit status 128'
-    assert expected_exception in str(e.value),\
+    expected_exception = "Command '['git', 'clone', '--depth', '1', '-b', 'missing-branch', '--single-branch', '--recurse-submodules', '--shallow-submodules', 'https://github.com/green-coding-berlin/pytest-dummy-repo', '/private/tmp/green-metrics-tool/repo']' returned non-zero exit status 128."
+    assert expected_exception == str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 # #   --name NAME
@@ -660,9 +661,16 @@ def test_different_filename_missing():
 
     with pytest.raises(FileNotFoundError) as e:
         runner.run()
-    expected_exception = 'No such file or directory:'
+
+    # we cannot use == here as file paths will differ throughout systems
+    expected_exception = "[Errno 2] No such file or directory"
     assert expected_exception in str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
+
+    expected_exception_2 = "I_do_not_exist.yml"
+    assert expected_exception_2 in str(e.value),\
+        Tests.assertion_info(f"Exception: {expected_exception_2}", str(e.value))
+
 
 #   Check that default is to leave the files
 def test_no_file_cleanup():
@@ -741,8 +749,8 @@ def test_read_detached_process_failure():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
-    assert '\'g4jiorejf\']\' had bad returncode: 126' in str(e.value), \
-        Tests.assertion_info('\'g4jiorejf\']\' had bad returncode: 126', str(e.value))
+    assert "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 126. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further." == str(e.value), \
+        Tests.assertion_info("Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 126. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further.", str(e.value))
 
 def test_invalid_container_name():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
@@ -751,8 +759,10 @@ def test_invalid_container_name():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
-    assert 'Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed' in str(e.value), \
-        Tests.assertion_info('Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed', str(e.value))
+
+    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.\nSee 'docker run --help'.\n\nStdout: "
+    assert expected_exception == str(e.value), \
+        Tests.assertion_info(expected_exception, str(e.value))
 
 def test_invalid_container_name_2():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name_2.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
@@ -761,8 +771,10 @@ def test_invalid_container_name_2():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
-    assert 'Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed' in str(e.value), \
-        Tests.assertion_info('Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed', str(e.value))
+
+    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.\nSee 'docker run --help'.\n\nStdout: "
+    assert expected_exception == str(e.value), \
+        Tests.assertion_info(expected_exception, str(e.value))
 
 def test_duplicate_container_name():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/duplicate_container_name.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
@@ -771,7 +783,7 @@ def test_duplicate_container_name():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
-    assert "Container name 'number-1' was already used. Please choose unique container names." in str(e.value), \
+    assert "Container name 'number-1' was already used. Please choose unique container names." == str(e.value), \
         Tests.assertion_info("Container name 'number-1' was already used. Please choose unique container names.", str(e.value))
 
 def test_invalid_phase_name():
@@ -789,9 +801,10 @@ def test_invalid_phase_name_runtime():
 
     out = io.StringIO()
     err = io.StringIO()
-    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(SchemaError) as e:
         runner.run()
-    assert "Phase name '[RUNTIME]' includes disallowed values. Allowed values are: [\\.\\s0-9a-zA-Z_\\(\\)-]+" == str(e.value), \
+
+    assert "Phase name '[RUNTIME]' includes disallowed values. Allowed values are: [\\.\\s0-9a-zA-Z_\\(\\)-]+" in str(e.value), \
         Tests.assertion_info("Phase name 'This phase is / not ok!' includes disallowed values. Allowed values are: [\\.\\s0-9a-zA-Z_\\(\\)-]+", str(e.value))
 
 def test_duplicate_phase_name():
@@ -813,7 +826,7 @@ def test_failed_pull_does_not_trigger_cli():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
 
-    assert 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' in str(e.value), \
+    assert 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' == str(e.value), \
         Tests.assertion_info('Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt', str(e.value))
 
 def test_failed_pull_does_not_trigger_cli_with_build_on():
@@ -824,7 +837,7 @@ def test_failed_pull_does_not_trigger_cli_with_build_on():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
 
-    assert 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' in str(e.value), \
+    assert 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' == str(e.value), \
         Tests.assertion_info('Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt', str(e.value))
 
 def test_non_git_root_supplied():
@@ -835,7 +848,7 @@ def test_non_git_root_supplied():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
 
-    assert 'Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename' in str(e.value), \
+    assert 'Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename' == str(e.value), \
         Tests.assertion_info('Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename', str(e.value))
 
 
