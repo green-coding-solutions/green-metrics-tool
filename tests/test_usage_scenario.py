@@ -757,7 +757,7 @@ def test_invalid_container_name():
 
     out = io.StringIO()
     err = io.StringIO()
-    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(OSError) as e:
         runner.run()
 
     expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.\nSee 'docker run --help'.\n\nStdout: "
@@ -769,7 +769,7 @@ def test_invalid_container_name_2():
 
     out = io.StringIO()
     err = io.StringIO()
-    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(OSError) as e:
         runner.run()
 
     expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.\nSee 'docker run --help'.\n\nStdout: "
@@ -781,20 +781,52 @@ def test_duplicate_container_name():
 
     out = io.StringIO()
     err = io.StringIO()
-    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(SchemaError) as e:
         runner.run()
     assert "Container name 'number-1' was already used. Please choose unique container names." == str(e.value), \
         Tests.assertion_info("Container name 'number-1' was already used. Please choose unique container names.", str(e.value))
+
+def test_empty_container_name():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/empty_container_name.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(SchemaError) as e:
+        runner.run()
+    assert "Key 'container_name' error:\nNone should be instance of 'str'" == str(e.value), \
+        Tests.assertion_info("Key 'container_name' error:\nNone should be instance of 'str'", str(e.value))
+
+
+def test_none_container_name():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/none_container_name.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(SchemaError) as e:
+        runner.run()
+    assert "Key 'container_name' error:\nNone should be instance of 'str'" == str(e.value), \
+        Tests.assertion_info("Key 'container_name' error:\nNone should be instance of 'str'", str(e.value))
+
+def test_empty_phase_name():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/empty_phase_name.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(SchemaError) as e:
+        runner.run()
+    assert "Key 'name' error:\nValue cannot be empty" == str(e.value), \
+        Tests.assertion_info("Key 'name' error:\nValue cannot be empty", str(e.value))
+
 
 def test_invalid_phase_name():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_phase_name.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
 
     out = io.StringIO()
     err = io.StringIO()
-    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(SchemaError) as e:
         runner.run()
-    assert "Phase name 'This phase is / not ok!' includes disallowed values. Allowed values are: [\\.\\s0-9a-zA-Z_\\(\\)-]+" in str(e.value), \
-        Tests.assertion_info("Phase name 'This phase is / not ok!' includes disallowed values. Allowed values are: [\\.\\s0-9a-zA-Z_\\(\\)-]+", str(e.value))
+    assert "Key 'name' error:\n'This phase is / not ok!' does not match '^[\\\\.\\\\s0-9a-zA-Z_\\\\(\\\\)-]+$'" == str(e.value), \
+        Tests.assertion_info("Key 'name' error:\n'This phase is / not ok!' does not match '^[\\\\.\\\\s0-9a-zA-Z_\\\\(\\\\)-]+$'", str(e.value))
 
 def test_invalid_phase_name_runtime():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_phase_name_runtime.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
@@ -804,8 +836,8 @@ def test_invalid_phase_name_runtime():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(SchemaError) as e:
         runner.run()
 
-    assert "Phase name '[RUNTIME]' includes disallowed values. Allowed values are: [\\.\\s0-9a-zA-Z_\\(\\)-]+" in str(e.value), \
-        Tests.assertion_info("Phase name 'This phase is / not ok!' includes disallowed values. Allowed values are: [\\.\\s0-9a-zA-Z_\\(\\)-]+", str(e.value))
+    assert "Key 'name' error:\n'[RUNTIME]' does not match '^[\\\\.\\\\s0-9a-zA-Z_\\\\(\\\\)-]+$'" == str(e.value), \
+        Tests.assertion_info("Key 'name' error:\n'[RUNTIME]' does not match '^[\\\\.\\\\s0-9a-zA-Z_\\\\(\\\\)-]+$'", str(e.value))
 
 def test_duplicate_phase_name():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/duplicate_phase_name.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
