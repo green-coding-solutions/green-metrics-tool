@@ -1290,8 +1290,16 @@ async def post_ci_measurement_add(
             'tags': f"{measurement.label},{measurement.repo},{measurement.branch},{measurement.workflow}"
         }
 
-        # If there is an error the function will raise an Error
-        carbondb_add(client_ip, [energydata], user._id)
+        try:
+            carbondb_add(client_ip, [energydata], user._id)
+        #pylint: disable=broad-except
+        except Exception as exc:
+            error_helpers.log_error('CI Measurement was successfully added, but CarbonDB did failed', exception=exc)
+            return ORJSONResponse({
+                'success': False,
+                'err': f"CI Measurement was successfully added, but CarbonDB did respond with exception: {str(exc)}"},
+                status_code=207
+            )
 
     return ORJSONResponse({'success': True}, status_code=201)
 
