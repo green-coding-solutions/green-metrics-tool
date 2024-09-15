@@ -122,6 +122,10 @@ app.add_middleware(
 async def home():
     return RedirectResponse(url='/docs')
 
+# It is unclear why currently this route is so often accessed. We block it for now
+@app.get('/v1/hog/add')
+async def hog_block():
+    pass
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/notes/{run_id}')
