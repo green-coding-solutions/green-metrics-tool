@@ -54,3 +54,7 @@ Details: [Energy-ID project page](https://www.green-coding.io/projects/energy-id
 )
 
 
+## License and Copyright
+The Green Metrics Tool is available under open-source AGPL and commercial license agreements. If you determine you cannot meet the requirements of the AGPL, please contact [Green Coding Solutions](https://www.green-coding.io/projects/green-metrics-tool) for more information regarding a commercial license.
+
+
