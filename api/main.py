@@ -678,8 +678,7 @@ async def hog_add(measurements: List[HogMeasurement]):
         try:
             _ = Measurement(**measurement_data)
         except (ValidationError, RequestValidationError) as exc:
-            print('Caught Exception in Measurement()', exc.__class__.__name__, exc)
-            print('Hog parsing error. Missing expected, but non critical key', str(exc))
+            error_helpers.log_error('Caught Exception in Measurement(), but not critical', exception_class=exc.__class__.__name__, exception=exc)
             # Output is extremely verbose. Please only turn on if debugging manually
             # print(f"Errors are: {exc.errors()}")
 
