@@ -678,7 +678,7 @@ async def hog_add(measurements: List[HogMeasurement]):
         try:
             _ = Measurement(**measurement_data)
         except (ValidationError, RequestValidationError) as exc:
-            if len(exc.errors()) != 1 or exc.errors()['loc'] != ('disk',):
+            if len(exc.errors()) != 1 or exc.errors()[0]['loc'] != ('disk',):
                 error_helpers.log_error('Caught Exception in Measurement(), but not critical', exception_class=exc.__class__.__name__, exception=exc)
             # Output is extremely verbose. Please only turn on if debugging manually
             # print(f"Errors are: {exc.errors()}")
