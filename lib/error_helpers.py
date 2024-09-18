@@ -14,8 +14,8 @@ def format_error(*messages, **kwargs):
     err = '\n'.join(messages)
     err += '\n\n'
     err += '\n'.join([f"{key.capitalize()} ({value.__class__.__name__}): {value}" for key, value in kwargs.items()])
-    if 'run_id' in kwargs:
-        err += f"Run-ID Link: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={kwargs['run_id']}"
+    if 'run_id' in kwargs and kwargs['run_id']:
+        err += f"\nRun-ID Link: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={kwargs['run_id']}"
 
     error_string = f"""
 \n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n
