@@ -458,8 +458,10 @@ def get_phase_stats_object(phase_stats, case):
             key = filename # Case C_2 : SoftwareDeveloper Case
         elif case == 'Machine':
             key = machine_description # Case C_1 : DataCenter Case
-        else:
+        elif commit_hash:
             key = commit_hash # No comparison case / Case A: Blue Angel / Case B: DevOps Case
+        else:
+            key = 'not-set'
 
         if phase not in phase_stats_object['data']: phase_stats_object['data'][phase] = {}
 
