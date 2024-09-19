@@ -287,15 +287,15 @@ async def compare_in_repo(ids: str):
         case = determine_comparison_case(ids)
     except RuntimeError as err:
         raise RequestValidationError(str(err)) from err
-    try:
-        phase_stats = get_phase_stats(ids)
-    except RuntimeError:
-        return Response(status_code=204) # No-Content
-    try:
-        phase_stats_object = get_phase_stats_object(phase_stats, case)
-        phase_stats_object = add_phase_stats_statistics(phase_stats_object)
-        phase_stats_object['common_info'] = {}
 
+    if not (phase_stats := get_phase_stats(ids)):
+        return Response(status_code=204) # No-Content
+
+    phase_stats_object = get_phase_stats_object(phase_stats, case)
+    phase_stats_object = add_phase_stats_statistics(phase_stats_object)
+    phase_stats_object['common_info'] = {}
+
+    try:
         run_info = get_run_info(ids[0])
 
         machine_list = get_machine_list()
@@ -364,13 +364,11 @@ async def get_phase_stats_single(run_id: str):
     if artifact := get_artifact(ArtifactType.STATS, str(run_id)):
         return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
 
-    try:
-        phase_stats = get_phase_stats([run_id])
-        phase_stats_object = get_phase_stats_object(phase_stats, None)
-        phase_stats_object = add_phase_stats_statistics(phase_stats_object)
-
-    except RuntimeError:
+    if not (phase_stats := get_phase_stats([run_id])):
         return Response(status_code=204) # No-Content
+
+    phase_stats_object = get_phase_stats_object(phase_stats, None)
+    phase_stats_object = add_phase_stats_statistics(phase_stats_object)
 
     store_artifact(ArtifactType.STATS, str(run_id), orjson.dumps(phase_stats_object)) # pylint: disable=no-member
 

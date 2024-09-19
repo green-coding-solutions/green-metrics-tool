@@ -345,10 +345,7 @@ def get_phase_stats(ids):
                 branch ASC,
                 b.created_at ASC
             """
-    data = DB().fetch_all(query, (ids, ))
-    if data is None or data == []:
-        raise RuntimeError('Data is empty')
-    return data
+    return DB().fetch_all(query, (ids, ))
 
 # Would be interesting to know if in an application server like gunicor @cache
 # Will also work for subsequent requests ...?
