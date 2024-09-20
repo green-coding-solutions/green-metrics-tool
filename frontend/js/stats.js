@@ -249,10 +249,12 @@ const displayTimelineCharts = (metrics, notes) => {
         legend.push('Notes')
         let notes_labels = [];
         let inner_counter = 0;
-        notes.forEach(note => {
-            notes_labels.push({xAxis: note[3]/1000, label: {formatter: note[2], position: note_positions[inner_counter%2]}})
-            inner_counter++;
-        });
+        if (notes != null) {
+            notes.forEach(note => {
+                notes_labels.push({xAxis: note[3]/1000, label: {formatter: note[2], position: note_positions[inner_counter%2]}})
+                inner_counter++;
+            });
+        }
 
         series.push({
             name: "Notes",
@@ -441,7 +443,6 @@ async function getTimeSeries() {
 
     note_data = note_data?.data;
 
-    if (note_data == null) return;
     displayTimelineCharts(metrics, note_data);
 }
 

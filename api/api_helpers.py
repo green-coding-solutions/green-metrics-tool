@@ -345,10 +345,7 @@ def get_phase_stats(ids):
                 branch ASC,
                 b.created_at ASC
             """
-    data = DB().fetch_all(query, (ids, ))
-    if data is None or data == []:
-        raise RuntimeError('Data is empty')
-    return data
+    return DB().fetch_all(query, (ids, ))
 
 # Would be interesting to know if in an application server like gunicor @cache
 # Will also work for subsequent requests ...?
@@ -461,8 +458,10 @@ def get_phase_stats_object(phase_stats, case):
             key = filename # Case C_2 : SoftwareDeveloper Case
         elif case == 'Machine':
             key = machine_description # Case C_1 : DataCenter Case
-        else:
+        elif commit_hash:
             key = commit_hash # No comparison case / Case A: Blue Angel / Case B: DevOps Case
+        else:
+            key = 'not-set'
 
         if phase not in phase_stats_object['data']: phase_stats_object['data'][phase] = {}
 
