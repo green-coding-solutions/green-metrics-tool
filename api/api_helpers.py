@@ -327,7 +327,7 @@ def get_phase_stats(ids):
     query = """
             SELECT
                 a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.min_value, a.unit,
-                b.uri, c.description, b.filename, b.commit_hash, b.branch
+                b.uri, c.description, b.filename, b.commit_hash, b.branch, b.monitor_run
             FROM phase_stats as a
             LEFT JOIN runs as b on b.id = a.run_id
             LEFT JOIN machines as c on c.id = b.machine_id
@@ -445,12 +445,14 @@ def get_phase_stats_object(phase_stats, case):
     for phase_stat in phase_stats:
         [
             phase, metric_name, detail_name, value, metric_type, max_value, min_value, unit,
-            repo, machine_description, filename, commit_hash, branch
+            repo, machine_description, filename, commit_hash, branch, monitor_run
         ] = phase_stat # unpack
 
         phase = phase.split('_', maxsplit=1)[1] # remove the 001_ prepended stuff again, which is only for ordering
 
-        if case == 'Repository':
+        if monitor_run:
+            key = 'monitor'
+        elif case == 'Repository':
             key = repo # Case D : RequirementsEngineering Case
         elif case == 'Branch':
             key = branch # Case C_3 : SoftwareDeveloper Case
