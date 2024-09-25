@@ -21,8 +21,8 @@ typedef struct container_t { // struct is a specification and this static makes 
 static int user_id = -1;
 static unsigned int msleep_time=1000;
 
-static long int get_memory_cgroup(char* filename) {
-    long int memory = -1;
+static unsigned long long int get_memory_cgroup(char* filename) {
+    unsigned long long int memory = 0;
 
     FILE * fd = fopen(filename, "r");
     if ( fd == NULL) {
@@ -30,17 +30,20 @@ static long int get_memory_cgroup(char* filename) {
         exit(1);
     }
 
-    fscanf(fd, "%ld", &memory);
-    if(memory>0) {
-        fclose(fd);
-        return memory;
-    }
-    else {
-        fprintf(stderr, "Error - memory.current could not be read or was < 0.");
-        fclose(fd);
+    int match_result = fscanf(fd, "%llu", &memory);
+    if (match_result != 1) {
+        fprintf(stderr, "Error - Memory could not be matched in memory.current cgroup\n");
         exit(1);
     }
 
+    fclose(fd);
+
+    if (memory <= 0) {
+        fprintf(stderr, "Error - memory.current was <= 0. Value: %llu\n", memory);
+        exit(1);
+    }
+
+    return memory;
 }
 
 static void output_stats(container_t *containers, int length) {
@@ -50,7 +53,7 @@ static void output_stats(container_t *containers, int length) {
 
     gettimeofday(&now, NULL);
     for(i=0; i<length; i++) {
-        printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, get_memory_cgroup(containers[i].path), containers[i].id);
+        printf("%ld%06ld %llu %s\n", now.tv_sec, now.tv_usec, get_memory_cgroup(containers[i].path), containers[i].id);
     }
     usleep(msleep_time*1000);
 }

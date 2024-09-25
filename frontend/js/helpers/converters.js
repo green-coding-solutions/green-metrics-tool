@@ -34,6 +34,10 @@ const convertValue = (value, unit) => {
     case 'Bytes':
         return [(value / 1_000_000).toFixed(2), 'MB'];
         break;
+    case 'Bytes/s':
+        return [(value / 1_000_000).toFixed(2), 'MB/s'];
+        break;
+
     default:
         return [value, unit];        // no conversion in default calse
     }

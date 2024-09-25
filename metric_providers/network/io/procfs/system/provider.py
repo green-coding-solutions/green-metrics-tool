@@ -2,17 +2,16 @@ import os
 
 from metric_providers.base import BaseMetricProvider
 
-class NetworkIoCgroupContainerProvider(BaseMetricProvider):
-    def __init__(self, resolution, rootless=False, skip_check=False):
+class NetworkIoProcfsSystemProvider(BaseMetricProvider):
+    def __init__(self, resolution, skip_check=False):
         super().__init__(
-            metric_name='network_io_cgroup_container',
-            metrics={'time': int, 'received_bytes': int, 'transmitted_bytes': int, 'container_id': str},
+            metric_name='network_io_procfs_system',
+            metrics={'time': int, 'received_bytes': int, 'transmitted_bytes': int},
             resolution=resolution,
             unit='Bytes',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
-        self._rootless = rootless
 
     def read_metrics(self, run_id, containers=None):
         df = super().read_metrics(run_id, containers)
@@ -26,10 +25,6 @@ class NetworkIoCgroupContainerProvider(BaseMetricProvider):
         df['value'] = df['received_bytes_intervals'] + df['transmitted_bytes_intervals']
         df['value'] = df.value.astype(int)
 
-        df['detail_name'] = df.container_id
-        for container_id in containers:
-            df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]['name']
-
-        df = df.drop(columns=['received_bytes','transmitted_bytes', 'transmitted_bytes_intervals', 'received_bytes_intervals', 'container_id'])  # clean up
+        df = df.drop(columns=['received_bytes','transmitted_bytes', 'transmitted_bytes_intervals', 'received_bytes_intervals'])  # clean up
 
         return df

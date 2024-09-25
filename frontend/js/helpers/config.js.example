@@ -10,6 +10,24 @@ METRICS_URL = "__METRICS_URL__"
 METRIC_MAPPINGS = {
 
 
+    'disk_used_statvfs_system': {
+        'clean_name': 'Disk Usage',
+        'source': 'statvfs syscall',
+        'explanation': 'Disk used space via statvfs syscall',
+    },
+
+    'disk_io_procfs_system': {
+        'clean_name': 'Disk I/O',
+        'source': 'procfs',
+        'explanation': 'Disk I/O via procfs',
+    },
+
+    'disk_total_procfs_system': {
+        'clean_name': 'Disk Data',
+        'source': 'formula',
+        'explanation': 'Disk I/O Total accumulated via procfs',
+    },
+
     'psu_energy_cgroup_container': {
         'clean_name': 'Container Energy',
         'source': 'estimation',
@@ -221,16 +239,36 @@ METRIC_MAPPINGS = {
         'source': 'cgroup',
         'explanation': 'CPU Utilization per container',
     },
-    'memory_total_cgroup_container': {
+    'memory_used_cgroup_container': {
         'clean_name': 'Memory Usage',
         'source': 'cgroup',
         'explanation': 'Memory Usage per container',
     },
+
+    'memory_used_procfs_system': {
+        'clean_name': 'Memory Usage',
+        'source': 'procfs',
+        'explanation': 'Memory Usage for whole system via procfs',
+    },
+
     'network_io_cgroup_container': {
         'clean_name': 'Network I/O',
         'source': 'cgroup',
         'explanation': 'Network I/O. Details on https://docs.green-coding.io/docs/measuring/metric-providers/network-io-cgroup-container',
     },
+
+    'network_io_procfs_system': {
+        'clean_name': 'Network I/O',
+        'source': 'procfs',
+        'explanation': 'Network I/O for the whole system via procfs',
+    },
+
+    'network_total_procfs_system': {
+        'clean_name': 'Network Traffic',
+        'source': 'formula',
+        'explanation': 'Network total data traffic for the whole accumulated from procfs data',
+    },
+
     'gpu_energy_nvidia_smi_component': {
         'clean_name': 'GPU Energy',
         'source': 'NVIDA SMI',
