@@ -446,9 +446,9 @@ class Runner:
 
             machine_specs.update(machine_specs_root)
 
-
-        keys = ["measurement", "sci"]
-        measurement_config = {key: config.get(key, None) for key in keys}
+        measurement_config = {}
+        measurement_config['providers'] = utils.get_metric_providers(config)
+        measurement_config['sci'] = config.get('sci', None)
 
         # Insert auxilary info for the run. Not critical.
         DB().query("""
