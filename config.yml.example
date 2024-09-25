@@ -84,7 +84,7 @@ measurement:
     #--- CGroupV2 - Turn these on if you have CGroupsV2 working on your machine
       cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
         resolution: 99
-      memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider:
+      memory.used.cgroup.container.provider.MemoryUsedCgroupContainerProvider:
         resolution: 99
       network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
         resolution: 99
@@ -127,6 +127,13 @@ measurement:
 #        resolution: 99
 #      cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider:
 #        resolution: 99
+#      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
+#        resolution: 99
+#      network.io.procfs.system.provider.NetworkIoProcfsSystemProvider:
+#        resolution: 99
+#      disk.used.statvfs.system.provider.DiskUsedStatvfsSystemProvider:
+#        resolution: 99
+
     #--- Architecture - MacOS
     macos:
     #--- MacOS: On Mac you only need this provider. Please remove all others!
