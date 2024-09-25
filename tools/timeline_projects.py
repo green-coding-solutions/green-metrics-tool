@@ -6,7 +6,6 @@ faulthandler.enable()  # will catch segfaults and write to stderr
 
 import os
 import pprint
-from psycopg.rows import dict_row as psycopg_rows_dict_row
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -56,7 +55,7 @@ if __name__ == '__main__':
             LEFT JOIN machines as m on m.id = p.machine_id
             ORDER BY p.url ASC
         """
-        data = DB().fetch_all(query, row_factory=psycopg_rows_dict_row)
+        data = DB().fetch_all(query, fetch_mode='dict')
         pp = pprint.PrettyPrinter(indent=4)
         pp.pprint(data)
 
@@ -64,21 +63,29 @@ if __name__ == '__main__':
         query = """
             SELECT
                 id, name, url, branch, filename, machine_id, schedule_mode, last_scheduled,
-                DATE(last_scheduled) >= DATE(NOW()) as "scheduled_today"
+                DATE(last_scheduled) >= DATE(NOW()) as "scheduled_today",
+                DATE(last_scheduled) >= DATE(NOW() - INTERVAL '7 DAYS') as "scheduled_last_week"
             FROM timeline_projects
            """
         data = DB().fetch_all(query)
 
-        for [project_id, name, url, branch, filename, machine_id, schedule_mode, last_scheduled, scheduled_today] in data:
+        for [project_id, name, url, branch, filename, machine_id, schedule_mode, last_scheduled, scheduled_today, scheduled_last_week] in data:
             if not last_scheduled:
                 print('Project was not scheduled yet ', url, branch, filename, machine_id)
                 DB().query('UPDATE timeline_projects SET last_scheduled = NOW() WHERE id = %s', params=(project_id,))
                 Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
                 print('\tInserted ')
-            elif schedule_mode == 'time':
-                print('Project is on time schedule', url, branch, filename, machine_id)
+            elif schedule_mode == 'daily':
+                print('Project is on daily schedule', url, branch, filename, machine_id)
                 if scheduled_today is False:
                     print('\tProject was not scheduled today', scheduled_today)
+                    DB().query('UPDATE timeline_projects SET last_scheduled = NOW() WHERE id = %s', params=(project_id,))
+                    Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+                    print('\tInserted')
+            elif schedule_mode == 'weekly':
+                print('Project is on daily schedule', url, branch, filename, machine_id)
+                if scheduled_last_week is False:
+                    print('\tProject was not scheduled in last 7 days', scheduled_last_week)
                     DB().query('UPDATE timeline_projects SET last_scheduled = NOW() WHERE id = %s', params=(project_id,))
                     Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
                     print('\tInserted')

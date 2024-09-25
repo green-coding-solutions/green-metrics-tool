@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/playwright/python:v1.44.0-jammy
+FROM mcr.microsoft.com/playwright/python:v1.46.0-jammy
 
 # Install dependencies
 RUN apt-get update && apt-get install -y  curl  wget  gnupg  && rm -rf /var/lib/apt/lists/*

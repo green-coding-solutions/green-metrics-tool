@@ -9,7 +9,7 @@ from lib.global_config import GlobalConfig
 from lib.system_checks import ConfigurationCheckError
 from tests import test_functions as Tests
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
 GlobalConfig().override_config(config_name='test-config.yml')
 
@@ -39,8 +39,8 @@ def test_check_system(skip_system_checks, expectation):
         del GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.bar.machine.provider.SomeOtherProvider']
 
 def test_reporters_still_running():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False)
-    runner2 = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False)
+    runner2 = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False)
 
 
     with Tests.RunUntilManager(runner) as context:

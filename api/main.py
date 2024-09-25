@@ -109,14 +109,9 @@ async def catch_exceptions_middleware(request: Request, call_next):
 # Otherwise CORS will not be sent in response
 app.middleware('http')(catch_exceptions_middleware)
 
-origins = [
-    GlobalConfig().config['cluster']['metrics_url'],
-    GlobalConfig().config['cluster']['api_url'],
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=GlobalConfig().config['cluster']['cors_allowed_origins'],
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
@@ -222,7 +217,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/runs')
-async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None):
+async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None, uri_mode = 'none'):
 
     query = """
             SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement, r.failed
@@ -233,8 +228,12 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
     params = []
 
     if uri:
-        query = f"{query} AND r.uri LIKE %s  \n"
-        params.append(f"%{uri}%")
+        if uri_mode == 'exact':
+            query = f"{query} AND r.uri = %s  \n"
+            params.append(uri)
+        else:
+            query = f"{query} AND r.uri LIKE %s  \n"
+            params.append(f"%{uri}%")
 
     if branch:
         query = f"{query} AND r.branch LIKE %s  \n"
@@ -288,15 +287,15 @@ async def compare_in_repo(ids: str):
         case = determine_comparison_case(ids)
     except RuntimeError as err:
         raise RequestValidationError(str(err)) from err
-    try:
-        phase_stats = get_phase_stats(ids)
-    except RuntimeError:
-        return Response(status_code=204) # No-Content
-    try:
-        phase_stats_object = get_phase_stats_object(phase_stats, case)
-        phase_stats_object = add_phase_stats_statistics(phase_stats_object)
-        phase_stats_object['common_info'] = {}
 
+    if not (phase_stats := get_phase_stats(ids)):
+        return Response(status_code=204) # No-Content
+
+    phase_stats_object = get_phase_stats_object(phase_stats, case)
+    phase_stats_object = add_phase_stats_statistics(phase_stats_object)
+    phase_stats_object['common_info'] = {}
+
+    try:
         run_info = get_run_info(ids[0])
 
         machine_list = get_machine_list()
@@ -365,13 +364,11 @@ async def get_phase_stats_single(run_id: str):
     if artifact := get_artifact(ArtifactType.STATS, str(run_id)):
         return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
 
-    try:
-        phase_stats = get_phase_stats([run_id])
-        phase_stats_object = get_phase_stats_object(phase_stats, None)
-        phase_stats_object = add_phase_stats_statistics(phase_stats_object)
-
-    except RuntimeError:
+    if not (phase_stats := get_phase_stats([run_id])):
         return Response(status_code=204) # No-Content
+
+    phase_stats_object = get_phase_stats_object(phase_stats, None)
+    phase_stats_object = add_phase_stats_statistics(phase_stats_object)
 
     store_artifact(ArtifactType.STATS, str(run_id), orjson.dumps(phase_stats_object)) # pylint: disable=no-member
 
@@ -1061,7 +1058,7 @@ async def software_add(software: Software):
         raise RequestValidationError('Machine does not exist')
 
 
-    if software.schedule_mode not in ['one-off', 'time', 'commit', 'variance']:
+    if software.schedule_mode not in ['one-off', 'daily', 'weekly', 'commit', 'variance']:
         raise RequestValidationError(f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")
 
     # notify admin of new add
@@ -1069,7 +1066,7 @@ async def software_add(software: Software):
         Job.insert('email', name='New run added from Web Interface', message=str(software), email=notification_email)
 
 
-    if software.schedule_mode in ['time', 'commit']:
+    if software.schedule_mode in ['daily', 'weekly', 'commit']:
         TimelineProject.insert(software.name, software.url, software.branch, software.filename, software.machine_id, software.schedule_mode)
 
     # even for timeline projects we do at least one run
@@ -1369,8 +1366,8 @@ class EnergyData(BaseModel):
     machine: UUID
     project: Optional[str] = None
     tags: Optional[str] = None
-    time_stamp: str
-    energy_value: str
+    time_stamp: str # is expected to be in microseconds
+    energy_value: str # is expected to be in mJ
 
     @field_validator('company', 'project', 'tags')
     @classmethod

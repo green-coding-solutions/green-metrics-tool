@@ -12,9 +12,6 @@ from fastapi.responses import ORJSONResponse
 import numpy as np
 import requests
 import scipy.stats
-
-from psycopg.rows import dict_row as psycopg_rows_dict_row
-
 from pydantic import BaseModel
 
 faulthandler.enable()  # will catch segfaults and write to STDERR
@@ -155,8 +152,7 @@ def get_run_info(run_id):
             WHERE id = %s
             """
     params = (run_id,)
-    return DB().fetch_one(query, params=params, row_factory=psycopg_rows_dict_row)
-
+    return DB().fetch_one(query, params=params, fetch_mode='dict')
 
 def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, limit_365=False, sorting='run'):
 
@@ -349,10 +345,7 @@ def get_phase_stats(ids):
                 branch ASC,
                 b.created_at ASC
             """
-    data = DB().fetch_all(query, (ids, ))
-    if data is None or data == []:
-        raise RuntimeError('Data is empty')
-    return data
+    return DB().fetch_all(query, (ids, ))
 
 # Would be interesting to know if in an application server like gunicor @cache
 # Will also work for subsequent requests ...?
@@ -465,8 +458,10 @@ def get_phase_stats_object(phase_stats, case):
             key = filename # Case C_2 : SoftwareDeveloper Case
         elif case == 'Machine':
             key = machine_description # Case C_1 : DataCenter Case
-        else:
+        elif commit_hash:
             key = commit_hash # No comparison case / Case A: Blue Angel / Case B: DevOps Case
+        else:
+            key = 'not-set'
 
         if phase not in phase_stats_object['data']: phase_stats_object['data'][phase] = {}
 
@@ -749,8 +744,8 @@ def carbondb_add(client_ip, energydatas):
 
         fields_to_check = {
             'type': e['type'],
-            'energy_value': e['energy_value'],
-            'time_stamp': e['time_stamp'],
+            'energy_value': e['energy_value'], # is expected to be in J
+            'time_stamp': e['time_stamp'], # is expected to be in microseconds
         }
 
         for field_name, field_value in fields_to_check.items():
@@ -762,8 +757,8 @@ def carbondb_add(client_ip, energydatas):
             latitude, longitude = get_geo(e['ip'])
             carbon_intensity = get_carbon_intensity(latitude, longitude)
 
-        energy_kwh = float(e['energy_value']) * 2.77778e-7
-        co2_value = energy_kwh * carbon_intensity
+        energy_kwh = float(e['energy_value']) * 2.77778e-7 # kWh
+        co2_value = energy_kwh * carbon_intensity # results in g
 
         company_uuid = e['company'] if e['company'] is not None else ''
         project_uuid = e['project'] if e['project'] is not None else ''

@@ -152,6 +152,17 @@ class SchemaChecker():
             if 'cmd' in service:
                 raise SchemaError(f"The 'cmd' key for service '{service_name}' is not supported anymore. Please migrate to 'command'")
 
+        # Ensure that flow names are unique
+        flow_names = [flow['name'] for flow in usage_scenario['flow']]
+        if len(flow_names) != len(set(flow_names)):
+            raise SchemaError("The 'name' field in 'flow' must be unique.")
+
+        for flow in usage_scenario['flow']:
+            for command in flow['commands']:
+                if  'read-sci-stdout' in command and 'log-stdout' not in command:
+                    raise SchemaError(f"You have specified `read-sci-stdout` in flow {flow['name']} but not set `log-stdout` to True.")
+
+
         usage_scenario_schema.validate(usage_scenario)
 
 

@@ -7,7 +7,7 @@ import os
 import re
 import subprocess
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
 from contextlib import redirect_stdout, redirect_stderr
 import pytest
@@ -49,7 +49,7 @@ def get_env_vars():
 # Test allowed characters
 def test_env_variable_allowed_characters():
 
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/env_vars_stress_allowed.yml', skip_unsafe=False, skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/env_vars_stress_allowed.yml', skip_unsafe=False, skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
 
@@ -62,7 +62,7 @@ def test_env_variable_allowed_characters():
 
 # Test too long values
 def test_env_variable_too_long():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/env_vars_stress_forbidden.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/env_vars_stress_forbidden.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
@@ -71,7 +71,7 @@ def test_env_variable_too_long():
 
 # Test skip_unsafe=true
 def test_env_variable_skip_unsafe_true():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/env_vars_stress_forbidden.yml', skip_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/env_vars_stress_forbidden.yml', skip_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -83,7 +83,7 @@ def test_env_variable_skip_unsafe_true():
 
 # Test allow_unsafe=true
 def test_env_variable_allow_unsafe_true():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/env_vars_stress_forbidden.yml', allow_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/env_vars_stress_forbidden.yml', allow_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         env_var_output = get_env_vars()
@@ -108,7 +108,7 @@ def get_port_bindings():
     return port, err
 
 def test_port_bindings_allow_unsafe_true():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/port_bindings_stress.yml', allow_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/port_bindings_stress.yml', allow_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -119,7 +119,7 @@ def test_port_bindings_allow_unsafe_true():
 def test_port_bindings_skip_unsafe_true():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/port_bindings_stress.yml', skip_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/port_bindings_stress.yml', skip_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     # need to catch exception here as otherwise the subprocess returning an error will
     # fail the test
@@ -136,7 +136,7 @@ def test_port_bindings_skip_unsafe_true():
         Tests.assertion_info(f"Warning: {expected_warning}", 'no/different warning')
 
 def test_port_bindings_no_skip_or_allow():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/port_bindings_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/port_bindings_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with pytest.raises(Exception) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -150,20 +150,20 @@ def test_port_bindings_no_skip_or_allow():
         Tests.assertion_info(f"Exception: {expected_error}", str(e.value))
 
 def test_compose_include_not_same_dir():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/parentdir_compose_include/subdir/usage_scenario_fail.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/parentdir_compose_include/subdir/usage_scenario_fail.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False)
 
     out = io.StringIO()
     err = io.StringIO()
 
 
-    with redirect_stdout(out), redirect_stderr(err), pytest.raises(RuntimeError) as e:
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(ValueError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
     assert str(e.value).startswith('Included compose file "../compose.yml" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore') , \
         Tests.assertion_info('Root directory escape', str(e.value))
 
 def test_context_include():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/subdir_parent_context/subdir/usage_scenario_ok.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/subdir_parent_context/subdir/usage_scenario_ok.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -174,7 +174,7 @@ def test_context_include():
     # will not throw an exception
 
 def test_context_include_escape():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/subdir_parent_context/subdir/usage_scenario_fail.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/subdir_parent_context/subdir/usage_scenario_fail.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -183,7 +183,7 @@ def test_context_include_escape():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(ValueError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
-    assert str(e.value).startswith('../../../../ must not be in folder above root repo folder') , \
+    assert str(e.value).startswith('../../../../../../ must not be in folder above root repo folder') , \
         Tests.assertion_info('Root directory escape', str(e.value))
 
 
@@ -193,7 +193,7 @@ def test_context_include_escape():
 def test_setup_commands_one_command():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/setup_commands_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/setup_commands_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
@@ -206,7 +206,7 @@ def test_setup_commands_one_command():
 def test_setup_commands_multiple_commands():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/setup_commands_multiple_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/setup_commands_multiple_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
@@ -244,7 +244,7 @@ def assert_order(text, first, second):
 def test_depends_on_order():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/depends_on.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
@@ -259,7 +259,7 @@ def test_depends_on_order():
 def test_depends_on_huge():
     out = io.StringIO()
     err = io.StringIO()
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/depends_on_huge.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_huge.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
@@ -328,19 +328,18 @@ def test_depends_on_huge():
     # For test-container-2
     assert_order(out.getvalue(), 'test-container-1', 'test-container-2')
 
-
 def test_depends_on_error_not_running():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/depends_on_error_not_running.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_not_running.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert "Dependent container 'test-container-2' of 'test-container-1' is not running" in str(e.value) , \
+    assert "'test-container-2' is not running" in str(e.value) , \
         Tests.assertion_info('test-container-2 is not running', str(e.value))
 
 def test_depends_on_error_cyclic_dependency():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/depends_on_error_cycle.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_cycle.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -350,30 +349,28 @@ def test_depends_on_error_cyclic_dependency():
         Tests.assertion_info('cycle in depends_on with test-container-1', str(e.value))
 
 def test_depends_on_error_unsupported_condition():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/depends_on_error_unsupported_condition.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_error_unsupported_condition.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    message = 'Unsupported condition in healthcheck for service \'test-container-1\':  service_completed_successfully'
+    message = 'Unsupported condition in healthcheck for service \'test-container-1\': service_completed_successfully'
     assert message in str(e.value) , \
         Tests.assertion_info(message, str(e.value))
 
 def test_depends_on_long_form():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/depends_on_long_form.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_long_form.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     out = io.StringIO()
     err = io.StringIO()
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-    message = 'State of dependent container'
+    message = 'Container state of dependent service'
     assert message in out.getvalue(), \
         Tests.assertion_info(message, out.getvalue())
 
-def test_depends_on_healthcheck_using_interval():
-    # Test setup: Container has a startup time of 3 seconds, interval is set to 1s, retries is set to a number bigger than 3.
-    # Container should become healthy after 3 seconds.
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_using_interval.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+def test_depends_on_with_custom_container_name():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/depends_on_custom_container_name.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     out = io.StringIO()
     err = io.StringIO()
 
@@ -381,14 +378,28 @@ def test_depends_on_healthcheck_using_interval():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    message = 'Health of dependent container \'test-container-2\': healthy'
+    message = 'Container state of dependent service \'test-service-2\': running'
+    assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
+
+def test_depends_on_healthcheck_using_interval():
+    # Test setup: Container has a startup time of 3 seconds, interval is set to 1s, retries is set to a number bigger than 3.
+    # Container should become healthy after 3 seconds.
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_using_interval.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err):
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    message = 'Container health of dependent service \'test-container-2\': healthy'
     assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
 def test_depends_on_healthcheck_using_start_interval():
     # Using start_interval is preferable (available since Docker Engine version 25)
     # Test setup: Container has a startup time of 3 seconds, start_interval is set to 1s, start_period to 5s
     # Container should become healthy after 3 seconds.
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_using_start_interval.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_using_start_interval.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     out = io.StringIO()
     err = io.StringIO()
 
@@ -397,44 +408,44 @@ def test_depends_on_healthcheck_using_start_interval():
             context.run_until('setup_services')
 
     message = """
-State of dependent container 'test-container-2': running
-Health of dependent container 'test-container-2': starting
-Health of dependent container 'test-container-2': starting
+Container state of dependent service 'test-container-2': running
+Container health of dependent service 'test-container-2': starting
+Container health of dependent service 'test-container-2': starting
 """
     assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
     message = """
-Health of dependent container 'test-container-2': healthy
+Container health of dependent service 'test-container-2': healthy
 """
     assert message in out.getvalue(), Tests.assertion_info(message, out.getvalue())
 
 def test_depends_on_healthcheck_missing_start_period():
     # Test setup: Container would be healthy after 3 seconds, however, no start_period is set (default 0s), therefore start_interval is not used.
     # Because max waiting time is configured to be 5s (test_config.yml), exception is raised after 5s.
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_missing_start_period.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_missing_start_period.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    expected_exception = "Dependent container 'test-container-2' of 'test-container-1' is not healthy but 'starting' after waiting for 10 sec"
+    expected_exception = "Health check of dependent services of 'test-container-1' failed! Container 'test-container-2' is not healthy but 'starting' after waiting for 10 sec"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_depends_on_healthcheck_error_missing():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_missing.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_error_missing.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with pytest.raises(RuntimeError) as e:
         runner.run()
 
-    expected_exception = "Health check for dependent container 'test-container-2' was requested by 'test-container-1', but container has no healthcheck implemented!"
+    expected_exception = "Health check for service 'test-container-2' was requested by 'test-container-1', but service has no healthcheck implemented!"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_depends_on_healthcheck_error_container_unhealthy():
     # Test setup: Healthcheck test will never be successful, interval is set to 1s and retries to 3.
     # Container should become unhealthy after 3-4 seconds.
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_container_unhealthy.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_error_container_unhealthy.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
@@ -448,18 +459,18 @@ def test_depends_on_healthcheck_error_container_unhealthy():
 def test_depends_on_healthcheck_error_max_waiting_time():
     # Test setup: Container would be healthy after 7 seconds, however, interval is set to 100s and there is no start interval.
     # Because max waiting time is configured to be 10s (test_config.yml), the healthcheck at 10s will never be executed.
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/healthcheck_error_max_waiting_time.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/healthcheck_error_max_waiting_time.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with pytest.raises(RuntimeError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    expected_exception = "Dependent container 'test-container-2' of 'test-container-1' is not healthy but 'starting' after waiting for 10 sec"
+    expected_exception = "Health check of dependent services of 'test-container-1' failed! Container 'test-container-2' is not healthy but 'starting' after waiting for 10 sec"
     assert str(e.value).startswith(expected_exception),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 
 def test_network_created():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/network_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         ps = subprocess.run(
@@ -473,7 +484,7 @@ def test_network_created():
     assert 'gmt-test-network' in ls, Tests.assertion_info('gmt-test-network', ls)
 
 def test_container_is_in_network():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/network_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         ps = subprocess.run(
@@ -491,7 +502,7 @@ def test_container_is_in_network():
 #    When container does not have a daemon running typically a shell
 #    is started here to have the container running like bash or sh
 def test_cmd_ran():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/cmd_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/cmd_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         ps = subprocess.run(
@@ -510,9 +521,10 @@ def test_cmd_ran():
 #     / or a remote git repository starting with http(s)://
 def test_uri_local_dir():
     run_name = 'test_' + utils.randomword(12)
-    uri = f"{CURRENT_DIR}/data/stress-application"
+    filename = 'tests/data/stress-application/usage_scenario.yml'
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', run_name, '--uri', uri ,'--config-override', 'test-config.yml',
+        ['python3', '../runner.py', '--name', run_name, '--uri', GMT_DIR ,'--config-override', 'test-config.yml',
+        '--filename', filename,
         '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
@@ -520,12 +532,14 @@ def test_uri_local_dir():
         encoding='UTF-8'
     )
 
+    filename_in_db = utils.get_run_data(run_name)['filename']
+    assert filename_in_db == filename, Tests.assertion_info(f"filename: {filename}", filename_in_db)
     uri_in_db = utils.get_run_data(run_name)['uri']
-    assert uri_in_db == uri, Tests.assertion_info(f"uri: {uri}", uri_in_db)
+    assert uri_in_db == GMT_DIR, Tests.assertion_info(f"uri: {GMT_DIR}", uri_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 def test_uri_local_dir_missing():
-    runner = Runner(uri='/tmp/missing', uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri='/tmp/missing', uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     with pytest.raises(FileNotFoundError) as e:
         runner.run()
@@ -539,6 +553,7 @@ def test_uri_local_dir_missing():
     # basic positive case
 def test_uri_github_repo():
     uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    filename = 'usage_scenario.yml'
     run_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', run_name, '--uri', uri ,'--config-override', 'test-config.yml',
@@ -549,6 +564,8 @@ def test_uri_github_repo():
         encoding='UTF-8'
     )
 
+    filename_in_db = utils.get_run_data(run_name)['filename']
+    assert filename_in_db == filename, Tests.assertion_info(f"filename: {filename}", filename_in_db)
     uri_in_db = utils.get_run_data(run_name)['uri']
     assert uri_in_db == uri, Tests.assertion_info(f"uri: {uri}", uri_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
@@ -556,7 +573,7 @@ def test_uri_github_repo():
 ## --branch BRANCH
 #    Optionally specify the git branch when targeting a git repository
 def test_uri_local_branch():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', branch='test-branch', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', branch='test-branch', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -572,9 +589,10 @@ def test_uri_local_branch():
 def test_uri_github_repo_branch():
     uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
     run_name = 'test_' + utils.randomword(12)
+    branch = 'test-branch'
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', run_name, '--uri', uri ,
-        '--branch', 'test-branch' , '--filename', 'basic_stress.yml',
+        '--branch', branch , '--filename', 'basic_stress.yml',
         '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
@@ -583,7 +601,7 @@ def test_uri_github_repo_branch():
     )
 
     branch_in_db = utils.get_run_data(run_name)['branch']
-    assert branch_in_db == 'test-branch', Tests.assertion_info('branch: test-branch', branch_in_db)
+    assert branch_in_db == 'test-branch', Tests.assertion_info(f"branch: {branch}", branch_in_db)
     assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
     # should throw error, assert vs error
@@ -591,7 +609,7 @@ def test_uri_github_repo_branch():
     ## Is the expected_exception OK or should it have a more graceful error?
     ## ATM this is just the default console error of a failed git command
 def test_uri_github_repo_branch_missing():
-    runner = Runner(uri='https://github.com/green-coding-berlin/pytest-dummy-repo', uri_type='URL', branch='missing-branch', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri='https://github.com/green-coding-berlin/pytest-dummy-repo', uri_type='URL', branch='missing-branch', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with pytest.raises(subprocess.CalledProcessError) as e:
         runner.run()
     expected_exception = 'returned non-zero exit status 128'
@@ -603,7 +621,9 @@ def test_uri_github_repo_branch_missing():
 def test_name_is_in_db():
     run_name = 'test_' + utils.randomword(12)
     subprocess.run(
-        ['python3', '../runner.py', '--name', run_name, '--uri', f"{CURRENT_DIR}/data/stress-application" , '--config-override', 'test-config.yml',
+        ['python3', '../runner.py', '--name', run_name, '--uri', GMT_DIR ,
+        '--filename', 'tests/data/stress-application/usage_scenario.yml',
+        '--config-override', 'test-config.yml',
         '--skip-system-checks', '--dev-no-metrics', '--dev-no-optimizations', '--dev-no-sleeps', '--dev-no-build'],
         check=True,
         stderr=subprocess.PIPE,
@@ -619,7 +639,7 @@ def test_name_is_in_db():
 def test_different_filename():
     run_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', run_name, '--uri', CURRENT_DIR , '--filename', 'data/usage_scenarios/basic_stress.yml', '--config-override', 'test-config.yml',
+        ['python3', '../runner.py', '--name', run_name, '--uri', GMT_DIR , '--filename', 'tests/data/usage_scenarios/basic_stress.yml', '--config-override', 'test-config.yml',
         '--skip-system-checks', '--dev-no-metrics', '--dev-no-optimizations', '--dev-no-sleeps', '--dev-no-build'],
         check=True,
         stderr=subprocess.PIPE,
@@ -636,7 +656,7 @@ def test_different_filename():
 
 # if that filename is missing...
 def test_different_filename_missing():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='I_do_not_exist.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='I_do_not_exist.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
 
     with pytest.raises(FileNotFoundError) as e:
         runner.run()
@@ -646,7 +666,7 @@ def test_different_filename_missing():
 
 #   Check that default is to leave the files
 def test_no_file_cleanup():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
     runner.run()
 
     assert os.path.exists('/tmp/green-metrics-tool'), \
@@ -656,7 +676,7 @@ def test_no_file_cleanup():
 #   This option exists only in CLI mode
 def test_file_cleanup():
     subprocess.run(
-        ['python3', '../runner.py', '--uri', CURRENT_DIR , '--filename', 'data/usage_scenarios/basic_stress.yml',
+        ['python3', '../runner.py', '--uri', GMT_DIR , '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
          '--file-cleanup', '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
@@ -670,14 +690,14 @@ def test_file_cleanup():
 def test_skip_and_allow_unsafe_both_true():
 
     with pytest.raises(RuntimeError) as e:
-        Runner(uri=CURRENT_DIR, uri_type='folder', filename='basic_stress.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True, skip_unsafe=True, allow_unsafe=True)
+        Runner(uri=GMT_DIR, uri_type='folder', filename='basic_stress.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True, skip_unsafe=True, allow_unsafe=True)
     expected_exception = 'Cannot specify both --skip-unsafe and --allow-unsafe'
     assert str(e.value) == expected_exception, Tests.assertion_info('', str(e.value))
 
 def test_debug(monkeypatch):
     monkeypatch.setattr('sys.stdin', io.StringIO('Enter'))
     ps = subprocess.run(
-        ['python3', '../runner.py', '--uri', CURRENT_DIR , '--filename', 'data/usage_scenarios/basic_stress.yml',
+        ['python3', '../runner.py', '--uri', GMT_DIR , '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
          '--debug',
          '--config-override', 'test-config.yml', '--skip-system-checks',
           '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
@@ -695,7 +715,7 @@ def test_debug(monkeypatch):
     # can check for this note in the DB and the notes are about 2s apart
 
 def test_read_detached_process_no_exit():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/stress_detached_no_exit.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_detached_no_exit.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
     out = io.StringIO()
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
@@ -706,7 +726,7 @@ def test_read_detached_process_no_exit():
         Tests.assertion_info('NOT successful run completed', out.getvalue())
 
 def test_read_detached_process_after_exit():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/stress_detached_exit.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_detached_exit.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
     out = io.StringIO()
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
@@ -715,7 +735,7 @@ def test_read_detached_process_after_exit():
         Tests.assertion_info('successful run completed', out.getvalue())
 
 def test_read_detached_process_failure():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/stress_detached_failure.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_detached_failure.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -725,7 +745,7 @@ def test_read_detached_process_failure():
         Tests.assertion_info('\'g4jiorejf\']\' had bad returncode: 126', str(e.value))
 
 def test_invalid_container_name():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/invalid_container_name.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -735,7 +755,7 @@ def test_invalid_container_name():
         Tests.assertion_info('Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed', str(e.value))
 
 def test_invalid_container_name_2():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/invalid_container_name_2.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name_2.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -745,7 +765,7 @@ def test_invalid_container_name_2():
         Tests.assertion_info('Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed', str(e.value))
 
 def test_duplicate_container_name():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/duplicate_container_name.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/duplicate_container_name.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -756,7 +776,7 @@ def test_duplicate_container_name():
 
 
 def test_failed_pull_does_not_trigger_cli():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/invalid_image.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_image.yml', skip_system_checks=True, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -767,7 +787,7 @@ def test_failed_pull_does_not_trigger_cli():
         Tests.assertion_info('Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt', str(e.value))
 
 def test_failed_pull_does_not_trigger_cli_with_build_on():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/invalid_image.yml', skip_system_checks=True, dev_no_build=False, dev_no_sleeps=True, dev_no_metrics=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_image.yml', skip_system_checks=True, dev_no_build=False, dev_no_sleeps=True, dev_no_metrics=True)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -777,13 +797,26 @@ def test_failed_pull_does_not_trigger_cli_with_build_on():
     assert 'Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt' in str(e.value), \
         Tests.assertion_info('Docker pull failed. Is your image name correct and are you connected to the internet: 1j98t3gh4hih8723ztgifuwheksh87t34gt', str(e.value))
 
+def test_non_git_root_supplied():
+    runner = Runner(uri=f"{GMT_DIR}/tests/data/usage_scenarios/", uri_type='folder', filename='invalid_image.yml', skip_system_checks=True, dev_no_build=False, dev_no_sleeps=True, dev_no_metrics=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
+        runner.run()
+
+    assert 'Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename' in str(e.value), \
+        Tests.assertion_info('Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename', str(e.value))
+
+
+
     ## rethink this one
 def wip_test_verbose_provider_boot():
-    uri = os.path.abspath(os.path.join(CURRENT_DIR, 'stress-application/'))
     run_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', run_name, '--uri', uri ,
+        ['python3', '../runner.py', '--name', run_name, '--uri', GMT_DIR ,
          '--verbose-provider-boot', '--config-override', 'test-config.yml',
+         '--filename', 'tests/data/stress-application/usage_scenario.yml',
          '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,

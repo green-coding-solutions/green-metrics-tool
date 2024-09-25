@@ -30,6 +30,9 @@ admin:
 cluster:
   api_url: __API_URL__
   metrics_url: __METRICS_URL__
+  cors_allowed_origins:
+      - __API_URL__
+      - __METRICS_URL__
   client:
     sleep_time_no_job: 300
     jobs_processing: "random"
@@ -38,7 +41,7 @@ cluster:
     shutdown_on_job_no: False
     control_workload:
       name: "Measurement control Workload"
-      uri: "https://github.com/green-coding-berlin/measurement-control-workload"
+      uri: "https://github.com/green-coding-solutions/measurement-control-workload"
       filename: "usage_scenario.yml"
       branch: "event-bound"
       comparison_window: 5
@@ -168,7 +171,7 @@ sci:
     # https://github.com/Green-Software-Foundation/sci/blob/main/Software_Carbon_Intensity/Software_Carbon_Intensity_Specification.md
 
     # The values specific to the machine will be set here. The values that are specific to the
-    # software, like R – Functional unit, will be set in the usage_scenario.yml
+    # software, like R (functional unit), will be set in the usage_scenario.yml
 
     # EL Expected Lifespan; the anticipated time that the equipment will be installed. Value is in years
     # The number 3.5 comes from a typical developer machine (Pro Laptop - https://dataviz.boavizta.org/terminalimpact)

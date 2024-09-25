@@ -4,6 +4,11 @@ set -euo pipefail
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
+if [[ $(uname) != "Darwin" ]]; then
+  echo "Error: This script can only be run on macOS."
+  exit 1
+fi
+
 function print_message {
     echo ""
     echo "$1"
@@ -15,12 +20,43 @@ function generate_random_password() {
     echo
 }
 
+function check_file_permissions() {
+    local file=$1
+
+    # Check if the file exists
+    if [ ! -e "$file" ]; then
+        echo "File '$file' does not exist."
+        return 1
+    fi
+
+    # Check if the file is owned by root
+    if [ "$(stat -f %Su "$file")" != "root" ]; then
+        echo "File '$file' is not owned by root."
+        return 1
+    fi
+
+    # Check if the file permissions are read-only for group and others using regex
+    permissions=$(stat -f %Sp "$file")
+    if [ -L "$file" ]; then
+        echo "File '$file' is a symbolic link. Following ..."
+        check_file_permissions $(readlink -f $file)
+        return $?
+    elif [[ ! $permissions =~ ^-r..r-.r-.$ ]]; then
+        echo "File '$file' is not read-only for group and others or not a regular file"
+        return 1
+    fi
+
+    echo "File $file is save to create sudoers entry for"
+
+    return 0
+}
+
 db_pw=''
 api_url=''
 metrics_url=''
-no_build=false
-no_python=false
-no_hosts=false
+build_docker_containers=true
+install_python_packages=true
+modify_hosts=true
 
 
 while getopts "p:a:m:nhtb" o; do
@@ -32,13 +68,13 @@ while getopts "p:a:m:nhtb" o; do
             api_url=${OPTARG}
             ;;
         b)
-            no_build=true
+            build_docker_containers=false
             ;;
         h)
-            no_hosts=true
+            modify_hosts=false
             ;;
         n)
-            no_python=true
+            install_python_packages=false
             ;;
         m)
             metrics_url=${OPTARG}
@@ -106,22 +142,27 @@ source venv/bin/activate
 print_message "Setting GMT in include path for python via .pth file"
 find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
-print_message "Adding hardware_info_root.py to sudoers file"
-PYTHON_PATH=$(which python3)
-PWD=$(pwd)
-echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green_coding_hardware_info
+print_message "Adding python3 lib.hardware_info_root to sudoers file"
+check_file_permissions "/usr/bin/python3"
+echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root" | sudo tee /etc/sudoers.d/green_coding_hardware_info
+echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
+# remove old file name
+sudo rm -f /etc/sudoers.d/green_coding_hardware_info
 
 print_message "Setting the hardare hardware_info to be owned by root"
 sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
 sudo chown root: $PWD/lib/hardware_info_root.py
 sudo chmod 755 $PWD/lib/hardware_info_root.py
 
+
 print_message "Adding powermetrics to sudoers file"
+check_file_permissions "/usr/bin/powermetrics"
+check_file_permissions "/usr/bin/killall"
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/powermetrics" | sudo tee /etc/sudoers.d/green_coding_powermetrics
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics
 echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/killall -9 powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics_sigkill
 
-if [[ $no_hosts != true ]] ; then
+if [[ $modify_hosts == true ]] ; then
     print_message "Writing to /etc/hosts file..."
     etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
     etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
@@ -162,14 +203,14 @@ while IFS= read -r subdir; do
     fi
 done
 
-if [[ $no_build != true ]] ; then
+if [[ $build_docker_containers == true ]] ; then
     print_message "Building / Updating docker containers"
     docker compose -f docker/compose.yml down
     docker compose -f docker/compose.yml build
     docker compose -f docker/compose.yml pull
 fi
 
-if [[ $no_python != true ]] ; then
+if [[ $install_python_packages == true ]] ; then
     print_message "Updating python requirements"
     python3 -m pip install --upgrade pip
     python3 -m pip install -r requirements.txt

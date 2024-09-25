@@ -4,6 +4,10 @@ set -euo pipefail
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
+if [[ $(uname) != "Linux" ]]; then
+  echo "Error: This script can only be run on Linux."
+  exit 1
+fi
 
 function print_message {
     echo ""
@@ -16,17 +20,52 @@ function generate_random_password() {
     echo
 }
 
+function check_file_permissions() {
+    local file=$1
+
+    # Check if the file exists
+    if [ ! -e "$file" ]; then
+        echo "File '$file' does not exist."
+        return 1
+    fi
+
+    # Check if the file is owned by root
+    if [ "$(stat -c %U "$file")" != "root" ]; then
+        echo "File '$file' is not owned by root."
+        return 1
+    fi
+
+    permissions=$(stat -c %A "$file")
+    if [ -L "$file" ]; then
+        echo "File '$file' is a symbolic link. Following ..."
+        check_file_permissions $(readlink -f $file)
+        return $?
+    elif [[ ! $permissions =~ ^-r..r-.r-.$ ]]; then
+        echo "File '$file' is not read-only for group and others or not a regular file"
+        return 1
+    fi
+
+    echo "File $file is save to create sudoers entry for"
+
+    return 0
+}
+
 db_pw=''
 api_url=''
 metrics_url=''
-no_build=false
-no_python=false
-no_hosts=false
+build_docker_containers=true
+install_python_packages=true
+modify_hosts=true
 ask_tmpfs=true
-
+install_ipmi=true
+install_sensors=true
+install_msr_tools=true
+# The system site packages are only an option to choose if you are in temporary VMs anyway
+# Not recommended for classical developer system
+use_system_site_packages=false
 reboot_echo_flag=false
 
-while getopts "p:a:m:nhtb" o; do
+while getopts "p:a:m:nhtbisyr" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -38,16 +77,29 @@ while getopts "p:a:m:nhtb" o; do
             metrics_url=${OPTARG}
             ;;
         b)
-            no_build=true
+            build_docker_containers=false
             ;;
         h)
-            no_hosts=true
+            modify_hosts=false
             ;;
         n)
-            no_python=true
+            install_python_packages=false
             ;;
         t)
             ask_tmpfs=false
+            ;;
+        i)
+            install_ipmi=false
+            ;;
+        s)
+            install_sensors=false
+            # currently unused
+            ;;
+        r)
+            install_msr_tools=false
+            ;;
+        y)
+            use_system_site_packages=true
             ;;
 
     esac
@@ -143,7 +195,11 @@ while IFS= read -r subdir; do
 done
 
 print_message "Setting up python venv"
-python3 -m venv venv
+if [[ $use_system_site_packages == true ]] ; then
+    python3 -m venv venv --system_site_packages
+else
+    python3 -m venv venv
+fi
 source venv/bin/activate
 
 print_message "Setting GMT in include path for python via .pth file"
@@ -154,14 +210,15 @@ make -C lib/sgx-software-enable
 mv lib/sgx-software-enable/sgx_enable tools/
 rm lib/sgx-software-enable/sgx_enable.o
 
-print_message "Adding hardware_info_root.py to sudoers file"
-PYTHON_PATH=$(which python3)
-PWD=$(pwd)
-echo "ALL ALL=(ALL) NOPASSWD:$PYTHON_PATH $PWD/lib/hardware_info_root.py" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+print_message "Adding python3 lib.hardware_info_root to sudoers file"
+check_file_permissions "/usr/bin/python3"
+# Please note the -m as here we will later call python3 without venv. It must understand the .lib imports
+# and not depend on venv installed packages
+echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root" | sudo tee /etc/sudoers.d/green-coding-hardware-info
+echo "ALL ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
 sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
 # remove old file name
 sudo rm -f /etc/sudoers.d/green_coding_hardware_info
-
 
 print_message "Setting the hardare hardware_info to be owned by root"
 sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
@@ -174,22 +231,37 @@ sudo chown root:root $PWD/tools/cluster/cleanup.sh
 sudo chmod 755 $PWD/tools/cluster/cleanup.sh
 sudo chmod +x $PWD/tools/cluster/cleanup.sh
 
-print_message "Installing IPMI tools"
-if lsb_release -is | grep -q "Fedora"; then
-    sudo dnf -y install ipmitool
-else
-    sudo apt-get install -y freeipmi-tools ipmitool
+
+if [[ $install_msr_tools == true ]] ; then
+    print_message "Installing msr-tools"
+    print_message "Important: If this step fails it means msr-tools is not available on you system"
+    print_message "If you do not plan to use RAPL you can skip the installation by appending '-r'"
+    if lsb_release -is | grep -q "Fedora"; then
+        sudo dnf -y install msr-tools
+    else
+        sudo apt-get install -y msr-tools
+    fi
+fi
+
+if [[ $install_ipmi == true ]] ; then
+    print_message "Installing IPMI tools"
+    print_message "Important: If this step fails it means ipmitool is not available on you system"
+    print_message "If you do not plan to use IPMI you can skip the installation by appending '-i'"
+    if lsb_release -is | grep -q "Fedora"; then
+        sudo dnf -y install ipmitool
+    else
+        sudo apt-get install -y freeipmi-tools ipmitool
+    fi
+    print_message "Adding IPMI to sudoers file"
+    check_file_permissions "/usr/sbin/ipmi-dcmi"
+    echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+    sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+    # remove old file name
+    sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
 fi
 
 
-print_message "Adding IPMI to sudoers file"
-echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
-sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
-# remove old file name
-sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
-
-
-if [[ $no_hosts != true ]] ; then
+if [[ $modify_hosts == true ]] ; then
 
     etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
     etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
@@ -213,7 +285,7 @@ if [[ $no_hosts != true ]] ; then
     fi
 fi
 
-if [[ $no_build != true ]] ; then
+if [[ $build_docker_containers == true ]] ; then
     print_message "Building / Updating docker containers"
     if docker info 2>/dev/null | grep rootless; then
         print_message "Docker is running in rootless mode. Using non-sudo call ..."
@@ -228,7 +300,7 @@ if [[ $no_build != true ]] ; then
     fi
 fi
 
-if [[ $no_python != true ]] ; then
+if [[ $install_python_packages == true ]] ; then
     print_message "Updating python requirements"
     python3 -m pip install --upgrade pip
     python3 -m pip install -r requirements.txt
@@ -236,6 +308,8 @@ if [[ $no_python != true ]] ; then
     python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 fi
 
+# kill the sudo timestamp
+sudo -k
 
 echo ""
 echo -e "${GREEN}Successfully installed Green Metrics Tool!${NC}"
