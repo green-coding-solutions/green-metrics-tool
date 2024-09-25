@@ -98,7 +98,7 @@ class BaseMetricProvider:
     def has_started(self):
         return self._has_started
 
-    def read_metrics(self, run_id, containers=None):
+    def read_metrics(self, run_id, containers=None): #pylint: disable=unused-argument
         with open(self._filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
 
@@ -112,29 +112,7 @@ class BaseMetricProvider:
                              dtype=self._metrics
                              )
 
-        if self._metrics.get('sensor_name') is not None:
-            df['detail_name'] = df.sensor_name
-            df = df.drop('sensor_name', axis=1)
-        elif self._metrics.get('package_id') is not None:
-            df['detail_name'] = df.package_id
-            df = df.drop('package_id', axis=1)
-        elif self._metrics.get('dram_id') is not None:
-            df['detail_name'] = df.dram_id
-            df = df.drop('dram_id', axis=1)
-        elif self._metrics.get('psys_id') is not None:
-            df['detail_name'] = df.psys_id
-            df = df.drop('psys_id', axis=1)
-        elif self._metrics.get('core_id') is not None:
-            df['detail_name'] = df.core_id
-            df = df.drop('core_id', axis=1)
-        elif self._metrics.get('container_id') is not None:
-            df['detail_name'] = df.container_id
-            for container_id in containers:
-                df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]['name']
-            df = df.drop('container_id', axis=1)
-        else: # We use the default granularity from the name of the provider eg. "..._machine"  => [MACHINE]
-            df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]"
-
+        df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]" # default, can be overriden in child
         df['unit'] = self._unit
         df['metric'] = self._metric_name
         df['run_id'] = run_id
