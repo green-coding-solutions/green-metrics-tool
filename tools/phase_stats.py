@@ -9,13 +9,17 @@ from io import StringIO
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
-
+from lib import utils
+from lib import error_helpers
 
 def generate_csv_line(run_id, metric, detail_name, phase_name, value, value_type, max_value, min_value, unit):
     return f"{run_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{round(min_value) if min_value is not None else ''},{unit},NOW()\n"
 
 def build_and_store_phase_stats(run_id, sci=None):
     config = GlobalConfig().config
+
+    if not sci:
+        sci = {}
 
     query = """
             SELECT metric, unit, detail_name
@@ -116,8 +120,8 @@ def build_and_store_phase_stats(run_id, sci=None):
                 power_min = (min_value * 10**6) / (duration / value_count)
                 csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg, 'MEAN', power_max, power_min, 'mW'))
 
-                if metric.endswith('_machine'):
-                    machine_co2_in_ug = decimal.Decimal((value_sum / 3_600) * config['sci']['I'])
+                if metric.endswith('_machine') and sci.get('I', None) is not None:
+                    machine_co2_in_ug = decimal.Decimal((value_sum / 3_600) * sci['I'])
                     csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_co2_')}", detail_name, f"{idx:03}_{phase['name']}", machine_co2_in_ug, 'TOTAL', None, None, 'ug'))
 
                     if phase['name'] == '[IDLE]':
@@ -143,10 +147,11 @@ def build_and_store_phase_stats(run_id, sci=None):
             network_io_co2_in_ug = decimal.Decimal(0)
 
 
-        duration_in_years = duration / (1_000_000 * 60 * 60 * 24 * 365)
-        embodied_carbon_share_g = (duration_in_years / (config['sci']['EL']) ) * config['sci']['TE'] * config['sci']['RS']
-        embodied_carbon_share_ug = decimal.Decimal(embodied_carbon_share_g * 1_000_000)
-        csv_buffer.write(generate_csv_line(run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 'ug'))
+        if sci.get('EL', None) is not None and sci.get('TE', None) is not None and sci.get('RS', None) is not None:
+            duration_in_years = duration_in_s * 60 * 60 * 24 * 365
+            embodied_carbon_share_g = (duration_in_years / sci.get('EL', None) ) * sci.get('TE', None) * sci.get('RS', None)
+            embodied_carbon_share_ug = decimal.Decimal(embodied_carbon_share_g * 1_000_000)
+            csv_buffer.write(generate_csv_line(run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 'ug'))
 
         if phase['name'] == '[RUNTIME]' and machine_co2_in_ug is not None and sci is not None \
                          and sci.get('R', None) is not None and sci['R'] != 0:
