@@ -19,7 +19,12 @@ static long int read_cpu_cgroup() {
 
     long int cpu_usage = -1;
     FILE* fd = fopen("/sys/fs/cgroup/cpu.stat", "r"); // check for general readability only once
-    fscanf(fd, "usage_usec %ld", &cpu_usage);
+    int match_result = fscanf(fd, "usage_usec %ld", &cpu_usage);
+    if (match_result != 1) {
+        fprintf(stderr, "Could not match usage_usec\n");
+        exit(1);
+    }
+
     fclose(fd);
     return cpu_usage;
 }

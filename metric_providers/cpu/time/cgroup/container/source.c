@@ -30,7 +30,12 @@ static long int read_cpu_cgroup(char* filename) {
         fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Are you using --rootless mode? Errno: %d\n", filename, errno);
         exit(1);
     }
-    fscanf(fd, "usage_usec %ld", &cpu_usage);
+    int match_result = fscanf(fd, "usage_usec %ld", &cpu_usage);
+    if (match_result != 1) {
+        fprintf(stderr, "Could not match usage_usec\n");
+        exit(1);
+    }
+
     fclose(fd);
     return cpu_usage;
 }

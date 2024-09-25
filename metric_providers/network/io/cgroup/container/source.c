@@ -123,6 +123,7 @@ static int parse_containers(container_t** containers, char* containers_string, i
     }
     char *id = strtok(containers_string,",");
     int length = 0;
+    int match_result = 0;
 
     for (; id != NULL; id = strtok(NULL, ",")) {
         //printf("Token: %s\n", id);
@@ -151,7 +152,11 @@ static int parse_containers(container_t** containers, char* containers_string, i
                 fprintf(stderr, "Error - cgroup.procs file %s failed to open: errno: %d\n", (*containers)[length-1].path, errno);
                 exit(1);
         }
-        fscanf(fd, "%u", &(*containers)[length-1].pid);
+        match_result = fscanf(fd, "%u", &(*containers)[length-1].pid);
+        if (match_result != 1) {
+            fprintf(stderr, "Could not match container PID\n");
+            exit(1);
+        }
         fclose(fd);
     }
 
