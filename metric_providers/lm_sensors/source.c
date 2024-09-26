@@ -298,6 +298,10 @@ int main(int argc, char *argv[]) {
                             if (g_ascii_strncasecmp(feature_iterator->data, label, strlen(feature_iterator->data)) ==
                                 0) {
                                 Output_Mapping *to_add_to_list = malloc(sizeof(Output_Mapping));
+                                if (!to_add_to_list) {
+                                    fprintf(stderr, "Could not allocate memory\n");
+                                    exit(1);
+                                }
                                 to_add_to_list->chip_name = chip_name;
                                 to_add_to_list->feature = feature;
 

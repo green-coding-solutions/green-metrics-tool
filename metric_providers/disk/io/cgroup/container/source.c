@@ -3,7 +3,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/time.h>
-#include <time.h>
 #include <string.h> // for strtok
 #include <getopt.h>
 #include <limits.h>
@@ -15,32 +14,58 @@ typedef struct container_t { // struct is a specification and this static makes 
     char id[DOCKER_CONTAINER_ID_BUFFER];
 } container_t;
 
+typedef struct disk_io_t { // struct is a specification and this static makes no sense here
+    long int rbytes;
+    long int wbytes;
+} disk_io_t;
+
+
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
 // between Threads.
 // in any case, none of these variables should change between threads
 static int user_id = -1;
-static long int user_hz;
 static unsigned int msleep_time=1000;
 
-static long int read_cpu_cgroup(char* filename) {
-    long int cpu_usage = -1;
-    FILE* fd = fopen(filename, "r");
+static disk_io_t get_disk_cgroup(char* filename) {
+    long int rbytes = -1;
+    long int rbytes_sum = 0;
+    long int wbytes = -1;
+    long int wbytes_sum = 0;
+
+    FILE * fd = fopen(filename, "r");
     if ( fd == NULL) {
         fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Are you using --rootless mode? Errno: %d\n", filename, errno);
         exit(1);
     }
-    fscanf(fd, "usage_usec %ld", &cpu_usage);
+
+    while (fscanf(fd, "%*u:%*u rbytes=%ld wbytes=%ld rios=%*u wios=%*u dbytes=%*u dios=%*u", &rbytes, &wbytes) == 2) {
+        rbytes_sum += rbytes;
+        wbytes_sum += wbytes;
+    }
+
     fclose(fd);
-    return cpu_usage;
+
+    if(rbytes < 0 || wbytes < 0) {
+        fprintf(stderr, "Error - io.stat could not be read or was < 0.");
+        exit(1);
+    }
+
+    disk_io_t disk_io;
+    disk_io.rbytes = rbytes_sum;
+    disk_io.wbytes = wbytes_sum;
+    return disk_io;
 }
 
 static void output_stats(container_t *containers, int length) {
-    struct timeval now;
-    gettimeofday(&now, NULL);
 
-    for(int i=0; i<length; i++) {
-        printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, read_cpu_cgroup(containers[i].path), containers[i].id);
+    struct timeval now;
+    int i;
+
+    gettimeofday(&now, NULL);
+    for(i=0; i<length; i++) {
+        disk_io_t disk_io = get_disk_cgroup(containers[i].path);
+        printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, disk_io.rbytes+disk_io.wbytes, containers[i].id);
     }
     usleep(msleep_time*1000);
 }
@@ -67,18 +92,19 @@ static int parse_containers(container_t** containers, char* containers_string, i
             fprintf(stderr, "Could not allocate memory for containers string\n");
             exit(1);
         }
+
         strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
         (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
 
         if(rootless_mode) {
             snprintf((*containers)[length-1].path,
                 PATH_MAX,
-                "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/cpu.stat",
+                "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/io.stat",
                 user_id, user_id, id);
         } else {
             snprintf((*containers)[length-1].path,
                 PATH_MAX,
-                "/sys/fs/cgroup/system.slice/docker-%s.scope/cpu.stat",
+                "/sys/fs/cgroup/system.slice/docker-%s.scope/io.stat",
                 id);
         }
     }
@@ -94,15 +120,15 @@ static int check_system(int rootless_mode) {
     const char* check_path;
 
     if(rootless_mode) {
-        check_path = "/sys/fs/cgroup/user.slice/cpu.stat";
+        check_path = "/sys/fs/cgroup/user.slice/io.stat";
     } else {
-        check_path = "/sys/fs/cgroup/system.slice/cpu.stat";
+        check_path = "/sys/fs/cgroup/system.slice/io.stat";
     }
-    
+
     FILE* fd = fopen(check_path, "r");
 
     if (fd == NULL) {
-        fprintf(stderr, "Couldn't open cpu.stat file at %s\n", check_path);
+        fprintf(stderr, "Couldn't open io.stat file at %s\n", check_path);
         exit(1);
     }
     fclose(fd);
@@ -112,13 +138,12 @@ static int check_system(int rootless_mode) {
 int main(int argc, char **argv) {
 
     int c;
+    int check_system_flag = 0;
     int rootless_mode = 0; // docker root is default
     char *containers_string = NULL;  // Dynamic buffer to store optarg
     container_t *containers = NULL;
-    int check_system_flag = 0;
 
     setvbuf(stdout, NULL, _IONBF, 0);
-    user_hz = sysconf(_SC_CLK_TCK);
     user_id = getuid();
 
     static struct option long_options[] =
@@ -139,16 +164,6 @@ int main(int argc, char **argv) {
             printf("\t-s      : string of container IDs separated by comma\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
             printf("\t-c      : check system and exit\n\n");
-
-            struct timespec res;
-            double resolution;
-
-            printf("\tEnvironment variables:\n");
-            printf("\tUserHZ\t\t%ld\n", user_hz);
-            clock_getres(CLOCK_REALTIME, &res);
-            resolution = res.tv_sec + (((double)res.tv_nsec)/1.0e9);
-            printf("\tSystemHZ\t%ld\n", (unsigned long)(1/resolution + 0.5));
-            printf("\tCLOCKS_PER_SEC\t%ld\n", CLOCKS_PER_SEC);
             exit(0);
         case 'i':
             msleep_time = atoi(optarg);
@@ -175,7 +190,7 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system(rootless_mode)); 
+        exit(check_system(rootless_mode));
     }
 
     int length = parse_containers(&containers, containers_string, rootless_mode);

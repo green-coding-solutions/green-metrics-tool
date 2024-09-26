@@ -6,17 +6,20 @@
 #include <time.h>
 #include <string.h> // for strtok
 #include <getopt.h>
+#include <limits.h>
+
+#define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
 
 typedef struct container_t { // struct is a specification and this static makes no sense here
-    char path[BUFSIZ];
-    char *id;
+    char path[PATH_MAX];
+    char id[DOCKER_CONTAINER_ID_BUFFER];
 } container_t;
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
 // between Threads.
 // in any case, none of these variables should change between threads
-static int user_id = 0;
+static int user_id = -1;
 static long int user_hz;
 static unsigned int msleep_time=1000;
 
@@ -41,10 +44,8 @@ static long int read_cpu_cgroup(FILE *fd) {
 }
 
 static long int get_cpu_stat(char* filename, int mode) {
-    FILE* fd = NULL;
     long int result=-1;
-
-    fd = fopen(filename, "r");
+    FILE* fd = fopen(filename, "r");
 
     if ( fd == NULL) {
         fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Are you using --rootless mode? Errno: %d\n", filename, errno);
@@ -62,7 +63,7 @@ static long int get_cpu_stat(char* filename, int mode) {
 }
 
 
-static int output_stats(container_t* containers, int length) {
+static void output_stats(container_t* containers, int length) {
 
     long int main_cpu_reading_before, main_cpu_reading_after, main_cpu_reading;
     long int cpu_readings_before[length];
@@ -71,7 +72,6 @@ static int output_stats(container_t* containers, int length) {
 
     struct timeval now;
     int i;
-
 
     // Get Energy Readings, set timestamp mark
     gettimeofday(&now, NULL);
@@ -116,7 +116,6 @@ static int output_stats(container_t* containers, int length) {
 
         printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, reading, containers[i].id);
     }
-    return 1;
 }
 
 static int parse_containers(container_t** containers, char* containers_string, int rootless_mode) {
@@ -126,6 +125,10 @@ static int parse_containers(container_t** containers, char* containers_string, i
     }
 
     *containers = malloc(sizeof(container_t));
+    if (!containers) {
+        fprintf(stderr, "Could not allocate memory for containers string\n");
+        exit(1);
+    }
     char *id = strtok(containers_string,",");
     int length = 0;
 
@@ -133,13 +136,21 @@ static int parse_containers(container_t** containers, char* containers_string, i
         //printf("Token: %s\n", id);
         length++;
         *containers = realloc(*containers, length * sizeof(container_t));
-        (*containers)[length-1].id = id;
+        if (!containers) {
+            fprintf(stderr, "Could not allocate memory for containers string\n");
+            exit(1);
+        }
+        strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
+        (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
+
         if(rootless_mode) {
-            sprintf((*containers)[length-1].path,
+            snprintf((*containers)[length-1].path,
+                PATH_MAX,
                 "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/cpu.stat",
                 user_id, user_id, id);
         } else {
-            sprintf((*containers)[length-1].path,
+            snprintf((*containers)[length-1].path,
+                PATH_MAX,
                 "/sys/fs/cgroup/system.slice/docker-%s.scope/cpu.stat",
                 id);
         }
@@ -164,9 +175,7 @@ static int check_system(int rootless_mode) {
     }
     file_path_proc_stat = "/proc/stat";
     
-    FILE* fd = NULL;
-
-    fd = fopen(file_path_cpu_stat, "r");
+    FILE* fd = fopen(file_path_cpu_stat, "r");
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open cpu.stat file at %s\n", file_path_cpu_stat);
         found_error = 1;
@@ -183,7 +192,7 @@ static int check_system(int rootless_mode) {
     }
 
     if(found_error) {
-        exit(127);
+        exit(1);
     }
 
     return 0;
@@ -238,7 +247,12 @@ int main(int argc, char **argv) {
             break;
         case 's':
             containers_string = (char *)malloc(strlen(optarg) + 1);  // Allocate memory
+            if (!containers_string) {
+                fprintf(stderr, "Could not allocate memory for containers string\n");
+                exit(1);
+            }
             strncpy(containers_string, optarg, strlen(optarg));
+            containers_string[strlen(optarg)] = '\0'; // Ensure NUL termination if max length
             break;
         case 'c':
             check_system_flag = 1;
