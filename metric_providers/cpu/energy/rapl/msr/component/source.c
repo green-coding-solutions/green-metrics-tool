@@ -173,7 +173,9 @@ static int detect_cpu(void) {
 
     FILE *fff;
 
-    int vendor=-1,family,model=-1;
+    int vendor = -1;
+    int family,model = -1;
+    int match_result = 0;
     char buffer[BUFSIZ],*result;
     char vendor_string[1024];
 
@@ -185,7 +187,11 @@ static int detect_cpu(void) {
         if (result==NULL) break;
 
         if (!strncmp(result,"vendor_id",8)) {
-            sscanf(result,"%*s%*s%s",vendor_string);
+            match_result = sscanf(result,"%*s%*s%s",vendor_string);
+            if (match_result != 1) {
+                perror("match_vendor_string");
+                exit(127);
+            }
 
             if (!strncmp(vendor_string,"GenuineIntel",12)) {
                 vendor=CPU_VENDOR_INTEL;
@@ -196,10 +202,15 @@ static int detect_cpu(void) {
         }
 
         if (!strncmp(result,"cpu family",10)) {
-            sscanf(result,"%*s%*s%*s%d",&family);
+            match_result = sscanf(result,"%*s%*s%*s%d",&family);
+            if (match_result != 1) {
+                perror("match_family");
+                exit(127);
+            }
         }
 
         if (!strncmp(result,"model",5)) {
+            // do not force a result check here on model as in AMD systems this value is not supplied and will be set later
             sscanf(result,"%*s%*s%d",&model);
         }
 
@@ -215,8 +226,7 @@ static int detect_cpu(void) {
         msr_pkg_energy_status=MSR_INTEL_PKG_ENERGY_STATUS;
         msr_pp0_energy_status=MSR_INTEL_PP0_ENERGY_STATUS;
     }
-
-    if (vendor==CPU_VENDOR_AMD) {
+    else if (vendor==CPU_VENDOR_AMD) {
 
         msr_rapl_units=MSR_AMD_RAPL_POWER_UNIT;
         msr_pkg_energy_status=MSR_AMD_PKG_ENERGY_STATUS;
@@ -227,6 +237,9 @@ static int detect_cpu(void) {
             return -1;
         }
         model=CPU_AMD_FAM17H;
+    } else {
+        fprintf(stderr, "Could not detect vendor. Only Intel / AMD are supported atm ... \n");
+        return -1;
     }
 
     fclose(fff);
@@ -254,8 +267,12 @@ static int detect_packages(void) {
         snprintf(filename, PATH_MAX, "/sys/devices/system/cpu/cpu%d/topology/physical_package_id",i);
         fff=fopen(filename,"r");
         if (fff==NULL) break;
-        fscanf(fff,"%d",&package);
+        int match_result = fscanf(fff,"%d",&package);
         fclose(fff);
+        if (match_result != 1) {
+            perror("read_package");
+            exit(127);
+        }
 
         if (package_map[package]==-1) {
             total_packages++;
@@ -339,7 +356,7 @@ static int check_availability(int cpu_model, int measurement_mode) {
     }
 
     if(measurement_mode == MEASURE_DRAM && !dram_avail) {
-        fprintf(stderr,"DRAM not available for your processer. %d \n", measurement_mode);
+        fprintf(stderr,"DRAM not available for your processer. %d\n", measurement_mode);
         exit(-1);
     }
 
@@ -530,7 +547,7 @@ int main(int argc, char **argv) {
     setup_measurement_units(measurement_mode);
 
     if(check_system_flag){
-        exit(check_system()); 
+        exit(check_system());
     }
 
     while(1) {

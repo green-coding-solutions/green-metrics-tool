@@ -15,8 +15,8 @@ typedef struct container_t { // struct is a specification and this static makes 
 } container_t;
 
 typedef struct disk_io_t { // struct is a specification and this static makes no sense here
-    long int rbytes;
-    long int wbytes;
+    unsigned long long int rbytes;
+    unsigned long long int wbytes;
 } disk_io_t;
 
 
@@ -28,10 +28,10 @@ static int user_id = -1;
 static unsigned int msleep_time=1000;
 
 static disk_io_t get_disk_cgroup(char* filename) {
-    long int rbytes = -1;
-    long int rbytes_sum = 0;
-    long int wbytes = -1;
-    long int wbytes_sum = 0;
+    long long int rbytes = -1;
+    unsigned long long int rbytes_sum = 0;
+    long long int wbytes = -1;
+    unsigned long long int wbytes_sum = 0;
 
     FILE * fd = fopen(filename, "r");
     if ( fd == NULL) {
@@ -39,7 +39,7 @@ static disk_io_t get_disk_cgroup(char* filename) {
         exit(1);
     }
 
-    while (fscanf(fd, "%*u:%*u rbytes=%ld wbytes=%ld rios=%*u wios=%*u dbytes=%*u dios=%*u", &rbytes, &wbytes) == 2) {
+    while (fscanf(fd, "%*u:%*u rbytes=%lld wbytes=%lld rios=%*u wios=%*u dbytes=%*u dios=%*u", &rbytes, &wbytes) == 2) {
         rbytes_sum += rbytes;
         wbytes_sum += wbytes;
     }
@@ -65,7 +65,7 @@ static void output_stats(container_t *containers, int length) {
     gettimeofday(&now, NULL);
     for(i=0; i<length; i++) {
         disk_io_t disk_io = get_disk_cgroup(containers[i].path);
-        printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, disk_io.rbytes+disk_io.wbytes, containers[i].id);
+        printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, disk_io.rbytes, disk_io.wbytes, containers[i].id);
     }
     usleep(msleep_time*1000);
 }

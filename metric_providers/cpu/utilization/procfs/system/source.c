@@ -35,7 +35,11 @@ static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
         exit(1);
     }
 
-    fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &procfs_time_struct->user_time, &procfs_time_struct->nice_time, &procfs_time_struct->system_time, &procfs_time_struct->wait_time, &procfs_time_struct->iowait_time, &procfs_time_struct->irq_time, &procfs_time_struct->softirq_time, &procfs_time_struct->steal_time);
+    int match_result = fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &procfs_time_struct->user_time, &procfs_time_struct->nice_time, &procfs_time_struct->system_time, &procfs_time_struct->wait_time, &procfs_time_struct->iowait_time, &procfs_time_struct->irq_time, &procfs_time_struct->softirq_time, &procfs_time_struct->steal_time);
+    if (match_result != 8) {
+        fprintf(stderr, "Could not match cpu usage pattern\n");
+        exit(1);
+    }
 
     // debug
     // printf("Read: cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", procfs_time_struct->user_time, procfs_time_struct->nice_time, procfs_time_struct->system_time, procfs_time_struct->idle_time, procfs_time_struct->iowait_time, procfs_time_struct->irq_time, procfs_time_struct->softirq_time, procfs_time_struct->steal_time);

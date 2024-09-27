@@ -1,0 +1,19 @@
+---
+name: VM Stress
+author: Arne Tarara
+description: VM Stress
+
+services:
+  test-container:
+    type: container
+    image: gcb_stress
+    build:
+      context: ../stress-application
+
+flow:
+  - name: VM Stress
+    container: test-container
+    commands:
+      - type: console
+        command: stress-ng --vm 0 --vm-bytes 100% -t 20s
+        note: Starting Download

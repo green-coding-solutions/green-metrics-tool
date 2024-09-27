@@ -20,7 +20,11 @@ static long int read_cpu_proc() {
     long int user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time;
     FILE* fd = fopen("/proc/stat", "r");
 
-    fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &user_time, &nice_time, &system_time, &idle_time, &iowait_time, &irq_time, &softirq_time, &steal_time);
+    int match_result = fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &user_time, &nice_time, &system_time, &idle_time, &iowait_time, &irq_time, &softirq_time, &steal_time);
+    if (match_result != 8) {
+        fprintf(stderr, "Could not match cpu usage pattern\n");
+        exit(1);
+    }
 
     // printf("Read: cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time);
     if(idle_time <= 0) fprintf(stderr, "Idle time strange value %ld \n", idle_time);

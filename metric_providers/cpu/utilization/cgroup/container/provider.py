@@ -13,3 +13,16 @@ class CpuUtilizationCgroupContainerProvider(BaseMetricProvider):
             skip_check = skip_check,
         )
         self._rootless = rootless
+
+    def read_metrics(self, run_id, containers=None):
+        df = super().read_metrics(run_id, containers)
+
+        if df.empty:
+            return df
+
+        df['detail_name'] = df.container_id
+        for container_id in containers:
+            df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]['name']
+        df = df.drop('container_id', axis=1)
+
+        return df

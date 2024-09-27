@@ -462,8 +462,9 @@ class Runner:
             machine_specs_root = json.loads(ps.stdout)
             machine_specs.update(machine_specs_root)
 
-        keys = ["measurement", "sci"]
-        measurement_config = {key: config.get(key, None) for key in keys}
+        measurement_config = {}
+        measurement_config['providers'] = utils.get_metric_providers(config)
+        measurement_config['sci'] = config.get('sci', None)
 
         # Insert auxilary info for the run. Not critical.
         DB().query("""
@@ -1293,6 +1294,7 @@ class Runner:
             print('Imported', TerminalColors.HEADER, df.shape[0], TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
             if df is None or df.shape[0] == 0:
                 errors.append(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
+                continue
 
             f = StringIO(df.to_csv(index=False, header=False))
             DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')

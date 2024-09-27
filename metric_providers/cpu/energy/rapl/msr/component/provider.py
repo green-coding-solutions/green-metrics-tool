@@ -12,3 +12,14 @@ class CpuEnergyRaplMsrComponentProvider(BaseMetricProvider):
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
+
+    def read_metrics(self, run_id, containers=None):
+        df = super().read_metrics(run_id, containers)
+
+        if df.empty:
+            return df
+
+        df['detail_name'] = df.package_id
+        df = df.drop('package_id', axis=1)
+
+        return df

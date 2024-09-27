@@ -61,3 +61,12 @@ class LmSensorsProvider(BaseMetricProvider):
                 for feature in provider_config['features']:
                     if feature not in chip_section:
                         raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot find feature '{feature}' in the output section for chip starting with '{config_chip}' of the 'sensors' command.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
+
+
+    def read_metrics(self, run_id, containers=None):
+        df = super().read_metrics(run_id, containers)
+
+        df['detail_name'] = df.sensor_name
+        df = df.drop('sensor_name', axis=1)
+
+        return df
