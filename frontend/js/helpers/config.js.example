@@ -13,7 +13,7 @@ METRIC_MAPPINGS = {
     'disk_used_statvfs_system': {
         'clean_name': 'Disk Usage',
         'source': 'statvfs syscall',
-        'explanation': 'Disk used space via statvfs syscall',
+        'explanation': 'Disk used space of the root filesystem via statvfs syscall',
     },
 
     'disk_io_procfs_system': {
