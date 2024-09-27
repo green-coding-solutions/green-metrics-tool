@@ -365,7 +365,6 @@ CREATE TABLE carbondb_energy_data_day (
     co2_sum FLOAT,
     carbon_intensity_avg FLOAT,
     record_count INT,
-
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -378,10 +377,7 @@ CREATE TRIGGER carbondb_energy_data_day_moddatetime
 CREATE INDEX idx_carbondb_hour_company ON carbondb_energy_data_day(company);
 CREATE INDEX idx_carbondb_hour_machine ON carbondb_energy_data_day(machine);
 CREATE INDEX idx_carbondb_hour_project ON carbondb_energy_data_day(project);
-
-
-ALTER TABLE IF EXISTS public.carbondb_energy_data_day
-    ADD CONSTRAINT unique_machine_project_date UNIQUE (machine, date);
+CREATE UNIQUE INDEX unique_entry ON carbondb_energy_data_day (type, company, machine, project, tags, date) NULLS NOT DISTINCT;
 
 CREATE TABLE ip_data (
     ip_address INET,
