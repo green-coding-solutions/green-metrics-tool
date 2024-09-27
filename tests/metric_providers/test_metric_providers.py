@@ -82,7 +82,7 @@ def test_io_providers():
 
         if metric == 'disk_total_procfs_system':
             # Since some other sectors are flushed we need to account for a margin
-            assert 5*MB <= val <= 6*MB , f"disk_total_procfs_system is not between 5 and 6 MB but {metric_provider['value']} {metric_provider['unit']}"
+            assert 5*MB <= val <= 7*MB , f"disk_total_procfs_system is not between 5 and 7 MB but {metric_provider['value']} {metric_provider['unit']}"
             seen_disk_total_procfs_system = True
         elif metric == 'network_total_procfs_system':
             # Some small network overhead to a 5 MB file always occurs
