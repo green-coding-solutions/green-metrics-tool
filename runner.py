@@ -52,7 +52,8 @@ class Runner:
         debug_mode=False, allow_unsafe=False,  skip_system_checks=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
         dev_no_sleeps=False, dev_no_build=False, dev_no_metrics=False,
-        dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None):
+        dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
+        user_id=None, measurement_flow_process_duration=None, measurement_total_duration=None):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -88,6 +89,10 @@ class Runner:
         self._run_id = None
         self._commit_hash = None
         self._commit_timestamp = None
+        self._user_id = user_id
+        self._measurement_flow_process_duration = measurement_flow_process_duration
+        self._measurement_total_duration = measurement_total_duration
+        self._last_measurement_duration = 0
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
@@ -125,10 +130,19 @@ class Runner:
 
         # we also update the branch here again, as this might not be main in case of local filesystem
         self._run_id = DB().fetch_one("""
-                INSERT INTO runs (job_id, name, uri, email, branch, filename, commit_hash, commit_timestamp, runner_arguments, created_at)
-                VALUES (%s, %s, %s, 'manual', %s, %s, %s, %s, %s, NOW())
+                INSERT INTO runs (
+                    job_id, name, uri, email, branch, filename, commit_hash,
+                    commit_timestamp, runner_arguments, user_id, created_at
+                )
+                VALUES (
+                    %s, %s, %s, 'manual', %s, %s, %s,
+                    %s, %s, %s, NOW()
+                )
                 RETURNING id
-                """, params=(self._job_id, self._name, self._uri, self._branch, self._original_filename, self._commit_hash, self._commit_timestamp, json.dumps(self._arguments)))[0]
+                """, params=(
+                    self._job_id, self._name, self._uri, self._branch, self._original_filename, self._commit_hash,
+                    self._commit_timestamp, json.dumps(self._arguments), self._user_id
+                ))[0]
         return self._run_id
 
     def get_optimizations_ignore(self):
@@ -543,7 +557,6 @@ class Runner:
         return name
 
     def build_docker_images(self):
-        config = GlobalConfig().config
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
         # Create directory /tmp/green-metrics-tool/docker_images
@@ -599,7 +612,10 @@ class Runner:
 
                 print(' '.join(docker_build_command))
 
-                ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', timeout=config['measurement']['total-duration'], check=False)
+                if self._measurement_total_duration:
+                    ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', timeout=self._measurement_total_duration, check=False)
+                else:
+                    ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
@@ -703,18 +719,12 @@ class Runner:
         # Check if there are service dependencies defined with 'depends_on'.
         # If so, change the order of the services accordingly.
         services_ordered = self.order_services(services)
-        known_container_names = []
         for service_name, service in services_ordered.items():
 
             if 'container_name' in service:
                 container_name = service['container_name']
             else:
                 container_name = service_name
-
-            if container_name in known_container_names:
-                raise RuntimeError(f"Container name '{container_name}' was already assigned. Please choose unique container names.")
-
-            known_container_names.append(container_name)
 
             print(TerminalColors.HEADER, '\nSetting up container for service:', service_name, TerminalColors.ENDC)
             print('Container name:', container_name)
@@ -1060,9 +1070,8 @@ class Runner:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
     def check_total_runtime_exceeded(self):
-        config = GlobalConfig().config
-        if (time.time() - self.__start_measurement_seconds) > config['measurement']['total-duration']:
-            raise TimeoutError(f"Timeout of {config['measurement']['total-duration']} s was exceeded. This can be configured in 'total-duration'.")
+        if self._measurement_total_duration and (time.time() - self.__start_measurement_seconds) > self._measurement_total_duration:
+            raise TimeoutError(f"Timeout of {self._measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total-duration'.")
 
     def start_phase(self, phase, transition = True):
         config = GlobalConfig().config
@@ -1078,9 +1087,6 @@ class Runner:
 
         phase_time = int(time.time_ns() / 1_000)
         self.__notes_helper.add_note({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
-
-        if phase in self.__phases:
-            raise RuntimeError(f"'{phase}' as phase name has already used. Please set unique name for phases.")
 
         self.__phases[phase] = {'start': phase_time, 'name': phase}
 
@@ -1106,8 +1112,6 @@ class Runner:
         self.__notes_helper.add_note({'note': f"Ending phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
     def run_flows(self):
-        config = GlobalConfig().config
-        # run the flows
         ps_to_kill_tmp = []
         ps_to_read_tmp = []
         exception_occured = False
@@ -1122,7 +1126,7 @@ class Runner:
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
             try:
-                self.start_phase(flow['name'].replace('[', '').replace(']',''), transition=False)
+                self.start_phase(flow['name'], transition=False)
 
                 for cmd_obj in flow['commands']:
                     self.check_total_runtime_exceeded()
@@ -1157,7 +1161,7 @@ class Runner:
 
 
                         if cmd_obj.get('detach', False) is True:
-                            print('Process should be detached. Running asynchronously and detaching ...')
+                            print('Executing process asynchronously and detaching ...')
                             #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
                             ps = subprocess.Popen(
                                 docker_exec_command,
@@ -1173,15 +1177,25 @@ class Runner:
 
                             ps_to_kill_tmp.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
                         else:
-                            print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-duration']}s runtime ...")
-                            ps = subprocess.run(
-                                docker_exec_command,
-                                stderr=stderr_behaviour,
-                                stdout=stdout_behaviour,
-                                encoding='UTF-8',
-                                check=False, # cause it will be checked later and also ignore-errors checked
-                                timeout=config['measurement']['flow-process-duration'],
-                            )
+                            print('Executing process synchronously.')
+                            if self._measurement_flow_process_duration:
+                                print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
+                                ps = subprocess.run(
+                                    docker_exec_command,
+                                    stderr=stderr_behaviour,
+                                    stdout=stdout_behaviour,
+                                    encoding='UTF-8',
+                                    check=False, # cause it will be checked later and also ignore-errors checked
+                                    timeout=self._measurement_flow_process_duration,
+                                )
+                            else:
+                                ps = subprocess.run(
+                                    docker_exec_command,
+                                    stderr=stderr_behaviour,
+                                    stdout=stdout_behaviour,
+                                    encoding='UTF-8',
+                                    check=False, # cause it will be checked later and also ignore-errors checked
+                                )
 
                         ps_to_read_tmp.append({
                             'cmd': docker_exec_command,
@@ -1201,7 +1215,7 @@ class Runner:
                     if self._debugger.active:
                         self._debugger.pause('Waiting to start next command in flow')
 
-                self.end_phase(flow['name'].replace('[', '').replace(']',''))
+                self.end_phase(flow['name'])
                 self.__ps_to_kill += ps_to_kill_tmp
                 self.__ps_to_read += ps_to_read_tmp # will otherwise be discarded, bc they confuse execption handling
                 self.check_process_returncodes()
@@ -1360,6 +1374,8 @@ class Runner:
             SET start_measurement=%s, end_measurement=%s
             WHERE id = %s
             """, params=(self.__start_measurement, self.__end_measurement, self._run_id))
+        self._last_measurement_duration = self.__end_measurement - self.__start_measurement
+
 
     def set_run_failed(self):
         if not self._run_id:

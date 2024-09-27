@@ -26,7 +26,6 @@ admin:
   email_bcc: False
 
 
-
 cluster:
   api_url: __API_URL__
   metrics_url: __METRICS_URL__
@@ -65,8 +64,6 @@ measurement:
   pre-test-sleep: 5
   idle-duration: 5
   baseline-duration: 5
-  flow-process-duration: 1800 # half hour
-  total-duration: 3600 # one hour
   post-test-sleep: 5
   phase-transition-time: 1
   boot:

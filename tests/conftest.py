@@ -1,6 +1,6 @@
 import pytest
 
-from lib.db import DB
+from tests import test_functions as Tests
 
 ## VERY IMPORTANT to override the config file here
 ## otherwise it will automatically connect to non-test DB and delete all your real data
@@ -12,14 +12,15 @@ def pytest_collection_modifyitems(items):
         if item.fspath.basename == 'test_functions.py':
             item.add_marker(pytest.mark.skip(reason='Skipping this file'))
 
-# should we hardcode test-db here?
+
+# Note: This fixture runs always
+# Pytest collects all fixtures before running any tests
+# no matter which order they are loaded in
 @pytest.fixture(autouse=True)
 def cleanup_after_test():
     yield
-    tables = DB().fetch_all("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
-    for table in tables:
-        table_name = table[0]
-        DB().query(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE')
+    Tests.reset_db()
+
 
 ### If you wish to turn off the above auto-cleanup per test, include the following in your
 ### test module:

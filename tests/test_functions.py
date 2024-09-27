@@ -1,5 +1,6 @@
 import os
 import subprocess
+from lib.db import DB
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -19,6 +20,20 @@ def check_if_container_running(container_name):
     if ps.returncode != 0:
         return False
     return True
+
+def build_image_fixture():
+    subprocess.run(['docker', 'compose', '-f', f"{CURRENT_DIR}/data/stress-application/compose.yml", 'build'], check=True)
+
+# should be preceded by a yield statement and on autouse
+def reset_db():
+    DB().query('DROP schema "public" CASCADE')
+    subprocess.run(
+        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', 'psql --port 9573 < ./docker-entrypoint-initdb.d/structure.sql'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
 
 class RunUntilManager:
     def __init__(self, runner):

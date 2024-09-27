@@ -23,7 +23,7 @@ from lib.configuration_check_error import ConfigurationCheckError
 """
 
 class Job(ABC):
-    def __init__(self, state, name, email, url,  branch, filename, machine_id, run_id, job_id, machine_description, message):
+    def __init__(self, *, state, name, email, url,  branch, filename, machine_id, user_id, run_id, job_id, machine_description, message):
         self._id = job_id
         self._state = state
         self._name = name
@@ -32,6 +32,7 @@ class Job(ABC):
         self._branch = branch
         self._filename = filename
         self._machine_id = machine_id
+        self._user_id = user_id
         self._machine_description = machine_description
         self._run_id = run_id
         self._message = message
@@ -71,18 +72,18 @@ class Job(ABC):
         pass
 
     @classmethod
-    def insert(cls, job_type, *, name=None, url=None, email=None, branch=None, filename=None, machine_id=None, message=None):
+    def insert(cls, job_type, *, user_id, name=None, url=None, email=None, branch=None, filename=None, machine_id=None, message=None):
 
         if job_type == 'run' and (not branch or not url or not filename or not machine_id):
             raise RuntimeError('For adding runs branch, url, filename and machine_id must be set')
 
         query = """
                 INSERT INTO
-                    jobs (type, name, url, email, branch, filename, machine_id, message, state, created_at)
+                    jobs (type, name, url, email, branch, filename, machine_id, user_id, message, state, created_at)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, 'WAITING', NOW()) RETURNING id;
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'WAITING', NOW()) RETURNING id;
                 """
-        params = (job_type, name, url, email, branch, filename, machine_id, message)
+        params = (job_type, name, url, email, branch, filename, machine_id, user_id, message)
         return DB().fetch_one(query, params=params)[0]
 
     # A static method to get a job object
@@ -93,7 +94,7 @@ class Job(ABC):
         query = '''
             SELECT
                 j.id, j.state, j.name, j.email, j.url, j.branch,
-                j.filename, j.machine_id, m.description, j.message, r.id as run_id
+                j.filename, j.machine_id, j.user_id, m.description, j.message, r.id as run_id
             FROM jobs as j
             LEFT JOIN machines as m on m.id = j.machine_id
             LEFT JOIN runs as r on r.job_id = j.id
@@ -132,9 +133,10 @@ class Job(ABC):
             branch=job[5],
             filename=job[6],
             machine_id=job[7],
-            machine_description=job[8],
-            message=job[9],
-            run_id=job[10],
+            user_id=job[8],
+            machine_description=job[9],
+            message=job[10],
+            run_id=job[11],
         )
 
     @classmethod

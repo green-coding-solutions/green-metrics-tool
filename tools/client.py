@@ -106,7 +106,7 @@ if __name__ == '__main__':
         while True:
             job = Job.get_job('run')
             if job and job.check_job_running():
-                error_helpers.log_error('Job is still running. This is usually an error case! Continuing for now ...')
+                error_helpers.log_error('Job is still running. This is usually an error case! Continuing for now ...', machine=config_main['machine']['description'])
                 time.sleep(client_main['sleep_time_no_job'])
                 continue
 
@@ -154,6 +154,7 @@ if __name__ == '__main__':
                     if client_main['send_control_workload_status_mail'] and config_main['admin']['notification_email']:
                         Job.insert(
                             'email',
+                            user_id=None,
                             email=config_main['admin']['notification_email'],
                             name=f"{config_main['machine']['description']} is operating normally. All STDDEV below {cwl['threshold'] * 100} %",
                             message='\n'.join(message)
@@ -176,18 +177,18 @@ if __name__ == '__main__':
                 except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
                     if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
-                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, sleep_duration=600)
+                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config_main['machine']['description'], sleep_duration=600)
                         time.sleep(600)
                     else: # Hard fails won't resolve on it's own. We sleep until next cluster validation
-                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, sleep_duration=client_main['time_between_control_workload_validations'])
+                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config_main['machine']['description'], sleep_duration=client_main['time_between_control_workload_validations'])
                         time.sleep(client_main['time_between_control_workload_validations'])
 
                 except subprocess.CalledProcessError as exc:
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
-                    error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, stdout=exc.stdout, stderr=exc.stderr, run_id=job._run_id, name=job._name, url=job._url)
+                    error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, stdout=exc.stdout, stderr=exc.stderr, run_id=job._run_id, machine=config_main['machine']['description'], name=job._name, url=job._url)
                 except Exception as exc:
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
-                    error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, run_id=job._run_id, name=job._name, url=job._url)
+                    error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, run_id=job._run_id, machine=config_main['machine']['description'], name=job._name, url=job._url)
                 finally:
                     if not args.testing:
                         do_cleanup(current_temperature, last_cooldown_time)

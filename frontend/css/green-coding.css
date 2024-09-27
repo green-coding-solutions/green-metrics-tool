@@ -22,7 +22,7 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
     margin-top: 14px;
 }
 
-.no-transform-statistics .statistic .value {
+.no-transform {
     text-transform: none !important;
 }
 

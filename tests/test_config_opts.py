@@ -16,11 +16,9 @@ GlobalConfig().override_config(config_name='test-config.yml')
 
 def test_global_timeout():
 
-    total_duration_new = 1
-    total_duration_before = GlobalConfig().config['measurement']['total-duration']
-    GlobalConfig().config['measurement']['total-duration'] = total_duration_new
+    measurement_total_duration = 1
 
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_build=False, dev_no_sleeps=True, dev_no_metrics=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_build=False, dev_no_sleeps=True, dev_no_metrics=True, measurement_total_duration=1)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -28,15 +26,13 @@ def test_global_timeout():
         with redirect_stdout(out), redirect_stderr(err):
             runner.run()
     except subprocess.TimeoutExpired as e:
-        assert str(e).startswith("Command '['docker', 'run', '--rm', '-v',") and f"timed out after {total_duration_new} seconds" in str(e), \
-        Tests.assertion_info(f"Command '['docker', 'run', '--rm', '-v', ... timed out after {total_duration_new} seconds", str(e))
+        assert str(e).startswith("Command '['docker', 'run', '--rm', '-v',") and f"timed out after {measurement_total_duration} seconds" in str(e), \
+        Tests.assertion_info(f"Command '['docker', 'run', '--rm', '-v', ... timed out after {measurement_total_duration} seconds", str(e))
         return
     except TimeoutError as e:
-        assert str(e) == f"Timeout of {total_duration_new} s was exceeded. This can be configured in 'total-duration'.", \
-        Tests.assertion_info(f"Timeout of {total_duration_new} s was exceeded. This can be configured in 'total-duration'.", str(e))
+        assert str(e) == f"Timeout of {measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total-duration'.", \
+        Tests.assertion_info(f"Timeout of {measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total-duration'.", str(e))
         return
-    finally:
-        GlobalConfig().config['measurement']['total-duration'] = total_duration_before # reset
 
     assert False, \
         Tests.assertion_info('Timeout was not raised', str(out.getvalue()))
