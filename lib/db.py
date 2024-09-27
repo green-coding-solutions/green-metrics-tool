@@ -1,5 +1,4 @@
 #pylint: disable=consider-using-enumerate
-
 from psycopg_pool import ConnectionPool
 import psycopg.rows
 
@@ -69,6 +68,8 @@ class DB:
         return self.__query(query, params=params, return_type='all', fetch_mode=fetch_mode)
 
     def import_csv(self, filename):
+        raise NotImplementedError('Code still flakes on ; in data. Please rework')
+        # pylint: disable=unreachable
         with self._pool.connection() as conn:
             conn.autocommit = True
             cur = conn.cursor()
