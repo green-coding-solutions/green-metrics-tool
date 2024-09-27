@@ -1,0 +1,26 @@
+---
+name: Container name invalid test
+author: Arne Tarara
+description: Container name invalid test
+
+services:
+  highload-api-cont:
+    image: alpine
+    container_name: number-1
+
+
+flow:
+  - name: This phase is ok
+    container: highload-api-cont
+    commands:
+      - type: console
+        command: echo "asd"
+        shell: bash
+        note: Starting a little stress
+  - name: This phase is / not ok!
+    container: highload-api-cont
+    commands:
+      - type: console
+        command: echo "asd"
+        shell: bash
+        note: Starting a little stress

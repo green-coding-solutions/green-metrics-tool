@@ -1,7 +1,7 @@
 import os
 import string
 import re
-from schema import Schema, SchemaError, Optional, Or, Use
+from schema import Schema, SchemaError, Optional, Or, Use, And, Regex
 #
 # networks documentation is different than what i see in the wild!
     # name: str
@@ -26,11 +26,18 @@ class SchemaChecker():
         valid_chars = set(string.ascii_letters + string.digits + '_' + '-')
         if not set(value).issubset(valid_chars):
             raise SchemaError(f"{value} does not use valid characters! (a-zA-Z0-9_-)")
+        return value
 
     def contains_no_invalid_chars(self, value):
         bad_values = re.findall(r'(\.\.|\$|\'|"|`|!)', value)
         if bad_values:
             raise SchemaError(f"{value} includes disallowed values: {bad_values}")
+        return value
+
+    def not_empty(self, value):
+        if value.strip() == '':
+            raise SchemaError('Value cannot be empty')
+        return value
 
     ## If we ever want smarter validation for ports, here's a list of examples that we need to support:
     # - 3000
@@ -67,51 +74,53 @@ class SchemaChecker():
             raise SchemaError(f"{value} is not 'container'")
         return value
 
-    def validate_networks_no_invalid_chars(self, networks):
-        if isinstance(networks, list):
-            for item in networks:
+    def validate_networks_no_invalid_chars(self, value):
+        if isinstance(value, list):
+            for item in value:
                 if item is not None:
                     self.contains_no_invalid_chars(item)
-        elif isinstance(networks, dict):
-            for key, value in networks.items():
+        elif isinstance(value, dict):
+            for key, item in value.items():
                 self.contains_no_invalid_chars(key)
-                if value is not None:
-                    self.contains_no_invalid_chars(value)
+                if item is not None:
+                    self.contains_no_invalid_chars(item)
         else:
             raise SchemaError("'networks' should be a list or a dictionary")
 
+        return value
 
     def check_usage_scenario(self, usage_scenario):
         # Anything with Optional() is not needed, but if it exists must conform to the definition specified
         usage_scenario_schema = Schema({
             "name": str,
-            "author": str,
-            "description": str,
+            "author": And(str, Use(self.not_empty)),
+            "description": And(str, Use(self.not_empty)),
 
             Optional("networks"): Or(list, dict),
 
             Optional("services"): {
                 Use(self.contains_no_invalid_chars): {
                     Optional("type"): Use(self.valid_service_types),
-                    Optional("image"): str,
-                    Optional("build"): Or(Or({str:str},list),str),
+                    Optional("image"): And(str, Use(self.not_empty)),
+                    Optional("build"): Or(Or({And(str, Use(self.not_empty)):And(str, Use(self.not_empty))},list),And(str, Use(self.not_empty))),
                     Optional("networks"): self.single_or_list(Use(self.contains_no_invalid_chars)),
-                    Optional("environment"): self.single_or_list(Or(dict,str)),
-                    Optional("ports"): self.single_or_list(Or(str, int)),
-                    Optional("depends_on"): Or([str],dict),
+                    Optional("environment"): self.single_or_list(Or(dict,And(str, Use(self.not_empty)))),
+                    Optional("ports"): self.single_or_list(Or(And(str, Use(self.not_empty)), int)),
+                    Optional("depends_on"): Or([And(str, Use(self.not_empty))],dict),
+                    Optional('container_name'): And(str, Use(self.not_empty)),
                     Optional("healthcheck"): {
-                        Optional('test'): Or(list, str),
-                        Optional('interval'): str,
-                        Optional('timeout'): str,
+                        Optional('test'): Or(list, And(str, Use(self.not_empty))),
+                        Optional('interval'): And(str, Use(self.not_empty)),
+                        Optional('timeout'): And(str, Use(self.not_empty)),
                         Optional('retries'): int,
-                        Optional('start_period'): str,
-                        Optional('start_interval'): str,
+                        Optional('start_period'): And(str, Use(self.not_empty)),
+                        Optional('start_interval'): And(str, Use(self.not_empty)),
                         Optional('disable'): bool,
                     },
-                    Optional("setup-commands"): [str],
+                    Optional("setup-commands"): [And(str, Use(self.not_empty))],
                     Optional("volumes"): self.single_or_list(str),
-                    Optional("folder-destination"):str,
-                    Optional("command"): str,
+                    Optional("folder-destination"):And(str, Use(self.not_empty)),
+                    Optional("command"): And(str, Use(self.not_empty)),
                     Optional("log-stdout"): bool,
                     Optional("log-stderr"): bool,
                     Optional("read-notes-stdout"): bool,
@@ -119,25 +128,35 @@ class SchemaChecker():
                 }
             },
 
-            "flow": [{
-                "name": str,
-                "container": Use(self.contains_no_invalid_chars),
+             "flow": [{
+                "name": And(str, Use(self.not_empty), Regex(r'^[\.\s0-9a-zA-Z_\(\)-]+$')),
+                "container": And(str, Use(self.not_empty), Use(self.contains_no_invalid_chars)),
                 "commands": [{
                     "type":"console",
-                    "command": str,
+                    "command": And(str, Use(self.not_empty)),
                     Optional("detach"): bool,
-                    Optional("note"): str,
+                    Optional("note"): And(str, Use(self.not_empty)),
                     Optional("read-notes-stdout"): bool,
                     Optional("read-sci-stdout"): bool,
                     Optional("ignore-errors"): bool,
-                    Optional("shell"): str,
+                    Optional("shell"): And(str, Use(self.not_empty)),
                     Optional("log-stdout"): bool,
                     Optional("log-stderr"): bool,
                 }],
+
             }],
 
             Optional("compose-file"): Use(self.validate_compose_include)
         }, ignore_extra_keys=True)
+
+
+        # First we check the general structure. Otherwise we later cannot even iterate over it
+        try:
+            usage_scenario_schema.validate(usage_scenario)
+        except SchemaError as e: # This block filters out the too long error message that include the parsing structure
+            if len(e.autos) > 2:
+                raise SchemaError(e.autos[2:]) from e
+            raise SchemaError(e.autos) from e
 
 
         # This check is necessary to do in a seperate pass. If tried to bake into the schema object above,
@@ -145,25 +164,32 @@ class SchemaChecker():
         if 'networks' in usage_scenario:
             self.validate_networks_no_invalid_chars(usage_scenario['networks'])
 
-        for service_name in usage_scenario.get('services'):
-            service = usage_scenario['services'][service_name]
+        known_container_names = []
+        for service_name, service in usage_scenario.get('services').items():
+            if 'container_name' in service:
+                container_name = service['container_name']
+            else:
+                container_name = service_name
+
+            if container_name in known_container_names:
+                raise SchemaError(f"Container name '{container_name}' was already used. Please choose unique container names.")
+            known_container_names.append(container_name)
+
             if 'image' not in service and 'build' not in service:
                 raise SchemaError(f"The 'image' key for service '{service_name}' is required when 'build' key is not present.")
             if 'cmd' in service:
                 raise SchemaError(f"The 'cmd' key for service '{service_name}' is not supported anymore. Please migrate to 'command'")
 
-        # Ensure that flow names are unique
-        flow_names = [flow['name'] for flow in usage_scenario['flow']]
-        if len(flow_names) != len(set(flow_names)):
-            raise SchemaError("The 'name' field in 'flow' must be unique.")
-
+        known_flow_names = []
         for flow in usage_scenario['flow']:
+            if flow['name'] in known_flow_names:
+                raise SchemaError(f"The 'name' field in 'flow' must be unique. '{flow['name']}' was already used.")
+            known_flow_names.append(flow['name'])
+
             for command in flow['commands']:
                 if  'read-sci-stdout' in command and 'log-stdout' not in command:
                     raise SchemaError(f"You have specified `read-sci-stdout` in flow {flow['name']} but not set `log-stdout` to True.")
 
-
-        usage_scenario_schema.validate(usage_scenario)
 
 
 # if __name__ == '__main__':

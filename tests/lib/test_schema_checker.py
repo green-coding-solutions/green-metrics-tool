@@ -48,7 +48,7 @@ def test_schema_checker_invalid_missing_description():
 
     expected_exception = "Missing key: 'description'"
     assert expected_exception in str(error.value), \
-        Tests.assertion_info(f"Exception: {expected_exception}", str(error.value))
+        Tests.assertion_info(expected_exception, str(error.value))
 
 
 def test_schema_checker_invalid_image_req_when_no_build():

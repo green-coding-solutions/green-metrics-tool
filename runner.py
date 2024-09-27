@@ -702,18 +702,12 @@ class Runner:
         # Check if there are service dependencies defined with 'depends_on'.
         # If so, change the order of the services accordingly.
         services_ordered = self.order_services(services)
-        known_container_names = []
         for service_name, service in services_ordered.items():
 
             if 'container_name' in service:
                 container_name = service['container_name']
             else:
                 container_name = service_name
-
-            if container_name in known_container_names:
-                raise RuntimeError(f"Container name '{container_name}' was already assigned. Please choose unique container names.")
-
-            known_container_names.append(container_name)
 
             print(TerminalColors.HEADER, '\nSetting up container for service:', service_name, TerminalColors.ENDC)
             print('Container name:', container_name)
@@ -1078,9 +1072,6 @@ class Runner:
         phase_time = int(time.time_ns() / 1_000)
         self.__notes_helper.add_note({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
-        if phase in self.__phases:
-            raise RuntimeError(f"'{phase}' as phase name has already used. Please set unique name for phases.")
-
         self.__phases[phase] = {'start': phase_time, 'name': phase}
 
     def end_phase(self, phase):
@@ -1121,7 +1112,7 @@ class Runner:
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
             try:
-                self.start_phase(flow['name'].replace('[', '').replace(']',''), transition=False)
+                self.start_phase(flow['name'], transition=False)
 
                 for cmd_obj in flow['commands']:
                     self.check_total_runtime_exceeded()
@@ -1200,7 +1191,7 @@ class Runner:
                     if self._debugger.active:
                         self._debugger.pause('Waiting to start next command in flow')
 
-                self.end_phase(flow['name'].replace('[', '').replace(']',''))
+                self.end_phase(flow['name'])
                 self.__ps_to_kill += ps_to_kill_tmp
                 self.__ps_to_read += ps_to_read_tmp # will otherwise be discarded, bc they confuse execption handling
                 self.check_process_returncodes()
