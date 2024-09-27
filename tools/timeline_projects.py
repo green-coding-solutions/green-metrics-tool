@@ -21,16 +21,16 @@ from lib.job.base import Job
 class TimelineProject():
     #pylint:disable=redefined-outer-name
     @classmethod
-    def insert(cls, name, url, branch, filename, machine_id, schedule_mode):
+    def insert(cls, *, name, url, branch, filename, machine_id, user_id, schedule_mode):
         # Timeline projects never insert / use emails as they are always premium and made by admin
         # So they need no notification on success / add
         insert_query = """
                 INSERT INTO
-                    timeline_projects (name, url, branch, filename, machine_id, schedule_mode, created_at)
+                    timeline_projects (name, url, branch, filename, machine_id, user_id, schedule_mode, created_at)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, NOW()) RETURNING id;
+                    (%s, %s, %s, %s, %s, %s, %s, NOW()) RETURNING id;
                 """
-        params = (name, url, branch, filename, machine_id, schedule_mode,)
+        params = (name, url, branch, filename, machine_id, user_id, schedule_mode,)
         return DB().fetch_one(insert_query, params=params)[0]
 
 
@@ -62,33 +62,33 @@ if __name__ == '__main__':
     else:
         query = """
             SELECT
-                id, name, url, branch, filename, machine_id, schedule_mode, last_scheduled,
+                id, name, url, branch, filename, machine_id, user_id, schedule_mode, last_scheduled,
                 DATE(last_scheduled) >= DATE(NOW()) as "scheduled_today",
                 DATE(last_scheduled) >= DATE(NOW() - INTERVAL '7 DAYS') as "scheduled_last_week"
             FROM timeline_projects
            """
         data = DB().fetch_all(query)
 
-        for [project_id, name, url, branch, filename, machine_id, schedule_mode, last_scheduled, scheduled_today, scheduled_last_week] in data:
+        for [project_id, name, url, branch, filename, machine_id, user_id, schedule_mode, last_scheduled, scheduled_today, scheduled_last_week] in data:
             if not last_scheduled:
                 print('Project was not scheduled yet ', url, branch, filename, machine_id)
                 DB().query('UPDATE timeline_projects SET last_scheduled = NOW() WHERE id = %s', params=(project_id,))
-                Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+                Job.insert('run', user_id=user_id, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
                 print('\tInserted ')
             elif schedule_mode == 'daily':
                 print('Project is on daily schedule', url, branch, filename, machine_id)
                 if scheduled_today is False:
                     print('\tProject was not scheduled today', scheduled_today)
                     DB().query('UPDATE timeline_projects SET last_scheduled = NOW() WHERE id = %s', params=(project_id,))
-                    Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+                    Job.insert('run', user_id=user_id, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
                     print('\tInserted')
             elif schedule_mode == 'weekly':
                 print('Project is on daily schedule', url, branch, filename, machine_id)
                 if scheduled_last_week is False:
                     print('\tProject was not scheduled in last 7 days', scheduled_last_week)
                     DB().query('UPDATE timeline_projects SET last_scheduled = NOW() WHERE id = %s', params=(project_id,))
-                    Job.insert('run', name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
+                    Job.insert('run', user_id=user_id, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
                     print('\tInserted')
             elif schedule_mode == 'commit':
-                print('Project is on time schedule', url, branch, filename, machine_id)
-                print('This functionality is not yet implemented ...')
+                print('Project is on commit schedule', url, branch, filename, machine_id)
+                raise NotImplementedError('This functionality is not yet implemented ...')

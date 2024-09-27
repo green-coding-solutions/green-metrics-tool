@@ -77,6 +77,7 @@ if __name__ == '__main__':
             if job_main._email and not isinstance(exception, ConfigurationCheckError):
                 Job.insert(
                     'email',
+                    user_id=job_main._user_id,
                     email=job_main._email,
                     name='Measurement Job on Green Metrics Tool Cluster failed',
                     message=f"Run-ID: {job_main._run_id}\nName: {job_main._name}\nMachine: {job_main._machine_description}\n\nDetails can also be found in the log under: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={job_main._run_id}\n\nError message: {exception}\n"

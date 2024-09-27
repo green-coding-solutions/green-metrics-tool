@@ -11,6 +11,7 @@ import pytest
 from lib.db import DB
 from lib import utils
 from lib.global_config import GlobalConfig
+from tests import test_functions as Tests
 from runner import Runner
 
 run_stderr = None
@@ -28,10 +29,7 @@ def cleanup_after_test():
 @pytest.fixture(autouse=True, scope='module')
 def cleanup_after_module():
     yield
-    tables = DB().fetch_all("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
-    for table in tables:
-        table_name = table[0]
-        DB().query(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE')
+    Tests.reset_db()
 
 # Runs once per file before any test(
 #pylint: disable=expression-not-assigned
