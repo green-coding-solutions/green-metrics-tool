@@ -1280,6 +1280,7 @@ class Runner:
             print('Imported', TerminalColors.HEADER, df.shape[0], TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
             if df is None or df.shape[0] == 0:
                 errors.append(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
+                continue
 
             f = StringIO(df.to_csv(index=False, header=False))
             DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')

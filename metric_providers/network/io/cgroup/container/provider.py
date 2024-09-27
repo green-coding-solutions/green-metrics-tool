@@ -1,5 +1,6 @@
 import os
 
+from lib import utils
 from metric_providers.base import BaseMetricProvider
 
 class NetworkIoCgroupContainerProvider(BaseMetricProvider):
@@ -17,11 +18,26 @@ class NetworkIoCgroupContainerProvider(BaseMetricProvider):
     def read_metrics(self, run_id, containers=None):
         df = super().read_metrics(run_id, containers)
 
-        df['transmitted_bytes_intervals'] = df['transmitted_bytes'].diff()
-        df.loc[0, 'transmitted_bytes_intervals'] = df['transmitted_bytes_intervals'].mean()  # approximate first interval
+        if df.empty:
+            return df
 
-        df['received_bytes_intervals'] = df['received_bytes'].diff()
-        df.loc[0, 'received_bytes_intervals'] = df['received_bytes_intervals'].mean()  # approximate first interval
+        df = df.sort_values(by=['container_id', 'time'], ascending=True)
+
+        df['transmitted_bytes_intervals'] = df.groupby(['container_id'])['transmitted_bytes'].diff()
+        df['transmitted_bytes_intervals'] = df.groupby('container_id')['transmitted_bytes_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
+
+        df['received_bytes_intervals'] = df.groupby(['container_id'])['received_bytes'].diff()
+        df['received_bytes_intervals'] = df.groupby('container_id')['received_bytes_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
+
+        # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
+        # Since one value is useless for us we drop the row
+        df.dropna(inplace=True)
+
+        if (df['received_bytes_intervals'] < 0).any():
+            raise ValueError('NetworkIoCgroupContainerProvider data column received_bytes_intervals had negative values.')
+
+        if (df['transmitted_bytes_intervals'] < 0).any():
+            raise ValueError('NetworkIoCgroupContainerProvider data column transmitted_bytes_intervals had negative values.')
 
         df['value'] = df['received_bytes_intervals'] + df['transmitted_bytes_intervals']
         df['value'] = df.value.astype(int)

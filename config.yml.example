@@ -134,6 +134,7 @@ measurement:
 #        resolution: 99
 #      network.io.procfs.system.provider.NetworkIoProcfsSystemProvider:
 #        resolution: 99
+#        remove_virtual_interfaces: True
 #      disk.used.statvfs.system.provider.DiskUsedStatvfsSystemProvider:
 #        resolution: 99
 

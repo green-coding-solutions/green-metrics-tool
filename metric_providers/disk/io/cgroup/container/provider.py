@@ -1,5 +1,6 @@
 import os
 
+from lib import utils
 from metric_providers.base import BaseMetricProvider
 
 class DiskIoCgroupContainerProvider(BaseMetricProvider):
@@ -17,14 +18,26 @@ class DiskIoCgroupContainerProvider(BaseMetricProvider):
     def read_metrics(self, run_id, containers=None):
         df = super().read_metrics(run_id, containers)
 
-        df['value'] = df['read_bytes'] + df['written_bytes']
+        if df.empty:
+            return df
 
+        df = df.sort_values(by=['container_id', 'time'], ascending=True)
 
-        df['written_bytes_intervals'] = df['written_bytes'].diff()
-        df.loc[0, 'written_bytes_intervals'] = df['written_bytes_intervals'].mean()  # approximate first interval
+        df['written_bytes_intervals'] = df.groupby(['container_id'])['written_bytes'].diff()
+        df['written_bytes_intervals'] = df.groupby('container_id')['written_bytes_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
 
-        df['read_bytes_intervals'] = df['read_bytes'].diff()
-        df.loc[0, 'read_bytes_intervals'] = df['read_bytes_intervals'].mean()  # approximate first interval
+        df['read_bytes_intervals'] = df.groupby(['container_id'])['read_bytes'].diff()
+        df['read_bytes_intervals'] = df.groupby('container_id')['read_bytes_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
+
+        # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
+        # Since one value is useless for us we drop the row
+        df.dropna(inplace=True)
+
+        if (df['read_bytes_intervals'] < 0).any():
+            raise ValueError('DiskIoCgroupContainerProvider data column read_bytes_intervals had negative values.')
+
+        if (df['written_bytes_intervals'] < 0).any():
+            raise ValueError('DiskIoCgroupContainerProvider data column written_bytes_intervals had negative values.')
 
         df['value'] = df['read_bytes_intervals'] + df['written_bytes_intervals']
         df['value'] = df.value.astype(int)

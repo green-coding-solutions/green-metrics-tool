@@ -22,7 +22,7 @@ static unsigned long long get_disk_usage() {
     }
 
     unsigned long long total_space = buf.f_blocks * buf.f_frsize;
-    unsigned long long free_space = buf.f_bavail * buf.f_frsize; // f_bavail is for non-root users which is more helpful than f_free
+    unsigned long long free_space = buf.f_bfree * buf.f_frsize; // by subtracting f_bfree instead of f_bavail we get what is used by non-root users which is more helpful
 
     return total_space - free_space;
 

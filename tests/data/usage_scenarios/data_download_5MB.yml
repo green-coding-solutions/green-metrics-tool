@@ -1,0 +1,23 @@
+---
+name: Test network IO
+author: Arne Tarara
+description: Test network IO
+
+services:
+  test-container-1:
+    image: curlimages/curl:8.10.1
+    command: sh
+
+flow:
+  - name: Download
+    container: test-container-1
+    commands:
+      - type: console
+        command: curl --fail https://freetestdata.com/wp-content/uploads/2021/09/Free_Test_Data_5MB_OGG.ogg --output /tmp/test_file.ogg --silent
+        note: Starting Download
+      - type: console
+        command: sync
+        note: Syncing to disk
+      - type: console
+        command: sleep 2
+        note: Sleeping for sync

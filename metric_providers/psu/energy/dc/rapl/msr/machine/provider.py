@@ -22,6 +22,9 @@ class PsuEnergyDcRaplMsrMachineProvider(BaseMetricProvider):
     def read_metrics(self, run_id, containers=None):
         df = super().read_metrics(run_id, containers)
 
+        if df.empty:
+            return df
+
         df['detail_name'] = df.psys_id
         df = df.drop('psys_id', axis=1)
 

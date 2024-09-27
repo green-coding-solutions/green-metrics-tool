@@ -14,12 +14,6 @@
 // in any case, none of these variables should change between threads
 static unsigned int msleep_time=1000;
 
-typedef struct net_io_t {
-    unsigned long long int r_bytes;
-    unsigned long long int t_bytes;
-} net_io_t;
-
-
 static char *trimwhitespace(char *str) {
   char *end;
 
@@ -39,10 +33,10 @@ static char *trimwhitespace(char *str) {
   return str;
 }
 
-static net_io_t get_network_procfs() {
+static void output_network_procfs() {
     char buf[200], ifname[20];
     unsigned long long int r_bytes, t_bytes, r_packets, t_packets;
-    net_io_t net_io;
+    struct timeval now;
 
     // instead we could also read from ip -s link, but this might not be as consistent: https://serverfault.com/questions/448768/cat-proc-net-dev-and-ip-s-link-show-different-statistics-which-one-is-lyi
     // The web-link is very old though
@@ -59,6 +53,8 @@ static net_io_t get_network_procfs() {
 
     int match_result = 0;
 
+    gettimeofday(&now, NULL); // we only make this one time as we believe the overhead of the systemcall is more harmful than the mini time delay for every loop iteration
+
     while (fgets(buf, 200, fd)) {
         // We are not counting dropped packets, as we believe they will at least show up in the
         // sender side as not dropped.
@@ -69,26 +65,14 @@ static net_io_t get_network_procfs() {
             exit(1);
         }
         // printf("%s: rbytes: %llu rpackets: %llu tbytes: %llu tpackets: %llu\n", ifname, r_bytes, r_packets, t_bytes, t_packets);
-        if (strcmp(trimwhitespace(ifname), "lo") == 0) continue;
-        net_io.r_bytes += r_bytes;
-        net_io.t_bytes += t_bytes;
+
+        printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, r_bytes, t_bytes, trimwhitespace(ifname));
     }
 
     fclose(fd);
 
-    return net_io;
-}
-
-static void output_stats() {
-
-    struct timeval now;
-
-    gettimeofday(&now, NULL);
-    net_io_t net_io = get_network_procfs();
-    printf("%ld%06ld %llu %llu\n", now.tv_sec, now.tv_usec, net_io.r_bytes, net_io.t_bytes);
     usleep(msleep_time*1000);
 }
-
 
 static int check_system() {
     const char file_path_proc_net_dev[] = "/proc/net/dev";
@@ -144,7 +128,7 @@ int main(int argc, char **argv) {
     }
 
     while(1) {
-        output_stats();
+        output_network_procfs();
     }
 
     return 0;
