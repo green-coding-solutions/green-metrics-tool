@@ -1501,6 +1501,8 @@ async def carbondb_get_company_project_details(cptype: str, uuid: str):
     return ORJSONResponse({'success': True, 'data': data})
 
 # @app.get('/v1/authentication/new')
+# This will fail if the DB insert fails but still report 'success': True
+# Must be reworked if we want to allow API based token generation
 # async def get_authentication_token(name: str = None):
 #     if name is not None and name.strip() == '':
 #         name = None
