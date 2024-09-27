@@ -1,6 +1,7 @@
 import os
 import tempfile
 import psutil
+import subprocess
 
 GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))+'/../../'
 
@@ -44,14 +45,17 @@ def test_splitting_by_group():
         obj._filename = temp_file.name
         df = obj.read_metrics('RUN_ID')
 
-    assert df[df['interface'] == 'lo']['value'].sum() == 0
-    assert df[df['interface'] == 'lo']['value'].count() != 0, 'Grouping and filtering resulted in zero result lines for network_io'
+    assert df[df['detail_name'] == 'lo']['value'].sum() == 0
+    assert df[df['detail_name'] == 'lo']['value'].count() != 0, 'Grouping and filtering resulted in zero result lines for network_io'
 
 def test_io_providers():
     if utils.get_architecture() == 'macos':
         return
 
     runner = Runner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/data_download_5MB.yml', skip_system_checks=True, dev_no_metrics=False, dev_no_sleeps=True, dev_no_build=True)
+
+    subprocess.run('sync', check=True) # we sync here so that we can later more granular check for written file size
+
     run_id = runner.run()
 
     assert(run_id is not None and run_id != '')
@@ -78,7 +82,7 @@ def test_io_providers():
 
         if metric == 'disk_total_procfs_system':
             # Since some other sectors are flushed we need to account for a margin
-            assert 5*MB <= val < 7*MB , f"disk_total_procfs_system is not between 5 and 7 MB but {metric_provider['value']} {metric_provider['unit']}"
+            assert 5*MB <= val <= 6*MB , f"disk_total_procfs_system is not between 5 and 6 MB but {metric_provider['value']} {metric_provider['unit']}"
             seen_disk_total_procfs_system = True
         elif metric == 'network_total_procfs_system':
             # Some small network overhead to a 5 MB file always occurs
