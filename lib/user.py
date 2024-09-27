@@ -68,10 +68,7 @@ class User():
     @classmethod
     def authenticate(cls, token: SecureVariable | None, silent=False):
         sha256_hash = hashlib.sha256()
-        if token is None or token.get_value() is None:
-            sha256_hash.update("DEFAULT".encode('UTF-8'))
-        else:
-            sha256_hash.update(token.get_value().encode('UTF-8'))
+        sha256_hash.update(token.get_value().encode('UTF-8'))
 
         user = DB().fetch_one("""
                 SELECT id, name

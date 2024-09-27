@@ -141,7 +141,11 @@ def obfuscate_authentication_token(headers: StarletteHeaders):
 def authenticate(authentication_token=Depends(header_scheme), request: Request = None):
     parsed_url = urlparse(str(request.url))
     try:
-        user = User.authenticate(SecureVariable(authentication_token)) # Note that if no token is supplied this will authenticate as the DEFAULT user, which in FOSS systems has full capabilities
+
+        if not authentication_token: # Note that if no token is supplied this will authenticate as the DEFAULT user, which in FOSS systems has full capabilities
+            authentication_token = 'DEFAULT'
+
+        user = User.authenticate(SecureVariable(authentication_token))
 
         if not user.can_use_route(parsed_url.path):
             raise HTTPException(status_code=401, detail="Route not allowed") from UserAuthenticationError

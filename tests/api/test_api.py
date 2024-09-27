@@ -42,7 +42,7 @@ def test_post_run_add():
     job_id = get_job_id(run_name)
     assert job_id is not None
 
-def test_ci_measurement_add():
+def test_ci_measurement_add_default_user():
     measurement = CI_Measurement(energy_value=123,
                         energy_unit='mJ',
                         repo='testRepo',
@@ -59,17 +59,60 @@ def test_ci_measurement_add():
     response = requests.post(f"{API_URL}/v1/ci/measurement/add", json=measurement.model_dump(), timeout=15)
     assert response.status_code == 201, Tests.assertion_info('success', response.text)
     query = """
-            SELECT * FROM ci_measurements WHERE run_id = %s
+            SELECT * FROM ci_measurements WHERE run_id = %s -- we make * match to always test all columns. Even if we add some in the future
             """
     data = DB().fetch_one(query, (measurement.run_id, ), fetch_mode='dict')
+
     assert data is not None
-    for key in measurement.model_dump():
-        if key == 'workflow':
-            assert data['workflow_id'] == measurement.model_dump()[key], Tests.assertion_info(f"workflow_id: {data['workflow_id']}", measurement.model_dump()[key])
-        elif key in ['cb_company_uuid', 'cb_project_uuid', 'cb_machine_uuid']:
+    for key in data:
+        if key == 'workflow_id':
+            assert data[key] == measurement.model_dump()['workflow'], Tests.assertion_info(f"workflow_id: {data[key]}", measurement.model_dump()['workflow'])
+        elif key in ['id', 'cb_company_uuid', 'cb_project_uuid', 'cb_machine_uuid', 'created_at', 'updated_at']:
             pass
+        elif key == 'user_id':
+            assert data[key] == 1, Tests.assertion_info(1, f"{key}: {data[key]}")
         else:
             assert data[key] == measurement.model_dump()[key], Tests.assertion_info(f"{key}: {data[key]}", measurement.model_dump()[key])
+
+def test_ci_measurement_add_different_user():
+    measurement = CI_Measurement(energy_value=123,
+                        energy_unit='mJ',
+                        repo='testRepo',
+                        branch='testBranch',
+                        cpu='testCPU',
+                        cpu_util_avg=50,
+                        commit_hash='1234asdf',
+                        workflow='testWorkflow',
+                        run_id='testRunID',
+                        source='testSource',
+                        label='testLabel',
+                        duration=20,
+                        workflow_name='testWorkflowName')
+
+    DB().query("""
+        INSERT INTO "public"."users"("id", "name","token","capabilities","created_at","updated_at")
+        VALUES
+        (2, E'PYTEST',E'ee8e09e43bceff39c9410f11a2392a3f6b868557240002b72dbdd22a2f792eef',E'{"api":{"quotas":{},"routes":["/v1/carbondb/add","/v1/ci/measurement/add","/v1/software/add","/v1/hog/add","/v1/authentication/data"]},"data":{"runs":{"retention":2678400},"hog_tasks":{"retention":2678400},"measurements":{"retention":2678400},"hog_coalitions":{"retention":2678400},"ci_measurements":{"retention":2678400},"hog_measurements":{"retention":2678400}},"jobs":{"schedule_modes":["one-off","daily","weekly","commit","variance"]},"machines":[1],"measurement":{"quotas":{},"settings":{"total-duration":86400,"flow-process-duration":86400}},"optimizations":["container_memory_utilization","container_cpu_utilization","message_optimization","container_build_time","container_boot_time","container_image_size"]}',E'2024-08-22 11:28:24.937262+00',NULL);
+    """)
+
+    response = requests.post(f"{API_URL}/v1/ci/measurement/add", json=measurement.model_dump(), timeout=15, headers={'X-Authentication': 'PYTEST'})
+    assert response.status_code == 201, Tests.assertion_info('success', response.text)
+    query = """
+            SELECT * FROM ci_measurements WHERE run_id = %s -- we make * match to always test all columns. Even if we add some in the future
+            """
+    data = DB().fetch_one(query, (measurement.run_id, ), fetch_mode='dict')
+
+    assert data is not None
+    for key in data:
+        if key == 'workflow_id':
+            assert data[key] == measurement.model_dump()['workflow'], Tests.assertion_info(f"workflow_id: {data[key]}", measurement.model_dump()['workflow'])
+        elif key in ['id', 'cb_company_uuid', 'cb_project_uuid', 'cb_machine_uuid', 'created_at', 'updated_at']:
+            pass
+        elif key == 'user_id':
+            assert data[key] == 2, Tests.assertion_info(3, f"{key}: {data[key]}")
+        else:
+            assert data[key] == measurement.model_dump()[key], Tests.assertion_info(f"{key}: {data[key]}", measurement.model_dump()[key])
+
 
 
 def test_ci_measurement_add_co2():

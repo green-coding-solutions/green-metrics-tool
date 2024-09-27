@@ -1,9 +1,10 @@
 (() => {
-    var authentication_token = localStorage.getItem('authentication_token');
-    if(authentication_token == null) authentication_token = 'DEFAULT';
-
     $(window).on('load', function() {
-        $("#authentication-token").val(authentication_token);
+        const authentication_token = localStorage.getItem('authentication_token');
+
+        if (authentication_token != null) {
+            $("#authentication-token").val(authentication_token);
+        }
     })
 
     // $('#create-authentication-token').on('click', async function(){
@@ -18,13 +19,21 @@
     // })
 
     $('#save-authentication-token').on('click', async function(){
-        localStorage.setItem('authentication_token', $("#authentication-token").val());
+
+        const authentication_token = $("#authentication-token").val().trim();
+        if (authentication_token == '') {
+            showNotification('Please enter a non-empty authentication token');
+            return false;
+        }
         try {
             $('#token-details-message').hide();
-            var user_data = await makeAPICall('/v1/authentication/data');
+            const user_data = await makeAPICall('/v1/authentication/data', null, authentication_token);
+
+            localStorage.setItem('authentication_token', authentication_token);
 
             $('#token-details-message').show();
             $('#token-details').text(JSON.stringify(user_data.data, null, 2));
+
         } catch (err) {
             showNotification('Could not read authentication token data', err);
         }

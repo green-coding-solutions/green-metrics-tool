@@ -141,7 +141,7 @@ const escapeString = (string) =>{
     return my_string.replace(reg, (match) => map[match]);
   }
 
-async function makeAPICall(path, values=null) {
+async function makeAPICall(path, values=null, force_authentication_token=null) {
 
 
     if(values != null ) {
@@ -156,10 +156,7 @@ async function makeAPICall(path, values=null) {
         var options = { method: 'GET', headers: {} }
     }
 
-    let authentication_token = localStorage.getItem('authentication_token');
-    if(authentication_token == null) authentication_token = 'DEFAULT';
-
-    options.headers['X-Authentication'] = authentication_token;
+    options.headers['X-Authentication'] = (force_authentication_token == null) ? localStorage.getItem('authentication_token'): force_authentication_token;
 
     let json_response = null;
     if(localStorage.getItem('remove_idle') == 'true') path += "?remove_idle=true"
