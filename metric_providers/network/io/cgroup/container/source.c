@@ -9,10 +9,13 @@
 #include <sys/time.h>
 #include <ctype.h>
 #include <getopt.h>
+#include <limits.h>
+
+#define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
 
 typedef struct container_t { // struct is a specification and this static makes no sense here
-    char path[BUFSIZ];
-    char *id;
+    char path[PATH_MAX];
+    char id[DOCKER_CONTAINER_ID_BUFFER];
     unsigned int pid;
 } container_t;
 
@@ -20,7 +23,7 @@ typedef struct container_t { // struct is a specification and this static makes 
 // keep them local in scope to the file and not make them persist in state
 // between Threads.
 // in any case, none of these variables should change between threads
-static int user_id = 0;
+static int user_id = -1;
 static unsigned int msleep_time=1000;
 
 static char *trimwhitespace(char *str) {
@@ -46,9 +49,8 @@ static unsigned long int get_network_cgroup(unsigned int pid) {
     char buf[200], ifname[20];
     unsigned long int r_bytes, t_bytes, r_packets, t_packets;
 
-
-    char ns_path[BUFSIZ];
-    sprintf(ns_path, "/proc/%u/ns/net",pid);
+    char ns_path[PATH_MAX];
+    snprintf(ns_path, PATH_MAX, "/proc/%u/ns/net", pid);
 
     int fd_ns = open(ns_path, O_RDONLY);   /* Get descriptor for namespace */
     if (fd_ns == -1) {
@@ -96,7 +98,7 @@ static unsigned long int get_network_cgroup(unsigned int pid) {
 
 }
 
-static int output_stats(container_t *containers, int length) {
+static void output_stats(container_t *containers, int length) {
 
     struct timeval now;
     int i;
@@ -106,8 +108,6 @@ static int output_stats(container_t *containers, int length) {
         printf("%ld%06ld %lu %s\n", now.tv_sec, now.tv_usec, get_network_cgroup(containers[i].pid), containers[i].id);
     }
     usleep(msleep_time*1000);
-
-    return 1;
 }
 
 static int parse_containers(container_t** containers, char* containers_string, int rootless_mode) {
@@ -117,6 +117,10 @@ static int parse_containers(container_t** containers, char* containers_string, i
     }
 
     *containers = malloc(sizeof(container_t));
+    if (!containers) {
+        fprintf(stderr, "Could not allocate memory for containers string\n");
+        exit(1);
+    }
     char *id = strtok(containers_string,",");
     int length = 0;
 
@@ -124,18 +128,25 @@ static int parse_containers(container_t** containers, char* containers_string, i
         //printf("Token: %s\n", id);
         length++;
         *containers = realloc(*containers, length * sizeof(container_t));
-        (*containers)[length-1].id = id;
+        if (!containers) {
+            fprintf(stderr, "Could not allocate memory for containers string\n");
+            exit(1);
+        }
+        strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
+        (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
+
         if(rootless_mode) {
-            sprintf((*containers)[length-1].path,
+            snprintf((*containers)[length-1].path,
+                PATH_MAX,
                 "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/cgroup.procs",
                 user_id, user_id, id);
         } else {
-            sprintf((*containers)[length-1].path,
+            snprintf((*containers)[length-1].path,
+                PATH_MAX,
                 "/sys/fs/cgroup/system.slice/docker-%s.scope/cgroup.procs",
                 id);
         }
-        FILE* fd = NULL;
-        fd = fopen((*containers)[length-1].path, "r"); // check for general readability only once
+        FILE* fd = fopen((*containers)[length-1].path, "r"); // check for general readability only once
         if ( fd == NULL) {
                 fprintf(stderr, "Error - cgroup.procs file %s failed to open: errno: %d\n", (*containers)[length-1].path, errno);
                 exit(1);
@@ -163,9 +174,7 @@ static int check_system(int rootless_mode) {
         file_path_cgroup_procs = "/sys/fs/cgroup/system.slice/cgroup.procs";
     }
     
-    FILE* fd = NULL;
-
-    fd = fopen(file_path_cgroup_procs, "r");
+    FILE* fd = fopen(file_path_cgroup_procs, "r");
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open cgroup.procs file at %s\n", file_path_cgroup_procs);
         found_error = 1;
@@ -182,7 +191,7 @@ static int check_system(int rootless_mode) {
     }
 
     if(found_error) {
-        exit(127);
+        exit(1);
     }
 
     return 0;
@@ -226,7 +235,12 @@ int main(int argc, char **argv) {
             break;
         case 's':
             containers_string = (char *)malloc(strlen(optarg) + 1);  // Allocate memory
+            if (!containers_string) {
+                fprintf(stderr, "Could not allocate memory for containers string\n");
+                exit(1);
+            }
             strncpy(containers_string, optarg, strlen(optarg));
+            containers_string[strlen(optarg)] = '\0'; // Ensure NUL termination if max length
             break;
         case 'c':
             check_system_flag = 1;

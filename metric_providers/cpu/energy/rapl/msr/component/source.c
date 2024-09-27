@@ -36,6 +36,7 @@
 #include <string.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
+#include <limits.h>
 
 
 /* AMD Support */
@@ -91,10 +92,10 @@
 
 static int open_msr(int core) {
 
-    char msr_filename[BUFSIZ];
+    char msr_filename[PATH_MAX];
     int fd;
 
-    sprintf(msr_filename, "/dev/cpu/%d/msr", core);
+    snprintf(msr_filename, PATH_MAX, "/dev/cpu/%d/msr", core);
     fd = open(msr_filename, O_RDONLY);
     if ( fd < 0 ) {
         if ( errno == ENXIO ) {
@@ -174,7 +175,7 @@ static int detect_cpu(void) {
 
     int vendor=-1,family,model=-1;
     char buffer[BUFSIZ],*result;
-    char vendor_string[BUFSIZ];
+    char vendor_string[1024];
 
     fff=fopen("/proc/cpuinfo","r");
     if (fff==NULL) return -1;
@@ -242,7 +243,7 @@ static int package_map[MAX_PACKAGES];
 
 static int detect_packages(void) {
 
-    char filename[BUFSIZ];
+    char filename[PATH_MAX];
     FILE *fff;
     int package;
     int i;
@@ -250,7 +251,7 @@ static int detect_packages(void) {
     for(i=0;i<MAX_PACKAGES;i++) package_map[i]=-1;
 
     for(i=0;i<MAX_CPUS;i++) {
-        sprintf(filename,"/sys/devices/system/cpu/cpu%d/topology/physical_package_id",i);
+        snprintf(filename, PATH_MAX, "/sys/devices/system/cpu/cpu%d/topology/physical_package_id",i);
         fff=fopen(filename,"r");
         if (fff==NULL) break;
         fscanf(fff,"%d",&package);
@@ -408,13 +409,13 @@ static int check_system() {
     int fd = open_msr(0);
     if (fd < 0) {
         fprintf(stderr, "Couldn't open MSR 0\n");
-        exit(127);
+        exit(1);
     }
     long long msr_data = read_msr(fd, energy_status);
 
     if(msr_data <= 0) {
         fprintf(stderr, "rapl MSR had 0 or negative values: %lld\n", msr_data);
-        exit(127);
+        exit(1);
     }
     close(fd);
     return 0;

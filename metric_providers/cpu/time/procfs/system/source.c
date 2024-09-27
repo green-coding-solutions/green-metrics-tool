@@ -17,10 +17,8 @@ static long int user_hz;
 static unsigned int msleep_time=1000;
 
 static long int read_cpu_proc() {
-    FILE* fd = NULL;
     long int user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time;
-
-    fd = fopen("/proc/stat", "r");
+    FILE* fd = fopen("/proc/stat", "r");
 
     fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &user_time, &nice_time, &system_time, &idle_time, &iowait_time, &irq_time, &softirq_time, &steal_time);
 
@@ -34,28 +32,23 @@ static long int read_cpu_proc() {
     return ((user_time+nice_time+system_time+idle_time+iowait_time+irq_time+softirq_time+steal_time)*1000000)/user_hz;
 }
 
-
-
-static int output_stats() {
+static void output_stats() {
 
     struct timeval now;
 
     gettimeofday(&now, NULL);
     printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, read_cpu_proc());
     usleep(msleep_time*1000);
-
-    return 1;
 }
 
 static int check_system() {
     const char check_path[] = "/proc/stat";
     
-    FILE* fd = NULL;
-    fd = fopen(check_path, "r");
+    FILE* fd = fopen(check_path, "r");
 
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open /proc/stat file\n");
-        exit(127);
+        exit(1);
     }
     fclose(fd);
     return 0;

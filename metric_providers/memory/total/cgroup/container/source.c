@@ -5,17 +5,20 @@
 #include <sys/time.h>
 #include <string.h> // for strtok
 #include <getopt.h>
+#include <limits.h>
+
+#define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
 
 typedef struct container_t { // struct is a specification and this static makes no sense here
-    char path[BUFSIZ];
-    char *id;
+    char path[PATH_MAX];
+    char id[DOCKER_CONTAINER_ID_BUFFER];
 } container_t;
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
 // between Threads.
 // in any case, none of these variables should change between threads
-static int user_id = 0;
+static int user_id = -1;
 static unsigned int msleep_time=1000;
 
 static long int get_memory_cgroup(char* filename) {
@@ -40,7 +43,7 @@ static long int get_memory_cgroup(char* filename) {
 
 }
 
-static int output_stats(container_t *containers, int length) {
+static void output_stats(container_t *containers, int length) {
 
     struct timeval now;
     int i;
@@ -50,8 +53,6 @@ static int output_stats(container_t *containers, int length) {
         printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, get_memory_cgroup(containers[i].path), containers[i].id);
     }
     usleep(msleep_time*1000);
-
-    return 1;
 }
 
 static int parse_containers(container_t** containers, char* containers_string, int rootless_mode) {
@@ -61,6 +62,11 @@ static int parse_containers(container_t** containers, char* containers_string, i
     }
 
     *containers = malloc(sizeof(container_t));
+    if (!containers) {
+        fprintf(stderr, "Could not allocate memory for containers string\n");
+        exit(1);
+    }
+
     char *id = strtok(containers_string,",");
     int length = 0;
 
@@ -68,13 +74,21 @@ static int parse_containers(container_t** containers, char* containers_string, i
         //printf("Token: %s\n", id);
         length++;
         *containers = realloc(*containers, length * sizeof(container_t));
-        (*containers)[length-1].id = id;
+        if (!containers) {
+            fprintf(stderr, "Could not allocate memory for containers string\n");
+            exit(1);
+        }
+        strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
+        (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
+
         if(rootless_mode) {
-            sprintf((*containers)[length-1].path,
+            snprintf((*containers)[length-1].path,
+                PATH_MAX,
                 "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/memory.current",
                 user_id, user_id, id);
         } else {
-            sprintf((*containers)[length-1].path,
+            snprintf((*containers)[length-1].path,
+                PATH_MAX,
                 "/sys/fs/cgroup/system.slice/docker-%s.scope/memory.current",
                 id);
         }
@@ -96,12 +110,11 @@ static int check_system(int rootless_mode) {
         check_path = "/sys/fs/cgroup/system.slice/memory.current";
     }
 
-    FILE* fd = NULL;
-    fd = fopen(check_path, "r");
+    FILE* fd = fopen(check_path, "r");
 
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open memory.current file at %s\n", check_path);
-        exit(127);
+        exit(1);
     }
     fclose(fd);
     return 0;
@@ -145,7 +158,12 @@ int main(int argc, char **argv) {
             break;
         case 's':
             containers_string = (char *)malloc(strlen(optarg) + 1);  // Allocate memory
+            if (!containers_string) {
+                fprintf(stderr, "Could not allocate memory for containers string\n");
+                exit(1);
+            }
             strncpy(containers_string, optarg, strlen(optarg));
+            containers_string[strlen(optarg)] = '\0'; // Ensure NUL termination if max length
             break;
         case 'c':
             check_system_flag = 1;

@@ -161,7 +161,7 @@ sci:
     # https://github.com/Green-Software-Foundation/sci/blob/main/Software_Carbon_Intensity/Software_Carbon_Intensity_Specification.md
 
     # The values specific to the machine will be set here. The values that are specific to the
-    # software, like R – Functional unit, will be set in the usage_scenario.yml
+    # software, like R (functional unit), will be set in the usage_scenario.yml
 
     # EL Expected Lifespan; the anticipated time that the equipment will be installed. Value is in years
     # The number 3.5 comes from a typical developer machine (Pro Laptop - https://dataviz.boavizta.org/terminalimpact)
