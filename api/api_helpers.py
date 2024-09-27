@@ -609,13 +609,14 @@ class ORJSONResponseObjKeep(ORJSONResponse):
         self.content = content
         super().__init__(content, status_code, headers, media_type, background)
 
+# The decorator will not work between requests, so we are not prone to stale data over time
+@cache
 def get_geo(ip):
-    try:
-        ip_obj = ipaddress.ip_address(ip)
-        if ip_obj.is_private:
-            return('52.53721666833642', '13.424863870661927')
-    except ValueError:
-        return (None, None)
+
+    ip_obj = ipaddress.ip_address(ip) # may raise a ValueError
+    if ip_obj.is_private:
+        error_helpers.log_error(f"Private IP was submitted to get_geo {ip}. This is normal in development, but should not happen in production.")
+        return('52.53721666833642', '13.424863870661927')
 
     query = "SELECT ip_address, data FROM ip_data WHERE created_at > NOW() - INTERVAL '24 hours' AND ip_address=%s;"
     db_data = DB().fetch_all(query, (ip,))
@@ -625,19 +626,20 @@ def get_geo(ip):
 
     latitude, longitude = get_geo_ipapi_co(ip)
 
-    if latitude is False:
+    if not latitude:
         latitude, longitude = get_geo_ip_api_com(ip)
-    if latitude is False:
+    if not latitude:
         latitude, longitude = get_geo_ip_ipinfo(ip)
+    if not latitude:
+        raise RuntimeError(f"Could not get Geo-IP for {ip} after 3 tries")
 
-    #If all 3 fail there is something bigger wrong
     return (latitude, longitude)
 
 
 def get_geo_ipapi_co(ip):
 
     response = requests.get(f"https://ipapi.co/{ip}/json/", timeout=10)
-    print(f"Accessing https://ipapi.co/{ip}/json/")
+
     if response.status_code == 200:
         resp_data = response.json()
 
@@ -650,6 +652,8 @@ def get_geo_ipapi_co(ip):
         DB().query(query=query, params=(ip, json.dumps(resp_data)))
 
         return (resp_data.get('latitude'), resp_data.get('longitude'))
+
+    error_helpers.log_error(f"Could not get Geo-IP from ipapi.co for {ip}. Trying next ...", response=response)
 
     return (False, False)
 
@@ -671,6 +675,8 @@ def get_geo_ip_api_com(ip):
         DB().query(query=query, params=(ip, json.dumps(resp_data)))
 
         return (resp_data.get('latitude'), resp_data.get('longitude'))
+
+    error_helpers.log_error(f"Could not get Geo-IP from ip-api.com for {ip}. Trying next ...", response=response)
 
     return (False, False)
 
@@ -695,8 +701,12 @@ def get_geo_ip_ipinfo(ip):
 
         return (resp_data.get('latitude'), resp_data.get('longitude'))
 
+    error_helpers.log_error(f"Could not get Geo-IP from ipinfo.io for {ip}. Trying next ...", response=response)
+
     return (False, False)
 
+# The decorator will not work between requests, so we are not prone to stale data over time
+@cache
 def get_carbon_intensity(latitude, longitude):
 
     if latitude is None or longitude is None:
@@ -727,12 +737,11 @@ def get_carbon_intensity(latitude, longitude):
 
         return resp_data.get('carbonIntensity')
 
+    error_helpers.log_error(f"Could not get carbon intensity from Electricitymaps.org for {params}", response=response)
+
     return None
 
 def carbondb_add(client_ip, energydatas, user_id):
-
-    latitude, longitude = get_geo(client_ip)
-    carbon_intensity = get_carbon_intensity(latitude, longitude)
 
     data_rows = []
 
@@ -753,10 +762,12 @@ def carbondb_add(client_ip, energydatas, user_id):
             if field_value is None or str(field_value).strip() == '':
                 raise RequestValidationError(f"{field_name.capitalize()} is empty. Ignoring everything!")
 
-        if 'ip' in e:
-            # An ip has been given with the data. Let's use this:
-            latitude, longitude = get_geo(e['ip'])
-            carbon_intensity = get_carbon_intensity(latitude, longitude)
+        if 'ip' in e: # An ip has been given with the data. We prioritize that
+            latitude, longitude = get_geo(e['ip']) # cached
+            carbon_intensity = get_carbon_intensity(latitude, longitude) # cached
+        else:
+            latitude, longitude = get_geo(client_ip) # cached
+            carbon_intensity = get_carbon_intensity(latitude, longitude) # cached
 
         energy_kwh = float(e['energy_value']) * 2.77778e-7 # kWh
         co2_value = energy_kwh * carbon_intensity # results in g
