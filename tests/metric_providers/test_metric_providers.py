@@ -102,7 +102,7 @@ def test_cpu_memory_providers():
     if utils.get_architecture() == 'macos':
         return
 
-    runner = Runner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/memory_stress.yml', skip_system_checks=True, dev_no_metrics=False, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/memory_full_stress.yml', skip_system_checks=True, dev_no_metrics=False, dev_no_sleeps=True, dev_no_build=True)
     run_id = runner.run()
 
     assert(run_id is not None and run_id != '')
