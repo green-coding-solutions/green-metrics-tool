@@ -81,6 +81,8 @@ measurement:
     #--- Always-On - We recommend these providers to be always enabled
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
         resolution: 99
+      memory.used.procfs.system.provider.MemoryUsedProcfsSystemProvider:
+        resolution: 99
     #--- CGroupV2 - Turn these on if you have CGroupsV2 working on your machine
       cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
         resolution: 99
