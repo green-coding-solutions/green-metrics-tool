@@ -69,8 +69,8 @@ measurement:
     linux:
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
         resolution: 99
-      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
-        resolution: 99
+#      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
+#        resolution: 99
       network.io.procfs.system.provider.NetworkIoProcfsSystemProvider:
         resolution: 99
         remove_virtual_interfaces: True
