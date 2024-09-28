@@ -2,7 +2,6 @@ import os
 from functools import lru_cache
 
 from lib import utils
-from lib import error_helpers
 from metric_providers.base import BaseMetricProvider
 
 class DiskIoProcfsSystemProvider(BaseMetricProvider):
@@ -53,10 +52,6 @@ class DiskIoProcfsSystemProvider(BaseMetricProvider):
     @lru_cache(maxsize=100)
     def get_blocksize(self, device_name):
         device_path = f"/sys/block/{device_name}/queue/hw_sector_size"
-        if not os.path.isfile(device_path) or not os.access(device_path, os.R_OK):
-            error_helpers.log_error('Device path could not be queried for blocksize ... assuming 512', device_path=device_path)
-            return 512
-
         with open(device_path, "r", encoding='utf-8') as fd:
             sector_size = int(fd.read().strip())
 
