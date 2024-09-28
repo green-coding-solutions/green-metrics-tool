@@ -52,7 +52,6 @@ class DiskIoProcfsSystemProvider(BaseMetricProvider):
     @lru_cache(maxsize=100)
     def get_blocksize(self, device_name):
         device_path = f"/sys/block/{device_name}/queue/hw_sector_size"
-
         with open(device_path, "r", encoding='utf-8') as fd:
             sector_size = int(fd.read().strip())
 
