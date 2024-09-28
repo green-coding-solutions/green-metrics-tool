@@ -45,6 +45,7 @@
 #include "sensors/error.h"
 #include "sensors/sensors.h"
 #include "source.h"
+#include "parse_int.h"
 
 int fahrenheit;
 char degstr[5]; /* store the correct string to print degrees */
@@ -235,10 +236,10 @@ int main(int argc, char *argv[]) {
                 fahrenheit = 1;
                 break;
             case 'i':
-                msleep_time = atoi(optarg);
+                msleep_time = parse_int(optarg);
                 break;
             case 'n':
-                measurement_amount = atoi(optarg);
+                measurement_amount = parse_int(optarg);
                 break;
             default:
                 exit(1);

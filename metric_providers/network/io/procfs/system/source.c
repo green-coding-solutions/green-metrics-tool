@@ -7,6 +7,7 @@
 #include <sys/time.h>
 #include <ctype.h>
 #include <getopt.h>
+#include "parse_int.h"
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
@@ -112,7 +113,7 @@ int main(int argc, char **argv) {
             printf("\t-c      : check system and exit\n\n");
             exit(0);
         case 'i':
-            msleep_time = atoi(optarg);
+            msleep_time = parse_int(optarg);
             break;
         case 'c':
             check_system_flag = 1;

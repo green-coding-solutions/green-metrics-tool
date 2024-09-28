@@ -28,10 +28,10 @@ fi
 sudo systemctl stop tinyproxy
 sudo systemctl disable tinyproxy
 
-build_binaries
-
 print_message "Building C libs"
-#make -C "lib/c"
+make -C "lib/c"
+
+build_binaries
 
 print_message "Building sgx binaries"
 make -C lib/sgx-software-enable

@@ -7,6 +7,7 @@
 #include <string.h> // for strtok
 #include <getopt.h>
 #include <limits.h>
+#include "parse_int.h"
 
 #define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
 
@@ -156,7 +157,7 @@ int main(int argc, char **argv) {
             printf("\tCLOCKS_PER_SEC\t%ld\n", CLOCKS_PER_SEC);
             exit(0);
         case 'i':
-            msleep_time = atoi(optarg);
+            msleep_time = parse_int(optarg);
             break;
         case 'r':
             rootless_mode = 1;

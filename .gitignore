@@ -20,3 +20,4 @@ venv/
 lib/hardware_info_root.py
 tools/cluster/cleanup.sh
 node_modules/
+lib/c/parse_int.o

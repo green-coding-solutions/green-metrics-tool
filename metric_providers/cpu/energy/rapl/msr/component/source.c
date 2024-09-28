@@ -37,7 +37,7 @@
 #include <sys/syscall.h>
 #include <sys/time.h>
 #include <limits.h>
-
+#include "parse_int.h"
 
 /* AMD Support */
 #define MSR_AMD_RAPL_POWER_UNIT            0xc0010299
@@ -521,7 +521,7 @@ int main(int argc, char **argv) {
             printf("\t-c      : check system and exit\n");
             exit(0);
         case 'i':
-            msleep_time = atoi(optarg);
+            msleep_time = parse_int(optarg);
             break;
         case 'd':
             measurement_mode=MEASURE_DRAM;
