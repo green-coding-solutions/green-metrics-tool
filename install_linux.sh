@@ -7,9 +7,7 @@ if [[ $(uname) != "Linux" ]]; then
   exit 1
 fi
 
-source lib/install_shared.sh
-
-parse_opts
+source lib/install_shared.sh # will parse opts immediately
 
 prepare_config
 

@@ -8,8 +8,6 @@ fi
 
 source lib/install_shared.sh
 
-parse_opts
-
 prepare_config
 
 setup_python

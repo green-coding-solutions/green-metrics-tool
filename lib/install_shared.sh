@@ -19,6 +19,70 @@ install_msr_tools=true
 use_system_site_packages=false
 reboot_echo_flag=false
 
+while getopts "p:a:m:nhtbisyr" o; do
+    case "$o" in
+        p)
+            db_pw=${OPTARG}
+            ;;
+        a)
+            api_url=${OPTARG}
+            ;;
+        m)
+            metrics_url=${OPTARG}
+            ;;
+        b)
+            build_docker_containers=false
+            ;;
+        h)
+            modify_hosts=false
+            ;;
+        n)
+            install_python_packages=false
+            ;;
+        t)
+            ask_tmpfs=false
+            ;;
+        i)
+            install_ipmi=false
+            ;;
+        s)
+            install_sensors=false
+            # currently unused
+            ;;
+        r)
+            install_msr_tools=false
+            ;;
+        y)
+            use_system_site_packages=true
+            ;;
+
+    esac
+done
+
+if [[ -z $api_url ]] ; then
+    read -p "Please enter the desired API endpoint URL: (default: http://api.green-coding.internal:9142): " api_url
+    api_url=${api_url:-"http://api.green-coding.internal:9142"}
+fi
+
+if [[ -z $metrics_url ]] ; then
+    read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.internal:9142): " metrics_url
+    metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
+fi
+
+
+if [[ -f config.yml ]]; then
+    password_from_file=$(awk '/postgresql:/ {flag=1; next} flag && /password:/ {print $2; exit}' config.yml)
+fi
+
+default_password=${password_from_file:-$(generate_random_password 12)}
+
+if [[ -z "$db_pw" ]] ; then
+    read -sp "Please enter the new password to be set for the PostgreSQL DB (default: $default_password): " db_pw
+    echo "" # force a newline, because read -sp will consume it
+    db_pw=${db_pw:-"$default_password"}
+fi
+
+
 function print_message {
     echo ""
     echo "$1"
@@ -76,72 +140,6 @@ function check_file_permissions() {
     return 0
 }
 
-
-function parse_opts() {
-    while getopts "p:a:m:nhtbisyr" o; do
-        case "$o" in
-            p)
-                db_pw=${OPTARG}
-                ;;
-            a)
-                api_url=${OPTARG}
-                ;;
-            m)
-                metrics_url=${OPTARG}
-                ;;
-            b)
-                build_docker_containers=false
-                ;;
-            h)
-                modify_hosts=false
-                ;;
-            n)
-                install_python_packages=false
-                ;;
-            t)
-                ask_tmpfs=false
-                ;;
-            i)
-                install_ipmi=false
-                ;;
-            s)
-                install_sensors=false
-                # currently unused
-                ;;
-            r)
-                install_msr_tools=false
-                ;;
-            y)
-                use_system_site_packages=true
-                ;;
-
-        esac
-    done
-
-    if [[ -z $api_url ]] ; then
-        read -p "Please enter the desired API endpoint URL: (default: http://api.green-coding.internal:9142): " api_url
-        api_url=${api_url:-"http://api.green-coding.internal:9142"}
-    fi
-
-    if [[ -z $metrics_url ]] ; then
-        read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.internal:9142): " metrics_url
-        metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
-    fi
-
-
-    if [[ -f config.yml ]]; then
-        password_from_file=$(awk '/postgresql:/ {flag=1; next} flag && /password:/ {print $2; exit}' config.yml)
-    fi
-
-    default_password=${password_from_file:-$(generate_random_password 12)}
-
-    if [[ -z "$db_pw" ]] ; then
-        read -sp "Please enter the new password to be set for the PostgreSQL DB (default: $default_password): " db_pw
-        echo "" # force a newline, because read -sp will consume it
-        db_pw=${db_pw:-"$default_password"}
-    fi
-
-}
 
 function prepare_config() {
 
