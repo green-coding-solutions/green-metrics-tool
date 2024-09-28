@@ -116,7 +116,7 @@ static int open_msr(int core) {
 
 static long long read_msr(int fd, unsigned int which) {
 
-    uint64_t data;
+    long long data;
 
     if ( pread(fd, &data, sizeof data, which) != sizeof data ) {
         perror("rdmsr:pread");
@@ -124,7 +124,7 @@ static long long read_msr(int fd, unsigned int which) {
         exit(127);
     }
 
-    return (long long)data;
+    return data;
 }
 
 #define CPU_VENDOR_INTEL    1
@@ -439,68 +439,64 @@ static int check_system() {
 
 }
 
-static int rapl_msr(int measurement_mode) {
-    int fd;
-    long long result;
-    double package_before[MAX_PACKAGES],package_after[MAX_PACKAGES];
-    int j;
+static void rapl_msr(int measurement_mode) {
+    int fd[total_packages];
     struct timeval now;
+    long long result[total_packages];
+    double energy_output = 0.0;
+    double package_before[total_packages],package_after[total_packages];
 
-    for(j=0;j<total_packages;j++) {
 
-        fd=open_msr(package_map[j]);
-        /* Package Energy */
-
-        result=read_msr(fd,energy_status);
-        /*
-        if(result<0){
-            fprintf(stderr,"Negative Energy Reading: %lld\n", result);
-            exit(-1);
-        }*/
-        package_before[j]=(double)result*energy_units[j];
-        close(fd);
+    for(int i=0;i<total_packages;i++) {
+        fd[i]=open_msr(package_map[i]);
     }
 
-    usleep(msleep_time*1000);
-
-    for(j=0;j<total_packages;j++) {
-        fd=open_msr(package_map[j]);
-
-        double energy_output = 0.0;
-        result=read_msr(fd,energy_status);
-
-        // As we are reading the MSR as an unsigned int, so the reading should never be negative
-        // However, in case it does somehow, we still don't want it to abort
-        /*
-        if(result<0){
-            fprintf(stderr,"Negative Energy Reading: %lld\n", result);
-            exit(-1);
-        }*/
-        package_after[j]=(double)result*energy_units[j];
-        energy_output = package_after[j]-package_before[j];
-
-        // The register can overflow at some point, leading to the subtraction giving an incorrect value (negative)
-        // For now, skip reporting this value. in the future, we can use a branchless alternative
-        if(energy_output>=0) {
-            gettimeofday(&now, NULL);
-            if (measurement_mode == MEASURE_ENERGY_PKG) {
-                printf("%ld%06ld %ld Package_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), j);
-            } else if (measurement_mode == MEASURE_DRAM) {
-                printf("%ld%06ld %ld DRAM_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), j);
-            } else if (measurement_mode == MEASURE_PSYS) {
-                printf("%ld%06ld %ld PSYS_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), j);
-            }
+    while(1) {
+        for(int j=0;j<total_packages;j++) {
+            result[j]=read_msr(fd[j],energy_status);
+            /*
+            if(result[j]<0){
+                fprintf(stderr,"Negative Energy Reading: %lld\n", result[j]);
+                exit(-1);
+            }*/
+            package_before[j]=(double)result[j]*energy_units[j];
         }
-        /*
-        else {
-            fprintf(stderr, "Energy reading had unexpected value: %f", energy_output);
-            exit(-1);
-        }*/
 
-        close(fd);
+        usleep(msleep_time*1000);
+
+        for(int k=0;k<total_packages;k++) {
+            result[k]=read_msr(fd[k],energy_status);
+
+            package_after[k]=(double)result[k]*energy_units[k];
+            energy_output = package_after[k]-package_before[k];
+
+            // The register can overflow at some point, leading to the subtraction giving an incorrect value (negative)
+            // For now, skip reporting this value. in the future, we can use a branchless alternative
+            if(energy_output>=0) {
+                gettimeofday(&now, NULL);
+                if (measurement_mode == MEASURE_ENERGY_PKG) {
+                    printf("%ld%06ld %ld Package_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), k);
+                } else if (measurement_mode == MEASURE_DRAM) {
+                    printf("%ld%06ld %ld DRAM_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), k);
+                } else if (measurement_mode == MEASURE_PSYS) {
+                    printf("%ld%06ld %ld PSYS_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), k);
+                }
+            }
+            /*
+            else {
+                fprintf(stderr, "Energy reading had unexpected value: %f", energy_output);
+                exit(-1);
+            }*/
+
+        }
+
     }
 
-    return 0;
+    // this code is never reachable atm, but we keep it in if we change the function in the future
+    for(int l=0;l<total_packages;l++) {
+        close(fd[l]);
+    }
+
 }
 
 int main(int argc, char **argv) {
@@ -550,9 +546,7 @@ int main(int argc, char **argv) {
         exit(check_system());
     }
 
-    while(1) {
-        rapl_msr(measurement_mode);
-    }
+    rapl_msr(measurement_mode);
 
     return 0;
 }
