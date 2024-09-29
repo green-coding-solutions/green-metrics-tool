@@ -91,8 +91,8 @@ def build_and_store_phase_stats(run_id, sci=None):
             if value_count == 0: continue
 
             if metric in (
-                'lm_sensors_temperature_component',
-                'lm_sensors_fan_component',
+                'lmsensors_temperature_component',
+                'lmsensors_fan_component',
                 'cpu_utilization_procfs_system',
                 'cpu_utilization_mach_system',
                 'cpu_utilization_cgroup_container',

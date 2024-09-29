@@ -108,12 +108,12 @@ measurement:
 #      gpu.energy.nvidia.smi.component.provider.GpuEnergyNvidiaSmiComponentProvider:
 #        resolution: 99
     #--- Sensors - these providers need the lm-sensors package installed
-#      lm_sensors.temperature.component.provider.LmSensorsTemperatureComponentProvider:
+#      lmsensors.temperature.component.provider.LmSensorsTemperatureComponentProvider:
 #        resolution: 99
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000', 'coretemp-isa-0000']
 #        features: ['CPU', 'Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
-#      lm_sensors.fan.component.provider.LmSensorsFanComponentProvider:
+#      lmsensors.fan.component.provider.LmSensorsFanComponentProvider:
 #        resolution: 99
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000']

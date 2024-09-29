@@ -119,15 +119,15 @@ METRIC_MAPPINGS = {
         'source': 'Formula',
         'explanation': 'Estimated external CO2 cost for network infrastructure.',
     },
-     'lm_sensors_temperature_component': {
+     'lmsensors_temperature_component': {
         'clean_name': 'CPU Temperature',
-        'source': 'lm_sensors',
-        'explanation': 'CPU Temperature as reported by lm_sensors',
+        'source': 'lm-sensors',
+        'explanation': 'CPU Temperature as reported by lm-sensors',
     },
-    'lm_sensors_fan_component': {
+    'lmsensors_fan_component': {
         'clean_name': 'Fan Speed',
-        'source': 'lm_sensors',
-        'explanation': 'Fan speed as reported by lm_sensors',
+        'source': 'lm-sensors',
+        'explanation': 'Fan speed as reported by lm-sensors',
     },
     'psu_energy_ac_powerspy2_machine': {
         'clean_name': 'Machine Energy',
