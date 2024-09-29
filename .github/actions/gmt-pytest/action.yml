@@ -38,11 +38,12 @@ runs:
         ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -b -t
         source venv/bin/activate
 
-    - name: disable unneeded metric providers and run test setup script
+    - name: Install dev requirements and run test setup script
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
         source venv/bin/activate
+        python3 -m pip install -r requirements-dev.txt
         cd tests && python3 setup-test-env.py --no-docker-build
 
     - name: Set up Docker Buildx
