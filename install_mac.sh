@@ -20,6 +20,9 @@ if ! command -v stdbuf &> /dev/null; then
     brew install coreutils
 fi
 
+print_message "Building C libs"
+make -C "lib/c"
+
 build_binaries
 
 print_message "Adding powermetrics to sudoers file"
