@@ -17,3 +17,15 @@ class PsuEnergyDcRaplMsrMachineProvider(BaseMetricProvider):
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
         call_string = f"{self._current_dir}/{self._metric_provider_executable}"
         super().check_system(check_command=[f"{call_string}", '-c', '-p'])
+
+
+    def read_metrics(self, run_id, containers=None):
+        df = super().read_metrics(run_id, containers)
+
+        if df.empty:
+            return df
+
+        df['detail_name'] = df.psys_id
+        df = df.drop('psys_id', axis=1)
+
+        return df

@@ -1,8 +1,40 @@
 import random
 import string
 import subprocess
+import os
 
 from lib.db import DB
+
+# for pandas dataframes that are grouped and diffed
+def df_fill_mean(group):
+    group.iloc[0] = group.mean(skipna=True)
+    return group
+
+
+def get_network_interfaces(mode='all'):
+    # Path to network interfaces in sysfs
+    sysfs_net_path = '/sys/class/net'
+
+    if mode not in ['all', 'virtual', 'physical']:
+        raise RuntimeError('get_network_interfaces supports only all, virtual and physical')
+
+    # List all interfaces in /sys/class/net
+    interfaces = os.listdir(sysfs_net_path)
+    selected_interfaces = []
+
+    for interface in interfaces:
+        # Check if the interface is not a virtual one
+        # Virtual interfaces typically don't have a device directory or are loopback
+        if mode == 'all':
+            selected_interfaces.append(interface)
+        else:
+            device_path = os.path.join(sysfs_net_path, interface, 'device')
+            if mode == 'physical' and os.path.exists(device_path):  # If the 'device' directory exists, it's a physical device
+                selected_interfaces.append(interface)
+            elif mode == 'virtual' and not os.path.exists(device_path):  # If the 'device' directory exists, it's a physical device
+                selected_interfaces.append(interface)
+
+    return selected_interfaces
 
 def randomword(length):
     letters = string.ascii_lowercase

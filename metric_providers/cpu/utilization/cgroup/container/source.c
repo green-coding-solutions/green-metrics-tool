@@ -26,7 +26,11 @@ static unsigned int msleep_time=1000;
 static long int read_cpu_proc(FILE *fd) {
     long int user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time;
 
-    fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &user_time, &nice_time, &system_time, &idle_time, &iowait_time, &irq_time, &softirq_time, &steal_time);
+    int match_result = fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &user_time, &nice_time, &system_time, &idle_time, &iowait_time, &irq_time, &softirq_time, &steal_time);
+    if (match_result != 8) {
+        fprintf(stderr, "Could not match cpu usage pattern\n");
+        exit(1);
+    }
 
     // printf("Read: cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time);
     if(idle_time <= 0) fprintf(stderr, "Idle time strange value %ld \n", idle_time);
@@ -39,7 +43,11 @@ static long int read_cpu_proc(FILE *fd) {
 
 static long int read_cpu_cgroup(FILE *fd) {
     long int cpu_usage = -1;
-    fscanf(fd, "usage_usec %ld", &cpu_usage);
+    int match_result = fscanf(fd, "usage_usec %ld", &cpu_usage);
+    if (match_result != 1) {
+        fprintf(stderr, "Could not match usage_sec\n");
+        exit(1);
+    }
     return cpu_usage;
 }
 
@@ -106,12 +114,12 @@ static void output_stats(container_t* containers, int length) {
             }
             else {
                 fprintf(stderr, "Error - container CPU usage negative: %ld", container_reading);
-                return -1;
+                exit(1);
             }
         }
         else {
-            reading = -1;
             fprintf(stderr, "Error - main CPU reading returning strange data: %ld\nBefore: %ld, After %ld", main_cpu_reading, main_cpu_reading_before, main_cpu_reading_after);
+            exit(1);
         }
 
         printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, reading, containers[i].id);

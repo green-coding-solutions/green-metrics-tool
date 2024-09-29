@@ -82,7 +82,7 @@ def test_db_rows_are_written_and_presented():
     config = GlobalConfig(config_name='test-config.yml').config
     metric_providers = utils.get_metric_providers_names(config)
 
-    # The network connection proxy provider writes to a different DB so we need to remove it here
+    # The network connection proxy provider writes to a different table so we need to remove it here
     if 'NetworkConnectionsProxyContainerProvider' in metric_providers:
         metric_providers.remove('NetworkConnectionsProxyContainerProvider')
 

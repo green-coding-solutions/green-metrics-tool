@@ -19,6 +19,11 @@ typedef struct container_t { // struct is a specification and this static makes 
     unsigned int pid;
 } container_t;
 
+typedef struct net_io_t {
+    unsigned long long int r_bytes;
+    unsigned long long int t_bytes;
+} net_io_t;
+
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
 // between Threads.
@@ -45,9 +50,10 @@ static char *trimwhitespace(char *str) {
   return str;
 }
 
-static unsigned long int get_network_cgroup(unsigned int pid) {
+static net_io_t get_network_cgroup(unsigned int pid) {
     char buf[200], ifname[20];
-    unsigned long int r_bytes, t_bytes, r_packets, t_packets;
+    unsigned long long int r_bytes, t_bytes, r_packets, t_packets;
+    net_io_t net_io;
 
     char ns_path[PATH_MAX];
     snprintf(ns_path, PATH_MAX, "/proc/%u/ns/net", pid);
@@ -75,26 +81,30 @@ static unsigned long int get_network_cgroup(unsigned int pid) {
     }
 
     // skip first two lines
-    for (int i = 0; i < 2; i++) {
-        fgets(buf, 200, fd);
-    }
+    fgets(buf, 200, fd);
+    fgets(buf, 200, fd);
 
-    unsigned long int total_bytes_all_interfaces = 0;
+    int match_result = 0;
 
     while (fgets(buf, 200, fd)) {
         // We are not counting dropped packets, as we believe they will at least show up in the
         // sender side as not dropped.
         // Since we are iterating over all relevant docker containers we should catch these packets at least in one /proc/net/dev file
-        sscanf(buf, "%[^:]: %lu %lu %*u %*u %*u %*u %*u %*u %lu %lu", ifname, &r_bytes, &r_packets, &t_bytes, &t_packets);
-        // printf("%s: rbytes: %lu rpackets: %lu tbytes: %lu tpackets: %lu\n", ifname, r_bytes, r_packets, t_bytes, t_packets);
+        match_result = sscanf(buf, "%[^:]: %llu %llu %*u %*u %*u %*u %*u %*u %llu %llu", ifname, &r_bytes, &r_packets, &t_bytes, &t_packets);
+        if (match_result != 5) {
+            fprintf(stderr, "Could not match network interface pattern\n");
+            exit(1);
+        }
+        // printf("%s: rbytes: %llu rpackets: %llu tbytes: %llu tpackets: %llu\n", ifname, r_bytes, r_packets, t_bytes, t_packets);
         if (strcmp(trimwhitespace(ifname), "lo") == 0) continue;
-        total_bytes_all_interfaces += r_bytes+t_bytes;
+        net_io.r_bytes += r_bytes;
+        net_io.t_bytes += t_bytes;
     }
 
     fclose(fd);
     close(fd_ns);
 
-    return total_bytes_all_interfaces;
+    return net_io;
 
 }
 
@@ -105,7 +115,8 @@ static void output_stats(container_t *containers, int length) {
 
     gettimeofday(&now, NULL);
     for(i=0; i<length; i++) {
-        printf("%ld%06ld %lu %s\n", now.tv_sec, now.tv_usec, get_network_cgroup(containers[i].pid), containers[i].id);
+        net_io_t net_io = get_network_cgroup(containers[i].pid);
+        printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, net_io.r_bytes, net_io.t_bytes, containers[i].id);
     }
     usleep(msleep_time*1000);
 }
@@ -123,6 +134,7 @@ static int parse_containers(container_t** containers, char* containers_string, i
     }
     char *id = strtok(containers_string,",");
     int length = 0;
+    int match_result = 0;
 
     for (; id != NULL; id = strtok(NULL, ",")) {
         //printf("Token: %s\n", id);
@@ -151,7 +163,11 @@ static int parse_containers(container_t** containers, char* containers_string, i
                 fprintf(stderr, "Error - cgroup.procs file %s failed to open: errno: %d\n", (*containers)[length-1].path, errno);
                 exit(1);
         }
-        fscanf(fd, "%u", &(*containers)[length-1].pid);
+        match_result = fscanf(fd, "%u", &(*containers)[length-1].pid);
+        if (match_result != 1) {
+            fprintf(stderr, "Could not match container PID\n");
+            exit(1);
+        }
         fclose(fd);
     }
 
