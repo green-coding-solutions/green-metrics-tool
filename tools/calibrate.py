@@ -156,7 +156,7 @@ def check_minimum_provider_configuration(mp):
         return check_provider(mp, ['cpu', '.energy', '.rapl'])
 
     def temp_provider(mp):
-        return check_provider(mp, ['lm_sensors', '.temperature'])
+        return check_provider(mp, ['lmsensors', '.temperature'])
 
     energy_provider = one_psu_provider(mp)
     if not energy_provider:

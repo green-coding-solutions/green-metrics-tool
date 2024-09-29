@@ -1,10 +1,10 @@
-from metric_providers.lm_sensors.abstract_provider import LmSensorsProvider
+from metric_providers.lmsensors.abstract_provider import LmSensorsProvider
 
 class LmSensorsFanComponentProvider(LmSensorsProvider):
     def __init__(self, resolution, **_):
-        self._provider_config_path = 'lm_sensors.fan.component.provider.LmSensorsFanComponentProvider'
+        self._provider_config_path = 'lmsensors.fan.component.provider.LmSensorsFanComponentProvider'
         super().__init__(
-            metric_name='lm_sensors_fan_component',
+            metric_name='lmsensors_fan_component',
             resolution=resolution,
             unit='RPM',
         )
