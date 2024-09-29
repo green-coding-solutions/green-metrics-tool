@@ -2,10 +2,10 @@
   "target": {
     "test-green-coding-gunicorn": {
       "cache-from": [
-        "type=registry,ref=ghcr.io/green-coding-berlin/gunicorn-container-cache:cache"
+        "type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache"
       ],
       "cache-to": [
-        "type=registry,ref=ghcr.io/green-coding-berlin/gunicorn-container-cache:cache"
+        "type=registry,ref=ghcr.io/green-coding-solutions/gunicorn-container-cache:cache"
       ],
       "output": [
         "type=docker"

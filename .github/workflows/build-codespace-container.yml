@@ -28,4 +28,4 @@ jobs:
           context: .
           file: /.devcontainer/containerized/Dockerfile  # Path to the Dockerfile
           push: true
-          tags: ghcr.io/green-coding-berlin/codespace-container:latest
+          tags: ghcr.io/green-coding-solutions/codespace-container:latest
