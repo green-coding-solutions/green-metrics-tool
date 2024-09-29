@@ -30,7 +30,7 @@ $(document).ready(function () {
                 { data: 6, title: 'GMT version', render: function(el, type, row) {
                     if (el == null) return '-';
 
-                    return `<a href="https://github.com/green-coding-berlin/green-metrics-tool/commit/${el}" title="${dateToYMD(new Date(row[7]))}">${`${el.substr(0,3)}...${el.substr(-3,3)}`}</a>`;
+                    return `<a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${el}" title="${dateToYMD(new Date(row[7]))}">${`${el.substr(0,3)}...${el.substr(-3,3)}`}</a>`;
 
                 }},
                 { data: 13, title: 'Details', render: function(el, type, row) {

@@ -13,7 +13,7 @@ config = GlobalConfig().config
 
 def test_simple_cluster_run():
     name = utils.randomword(12)
-    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
     branch = 'main'
     machine_id = 1

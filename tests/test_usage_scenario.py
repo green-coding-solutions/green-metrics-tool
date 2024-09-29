@@ -553,7 +553,7 @@ def test_uri_local_dir_missing():
 
     # basic positive case
 def test_uri_github_repo():
-    uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    uri = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
     run_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
@@ -588,7 +588,7 @@ def test_uri_local_branch():
     # this branch has a different usage_scenario file name - basic_stress
     # that makes sure that it really is pulling a different branch
 def test_uri_github_repo_branch():
-    uri = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    uri = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     run_name = 'test_' + utils.randomword(12)
     branch = 'test-branch'
     ps = subprocess.run(
@@ -610,10 +610,10 @@ def test_uri_github_repo_branch():
     ## Is the expected_exception OK or should it have a more graceful error?
     ## ATM this is just the default console error of a failed git command
 def test_uri_github_repo_branch_missing():
-    runner = Runner(uri='https://github.com/green-coding-berlin/pytest-dummy-repo', uri_type='URL', branch='missing-branch', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri='https://github.com/green-coding-solutions/pytest-dummy-repo', uri_type='URL', branch='missing-branch', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
     with pytest.raises(subprocess.CalledProcessError) as e:
         runner.run()
-    expected_exception = f"Command '['git', 'clone', '--depth', '1', '-b', 'missing-branch', '--single-branch', '--recurse-submodules', '--shallow-submodules', 'https://github.com/green-coding-berlin/pytest-dummy-repo', '{os.path.realpath('/tmp/green-metrics-tool/repo')}']' returned non-zero exit status 128."
+    expected_exception = f"Command '['git', 'clone', '--depth', '1', '-b', 'missing-branch', '--single-branch', '--recurse-submodules', '--shallow-submodules', 'https://github.com/green-coding-solutions/pytest-dummy-repo', '{os.path.realpath('/tmp/green-metrics-tool/repo')}']' returned non-zero exit status 128."
     assert expected_exception == str(e.value),\
         Tests.assertion_info(f"Exception: {expected_exception}", str(e.value))
 

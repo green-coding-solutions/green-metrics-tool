@@ -75,13 +75,13 @@ class PowermetricsProvider(BaseMetricProvider):
 
         try:
             # We try calling the parent method which should work see
-            # https://github.com/green-coding-berlin/green-metrics-tool/pull/566#discussion_r1429891190
+            # https://github.com/green-coding-solutions/green-metrics-tool/pull/566#discussion_r1429891190
             # but we keep the try to make sure that if we ever change the sudo call it still works
             super().stop_profiling()
         except PermissionError:
             # We will land here in any case as stated before (root permissions missing). When we trigger *killall* now
             # the process will be terminated. We opted for this implementation as other processes on the system, like
-            # for instance the power hog (https://github.com/green-coding-berlin/hog) should not be affected too much.
+            # for instance the power hog (https://github.com/green-coding-solutions/hog) should not be affected too much.
             # They restart the process anyway when it gets killed. However manual processes that the user might have
             # started will also be killed, so we issue a notice.
             # There is really no better way of doing this as of now. Keeping the process id for instance in a hash and

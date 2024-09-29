@@ -1,4 +1,4 @@
-[![Tests Status - Main](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-main.yml/badge.svg)](https://github.com/green-coding-berlin/green-metrics-tool/actions/workflows/tests-vm-main.yml)
+[![Tests Status - Main](https://github.com/green-coding-solutions/green-metrics-tool/actions/workflows/tests-vm-main.yml/badge.svg)](https://github.com/green-coding-solutions/green-metrics-tool/actions/workflows/tests-vm-main.yml)
 
 
 [![Energy Used](https://api.green-coding.io/v1/ci/badge/get/?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393)](https://metrics.green-coding.io/ci.html?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393) (This is the energy cost of running our CI-Pipelines on Github. [Find out more about Eco-CI](https://www.green-coding.io/projects/eco-ci/))
@@ -15,7 +15,7 @@ Key features are:
 - API - [DEMO](https://api.green-coding.io)
 - [Cluster setup](https://docs.green-coding.io/docs/installation/installation-cluster/)
 - [Free Hosted service for more precise measurements](https://docs.green-coding.io/docs/measuring/measurement-cluster/)
-- Timeline-View: Monitor software projects over time - [DEMO for Wagtail](https://metrics.green-coding.io/timeline.html?uri=https://github.com/green-coding-berlin/bakerydemo-gold-benchmark&filename=usage_scenario_warm.yml&branch=&machine_id=7) / [DEMO Overview](https://metrics.green-coding.io/energy-timeline.html)
+- Timeline-View: Monitor software projects over time - [DEMO for Wagtail](https://metrics.green-coding.io/timeline.html?uri=https://github.com/green-coding-solutions/bakerydemo-gold-benchmark&filename=usage_scenario_warm.yml&branch=&machine_id=7) / [DEMO Overview](https://metrics.green-coding.io/energy-timeline.html)
 - [Energy-ID Score-Cards](https://www.green-coding.io/projects/energy-id/) for software (Also see below)
 
 It is designed to re-use existing infrastructure and testing files as much as possible to be easily integrateable into every software repository and create transparency around software energy consumption.
@@ -48,7 +48,7 @@ To see the the documentation and how to install and use the tool please go to [G
 ![](https://www.green-coding.io/img/projects/gmt-screenshot-6.webp)
 
 # Energy-ID Scorecards
-<img width="1034" alt="Screenshot 2023-10-24 at 10 43 28 AM" src="https://github.com/green-coding-berlin/green-metrics-tool/assets/250671/7e3e3faa-5452-4722-af70-a65114f930ac">
+<img width="1034" alt="Screenshot 2023-10-24 at 10 43 28 AM" src="https://github.com/green-coding-solutions/green-metrics-tool/assets/250671/7e3e3faa-5452-4722-af70-a65114f930ac">
 
 Details: [Energy-ID project page](https://www.green-coding.io/projects/energy-id/
 )
