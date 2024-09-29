@@ -220,7 +220,6 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE 1=1
-            GROUP BY r.uri
             """
     params = []
 
@@ -243,6 +242,8 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
     if machine:
         query = f"{query} AND m.description LIKE %s \n"
         params.append(f"%{machine}%")
+
+    query = f"{query} GROUP BY r.uri\n"
 
     if sort_by == 'name':
         query = f"{query} ORDER BY r.uri ASC"
