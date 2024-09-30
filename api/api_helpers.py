@@ -623,10 +623,10 @@ def get_geo(ip):
     if db_data is not None and len(db_data) != 0:
         return (db_data[0][1].get('latitude'), db_data[0][1].get('longitude'))
 
-    latitude, longitude = get_geo_ipapi_co(ip)
+    latitude, longitude = get_geo_ip_api_com(ip)
 
     if not latitude:
-        latitude, longitude = get_geo_ip_api_com(ip)
+        latitude, longitude = get_geo_ipapi_co(ip)
     if not latitude:
         latitude, longitude = get_geo_ip_ipinfo(ip)
     if not latitude:
