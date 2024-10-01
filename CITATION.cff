@@ -17,9 +17,9 @@ authors:
     family-names: Hoffmann
     email: didi@green-coding.io
     affiliation: Green Coding Solutions GmbH
-repository-code: 'https://github.com/green-coding-berlin/green-metrics-tool'
+repository-code: 'https://github.com/green-coding-solutions/green-metrics-tool'
 url: 'https://www.green-coding.io/'
-repository: 'https://github.com/green-coding-berlin/'
+repository: 'https://github.com/green-coding-solutions/'
 abstract: >-
   The Green Metrics Tool is a developer tool indented for
   measuring the energy and CO2 consumption of software

@@ -48,7 +48,7 @@ class Measurement(BaseModel):
     coalitions: List[Coalition]
     all_tasks: Dict
     network: Optional[Dict] = None # network is optional when system is in flight mode / network turned off
-    disk: Dict
+    disk: Optional[Dict] = None # No idea what system would not have a disk but we are seeing this in production
     interrupts: List
     processor: Processor
     thermal_pressure: str

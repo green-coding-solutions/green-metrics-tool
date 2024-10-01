@@ -61,7 +61,7 @@ def test_no_email_job():
 
 def test_insert_job():
     name = utils.randomword(12)
-    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
     branch = 'main'
     machine_id = 1
@@ -73,7 +73,7 @@ def test_insert_job():
 
 def test_simple_run_job_no_quota():
     name = utils.randomword(12)
-    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
     branch = 'main'
     machine_id = 1
@@ -96,7 +96,7 @@ def test_simple_run_job_no_quota():
 
 def test_simple_run_job_quota_gets_deducted():
     name = utils.randomword(12)
-    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
     branch = 'main'
     machine_id = 1
@@ -124,7 +124,7 @@ def test_simple_run_job_quota_gets_deducted():
 
 def test_simple_run_job_missing_filename_branch():
     name = utils.randomword(12)
-    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     machine_id = 1
 
     with pytest.raises(RuntimeError):
@@ -133,7 +133,7 @@ def test_simple_run_job_missing_filename_branch():
 
 def test_simple_run_job_wrong_machine_id():
     name = utils.randomword(12)
-    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
     branch = 'main'
     machine_id = 100
@@ -143,7 +143,7 @@ def test_simple_run_job_wrong_machine_id():
 
 def test_measurement_quota_exhausted():
     name = utils.randomword(12)
-    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
     branch = 'main'
     machine_id = 1
@@ -167,7 +167,7 @@ def test_measurement_quota_exhausted():
 
 def test_machine_not_allowed():
     name = utils.randomword(12)
-    url = 'https://github.com/green-coding-berlin/pytest-dummy-repo'
+    url = 'https://github.com/green-coding-solutions/pytest-dummy-repo'
     filename = 'usage_scenario.yml'
     branch = 'main'
     machine_id = 1

@@ -233,7 +233,7 @@ const loadCharts = async () => {
                         value: ${numberFormatter.format(series[params.seriesName].values[params.dataIndex].value)}<br>
                         commit_timestamp: ${series[params.seriesName].notes[params.dataIndex].commit_timestamp}<br>
                         commit_hash: <a href="${$("#uri").text()}/commit/${series[params.seriesName].notes[params.dataIndex].commit_hash}" target="_blank">${series[params.seriesName].notes[params.dataIndex].commit_hash}</a><br>
-                        gmt_hash: <a href="https://github.com/green-coding-berlin/green-metrics-tool/commit/${series[params.seriesName].notes[params.dataIndex].gmt_hash}" target="_blank">${series[params.seriesName].notes[params.dataIndex].gmt_hash}</a><br>
+                        gmt_hash: <a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${series[params.seriesName].notes[params.dataIndex].gmt_hash}" target="_blank">${series[params.seriesName].notes[params.dataIndex].gmt_hash}</a><br>
 
                         <br>
                         👉 <a href="/compare.html?ids=${series[params.seriesName].notes[params.dataIndex].run_id},${series[params.seriesName].notes[params.dataIndex].prun_id}" target="_blank">Diff with previous run</a>

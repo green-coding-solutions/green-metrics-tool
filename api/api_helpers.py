@@ -623,10 +623,10 @@ def get_geo(ip):
     if db_data is not None and len(db_data) != 0:
         return (db_data[0][1].get('latitude'), db_data[0][1].get('longitude'))
 
-    latitude, longitude = get_geo_ipapi_co(ip)
+    latitude, longitude = get_geo_ip_api_com(ip)
 
     if not latitude:
-        latitude, longitude = get_geo_ip_api_com(ip)
+        latitude, longitude = get_geo_ipapi_co(ip)
     if not latitude:
         latitude, longitude = get_geo_ip_ipinfo(ip)
     if not latitude:
@@ -637,7 +637,12 @@ def get_geo(ip):
 
 def get_geo_ipapi_co(ip):
 
-    response = requests.get(f"https://ipapi.co/{ip}/json/", timeout=10)
+    print(f"Accessing https://ipapi.co/{ip}/json/")
+    try:
+        response = requests.get(f"https://ipapi.co/{ip}/json/", timeout=10)
+    except Exception as exc: #pylint: disable=broad-exception-caught
+        error_helpers.log_error('API request to ipapi.co failed ...', exception=exc)
+        return (False, False)
 
     if response.status_code == 200:
         resp_data = response.json()
@@ -658,8 +663,13 @@ def get_geo_ipapi_co(ip):
 
 def get_geo_ip_api_com(ip):
 
-    response = requests.get(f"http://ip-api.com/json/{ip}", timeout=10)
     print(f"Accessing http://ip-api.com/json/{ip}")
+    try:
+        response = requests.get(f"http://ip-api.com/json/{ip}", timeout=10)
+    except Exception as exc: #pylint: disable=broad-exception-caught
+        error_helpers.log_error('API request to ip-api.com failed ...', exception=exc)
+        return (False, False)
+
     if response.status_code == 200:
         resp_data = response.json()
 
@@ -681,8 +691,13 @@ def get_geo_ip_api_com(ip):
 
 def get_geo_ip_ipinfo(ip):
 
-    response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=10)
     print(f"Accessing https://ipinfo.io/{ip}/json")
+    try:
+        response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=10)
+    except Exception as exc: #pylint: disable=broad-exception-caught
+        error_helpers.log_error('API request to ipinfo.io failed ...', exception=exc)
+        return (False, False)
+
     if response.status_code == 200:
         resp_data = response.json()
 

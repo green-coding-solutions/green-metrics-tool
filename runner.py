@@ -1447,7 +1447,7 @@ class Runner:
 
 
     def cleanup(self, continue_measurement=False):
-        #https://github.com/green-coding-berlin/green-metrics-tool/issues/97
+        #https://github.com/green-coding-solutions/green-metrics-tool/issues/97
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
 
         if continue_measurement is False:

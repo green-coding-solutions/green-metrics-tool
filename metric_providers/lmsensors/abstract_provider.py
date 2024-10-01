@@ -1,6 +1,6 @@
 # We need to separate the lm sensor providers into multiple files as the frontend has the conversion and
 # unit hardcoded. So it is currently not possible to have one provider return temperature and fan speed.
-# Discussion is here https://github.com/green-coding-berlin/green-metrics-tool/issues/39
+# Discussion is here https://github.com/green-coding-solutions/green-metrics-tool/issues/39
 
 import os
 import subprocess
