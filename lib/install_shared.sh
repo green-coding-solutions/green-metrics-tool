@@ -18,6 +18,10 @@ install_msr_tools=true
 # Not recommended for classical developer system
 use_system_site_packages=false
 reboot_echo_flag=false
+enable_ssl=true
+ask_ssl=true
+cert_key=''
+cert_file=''
 
 function print_message {
     echo ""
@@ -252,7 +256,7 @@ function finalize() {
 
 
 
-while getopts "p:a:m:nhtbisyr" o; do
+while getopts "p:a:m:nhtbisyrl" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -288,21 +292,30 @@ while getopts "p:a:m:nhtbisyr" o; do
         y)
             use_system_site_packages=true
             ;;
+        l)
+            enable_ssl=false
+            ask_ssl=false
+            ;;
+
 
     esac
 done
 
-enable_ssl=false
-cert_key=""
-cert_file=""
-read -p "Do you want to enable SSL for the API and frontend? (y/N) : " enable_ssl_input
-if [[ "$enable_ssl_input" == "Y" || "$enable_ssl_input" == "y" ]] ; then
-    enable_ssl=true
-    read -p "Please type your file where your key is located. For instance /home/me/key.pem : " cert_key
-    cp $cert_key docker/nginx/ssl/production.key
-    read -p "Please type your file where your key is located. For instance /home/me/cert.crt : " cert_file
-    cp $cert_file docker/nginx/ssl/production.crt
+
+
+if [[ $ask_ssl == true ]] ; then
+    read -p "Do you want to enable SSL for the API and frontend? (y/N) : " enable_ssl_input
+    if [[  "$enable_ssl_input" == "Y" || "$enable_ssl_input" == "y" ]] ; then
+        enable_ssl=true
+        read -p "Please type your file where your key is located. For instance /home/me/key.pem : " cert_key
+        cp $cert_key docker/nginx/ssl/production.key
+        read -p "Please type your file where your key is located. For instance /home/me/cert.crt : " cert_file
+        cp $cert_file docker/nginx/ssl/production.crt
+    else
+        enable_ssl=false
+    fi
 fi
+
 
 if [[ -z $api_url ]] ; then
     read -p "Please enter the desired API endpoint URL: (default: http://api.green-coding.internal:9142): " api_url
