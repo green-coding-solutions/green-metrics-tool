@@ -6,6 +6,7 @@
 #include <mach/mach.h>
 #include <mach/mach_host.h>
 #include <unistd.h>
+#include "parse_int.h"
 
 void loop_utilization(unsigned int msleep_time) {
     processor_info_array_t cpuInfo = NULL, prevCpuInfo = NULL;
@@ -92,7 +93,7 @@ int main(int argc, char **argv) {
             printf("\t-c      : check system and exit\n\n");
             exit(0);
         case 'i':
-            msleep_time = atoi(optarg);
+            msleep_time = parse_int(optarg);
             if (msleep_time < 50){
                 fprintf(stderr,"A value of %i is to small. Results will include 0s as the kernel does not update as fast.\n",msleep_time);
             }

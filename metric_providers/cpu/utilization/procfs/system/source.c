@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
+#include "parse_int.h"
 
 typedef struct procfs_time_t { // struct is a specification and this static makes no sense here
     unsigned long user_time;
@@ -118,7 +119,7 @@ int main(int argc, char **argv) {
             printf("\tCLOCKS_PER_SEC\t%ld\n", CLOCKS_PER_SEC);
             exit(0);
         case 'i':
-            msleep_time = atoi(optarg);
+            msleep_time = parse_int(optarg);
             break;
         case 'c':
             check_system_flag = 1;
