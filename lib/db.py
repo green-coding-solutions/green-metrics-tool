@@ -23,7 +23,7 @@ class DB:
             # pylint: disable=consider-using-f-string
 
             self._pool = ConnectionPool(
-                "postgresql://%s:%s@%s:%s/%s" % (
+                "user=%s password=%s host=%s port=%s dbname=%s sslmode=require" % (
                     config['postgresql']['user'],
                     config['postgresql']['password'],
                     config['postgresql']['host'],
@@ -32,7 +32,7 @@ class DB:
                 ),
                 min_size=1,
                 max_size=2,
-                open=True
+                open=True,
             )
 
     def __query(self, query, params=None, return_type=None, fetch_mode=None):

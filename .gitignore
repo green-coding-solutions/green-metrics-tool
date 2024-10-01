@@ -4,6 +4,9 @@ config.yml
 config.js
 docker/nginx/api.conf
 docker/nginx/frontend.conf
+docker/nginx/block.conf
+docker/nginx/ssl/*
+!docker/nginx/ssl/README.md
 frontend/js/helpers/config.js
 sftp-config.json
 TODO
