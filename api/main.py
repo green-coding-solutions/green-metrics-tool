@@ -45,7 +45,7 @@ from lib import error_helpers
 from lib.job.base import Job
 from lib.user import User, UserAuthenticationError
 from lib.secure_variable import SecureVariable
-from tools.timeline_projects import TimelineProject
+from lib.timeline_project import TimelineProject
 
 from enum import Enum
 ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])

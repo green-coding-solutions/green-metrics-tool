@@ -7,6 +7,8 @@ faulthandler.enable()  # will catch segfaults and write to stderr
 import sys
 import os
 from datetime import datetime
+import argparse
+from pathlib import Path
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -26,37 +28,33 @@ from lib.system_checks import ConfigurationCheckError
 
 
 if __name__ == '__main__':
-    #pylint: disable=broad-except,invalid-name
+    job_main = None # needs to be defined in case exception triggers
 
-    import argparse
-    from pathlib import Path
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('type', help='Select the operation mode.', choices=['email', 'run'])
-    parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be located in the same directory as the regular configuration file. Pass in only the name.')
-    parser.add_argument('--skip-system-checks', action='store_true', default=False, help='Skip system checks')
-    parser.add_argument('--full-docker-prune', action='store_true', default=False, help='Prune all images and build caches on the system')
-    parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
-
-    args = parser.parse_args()  # script will exit if type is not present
-
-    if args.type == 'run':
-        print(TerminalColors.WARNING, '\nWarning: Calling Jobs.py with argument "run" directly is deprecated.\nPlease do not use this functionality in a cronjob and only in CLI for testing\n', TerminalColors.ENDC)
-
-    if args.config_override is not None:
-        if args.config_override[-4:] != '.yml':
-            parser.print_help()
-            error_helpers.log_error('Config override file must be a yml file')
-            sys.exit(1)
-        if not Path(f"{CURRENT_DIR}/../{args.config_override}").is_file():
-            parser.print_help()
-            error_helpers.log_error(f"Could not find config override file on local system.\
-                Please double check: {CURRENT_DIR}/../{args.config_override}")
-            sys.exit(1)
-        GlobalConfig(config_name=args.config_override)
-
-    job_main = None
     try:
+        parser = argparse.ArgumentParser()
+        parser.add_argument('type', help='Select the operation mode.', choices=['email', 'run'])
+        parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be located in the same directory as the regular configuration file. Pass in only the name.')
+        parser.add_argument('--skip-system-checks', action='store_true', default=False, help='Skip system checks')
+        parser.add_argument('--full-docker-prune', action='store_true', default=False, help='Prune all images and build caches on the system')
+        parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
+
+        args = parser.parse_args()  # script will exit if type is not present
+
+        if args.type == 'run':
+            print(TerminalColors.WARNING, '\nWarning: Calling Jobs.py with argument "run" directly is deprecated.\nPlease do not use this functionality in a cronjob and only in CLI for testing\n', TerminalColors.ENDC)
+
+        if args.config_override is not None:
+            if args.config_override[-4:] != '.yml':
+                parser.print_help()
+                error_helpers.log_error('Config override file must be a yml file')
+                sys.exit(1)
+            if not Path(f"{CURRENT_DIR}/../{args.config_override}").is_file():
+                parser.print_help()
+                error_helpers.log_error(f"Could not find config override file on local system.\
+                    Please double check: {CURRENT_DIR}/../{args.config_override}")
+                sys.exit(1)
+            GlobalConfig(config_name=args.config_override)
+
         job_main = Job.get_job(args.type)
         if not job_main:
             print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'No job to process. Exiting')
@@ -67,9 +65,7 @@ if __name__ == '__main__':
         elif args.type == 'email':
             job_main.process()
         print('Successfully processed jobs queue item.')
-    except Exception as exception:
-        # a simple helper method unrelated to the class
-
+    except Exception as exception: #pylint: disable=broad-except
         if job_main:
             error_helpers.log_error('Base exception occurred in jobs.py: ', exception=exception, run_id=job_main._run_id, name=job_main._name, machine=job_main._machine_description)
 

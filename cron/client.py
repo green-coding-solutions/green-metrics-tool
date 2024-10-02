@@ -9,14 +9,15 @@ import sys
 import time
 import subprocess
 import json
+import argparse
 from pathlib import Path
 
 from lib.job.base import Job
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.repo_info import get_repo_info
-from tools import validate
-from tools.temperature import get_temperature
+from lib import validate
+from lib.temperature import get_temperature
 from lib import error_helpers
 from lib.configuration_check_error import ConfigurationCheckError, Status
 
@@ -70,38 +71,33 @@ def do_cleanup(cur_temp, cooldown_time_after_job):
     set_status('cleanup_end', cur_temp, cooldown_time_after_job, data=f"stdout: {result.stdout}, stderr: {result.stderr}")
 
 
-# pylint: disable=broad-except
 if __name__ == '__main__':
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--testing', action='store_true', help='End after processing one run for testing')
-    parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be located in the same directory as the regular configuration file. Pass in only the name.')
-
-    args = parser.parse_args()
-
-    if args.config_override is not None:
-        if args.config_override[-4:] != '.yml':
-            parser.print_help()
-            error_helpers.log_error('Config override file must be a yml file')
-            sys.exit(1)
-        if not Path(f"{CURRENT_DIR}/../{args.config_override}").is_file():
-            parser.print_help()
-            error_helpers.log_error(f"Could not find config override file on local system. Please double check: {CURRENT_DIR}/../{args.config_override}")
-            sys.exit(1)
-        GlobalConfig(config_name=args.config_override) # will create a singleton and subsequent calls will retrieve object with altered default config file
-
-    config_main = GlobalConfig().config
-
-
     try:
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--testing', action='store_true', help='End after processing one run for testing')
+        parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be located in the same directory as the regular configuration file. Pass in only the name.')
+
+        args = parser.parse_args()
+
+        if args.config_override is not None:
+            if args.config_override[-4:] != '.yml':
+                parser.print_help()
+                error_helpers.log_error('Config override file must be a yml file')
+                sys.exit(1)
+            if not Path(f"{CURRENT_DIR}/../{args.config_override}").is_file():
+                parser.print_help()
+                error_helpers.log_error(f"Could not find config override file on local system. Please double check: {CURRENT_DIR}/../{args.config_override}")
+                sys.exit(1)
+            GlobalConfig(config_name=args.config_override) # will create a singleton and subsequent calls will retrieve object with altered default config file
+
+        config_main = GlobalConfig().config
+
         client_main = config_main['cluster']['client']
         cwl = client_main['control_workload']
         cooldown_time = 0
         last_cooldown_time = 0
         current_temperature = -1
         temperature_errors = 0
-
 
         while True:
             job = Job.get_job('run')
@@ -159,7 +155,7 @@ if __name__ == '__main__':
                             name=f"{config_main['machine']['description']} is operating normally. All STDDEV below {cwl['threshold'] * 100} %",
                             message='\n'.join(message)
                         )
-                except Exception as exception:
+                except Exception as exception: # pylint: disable=broad-except
                     validate.handle_validate_exception(exception)
                     set_status('measurement_control_error', current_temperature, last_cooldown_time)
                     # the process will now go to sleep for 'time_between_control_workload_validations''
@@ -186,7 +182,7 @@ if __name__ == '__main__':
                 except subprocess.CalledProcessError as exc:
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
                     error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, stdout=exc.stdout, stderr=exc.stderr, run_id=job._run_id, machine=config_main['machine']['description'], name=job._name, url=job._url)
-                except Exception as exc:
+                except Exception as exc: # pylint: disable=broad-except
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
                     error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, run_id=job._run_id, machine=config_main['machine']['description'], name=job._name, url=job._url)
                 finally:
@@ -202,5 +198,6 @@ if __name__ == '__main__':
             if args.testing:
                 print('Successfully ended testing run of client.py')
                 break
-    except Exception as exc:
-        error_helpers.log_error('Processing in cluster failed (client.py)', exception=exc, machine=config_main['machine']['description'])
+
+    except Exception as exc: # pylint: disable=broad-except
+        error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=config_main['machine']['description'])
