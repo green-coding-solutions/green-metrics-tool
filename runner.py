@@ -38,10 +38,7 @@ from lib.db import DB
 from lib.global_config import GlobalConfig
 from lib.notes import Notes
 from lib import system_checks
-
-
-
-from tools.machine import Machine
+from lib.machine import Machine
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"

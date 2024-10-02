@@ -15,8 +15,8 @@ from lib.job.base import Job
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.repo_info import get_repo_info
-from tools import validate
-from tools.temperature import get_temperature
+from lib import validate
+from lib.temperature import get_temperature
 from lib import error_helpers
 from lib.configuration_check_error import ConfigurationCheckError, Status
 
