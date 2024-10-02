@@ -38,7 +38,7 @@ def get_job(job_id):
 
 def test_no_run_job():
     ps = subprocess.run(
-            ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
+            ['python3', '../cron/jobs.py', 'run', '--config-override', 'test-config.yml'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -50,7 +50,7 @@ def test_no_run_job():
 
 def test_no_email_job():
     ps = subprocess.run(
-            ['python3', '../tools/jobs.py', 'email', '--config-override', 'test-config.yml'],
+            ['python3', '../cron/jobs.py', 'email', '--config-override', 'test-config.yml'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -81,7 +81,7 @@ def test_simple_run_job_no_quota():
     Job.insert('run', user_id=1, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
 
     ps = subprocess.run(
-            ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
+            ['python3', '../cron/jobs.py', 'run', '--config-override', 'test-config.yml'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -108,7 +108,7 @@ def test_simple_run_job_quota_gets_deducted():
     user.update()
 
     ps = subprocess.run(
-            ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
+            ['python3', '../cron/jobs.py', 'run', '--config-override', 'test-config.yml'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -156,7 +156,7 @@ def test_measurement_quota_exhausted():
     user.deduct_measurement_quota(machine_id=machine_id, amount=2678400)
 
     ps = subprocess.run(
-        ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
+        ['python3', '../cron/jobs.py', 'run', '--config-override', 'test-config.yml'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -178,7 +178,7 @@ def test_machine_not_allowed():
     user.update()
 
     ps = subprocess.run(
-        ['python3', '../tools/jobs.py', 'run', '--config-override', 'test-config.yml'],
+        ['python3', '../cron/jobs.py', 'run', '--config-override', 'test-config.yml'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -208,7 +208,7 @@ def todo_test_simple_email_job():
     # Why is this patch not working :-(
     with patch('email_helpers.send_email') as send_email:
         ps = subprocess.run(
-                ['python3', '../tools/jobs.py', 'email', '--config-override', 'test-config.yml'],
+                ['python3', '../cron/jobs.py', 'email', '--config-override', 'test-config.yml'],
                 check=True,
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,

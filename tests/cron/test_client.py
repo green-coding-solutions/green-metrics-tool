@@ -21,7 +21,7 @@ def test_simple_cluster_run():
     Job.insert('run', user_id=1, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
 
     ps = subprocess.run(
-            ['python3', '../tools/client.py', '--testing', '--config-override', 'test-config.yml'],
+            ['python3', '../cron/client.py', '--testing', '--config-override', 'test-config.yml'],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
