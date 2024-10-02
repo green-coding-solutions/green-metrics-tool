@@ -63,7 +63,7 @@ def do_cleanup(cur_temp, cooldown_time_after_job):
     set_status('cleanup_start', cur_temp, cooldown_time_after_job)
 
     result = subprocess.run(['sudo',
-                             os.path.join(os.path.dirname(os.path.abspath(__file__)),'cluster/cleanup.sh')],
+                             os.path.join(os.path.dirname(os.path.abspath(__file__)),'../tools/cluster/cleanup.sh')],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             check=True,)
