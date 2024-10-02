@@ -13,6 +13,7 @@ modify_hosts=true
 ask_tmpfs=true
 install_ipmi=true
 install_sensors=true
+build_sgx=true
 install_msr_tools=true
 # The system site packages are only an option to choose if you are in temporary VMs anyway
 # Not recommended for classical developer system
@@ -200,6 +201,11 @@ function setup_python() {
 
 }
 
+function checkout_submodules() {
+    print_message "Checking out further git submodules ..."
+    git submodule update --init
+}
+
 function build_binaries() {
 
     print_message "Building binaries ..."
@@ -256,7 +262,7 @@ function finalize() {
 
 
 
-while getopts "p:a:m:nhtbisyrl" o; do
+while getopts "p:a:m:nhtbisyrlc:k:" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -296,20 +302,30 @@ while getopts "p:a:m:nhtbisyrl" o; do
             enable_ssl=false
             ask_ssl=false
             ;;
-
+        x)
+            build_sgx=false
+            ;;
+        c)
+            cert_file=${OPTARG}
+            ;;
+        k)
+            cert_key=${OPTARG}
+            ;;
 
     esac
 done
-
-
 
 if [[ $ask_ssl == true ]] ; then
     read -p "Do you want to enable SSL for the API and frontend? (y/N) : " enable_ssl_input
     if [[  "$enable_ssl_input" == "Y" || "$enable_ssl_input" == "y" ]] ; then
         enable_ssl=true
-        read -p "Please type your file where your key is located. For instance /home/me/key.pem : " cert_key
+        if [[ -z $cert_key ]]; then
+            read -p "Please type your file where your key is located. For instance /home/me/key.pem : " cert_key
+        fi
         cp $cert_key docker/nginx/ssl/production.key
-        read -p "Please type your file where your key is located. For instance /home/me/cert.crt : " cert_file
+        if [[ -z $cert_file ]]; then
+            read -p "Please type your file where your certificate is located. For instance /home/me/cert.crt : " cert_file
+        fi
         cp $cert_file docker/nginx/ssl/production.crt
     else
         enable_ssl=false

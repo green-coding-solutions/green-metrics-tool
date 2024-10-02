@@ -11,6 +11,8 @@ source lib/install_shared.sh # will parse opts immediately
 
 prepare_config
 
+checkout_submodules
+
 setup_python
 
 build_containers
@@ -31,10 +33,12 @@ make -C "lib/c"
 
 build_binaries
 
-print_message "Building sgx binaries"
-make -C lib/sgx-software-enable
-mv lib/sgx-software-enable/sgx_enable tools/
-rm lib/sgx-software-enable/sgx_enable.o
+if [[ $build_sgx == true ]] ; then
+    print_message "Building sgx binaries"
+    make -C lib/sgx-software-enable
+    mv lib/sgx-software-enable/sgx_enable tools/
+    rm lib/sgx-software-enable/sgx_enable.o
+fi
 
 print_message "Setting the cluster cleanup.sh file to be owned by root"
 sudo cp -f $PWD/tools/cluster/cleanup_original.sh $PWD/tools/cluster/cleanup.sh

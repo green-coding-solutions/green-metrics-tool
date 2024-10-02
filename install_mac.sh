@@ -10,6 +10,8 @@ source lib/install_shared.sh
 
 prepare_config
 
+checkout_submodules
+
 setup_python
 
 build_containers
