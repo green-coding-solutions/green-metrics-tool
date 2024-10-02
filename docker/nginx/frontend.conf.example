@@ -1,11 +1,12 @@
 server {
-    listen [::]:80;
-    listen [::]:9142;
-    listen [::]:443;
 
-    listen 80;
-    listen 9142;
-    listen 443;
+#__DEFAULT__    listen [::]:9142;
+#__DEFAULT__    listen 9142;
+
+#__SSL__    listen [::]:443 ssl;
+#__SSL__    listen 443 ssl;
+#__SSL__    ssl_certificate /etc/ssl/production.crt;
+#__SSL__    ssl_certificate_key /etc/ssl/production.key;
 
     server_name __METRICS_URL__;
 

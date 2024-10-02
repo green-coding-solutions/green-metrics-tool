@@ -18,6 +18,10 @@ install_msr_tools=true
 # Not recommended for classical developer system
 use_system_site_packages=false
 reboot_echo_flag=false
+enable_ssl=true
+ask_ssl=true
+cert_key=''
+cert_file=''
 
 function print_message {
     echo ""
@@ -98,19 +102,39 @@ function prepare_config() {
     eval "${sed_command} -e \"s|PLEASE_CHANGE_THIS|$db_pw|\" config.yml"
 
     print_message "Updating project with provided URLs ..."
+
     eval "${sed_command} -e \"s|__API_URL__|$api_url|\" config.yml"
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" config.yml"
+
     cp docker/nginx/api.conf.example docker/nginx/api.conf
     host_api_url=`echo $api_url | sed -E 's/^\s*.*:\/\///g'`
     host_api_url=${host_api_url%:*}
     eval "${sed_command} -e \"s|__API_URL__|$host_api_url|\" docker/nginx/api.conf"
+
+    cp docker/nginx/block.conf.example docker/nginx/block.conf
+
     cp docker/nginx/frontend.conf.example docker/nginx/frontend.conf
     host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
     host_metrics_url=${host_metrics_url%:*}
     eval "${sed_command} -e \"s|__METRICS_URL__|$host_metrics_url|\" docker/nginx/frontend.conf"
+
     cp frontend/js/helpers/config.js.example frontend/js/helpers/config.js
     eval "${sed_command} -e \"s|__API_URL__|$api_url|\" frontend/js/helpers/config.js"
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" frontend/js/helpers/config.js"
+
+    if [[ $enable_ssl == true ]] ; then
+        eval "${sed_command} -e \"s|9142:9142|443:443|\" docker/compose.yml"
+        eval "${sed_command} -e \"s|9142:9142|443:443|\" docker/compose.yml"
+
+        eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/frontend.conf"
+        eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/api.conf"
+        eval "${sed_command} -e \"s|#__SSL__||g\" docker/nginx/block.conf"
+
+    else
+        eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/frontend.conf"
+        eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/api.conf"
+        eval "${sed_command} -e \"s|#__DEFAULT__||g\" docker/nginx/block.conf"
+    fi
 
     if [[ $modify_hosts == true ]] ; then
 
@@ -232,7 +256,7 @@ function finalize() {
 
 
 
-while getopts "p:a:m:nhtbisyr" o; do
+while getopts "p:a:m:nhtbisyrl" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -268,9 +292,30 @@ while getopts "p:a:m:nhtbisyr" o; do
         y)
             use_system_site_packages=true
             ;;
+        l)
+            enable_ssl=false
+            ask_ssl=false
+            ;;
+
 
     esac
 done
+
+
+
+if [[ $ask_ssl == true ]] ; then
+    read -p "Do you want to enable SSL for the API and frontend? (y/N) : " enable_ssl_input
+    if [[  "$enable_ssl_input" == "Y" || "$enable_ssl_input" == "y" ]] ; then
+        enable_ssl=true
+        read -p "Please type your file where your key is located. For instance /home/me/key.pem : " cert_key
+        cp $cert_key docker/nginx/ssl/production.key
+        read -p "Please type your file where your key is located. For instance /home/me/cert.crt : " cert_file
+        cp $cert_file docker/nginx/ssl/production.crt
+    else
+        enable_ssl=false
+    fi
+fi
+
 
 if [[ -z $api_url ]] ; then
     read -p "Please enter the desired API endpoint URL: (default: http://api.green-coding.internal:9142): " api_url
