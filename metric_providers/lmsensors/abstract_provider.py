@@ -7,7 +7,7 @@ import subprocess
 from lib.global_config import GlobalConfig
 from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
 
-class LmSensorsProvider(BaseMetricProvider):
+class LmsensorsProvider(BaseMetricProvider):
 
     def _create_options(self):
         provider_config = GlobalConfig().config['measurement']['metric-providers']['linux']\
@@ -27,7 +27,7 @@ class LmSensorsProvider(BaseMetricProvider):
         if __name__ == '__main__':
             # If you run this on the command line you will need to set this in the config
             # This is separate so it is always clear what config is used.
-            self._provider_config_path = 'lmsensors.abstract_provider.LmSensorsProvider'
+            self._provider_config_path = 'lmsensors.abstract_provider.LmsensorsProvider'
 
 
         super().__init__(
