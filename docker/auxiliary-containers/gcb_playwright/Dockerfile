@@ -4,7 +4,7 @@ FROM mcr.microsoft.com/playwright/python:v1.46.0-jammy
 RUN apt-get update && apt-get install -y  curl  wget  gnupg  && rm -rf /var/lib/apt/lists/*
 
 # Install Playwright
-RUN pip install playwright
+RUN pip install --timeout 100 --retries 10 playwright
 
 # Set up Playwright dependencies for Chromium, Firefox and Webkit
 RUN playwright install
