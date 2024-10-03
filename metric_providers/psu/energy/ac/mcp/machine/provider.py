@@ -45,7 +45,7 @@ class PsuEnergyAcMcpMachineProvider(BaseMetricProvider):
         df.dropna(inplace=True)
 
         df['interval'] = intervals  # in microseconds
-        df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_000_00, axis=1) # value is in centiwatts, so divide by 1_000_00 instead of 1_000 as we would do for Watts
+        df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_00, axis=1) # value is in centiwatts (1/100 W), so divide by 1_00 instead of 1 as we would do for Watts to get micro-Joules
         df['value'] = df.value.astype(int)
 
         df = df.drop(columns='interval')  # clean up
