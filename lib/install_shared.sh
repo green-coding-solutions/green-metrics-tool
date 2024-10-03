@@ -193,10 +193,10 @@ function setup_python() {
 
     if [[ $install_python_packages == true ]] ; then
         print_message "Updating python requirements"
-        python3 -m pip install --upgrade pip
-        python3 -m pip install -r requirements.txt
-        python3 -m pip install -r docker/requirements.txt
-        python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
+        python3 -m pip install --timeout 100 --retries 10 --upgrade pip
+        python3 -m pip install --timeout 100 --retries 10 -r requirements.txt
+        python3 -m pip install --timeout 100 --retries 10 -r docker/requirements.txt
+        python3 -m pip install --timeout 100 --retries 10 -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
     fi
 
 }
