@@ -30,10 +30,7 @@ disable=missing-function-docstring,
     invalid-name,
     wrong-import-position,
     wrong-import-order,
-    ungrouped-imports,
-    fixme
-
-
+    ungrouped-imports
 
 [MASTER]
 ignore=env
