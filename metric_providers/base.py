@@ -142,8 +142,6 @@ class BaseMetricProvider:
         excluded_columns = ['time', 'value']
         grouping_columms = [col for col in df.columns if col not in excluded_columns]
         df['sampling_rate'] = df.groupby(grouping_columms)['time'].diff()
-        df['sampling_rate_max'] = df.groupby(grouping_columms)['sampling_rate'].transform('max')
-        df['sampling_rate_avg'] = df.groupby(grouping_columms)['sampling_rate'].transform('mean')
         df['sampling_rate_95p'] = df.groupby(grouping_columms)['sampling_rate'].transform(lambda x: x.quantile(0.95))
         df = df.drop('sampling_rate', axis=1)
 

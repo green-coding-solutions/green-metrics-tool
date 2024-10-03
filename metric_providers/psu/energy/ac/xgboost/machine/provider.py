@@ -16,7 +16,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
             metric_name="psu_energy_ac_xgboost_machine",
             metrics={"time": int, "value": int},
             resolution=resolution,
-            unit="mJ",
+            unit="uJ",
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
@@ -61,6 +61,10 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
 
         return super()._read_metrics()
 
+    # Cloud-Energy does only use CPU utilization as an input metric and thus cannot actually suffer from an underflow
+    def _check_resolution_underflow(self, df):
+        pass
+
     def _parse_metrics(self, df):
 
         df = super()._parse_metrics(df)
@@ -92,7 +96,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
         df.value = df.value.apply(lambda x: interpolated_predictions[x / 100])  # will result in W
         df.value = df.value*self.VHost_Ratio  # apply vhost_ratio
 
-        df.value = (df.value * df.time.diff()) / 1_000 # W * us / 1_000 will result in mJ
+        df.value = df.value * df.time.diff() # W * us will result in uJ
 
         # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
         # Since one value is useless for us we drop the row

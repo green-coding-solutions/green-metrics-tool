@@ -9,7 +9,7 @@ class MemoryEnergyRaplMsrComponentProvider(BaseMetricProvider):
             metric_name='memory_energy_rapl_msr_component',
             metrics={'time': int, 'value': int, 'dram_id': str},
             resolution=resolution,
-            unit='mJ',
+            unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
