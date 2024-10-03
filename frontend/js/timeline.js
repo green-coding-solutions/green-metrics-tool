@@ -147,6 +147,7 @@ const loadCharts = async () => {
 
     try {
         var phase_stats_data = (await makeAPICall(api_url)).data
+        history.replaceState(null, '', `${window.location.origin}${window.location.pathname}?${buildQueryParams()}`); // replace URL to bookmark!
     } catch (err) {
         showNotification('Could not get compare in-repo data from API', err);
     }
