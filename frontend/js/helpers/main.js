@@ -156,7 +156,14 @@ async function makeAPICall(path, values=null, force_authentication_token=null) {
         var options = { method: 'GET', headers: {} }
     }
 
-    options.headers['X-Authentication'] = (force_authentication_token == null) ? localStorage.getItem('authentication_token'): force_authentication_token;
+    if (force_authentication_token != null && force_authentication_token != '') {
+        options.headers['X-Authentication'] = force_authentication_token;
+    } else {
+        const authentication_token = localStorage.getItem('authentication_token');
+        if (force_authentication_token != null && force_authentication_token != '') {
+            options.headers['X-Authentication'] = force_authentication_token;
+        }
+    }
 
     let json_response = null;
     if(localStorage.getItem('remove_idle') == 'true') path += "?remove_idle=true"

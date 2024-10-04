@@ -142,7 +142,7 @@ def authenticate(authentication_token=Depends(header_scheme), request: Request =
     parsed_url = urlparse(str(request.url))
     try:
 
-        if not authentication_token: # Note that if no token is supplied this will authenticate as the DEFAULT user, which in FOSS systems has full capabilities
+        if not authentication_token or authentication_token.strip() == '': # Note that if no token is supplied this will authenticate as the DEFAULT user, which in FOSS systems has full capabilities
             authentication_token = 'DEFAULT'
 
         user = User.authenticate(SecureVariable(authentication_token))
@@ -1427,8 +1427,8 @@ class EnergyData(BaseModel):
     machine: UUID
     project: Optional[str] = None
     tags: Optional[str] = None
-    time_stamp: str # is expected to be in microseconds
-    energy_value: str # is expected to be in mJ
+    time_stamp: str # value is in microseconds
+    energy_value: str # value is in Joules
 
     @field_validator('company', 'project', 'tags')
     @classmethod

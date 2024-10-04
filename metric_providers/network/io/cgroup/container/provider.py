@@ -18,6 +18,7 @@ class NetworkIoCgroupContainerProvider(BaseMetricProvider):
     def read_metrics(self, run_id, containers=None):
         df = super().read_metrics(run_id, containers)
 
+
         if df.empty:
             return df
 

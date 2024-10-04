@@ -48,6 +48,7 @@ static unsigned long long int get_memory_procfs() {
         exit(1);
     }
 
+    // note that here we need to use 1024 instead of 1000 as we are already coming from kiB and not kB
     mem_used = (mem_total - mem_available) * 1024; // outputted value is in Bytes then
 
     fclose(fd);
