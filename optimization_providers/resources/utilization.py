@@ -30,7 +30,7 @@ def memory_to_bytes(memory_str):
     raise ValueError(f"Unrecognized memory unit: {unit}")
 
 # pylint: disable=unused-argument
-@register_reporter('container_memory_utilization', Criticality.INFO, REPORTER_NAME, REPORTER_ICON, req_providers =['MemoryTotalCgroupContainerProvider'])
+@register_reporter('container_memory_utilization', Criticality.INFO, REPORTER_NAME, REPORTER_ICON, req_providers =['MemoryUsedCgroupContainerProvider'])
 def container_memory_utilization(self, run, measurements, repo_path, network, notes, phases):
 
     mem = {}
@@ -38,7 +38,7 @@ def container_memory_utilization(self, run, measurements, repo_path, network, no
         if x := d.get('deploy', {}).get('resources', {}).get('limits', {}).get('memory', None):
             mem[s] = memory_to_bytes(x)
 
-    for service, measurement_stats in phases.get('data').get('[RUNTIME]').get('memory_total_cgroup_container').get('data').items():
+    for service, measurement_stats in phases.get('data').get('[RUNTIME]').get('memory_used_cgroup_container').get('data').items():
         if not service in mem:
             self.add_optimization(
                 f"You are not using Memory limits definitions on {service}",
