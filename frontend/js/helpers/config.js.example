@@ -251,6 +251,12 @@ METRIC_MAPPINGS = {
         'explanation': 'Memory Usage for whole system via procfs',
     },
 
+    'network_total_cgroup_container': {
+        'clean_name': 'Network Traffic',
+        'source': 'cgroup',
+        'explanation': 'Network total data traffic for the container via cgroup reporting.',
+    },
+
     'network_io_cgroup_container': {
         'clean_name': 'Network I/O',
         'source': 'cgroup',
