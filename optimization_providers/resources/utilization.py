@@ -13,10 +13,10 @@ MIN_CPU_UTIL = 50 #%
 def memory_to_bytes(memory_str):
     """Convert memory string with units (e.g., '50M', '2G') to bytes."""
     unit_multipliers = {
-        'K': 1024,        # Kilobyte
-        'M': 1024**2,     # Megabyte
-        'G': 1024**3,     # Gigabyte
-        'T': 1024**4      # Terabyte
+        'K': 1_000,         # Kilobyte
+        'M': 1_000_000,     # Megabyte
+        'G': 1_000_000_000, # Gigabyte
+        'T': 1_000_000_000, # Terabyte
     }
 
     if isinstance(memory_str, int) or memory_str[-1].isdigit():
@@ -55,8 +55,8 @@ def container_memory_utilization(self, run, measurements, repo_path, network, no
 
         if (actual_mem_max/mem[service]*100) < MIN_MEM_UTIL:
             self.add_optimization(f"Memory utilization is low in {service}", f'''
-                                The service {service} has the memory set to: {mem[service]} bytes but the max
-                                usage was {actual_mem_max} bytes. The mean was {data[first_item].get('mean', None)} bytes.
+                                The service {service} has the memory set to: {mem[service]}bytes but the max
+                                usage was {actual_mem_max}bytes. The mean was {data[first_item].get('mean', None)}bytes.
                                 Which is a usage of {data[first_item].get('mean', 0)/mem[service]*100}%.
                                 Either you should reserve less memory ressources for the container or increase utilization through caching
                                 more data in memory and thus in turn reducing cpu calculations or network traffic if possible.

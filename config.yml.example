@@ -162,6 +162,7 @@ measurement:
 #        CPUCores: 4
 #        CPUThreads: 4
 #        TDP: 65
+######### The value for memory must be in GB not in GiB
 #        HW_MemAmountGB: 16
 #        Hardware_Availability_Year: 2011
   #--- END
