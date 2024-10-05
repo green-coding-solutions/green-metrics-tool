@@ -69,7 +69,7 @@ class RunJob(Job):
                     'email',
                     user_id=self._user_id,
                     email=self._email,
-                    name='Measurement Job successfully processed on Green Metrics Tool Cluster',
+                    name=f"Measurement Job '{self._name}' successfully processed on Green Metrics Tool Cluster",
                     message=f"Your report is now accessible under the URL: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={self._run_id}"
                 )
 
