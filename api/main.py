@@ -164,6 +164,10 @@ def authenticate(authentication_token=Depends(header_scheme), request: Request =
 async def home():
     return RedirectResponse(url='/docs')
 
+# It is unclear why currently this route is so often accessed. We block it for now
+@app.get('/v1/hog/add')
+async def hog_block():
+    pass
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/notes/{run_id}')
@@ -718,8 +722,8 @@ async def hog_add(
         try:
             _ = Measurement(**measurement_data)
         except (ValidationError, RequestValidationError) as exc:
-            print('Caught Exception in Measurement()', exc.__class__.__name__, exc)
-            print('Hog parsing error. Missing expected, but non critical key', str(exc))
+            if len(exc.errors()) != 1 or exc.errors()[0]['loc'] != ('disk',):
+                error_helpers.log_error('Caught Exception in Measurement(), but not critical', exception_class=exc.__class__.__name__, exception=exc)
             # Output is extremely verbose. Please only turn on if debugging manually
             # print(f"Errors are: {exc.errors()}")
 
