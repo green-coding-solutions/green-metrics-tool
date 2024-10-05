@@ -50,9 +50,9 @@ static void output_get_disk_procfs() {
         }
 
         printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, sectors_read, sectors_written, device_name);
-        usleep(msleep_time*1000);
-
     }
+
+    usleep(msleep_time*1000); // after we have looked at all interfaces
 
     fclose(fd);
 }
