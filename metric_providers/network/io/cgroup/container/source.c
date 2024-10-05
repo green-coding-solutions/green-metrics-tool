@@ -54,7 +54,7 @@ static char *trimwhitespace(char *str) {
 static net_io_t get_network_cgroup(unsigned int pid) {
     char buf[200], ifname[20];
     unsigned long long int r_bytes, t_bytes, r_packets, t_packets;
-    net_io_t net_io;
+    net_io_t net_io = {0};
 
     char ns_path[PATH_MAX];
     snprintf(ns_path, PATH_MAX, "/proc/%u/ns/net", pid);
