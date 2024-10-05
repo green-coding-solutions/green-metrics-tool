@@ -31,6 +31,8 @@ static void output_get_disk_procfs() {
         exit(1);
     }
 
+    gettimeofday(&now, NULL); // one call for get time of day for all interfaces is fine. The overhead would be more than the gain in granularity
+
     while (fgets(buf, 1024, fd)) {
         // We are not counting dropped packets, as we believe they will at least show up in the
         // sender side as not dropped.
@@ -47,11 +49,10 @@ static void output_get_disk_procfs() {
             continue; // we skip loop devices
         }
 
-        gettimeofday(&now, NULL);
         printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, sectors_read, sectors_written, device_name);
-        usleep(msleep_time*1000);
-
     }
+
+    usleep(msleep_time*1000); // after we have looked at all interfaces
 
     fclose(fd);
 }

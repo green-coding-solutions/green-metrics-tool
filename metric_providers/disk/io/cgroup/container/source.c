@@ -30,9 +30,8 @@ static unsigned int msleep_time=1000;
 
 static disk_io_t get_disk_cgroup(char* filename) {
     long long int rbytes = -1;
-    unsigned long long int rbytes_sum = 0;
     long long int wbytes = -1;
-    unsigned long long int wbytes_sum = 0;
+    disk_io_t disk_io = {0};
 
     FILE * fd = fopen(filename, "r");
     if ( fd == NULL) {
@@ -41,8 +40,8 @@ static disk_io_t get_disk_cgroup(char* filename) {
     }
 
     while (fscanf(fd, "%*u:%*u rbytes=%lld wbytes=%lld rios=%*u wios=%*u dbytes=%*u dios=%*u", &rbytes, &wbytes) == 2) {
-        rbytes_sum += rbytes;
-        wbytes_sum += wbytes;
+        disk_io.rbytes += rbytes;
+        disk_io.wbytes += wbytes;
     }
 
     fclose(fd);
@@ -52,9 +51,6 @@ static disk_io_t get_disk_cgroup(char* filename) {
         exit(1);
     }
 
-    disk_io_t disk_io;
-    disk_io.rbytes = rbytes_sum;
-    disk_io.wbytes = wbytes_sum;
     return disk_io;
 }
 
