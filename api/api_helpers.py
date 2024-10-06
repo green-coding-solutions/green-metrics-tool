@@ -732,14 +732,14 @@ def get_carbon_intensity(latitude, longitude):
     if db_data is not None and len(db_data) != 0:
         return db_data[0][2].get('carbonIntensity')
 
-    if not (token := GlobalConfig().config.get('electricity_maps_token')):
+    if not (electricitymaps_token := GlobalConfig().config.get('electricity_maps_token')):
         raise ValueError('You need to specify an electricitymap token in the config!')
 
-    if token == 'testing':
+    if electricitymaps_token == 'testing':
         # If we are running tests we always return 1000
         return 1000
 
-    headers = {'auth-token': token }
+    headers = {'auth-token': electricitymaps_token }
     params = {'lat': latitude, 'lon': longitude }
 
     response = requests.get('https://api.electricitymap.org/v3/carbon-intensity/latest', params=params, headers=headers, timeout=10)
