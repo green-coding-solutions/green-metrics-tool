@@ -79,7 +79,10 @@ class Runner:
         self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
+
         self._sci = {'R_d': None, 'R': 0}
+        self._sci |= GlobalConfig().config.get('sci', None)  # merge in data from machine config like I, TE etc.
+
         self._job_id = job_id
         self._arguments = locals()
         self._repo_folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
@@ -461,7 +464,7 @@ class Runner:
 
         measurement_config = {}
         measurement_config['providers'] = utils.get_metric_providers(config)
-        measurement_config['sci'] = config.get('sci', None)
+        measurement_config['sci'] = self._sci
 
         # Insert auxilary info for the run. Not critical.
         DB().query("""
