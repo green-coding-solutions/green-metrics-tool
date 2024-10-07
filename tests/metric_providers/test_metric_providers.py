@@ -142,9 +142,7 @@ def test_network_providers():
 
     assert seen_network_total_procfs_system is True
 
-def test_cpu_memory_providers():
-    if utils.get_architecture() == 'macos':
-        return
+def test_cpu_memory_carbon_providers():
 
     assert(run_id is not None and run_id != '')
 
@@ -152,6 +150,7 @@ def test_cpu_memory_providers():
             SELECT metric, detail_name, value, unit, max_value
             FROM phase_stats
             WHERE run_id = %s and phase = '006_VM Stress'
+            ORDER BY metric DESC -- this will assure that the phase_time metric will come first and can be saved
             """
 
     data = DB().fetch_all(query, (run_id,), fetch_mode='dict')
@@ -159,9 +158,11 @@ def test_cpu_memory_providers():
 
     ## get the current used disj
     seen_phase_time_syscall_system = False
-    seen_cpu_utilization_procfs_system = False
+    seen_cpu_utilization = False
     seen_memory_used_procfs_system = False
+    seen_embodied_carbon_share_machine = False
     MICROSECONDS = 1_000_000
+    phase_time = None
 
     for metric_provider in data:
         metric = metric_provider['metric']
@@ -172,16 +173,37 @@ def test_cpu_memory_providers():
             assert 9000 < val <= 10000 , f"cpu_utilization_procfs_system is not between 90_00 and 100_00 but {metric_provider['value']} {metric_provider['unit']}"
             assert 9500 < max_value <= 10500 , f"cpu_utilization_procfs_system max is not between 95_00 and 105_00 but {metric_provider['value']} {metric_provider['unit']}"
 
-            seen_cpu_utilization_procfs_system = True
+            seen_cpu_utilization = True
+        elif metric == 'cpu_utilization_mach_system': # macOS values do not get as high due to the VM.
+            assert 5500 < val <= 10000 , f"cpu_utilization_mach_system is not between 90_00 and 100_00 but {metric_provider['value']} {metric_provider['unit']}"
+            assert 8000 < max_value <= 10500 , f"cpu_utilization_mach_system max is not between 95_00 and 105_00 but {metric_provider['value']} {metric_provider['unit']}"
+
+            seen_cpu_utilization = True
+
         elif metric == 'memory_used_procfs_system':
-            if not os.getenv("GITHUB_ACTIONS") == "true": # skip test for GitHub Actions VM. Memory seems weirdly assigned here
+            if not os.getenv("GITHUB_ACTIONS") == "true" and utils.get_architecture() != 'macos': # skip test for GitHub Actions VM. Memory seems weirdly assigned here. Also skip macos
                 assert psutil.virtual_memory().total*0.55 <= val <= psutil.virtual_memory().total * 0.65 , f"memory_used_procfs_system avg is not between 55% and 65% of total memory but {metric_provider['value']} {metric_provider['unit']}"
 
             seen_memory_used_procfs_system = True
         elif metric == 'phase_time_syscall_system':
             assert 5*MICROSECONDS < val < 5.5*MICROSECONDS , f"phase_time_syscall_system is not between 5 and 5.5 s but {metric_provider['value']} {metric_provider['unit']}"
             seen_phase_time_syscall_system = True
+            phase_time = val
 
-    assert seen_phase_time_syscall_system is True
-    assert seen_cpu_utilization_procfs_system is True
-    assert seen_memory_used_procfs_system is True
+        elif metric == 'embodied_carbon_share_machine':
+            # we have the phase time value as we sort by metric DESC
+            phase_time_in_years = phase_time / (MICROSECONDS * 60 * 60 * 24 * 365)
+            sci = {"EL": 4, "TE": 181000, "RS": 1}
+            embodied_carbon_expected = int((phase_time_in_years / sci['EL']) * sci['TE'] * sci['RS'] * 1_000_000)
+            # Make a range because of rounding errors
+            assert embodied_carbon_expected*0.99 < val < embodied_carbon_expected*1.01  , f"embodied_carbon_share_machine is not {embodied_carbon_expected} but {metric_provider['value']} {metric_provider['unit']}\n. This might be also because the values in the test are hardcoded. Check reporter but also if test-config.yml configuration is still accurate"
+            seen_embodied_carbon_share_machine = True
+
+    assert seen_phase_time_syscall_system is True, "Did not see seen_phase_time_syscall_system metric"
+    assert seen_cpu_utilization is True, "Did not see seen_cpu_utilization metric"
+    assert seen_embodied_carbon_share_machine is True, "Did not see seen_embodied_carbon_share_machine metric"
+
+    if utils.get_architecture() == 'macos': # skip following test for macos as we do not have that provider there
+        return
+
+    assert seen_memory_used_procfs_system is True, "Did not see seen_memory_used_procfs_system metric"
