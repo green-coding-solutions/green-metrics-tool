@@ -1,7 +1,12 @@
-// Note that we use the STDDEV of the population, as we want to quantify the accuracy and NOT the workload itself
+// We are using now the STDDEV of the sample for two reasons:
+// It is required by the Blue Angel for Software
+// We got many debates that in cases where the average is only estimated through measurements and is not absolute
+// one MUST use the sample STDDEV.
+// Still one could argue that one does not want to characterize the measured software but rather the measurement setup
+// it is safer to use the sample STDDEV as it is always higher
 const calculateStatistics = (data) => {
     const mean = data.reduce((sum, value) => sum + value.value, 0) / data.length;
-    const stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value.value - mean, 2), 0) / data.length);
+    const stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value.value - mean, 2), 0) / (data.length - 1) );
     return { mean, stddev };
 }
 

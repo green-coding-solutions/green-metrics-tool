@@ -49,8 +49,8 @@ def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_windo
         ) SELECT
             metric, detail_name, phase, type,
             AVG(value) as "avg",
-            COALESCE(STDDEV_POP(value), 0) as "stddev",
-            COALESCE(STDDEV_POP(value) / AVG(value), 0) as "rel_stddev",
+            COALESCE(STDDEV(value), 0) as "stddev",
+            COALESCE(STDDEV(value) / AVG(value), 0) as "rel_stddev",
             unit
           FROM phase_stats
           WHERE
@@ -60,8 +60,12 @@ def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_windo
           GROUP BY
             metric, detail_name, phase, type, unit
     """
-
-    # Note that we use the STDDEV of the population, as we want to quantify the accuracy and NOT the workload itself
+    # We are using now the STDDEV of the sample for two reasons:
+    # It is required by the Blue Angel for Software
+    # We got many debates that in cases where the average is only estimated through measurements and is not absolute
+    # one MUST use the sample STDDEV.
+    # Still one could argue that one does not want to characterize the measured software but rather the measurement setup
+    # it is safer to use the sample STDDEV as it is always higher
 
     placeholders = ', '.join(['%s'] * len(metrics))
     query = query.replace('$list_replace', placeholders)
