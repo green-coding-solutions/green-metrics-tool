@@ -10,60 +10,30 @@ const numberFormatterLong = new Intl.NumberFormat('en-US', {
 
 const calculateStats = (energy_measurements, co2eq_measurements, co2i_measurements, time_measurements, cpu_util_measurements) => {
 
-    let energyAverage = '--'
-    let energyStdDeviation = '--'
-    let energyStdDevPercent = '--'
-    let energySum = '--';
-
-    let timeAverage = '--'
-    let timeStdDeviation = '--'
-    let timeStdDevPercent = '--'
-    let timeSum = '--';
-
-    let co2eqAverage = '--'
-    let co2eqStdDeviation = '--'
-    let co2eqStdDevPercent = '--'
-    let co2eqSum = '--';
-
-    let co2iAverage = '--'
-    let co2iStdDeviation = '--'
-    let co2iStdDevPercent = '--'
-
-    let cpuUtilStdDeviation = '--'
-    let cpuUtilAverage = '--'
-    let cpuUtilStdDevPercent = '--'
+    let energyAverage = energyStdDeviation = energyStdDevPercent = energySum ='--'
+    let timeAverage = timeStdDeviation = timeStdDevPercent = timeSum '--'
+    let co2eqAverage = co2eqStdDeviation = co2eqStdDevPercent = co2eqSum ='--'
+    let co2iAverage = co2iStdDeviation = co2iStdDevPercent ='--'
+    let cpuUtilStdDeviation = cpuUtilAverage = cpuUtilStdDevPercent '--'
 
     if (energy_measurements.length > 0) {
-        energyStdDeviation = (math.std(energy_measurements, normalization="uncorrected"));
-        energyAverage = (math.mean(energy_measurements));
-        energyStdDevPercent = ((energyStdDeviation / energyAverage) * 100);
-        energySum = (math.sum(energy_measurements));
+        [energyAverage, energyStdDeviation, energySum, energyStdDevPercent] = calculateStatistics(energy_measurements)
     }
-
     if (time_measurements.length > 0) {
-        timeStdDeviation = (math.std(time_measurements, normalization="uncorrected"));
-        timeAverage = (math.mean(time_measurements));
-        timeStdDevPercent = ((timeStdDeviation / timeAverage) * 100);
-        timeSum = (math.sum(time_measurements));
+        [timeAverage, timeStdDeviation, timeSum, timeStdDevPercent] = calculateStatistics(time_measurements)
     }
-
     if (co2eq_measurements.length > 0) {
-        co2eqStdDeviation = (math.std(co2eq_measurements, normalization="uncorrected"));
-        co2eqAverage = (math.mean(co2eq_measurements));
-        co2eqStdDevPercent = ((co2eqStdDeviation / co2eqAverage) * 100);
-        co2eqSum = (math.sum(co2eq_measurements));
+        [co2eqAverage, co2eqStdDeviation, co2eqSum, co2eqStdDevPercent] = calculateStatistics(co2eq_measurements)
     }
 
+    // intentially skipping co2iSum
     if (co2i_measurements.length > 0) {
-        co2iStdDeviation = (math.std(co2i_measurements, normalization="uncorrected"));
-        co2iAverage = (math.mean(co2i_measurements));
-        co2iStdDevPercent = ((co2iStdDeviation / co2iAverage) * 100);
+        [co2iAverage, co2iStdDeviation, , co2iStdDevPercent] = calculateStatistics(co2i_measurements)
     }
 
+    // intentially skipping cpuUtilSum
     if (cpu_util_measurements.length > 0) {
-        cpuUtilStdDeviation = (math.std(cpu_util_measurements, normalization="uncorrected"));
-        cpuUtilAverage = (math.mean(cpu_util_measurements));
-        cpuUtilStdDevPercent = ((cpuUtilStdDeviation / cpuUtilAverage) * 100);
+        const [cpuUtilAverage, cpuUtilStdDeviation, , cpuUtilStdDevPercent] = calculateStatistics(cpu_util_measurements)
     }
 
     return {

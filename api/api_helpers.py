@@ -541,7 +541,15 @@ def add_phase_stats_statistics(phase_stats_object):
 
                         # JSON does not recognize the numpy data types. Sometimes int64 is returned
                         key_obj['mean'] = np.mean(key_obj['values']).item()
-                        key_obj['stddev'] = np.std(key_obj['values']).item()
+
+                        key_obj['stddev'] = np.std(key_obj['values'], correction=1).item()
+                        # We are using now the STDDEV of the sample for two reasons:
+                        # It is required by the Blue Angel for Software
+                        # We got many debates that in cases where the average is only estimated through measurements and is not absolute
+                        # one MUST use the sample STDDEV.
+                        # Still one could argue that one does not want to characterize the measured software but rather the measurement setup
+                        # it is safer to use the sample STDDEV as it is always higher
+
                         key_obj['max_mean'] = np.max(key_obj['values']).item() # overwrite with max of list
                         key_obj['min_mean'] = np.min(key_obj['values']).item() # overwrite with min of list
                         key_obj['ci'] = (key_obj['stddev']*t_stat).item()
