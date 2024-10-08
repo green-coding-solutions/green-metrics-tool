@@ -63,6 +63,31 @@ const getPretty = (metric_name, key)  => {
     return METRIC_MAPPINGS[metric_name][key];
 }
 
+// We are using now the STDDEV of the sample for two reasons:
+// It is required by the Blue Angel for Software
+// We got many debates that in cases where the average is only estimated through measurements and is not absolute
+// one MUST use the sample STDDEV.
+// Still one could argue that one does not want to characterize the measured software but rather the measurement setup
+// it is safer to use the sample STDDEV as it is always higher
+const calculateStatistics = (data, object_access=false) => {
+    let sum = null;
+    let stddev = null;
+    let mean = null;
+    if (object_access == true) {
+        sum = data.reduce((sum, value) => sum + value.value, 0)
+        stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value.value - mean, 2), 0) / (data.length - 1) );
+        mean = sum / data.length;
+    } else {
+        sum = data.reduce((sum, value) => sum + value, 0)
+        mean = sum / data.length;
+        stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / (data.length - 1) );
+    }
+    const stddev_rel = (stddev / mean) * 100;
+
+    return [ mean, stddev, sum, stddev_rel ];
+}
+
+
 const replaceRepoIcon = (uri) => {
 
   if(!uri.startsWith('http')) return uri; // ignore filesystem paths
