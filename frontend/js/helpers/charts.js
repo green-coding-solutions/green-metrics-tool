@@ -346,6 +346,7 @@ const createChartContainer = (container, title) => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");
     chart_node.classList.add('statistics-chart-card')
+    chart_node.classList.add('print-page-break')
     chart_node.classList.add('ui')
 
     chart_node.innerHTML = `

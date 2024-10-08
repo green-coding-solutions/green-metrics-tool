@@ -5,7 +5,7 @@
 class PhaseMetrics extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
-        <h3 class="ui dividing header">Key metrics</h3>
+        <h3 class="ui dividing header print-page-break">Key metrics</h3>
         <div class="ui four cards stackable">
             <div class="ui card phase-duration">
                 <div class="ui content">

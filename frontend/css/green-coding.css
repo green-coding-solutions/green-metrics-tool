@@ -281,3 +281,10 @@ a,
 .float-right {
     float: right;
 }
+
+/* PRINT STYLESHEETS */
+@media print {
+  .print-page-break {
+    page-break-before: always;
+  }
+}
