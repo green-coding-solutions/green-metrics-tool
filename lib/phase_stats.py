@@ -72,6 +72,7 @@ def build_and_store_phase_stats(run_id, sci=None):
             #        ORDER BY detail_name ASC, time ASC
             #    ) -- Backlog: if we need derivatives / integrations in the future
 
+            # TODO: Refactor this weird lookup now with the resolution directly added to the DB
             provider_name = metric.replace('_', '.') + '.provider.' + utils.get_pascal_case(metric) + 'Provider'
             provider_resolution_in_ms = measurement_config['providers'][provider_name]['resolution']
 

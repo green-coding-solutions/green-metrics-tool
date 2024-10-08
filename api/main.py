@@ -13,7 +13,7 @@ from xml.sax.saxutils import escape as xml_escape
 import math
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, Request, Response, Depends, HTTPException
+from fastapi import FastAPI, Request, Response, Depends, HTTPException, Query
 from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -36,7 +36,8 @@ from api.object_specifications import Measurement
 from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics, carbondb_add, determine_comparison_case,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value, get_timeline_query,
-                         get_run_info, get_machine_list, get_artifact, store_artifact)
+                         get_run_info, get_machine_list, get_artifact, store_artifact,
+                         validate_carbondb_params)
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -1204,9 +1205,6 @@ class CI_Measurement(BaseModel):
     label: str
     duration: int
     workflow_name: str = None
-    cb_company_uuid: Optional[str] = ''
-    cb_project_uuid: Optional[str] = ''
-    cb_machine_uuid: Optional[str] = ''
     lat: Optional[str] = ''
     lon: Optional[str] = ''
     city: Optional[str] = ''
@@ -1228,7 +1226,7 @@ async def post_ci_measurement_add(
                     raise RequestValidationError("Unit is unsupported - only mJ currently accepted")
                 continue
 
-            case 'label' | 'workflow_name' | 'cb_company_uuid' | 'cb_project_uuid' | 'cb_machine_uuid' | 'lat' | 'lon' | 'city' | 'co2i' | 'co2eq':  # Optional fields
+            case 'label' | 'workflow_name' | 'lat' | 'lon' | 'city' | 'co2i' | 'co2eq':  # Optional fields
                 continue
 
             case _:
@@ -1270,38 +1268,6 @@ async def post_ci_measurement_add(
             measurement.lat, measurement.lon, measurement.city, measurement.co2i, measurement.co2eq, user._id)
 
     DB().query(query=query, params=params)
-
-    # If one of these is specified we add the data to the CarbonDB
-    if measurement.cb_company_uuid != '' or measurement.cb_project_uuid != '' or measurement.cb_machine_uuid != '':
-
-        if measurement.cb_machine_uuid == '':
-            raise ValueError("You need to specify a machine")
-
-        client_ip = request.headers.get("x-forwarded-for")
-        if client_ip:
-            client_ip = client_ip.split(",")[0]
-        else:
-            client_ip = request.client.host
-
-        energydata = {
-            'type': 'machine.ci',
-            'energy_value': measurement.energy_value * 0.001,
-            'time_stamp': int(time.time() * 1e6),
-            'company': measurement.cb_company_uuid,
-            'project': measurement.cb_project_uuid,
-            'machine': measurement.cb_machine_uuid,
-            'tags': f"{measurement.label},{measurement.repo},{measurement.branch},{measurement.workflow}"
-        }
-
-        try:
-            carbondb_add(client_ip, [energydata], user._id)
-        except Exception as exc: #pylint: disable=broad-except
-            error_helpers.log_error('CI Measurement was successfully added, but CarbonDB did fail', exception=exc)
-            return ORJSONResponse({
-                'success': False,
-                'err': f"CI Measurement was successfully added, but CarbonDB did respond with exception: {str(exc)}"},
-                status_code=207
-            )
 
     return ORJSONResponse({'success': True}, status_code=201)
 
@@ -1422,22 +1388,27 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
 
 
 class EnergyData(BaseModel):
+    tags: Optional[list] = None
+    project: str
+    machine: str
     type: str
-    company: Optional[str] = None
-    machine: UUID
-    project: Optional[str] = None
-    tags: Optional[str] = None
-    time_stamp: str # value is in microseconds
-    energy_value: str # value is in Joules
+    time: int # value is in microseconds
+    energy: int # value is in Joules
+    # TODO: Should we not allow carbon_intensity to also be submitted for behind the meter measurements?
 
-    @field_validator('company', 'project', 'tags')
+    @field_validator('tags')
     @classmethod
     def empty_str_to_none(cls, values, _):
-        if values == '':
+        if not values or values == '':
             return None
+        validate_carbondb_params('tags', values.split(','))
         return values
 
 @app.post('/v1/carbondb/add')
+async def add_carbondb_deprecated():
+    return Response("This endpoint is not supported anymore. Please migrate to /v2/carbondb/add !", status_code=410)
+
+@app.post('/v2/carbondb/add')
 async def add_carbondb(
     request: Request,
     energydatas: List[EnergyData],
@@ -1450,61 +1421,80 @@ async def add_carbondb(
     else:
         client_ip = request.client.host
 
-    carbondb_add(client_ip, energydatas, user._id)
+    # TODO: Validate tags to only include A-Za-z0-9_-
+
+    carbondb_add(client_ip, energydatas, 'CUSTOM', user._id)
 
     return Response(status_code=204)
 
 
-@app.get('/v1/carbondb/machine/day/{machine_uuid}')
-async def carbondb_get_machine_details(machine_uuid: str):
+@app.get('/v1/carbondb/')
+async def add_carbondb_deprecated():
+    return Response("This endpoint is not supported anymore. Please migrate to /v2/carbondb/ !", status_code=410)
 
-    if machine_uuid is None or not is_valid_uuid(machine_uuid):
-        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty or malformed'}, status_code=400)
+@app.get('/v2/carbondb')
+async def carbondb_get(
+    user: User = Depends(authenticate),
+    start_date: date | None = None, end_date: date | None = None,
+    tags_include: str | None = None, tags_exclude: str | None = None,
+    projects_include: str | None = None, projects_exclude: str | None = None,
+    machines_include: str | None = None, machines_exclude: str | None = None,
+    sources_include: str | None = None, sources_exclude: str | None = None
+    ):
 
-    query = """
-        SELECT
-            *
-        FROM
-            carbondb_energy_data_day
-        WHERE
-            machine = %s
-        ORDER BY
-            date
-        ;
-    """
 
-    data = DB().fetch_all(query, (machine_uuid,))
+    params = [user._id,]
 
-    return ORJSONResponse({'success': True, 'data': data})
+    start_date_condition = ''
+    if start_date is not None:
+        start_date_condition =  "AND DATE(cedd.date) >= %s"
+        params.append(start_date)
 
-@app.get('/v1/carbondb/{cptype}/{uuid}')
-async def carbondb_get_company_project_details(cptype: str, uuid: str):
+    end_date_condition = ''
+    if end_date is not None:
+        end_date_condition =  "AND DATE(cedd.date) <= %s"
+        params.append(end_date)
 
-    if uuid is None or not is_valid_uuid(uuid):
-        return ORJSONResponse({'success': False, 'err': 'uuid is empty or malformed'}, status_code=400)
+    # TODO: Filtering with AND / OR / NOT methods. Shall I make my own filter language?
+    print("Tags_include", tags_include)
+    print("Tags_exclude", tags_exclude)
 
-    if cptype.lower() != 'project' and cptype.lower() != 'company':
-        return ORJSONResponse({'success': False, 'err': 'type needs to be company or project'}, status_code=400)
+    tags_include_condition = ''
+    if tags_include:
+        validate_carbondb_params('tags_include', tags_include.split(','))
+
+    tags_exclude_condition = ''
+    if tags_exclude:
+        validate_carbondb_params('tags_exclude', tags_exclude.split(','))
+        # TODO: Build the exclude condition
+
+    # TODO: Build projects condition
+    # TODO: Build machines condition
+    # TODO: Build sources condition
+
 
     query = f"""
         SELECT
-            machine,
-            SUM(energy_sum),
-            SUM(co2_sum),
-            AVG(carbon_intensity_avg),
-            ARRAY_AGG(DISTINCT u.tag) AS all_tags
+            type, project, machine, source, tags, date, energy_sum, carbon_sum, carbon_intensity_avg, record_count
         FROM
-            public.carbondb_energy_data_day e
-			LEFT JOIN LATERAL unnest(e.tags) AS u(tag) ON true
+            carbondb_energy_data_day as cedd
         WHERE
-            {cptype.lower()}=%s
-        GROUP BY
-            machine
+            user_id = %s
+            {start_date_condition}
+            {end_date_condition}
+            {tags_include_condition}
+            {tags_exclude_condition}
+        ORDER BY
+            date ASC
         ;
     """
-    data = DB().fetch_all(query, (uuid,))
+
+    print(query, params)
+
+    data = DB().fetch_all(query, params)
 
     return ORJSONResponse({'success': True, 'data': data})
+
 
 # @app.get('/v1/authentication/new')
 # This will fail if the DB insert fails but still report 'success': True

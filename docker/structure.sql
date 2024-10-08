@@ -5,6 +5,7 @@ CREATE SCHEMA IF NOT EXISTS "public";
 
 CREATE EXTENSION "uuid-ossp";
 CREATE EXTENSION "moddatetime";
+CREATE EXTENSION "hstore";
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -26,7 +27,7 @@ CREATE TRIGGER users_moddatetime
 -- Default password for authentication is DEFAULT
 INSERT INTO "public"."users"("name","token","capabilities","created_at","updated_at")
 VALUES
-(E'DEFAULT',E'89dbf71048801678ca4abfbaa3ea8f7c651aae193357a3e23d68e21512cd07f5',E'{"api":{"quotas":{},"routes":["/v1/carbondb/add","/v1/ci/measurement/add","/v1/software/add","/v1/hog/add","/v1/authentication/data"]},"data":{"runs":{"retention":2678400},"hog_tasks":{"retention":2678400},"measurements":{"retention":2678400},"hog_coalitions":{"retention":2678400},"ci_measurements":{"retention":2678400},"hog_measurements":{"retention":2678400}},"jobs":{"schedule_modes":["one-off","daily","weekly","commit","variance"]},"machines":[1],"measurement":{"quotas":{},"settings":{"total-duration":86400,"flow-process-duration":86400}},"optimizations":["container_memory_utilization","container_cpu_utilization","message_optimization","container_build_time","container_boot_time","container_image_size"]}',E'2024-08-22 11:28:24.937262+00',NULL);
+(E'DEFAULT',E'89dbf71048801678ca4abfbaa3ea8f7c651aae193357a3e23d68e21512cd07f5',E'{"api":{"quotas":{},"routes":["/v2/carbondb","/v2/carbondb/add","/v1/ci/measurement/add","/v1/software/add","/v1/hog/add","/v1/authentication/data"]},"data":{"runs":{"retention":2678400},"hog_tasks":{"retention":2678400},"measurements":{"retention":2678400},"hog_coalitions":{"retention":2678400},"ci_measurements":{"retention":2678400},"hog_measurements":{"retention":2678400}},"jobs":{"schedule_modes":["one-off","daily","weekly","commit","variance"]},"machines":[1],"measurement":{"quotas":{},"settings":{"total-duration":86400,"flow-process-duration":86400}},"optimizations":["container_memory_utilization","container_cpu_utilization","message_optimization","container_build_time","container_boot_time","container_image_size"]}',E'2024-08-22 11:28:24.937262+00',NULL);
 
 
 
@@ -360,19 +361,19 @@ CREATE INDEX optimizations_runs ON optimizations(run_id);
 
 CREATE TABLE carbondb_energy_data (
     id SERIAL PRIMARY KEY,
-    type TEXT NOT NULL,
-    company UUID,
-    machine UUID NOT NULL,
-    project UUID,
+    type text NOT NULL,
+    project text NOT NULL,
+    machine text NOT NULL,
+    source text NOT NULL,
     tags TEXT[],
-    time_stamp BIGINT NOT NULL,
-    energy_value FLOAT NOT NULL,
-    co2_value FLOAT,
+    time BIGINT NOT NULL,
+    energy FLOAT NOT NULL,
+    carbon FLOAT,
     carbon_intensity FLOAT,
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
     ip_address INET,
-    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    user_id int REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -382,24 +383,16 @@ CREATE TRIGGER carbondb_energy_data_moddatetime
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
 
-
-CREATE INDEX idx_carbondb_company ON carbondb_energy_data(company);
-CREATE INDEX idx_carbondb_machine ON carbondb_energy_data(machine);
-CREATE INDEX idx_carbondb_project ON carbondb_energy_data(project);
-
-CREATE INDEX idx_carbondb_energy_data_grouping ON carbondb_energy_data (time_stamp, machine, energy_value);
-
-
 CREATE TABLE carbondb_energy_data_day (
     id SERIAL PRIMARY KEY,
-    type TEXT NOT NULL,
-    company UUID,
-    machine UUID NOT NULL,
-    project UUID,
+    type text NOT NULL,
+    project text NOT NULL,
+    machine text NOT NULL,
+    source text NOT NULL,
     tags TEXT[],
     date DATE NOT NULL,
     energy_sum FLOAT NOT NULL,
-    co2_sum FLOAT,
+    carbon_sum FLOAT,
     carbon_intensity_avg FLOAT,
     record_count INT,
     user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -412,10 +405,7 @@ CREATE TRIGGER carbondb_energy_data_day_moddatetime
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
 
-CREATE INDEX idx_carbondb_hour_company ON carbondb_energy_data_day(company);
-CREATE INDEX idx_carbondb_hour_machine ON carbondb_energy_data_day(machine);
-CREATE INDEX idx_carbondb_hour_project ON carbondb_energy_data_day(project);
-CREATE UNIQUE INDEX unique_entry ON carbondb_energy_data_day (type, company, machine, project, tags, date) NULLS NOT DISTINCT;
+CREATE UNIQUE INDEX unique_entry ON carbondb_energy_data_day (type, project, machine, source, tags, date, user_id) NULLS NOT DISTINCT;
 
 CREATE TABLE ip_data (
     ip_address INET,
