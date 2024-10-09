@@ -10,11 +10,11 @@ const numberFormatterLong = new Intl.NumberFormat('en-US', {
 
 const calculateStats = (energy_measurements, co2eq_measurements, co2i_measurements, time_measurements, cpu_util_measurements) => {
 
-    let energyAverage = energyStdDeviation = energyStdDevPercent = energySum ='--'
-    let timeAverage = timeStdDeviation = timeStdDevPercent = timeSum '--'
+    let energyAverage = energyStdDeviation = energyStdDevPercent = energySum = '--'
+    let timeAverage = timeStdDeviation = timeStdDevPercent = timeSum = '--'
     let co2eqAverage = co2eqStdDeviation = co2eqStdDevPercent = co2eqSum ='--'
-    let co2iAverage = co2iStdDeviation = co2iStdDevPercent ='--'
-    let cpuUtilStdDeviation = cpuUtilAverage = cpuUtilStdDevPercent '--'
+    let co2iAverage = co2iStdDeviation = co2iStdDevPercent = '--'
+    let cpuUtilStdDeviation = cpuUtilAverage = cpuUtilStdDevPercent = '--'
 
     if (energy_measurements.length > 0) {
         [energyAverage, energyStdDeviation, energySum, energyStdDevPercent] = calculateStatistics(energy_measurements)
@@ -33,7 +33,7 @@ const calculateStats = (energy_measurements, co2eq_measurements, co2i_measuremen
 
     // intentially skipping cpuUtilSum
     if (cpu_util_measurements.length > 0) {
-        const [cpuUtilAverage, cpuUtilStdDeviation, , cpuUtilStdDevPercent] = calculateStatistics(cpu_util_measurements)
+        [cpuUtilAverage, cpuUtilStdDeviation, , cpuUtilStdDevPercent] = calculateStatistics(cpu_util_measurements)
     }
 
     return {
@@ -280,7 +280,7 @@ const displayStatsTable = (measurements) => {
     total_table.innerHTML = "";
     avg_table.innerHTML = "";
 
-    const full_run_stats = calculateStats(fullRunArray.energy, fullRunArray.co2eq, fullRunArray.co2i, fullRunArray.time, fullRunArray.cpu_util)
+    const full_run_stats = calculateStats(fullRunArray.energy.flat(), fullRunArray.co2eq.flat(), fullRunArray.co2i.flat(), fullRunArray.time.flat(), fullRunArray.cpu_util.flat())
 
     const full_run_stats_avg_node = document.createElement("tr")
     full_run_stats_avg_node.innerHTML += `

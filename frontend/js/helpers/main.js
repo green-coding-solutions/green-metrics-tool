@@ -75,12 +75,20 @@ const calculateStatistics = (data, object_access=false) => {
     let mean = null;
     if (object_access == true) {
         sum = data.reduce((sum, value) => sum + value.value, 0)
-        stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value.value - mean, 2), 0) / (data.length - 1) );
         mean = sum / data.length;
+        if (data.length < 2) {
+            stddev = 0
+        } else {
+            stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value.value - mean, 2), 0) / (data.length - 1) );
+        }
     } else {
         sum = data.reduce((sum, value) => sum + value, 0)
         mean = sum / data.length;
-        stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / (data.length - 1) );
+        if (data.length < 2) {
+            stddev = 0
+        } else {
+            stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / (data.length - 1) );
+        }
     }
     const stddev_rel = (stddev / mean) * 100;
 
