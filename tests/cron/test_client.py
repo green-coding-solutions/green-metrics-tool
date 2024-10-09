@@ -8,7 +8,7 @@ from lib.global_config import GlobalConfig
 from lib.job.base import Job
 from tests import test_functions as Tests
 
-GlobalConfig().override_config(config_name='test-config.yml')
+GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml")
 config = GlobalConfig().config
 
 def test_simple_cluster_run():
@@ -21,7 +21,7 @@ def test_simple_cluster_run():
     Job.insert('run', user_id=1, name=name, url=url, email=None, branch=branch, filename=filename, machine_id=machine_id)
 
     ps = subprocess.run(
-            ['python3', '../cron/client.py', '--testing', '--config-override', 'test-config.yml'],
+            ['python3', '../cron/client.py', '--testing', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml"],
             check=True,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,

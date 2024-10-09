@@ -36,7 +36,7 @@ def cleanup_after_module():
 def setup_module(module):
     out = io.StringIO()
     err = io.StringIO()
-    GlobalConfig(config_name='test-config.yml').config
+    GlobalConfig(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml").config
     with redirect_stdout(out), redirect_stderr(err):
         folder = 'tests/data/stress-application/'
         filename = 'usage_scenario.yml'
@@ -79,7 +79,7 @@ def test_db_rows_are_written_and_presented():
     data = DB().fetch_all(query, (run_id,))
     assert(data is not None and data != [])
 
-    config = GlobalConfig(config_name='test-config.yml').config
+    config = GlobalConfig(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml").config
     metric_providers = utils.get_metric_providers_names(config)
 
     # The network connection proxy provider writes to a different table so we need to remove it here

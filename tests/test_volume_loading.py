@@ -12,7 +12,7 @@ from tests import test_functions as Tests
 from lib.global_config import GlobalConfig
 from runner import Runner
 
-GlobalConfig().override_config(config_name='test-config.yml')
+GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml")
 
 def test_volume_load_no_escape():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_etc_hosts.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=False)

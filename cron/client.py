@@ -10,7 +10,6 @@ import time
 import subprocess
 import json
 import argparse
-from pathlib import Path
 
 from lib.job.base import Job
 from lib.global_config import GlobalConfig
@@ -75,7 +74,7 @@ if __name__ == '__main__':
     try:
         parser = argparse.ArgumentParser()
         parser.add_argument('--testing', action='store_true', help='End after processing one run for testing')
-        parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be located in the same directory as the regular configuration file. Pass in only the name.')
+        parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
 
         args = parser.parse_args()
 
@@ -84,11 +83,7 @@ if __name__ == '__main__':
                 parser.print_help()
                 error_helpers.log_error('Config override file must be a yml file')
                 sys.exit(1)
-            if not Path(f"{CURRENT_DIR}/../{args.config_override}").is_file():
-                parser.print_help()
-                error_helpers.log_error(f"Could not find config override file on local system. Please double check: {CURRENT_DIR}/../{args.config_override}")
-                sys.exit(1)
-            GlobalConfig(config_name=args.config_override) # will create a singleton and subsequent calls will retrieve object with altered default config file
+            GlobalConfig(config_location=args.config_override) # will create a singleton and subsequent calls will retrieve object with altered default config file
 
         config_main = GlobalConfig().config
 

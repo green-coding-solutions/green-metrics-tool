@@ -11,32 +11,21 @@ from tests import test_functions as Tests
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
-GlobalConfig().override_config(config_name='test-config.yml')
+GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml")
 
 test_data = [
-   (True, does_not_raise()),
-   (False, pytest.raises(ConfigurationCheckError)),
+   (True, f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml", does_not_raise()),
+   (False, f"{os.path.dirname(os.path.realpath(__file__))}/test-config-duplicate-psu-providers.yml", pytest.raises(ConfigurationCheckError)),
 ]
 
-@pytest.mark.parametrize("skip_system_checks,expectation", test_data)
-def test_check_system(skip_system_checks, expectation):
+@pytest.mark.parametrize("skip_system_checks,config_file,expectation", test_data)
+def test_check_system(skip_system_checks, config_file, expectation):
+
+    GlobalConfig().override_config(config_location=config_file)
     runner = Runner(uri="not_relevant", uri_type="folder", skip_system_checks=skip_system_checks)
 
-    if GlobalConfig().config['measurement']['metric-providers']['common'] is None:
-        GlobalConfig().config['measurement']['metric-providers']['common'] = {}
-
-    GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.foo.machine.provider.SomeProvider'] = {
-                'key': 'value'
-            }
-    GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.bar.machine.provider.SomeOtherProvider'] = {
-                'key': 'value'
-            }
-    try:
-        with expectation:
-            runner.check_system()
-    finally:
-        del GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.foo.machine.provider.SomeProvider']
-        del GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.bar.machine.provider.SomeOtherProvider']
+    with expectation:
+        runner.check_system()
 
 def test_reporters_still_running():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False)

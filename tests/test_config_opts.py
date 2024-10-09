@@ -12,7 +12,7 @@ from tests import test_functions as Tests
 from runner import Runner
 
 
-GlobalConfig().override_config(config_name='test-config.yml')
+GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml")
 
 def test_global_timeout():
 

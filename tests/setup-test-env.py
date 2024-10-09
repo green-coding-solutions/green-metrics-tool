@@ -76,7 +76,7 @@ def edit_compose_file():
         # for nginx and gunicorn services, add test config mapping
         if 'nginx' in service or 'gunicorn' in service:
             new_vol_list.append(
-                f'{current_dir}/../test-config.yml:/var/www/green-metrics-tool/config.yml')
+                f'{current_dir}/test-config.yml:/var/www/green-metrics-tool/config.yml')
         compose['services'][service]['volumes'] = new_vol_list
 
         # For postgresql, change password
