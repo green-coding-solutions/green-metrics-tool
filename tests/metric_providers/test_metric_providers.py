@@ -30,7 +30,7 @@ def cleanup_after_module():
     Tests.reset_db()
 
 run_id = None
-MB = 1024*1024
+MB = 1000*1000 # Note: GMT uses SI Units!
 
 # Runs once per file before any test(
 #pylint: disable=expression-not-assigned
