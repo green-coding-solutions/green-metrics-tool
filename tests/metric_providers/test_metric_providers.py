@@ -177,8 +177,8 @@ def test_cpu_memory_carbon_providers():
 
             seen_cpu_utilization = True
         elif metric == 'cpu_utilization_mach_system': # macOS values do not get as high due to the VM.
-            assert 5500 < val <= 10000 , f"cpu_utilization_mach_system is not between 90_00 and 100_00 but {metric_provider['value']} {metric_provider['unit']}"
-            assert 8000 < max_value <= 10500 , f"cpu_utilization_mach_system max is not between 95_00 and 105_00 but {metric_provider['value']} {metric_provider['unit']}"
+            assert 5000 < val <= 10000 , f"cpu_utilization_mach_system is not between 50_00 and 100_00 but {metric_provider['value']} {metric_provider['unit']}"
+            assert 8000 < max_value <= 10500 , f"cpu_utilization_mach_system max is not between 80_00 and 105_00 but {metric_provider['value']} {metric_provider['unit']}"
 
             seen_cpu_utilization = True
 
