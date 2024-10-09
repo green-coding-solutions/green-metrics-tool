@@ -64,6 +64,8 @@ def mock_temporary_network_file(file_path, temp_file, actual_network_interface):
         file.write(modified_contents)
 
 def test_splitting_by_group():
+    if utils.get_architecture() == 'macos':
+        return
 
     obj = NetworkIoProcfsSystemProvider(100, remove_virtual_interfaces=False)
 
