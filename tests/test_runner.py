@@ -24,8 +24,11 @@ def test_check_system(skip_system_checks, config_file, expectation):
     GlobalConfig().override_config(config_location=config_file)
     runner = Runner(uri="not_relevant", uri_type="folder", skip_system_checks=skip_system_checks)
 
-    with expectation:
-        runner.check_system()
+    try:
+        with expectation:
+            runner.check_system()
+    finally:
+        GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml") # reset
 
 def test_reporters_still_running():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False)
