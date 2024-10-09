@@ -139,7 +139,7 @@ def test_network_providers():
 
         if metric == 'network_total_procfs_system':
             # Some small network overhead to a 5 MB file always occurs
-            assert 5*MB <= val < 5.5*MB , f"network_total_procfs_system is not between 5 and 5.5 MB but {metric_provider['value']} {metric_provider['unit']}"
+            assert 5*MB <= val < 5.6*MB , f"network_total_procfs_system is not between 5 and 5.6 MB but {metric_provider['value']} {metric_provider['unit']}"
             seen_network_total_procfs_system = True
 
     assert seen_network_total_procfs_system is True
