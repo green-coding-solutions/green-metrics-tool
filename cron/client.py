@@ -103,7 +103,8 @@ if __name__ == '__main__':
             job = Job.get_job('run')
             if job and job.check_job_running():
                 error_helpers.log_error('Job is still running. This is usually an error case! Continuing for now ...', machine=config_main['machine']['description'])
-                time.sleep(client_main['sleep_time_no_job'])
+                if not args.testing:
+                    time.sleep(client_main['sleep_time_no_job'])
                 continue
 
             if not args.testing:
@@ -120,7 +121,8 @@ if __name__ == '__main__':
                     set_status('cooldown', current_temperature, last_cooldown_time)
                     cooldown_time += 60
                     temperature_errors += 1
-                    time.sleep(60)
+                    if not args.testing:
+                        time.sleep(60)
                     continue
 
                 if current_temperature <= (config_main['machine']['base_temperature_value'] - 5):
@@ -161,7 +163,8 @@ if __name__ == '__main__':
                     # the process will now go to sleep for 'time_between_control_workload_validations''
                     # This is as long as the next validation is needed and thus it will loop
                     # endlessly in validation until manually handled, which is what we want.
-                    time.sleep(client_main['time_between_control_workload_validations'])
+                    if not args.testing:
+                        time.sleep(client_main['time_between_control_workload_validations'])
                 finally:
                     do_cleanup(current_temperature, last_cooldown_time)
 
@@ -174,10 +177,12 @@ if __name__ == '__main__':
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
                     if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
                         error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config_main['machine']['description'], sleep_duration=600)
-                        time.sleep(600)
+                        if not args.testing:
+                            time.sleep(600)
                     else: # Hard fails won't resolve on it's own. We sleep until next cluster validation
                         error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config_main['machine']['description'], sleep_duration=client_main['time_between_control_workload_validations'])
-                        time.sleep(client_main['time_between_control_workload_validations'])
+                        if not args.testing:
+                            time.sleep(client_main['time_between_control_workload_validations'])
 
                 except subprocess.CalledProcessError as exc:
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
@@ -194,7 +199,8 @@ if __name__ == '__main__':
                 set_status('job_no', current_temperature, last_cooldown_time)
                 if client_main['shutdown_on_job_no'] is True:
                     subprocess.check_output(['sudo', 'systemctl', 'suspend'])
-                time.sleep(client_main['sleep_time_no_job'])
+                if not args.testing:
+                    time.sleep(client_main['sleep_time_no_job'])
             if args.testing:
                 print('Successfully ended testing run of client.py')
                 break
