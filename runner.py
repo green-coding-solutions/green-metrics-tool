@@ -507,18 +507,24 @@ class Runner:
             module_path = f"metric_providers.{module_path}"
             conf = metric_providers[metric_provider] or {}
 
-            if rootless and '.cgroup.' in module_path:
-                conf['rootless'] = True
-
-            if self._skip_system_checks:
-                conf['skip_check'] = True
-
             print(f"Importing {class_name} from {module_path}")
-            print(f"Configuration is {conf}")
-
             module = importlib.import_module(module_path)
 
-            metric_provider_obj = getattr(module, class_name)(**conf)
+            if rootless and '.cgroup.' in module_path and self._skip_system_checks:
+                metric_provider_obj = getattr(module, class_name)(**conf, rootless=True, skip_check=True)
+                print(f"Configuration is {conf}; rootless=true, skip_check=True")
+            elif rootless and '.cgroup.' in module_path:
+                metric_provider_obj = getattr(module, class_name)(**conf, rootless=True)
+                print(f"Configuration is {conf}; rootless=true")
+            elif self._skip_system_checks:
+                metric_provider_obj = getattr(module, class_name)(**conf, skip_check=True)
+                print(f"Configuration is {conf}; skip_check=true")
+            else:
+                metric_provider_obj = getattr(module, class_name)(**conf)
+                print(f"Configuration is {conf}")
+
+
+
 
             self.__metric_providers.append(metric_provider_obj)
 
