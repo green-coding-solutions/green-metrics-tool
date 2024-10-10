@@ -27,7 +27,7 @@ def cleanup_after_test():
 
 #pylint: disable=unused-argument
 @pytest.fixture(autouse=True, scope='module')
-def cleanup_after_module():
+def setup_and_cleanup_module():
     yield
     Tests.reset_db()
 
