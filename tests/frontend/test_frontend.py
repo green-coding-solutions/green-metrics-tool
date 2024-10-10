@@ -28,7 +28,7 @@ def setup_and_cleanup_module():
     page.set_default_timeout(5_000)
 
     subprocess.run(
-        'docker exec -i --user postgres test-green-coding-postgres-container psql -dtest-green-coding -p9573 < /Users/arne/Sites/green-coding/green-metrics-tool/data/demo_data.sql',
+        f"docker exec -i --user postgres test-green-coding-postgres-container psql -dtest-green-coding -p9573 < {GMT_DIR}/data/demo_data.sql",
         check=True,
         shell=True,
         stderr=subprocess.PIPE,
