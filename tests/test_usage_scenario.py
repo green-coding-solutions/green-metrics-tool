@@ -20,9 +20,6 @@ from tests import test_functions as Tests
 from runner import Runner
 from lib.schema_checker import SchemaError
 
-GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml")
-config = GlobalConfig().config
-
 ## Note:
 # Always do asserts after try:finally: blocks
 # otherwise failing Tests will not run the runner.cleanup() properly
@@ -912,7 +909,7 @@ def wip_test_verbose_provider_boot():
             """
 
     notes = DB().fetch_all(query, (run_id,'Booting%',))
-    metric_providers = utils.get_metric_providers_names(config)
+    metric_providers = utils.get_metric_providers_names(GlobalConfig().config)
 
     #for each metric provider, assert there is an an entry in notes
     for provider in metric_providers:

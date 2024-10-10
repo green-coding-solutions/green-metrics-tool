@@ -18,7 +18,8 @@ def pytest_collection_modifyitems(items):
 # Pytest collects all fixtures before running any tests
 # no matter which order they are loaded in
 @pytest.fixture(autouse=True)
-def cleanup_after_test():
+def setup_and_cleanup_module():
+    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml") # we want to do this globally for all tests
     yield
     Tests.reset_db()
 
