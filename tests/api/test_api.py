@@ -12,7 +12,7 @@ from lib import utils
 from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
 
-config = GlobalConfig(config_name='test-config.yml').config
+config = GlobalConfig(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml").config
 API_URL = config['cluster']['api_url']
 
 from api.main import Software

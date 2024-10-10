@@ -507,18 +507,24 @@ class Runner:
             module_path = f"metric_providers.{module_path}"
             conf = metric_providers[metric_provider] or {}
 
-            if rootless and '.cgroup.' in module_path:
-                conf['rootless'] = True
-
-            if self._skip_system_checks:
-                conf['skip_check'] = True
-
             print(f"Importing {class_name} from {module_path}")
-            print(f"Configuration is {conf}")
-
             module = importlib.import_module(module_path)
 
-            metric_provider_obj = getattr(module, class_name)(**conf)
+            if rootless and '.cgroup.' in module_path and self._skip_system_checks:
+                metric_provider_obj = getattr(module, class_name)(**conf, rootless=True, skip_check=True)
+                print(f"Configuration is {conf}; rootless=true, skip_check=True")
+            elif rootless and '.cgroup.' in module_path:
+                metric_provider_obj = getattr(module, class_name)(**conf, rootless=True)
+                print(f"Configuration is {conf}; rootless=true")
+            elif self._skip_system_checks:
+                metric_provider_obj = getattr(module, class_name)(**conf, skip_check=True)
+                print(f"Configuration is {conf}; skip_check=true")
+            else:
+                metric_provider_obj = getattr(module, class_name)(**conf)
+                print(f"Configuration is {conf}")
+
+
+
 
             self.__metric_providers.append(metric_provider_obj)
 
@@ -1641,7 +1647,7 @@ if __name__ == '__main__':
     parser.add_argument('--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
     parser.add_argument('--name', type=str, help='A name which will be stored to the database to discern this run from others')
     parser.add_argument('--filename', type=str, default='usage_scenario.yml', help='An optional alternative filename if you do not want to use "usage_scenario.yml"')
-    parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be located in the same directory as the regular configuration file. Pass in only the name.')
+    parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
     parser.add_argument('--file-cleanup', action='store_true', help='Delete all temporary files that the runner produced')
     parser.add_argument('--debug', action='store_true', help='Activate steppable debug mode')
     parser.add_argument('--allow-unsafe', action='store_true', help='Activate unsafe volume bindings, ports and complex environment vars')
@@ -1699,11 +1705,7 @@ if __name__ == '__main__':
             parser.print_help()
             error_helpers.log_error('Config override file must be a yml file')
             sys.exit(1)
-        if not Path(f"{CURRENT_DIR}/{args.config_override}").is_file():
-            parser.print_help()
-            error_helpers.log_error(f"Could not find config override file on local system. Please double check: {CURRENT_DIR}/{args.config_override}")
-            sys.exit(1)
-        GlobalConfig(config_name=args.config_override)
+        GlobalConfig(config_location=args.config_override)
 
     runner = Runner(name=args.name, uri=args.uri, uri_type=run_type, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,

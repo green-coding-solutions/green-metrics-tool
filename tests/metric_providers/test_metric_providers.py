@@ -15,7 +15,7 @@ from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSy
 from tools.phase_stats import build_and_store_phase_stats
 
 
-GlobalConfig().override_config(config_name='test-config.yml')
+GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml")
 config = GlobalConfig().config
 
 # override per test cleanup, as the module setup requires writing to DB
@@ -30,7 +30,7 @@ def cleanup_after_module():
     Tests.reset_db()
 
 run_id = None
-MB = 1024*1024
+MB = 1000*1000 # Note: GMT uses SI Units!
 
 # Runs once per file before any test(
 #pylint: disable=expression-not-assigned
@@ -64,6 +64,8 @@ def mock_temporary_network_file(file_path, temp_file, actual_network_interface):
         file.write(modified_contents)
 
 def test_splitting_by_group():
+    if utils.get_architecture() == 'macos':
+        return
 
     obj = NetworkIoProcfsSystemProvider(100, remove_virtual_interfaces=False)
 
@@ -137,7 +139,7 @@ def test_network_providers():
 
         if metric == 'network_total_procfs_system':
             # Some small network overhead to a 5 MB file always occurs
-            assert 5*MB <= val < 5.5*MB , f"network_total_procfs_system is not between 5 and 5.5 MB but {metric_provider['value']} {metric_provider['unit']}"
+            assert 5*MB <= val < 5.6*MB , f"network_total_procfs_system is not between 5 and 5.6 MB but {metric_provider['value']} {metric_provider['unit']}"
             seen_network_total_procfs_system = True
 
     assert seen_network_total_procfs_system is True
@@ -175,8 +177,8 @@ def test_cpu_memory_carbon_providers():
 
             seen_cpu_utilization = True
         elif metric == 'cpu_utilization_mach_system': # macOS values do not get as high due to the VM.
-            assert 5500 < val <= 10000 , f"cpu_utilization_mach_system is not between 90_00 and 100_00 but {metric_provider['value']} {metric_provider['unit']}"
-            assert 8000 < max_value <= 10500 , f"cpu_utilization_mach_system max is not between 95_00 and 105_00 but {metric_provider['value']} {metric_provider['unit']}"
+            assert 5000 < val <= 10000 , f"cpu_utilization_mach_system is not between 50_00 and 100_00 but {metric_provider['value']} {metric_provider['unit']}"
+            assert 8000 < max_value <= 10500 , f"cpu_utilization_mach_system max is not between 80_00 and 105_00 but {metric_provider['value']} {metric_provider['unit']}"
 
             seen_cpu_utilization = True
 

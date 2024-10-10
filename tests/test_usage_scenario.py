@@ -20,7 +20,7 @@ from tests import test_functions as Tests
 from runner import Runner
 from lib.schema_checker import SchemaError
 
-GlobalConfig().override_config(config_name='test-config.yml')
+GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml")
 config = GlobalConfig().config
 
 ## Note:
@@ -524,7 +524,7 @@ def test_uri_local_dir():
     run_name = 'test_' + utils.randomword(12)
     filename = 'tests/data/stress-application/usage_scenario.yml'
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', run_name, '--uri', GMT_DIR ,'--config-override', 'test-config.yml',
+        ['python3', '../runner.py', '--name', run_name, '--uri', GMT_DIR ,'--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
         '--filename', filename,
         '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
@@ -557,7 +557,7 @@ def test_uri_github_repo():
     filename = 'usage_scenario.yml'
     run_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', run_name, '--uri', uri ,'--config-override', 'test-config.yml',
+        ['python3', '../runner.py', '--name', run_name, '--uri', uri ,'--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
         '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
@@ -594,7 +594,7 @@ def test_uri_github_repo_branch():
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', run_name, '--uri', uri ,
         '--branch', branch , '--filename', 'basic_stress.yml',
-        '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
+        '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml", '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -624,7 +624,7 @@ def test_name_is_in_db():
     subprocess.run(
         ['python3', '../runner.py', '--name', run_name, '--uri', GMT_DIR ,
         '--filename', 'tests/data/stress-application/usage_scenario.yml',
-        '--config-override', 'test-config.yml',
+        '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
         '--skip-system-checks', '--dev-no-metrics', '--dev-no-optimizations', '--dev-no-sleeps', '--dev-no-build'],
         check=True,
         stderr=subprocess.PIPE,
@@ -640,7 +640,7 @@ def test_name_is_in_db():
 def test_different_filename():
     run_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
-        ['python3', '../runner.py', '--name', run_name, '--uri', GMT_DIR , '--filename', 'tests/data/usage_scenarios/basic_stress.yml', '--config-override', 'test-config.yml',
+        ['python3', '../runner.py', '--name', run_name, '--uri', GMT_DIR , '--filename', 'tests/data/usage_scenarios/basic_stress.yml', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
         '--skip-system-checks', '--dev-no-metrics', '--dev-no-optimizations', '--dev-no-sleeps', '--dev-no-build'],
         check=True,
         stderr=subprocess.PIPE,
@@ -685,7 +685,7 @@ def test_no_file_cleanup():
 def test_file_cleanup():
     subprocess.run(
         ['python3', '../runner.py', '--uri', GMT_DIR , '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
-         '--file-cleanup', '--config-override', 'test-config.yml', '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
+         '--file-cleanup', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml", '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
@@ -707,7 +707,7 @@ def test_debug(monkeypatch):
     ps = subprocess.run(
         ['python3', '../runner.py', '--uri', GMT_DIR , '--filename', 'tests/data/usage_scenarios/basic_stress.yml',
          '--debug',
-         '--config-override', 'test-config.yml', '--skip-system-checks',
+         '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml", '--skip-system-checks',
           '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
@@ -890,7 +890,7 @@ def wip_test_verbose_provider_boot():
     run_name = 'test_' + utils.randomword(12)
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', run_name, '--uri', GMT_DIR ,
-         '--verbose-provider-boot', '--config-override', 'test-config.yml',
+         '--verbose-provider-boot', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml",
          '--filename', 'tests/data/stress-application/usage_scenario.yml',
          '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,

@@ -1,0 +1,107 @@
+postgresql:
+  host: test-green-coding-postgres-container
+  user: postgres
+  dbname: test-green-coding
+  password: testpw
+  port: 9573
+
+redis:
+  host: test-green-coding-redis-container
+
+smtp:
+  server: null
+  sender: null
+  port: null
+  password: null
+  user: null
+
+admin:
+  notification_email: False
+  error_file: False
+  error_email: False
+  email_bcc: False
+
+cluster:
+  api_url: http://api.green-coding.internal:9142
+  metrics_url: http://metrics.green-coding.internal:9142
+  cors_allowed_origins:
+    - http://api.green-coding.internal:9142
+    - http://metrics.green-coding.internal:9142
+  client:
+    sleep_time_no_job: 300
+    jobs_processing: random
+    time_between_control_workload_validations: 21600
+    send_control_workload_status_mail: false
+    shutdown_on_job_no: false
+    control_workload:
+      name: Measurement control Workload
+      uri: https://github.com/green-coding-solutions/measurement-control-workload
+      filename: usage_scenario.yml
+      branch: main
+      comparison_window: 5
+      threshold: 0.01
+      phase: 004_[RUNTIME]
+      metrics:
+      - psu_energy_ac_mcp_machine
+      - psu_power_ac_mcp_machine
+      - cpu_power_rapl_msr_component
+      - cpu_energy_rapl_msr_component
+
+machine:
+  id: 1
+  description: Development machine for testing
+  base_temperature_value: 10
+  base_temperature_chip: "asd"
+  base_temperature_feature: "asd"
+
+measurement:
+  system_check_threshold: 3
+  pre-test-sleep: 0
+  idle-duration: 0
+  baseline-duration: 0
+  flow-process-duration: 1800 # half hour
+  total-duration: 3600 # one hour
+  post-test-sleep: 0
+  phase-transition-time: 0
+  boot:
+    wait_time_dependencies: 10
+  metric-providers:
+    linux:
+      cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
+        resolution: 99
+#      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
+#        resolution: 99
+      network.io.procfs.system.provider.NetworkIoProcfsSystemProvider:
+        resolution: 99
+        remove_virtual_interfaces: True
+      disk.used.statvfs.system.provider.DiskUsedStatvfsSystemProvider:
+        resolution: 99
+      memory.used.procfs.system.provider.MemoryUsedProcfsSystemProvider:
+        resolution: 99
+    macos:
+      cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
+        resolution: 99
+    common:
+      psu.energy.ac.bar.machine.provider.SomeOtherProvider':
+        resolution: 99
+      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
+        resolution: 99
+        CPUChips: 1
+        HW_CPUFreq: 3200
+        CPUCores: 4
+        CPUThreads: 4
+        TDP: 65
+        HW_MemAmountGB: 16
+        Hardware_Availability_Year: 2011
+
+sci:
+  EL: 4
+  RS: 1
+  TE: 181000
+  I: 436
+
+optimization:
+  ignore:
+    - example_optimization_test
+
+electricity_maps_token: 'testing'
