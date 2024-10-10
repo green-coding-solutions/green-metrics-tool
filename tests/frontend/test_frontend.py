@@ -2,7 +2,7 @@ import os
 import pytest
 import subprocess
 
-GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
+GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
 
 from lib.global_config import GlobalConfig
 
