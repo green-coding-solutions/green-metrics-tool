@@ -50,7 +50,7 @@ def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_windo
             metric, detail_name, phase, type,
             AVG(value) as "avg",
             COALESCE(STDDEV(value), 0) as "stddev",
-            COALESCE(STDDEV(value) / AVG(value), 0) as "rel_stddev",
+            COALESCE(STDDEV(value) / AVG(value), 0) as "stddev_rel",
             unit
           FROM phase_stats
           WHERE
@@ -71,7 +71,7 @@ def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_windo
     query = query.replace('$list_replace', placeholders)
 
     params = (repo_uri, filename, branch, machine_id, comparison_window, phase, *(metrics))
-    return DB().fetch_all(query=query, params=params)
+    return DB().fetch_all(query=query, params=params, fetch_mode='dict')
 
 
 def run_workload(name, uri, filename, branch):
@@ -91,20 +91,28 @@ def run_workload(name, uri, filename, branch):
     run_id = runner.run()
     build_and_store_phase_stats(run_id, runner._sci)
 
-def validate_workload_stddev(data, threshold):
+def validate_workload_stddev(data, metrics):
     warning = False
     info_string_acc = []
     for el in data:
-        info_string = f"{el[0]} {el[1]}: {el[4]} +/- {el[5]} {el[6]*100} %"
-        print(info_string)
+        info_string = f"{el['metric']} {el['detail_name']}: {el['avg']} +/- {el['stddev']} {el['stddev_rel']*100} %"
         info_string_acc.append(info_string)
-        if el[6] > threshold:
-            print(TerminalColors.FAIL, 'Warning. Threshold exceeded!', TerminalColors.ENDC)
-            warning = True
+
+        if metrics[el['metric']]['type'] == 'stddev_rel':
+            if el['stddev_rel'] > metrics[el['metric']]['threshold']:
+                print(TerminalColors.FAIL, 'Warning. Threshold exceeded!', TerminalColors.ENDC)
+                warning = True
+        elif metrics[el['metric']]['type'] == 'stddev':
+            if el['stddev'] > metrics[el['metric']]['threshold']:
+                print(TerminalColors.FAIL, 'Warning. Threshold exceeded!', TerminalColors.ENDC)
+                warning = True
+        else:
+            raise ValueError(f"{el['metric']} had unknown threshhold validation type: {metrics[el['metric']]['type']}")
+
     if warning:
         print(TerminalColors.FAIL, 'Aborting!', TerminalColors.ENDC)
         raise ValidationWorkloadStddevError("\n".join(info_string_acc))
-    print(TerminalColors.OKGREEN, f"Machine is operating normally. All STDDEV below {threshold * 100} %", TerminalColors.ENDC)
+    print(TerminalColors.OKGREEN, 'Machine is operating normally. All STDDEV fine.', TerminalColors.ENDC)
 
     return info_string_acc
 
@@ -145,5 +153,5 @@ if __name__ == '__main__':
     stddev_data = get_workload_stddev(cwl['uri'], cwl['filename'], cwl['branch'], config_main['machine']['id'], cwl['comparison_window'], cwl['phase'], cwl['metrics'])
     print('get_workload_stddev returned: ', stddev_data)
 
-    message = validate_workload_stddev(stddev_data, cwl['threshold'])
+    message = validate_workload_stddev(stddev_data, cwl['metrics'])
     print('validate_workload_stddev returned:', message)

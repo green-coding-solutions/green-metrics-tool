@@ -143,7 +143,7 @@ if __name__ == '__main__':
                 print('get_workload_stddev returned: ', stddev_data)
 
                 try:
-                    message = validate.validate_workload_stddev(stddev_data, cwl['threshold'])
+                    message = validate.validate_workload_stddev(stddev_data, cwl['metrics'])
                     if client_main['send_control_workload_status_mail'] and config_main['admin']['notification_email']:
                         Job.insert(
                             'email',
