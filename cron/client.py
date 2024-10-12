@@ -149,7 +149,7 @@ if __name__ == '__main__':
                             'email',
                             user_id=None,
                             email=config_main['admin']['notification_email'],
-                            name=f"{config_main['machine']['description']} is operating normally. All STDDEV below {cwl['threshold'] * 100} %",
+                            name=f"{config_main['machine']['description']} is operating normally. All STDDEV fine.",
                             message='\n'.join(message)
                         )
                 except Exception as exception: # pylint: disable=broad-except
