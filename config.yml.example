@@ -44,13 +44,32 @@ cluster:
       filename: "usage_scenario.yml"
       branch: "event-bound"
       comparison_window: 5
-      threshold: 0.01
       phase: "004_[RUNTIME]"
       metrics:
-        - "psu_energy_ac_mcp_machine"
-        - "psu_power_ac_mcp_machine"
-        - "cpu_power_rapl_msr_component"
-        - "cpu_energy_rapl_msr_component"
+        psu_energy_ac_mcp_machine:
+          threshold: 0.01 # 1%
+          type: stddev_rel
+        psu_power_ac_mcp_machine:
+          threshold: 0.01 # 1%
+          type: stddev_rel
+        cpu_power_rapl_msr_component:
+          threshold: 0.01 # 1%
+          type: stddev_rel
+        cpu_energy_rapl_msr_component:
+          threshold: 0.01 # 1%
+          type: stddev_rel
+        cpu_energy_rapl_msr_component:
+          threshold: 0.01 # 1%
+          type: stddev_rel
+        psu_co2_ac_mcp_machine:
+          threshold: 0.01 # 1%
+          type: stddev_rel
+        network_total_cgroup_container:
+          threshold: 10000 # 10 kB
+          type: stddev
+        phase_time_syscall_system:
+          threshold: 0.01 # 1%
+          type: stddev_rel
 
 machine:
   id: 1
