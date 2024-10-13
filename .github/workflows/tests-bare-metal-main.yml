@@ -7,7 +7,7 @@ on:
 
 jobs:
   run-tests-main:
-    runs-on: Green-Testing-M3
+    runs-on: local-test-arm64
     permissions:
       packages: write
       contents: read
