@@ -7,7 +7,7 @@ on:
 
 jobs:
   run-tests-main:
-    runs-on: self-hosted
+    runs-on: Green-Testing-M3
     permissions:
       packages: write
       contents: read
