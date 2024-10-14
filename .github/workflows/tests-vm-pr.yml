@@ -8,6 +8,8 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       pull-requests: write
+      id-token: write
+      contents: read      
     steps:
       - name: 'Checkout repository'
         uses: actions/checkout@v4
@@ -42,4 +44,8 @@ jobs:
           task: display-results
           branch: main
           pr-comment: true
+
+      - name: Fix my build
+        uses: fly-ci/wingman-action@v1
+        if: failure()          
         
