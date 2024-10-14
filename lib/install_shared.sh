@@ -166,7 +166,7 @@ function prepare_config() {
 function setup_python() {
     print_message "Setting up python venv"
     if [[ $use_system_site_packages == true ]] ; then
-        python3 -m venv venv --system_site_packages
+        python3 -m venv venv --system-site-packages
     else
         python3 -m venv venv
     fi
@@ -316,14 +316,17 @@ while getopts "p:a:m:nhtbisyrlc:k:" o; do
 done
 
 if [[ $ask_ssl == true ]] ; then
+    echo ""
     read -p "Do you want to enable SSL for the API and frontend? (y/N) : " enable_ssl_input
     if [[  "$enable_ssl_input" == "Y" || "$enable_ssl_input" == "y" ]] ; then
         enable_ssl=true
         if [[ -z $cert_key ]]; then
+            echo ""
             read -p "Please type your file where your key is located. For instance /home/me/key.pem : " cert_key
         fi
         cp $cert_key docker/nginx/ssl/production.key
         if [[ -z $cert_file ]]; then
+            echo ""
             read -p "Please type your file where your certificate is located. For instance /home/me/cert.crt : " cert_file
         fi
         cp $cert_file docker/nginx/ssl/production.crt
@@ -334,12 +337,16 @@ fi
 
 
 if [[ -z $api_url ]] ; then
-    read -p "Please enter the desired API endpoint URL: (default: http://api.green-coding.internal:9142): " api_url
+    echo ""
+    echo "Please enter the desired API endpoint URL"
+    read -p "Use port 9142 for local installs and no port for production to auto-use 80/443: (default: http://api.green-coding.internal:9142): " api_url
     api_url=${api_url:-"http://api.green-coding.internal:9142"}
 fi
 
 if [[ -z $metrics_url ]] ; then
-    read -p "Please enter the desired metrics dashboard URL: (default: http://metrics.green-coding.internal:9142): " metrics_url
+    echo ""
+    echo "Please enter the desired metrics dashboard URL"
+    read -p "Use port 9142 for local installs and no port for production to auto-use 80/443: (default: http://metrics.green-coding.internal:9142): " metrics_url
     metrics_url=${metrics_url:-"http://metrics.green-coding.internal:9142"}
 fi
 
@@ -351,6 +358,7 @@ fi
 default_password=${password_from_file:-$(generate_random_password 12)}
 
 if [[ -z "$db_pw" ]] ; then
+    echo ""
     read -sp "Please enter the new password to be set for the PostgreSQL DB (default: $default_password): " db_pw
     echo "" # force a newline, because read -sp will consume it
     db_pw=${db_pw:-"$default_password"}
