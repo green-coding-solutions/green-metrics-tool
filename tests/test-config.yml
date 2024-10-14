@@ -67,10 +67,16 @@ measurement:
     wait_time_dependencies: 10
   metric-providers:
     linux:
+      cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
+        resolution: 99
+      memory.used.cgroup.container.provider.MemoryUsedCgroupContainerProvider:
+        resolution: 99
+      network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
+        resolution: 99
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
         resolution: 99
-#      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
-#        resolution: 99
+      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
+        resolution: 99
       network.io.procfs.system.provider.NetworkIoProcfsSystemProvider:
         resolution: 99
         remove_virtual_interfaces: True

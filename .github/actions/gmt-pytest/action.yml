@@ -1,10 +1,6 @@
 name: 'GMT Pytest'
 description:  'Run Pytest with setup and teardown'
 inputs:
-  metrics-to-turn-off:
-    description: 'a list of metrics to turn off that is passed to the disable metrics script'
-    required: false
-    default: ''
   gmt-directory:
     description: 'The root directory of the gmt repository'
     required: false
