@@ -594,7 +594,7 @@ def test_uri_github_repo_branch():
     ps = subprocess.run(
         ['python3', '../runner.py', '--name', run_name, '--uri', uri ,
         '--branch', branch , '--filename', 'basic_stress.yml',
-        '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml", '--skip-system-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
+        '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml", '--skip-ystem-checks', '--dev-no-sleeps', '--dev-no-build', '--dev-no-metrics', '--dev-no-optimizations'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
