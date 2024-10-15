@@ -484,6 +484,9 @@ def get_phase_stats_object(phase_stats, case):
                 #'is_significant': None,  # currently no use for that
                 'data': {},
             }
+        elif phase_stats_object['data'][phase][metric_name]['unit'] != unit:
+            raise RuntimeError(f"Metric cannot be compared as units have changed: {unit} vs. {phase_stats_object['data'][phase][metric_name]['unit']}")
+
 
         if detail_name not in phase_stats_object['data'][phase][metric_name]['data']:
             phase_stats_object['data'][phase][metric_name]['data'][detail_name] = {
