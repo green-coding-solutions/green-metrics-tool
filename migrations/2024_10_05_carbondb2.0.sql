@@ -1,6 +1,55 @@
-CREATE EXTENSION "hstore";
+CREATE TABLE carbondb_data_raw (
+    id SERIAL PRIMARY KEY,
+    type text NOT NULL,
+    project text NOT NULL,
+    machine text NOT NULL,
+    source text NOT NULL,
+    tags text[],
+    time BIGINT NOT NULL,
+    energy int NOT NULL,
+    carbon int,
+    carbon_intensity int,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    ip_address INET,
+    user_id int REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
 
-ALTER TABLE "carbondb_energy_data_day" ALTER COLUMN "tags" TYPE int[] USING tags::integer[];
+CREATE TRIGGER carbondb_data_raw_moddatetime
+    BEFORE UPDATE ON carbondb_data_raw
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);
+
+-- note that the carbondb_data uses integer fields instead of type fields. This is because we
+-- operate for querying and filtering only on integers for performance
+
+CREATE TABLE carbondb_data (
+    id SERIAL PRIMARY KEY,
+    type integer NOT NULL REFERENCES carbondb_types(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    project integer NOT NULL REFERENCES carbondb_projects(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    machine integer NOT NULL REFERENCES carbondb_machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    source integer NOT NULL REFERENCES carbondb_sources(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    tags int[],
+    date DATE NOT NULL,
+    energy_sum int NOT NULL,
+    carbon_sum int,
+    carbon_intensity_avg int,
+    record_count INT,
+    user_id integer REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone
+);
+
+
+CREATE TRIGGER carbondb_data_moddatetime
+    BEFORE UPDATE ON carbondb_data
+    FOR EACH ROW
+    EXECUTE PROCEDURE moddatetime (updated_at);
+
+CREATE UNIQUE INDEX unique_entry ON carbondb_data (type, project, machine, source, tags, date, user_id) NULLS NOT DISTINCT;
+
 
 CREATE TABLE carbondb_types (
     id SERIAL PRIMARY KEY,
@@ -89,3 +138,14 @@ WHERE "tags"[4] IS NOT NULL;
 UPDATE carbondb_energy_data_day as cedd
 SET "tags"[5] = (SELECT "id" FROM carbondb_tags WHERE "tags"[5] = "tag" and carbondb_tags.user_id = cedd.user_id)
 WHERE "tags"[5] IS NOT NULL;
+
+
+INSERT INTO carbondb_data (type, project, machine, source, tags, date, energy_sum, carbon_sum, carbon_intensity_avg, record_count, user_id)
+SELECT
+    (SELECT id FROM carbondb_types as ct WHERE ct.type = cedd.type::text AND ct.user_id = cedd.user_id),
+    (SELECT id FROM carbondb_projects as ct WHERE ct.project = cedd.project::text AND ct.user_id = cedd.user_id),
+    (SELECT id FROM carbondb_machines as ct WHERE ct.machine = cedd.machine::text AND ct.user_id = cedd.user_id),
+    1, -- source is not available, so we just set to
+    tags::int[],
+    date, energy_sum, co2_sum, carbon_intensity_avg, record_count, user_id
+FROM carbondb_energy_data_day as cedd;
