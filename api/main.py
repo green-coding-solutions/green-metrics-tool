@@ -1416,7 +1416,7 @@ async def add_carbondb_deprecated():
 @app.post('/v2/carbondb/add')
 async def add_carbondb(
     request: Request,
-    energydatas: List[EnergyData],
+    energydata: EnergyData,
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
 
@@ -1426,7 +1426,7 @@ async def add_carbondb(
     else:
         client_ip = request.client.host
 
-    carbondb_add(client_ip, energydatas, 'CUSTOM', user._id)
+    carbondb_add(client_ip, energydata.dict(), 'CUSTOM', user._id)
 
     return Response(status_code=204)
 

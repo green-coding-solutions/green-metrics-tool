@@ -774,7 +774,7 @@ def get_carbon_intensity(latitude, longitude):
 
     return None
 
-def carbondb_add(client_ip, energydatas, source, user_id):
+def carbondb_add(client_ip, data, source, user_id):
 
     query = '''
             INSERT INTO carbondb_data_raw
@@ -783,38 +783,32 @@ def carbondb_add(client_ip, energydatas, source, user_id):
                 (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
     '''
 
-    for e in energydatas:
+    fields_to_check = {
+        'energy': data['energy'], # is expected to be in microjoules
+        'time': data['time'], # is expected to be in microseconds
+    }
 
-        if not isinstance(e, dict):
-            e = e.dict()
+    for field_name, field_value in fields_to_check.items():
+        if field_value is None or str(field_value).strip() == '':
+            raise RequestValidationError(f"{field_name.capitalize()} is empty. Ignoring everything!")
 
+    used_client_up = client_ip
+    if 'ip' in data: # An ip has been given with the data. We prioritize that
+        latitude, longitude = get_geo(data['ip']) # cached
+        carbon_intensity_g_per_kWh = get_carbon_intensity(latitude, longitude) # cached
+        used_client_up = data['ip']
+    else:
+        latitude, longitude = get_geo(client_ip) # cached
+        carbon_intensity_g_per_kWh = get_carbon_intensity(latitude, longitude) # cached
 
-        fields_to_check = {
-            'energy': e['energy'], # is expected to be in microjoules
-            'time': e['time'], # is expected to be in microseconds
-        }
+    energy_mWh = int(data['energy'] * 2.77778e-7) # mWh
+    carbon_ug = int(energy_mWh * carbon_intensity_g_per_kWh) # results in ug
 
-        for field_name, field_value in fields_to_check.items():
-            if field_value is None or str(field_value).strip() == '':
-                raise RequestValidationError(f"{field_name.capitalize()} is empty. Ignoring everything!")
-
-        used_client_up = client_ip
-        if 'ip' in e: # An ip has been given with the data. We prioritize that
-            latitude, longitude = get_geo(e['ip']) # cached
-            carbon_intensity_g_per_kWh = get_carbon_intensity(latitude, longitude) # cached
-            used_client_up = e['ip']
-        else:
-            latitude, longitude = get_geo(client_ip) # cached
-            carbon_intensity_g_per_kWh = get_carbon_intensity(latitude, longitude) # cached
-
-        energy_mWh = int(e['energy'] * 2.77778e-7) # mWh
-        carbon_ug = int(energy_mWh * carbon_intensity_g_per_kWh) # results in ug
-
-        DB().query(
-            query=query,
-            params=(
-                e['type'],
-                e['project'], e['machine'], source, e['tags'], e['time'], e['energy'], carbon_ug, carbon_intensity_g_per_kWh, latitude, longitude, used_client_up, user_id))
+    DB().query(
+        query=query,
+        params=(
+            data['type'],
+            data['project'], data['machine'], source, data['tags'], data['time'], data['energy'], carbon_ug, carbon_intensity_g_per_kWh, latitude, longitude, used_client_up, user_id))
 
 
 def validate_carbondb_params(param, elements: list):
