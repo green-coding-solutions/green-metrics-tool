@@ -39,6 +39,14 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
     min-height: 600px;
 }
 
+.statistics-chart-card-small {
+    min-width: 300px;
+    flex-grow: 1;
+}
+.statistics-chart-card-small .statistics-chart {
+    min-height: 300px;
+}
+
 .article {
     background: #e9eaef;
 }
