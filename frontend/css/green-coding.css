@@ -286,6 +286,17 @@ a,
     white-space: nowrap;
 }
 
+.close.icon {
+    cursor: pointer;
+    position: absolute;
+    margin: 0;
+    top: .78575em;
+    right: .5em;
+    opacity: .7;
+    transition: opacity .1s ease;
+}
+
+
 /* PRINT STYLESHEETS */
 @media print {
   .print-page-break {
