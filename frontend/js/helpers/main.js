@@ -193,8 +193,8 @@ async function makeAPICall(path, values=null, force_authentication_token=null) {
         options.headers['X-Authentication'] = force_authentication_token;
     } else {
         const authentication_token = localStorage.getItem('authentication_token');
-        if (force_authentication_token != null && force_authentication_token != '') {
-            options.headers['X-Authentication'] = force_authentication_token;
+        if (authentication_token != null && authentication_token != '') {
+            options.headers['X-Authentication'] = authentication_token;
         }
     }
 
