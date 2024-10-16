@@ -1,6 +1,5 @@
 import os
 import pytest
-import subprocess
 import time
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
@@ -28,14 +27,7 @@ def setup_and_cleanup_module():
     page = context.new_page()
     page.set_default_timeout(5_000)
 
-    subprocess.run(
-        f"docker exec -i --user postgres test-green-coding-postgres-container psql -dtest-green-coding -p9573 < {GMT_DIR}/data/demo_data.sql",
-        check=True,
-        shell=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
+    Tests.import_demo_data()
     yield
 
     # after
@@ -283,3 +275,32 @@ def test_settings():
 
     time_series_avg_display = page.locator('#time-series-avg-display').text_content()
     assert time_series_avg_display.strip() == 'Currently not showing AVG in time series'
+
+
+def test_carbondb_display():
+
+    page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+    page.get_by_role("link", name="CarbonDB").click()
+
+    page.locator('#carbondb-barchart-carbon-chart canvas').wait_for(timeout=5_000) # will wait for
+    total_carbon = page.locator('#total-carbon').text_content()
+    assert total_carbon.strip() == '1477.00'
+
+def test_carbondb_no_display_different_user():
+    Tests.insert_user(234, 'NO-CARBONDB')
+
+    page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+    page.get_by_role("link", name="Authentication").click()
+
+    page.locator('#authentication-token').fill('NO-CARBONDB')
+    page.locator('#save-authentication-token').click()
+    page.locator('#token-details-message').wait_for(state='visible')
+
+    page.get_by_role("link", name="CarbonDB").click()
+
+    page.wait_for_load_state("load") # ALL JS should be done
+
+    page.locator('#total-carbon').wait_for(state='hidden')
+    assert page.locator('#total-carbon').text_content().strip() == '--' # nothing to show
+
+    page.locator('#no-data-message').wait_for(state='visible')

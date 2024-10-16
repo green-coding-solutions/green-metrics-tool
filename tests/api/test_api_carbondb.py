@@ -10,7 +10,6 @@ from lib.user import User
 from lib.db import DB
 from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
-from playwright.sync_api import sync_playwright
 
 config = GlobalConfig(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml").config
 API_URL = config['cluster']['api_url']
@@ -136,67 +135,6 @@ def test_carbondb_alternative_user_and_data():
 
     # no filters again for no user
     assert response.text == '{"success":true,"data":{"types":null,"tags":null,"machines":null,"projects":null,"sources":null}}'
-
-
-
-
-# TODO: Bring this to the test_frontend tests file
-def test_carbondb_display():
-    Tests.import_demo_data()
-
-    try:
-        playwright = sync_playwright().start()
-        browser = playwright.firefox.launch()
-        context = browser.new_context(viewport={"width": 1920, "height": 10600})
-        page = context.new_page()
-        page.set_default_timeout(5_000)
-
-        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-        page.get_by_role("link", name="CarbonDB").click()
-
-        page.locator('canvas') # will wait for
-        time.sleep(5)
-        page.screenshot(path='image.png')
-        total_carbon = page.locator('#total-carbon').text_content()
-        assert total_carbon.strip() == '1477'
-
-    finally:
-        browser.close()
-        playwright.stop()
-
-def test_carbondb_no_display_different_user():
-    Tests.insert_user(234, 'NO-CARBONDB')
-
-    try:
-
-        playwright = sync_playwright().start()
-        browser = playwright.firefox.launch()
-        context = browser.new_context(viewport={"width": 1920, "height": 10600})
-        page = context.new_page()
-        page.set_default_timeout(5_000)
-
-        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-        page.get_by_role("link", name="Authentication").click()
-
-
-
-        page.locator('#authentication-token').fill('NO-CARBONDB')
-        page.locator('#save-authentication-token').click()
-        page.locator('#token-details-message').wait_for(state='visible')
-
-        page.get_by_role("link", name="CarbonDB").click()
-
-        page.wait_for_load_state("load") # ALL JS should be done
-
-        page.locator('#total-carbon').wait_for(state='hidden')
-        assert page.locator('#total-carbon').text_content().strip() == '--' # nothing to show
-
-        page.locator('#no-data-message').wait_for(state='visible')
-
-    finally:
-        browser.close()
-        playwright.stop()
-
 
 
 def assert_expected_data(exp_data, data):
