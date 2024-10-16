@@ -185,10 +185,11 @@ const processData = (measurements) => {
     let piechart_sources_data = {legend: new Set(), labels: [], series: []};
 
     // we need these to pre-aggregate for pie-charts
-    const piechart_types_values = {};
-    const piechart_machines_values = {};
-    const piechart_projects_values = {};
-    const piechart_sources_values = {};
+    // also we need Map as otherwise the order will get skewed and we need aligned order for same colors in charts
+    const piechart_types_values = new Map();
+    const piechart_machines_values = new Map();
+    const piechart_projects_values = new Map();
+    const piechart_sources_values = new Map();
 
 
 
@@ -243,26 +244,27 @@ const processData = (measurements) => {
             unit: 'kWh',
         })
 
-        if (piechart_machines_values[machine] == undefined) piechart_machines_values[machine] = carbon;
-        else piechart_machines_values[machine] += carbon;
+        if (piechart_machines_values.get(machine) == undefined) piechart_machines_values.set(machine, carbon)
+        else piechart_machines_values.set(machine, piechart_machines_values.get(machine) + carbon);
 
-        if (piechart_types_values[type] == undefined) piechart_types_values[type] = carbon;
-        else piechart_types_values[type] += carbon;
+        if (piechart_types_values.get(type) == undefined) piechart_types_values.set(type, carbon);
+        else piechart_types_values.set(type, piechart_types_values.get(type) + carbon);
 
-        if (piechart_projects_values[project] == undefined) piechart_projects_values[project] = carbon;
-        else piechart_projects_values[project] += carbon;
+        if (piechart_projects_values.get(project) == undefined) piechart_projects_values.set(project, carbon);
+        else piechart_projects_values.set(project, piechart_projects_values.get(project) + carbon);
 
-        if (piechart_sources_values[source] == undefined) piechart_sources_values[source] = carbon;
-        else piechart_sources_values[source] += carbon;
+        if (piechart_sources_values.get(source) == undefined) piechart_sources_values.set(source, carbon);
+        else piechart_sources_values.set(source, piechart_sources_values.get(source) + carbon);
 
 
     });
+
+    console.log(piechart_machines_values[5]);
 
     piechart_machines_data = transformPieChartData(piechart_machines_data, piechart_machines_values, 'machines')
     piechart_types_data = transformPieChartData(piechart_types_data, piechart_types_values, 'types')
     piechart_projects_data = transformPieChartData(piechart_projects_data, piechart_projects_values, 'projects')
     piechart_sources_data = transformPieChartData(piechart_sources_data, piechart_sources_values, 'sources')
-
 
     const total_machines = Object.keys(piechart_machines_data).length;
     const carbon_per_machine = total_carbon / total_machines;
@@ -275,17 +277,16 @@ const processData = (measurements) => {
 
 const transformPieChartData = (data, values, dimension) => {
     // we might have negative values in CarbonDB, which is fine. But they cannot show in PieCharts. Thus we transform
-
-    for (let el in values) {
-
-        data.series.push({ value: Math.abs(values[el]), name: dimensions_lookup[dimension][el] })
-        data.legend.add(dimensions_lookup[dimension][el])
+    values.forEach((value, key) => {
+        data.series.push({ value: Math.abs(value), name: dimensions_lookup[dimension][key] })
+        data.legend.add(dimensions_lookup[dimension][key])
 
         data.labels.push({
-            key: dimensions_lookup[dimension][el],
-            value: values[el],
+            key: dimensions_lookup[dimension][key],
+            value: value,
         })
-    }
+    });
+
     return data;
 }
 
