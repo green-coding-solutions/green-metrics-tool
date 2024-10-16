@@ -5,7 +5,7 @@ psycopg_pool==3.2.3
 pyserial==3.5
 psutil==6.0.0
 schema==0.7.7
-aiohttp==3.10.9
+aiohttp==3.10.10
 
 # calibration script dep
 tqdm==4.66.5

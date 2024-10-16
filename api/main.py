@@ -264,7 +264,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
 async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None, uri_mode = 'none'):
 
     query = """
-            SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement, r.failed
+            SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE 1=1

@@ -282,6 +282,10 @@ a,
     float: right;
 }
 
+.no-wrap {
+    white-space: nowrap;
+}
+
 /* PRINT STYLESHEETS */
 @media print {
   .print-page-break {
