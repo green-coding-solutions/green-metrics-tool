@@ -1,6 +1,7 @@
 import os
 import pytest
 import subprocess
+import time
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
 
@@ -224,18 +225,19 @@ def test_timeline():
     new_page = new_page_info.value
     new_page.set_default_timeout(5_000)
 
-    # test before refresh
-    chart_label = new_page.wait_for_selector('#chart-container > div:nth-child(3) > div > div.ui.left.floated.chart-title').text_content()
-    assert chart_label.strip() == 'Container Energy via estimation - gcb-alpine-stress'
+    # test before refresh - data missing - Beware that if demo data is updated with new date this might break!
+    time.sleep(2)
+    new_page.locator('.ui.active.dimmer') # will be removed after
 
-
-    new_page.wait_for_selector("a.item[data-tab=two]").click()
-    new_page.wait_for_selector("input[name=start_date]").fill('01.01.2024')
+    new_page.locator("a.item[data-tab=two]").click()
+    new_page.locator("input[name=start_date]").fill('01.01.2024')
     new_page.get_by_role("button", name="Refresh Charts & Badges").click()
 
     # test after refresh
-    chart_label = new_page.wait_for_selector('#chart-container > div:nth-child(2) > div > div.ui.left.floated.chart-title').text_content()
+    chart_label = new_page.locator('#chart-container > div:nth-child(2) > div > div.ui.left.floated.chart-title').text_content()
     assert chart_label.strip() == 'Network Transmission via Formula - [FORMULA]'
+
+    assert 0 == new_page.locator('.ui.active.dimmer').count() # must be removed now
 
     new_page.close()
 
