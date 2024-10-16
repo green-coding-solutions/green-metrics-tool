@@ -4,12 +4,8 @@ import subprocess
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib import utils
-from lib.global_config import GlobalConfig
 from lib.job.base import Job
 from tests import test_functions as Tests
-
-GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml")
-config = GlobalConfig().config
 
 def test_simple_cluster_run():
     name = utils.randomword(12)
