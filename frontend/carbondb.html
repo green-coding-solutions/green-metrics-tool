@@ -59,170 +59,172 @@
                 <p>If you are using the hosted version of GMT please note that CarbonDB is a premium feature and you need to get a token first.</p>
             </div>
         </div>
-                  <div class="ui styled accordion full-width-card card carbondb-data">
-          <div class="title">
-            <i class="dropdown icon"></i> Show Filters <i class="filter icon"></i>
-          </div>
-          <div class="content">
+        <div class="ui styled accordion full-width-card card carbondb-data">
+            <div class="title">
+                <i class="dropdown icon"></i> Show Filters <i class="filter icon"></i>
+                <span id="filters-active" class="ui blue message float-right" style="margin: 0; display:none;"><i class="info icon"></i> Filters are active! Open Dropdown for details </span>
+            </div>
 
-            <div class="ui form">
-                <h3>Filters</h3>
-                <div class="equal width fields">
-                    <div class="field">
-                        <label>Types to include:</label>
-                        <select id="types-include" class="ui fluid multiple search selection dropdown" name="types_include" multiple="">
-                          <option value="">Default: All</option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label>Types to exclude:</label>
-                        <select id="types-exclude" class="ui fluid multiple search selection dropdown" name="types_exclude" multiple="">
-                          <option value="">Default: None</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="equal width fields">
-                    <div class="field">
-                        <label>Tags to include:</label>
-                        <select id="tags-include" class="ui fluid multiple search selection dropdown" name="tags_include" multiple="">
-                          <option value="">Default: All</option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label>Tags to exclude:</label>
-                        <select id="tags-exclude" class="ui fluid multiple search selection dropdown" name="tags_exclude" multiple="">
-                          <option value="">Default: None</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="equal width fields">
-                    <div class="field">
-                        <label>Machines to include:</label>
-                        <select id="machines-include" class="ui fluid multiple search selection dropdown" name="machines_include" multiple="">
-                          <option value="">Default: All</option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label>Machines to exclude:</label>
-                        <select id="machines-exclude" class="ui fluid multiple search selection dropdown" name="machines_exclude" multiple="">
-                          <option value="">Default: None</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="equal width fields">
-                    <div class="field">
-                        <label>Projects to include:</label>
-                        <select id="projects-include" class="ui fluid multiple search selection dropdown" name="projects_include" multiple="">
-                          <option value="">Default: All</option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label>Projects to exclude:</label>
-                        <select id="projects-exclude" class="ui fluid multiple search selection dropdown" name="projects_exclude" multiple="">
-                          <option value="">Default: None</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="equal width fields">
-                    <div class="field">
-                        <label>Sources to include:</label>
-                        <select id="sources-include" class="ui fluid multiple search selection dropdown" name="sources_include" multiple="">
-                          <option value="">Default: All</option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label>Sources to exclude:</label>
-                        <select id="sources-exclude" class="ui fluid multiple search selection dropdown" name="sources_exclude" multiple="">
-                          <option value="">Default: None</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="equal width fields">
-                    <div class="field">
-                        <label>Start date (inclusive)</label>
-                        <div class="ui calendar" id="rangestart">
-                            <div class="ui input left icon">
-                                <i class="calendar icon"></i>
-                                <input type="text" placeholder="Start">
-                            </div>
+            <div class="content">
+
+                <div class="ui form">
+                    <h3>Filters</h3>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Types to include:</label>
+                            <select id="types-include" class="ui fluid multiple search selection dropdown" name="types_include" multiple="">
+                                <option value="">Default: All</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Types to exclude:</label>
+                            <select id="types-exclude" class="ui fluid multiple search selection dropdown" name="types_exclude" multiple="">
+                                <option value="">Default: None</option>
+                            </select>
                         </div>
                     </div>
-                    <div class="field">
-                        <label>End date (inclusive)</label>
-                        <div class="ui calendar" id="rangeend">
-                            <div class="ui input left icon">
-                                <i class="calendar icon"></i>
-                                <input type="text" placeholder="End">
-                            </div>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Tags to include:</label>
+                            <select id="tags-include" class="ui fluid multiple search selection dropdown" name="tags_include" multiple="">
+                                <option value="">Default: All</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Tags to exclude:</label>
+                            <select id="tags-exclude" class="ui fluid multiple search selection dropdown" name="tags_exclude" multiple="">
+                                <option value="">Default: None</option>
+                            </select>
                         </div>
                     </div>
-                    <div class="field">
-                        <label>&nbsp;</label>
-                        <button class="positive ui button" id="submit">Refresh</button>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Machines to include:</label>
+                            <select id="machines-include" class="ui fluid multiple search selection dropdown" name="machines_include" multiple="">
+                                <option value="">Default: All</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Machines to exclude:</label>
+                            <select id="machines-exclude" class="ui fluid multiple search selection dropdown" name="machines_exclude" multiple="">
+                                <option value="">Default: None</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Projects to include:</label>
+                            <select id="projects-include" class="ui fluid multiple search selection dropdown" name="projects_include" multiple="">
+                                <option value="">Default: All</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Projects to exclude:</label>
+                            <select id="projects-exclude" class="ui fluid multiple search selection dropdown" name="projects_exclude" multiple="">
+                                <option value="">Default: None</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Sources to include:</label>
+                            <select id="sources-include" class="ui fluid multiple search selection dropdown" name="sources_include" multiple="">
+                                <option value="">Default: All</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Sources to exclude:</label>
+                            <select id="sources-exclude" class="ui fluid multiple search selection dropdown" name="sources_exclude" multiple="">
+                                <option value="">Default: None</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Start date (inclusive)</label>
+                            <div class="ui calendar" id="rangestart">
+                                <div class="ui input left icon">
+                                    <i class="calendar icon"></i>
+                                    <input type="text" placeholder="Start">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label>End date (inclusive)</label>
+                            <div class="ui calendar" id="rangeend">
+                                <div class="ui input left icon">
+                                    <i class="calendar icon"></i>
+                                    <input type="text" placeholder="End">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label>&nbsp;</label>
+                            <button class="positive ui button" id="submit">Refresh</button>
+                        </div>
                     </div>
                 </div>
             </div>
-                      </div>
         </div>
 
         <div class="ui stackable five column grid">
-           <div class="column">
-               <div class="ui segment carbondb-data">
-                   <div class="ui fluid statistic">
-                      <div id="total-carbon" class="value">
-                        --
-                      </div>
-                      <div class="label">
-                        Total Carbon
-                      </div>
-                    </div>
-                </div>
-            </div>
-           <div class="column">
-               <div class="ui segment carbondb-data">
-                   <div class="ui fluid statistic">
-                      <div id="total-energy" class="value">
-                        --
-                      </div>
-                      <div class="label">
-                        Total Energy
-                      </div>
-                    </div>
-                </div>
-            </div>
-           <div class="column">
-               <div class="ui segment carbondb-data">
-                   <div class="ui fluid statistic">
-                      <div id="total-machines" class="value">
-                        --
-                      </div>
-                      <div class="label">
-                        Total Machines
-                      </div>
+            <div class="column">
+                <div class="ui segment carbondb-data">
+                    <div class="ui fluid statistic">
+                        <div id="total-carbon" class="value">
+                            --
+                        </div>
+                        <div class="label">
+                            Total Carbon <span class="no-transform">[kg]</span>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="column">
-               <div class="ui segment carbondb-data">
-                   <div class="ui fluid statistic">
-                      <div id="carbon-per-machine" class="value">
-                        --
-                      </div>
-                      <div class="label">
-                        Carbon per machine
-                      </div>
+                <div class="ui segment carbondb-data">
+                    <div class="ui fluid statistic">
+                        <div id="total-energy" class="value">
+                            --
+                        </div>
+                        <div class="label">
+                            Total Energy <span class="no-transform">[kWh]</span>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="column">
-               <div class="ui segment carbondb-data">
-                   <div class="ui fluid statistic">
-                      <div id="avg-carbon-intensity" class="value">
-                        --
-                      </div>
-                      <div class="label">
-                        AVG carbon intensity
-                      </div>
+                <div class="ui segment carbondb-data">
+                    <div class="ui fluid statistic">
+                        <div id="total-machines" class="value">
+                            --
+                        </div>
+                        <div class="label">
+                            Total Machines
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="column">
+                <div class="ui segment carbondb-data">
+                    <div class="ui fluid statistic">
+                        <div id="carbon-per-machine" class="value">
+                            --
+                        </div>
+                        <div class="label">
+                            Carbon per machine <span class="no-transform">[kg/Unit]</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="column">
+                <div class="ui segment carbondb-data">
+                    <div class="ui fluid statistic">
+                        <div id="avg-carbon-intensity" class="value">
+                            --
+                        </div>
+                        <div class="label">
+                            AVG carbon intensity <span class="no-transform">[g]</span>
+                        </div>
                     </div>
                 </div>
             </div>
