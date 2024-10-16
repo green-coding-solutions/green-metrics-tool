@@ -1,0 +1,209 @@
+import os
+import requests
+import ipaddress
+import time
+import math
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+from lib.user import User
+from lib.db import DB
+from lib.global_config import GlobalConfig
+from tests import test_functions as Tests
+from playwright.sync_api import sync_playwright
+
+config = GlobalConfig(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml").config
+API_URL = config['cluster']['api_url']
+
+energydata = {
+    'type': 'machine.ci',
+    'energy_uj': 1,
+    'time': int(time.time() * 1e6),
+    'project': 'my-project',
+    'machine': 'my-machine',
+    'tags': ['mystery', 'cool']
+}
+
+def test_carbondb_add_unauthenticated():
+    user = User(1)
+    user._capabilities['api']['routes'] = []
+    user.update()
+
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata, timeout=15)
+    assert response.status_code == 401
+
+def test_carbondb_add():
+
+    exp_data = energydata.copy()
+    del exp_data['energy_uj']
+    exp_data['energy_kwh'] = 2.7777777777777774e-13 # 1 uJ
+    exp_data['carbon_kg'] = 2.7777777777777777e-10 # 1e-6J / (3600 * 1000) = kwH = 2.7777777777777774e-13 => * 1000 => 2.77e-10 g = 2.77e-4 ug
+    exp_data['carbon_intensity_g'] = 1000.0 # because we have no electricitymaps token set
+    exp_data['latitude'] = 52.53721666833642
+    exp_data['longitude'] = 13.42486387066192
+
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata, timeout=15)
+    assert response.status_code == 204
+
+    data = DB().fetch_one('SELECT * FROM carbondb_data_raw', fetch_mode='dict')
+    assert data is not None or data != []
+    assert_expected_data(exp_data, data)
+
+def test_carbondb_add_force_ip():
+    energydata_modified = energydata.copy()
+    energydata_modified['ip'] = '1.1.1.1'
+
+
+    exp_data = energydata_modified.copy()
+    del exp_data['energy_uj']
+    exp_data['ip_address'] = ipaddress.IPv4Address('1.1.1.1')
+    exp_data['latitude'] = -27.4766 # Hmm, this can be flaky! But also we want to test the IP API
+    exp_data['longitude'] = 153.0166 # Hmm, this can be flaky! But also we want to test the IP API
+
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
+    assert response.status_code == 204
+
+    data = DB().fetch_one('SELECT * FROM carbondb_data_raw', fetch_mode='dict')
+    assert data is not None or data != []
+    assert_expected_data(exp_data, data)
+
+
+def test_carbondb_add_force_carbon_intensity():
+
+    energydata_modified = energydata.copy()
+    energydata_modified['carbon_intensity_g'] = 200
+
+    exp_data = energydata_modified.copy()
+    del exp_data['energy_uj']
+    exp_data['carbon_intensity_g'] = 200
+    exp_data['carbon_kg'] = 5.555555555555555e-11
+
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
+    assert response.status_code == 204
+
+    data = DB().fetch_one('SELECT * FROM carbondb_data_raw', fetch_mode='dict')
+    assert data is not None or data != []
+    assert_expected_data(exp_data, data)
+
+
+def test_carbondb_missing_values():
+    energydata_crap = {
+        'crap': 'data'
+    }
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_crap, timeout=15)
+    assert response.status_code == 422
+    assert response.text == '{"success":false,"err":[{"type":"missing","loc":["body","project"],"msg":"Field required","input":{"crap":"data"}},{"type":"missing","loc":["body","machine"],"msg":"Field required","input":{"crap":"data"}},{"type":"missing","loc":["body","type"],"msg":"Field required","input":{"crap":"data"}},{"type":"missing","loc":["body","time"],"msg":"Field required","input":{"crap":"data"}},{"type":"missing","loc":["body","energy_uj"],"msg":"Field required","input":{"crap":"data"}}],"body":{"crap":"data"}}'
+
+def test_carbondb_non_int():
+    energydata_broken = {
+        'type': 123,
+        'energy_uj': 'no-int',
+        'time': 'no-time',
+        'company': 345,
+        'project': 678,
+        'machine': 9,
+    }
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_broken, timeout=15)
+    assert response.status_code == 422
+    assert response.text == '{"success":false,"err":[{"type":"string_type","loc":["body","project"],"msg":"Input should be a valid string","input":678},{"type":"string_type","loc":["body","machine"],"msg":"Input should be a valid string","input":9},{"type":"string_type","loc":["body","type"],"msg":"Input should be a valid string","input":123},{"type":"int_parsing","loc":["body","time"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-time"},{"type":"int_parsing","loc":["body","energy_uj"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-int"}],"body":{"type":123,"energy_uj":"no-int","time":"no-time","company":345,"project":678,"machine":9}}'
+
+def test_carbondb_invalid_tags():
+    energydata_modified = energydata.copy()
+    energydata_modified['tags'] = ['öla', '<asd>']
+
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
+    assert response.status_code == 422
+    assert "Parameter for 'tags' may only contain A-Za-z0-9._- characters and no spaces" in response.text
+
+
+def test_carbondb_no_filters():
+
+    response = requests.get(f"{API_URL}/v2/carbondb/filters", timeout=15, headers={'X-Authentication': 'DEFAULT'})
+    assert response.status_code == 200
+    assert response.text == '{"success":true,"data":{"types":null,"tags":null,"machines":null,"projects":null,"sources":null}}'
+
+
+def test_carbondb_alternative_user_and_data():
+
+    Tests.import_demo_data()
+    response = requests.get(f"{API_URL}/v2/carbondb/filters", timeout=15, headers={'X-Authentication': 'DEFAULT'})
+    assert response.status_code == 200
+    assert response.text == '{"success":true,"data":{"types":{"1":"machine.test","2":"generator.solar","3":"asdasd","4":"machine.ci","5":"machine.server"},"tags":{"111":"Environment setup (OS ubuntu-24.04","115":"green-coding.ai","118":"green-coding-solutions/ci-carbon-testing","119":"Measurement #1","120":"Environment setup (Python","135":"metrics.green-coding.io"},"machines":{"1":"GCS HQ Solar Panel","5":"metrics.green-coding.io","11":"green-coding.ai","20":"metrics.green-coding.io-alt","22":"ubuntu-latest"},"projects":{"1":"Projekt #1","2":"Projekt #2","3":"Projekt #3","4":"Projekt #4"},"sources":{"1":"UNDEFINED"}}}'
+
+    Tests.insert_user(345, 'ALTERNATIVE-USER-CARBONDB')
+    response = requests.get(f"{API_URL}/v2/carbondb/filters", timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER-CARBONDB'})
+    assert response.status_code == 200
+
+    # no filters again for no user
+    assert response.text == '{"success":true,"data":{"types":null,"tags":null,"machines":null,"projects":null,"sources":null}}'
+
+
+
+
+# TODO: Bring this to the test_frontend tests file
+def test_carbondb_display():
+    Tests.import_demo_data()
+
+    try:
+        playwright = sync_playwright().start()
+        browser = playwright.firefox.launch()
+        context = browser.new_context(viewport={"width": 1920, "height": 10600})
+        page = context.new_page()
+        page.set_default_timeout(5_000)
+
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+        page.get_by_role("link", name="CarbonDB").click()
+
+        page.locator('canvas') # will wait for
+        time.sleep(5)
+        page.screenshot(path='image.png')
+        total_carbon = page.locator('#total-carbon').text_content()
+        assert total_carbon.strip() == '1477'
+
+    finally:
+        browser.close()
+        playwright.stop()
+
+def test_carbondb_no_display_different_user():
+    Tests.insert_user(234, 'NO-CARBONDB')
+
+    try:
+
+        playwright = sync_playwright().start()
+        browser = playwright.firefox.launch()
+        context = browser.new_context(viewport={"width": 1920, "height": 10600})
+        page = context.new_page()
+        page.set_default_timeout(5_000)
+
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+        page.get_by_role("link", name="Authentication").click()
+
+
+
+        page.locator('#authentication-token').fill('NO-CARBONDB')
+        page.locator('#save-authentication-token').click()
+        page.locator('#token-details-message').wait_for(state='visible')
+
+        page.get_by_role("link", name="CarbonDB").click()
+
+        page.wait_for_load_state("load") # ALL JS should be done
+
+        page.locator('#total-carbon').wait_for(state='hidden')
+        assert page.locator('#total-carbon').text_content().strip() == '--' # nothing to show
+
+        page.locator('#no-data-message').wait_for(state='visible')
+
+    finally:
+        browser.close()
+        playwright.stop()
+
+
+
+def assert_expected_data(exp_data, data):
+    for key in exp_data:
+        if key == 'ip':
+            key = 'ip_address'
+        if isinstance(exp_data[key], float):
+            assert math.isclose(exp_data[key], data[key], rel_tol=1e-3) , f"{key}: {exp_data[key]} not close to {data[key]} - Raw: {data}"
+        else:
+            assert exp_data[key] == data[key], f"{key}: {exp_data[key]} != {data[key]} - Raw: {data}"

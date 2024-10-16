@@ -10,7 +10,6 @@ import re
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
 from starlette.background import BackgroundTask
-from fastapi.exceptions import RequestValidationError
 from fastapi.responses import ORJSONResponse
 import numpy as np
 import requests
@@ -774,41 +773,37 @@ def get_carbon_intensity(latitude, longitude):
 
     return None
 
-def carbondb_add(client_ip, data, source, user_id):
+def carbondb_add(connecting_ip, data, source, user_id):
 
     query = '''
             INSERT INTO carbondb_data_raw
-                ("type", "project", "machine", "source", "tags","time","energy","carbon","carbon_intensity","latitude","longitude","ip_address","user_id","created_at")
+                ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
             VALUES
                 (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
     '''
 
-    fields_to_check = {
-        'energy': data['energy'], # is expected to be in microjoules
-        'time': data['time'], # is expected to be in microseconds
-    }
+    used_client_ip = data.get('ip', None) # An ip has been given with the data. We prioritize that
+    if used_client_ip is None:
+        used_client_ip = connecting_ip
 
-    for field_name, field_value in fields_to_check.items():
-        if field_value is None or str(field_value).strip() == '':
-            raise RequestValidationError(f"{field_name.capitalize()} is empty. Ignoring everything!")
+    carbon_intensity_g_per_kWh = data.get('carbon_intensity_g', None)
 
-    used_client_up = client_ip
-    if 'ip' in data: # An ip has been given with the data. We prioritize that
-        latitude, longitude = get_geo(data['ip']) # cached
-        carbon_intensity_g_per_kWh = get_carbon_intensity(latitude, longitude) # cached
-        used_client_up = data['ip']
+    if carbon_intensity_g_per_kWh is not None: # we need this check explicitely as we want to allow 0 as possible value
+        latitude = None # no use to derive if we get supplied data. We rather indicate with NULL that user supplied
+        longitude = None # no use to derive if we get supplied data. We rather indicate with NULL that user supplied
     else:
-        latitude, longitude = get_geo(client_ip) # cached
+        latitude, longitude = get_geo(used_client_ip) # cached
         carbon_intensity_g_per_kWh = get_carbon_intensity(latitude, longitude) # cached
 
-    energy_mWh = int(data['energy'] * 2.77778e-7) # mWh
-    carbon_ug = int(energy_mWh * carbon_intensity_g_per_kWh) # results in ug
+    energy_J = float(data['energy_uj']) / 1e6
+    energy_kWh = energy_J / (3_600*1_000)
+    carbon_kg = energy_kWh * carbon_intensity_g_per_kWh
 
     DB().query(
         query=query,
         params=(
             data['type'],
-            data['project'], data['machine'], source, data['tags'], data['time'], data['energy'], carbon_ug, carbon_intensity_g_per_kWh, latitude, longitude, used_client_up, user_id))
+            data['project'], data['machine'], source, data['tags'], data['time'], energy_kWh, carbon_kg, carbon_intensity_g_per_kWh, latitude, longitude, used_client_ip, user_id))
 
 
 def validate_carbondb_params(param, elements: list):
