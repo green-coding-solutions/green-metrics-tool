@@ -24,7 +24,7 @@ def setup_and_cleanup_module():
     # start only one browser for whole file
     playwright = sync_playwright().start()
     browser = playwright.firefox.launch()
-    context = browser.new_context(viewport={"width": 1920, "height": 10600})
+    context = browser.new_context(viewport={"width": 1920, "height": 5600})
     page = context.new_page()
     page.set_default_timeout(5_000)
 
@@ -58,6 +58,14 @@ def test_ci():
 
     page.locator("#repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
     page.locator('#DataTables_Table_0 > tbody > tr > td.sorting_1 > a').click()
+
+    time.sleep(2) # wait for input defaults to be filled
+
+    page.locator("input[name=range_start]").fill('2024-09-11')
+    page.locator("input[name=range_end]").fill('2024-10-11')
+    page.get_by_role("button", name="Refresh").click()
+
+    time.sleep(2) # wait for new data to render
 
     energy_avg_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(2)").text_content()
     assert energy_avg_all_steps.strip() == '14.3 J (± 72.61%)'
@@ -106,11 +114,11 @@ def test_stats():
 
     # Get the new page (tab)
     new_page = new_page_info.value
-    new_page.set_default_timeout(2_000)
+    new_page.set_default_timeout(5_000)
 
     # open details
-    new_page.locator('div[data-tab="[RUNTIME]"] .ui.accordion a').click()
     new_page.locator('a.step[data-tab="[RUNTIME]"]').click()
+    new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
 
     energy_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.four.cards.stackable > div.ui.card.machine-energy > div > div.description > div.ui.fluid.mini.statistic > div > span").text_content()
     phase_duration = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.four.cards.stackable > div.ui.card.phase-duration > div > div.description > div.ui.fluid.mini.statistic > div > span").text_content()
@@ -143,7 +151,7 @@ def test_stats():
 
     # click on baseline
     new_page.locator('a.step[data-tab="[BASELINE]"]').click()
-    new_page.locator('div[data-tab="[BASELINE]"] .ui.accordion a').click()
+    new_page.locator('div[data-tab="[BASELINE]"] .ui.accordion .title > a').click()
 
     first_metric = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(1)").text_content()
     assert first_metric.strip() == 'CPU Energy (Package)'
@@ -161,11 +169,12 @@ def test_repositories_and_compare():
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     page.get_by_role("link", name="Repositories").click()
     page.locator('.ui.accordion div.title').click()
-    page.locator('.dataTables_info') # wait for accordion to fetch XHR and open
+    page.locator('.dataTables_info').wait_for(timeout=5_000) # wait for accordion to fetch XHR and open
 
     elements = page.query_selector_all("input[type=checkbox]")  # Replace with your selector
     for element in elements:
         element.click()
+
     with context.expect_page() as new_page_info:
         page.locator('#compare-button').click()
 
@@ -180,7 +189,7 @@ def test_repositories_and_compare():
 
     # open details
     new_page.locator('a.step[data-tab="[RUNTIME]"]').click()
-    new_page.locator('div[data-tab="[RUNTIME]"] .ui.accordion a').click()
+    new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
 
 
 
