@@ -1399,15 +1399,25 @@ class EnergyData(BaseModel):
     machine: str
     type: str
     time: int # value is in us as UTC timestamp
-    energy: int # value is in uJ
+    energy_uj: int # is in uJ
+    carbon_intensity_g: Optional[int] = None # value is in g/kWh
+    ip: Optional[str] = None
 
-    @field_validator('tags')
+    @field_validator('carbon_intensity_g', 'ip')
     @classmethod
     def empty_str_to_none(cls, values, _):
         if not values or values == '':
             return None
+        return values
+
+    @field_validator('tags')
+    @classmethod
+    def validate_tags_param(cls, values, _):
+        if not values or values == '':
+            return None
         validate_carbondb_params('tags', values)
         return values
+
 
 @app.post('/v1/carbondb/add')
 async def add_carbondb_deprecated():
@@ -1420,13 +1430,13 @@ async def add_carbondb(
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
 
-    client_ip = request.headers.get("x-forwarded-for")
-    if client_ip:
-        client_ip = client_ip.split(",")[0]
+    connecting_ip = request.headers.get("x-forwarded-for")
+    if connecting_ip:
+        connecting_ip = connecting_ip.split(",")[0]
     else:
-        client_ip = request.client.host
+        connecting_ip = request.client.host
 
-    carbondb_add(client_ip, energydata.dict(), 'CUSTOM', user._id)
+    carbondb_add(connecting_ip, energydata.dict(), 'CUSTOM', user._id)
 
     return Response(status_code=204)
 
@@ -1530,7 +1540,7 @@ async def carbondb_get(
 
     query = f"""
         SELECT
-            type, project, machine, source, tags, date, energy_sum, carbon_sum, carbon_intensity_avg, record_count
+            type, project, machine, source, tags, date, energy_kwh_sum, carbon_g_sum, carbon_intensity_g_avg, record_count
         FROM
             carbondb_data as cedd
         WHERE
@@ -1552,9 +1562,6 @@ async def carbondb_get(
             date ASC
         ;
     """
-
-    print(query, params)
-
     data = DB().fetch_all(query, params)
 
     return ORJSONResponse({'success': True, 'data': data})
@@ -1564,8 +1571,6 @@ async def carbondb_get(
 async def carbondb_get_filters(
     user: User = Depends(authenticate)
     ):
-
-    print("User ID is,", user._id)
 
     query = 'SELECT jsonb_object_agg(id, type) FROM carbondb_types WHERE user_id = %s'
     carbondb_types = DB().fetch_one(query, (user._id, ))[0]
@@ -1581,8 +1586,6 @@ async def carbondb_get_filters(
 
     query = 'SELECT jsonb_object_agg(id, source) FROM carbondb_sources WHERE user_id = %s'
     carbondb_sources = DB().fetch_one(query, (user._id, ))[0]
-
-
 
     return ORJSONResponse({'success': True, 'data': {'types': carbondb_types, 'tags': carbondb_tags, 'machines': carbondb_machines, 'projects': carbondb_projects, 'sources': carbondb_sources}})
 
