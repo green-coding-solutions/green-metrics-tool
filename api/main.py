@@ -1540,7 +1540,7 @@ async def carbondb_get(
 
     query = f"""
         SELECT
-            type, project, machine, source, tags, date, energy_kwh_sum, carbon_g_sum, carbon_intensity_g_avg, record_count
+            type, project, machine, source, tags, date, energy_kwh_sum, carbon_kg_sum, carbon_intensity_g_avg, record_count
         FROM
             carbondb_data as cedd
         WHERE

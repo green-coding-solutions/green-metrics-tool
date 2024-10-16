@@ -444,7 +444,7 @@ CREATE TABLE carbondb_data (
     tags int[],
     date DATE NOT NULL,
     energy_kwh_sum DOUBLE PRECISION NOT NULL,
-    carbon_g_sum DOUBLE PRECISION NOT NULL,
+    carbon_kg_sum DOUBLE PRECISION NOT NULL,
     carbon_intensity_g_avg int NOT NULL,
     record_count INT,
     user_id integer REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
