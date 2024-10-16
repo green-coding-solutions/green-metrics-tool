@@ -1,6 +1,8 @@
 
 const getQueryParameters = (name) => {
     const urlParams = new URLSearchParams(window.location.search);
+    if (!urlParams.size) return [];
+    document.querySelector('#filters-active').style.display = '';
     const allParams = urlParams.getAll(name);
     return [...new Set(allParams)];
 }
@@ -16,12 +18,12 @@ const dateTimePicker = () => {
     });
 }
 
-const getChartOptionsScaffold = (type, dimension = 'Carbon [g]') => {
+const getChartOptionsScaffold = (type, dimension = 'Carbon [kg]') => {
     if (type == 'bar') {
         return {
             yAxis: { type: 'value', gridIndex: 0, name: dimension },
 
-            xAxis: {type: "category", data: ["Time"]},
+            xAxis: {type: "category", data: ["Timeline (days)"]},
             series: [],
             title: { text: null },
             animation: false,
@@ -87,7 +89,7 @@ const getChartOptionsScaffold = (type, dimension = 'Carbon [g]') => {
 
 const fillPieChart = (key, dimensions) => {
     const options = getChartOptionsScaffold('pie');
-    options.title.text = `Carbon by ${key} [g]`;
+    options.title.text = `Carbon by ${key} [kg]`;
 
     const legend = new Set()
     const labels = []
@@ -125,7 +127,7 @@ const fillBarChart = (type, legend, labels, series) => {
         options = getChartOptionsScaffold('bar');
 
     } else {
-        options = getChartOptionsScaffold('bar', 'Energy [mJ]');
+        options = getChartOptionsScaffold('bar', 'Energy [kWh]');
     }
     options.title.text = `${type}`;
 
@@ -306,12 +308,12 @@ const refreshView = async () => {
     chart_instances['carbondb-piechart-sources-chart'].setOption(options);
 
 
-    $('#total-carbon').text(total_carbon);
-    $('#total-energy').text(total_energy);
-    $('#total-machines').text(total_machines);
-    $('#carbon-per-machine').text(carbon_per_machine);
-    $('#carbon-per-project').text(carbon_per_project);
-    $('#avg-carbon-intensity').text(avg_carbon_intensity);
+    $('#total-carbon').html(`<span title="${total_carbon}">${total_carbon.toFixed(2)}</span>`);
+    $('#total-energy').html(`<span title="${total_energy}">${total_energy.toFixed(2)}</span>`);
+    $('#total-machines').html(`<span title="${total_machines}">${total_machines.toFixed(2)}</span>`);
+    $('#carbon-per-machine').html(`<span title="${carbon_per_machine}">${carbon_per_machine.toFixed(2)}</span>`);
+    $('#carbon-per-project').html(`<span title="${carbon_per_project}">${carbon_per_project.toFixed(2)}</span>`);
+    $('#avg-carbon-intensity').html(`<span title="${avg_carbon_intensity}">${avg_carbon_intensity.toFixed(2)}</span>`);
 
 }
 
