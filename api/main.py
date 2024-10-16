@@ -1426,7 +1426,10 @@ async def add_carbondb(
     else:
         connecting_ip = request.client.host
 
-    carbondb_add(connecting_ip, energydata.dict(), 'CUSTOM', user._id)
+    try:
+        carbondb_add(connecting_ip, energydata.dict(), 'CUSTOM', user._id)
+    except ValueError as exc:
+        raise RequestValidationError(str(exc)) from exc
 
     return Response(status_code=204)
 
