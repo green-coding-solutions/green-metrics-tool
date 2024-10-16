@@ -18,11 +18,20 @@ const dateTimePicker = () => {
     });
 }
 
-const getChartOptionsScaffold = (type, dimension = 'Carbon [kg]') => {
-    if (type == 'bar') {
-        return {
-            yAxis: { type: 'value', gridIndex: 0, name: dimension },
+const getChartOptionsScaffold = (chart_type, dimension, unit) => {
+    const customColors = {
+        'carbon': ['#5470C6', '#91CC75', '#EE6666', '#FAC858', '#73C0DE', '#3BA272', '#FC8452', '#9A60B4', '#EA7CCC','#D4A5A5', '#FFD700', '#7B68EE', '#FF69B4', '#2E8B57', '#DAA520', '#CD5C5C', '#4B0082'],
+        'energy': ['#5470C6', '#91CC75', '#EE6666', '#FAC858', '#73C0DE', '#3BA272', '#FC8452', '#9A60B4', '#EA7CCC','#D4A5A5', '#FFD700', '#7B68EE', '#FF69B4', '#2E8B57', '#DAA520', '#CD5C5C', '#4B0082'],
+        'type': ['#5470C6', '#91CC75', '#EE6666', '#FAC858', '#73C0DE', '#3BA272', '#FC8452', '#9A60B4', '#EA7CCC','#D4A5A5', '#FFD700', '#7B68EE', '#FF69B4', '#2E8B57', '#DAA520', '#CD5C5C', '#4B0082'],
+        'machine': ['#FF4500', '#6A5ACD', '#4682B4', '#D2691E', '#FF6347', '#00FA9A', '#FF1493', '#BA55D3', '#800080','#5F9EA0', '#FF8C00', '#4169E1', '#DB7093', '#B0E0E6', '#F4A460', '#8B4513', '#FF00FF'],
+        'project': ['#AFEEEE', '#2F4F4F', '#FA8072', '#20B2AA', '#FFFACD', '#D3D3D3', '#40E0D0', '#C71585', '#66CDAA','#FFDAB9', '#A9A9A9', '#8A2BE2', '#B22222', '#F08080'],
+        'source': ['#1ABC9C','#2ECC71','#3498DB','#9B59B6','#E74C3C','#F1C40F','#E67E22','#16A085','#27AE60','#2980B9','#8E44AD','#C0392B','#F39C12','#D35400','#34495E']
+    }
 
+    if (chart_type == 'bar') {
+        return {
+            color: customColors[dimension],
+            yAxis: { type: 'value', gridIndex: 0, name: `${dimension} ${unit}` },
             xAxis: {type: "category", data: ["Timeline (days)"]},
             series: [],
             title: { text: null },
@@ -44,8 +53,9 @@ const getChartOptionsScaffold = (type, dimension = 'Carbon [kg]') => {
             },*/
 
         };
-    } else if (type == 'pie') {
+    } else if (chart_type == 'pie') {
         return option = {
+          color: customColors[dimension],
           title: { text: null },
           tooltip: {
             trigger: 'item'
@@ -87,26 +97,12 @@ const getChartOptionsScaffold = (type, dimension = 'Carbon [kg]') => {
     }
 }
 
-const fillPieChart = (key, dimensions) => {
-    const options = getChartOptionsScaffold('pie');
-    options.title.text = `Carbon by ${key} [kg]`;
+const fillPieChart = (dimension, legend, labels, series) => {
+    const options = getChartOptionsScaffold('pie', dimension, '[kg]');
+    options.title.text = `carbon by ${dimension} [kg]`;
 
-    const legend = new Set()
-    const labels = []
-
-    for (let el in dimensions) {
-        options.series[0].data.push({ value: dimensions[el], name: dimensions_lookup[`${key}s`][el] })
-        legend.add(dimensions_lookup[`${key}s`][el])
-
-        labels.push({
-            key: dimensions_lookup[`${key}s`][el],
-            value: dimensions[el],
-        })
-
-    }
-
-
-    options.legend.data = Array.from(legend)
+    options.series[0].data = series;
+    options.legend.data = Array.from(legend);
 
     options.tooltip = {
         trigger: 'item',
@@ -121,15 +117,15 @@ const fillPieChart = (key, dimensions) => {
     return options;
 }
 
-const fillBarChart = (type, legend, labels, series) => {
+const fillBarChart = (y_axis, legend, labels, series) => {
     let options = null;
-    if (type == 'Carbon') {
-        options = getChartOptionsScaffold('bar');
+    if (y_axis == 'carbon') {
+        options = getChartOptionsScaffold('bar', y_axis, '[kg]');
 
     } else {
-        options = getChartOptionsScaffold('bar', 'Energy [kWh]');
+        options = getChartOptionsScaffold('bar', y_axis, '[kWh]');
     }
-    options.title.text = `${type}`;
+    options.title.text = `${y_axis} by day`;
 
     options.series = series;
     options.legend.data = Array.from(legend)
@@ -182,10 +178,19 @@ const processData = (measurements) => {
 
     const carbon_barchart_data = {legend: new Set(), labels: [], series: []};
     const energy_barchart_data = {legend: new Set(), labels: [], series: []};
-    const piechart_types_data = {};
-    const piechart_machines_data = {};
-    const piechart_projects_data = {};
-    const piechart_sources_data = {};
+
+    let piechart_types_data = {legend: new Set(), labels: [], series: []};
+    let piechart_machines_data = {legend: new Set(), labels: [], series: []};
+    let piechart_projects_data = {legend: new Set(), labels: [], series: []};
+    let piechart_sources_data = {legend: new Set(), labels: [], series: []};
+
+    // we need these to pre-aggregate for pie-charts
+    const piechart_types_values = {};
+    const piechart_machines_values = {};
+    const piechart_projects_values = {};
+    const piechart_sources_values = {};
+
+
 
     let total_carbon = 0;
     let total_energy = 0;
@@ -215,7 +220,7 @@ const processData = (measurements) => {
             type: dimensions_lookup['types'][type],
             date: date,
             value: carbon,
-            unit: 'g',
+            unit: 'kg',
         })
 
         energy_barchart_data.series.push({
@@ -235,23 +240,29 @@ const processData = (measurements) => {
             type: dimensions_lookup['types'][type],
             date: date,
             value: energy,
-            unit: 'mJ',
+            unit: 'kWh',
         })
 
-        if (piechart_machines_data[machine] == undefined) piechart_machines_data[machine] = carbon;
-        else piechart_machines_data[machine] += carbon;
+        if (piechart_machines_values[machine] == undefined) piechart_machines_values[machine] = carbon;
+        else piechart_machines_values[machine] += carbon;
 
-        if (piechart_types_data[type] == undefined) piechart_types_data[type] = carbon;
-        else piechart_types_data[type] += carbon;
+        if (piechart_types_values[type] == undefined) piechart_types_values[type] = carbon;
+        else piechart_types_values[type] += carbon;
 
-        if (piechart_projects_data[project] == undefined) piechart_projects_data[project] = carbon;
-        else piechart_projects_data[project] += carbon;
+        if (piechart_projects_values[project] == undefined) piechart_projects_values[project] = carbon;
+        else piechart_projects_values[project] += carbon;
 
-        if (piechart_sources_data[source] == undefined) piechart_sources_data[source] = carbon;
-        else piechart_sources_data[source] += carbon;
+        if (piechart_sources_values[source] == undefined) piechart_sources_values[source] = carbon;
+        else piechart_sources_values[source] += carbon;
 
 
     });
+
+    piechart_machines_data = transformPieChartData(piechart_machines_data, piechart_machines_values, 'machines')
+    piechart_types_data = transformPieChartData(piechart_types_data, piechart_types_values, 'types')
+    piechart_projects_data = transformPieChartData(piechart_projects_data, piechart_projects_values, 'projects')
+    piechart_sources_data = transformPieChartData(piechart_sources_data, piechart_sources_values, 'sources')
+
 
     const total_machines = Object.keys(piechart_machines_data).length;
     const carbon_per_machine = total_carbon / total_machines;
@@ -260,6 +271,22 @@ const processData = (measurements) => {
     const avg_carbon_intensity = carbon_intensity_list.reduce((sum, value) => sum + value, 0) / carbon_intensity_list.length;
 
     return [carbon_barchart_data, energy_barchart_data, piechart_types_data, piechart_machines_data, piechart_projects_data, piechart_sources_data, total_carbon, total_energy, total_machines, carbon_per_machine, carbon_per_project, avg_carbon_intensity];
+}
+
+const transformPieChartData = (data, values, dimension) => {
+    // we might have negative values in CarbonDB, which is fine. But they cannot show in PieCharts. Thus we transform
+
+    for (let el in values) {
+
+        data.series.push({ value: Math.abs(values[el]), name: dimensions_lookup[dimension][el] })
+        data.legend.add(dimensions_lookup[dimension][el])
+
+        data.labels.push({
+            key: dimensions_lookup[dimension][el],
+            value: values[el],
+        })
+    }
+    return data;
 }
 
 const refreshView = async () => {
@@ -289,22 +316,22 @@ const refreshView = async () => {
 
     $('.carbondb-data').show();
 
-    let options = fillBarChart('Carbon', carbon_barchart_data.legend, carbon_barchart_data.labels, carbon_barchart_data.series);
+    let options = fillBarChart('carbon', carbon_barchart_data.legend, carbon_barchart_data.labels, carbon_barchart_data.series);
     chart_instances['carbondb-barchart-carbon-chart'].setOption(options);
 
-    options = fillBarChart('Energy', energy_barchart_data.legend, energy_barchart_data.labels, energy_barchart_data.series);
+    options = fillBarChart('energy', energy_barchart_data.legend, energy_barchart_data.labels, energy_barchart_data.series);
     chart_instances['carbondb-barchart-energy-chart'].setOption(options);
 
-    options = fillPieChart('type', piechart_types_data);
+    options = fillPieChart('type', piechart_types_data.legend, piechart_types_data.labels, piechart_types_data.series);
     chart_instances['carbondb-piechart-types-chart'].setOption(options);
 
-    options = fillPieChart('machine', piechart_machines_data);
+    options = fillPieChart('machine', piechart_machines_data.legend, piechart_machines_data.labels, piechart_machines_data.series);
     chart_instances['carbondb-piechart-machines-chart'].setOption(options);
 
-    options = fillPieChart('project', piechart_projects_data);
+    options = fillPieChart('project', piechart_projects_data.legend, piechart_projects_data.labels, piechart_projects_data.series);
     chart_instances['carbondb-piechart-projects-chart'].setOption(options);
 
-    options = fillPieChart('source', piechart_sources_data);
+    options = fillPieChart('source', piechart_sources_data.legend, piechart_sources_data.labels, piechart_sources_data.series);
     chart_instances['carbondb-piechart-sources-chart'].setOption(options);
 
 
