@@ -361,7 +361,7 @@ CREATE INDEX optimizations_runs ON optimizations(run_id);
 CREATE TABLE carbondb_types (
     id SERIAL PRIMARY KEY,
     type text NOT NULL,
-    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -371,7 +371,7 @@ CREATE UNIQUE INDEX carbondb_types_unique ON carbondb_types(type text_ops,user_i
 CREATE TABLE carbondb_tags (
     id SERIAL PRIMARY KEY,
     tag text NOT NULL,
-    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -381,7 +381,7 @@ CREATE UNIQUE INDEX carbondb_tags_unique ON carbondb_tags(tag text_ops,user_id i
 CREATE TABLE carbondb_machines (
     id SERIAL PRIMARY KEY,
     machine text NOT NULL,
-    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -390,7 +390,7 @@ CREATE UNIQUE INDEX carbondb_machines_unique ON carbondb_machines(machine text_o
 CREATE TABLE carbondb_projects (
     id SERIAL PRIMARY KEY,
     project text NOT NULL,
-    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -420,7 +420,7 @@ CREATE TABLE carbondb_data_raw (
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
     ip_address INET,
-    user_id int REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    user_id int NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -445,7 +445,7 @@ CREATE TABLE carbondb_data (
     carbon_kg_sum DOUBLE PRECISION NOT NULL,
     carbon_intensity_g_avg int NOT NULL,
     record_count INT,
-    user_id integer REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    user_id NOT NULL integer REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
