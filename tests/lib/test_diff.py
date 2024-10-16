@@ -1,11 +1,5 @@
-import os
 from lib.db import DB
-from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
-
-GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml")
-config = GlobalConfig().config
-
 
 # For the diffing to work as expected it is important that we include a known set of columns
 # It might happen that at some point a dev adds a column to the table, but forgets to also add it

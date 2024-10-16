@@ -4,10 +4,7 @@ import unittest
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
 from lib import utils
-from lib.global_config import GlobalConfig
 from runner import Runner
-
-GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml")
 
 class TestYML(unittest.TestCase):
 

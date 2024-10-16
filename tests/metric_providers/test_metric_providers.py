@@ -9,14 +9,9 @@ import pytest
 from tests import test_functions as Tests
 from lib.db import DB
 from lib import utils
-from lib.global_config import GlobalConfig
 from runner import Runner
 from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
 from tools.phase_stats import build_and_store_phase_stats
-
-
-GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml")
-config = GlobalConfig().config
 
 # override per test cleanup, as the module setup requires writing to DB
 @pytest.fixture(autouse=False)
@@ -25,7 +20,7 @@ def cleanup_after_test():
 
 #pylint: disable=unused-argument
 @pytest.fixture(autouse=True, scope='module')
-def cleanup_after_module():
+def setup_and_cleanup_module():
     yield
     Tests.reset_db()
 
