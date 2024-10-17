@@ -447,20 +447,8 @@ CREATE TABLE carbondb_data (
     carbon_kg_sum DOUBLE PRECISION NOT NULL,
     carbon_intensity_g_avg int NOT NULL,
     record_count INT,
-    user_id NOT NULL integer REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone
+    user_id NOT NULL integer REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE
 );
-
-
-CREATE TRIGGER carbondb_data_moddatetime
-    BEFORE UPDATE ON carbondb_data
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime (updated_at);
-
-CREATE UNIQUE INDEX unique_entry ON carbondb_data (type, project, machine, source, tags, date, user_id) NULLS NOT DISTINCT;
-
-
 
 CREATE TABLE ip_data (
     ip_address INET,
