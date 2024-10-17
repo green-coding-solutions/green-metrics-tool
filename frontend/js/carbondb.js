@@ -259,8 +259,6 @@ const processData = (measurements) => {
 
     });
 
-    console.log(piechart_machines_values[5]);
-
     piechart_machines_data = transformPieChartData(piechart_machines_data, piechart_machines_values, 'machines')
     piechart_types_data = transformPieChartData(piechart_types_data, piechart_types_values, 'types')
     piechart_projects_data = transformPieChartData(piechart_projects_data, piechart_projects_values, 'projects')
