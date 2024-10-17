@@ -26,8 +26,7 @@ CREATE TRIGGER users_moddatetime
 -- Default password for authentication is DEFAULT
 INSERT INTO "public"."users"("name","token","capabilities","created_at","updated_at")
 VALUES
-
-(E'DEFAULT',E'89dbf71048801678ca4abfbaa3ea8f7c651aae193357a3e23d68e21512cd07f5',E'{"api":{"quotas":{},"routes":["/v2/carbondb/filters","/v2/carbondb","/v2/carbondb/add","/v1/ci/measurement/add","/v1/software/add","/v1/hog/add","/v1/authentication/data"]},"data":{"runs":{"retention":2678400},"hog_tasks":{"retention":2678400},"measurements":{"retention":2678400},"hog_coalitions":{"retention":2678400},"ci_measurements":{"retention":2678400},"hog_measurements":{"retention":2678400}},"jobs":{"schedule_modes":["one-off","daily","weekly","commit","variance"]},"machines":[1],"measurement":{"quotas":{},"settings":{"total-duration":86400,"flow-process-duration":86400}},"optimizations":["container_memory_utilization","container_cpu_utilization","message_optimization","container_build_time","container_boot_time","container_image_size"]}',E'2024-08-22 11:28:24.937262+00',NULL);
+(E'DEFAULT',E'89dbf71048801678ca4abfbaa3ea8f7c651aae193357a3e23d68e21512cd07f5',E'{"api":{"quotas":{},"routes":["/v2/carbondb/filters","/v2/carbondb","/v2/carbondb/add","/v2/ci/measurement/add","/v1/ci/measurement/add","/v1/software/add","/v1/hog/add","/v1/authentication/data"]},"data":{"runs":{"retention":2678400},"hog_tasks":{"retention":2678400},"measurements":{"retention":2678400},"hog_coalitions":{"retention":2678400},"ci_measurements":{"retention":2678400},"hog_measurements":{"retention":2678400}},"jobs":{"schedule_modes":["one-off","daily","weekly","commit","variance"]},"machines":[1],"measurement":{"quotas":{},"settings":{"total-duration":86400,"flow-process-duration":86400}},"optimizations":["container_memory_utilization","container_cpu_utilization","message_optimization","container_build_time","container_boot_time","container_image_size"]}',E'2024-08-22 11:28:24.937262+00',NULL);
 
 
 
@@ -200,8 +199,7 @@ CREATE TRIGGER notes_moddatetime
 
 CREATE TABLE ci_measurements (
     id SERIAL PRIMARY KEY,
-    energy_value bigint,
-    energy_unit text,
+    energy_uj bigint,
     repo text,
     branch text,
     workflow_id text,
@@ -218,6 +216,10 @@ CREATE TABLE ci_measurements (
     city text,
     co2i text,
     co2eq text,
+    filter_type text,
+    filter_project text,
+    filter_machine text,
+    filter_tags text[],
     user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone

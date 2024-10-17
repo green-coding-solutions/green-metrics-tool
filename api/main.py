@@ -1199,8 +1199,7 @@ async def robots_txt():
 
 # pylint: disable=invalid-name
 class CI_Measurement(BaseModel):
-    energy_value: int
-    energy_unit: str
+    energy_uj: int
     repo: str
     branch: str
     cpu: str
@@ -1212,42 +1211,53 @@ class CI_Measurement(BaseModel):
     label: str
     duration: int
     workflow_name: str = None
+    filter_type: Optional[str] = None
+    filter_project: Optional[str] = None
+    filter_machine: Optional[str] = None
+    filter_tags: Optional[list] = None
     lat: Optional[str] = ''
     lon: Optional[str] = ''
     city: Optional[str] = ''
     co2i: Optional[str] = ''
     co2eq: Optional[str] = ''
 
+    # Empty string will not trigger error, but None will
+    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label')
+    @classmethod
+    def check_not_empty(cls, values, data):
+        if not values or values == '':
+            raise RequestValidationError(f"{data.field_name} must be set and not empty")
+        return values
+
+
 @app.post('/v1/ci/measurement/add')
+async def add_ci_deprecated():
+    return Response("This endpoint is not supported anymore. Please migrate to /v2/ci/measurement/add !", status_code=410)
+
+@app.post('/v2/ci/measurement/add')
 async def post_ci_measurement_add(
     measurement: CI_Measurement,
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
-    for key, value in measurement.model_dump().items():
-        match key:
-            case 'unit':
-                if value is None or value.strip() == '':
-                    raise RequestValidationError(f"{key} is empty")
-                if value != 'mJ':
-                    raise RequestValidationError("Unit is unsupported - only mJ currently accepted")
-                continue
-
-            case 'label' | 'workflow_name' | 'lat' | 'lon' | 'city' | 'co2i' | 'co2eq':  # Optional fields
-                continue
-
-            case _:
-                if value is None:
-                    raise RequestValidationError(f"{key} is empty")
-                if isinstance(value, str):
-                    if value.strip() == '':
-                        raise RequestValidationError(f"{key} is empty")
 
     measurement = html_escape_multi(measurement)
 
-    query = """
+    params = [measurement.energy_uj, measurement.repo, measurement.branch,
+            measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
+            measurement.commit_hash, measurement.duration, measurement.cpu_util_avg, measurement.workflow_name,
+            measurement.lat, measurement.lon, measurement.city, measurement.co2i, measurement.co2eq,
+            measurement.filter_type, measurement.filter_project, measurement.filter_machine]
+
+    tags_replacer = ' ARRAY[]::text[] '
+    if measurement.filter_tags:
+        tags_replacer = f" ARRAY[{','.join(['%s']*len(measurement.filter_tags))}] "
+        params = params + measurement.filter_tags
+
+    params.append(user._id)
+
+    query = f"""
         INSERT INTO
-            ci_measurements (energy_value,
-                            energy_unit,
+            ci_measurements (energy_uj,
                             repo,
                             branch,
                             workflow_id,
@@ -1264,14 +1274,17 @@ async def post_ci_measurement_add(
                             city,
                             co2i,
                             co2eq,
+                            filter_type,
+                            filter_project,
+                            filter_machine,
+                            filter_tags,
                             user_id
                             )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                {tags_replacer},
+        %s)
         """
-    params = (measurement.energy_value, measurement.energy_unit, measurement.repo, measurement.branch,
-            measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
-            measurement.commit_hash, measurement.duration, measurement.cpu_util_avg, measurement.workflow_name,
-            measurement.lat, measurement.lon, measurement.city, measurement.co2i, measurement.co2eq, user._id)
 
     DB().query(query=query, params=params)
 
