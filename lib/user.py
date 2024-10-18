@@ -20,6 +20,10 @@ class User():
         self._name = user[1]
         self._capabilities = user[2]
 
+    def to_dict(self):
+        values = self.__dict__.copy()
+        del values['_id']
+        return values
 
     def to_dict(self):
         values = self.__dict__.copy()

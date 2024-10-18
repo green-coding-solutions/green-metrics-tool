@@ -1616,9 +1616,7 @@ async def carbondb_get_filters(
 
 @app.get('/v1/authentication/data')
 async def read_authentication_token(user: User = Depends(authenticate)):
-    return ORJSONResponse({'success': True, 'data': user.to_dict() })
-
-
+    return ORJSONResponse({'success': True, 'data': user.to_dict()})
 
 if __name__ == '__main__':
     app.run() # pylint: disable=no-member
