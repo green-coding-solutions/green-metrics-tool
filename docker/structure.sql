@@ -100,7 +100,7 @@ CREATE TABLE runs (
     logs text,
     invalid_run text,
     failed boolean DEFAULT false,
-    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE, -- this must allowed to be null for CLI runs
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -220,7 +220,7 @@ CREATE TABLE ci_measurements (
     filter_project text,
     filter_machine text,
     filter_tags text[],
-    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -256,7 +256,7 @@ CREATE TABLE timeline_projects (
     schedule_mode text NOT NULL,
     last_scheduled timestamp with time zone,
     last_marker text,
-    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -278,7 +278,7 @@ CREATE TABLE hog_measurements (
     thermal_pressure text,
     settings jsonb,
     data jsonb,
-    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -403,7 +403,7 @@ CREATE UNIQUE INDEX carbondb_projects_unique ON carbondb_projects(project text_o
 CREATE TABLE carbondb_sources (
     id SERIAL PRIMARY KEY,
     source text NOT NULL,
-    user_id integer REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -449,7 +449,7 @@ CREATE TABLE carbondb_data (
     carbon_kg_sum DOUBLE PRECISION NOT NULL,
     carbon_intensity_g_avg int NOT NULL,
     record_count INT,
-    user_id NOT NULL integer REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE
+    user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 CREATE UNIQUE INDEX carbondb_data_unique_entry ON carbondb_data(type int4_ops,project int4_ops,machine int4_ops,source int4_ops,tags array_ops,date date_ops,user_id int4_ops);
