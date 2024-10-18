@@ -60,7 +60,7 @@
             </div>
         </div>
         <div class="ui styled accordion full-width-card card carbondb-data">
-            <div class="title">
+            <div id="show-filters" class="title">
                 <i class="dropdown icon"></i> Show Filters <i class="filter icon"></i>
                 <span id="filters-active" class="ui blue message float-right" style="margin: 0; display:none;"><i class="info icon"></i> Filters are active! Open Dropdown for details </span>
             </div>
@@ -145,7 +145,7 @@
                             <div class="ui calendar" id="rangestart">
                                 <div class="ui input left icon">
                                     <i class="calendar icon"></i>
-                                    <input type="text" placeholder="Start">
+                                    <input name="range_start" type="text" placeholder="Start">
                                 </div>
                             </div>
                         </div>
@@ -154,7 +154,7 @@
                             <div class="ui calendar" id="rangeend">
                                 <div class="ui input left icon">
                                     <i class="calendar icon"></i>
-                                    <input type="text" placeholder="End">
+                                    <input name="range_end" type="text" placeholder="End">
                                 </div>
                             </div>
                         </div>

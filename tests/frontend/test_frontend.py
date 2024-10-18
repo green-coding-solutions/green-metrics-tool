@@ -5,12 +5,15 @@ import time
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
 
 from lib.global_config import GlobalConfig
+from lib.db import DB
 
 from tests import test_functions as Tests
 from playwright.sync_api import sync_playwright
 
 page = None
 context = None
+playwright = None
+browser = None
 
 ## Reset DB only once after module
 #pylint: disable=unused-argument
@@ -18,26 +21,37 @@ context = None
 def setup_and_cleanup_module():
     # before
 
-    global page #pylint: disable=global-statement
-    global context #pylint: disable=global-statement
+    global playwright #pylint: disable=global-statement
     # start only one browser for whole file
     playwright = sync_playwright().start()
-    browser = playwright.firefox.launch()
-    context = browser.new_context(viewport={"width": 1920, "height": 5600})
-    page = context.new_page()
-    page.set_default_timeout(5_000)
 
     Tests.import_demo_data()
     yield
 
     # after
-    browser.close()
     playwright.stop()
 
     Tests.reset_db()
 
+# will run after every test.
+# We must close the browser to clear localStorage
+@pytest.fixture(autouse=True)
+def setup_and_cleanup_test():
+    global page #pylint: disable=global-statement
+    global context #pylint: disable=global-statement
+    global browser #pylint: disable=global-statement
+
+    browser = playwright.firefox.launch()
+    context = browser.new_context(viewport={"width": 1920, "height": 5600})
+    page = context.new_page()
+    page.set_default_timeout(3_000)
+    yield
+    page.close()
+    browser.close()
+
 
 def test_home():
+
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     value = page.locator("#runs-table > tbody > tr:nth-child(2) > td:nth-child(1) > a").text_content()
@@ -45,13 +59,14 @@ def test_home():
     assert value== 'Stress Test #4'
 
 def test_ci():
+
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     page.get_by_role("link", name="Eco-CI").click()
 
     page.locator("#repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
     page.locator('#DataTables_Table_0 > tbody > tr > td.sorting_1 > a').click()
 
-    time.sleep(2) # wait for input defaults to be filled
+    page.wait_for_load_state("load") # ALL JS should be done
 
     page.locator("input[name=range_start]").fill('2024-09-11')
     page.locator("input[name=range_end]").fill('2024-10-11')
@@ -99,6 +114,7 @@ def test_ci():
 
 
 def test_stats():
+
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
 
     with context.expect_page() as new_page_info:
@@ -106,7 +122,7 @@ def test_stats():
 
     # Get the new page (tab)
     new_page = new_page_info.value
-    new_page.set_default_timeout(5_000)
+    new_page.set_default_timeout(3_000)
 
     # open details
     new_page.locator('a.step[data-tab="[RUNTIME]"]').click()
@@ -158,10 +174,11 @@ def test_stats():
 
 
 def test_repositories_and_compare():
+
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     page.get_by_role("link", name="Repositories").click()
     page.locator('.ui.accordion div.title').click()
-    page.locator('.dataTables_info').wait_for(timeout=5_000) # wait for accordion to fetch XHR and open
+    page.locator('.dataTables_info').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
 
     elements = page.query_selector_all("input[type=checkbox]")  # Replace with your selector
     for element in elements:
@@ -171,7 +188,7 @@ def test_repositories_and_compare():
         page.locator('#compare-button').click()
 
     new_page = new_page_info.value
-    new_page.set_default_timeout(5_000)
+    new_page.set_default_timeout(3_000)
 
     comparison_type = new_page.locator('#run-data-top > tbody:nth-child(1) > tr > td:nth-child(2)').text_content()
     assert comparison_type == 'Repeated Run'
@@ -218,16 +235,17 @@ def test_repositories_and_compare():
 
 
 def test_timeline():
+
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     page.get_by_role("link", name="Energy Timeline").click()
     with context.expect_page() as new_page_info:
         page.get_by_role("link", name=" Show Timeline").click()
 
     new_page = new_page_info.value
-    new_page.set_default_timeout(5_000)
+    new_page.set_default_timeout(3_000)
 
     # test before refresh - data missing - Beware that if demo data is updated with new date this might break!
-    time.sleep(2)
+    new_page.wait_for_load_state("load") # ALL JS should be done
     new_page.locator('.ui.active.dimmer') # will be removed after
 
     new_page.locator("a.item[data-tab=two]").click()
@@ -244,6 +262,7 @@ def test_timeline():
 
 
 def test_status():
+
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     page.get_by_role("link", name="Status").click()
 
@@ -258,8 +277,11 @@ def test_status():
 
 
 def test_settings():
+
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     page.get_by_role("link", name="Settings").click()
+
+    page.wait_for_load_state("load") # ALL JS should be done
 
     energy_display = page.locator('#energy-display').text_content()
     assert energy_display.strip() == 'Currently showing Joules'
@@ -279,15 +301,84 @@ def test_settings():
 
 def test_carbondb_display():
 
+
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     page.get_by_role("link", name="CarbonDB").click()
 
-    page.locator('#carbondb-barchart-carbon-chart canvas').wait_for(timeout=5_000) # will wait for
+    page.locator('#carbondb-barchart-carbon-chart canvas').wait_for(timeout=3_000) # will wait for
+
+    page.locator('#show-filters').click()
+
+    page.locator("input[name=range_start]").fill('2024-10-01')
+    page.locator("input[name=range_end]").fill('2024-10-31')
+    page.get_by_role("button", name="Refresh").click()
+
+    page.locator('#carbondb-barchart-carbon-chart canvas').wait_for(timeout=3_000) # will wait for
+
     total_carbon = page.locator('#total-carbon').text_content()
     assert total_carbon.strip() == '1477.00'
 
+def test_carbondb_manual_add():
+
+    try:
+        DB().query('''
+            INSERT INTO carbondb_data(id, type,project,machine,source,tags,date,energy_kwh_sum,carbon_kg_sum,carbon_intensity_g_avg,record_count,user_id)
+            VALUES
+            (3000, 1,1,1,1,ARRAY[]::int[],E'2024-10-10',1.25e3,300,283,7,1);
+        ''')
+
+
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+        page.get_by_role("link", name="CarbonDB").click()
+
+        page.screenshot(path="problem.png")
+        page.locator('#carbondb-barchart-carbon-chart canvas').wait_for(timeout=3_000) # will wait for
+
+        page.locator('#show-filters').click()
+
+        page.locator("input[name=range_start]").fill('2024-10-01')
+        page.locator("input[name=range_end]").fill('2024-10-31')
+        page.get_by_role("button", name="Refresh").click()
+
+        page.locator('#carbondb-barchart-carbon-chart canvas').wait_for(timeout=3_000) # will wait for
+
+        total_carbon = page.locator('#total-carbon').text_content()
+        assert total_carbon.strip() == '1777.00'
+
+    finally:
+        DB().query('DELETE FROM carbondb_data WHERE id = 3000;')
+
+
+def test_carbondb_display_xss_tags():
+
+    try:
+        DB().query('''
+            INSERT INTO carbondb_tags(id,tag,user_id)
+            VALUES (999,'<script>alert(XSS);</script>',1);
+            INSERT INTO carbondb_data(id,type,project,machine,source,tags,date,energy_kwh_sum,carbon_kg_sum,carbon_intensity_g_avg,record_count,user_id)
+            VALUES
+            (3000,1,1,1,1,ARRAY[999],E'2024-10-10',1.25e3,300,283,7,1);
+        ''')
+
+
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+        page.get_by_role('link', name="CarbonDB").click()
+
+        page.locator('#carbondb-barchart-carbon-chart canvas').wait_for(timeout=3_000) # will wait for
+
+        page.locator('#show-filters').click()
+
+        all_tags = page.locator('#tags-include').locator("option").evaluate_all("options => options.map(option => option.textContent)")
+        assert '<script>alert(XSS);</script>' not in all_tags
+        assert '&lt;script&gt;alert(XSS);&lt;/script&gt;' in all_tags
+
+
+    finally:
+        DB().query('DELETE FROM carbondb_data WHERE id = 3000;')
+
 def test_carbondb_no_display_different_user():
     Tests.insert_user(234, 'NO-CARBONDB')
+
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     page.get_by_role("link", name="Authentication").click()

@@ -33,8 +33,7 @@ from api.object_specifications import Measurement
 from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics, carbondb_add, determine_comparison_case,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value, get_timeline_query,
-                         get_run_info, get_machine_list, get_artifact, store_artifact,
-                         validate_carbondb_params)
+                         get_run_info, get_machine_list, get_artifact, store_artifact)
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -1429,14 +1428,6 @@ class EnergyData(BaseModel):
             return None
         return values
 
-    @field_validator('tags')
-    @classmethod
-    def validate_tags_param(cls, values, _):
-        if not values or values == '':
-            return None
-        validate_carbondb_params('tags', values)
-        return values
-
 
 @app.post('/v1/carbondb/add')
 async def add_carbondb_deprecated():
@@ -1493,70 +1484,60 @@ async def carbondb_get(
     tags_include_condition = ''
     if tags_include:
         tags_include_list = tags_include.split(',')
-        validate_carbondb_params('tags_include', tags_include_list)
         tags_include_condition = f" AND cedd.tags @> ARRAY[{','.join(['%s::integer']*len(tags_include_list))}]"
         params = params + tags_include_list
 
     tags_exclude_condition = ''
     if tags_exclude:
         tags_exclude_list = tags_exclude.split(',')
-        validate_carbondb_params('tags_exclude', tags_exclude_list)
         tags_exclude_condition = f" AND cedd.tags NOT @> ARRAY[{','.join(['%s::integer']*len(tags_exclude_list))}]"
         params = params + tags_exclude_list
 
     machines_include_condition = ''
     if machines_include:
         machines_include_list = machines_include.split(',')
-        validate_carbondb_params('machines_include', machines_include_list)
         machines_include_condition = f" AND cedd.machine IN ({','.join(['%s']*len(machines_include_list))})"
         params = params + machines_include_list
 
     machines_exclude_condition = ''
     if machines_exclude:
         machines_exclude_list = machines_exclude.split(',')
-        validate_carbondb_params('machines_exclude', machines_exclude_list)
         machines_exclude_condition = f" AND cedd.machine NOT IN ({','.join(['%s']*len(machines_exclude_list))})"
         params = params + machines_exclude_list
 
     types_include_condition = ''
     if types_include:
         types_include_list = types_include.split(',')
-        validate_carbondb_params('types_include', types_include_list)
         types_include_condition = f" AND cedd.type IN ({','.join(['%s']*len(types_include_list))})"
         params = params + types_include_list
 
     types_exclude_condition = ''
     if types_exclude:
         types_exclude_list = types_exclude.split(',')
-        validate_carbondb_params('types_exclude', types_exclude_list)
         types_exclude_condition = f" AND cedd.type NOT IN ({','.join(['%s']*len(types_exclude_list))})"
         params = params + types_exclude_list
 
     projects_include_condition = ''
     if projects_include:
         projects_include_list = projects_include.split(',')
-        validate_carbondb_params('projects_include', projects_include_list)
         projects_include_condition = f" AND cedd.project IN ({','.join(['%s']*len(projects_include_list))})"
         params = params + projects_include_list
 
     projects_exclude_condition = ''
     if projects_exclude:
         projects_exclude_list = projects_exclude.split(',')
-        validate_carbondb_params('projects_exclude', projects_exclude_list)
         projects_exclude_condition = f" AND cedd.project NOT IN ({','.join(['%s']*len(projects_exclude_list))})"
         params = params + projects_exclude_list
 
     sources_include_condition = ''
     if sources_include:
         sources_include_list = sources_include.split(',')
-        validate_carbondb_params('sources_include', sources_include_list)
         sources_include_condition = f" AND cedd.source IN ({','.join(['%s']*len(sources_include_list))})"
         params = params + sources_include_list
 
     sources_exclude_condition = ''
     if sources_exclude:
         sources_exclude_list = sources_exclude.split(',')
-        validate_carbondb_params('sources_exclude', sources_exclude_list)
         sources_exclude_condition = f" AND cedd.source NOT IN ({','.join(['%s']*len(sources_exclude_list))})"
         params = params + sources_exclude_list
 

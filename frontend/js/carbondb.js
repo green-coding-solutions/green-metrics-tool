@@ -380,8 +380,8 @@ const getMeasurements = async () => {
 const populatePossibleFilters = (filters) => {
     for (dimension in filters.data) {
         for (element in filters.data[dimension]) {
-            document.querySelector(`#${dimension}-include`).appendChild(new Option(filters.data[dimension][element], element));
-            document.querySelector(`#${dimension}-exclude`).appendChild(new Option(filters.data[dimension][element], element));
+            document.querySelector(`#${dimension}-include`).appendChild(new Option(escapeString(filters.data[dimension][element]), element));
+            document.querySelector(`#${dimension}-exclude`).appendChild(new Option(escapeString(filters.data[dimension][element]), element));
         }
     }
 }
@@ -392,7 +392,7 @@ const selectFilters = (selector, param) => {
     if (query_params.length <= 0) return;
 
     const values = query_params[0].split(',');
-    $(selector).dropdown('set exactly', values);
+    $(selector).dropdown('set exactly', escapeString(values));
 }
 
 

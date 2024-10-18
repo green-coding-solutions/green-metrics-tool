@@ -105,13 +105,15 @@ def test_carbondb_non_int():
     assert response.status_code == 422
     assert response.text == '{"success":false,"err":[{"type":"string_type","loc":["body","project"],"msg":"Input should be a valid string","input":678},{"type":"string_type","loc":["body","machine"],"msg":"Input should be a valid string","input":9},{"type":"string_type","loc":["body","type"],"msg":"Input should be a valid string","input":123},{"type":"int_parsing","loc":["body","time"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-time"},{"type":"int_parsing","loc":["body","energy_uj"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-int"}],"body":{"type":123,"energy_uj":"no-int","time":"no-time","company":345,"project":678,"machine":9}}'
 
-def test_carbondb_invalid_tags():
+def test_carbondb_weird_tags():
     energydata_modified = energydata.copy()
     energydata_modified['tags'] = ['öla', '<asd>']
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
-    assert response.status_code == 422
-    assert "Parameter for 'tags' may only contain A-Za-z0-9._- characters and no spaces" in response.text
+    assert response.status_code == 204
+
+    data = DB().fetch_one('SELECT tags FROM carbondb_data_raw', fetch_mode='dict')
+    assert data['tags'] == energydata_modified['tags']
 
 
 def test_carbondb_no_filters():
