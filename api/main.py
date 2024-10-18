@@ -1288,7 +1288,7 @@ async def post_ci_measurement_add(
 
     DB().query(query=query, params=params)
 
-    return ORJSONResponse({'success': True}, status_code=201)
+    return ORJSONResponse({'success': True}, status_code=200)
 
 @app.get('/v1/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date):
