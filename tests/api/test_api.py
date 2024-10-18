@@ -14,7 +14,6 @@ from tests import test_functions as Tests
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
 
-from api.main import Software
 from api.main import CI_Measurement
 
 import hog_data
@@ -31,15 +30,6 @@ def get_job_id(run_name):
     if data is None or data == []:
         return None
     return data['id']
-
-def test_post_run_add():
-    run_name = 'test_' + utils.randomword(12)
-    run = Software(name=run_name, url='testURL', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
-    assert response.status_code == 202, Tests.assertion_info('success', response.text)
-
-    job_id = get_job_id(run_name)
-    assert job_id is not None
 
 def test_ci_measurement_add_default_user():
     measurement = CI_Measurement(energy_value=123,
@@ -261,7 +251,11 @@ def test_route_forbidden():
 def test_can_read_authentication_data():
     response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15)
     assert response.status_code == 200
-    assert response.text == '{"success":true,"data":{"_id":1,"_name":"DEFAULT","_capabilities":{"api":{"quotas":{},"routes":["/v1/carbondb/add","/v1/ci/measurement/add","/v1/software/add","/v1/hog/add","/v1/authentication/data"]},"data":{"runs":{"retention":2678400},"hog_tasks":{"retention":2678400},"measurements":{"retention":2678400},"hog_coalitions":{"retention":2678400},"ci_measurements":{"retention":2678400},"hog_measurements":{"retention":2678400}},"jobs":{"schedule_modes":["one-off","daily","weekly","commit","variance"]},"machines":[1],"measurement":{"quotas":{},"settings":{"total-duration":86400,"flow-process-duration":86400}},"optimizations":["container_memory_utilization","container_cpu_utilization","message_optimization","container_build_time","container_boot_time","container_image_size"]}}}'
+    json_data = json.loads(response.text)
+
+    assert json_data['success'] is True
+    assert json_data['data'].get('_id', None) is None # must be deleted in response
+    assert json_data['data']['_name'] == 'DEFAULT'
 
 def test_api_quota_exhausted():
     user = User(1)

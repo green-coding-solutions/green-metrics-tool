@@ -1526,7 +1526,7 @@ async def carbondb_get_company_project_details(cptype: str, uuid: str):
 
 @app.get('/v1/authentication/data')
 async def read_authentication_token(user: User = Depends(authenticate)):
-    return ORJSONResponse({'success': True, 'data': user.__dict__})
+    return ORJSONResponse({'success': True, 'data': user.to_dict() })
 
 
 
