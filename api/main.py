@@ -1422,7 +1422,7 @@ class EnergyData(BaseModel):
     carbon_intensity_g: Optional[int] = None # value is in g/kWh
     ip: Optional[str] = None
 
-    @field_validator('carbon_intensity_g', 'ip')
+    @field_validator('ip')
     @classmethod
     def empty_str_to_none(cls, values, _):
         if not values or values.strip() == '':
