@@ -48,4 +48,4 @@ def test_alternative_user():
 
     response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15, headers={'X-Authentication': 'PYTEST'})
     assert response.status_code == 200
-    assert json.loads(response.text)['data']['_id'] == 300
+    assert json.loads(response.text)['data']['_name'] == 'PYTEST'

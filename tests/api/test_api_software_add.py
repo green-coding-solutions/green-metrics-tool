@@ -15,8 +15,6 @@ API_URL = GlobalConfig().config['cluster']['api_url']
 
 from api.main import Software
 
-# TODO: Due to a waiting merge these tests are in a single file. Merge into the test_api_base if done
-
 def test_post_run_add_github_one_off():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
