@@ -19,7 +19,6 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
-
 from datetime import date
 
 from starlette.responses import RedirectResponse
@@ -46,6 +45,7 @@ from lib.job.base import Job
 from lib.user import User, UserAuthenticationError
 from lib.secure_variable import SecureVariable
 from lib.timeline_project import TimelineProject
+from lib import utils
 
 from enum import Enum
 ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
@@ -916,7 +916,7 @@ async def hog_get_top_processes():
 async def hog_get_machine_details(machine_uuid: str):
 
     if machine_uuid is None or not is_valid_uuid(machine_uuid):
-        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty or malformed'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty or malformed'}, status_code=422)
 
     query = """
         SELECT
@@ -944,13 +944,13 @@ async def hog_get_machine_details(machine_uuid: str):
 async def hog_get_coalitions_tasks(machine_uuid: str, measurements_id_start: int, measurements_id_end: int):
 
     if machine_uuid is None or not is_valid_uuid(machine_uuid):
-        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty'}, status_code=422)
 
     if measurements_id_start is None:
-        return ORJSONResponse({'success': False, 'err': 'measurements_id_start is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_start is empty'}, status_code=422)
 
     if measurements_id_end is None:
-        return ORJSONResponse({'success': False, 'err': 'measurements_id_end is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_end is empty'}, status_code=422)
 
 
     coalitions_query = """
@@ -1001,16 +1001,16 @@ async def hog_get_coalitions_tasks(machine_uuid: str, measurements_id_start: int
 async def hog_get_task_details(machine_uuid: str, measurements_id_start: int, measurements_id_end: int, coalition_name: str):
 
     if machine_uuid is None or not is_valid_uuid(machine_uuid):
-        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty'}, status_code=422)
 
     if measurements_id_start is None:
-        return ORJSONResponse({'success': False, 'err': 'measurements_id_start is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_start is empty'}, status_code=422)
 
     if measurements_id_end is None:
-        return ORJSONResponse({'success': False, 'err': 'measurements_id_end is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_end is empty'}, status_code=422)
 
     if coalition_name is None or not coalition_name.strip():
-        return ORJSONResponse({'success': False, 'err': 'coalition_name is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'coalition_name is empty'}, status_code=422)
 
     tasks_query = """
         SELECT
@@ -1105,17 +1105,27 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if not user.can_use_machine(software.machine_id):
         raise RequestValidationError('Your user does not have the permissions to use that machine.')
 
-    if software.schedule_mode not in ['one-off', 'daily', 'weekly', 'commit', 'variance']:
+    if software.schedule_mode not in ['one-off', 'daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance', 'variance']:
         raise RequestValidationError(f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")
 
     if not user.can_schedule_job(software.schedule_mode):
         raise RequestValidationError('Your user does not have the permissions to use that schedule mode.')
 
-    if software.schedule_mode in ['daily', 'weekly', 'commit']:
-        TimelineProject.insert(name=software.name, url=software.url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, user_id=user._id, schedule_mode=software.schedule_mode)
+    utils.check_repo(software.url) # if it exists through the git api
 
-    # even for timeline projects we do at least one run
-    amount = 10 if software.schedule_mode == 'variance' else 1
+    if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
+
+        last_marker = None
+        if 'tag' in software.schedule_mode:
+            last_marker = utils.get_repo_last_marker(software.url, 'tags')
+
+        if 'commit' in software.schedule_mode:
+            last_marker = utils.get_repo_last_marker(software.url, 'commits')
+
+        TimelineProject.insert(name=software.name, url=software.url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
+
+    # even for timeline projects we do at least one run directly
+    amount = 3 if 'variance' in software.schedule_mode else 1
     for _ in range(0,amount):
         Job.insert('run', user_id=user._id, name=software.name, url=software.url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id)
 
@@ -1459,7 +1469,7 @@ async def add_carbondb(
 async def carbondb_get_machine_details(machine_uuid: str):
 
     if machine_uuid is None or not is_valid_uuid(machine_uuid):
-        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty or malformed'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty or malformed'}, status_code=422)
 
     query = """
         SELECT
@@ -1481,10 +1491,10 @@ async def carbondb_get_machine_details(machine_uuid: str):
 async def carbondb_get_company_project_details(cptype: str, uuid: str):
 
     if uuid is None or not is_valid_uuid(uuid):
-        return ORJSONResponse({'success': False, 'err': 'uuid is empty or malformed'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'uuid is empty or malformed'}, status_code=422)
 
     if cptype.lower() != 'project' and cptype.lower() != 'company':
-        return ORJSONResponse({'success': False, 'err': 'type needs to be company or project'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'type needs to be company or project'}, status_code=422)
 
     query = f"""
         SELECT

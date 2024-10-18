@@ -90,10 +90,13 @@
                             <select name="schedule_mode" class="ui fluid dropdown" required>
                                 <option value=''>-- Select measurement interval --</option>
                                 <option value='one-off'>One-Off [Free - Fair use]</option>
+                                <option value='variance'>Variance test (3 measurements in a row) [Premium]</option>
                                 <option value='daily'>Once per day [Premium / Free open source tier]</option>
                                 <option value='weekly'>Once per week [Premium / Free open source tier]</option>
-                                <option value='commit'>On every commit [Premium]</option>
-                                <option value='variance'>Variance test (10 measurements in a row) [Premium]</option>
+                                <option value='commit'>On every new commit [Premium]</option>
+                                <option value='commit-variance'>Test variance on every new commit (3 measurements in a row) [Premium]</option>
+                                <option value='tag'>On every new tag [Premium]</option>
+                                <option value='tag-variance'>Test variance on every new tag (3 measurements in a row) [Premium]</option>
                             </select>
                         </div>
                         <button class="positive ui button">Submit software</button>
