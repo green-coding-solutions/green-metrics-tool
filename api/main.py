@@ -1229,6 +1229,13 @@ class CI_Measurement(BaseModel):
             raise RequestValidationError(f"{data.field_name} must be set and not empty")
         return values
 
+    @field_validator('filter_type', 'filter_project', 'filter_machine', 'filter_tags')
+    @classmethod
+    def empty_str_to_none(cls, values, _):
+        if not values or values.strip() == '':
+            return None
+        return values
+
 
 @app.post('/v1/ci/measurement/add')
 async def add_ci_deprecated():
@@ -1419,7 +1426,7 @@ class EnergyData(BaseModel):
     @field_validator('carbon_intensity_g', 'ip')
     @classmethod
     def empty_str_to_none(cls, values, _):
-        if not values or values == '':
+        if not values or values.strip() == '':
             return None
         return values
 
