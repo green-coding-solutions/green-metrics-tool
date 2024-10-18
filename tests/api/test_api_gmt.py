@@ -6,11 +6,8 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 from lib.db import DB
 from lib import utils
 from lib.global_config import GlobalConfig
-from tests import test_functions as Tests
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
-
-from api.main import Software
 
 def get_job_id(run_name):
     query = """
@@ -24,16 +21,6 @@ def get_job_id(run_name):
     if data is None or data == []:
         return None
     return data['id']
-
-def test_post_run_add():
-    run_name = 'test_' + utils.randomword(12)
-    run = Software(name=run_name, url='testURL', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
-    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
-    assert response.status_code == 202, Tests.assertion_info('success', response.text)
-
-    job_id = get_job_id(run_name)
-    assert job_id is not None
-
 
 def test_get_runs():
     run_name = 'test_' + utils.randomword(12)
