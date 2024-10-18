@@ -9,8 +9,7 @@ from tests import test_functions as Tests
 
 from api.main import CI_Measurement
 
-config = GlobalConfig(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml").config
-API_URL = config['cluster']['api_url']
+API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
 
 def test_ci_measurement_add_default_user():
     measurement = CI_Measurement(energy_value=123,
