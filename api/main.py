@@ -549,7 +549,7 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         badge_value = 'No energy data yet'
     else:
-        [energy_value, energy_unit] = rescale_energy_value(data[0], data[1])
+        [energy_value, energy_unit] = rescale_energy_value(data[0], 'uJ')
         badge_value= f"{energy_value:.2f} {energy_unit} {via}"
 
     badge = anybadge.Badge(
@@ -1301,7 +1301,7 @@ async def post_ci_measurement_add(
 async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date):
 
     query = """
-        SELECT energy_value, energy_unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg,
+        SELECT energy_uj, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg,
                (SELECT workflow_name FROM ci_measurements AS latest_workflow
                 WHERE latest_workflow.repo = ci_measurements.repo
                 AND latest_workflow.branch = ci_measurements.branch
@@ -1385,7 +1385,7 @@ async def get_ci_runs(repo: str, sort_by: str = 'name'):
 @app.get('/v1/ci/badge/get')
 async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
-        SELECT SUM(energy_value), MAX(energy_unit), MAX(run_id)
+        SELECT SUM(energy_uj), MAX(run_id)
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow_id = %s
         GROUP BY run_id
@@ -1400,9 +1400,8 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
         return Response(status_code=204) # No-Content
 
     energy_value = data[0]
-    energy_unit = data[1]
 
-    [energy_value, energy_unit] = rescale_energy_value(energy_value, energy_unit)
+    [energy_value, energy_unit] = rescale_energy_value(energy_value, 'uJ')
     badge_value= f"{energy_value:.2f} {energy_unit}"
 
     badge = anybadge.Badge(

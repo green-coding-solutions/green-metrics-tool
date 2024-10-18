@@ -56,19 +56,16 @@ def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
 #
 def rescale_energy_value(value, unit):
     # We only expect values to be mJ for energy!
-    if unit != 'mJ' and not unit.startswith('ugCO2e/'):
+    if unit != 'uJ' and not unit.startswith('ugCO2e/'):
         raise RuntimeError('Unexpected unit occured for energy rescaling: ', unit)
 
     unit_type = unit[1:]
 
-    if unit.startswith('ugCO2e'): # bring also to mg
-        value = value / (10**3)
-        unit = f"m{unit_type}"
-
-    if value > 1_000_000_000: return [value/(10**12), f"G{unit_type}"]
-    if value > 1_000_000_000: return [value/(10**9), f"M{unit_type}"]
-    if value > 1_000_000: return [value/(10**6), f"k{unit_type}"]
-    if value > 1_000: return [value/(10**3), f"{unit_type}"]
+    if value > 1_000_000_000_000_000: return [value/(10**15), f"G{unit_type}"]
+    if value > 1_000_000_000_000: return [value/(10**12), f"M{unit_type}"]
+    if value > 1_000_000_000: return [value/(10**9), f"k{unit_type}"]
+    if value > 1_000_000: return [value/(10**6), f"{unit_type}"]
+    if value > 1_000: return [value/(10**3), f"m{unit_type}"]
     if value < 0.001: return [value*(10**3), f"n{unit_type}"]
 
     return [value, unit] # default, no change
