@@ -1,20 +1,21 @@
 import typing
-import io
 import ipaddress
 import json
 import uuid
 import faulthandler
 from functools import cache
 from html import escape as html_escape
+import re
+
+faulthandler.enable()  # will catch segfaults and write to STDERR
+
 from starlette.background import BackgroundTask
-from fastapi.exceptions import RequestValidationError
 from fastapi.responses import ORJSONResponse
 import numpy as np
 import requests
 import scipy.stats
 from pydantic import BaseModel
 
-faulthandler.enable()  # will catch segfaults and write to STDERR
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -47,21 +48,24 @@ def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
     except redis.RedisError as e:
         error_helpers.log_error('Redis store_artifact failed', exception=e)
 
+
+# Note
+# ---------------
+# Use this function never in the phase_stats. The metrics must always be on
+# The same unit for proper comparison!
+#
 def rescale_energy_value(value, unit):
     # We only expect values to be mJ for energy!
-    if unit != 'mJ' and not unit.startswith('ugCO2e/'):
+    if unit != 'uJ' and not unit.startswith('ugCO2e/'):
         raise RuntimeError('Unexpected unit occured for energy rescaling: ', unit)
 
     unit_type = unit[1:]
 
-    if unit.startswith('ugCO2e'): # bring also to mg
-        value = value / (10**3)
-        unit = f"m{unit_type}"
-
-    if value > 1_000_000_000: return [value/(10**12), f"G{unit_type}"]
-    if value > 1_000_000_000: return [value/(10**9), f"M{unit_type}"]
-    if value > 1_000_000: return [value/(10**6), f"k{unit_type}"]
-    if value > 1_000: return [value/(10**3), f"{unit_type}"]
+    if value > 1_000_000_000_000_000: return [value/(10**15), f"G{unit_type}"]
+    if value > 1_000_000_000_000: return [value/(10**12), f"M{unit_type}"]
+    if value > 1_000_000_000: return [value/(10**9), f"k{unit_type}"]
+    if value > 1_000_000: return [value/(10**6), f"{unit_type}"]
+    if value > 1_000: return [value/(10**3), f"m{unit_type}"]
     if value < 0.001: return [value*(10**3), f"n{unit_type}"]
 
     return [value, unit] # default, no change
@@ -476,6 +480,9 @@ def get_phase_stats_object(phase_stats, case):
                 #'is_significant': None,  # currently no use for that
                 'data': {},
             }
+        elif phase_stats_object['data'][phase][metric_name]['unit'] != unit:
+            raise RuntimeError(f"Metric cannot be compared as units have changed: {unit} vs. {phase_stats_object['data'][phase][metric_name]['unit']}")
+
 
         if detail_name not in phase_stats_object['data'][phase][metric_name]['data']:
             phase_stats_object['data'][phase][metric_name]['data'][detail_name] = {
@@ -763,47 +770,40 @@ def get_carbon_intensity(latitude, longitude):
 
     return None
 
-def carbondb_add(client_ip, energydatas, user_id):
+def carbondb_add(connecting_ip, data, source, user_id):
 
-    data_rows = []
+    query = '''
+            INSERT INTO carbondb_data_raw
+                ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
+            VALUES
+                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+    '''
 
-    for e in energydatas:
+    used_client_ip = data.get('ip', None) # An ip has been given with the data. We prioritize that
+    if used_client_ip is None:
+        used_client_ip = connecting_ip
 
-        if not isinstance(e, dict):
-            e = e.dict()
+    carbon_intensity_g_per_kWh = data.get('carbon_intensity_g', None)
 
-        e = html_escape_multi(e)
+    if carbon_intensity_g_per_kWh is not None: # we need this check explicitely as we want to allow 0 as possible value
+        latitude = None # no use to derive if we get supplied data. We rather indicate with NULL that user supplied
+        longitude = None # no use to derive if we get supplied data. We rather indicate with NULL that user supplied
+    else:
+        latitude, longitude = get_geo(used_client_ip) # cached
+        carbon_intensity_g_per_kWh = get_carbon_intensity(latitude, longitude) # cached
 
-        fields_to_check = {
-            'type': e['type'],
-            'energy_value': e['energy_value'], # is expected to be in J
-            'time_stamp': e['time_stamp'], # is expected to be in microseconds
-        }
+    energy_J = float(data['energy_uj']) / 1e6
+    energy_kWh = energy_J / (3_600*1_000)
+    carbon_kg = energy_kWh * carbon_intensity_g_per_kWh
 
-        for field_name, field_value in fields_to_check.items():
-            if field_value is None or str(field_value).strip() == '':
-                raise RequestValidationError(f"{field_name.capitalize()} is empty. Ignoring everything!")
+    DB().query(
+        query=query,
+        params=(
+            data['type'],
+            data['project'], data['machine'], source, data['tags'], data['time'], energy_kWh, carbon_kg, carbon_intensity_g_per_kWh, latitude, longitude, used_client_ip, user_id))
 
-        if 'ip' in e: # An ip has been given with the data. We prioritize that
-            latitude, longitude = get_geo(e['ip']) # cached
-            carbon_intensity = get_carbon_intensity(latitude, longitude) # cached
-        else:
-            latitude, longitude = get_geo(client_ip) # cached
-            carbon_intensity = get_carbon_intensity(latitude, longitude) # cached
 
-        energy_kwh = float(e['energy_value']) * 2.77778e-7 # kWh
-        co2_value = energy_kwh * carbon_intensity # results in g
-
-        company_uuid = e['company'] if e['company'] is not None else ''
-        project_uuid = e['project'] if e['project'] is not None else ''
-        tags_clean = "{" + ",".join([f'"{tag.strip()}"' for tag in e['tags'].split(',') if e['tags']]) + "}" if e['tags'] is not None else ''
-
-        row = f"{e['type']}|{company_uuid}|{e['machine']}|{project_uuid}|{tags_clean}|{int(e['time_stamp'])}|{e['energy_value']}|{co2_value}|{carbon_intensity}|{latitude}|{longitude}|{client_ip}|{user_id}"
-        data_rows.append(row)
-
-    data_str = "\n".join(data_rows)
-    data_file = io.StringIO(data_str)
-
-    columns = ['type', 'company', 'machine', 'project', 'tags', 'time_stamp', 'energy_value', 'co2_value', 'carbon_intensity', 'latitude', 'longitude', 'ip_address', 'user_id']
-
-    DB().copy_from(file=data_file, table='carbondb_energy_data', columns=columns, sep='|')
+def validate_carbondb_params(param, elements: list):
+    for el in elements:
+        if not re.fullmatch(r'[A-Za-z0-9\._-]+', el):
+            raise ValueError(f"Parameter for '{param}' may only contain A-Za-z0-9._- characters and no spaces. Was: {el}")

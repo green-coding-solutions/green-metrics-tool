@@ -82,13 +82,11 @@ const createStatsArrays = (measurements) => {  // iterates 2n times (1 full, 1 b
     };
 
     measurements.forEach(measurement => {
-        const run_id = measurement[2]
-        const energy = measurement[0] / 1000 // will make J
-        const time = measurement[7]
-        const cpuUtil = measurement[9]
-        const label = measurement[4]
-        const co2i = parseInt(measurement[14])
-        const co2eq = parseFloat(measurement[15])
+        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util, workflow_name, lat, lon, city, co2i, co2eq] = measurement;
+
+        const energy_J = energy_uj / 1000000; // will make J
+        co2i = parseInt(co2i);
+        co2eq = parseFloat(co2eq);
 
         if (!measurementsByLabel[label]) {
             measurementsByLabel[label] = {
@@ -110,17 +108,17 @@ const createStatsArrays = (measurements) => {  // iterates 2n times (1 full, 1 b
             };
         }
 
-        if (energy != null) {
-            measurementsByLabel[label].energy.push(energy);
-            measurementsByRun[run_id].energy.push(energy);
+        if (energy_J != null) {
+            measurementsByLabel[label].energy.push(energy_J);
+            measurementsByRun[run_id].energy.push(energy_J);
         }
-        if (time != null) {
-            measurementsByLabel[label].time.push(time);
-            measurementsByRun[run_id].time.push(time);
+        if (duration != null) {
+            measurementsByLabel[label].time.push(duration);
+            measurementsByRun[run_id].time.push(duration);
         }
-        if (cpuUtil != null) {
-            measurementsByLabel[label].cpu_util.push(cpuUtil);
-            measurementsByRun[run_id].cpu_util.push(cpuUtil);
+        if (cpu_util != null) {
+            measurementsByLabel[label].cpu_util.push(cpu_util);
+            measurementsByRun[run_id].cpu_util.push(cpu_util);
         }
         if (co2eq != null && !isNaN(co2eq)) {
             measurementsByLabel[label].co2eq.push(co2eq);
@@ -202,14 +200,14 @@ const getChartOptions = (measurements) => {
     const labels = []
 
     measurements.forEach(measurement => { // iterate over all measurements, which are in row order
-        let [value, unit, run_id, timestamp, label, cpu, commit_hash, duration, source, cpu_util, workflow_name, lat, lon, city, co2i, co2eq] = measurement;
+        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util, workflow_name, lat, lon, city, co2i, co2eq] = measurement;
         cpu_util = cpu_util ? cpu_util : '--';
         options.series.push({
             type: 'bar',
             smooth: true,
             stack: run_id,
             name: cpu,
-            data: [value],
+            data: [energy_uj/1000000],
             itemStyle: {
                 borderWidth: .5,
                 borderColor: '#000000',
@@ -218,14 +216,14 @@ const getChartOptions = (measurements) => {
         legend.add(cpu)
 
         labels.push({
-            value: value,
-            unit: unit,
+            value: energy_uj/(1000000),
+            unit: 'J',
             run_id: run_id,
             labels: [label],
             cpu_util: cpu_util,
             duration: duration,
             commit_hash: commit_hash,
-            timestamp: dateToYMD(new Date(timestamp)),
+            created_at: dateToYMD(new Date(created_at)),
             lat: lat,
             lon: lon,
             city: city,
@@ -246,9 +244,9 @@ const getChartOptions = (measurements) => {
         formatter: function (params, ticket, callback) {
             return `<strong>${escapeString(labels[params.componentIndex].labels[params.dataIndex])}</strong><br>
                     run_id: ${escapeString(labels[params.componentIndex].run_id)}<br>
-                    timestamp: ${labels[params.componentIndex].timestamp}<br>
+                    created_at: ${labels[params.componentIndex].created_at}<br>
                     commit_hash: ${escapeString(labels[params.componentIndex].commit_hash)}<br>
-                    value: ${escapeString(labels[params.componentIndex].value)} ${escapeString(labels[params.componentIndex].unit)}<br>
+                    value: ${escapeString(labels[params.componentIndex].value)} J<br>
                     duration: ${escapeString(labels[params.componentIndex].duration)} seconds<br>
                     avg. cpu. utilization: ${escapeString(labels[params.componentIndex].cpu_util)}%<br>
                     location of run: ${escapeString(labels[params.componentIndex].city || 'N/A')}<br>
@@ -333,22 +331,15 @@ const displayCITable = (measurements, repo) => {
 
     document.querySelector("#ci-table").innerHTML = ''; // clear
 
-    measurements.forEach(el => {
+    measurements.forEach(measurement => {
         const li_node = document.createElement("tr");
 
-        const energy_value = el[0] / 1000;
-        const run_id = el[2];
-        const cpu = el[5];
-        const commit_hash = el[6];
+        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util, workflow_name, lat, lon, city, co2i, co2eq] = measurement;
+
+        const energy_J = energy_uj / 1000000;
         const short_hash = commit_hash.substring(0, 7);
         const tooltip = `title="${commit_hash}"`;
-        const source = el[8];
-        const cpu_avg = el[9] ? el[9] : '--';
-        const lat = el[11];
-        const lon = el[12];
-        const city = el[13];
-        const co2i = el[14];
-        const co2eq = el[15];
+        const cpu_avg = cpu_util ? cpu_util : '--';
 
         let run_link = '';
 
@@ -366,16 +357,12 @@ const displayCITable = (measurements, repo) => {
         if (city){
             city_string = `${escapeString(city)} (${escapeString(lat)},${escapeString(lon)})`
         }
-        const created_at = el[3]
-
-        const label = el[4]
-        const duration = el[7]
 
         li_node.innerHTML = `
                             <td class="td-index">${run_link_node}</td>\
                             <td class="td-index">${escapeString(label)}</td>\
                             <td class="td-index"><span title="${escapeString(created_at)}">${dateToYMD(new Date(created_at))}</span></td>\
-                            <td class="td-index">${numberFormatter.format(energy_value)} J</td>\
+                            <td class="td-index">${numberFormatter.format(energy_J)} J</td>\
                             <td class="td-index">${escapeString(cpu)}</td>\
                             <td class="td-index">${escapeString(cpu_avg)}%</td>
                             <td class="td-index">${escapeString(duration)} s</td>
@@ -450,7 +437,7 @@ const bindRefreshButton = (repo, branch, workflow_id, chart_instance) => {
         chart_instance.on('legendselectchanged', function (params) {
             // get list of all legends that are on
             const selectedLegends = params.selected;
-            const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[5]]);
+            const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[4]]);
             displayStatsTable(filteredMeasurements);
         });
     });
@@ -530,7 +517,7 @@ $(document).ready((e) => {
         chart_instance.on('legendselectchanged', function (params) {
             // get list of all legends that are on
             const selectedLegends = params.selected;
-            const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[5]]);
+            const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[4]]);
 
             displayStatsTable(filteredMeasurements);
         });

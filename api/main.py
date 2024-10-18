@@ -1,5 +1,4 @@
 import faulthandler
-import time
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic
@@ -19,7 +18,6 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
-
 from datetime import date
 
 from starlette.responses import RedirectResponse
@@ -28,7 +26,6 @@ from starlette.datastructures import Headers as StarletteHeaders
 
 from pydantic import BaseModel, ValidationError, field_validator
 from typing import Optional
-from uuid import UUID
 
 import anybadge
 
@@ -46,6 +43,7 @@ from lib.job.base import Job
 from lib.user import User, UserAuthenticationError
 from lib.secure_variable import SecureVariable
 from lib.timeline_project import TimelineProject
+from lib import utils
 
 from enum import Enum
 ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
@@ -141,7 +139,6 @@ def obfuscate_authentication_token(headers: StarletteHeaders):
 def authenticate(authentication_token=Depends(header_scheme), request: Request = None):
     parsed_url = urlparse(str(request.url))
     try:
-
         if not authentication_token or authentication_token.strip() == '': # Note that if no token is supplied this will authenticate as the DEFAULT user, which in FOSS systems has full capabilities
             authentication_token = 'DEFAULT'
 
@@ -551,7 +548,7 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         badge_value = 'No energy data yet'
     else:
-        [energy_value, energy_unit] = rescale_energy_value(data[0], data[1])
+        [energy_value, energy_unit] = rescale_energy_value(data[0], 'uJ')
         badge_value= f"{energy_value:.2f} {energy_unit} {via}"
 
     badge = anybadge.Badge(
@@ -916,7 +913,7 @@ async def hog_get_top_processes():
 async def hog_get_machine_details(machine_uuid: str):
 
     if machine_uuid is None or not is_valid_uuid(machine_uuid):
-        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty or malformed'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty or malformed'}, status_code=422)
 
     query = """
         SELECT
@@ -944,13 +941,13 @@ async def hog_get_machine_details(machine_uuid: str):
 async def hog_get_coalitions_tasks(machine_uuid: str, measurements_id_start: int, measurements_id_end: int):
 
     if machine_uuid is None or not is_valid_uuid(machine_uuid):
-        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty'}, status_code=422)
 
     if measurements_id_start is None:
-        return ORJSONResponse({'success': False, 'err': 'measurements_id_start is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_start is empty'}, status_code=422)
 
     if measurements_id_end is None:
-        return ORJSONResponse({'success': False, 'err': 'measurements_id_end is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_end is empty'}, status_code=422)
 
 
     coalitions_query = """
@@ -1001,16 +998,16 @@ async def hog_get_coalitions_tasks(machine_uuid: str, measurements_id_start: int
 async def hog_get_task_details(machine_uuid: str, measurements_id_start: int, measurements_id_end: int, coalition_name: str):
 
     if machine_uuid is None or not is_valid_uuid(machine_uuid):
-        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty'}, status_code=422)
 
     if measurements_id_start is None:
-        return ORJSONResponse({'success': False, 'err': 'measurements_id_start is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_start is empty'}, status_code=422)
 
     if measurements_id_end is None:
-        return ORJSONResponse({'success': False, 'err': 'measurements_id_end is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'measurements_id_end is empty'}, status_code=422)
 
     if coalition_name is None or not coalition_name.strip():
-        return ORJSONResponse({'success': False, 'err': 'coalition_name is empty'}, status_code=400)
+        return ORJSONResponse({'success': False, 'err': 'coalition_name is empty'}, status_code=422)
 
     tasks_query = """
         SELECT
@@ -1105,17 +1102,27 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if not user.can_use_machine(software.machine_id):
         raise RequestValidationError('Your user does not have the permissions to use that machine.')
 
-    if software.schedule_mode not in ['one-off', 'daily', 'weekly', 'commit', 'variance']:
+    if software.schedule_mode not in ['one-off', 'daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance', 'variance']:
         raise RequestValidationError(f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")
 
     if not user.can_schedule_job(software.schedule_mode):
         raise RequestValidationError('Your user does not have the permissions to use that schedule mode.')
 
-    if software.schedule_mode in ['daily', 'weekly', 'commit']:
-        TimelineProject.insert(name=software.name, url=software.url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, user_id=user._id, schedule_mode=software.schedule_mode)
+    utils.check_repo(software.url) # if it exists through the git api
 
-    # even for timeline projects we do at least one run
-    amount = 10 if software.schedule_mode == 'variance' else 1
+    if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
+
+        last_marker = None
+        if 'tag' in software.schedule_mode:
+            last_marker = utils.get_repo_last_marker(software.url, 'tags')
+
+        if 'commit' in software.schedule_mode:
+            last_marker = utils.get_repo_last_marker(software.url, 'commits')
+
+        TimelineProject.insert(name=software.name, url=software.url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
+
+    # even for timeline projects we do at least one run directly
+    amount = 3 if 'variance' in software.schedule_mode else 1
     for _ in range(0,amount):
         Job.insert('run', user_id=user._id, name=software.name, url=software.url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id)
 
@@ -1191,8 +1198,7 @@ async def robots_txt():
 
 # pylint: disable=invalid-name
 class CI_Measurement(BaseModel):
-    energy_value: int
-    energy_unit: str
+    energy_uj: int
     repo: str
     branch: str
     cpu: str
@@ -1204,46 +1210,60 @@ class CI_Measurement(BaseModel):
     label: str
     duration: int
     workflow_name: str = None
-    cb_company_uuid: Optional[str] = ''
-    cb_project_uuid: Optional[str] = ''
-    cb_machine_uuid: Optional[str] = ''
+    filter_type: Optional[str] = None
+    filter_project: Optional[str] = None
+    filter_machine: Optional[str] = None
+    filter_tags: Optional[list] = None
     lat: Optional[str] = ''
     lon: Optional[str] = ''
     city: Optional[str] = ''
     co2i: Optional[str] = ''
     co2eq: Optional[str] = ''
 
+    # Empty string will not trigger error, but None will
+    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label')
+    @classmethod
+    def check_not_empty(cls, values, data):
+        if not values or values == '':
+            raise RequestValidationError(f"{data.field_name} must be set and not empty")
+        return values
+
+    @field_validator('filter_type', 'filter_project', 'filter_machine', 'filter_tags')
+    @classmethod
+    def empty_str_to_none(cls, values, _):
+        if not values or values.strip() == '':
+            return None
+        return values
+
+
 @app.post('/v1/ci/measurement/add')
+async def add_ci_deprecated():
+    return Response("This endpoint is not supported anymore. Please migrate to /v2/ci/measurement/add !", status_code=410)
+
+@app.post('/v2/ci/measurement/add')
 async def post_ci_measurement_add(
-    request: Request,
     measurement: CI_Measurement,
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
-    for key, value in measurement.model_dump().items():
-        match key:
-            case 'unit':
-                if value is None or value.strip() == '':
-                    raise RequestValidationError(f"{key} is empty")
-                if value != 'mJ':
-                    raise RequestValidationError("Unit is unsupported - only mJ currently accepted")
-                continue
-
-            case 'label' | 'workflow_name' | 'cb_company_uuid' | 'cb_project_uuid' | 'cb_machine_uuid' | 'lat' | 'lon' | 'city' | 'co2i' | 'co2eq':  # Optional fields
-                continue
-
-            case _:
-                if value is None:
-                    raise RequestValidationError(f"{key} is empty")
-                if isinstance(value, str):
-                    if value.strip() == '':
-                        raise RequestValidationError(f"{key} is empty")
 
     measurement = html_escape_multi(measurement)
 
-    query = """
+    params = [measurement.energy_uj, measurement.repo, measurement.branch,
+            measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
+            measurement.commit_hash, measurement.duration, measurement.cpu_util_avg, measurement.workflow_name,
+            measurement.lat, measurement.lon, measurement.city, measurement.co2i, measurement.co2eq,
+            measurement.filter_type, measurement.filter_project, measurement.filter_machine]
+
+    tags_replacer = ' ARRAY[]::text[] '
+    if measurement.filter_tags:
+        tags_replacer = f" ARRAY[{','.join(['%s']*len(measurement.filter_tags))}] "
+        params = params + measurement.filter_tags
+
+    params.append(user._id)
+
+    query = f"""
         INSERT INTO
-            ci_measurements (energy_value,
-                            energy_unit,
+            ci_measurements (energy_uj,
                             repo,
                             branch,
                             workflow_id,
@@ -1260,56 +1280,27 @@ async def post_ci_measurement_add(
                             city,
                             co2i,
                             co2eq,
+                            filter_type,
+                            filter_project,
+                            filter_machine,
+                            filter_tags,
                             user_id
                             )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                {tags_replacer},
+        %s)
         """
-    params = (measurement.energy_value, measurement.energy_unit, measurement.repo, measurement.branch,
-            measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
-            measurement.commit_hash, measurement.duration, measurement.cpu_util_avg, measurement.workflow_name,
-            measurement.lat, measurement.lon, measurement.city, measurement.co2i, measurement.co2eq, user._id)
 
     DB().query(query=query, params=params)
 
-    # If one of these is specified we add the data to the CarbonDB
-    if measurement.cb_company_uuid != '' or measurement.cb_project_uuid != '' or measurement.cb_machine_uuid != '':
-
-        if measurement.cb_machine_uuid == '':
-            raise ValueError("You need to specify a machine")
-
-        client_ip = request.headers.get("x-forwarded-for")
-        if client_ip:
-            client_ip = client_ip.split(",")[0]
-        else:
-            client_ip = request.client.host
-
-        energydata = {
-            'type': 'machine.ci',
-            'energy_value': measurement.energy_value * 0.001,
-            'time_stamp': int(time.time() * 1e6),
-            'company': measurement.cb_company_uuid,
-            'project': measurement.cb_project_uuid,
-            'machine': measurement.cb_machine_uuid,
-            'tags': f"{measurement.label},{measurement.repo},{measurement.branch},{measurement.workflow}"
-        }
-
-        try:
-            carbondb_add(client_ip, [energydata], user._id)
-        except Exception as exc: #pylint: disable=broad-except
-            error_helpers.log_error('CI Measurement was successfully added, but CarbonDB did fail', exception=exc)
-            return ORJSONResponse({
-                'success': False,
-                'err': f"CI Measurement was successfully added, but CarbonDB did respond with exception: {str(exc)}"},
-                status_code=207
-            )
-
-    return ORJSONResponse({'success': True}, status_code=201)
+    return ORJSONResponse({'success': True}, status_code=200)
 
 @app.get('/v1/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date):
 
     query = """
-        SELECT energy_value, energy_unit, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg,
+        SELECT energy_uj, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg,
                (SELECT workflow_name FROM ci_measurements AS latest_workflow
                 WHERE latest_workflow.repo = ci_measurements.repo
                 AND latest_workflow.branch = ci_measurements.branch
@@ -1393,7 +1384,7 @@ async def get_ci_runs(repo: str, sort_by: str = 'name'):
 @app.get('/v1/ci/badge/get')
 async def get_ci_badge_get(repo: str, branch: str, workflow:str):
     query = """
-        SELECT SUM(energy_value), MAX(energy_unit), MAX(run_id)
+        SELECT SUM(energy_uj), MAX(run_id)
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow_id = %s
         GROUP BY run_id
@@ -1408,9 +1399,8 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
         return Response(status_code=204) # No-Content
 
     energy_value = data[0]
-    energy_unit = data[1]
 
-    [energy_value, energy_unit] = rescale_energy_value(energy_value, energy_unit)
+    [energy_value, energy_unit] = rescale_energy_value(energy_value, 'uJ')
     badge_value= f"{energy_value:.2f} {energy_unit}"
 
     badge = anybadge.Badge(
@@ -1422,89 +1412,186 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
 
 
 class EnergyData(BaseModel):
+    tags: Optional[list] = None
+    project: str
+    machine: str
     type: str
-    company: Optional[str] = None
-    machine: UUID
-    project: Optional[str] = None
-    tags: Optional[str] = None
-    time_stamp: str # value is in microseconds
-    energy_value: str # value is in Joules
+    time: int # value is in us as UTC timestamp
+    energy_uj: int # is in uJ
+    carbon_intensity_g: Optional[int] = None # value is in g/kWh
+    ip: Optional[str] = None
 
-    @field_validator('company', 'project', 'tags')
+    @field_validator('ip')
     @classmethod
     def empty_str_to_none(cls, values, _):
-        if values == '':
+        if not values or values.strip() == '':
             return None
         return values
 
+
 @app.post('/v1/carbondb/add')
+async def add_carbondb_deprecated():
+    return Response("This endpoint is not supported anymore. Please migrate to /v2/carbondb/add !", status_code=410)
+
+@app.post('/v2/carbondb/add')
 async def add_carbondb(
     request: Request,
-    energydatas: List[EnergyData],
+    energydata: EnergyData,
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
 
-    client_ip = request.headers.get("x-forwarded-for")
-    if client_ip:
-        client_ip = client_ip.split(",")[0]
+    connecting_ip = request.headers.get("x-forwarded-for")
+    if connecting_ip:
+        connecting_ip = connecting_ip.split(",")[0]
     else:
-        client_ip = request.client.host
+        connecting_ip = request.client.host
 
-    carbondb_add(client_ip, energydatas, user._id)
+    try:
+        carbondb_add(connecting_ip, energydata.dict(), 'CUSTOM', user._id)
+    except ValueError as exc:
+        raise RequestValidationError(str(exc)) from exc
 
     return Response(status_code=204)
 
 
-@app.get('/v1/carbondb/machine/day/{machine_uuid}')
-async def carbondb_get_machine_details(machine_uuid: str):
+@app.get('/v1/carbondb/')
+async def get_carbondb_deprecated():
+    return Response("This endpoint is not supported anymore. Please migrate to /v2/carbondb/ !", status_code=410)
 
-    if machine_uuid is None or not is_valid_uuid(machine_uuid):
-        return ORJSONResponse({'success': False, 'err': 'machine_uuid is empty or malformed'}, status_code=400)
+@app.get('/v2/carbondb')
+async def carbondb_get(
+    user: User = Depends(authenticate),
+    start_date: date | None = None, end_date: date | None = None,
+    tags_include: str | None = None, tags_exclude: str | None = None,
+    types_include: str | None = None, types_exclude: str | None = None,
+    projects_include: str | None = None, projects_exclude: str | None = None,
+    machines_include: str | None = None, machines_exclude: str | None = None,
+    sources_include: str | None = None, sources_exclude: str | None = None
+    ):
 
-    query = """
-        SELECT
-            *
-        FROM
-            carbondb_energy_data_day
-        WHERE
-            machine = %s
-        ORDER BY
-            date
-        ;
-    """
+    params = [user._id,]
 
-    data = DB().fetch_all(query, (machine_uuid,))
+    start_date_condition = ''
+    if start_date is not None:
+        start_date_condition =  "AND DATE(cedd.date) >= %s"
+        params.append(start_date)
 
-    return ORJSONResponse({'success': True, 'data': data})
+    end_date_condition = ''
+    if end_date is not None:
+        end_date_condition =  "AND DATE(cedd.date) <= %s"
+        params.append(end_date)
 
-@app.get('/v1/carbondb/{cptype}/{uuid}')
-async def carbondb_get_company_project_details(cptype: str, uuid: str):
+    tags_include_condition = ''
+    if tags_include:
+        tags_include_list = tags_include.split(',')
+        tags_include_condition = f" AND cedd.tags @> ARRAY[{','.join(['%s::integer']*len(tags_include_list))}]"
+        params = params + tags_include_list
 
-    if uuid is None or not is_valid_uuid(uuid):
-        return ORJSONResponse({'success': False, 'err': 'uuid is empty or malformed'}, status_code=400)
+    tags_exclude_condition = ''
+    if tags_exclude:
+        tags_exclude_list = tags_exclude.split(',')
+        tags_exclude_condition = f" AND cedd.tags NOT @> ARRAY[{','.join(['%s::integer']*len(tags_exclude_list))}]"
+        params = params + tags_exclude_list
 
-    if cptype.lower() != 'project' and cptype.lower() != 'company':
-        return ORJSONResponse({'success': False, 'err': 'type needs to be company or project'}, status_code=400)
+    machines_include_condition = ''
+    if machines_include:
+        machines_include_list = machines_include.split(',')
+        machines_include_condition = f" AND cedd.machine IN ({','.join(['%s']*len(machines_include_list))})"
+        params = params + machines_include_list
+
+    machines_exclude_condition = ''
+    if machines_exclude:
+        machines_exclude_list = machines_exclude.split(',')
+        machines_exclude_condition = f" AND cedd.machine NOT IN ({','.join(['%s']*len(machines_exclude_list))})"
+        params = params + machines_exclude_list
+
+    types_include_condition = ''
+    if types_include:
+        types_include_list = types_include.split(',')
+        types_include_condition = f" AND cedd.type IN ({','.join(['%s']*len(types_include_list))})"
+        params = params + types_include_list
+
+    types_exclude_condition = ''
+    if types_exclude:
+        types_exclude_list = types_exclude.split(',')
+        types_exclude_condition = f" AND cedd.type NOT IN ({','.join(['%s']*len(types_exclude_list))})"
+        params = params + types_exclude_list
+
+    projects_include_condition = ''
+    if projects_include:
+        projects_include_list = projects_include.split(',')
+        projects_include_condition = f" AND cedd.project IN ({','.join(['%s']*len(projects_include_list))})"
+        params = params + projects_include_list
+
+    projects_exclude_condition = ''
+    if projects_exclude:
+        projects_exclude_list = projects_exclude.split(',')
+        projects_exclude_condition = f" AND cedd.project NOT IN ({','.join(['%s']*len(projects_exclude_list))})"
+        params = params + projects_exclude_list
+
+    sources_include_condition = ''
+    if sources_include:
+        sources_include_list = sources_include.split(',')
+        sources_include_condition = f" AND cedd.source IN ({','.join(['%s']*len(sources_include_list))})"
+        params = params + sources_include_list
+
+    sources_exclude_condition = ''
+    if sources_exclude:
+        sources_exclude_list = sources_exclude.split(',')
+        sources_exclude_condition = f" AND cedd.source NOT IN ({','.join(['%s']*len(sources_exclude_list))})"
+        params = params + sources_exclude_list
 
     query = f"""
         SELECT
-            machine,
-            SUM(energy_sum),
-            SUM(co2_sum),
-            AVG(carbon_intensity_avg),
-            ARRAY_AGG(DISTINCT u.tag) AS all_tags
+            type, project, machine, source, tags, date, energy_kwh_sum, carbon_kg_sum, carbon_intensity_g_avg, record_count
         FROM
-            public.carbondb_energy_data_day e
-			LEFT JOIN LATERAL unnest(e.tags) AS u(tag) ON true
+            carbondb_data as cedd
         WHERE
-            {cptype.lower()}=%s
-        GROUP BY
-            machine
+            user_id = %s
+            {start_date_condition}
+            {end_date_condition}
+            {tags_include_condition}
+            {tags_exclude_condition}
+            {machines_include_condition}
+            {machines_exclude_condition}
+            {types_include_condition}
+            {types_exclude_condition}
+            {projects_include_condition}
+            {projects_exclude_condition}
+            {sources_include_condition}
+            {sources_exclude_condition}
+
+        ORDER BY
+            date ASC
         ;
     """
-    data = DB().fetch_all(query, (uuid,))
+    data = DB().fetch_all(query, params)
 
     return ORJSONResponse({'success': True, 'data': data})
+
+
+@app.get('/v2/carbondb/filters')
+async def carbondb_get_filters(
+    user: User = Depends(authenticate)
+    ):
+
+    query = 'SELECT jsonb_object_agg(id, type) FROM carbondb_types WHERE user_id = %s'
+    carbondb_types = DB().fetch_one(query, (user._id, ))[0]
+
+    query = 'SELECT jsonb_object_agg(id, tag) FROM carbondb_tags WHERE user_id = %s'
+    carbondb_tags = DB().fetch_one(query, (user._id, ))[0]
+
+    query = 'SELECT jsonb_object_agg(id, machine) FROM carbondb_machines WHERE user_id = %s'
+    carbondb_machines = DB().fetch_one(query, (user._id, ))[0]
+
+    query = 'SELECT jsonb_object_agg(id, project) FROM carbondb_projects WHERE user_id = %s'
+    carbondb_projects = DB().fetch_one(query, (user._id, ))[0]
+
+    query = 'SELECT jsonb_object_agg(id, source) FROM carbondb_sources WHERE user_id = %s'
+    carbondb_sources = DB().fetch_one(query, (user._id, ))[0]
+
+    return ORJSONResponse({'success': True, 'data': {'types': carbondb_types, 'tags': carbondb_tags, 'machines': carbondb_machines, 'projects': carbondb_projects, 'sources': carbondb_sources}})
+
 
 # @app.get('/v1/authentication/new')
 # This will fail if the DB insert fails but still report 'success': True
@@ -1516,9 +1603,7 @@ async def carbondb_get_company_project_details(cptype: str, uuid: str):
 
 @app.get('/v1/authentication/data')
 async def read_authentication_token(user: User = Depends(authenticate)):
-    return ORJSONResponse({'success': True, 'data': user.__dict__})
-
-
+    return ORJSONResponse({'success': True, 'data': user.to_dict()})
 
 if __name__ == '__main__':
     app.run() # pylint: disable=no-member
