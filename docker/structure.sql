@@ -452,7 +452,7 @@ CREATE TABLE carbondb_data (
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
-CREATE UNIQUE INDEX carbondb_data_unique_entry ON carbondb_data(type int4_ops,project int4_ops,machine int4_ops,source int4_ops,tags array_ops,date date_ops,user_id int4_ops);
+CREATE UNIQUE INDEX carbondb_data_unique_entry ON carbondb_data(type int4_ops,project int4_ops,machine int4_ops,source int4_ops,tags array_ops,date date_ops,user_id int4_ops) NULLS NOT DISTINCT;
 
 CREATE TABLE ip_data (
     ip_address INET,

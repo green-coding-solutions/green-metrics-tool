@@ -11,7 +11,7 @@ from lib import error_helpers
 # joined tables.
 
 def compress_data():
-    query = """
+    query = '''
 
         DROP TABLE IF EXISTS carbondb_data_raw_tmp;
         CREATE TABLE carbondb_data_raw_tmp AS
@@ -20,33 +20,33 @@ def compress_data():
         INSERT INTO carbondb_types (type, user_id)
         SELECT DISTINCT type, user_id
         FROM carbondb_data_raw
-        ON CONFLICT
+        ON CONFLICT (type, user_id)
         DO NOTHING;
 
         INSERT INTO carbondb_machines (machine, user_id)
         SELECT DISTINCT machine, user_id
         FROM carbondb_data_raw
-        ON CONFLICT
+        ON CONFLICT (machine, user_id)
         DO NOTHING;
 
 
         INSERT INTO carbondb_tags (tag, user_id)
         SELECT DISTINCT unnest(tags), user_id
         FROM carbondb_data_raw
-        ON CONFLICT
+        ON CONFLICT (tag, user_id)
         DO NOTHING;
 
         INSERT INTO carbondb_sources (source, user_id)
         SELECT DISTINCT source, user_id
         FROM carbondb_data_raw
-        ON CONFLICT
+        ON CONFLICT (source, user_id)
         DO NOTHING;
 
 
         INSERT INTO carbondb_projects (project, user_id)
         SELECT DISTINCT project, user_id
         FROM carbondb_data_raw
-        ON CONFLICT
+        ON CONFLICT (project, user_id)
         DO NOTHING;
 
 
@@ -117,7 +117,20 @@ def compress_data():
             carbon_kg_sum = EXCLUDED.carbon_kg_sum,
             carbon_intensity_g_avg = EXCLUDED.carbon_intensity_g_avg,
             record_count = EXCLUDED.record_count;
-    """
+    '''
+    DB().query(query)
+
+
+    query = '''
+        INSERT INTO carbondb_types (type, user_id)
+        SELECT DISTINCT type, user_id
+        FROM ci_measurements
+        ON CONFLICT (type, user_id)
+        DO NOTHING;
+
+
+    '''
+
     DB().query(query)
 
 
