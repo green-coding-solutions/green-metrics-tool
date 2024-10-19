@@ -1237,7 +1237,7 @@ class CI_Measurement(BaseModel):
             raise RequestValidationError(f"{data.field_name} must be set and not empty")
         return values
 
-    @field_validator('filter_type', 'filter_project', 'filter_machine', 'filter_tags', 'ip')
+    @field_validator('filter_type', 'filter_project', 'filter_machine', 'ip')
     @classmethod
     def empty_str_to_none(cls, values, _):
         if not values or values.strip() == '':

@@ -152,3 +152,39 @@ def test_ci_measurement_add_force_ip():
     del ndata['ip_address']
 
     assert CI_Measurement(workflow_name=measurement.workflow_name, workflow=measurement.workflow, **ndata).model_dump() == measurement.model_dump()
+
+def test_ci_measurement_add_filters():
+    measurement = CI_Measurement(energy_uj=300,
+                        repo='testRepo',
+                        branch='testBranch',
+                        cpu='testCPU',
+                        cpu_util_avg=50,
+                        commit_hash='1234asdf',
+                        workflow='testWorkflow',
+                        run_id='testRunID',
+                        source='testSource',
+                        label='testLabel',
+                        duration_us=20000,
+                        workflow_name='testWorkflowName',
+                        lat="18.2972",
+                        lon="77.2793",
+                        city="Nine Mile",
+                        carbon_intensity_g=100,
+                        carbon_ug=1234567893453245,
+                        filter_tags=["asd", "Mit space"],
+                        filter_project='Das ist cool',
+                        filter_type='CI / CD',
+                        ip='1.1.1.1')
+
+    response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement.model_dump(), timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+
+    query = 'SELECT * FROM ci_measurements WHERE run_id = %s' # we make * match to always test all columns. Even if we add some in the future. However they must be part of CI_Measurement
+    data = DB().fetch_one(query, (measurement.run_id, ), fetch_mode='dict')
+
+    ndata = {k: v for k, v in data.items() if k not in ['id', 'created_at', 'updated_at', 'workflow_id', 'workflow_name', 'user_id', 'filter_source']}
+
+    ndata['ip'] = str(ndata['ip_address']) # model as a different key in DB
+    del ndata['ip_address']
+
+    assert CI_Measurement(workflow_name=measurement.workflow_name, workflow=measurement.workflow, **ndata).model_dump() == measurement.model_dump()
