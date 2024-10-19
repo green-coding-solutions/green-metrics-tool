@@ -18,6 +18,9 @@ ALTER TABLE "public"."ci_measurements" ALTER COLUMN "carbon_ug" TYPE DOUBLE PREC
 
 UPDATE ci_measurements SET carbon_ug = carbon_ug*1000000;
 
+UPDATE ci_measurements SET duration_us = duration_us*1000000;
+
+
 ALTER TABLE "public"."ci_measurements" ALTER COLUMN "carbon_ug" TYPE BIGINT USING "carbon_ug"::BIGINT;
 
 ALTER TABLE "public"."ci_measurements" ALTER COLUMN "user_id" SET NOT NULL;
