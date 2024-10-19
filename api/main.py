@@ -1201,6 +1201,99 @@ async def robots_txt():
 
     return Response(content=data, media_type='text/plain')
 
+
+# pylint: disable=invalid-name
+class CI_Measurement_Old(BaseModel):
+    energy_value: int
+    energy_unit: str
+    repo: str
+    branch: str
+    cpu: str
+    cpu_util_avg: float
+    commit_hash: str
+    workflow: str   # workflow_id, change when we make API change of workflow_name being mandatory
+    run_id: str
+    source: str
+    label: str
+    duration: int
+    workflow_name: str = None
+    cb_company_uuid: Optional[str] = ''
+    cb_project_uuid: Optional[str] = ''
+    cb_machine_uuid: Optional[str] = ''
+    lat: Optional[str] = ''
+    lon: Optional[str] = ''
+    city: Optional[str] = ''
+    co2i: Optional[str] = ''
+    co2eq: Optional[str] = ''
+
+    model_config = ConfigDict(extra='forbid')
+
+    # Empty string will not trigger error on their own
+    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label')
+    @classmethod
+    def check_not_empty(cls, values, data):
+        if not values or values == '':
+            raise RequestValidationError(f"{data.field_name} must be set and not empty")
+        return values
+
+@app.post('/v1/ci/measurement/add')
+async def post_ci_measurement_add_deprecated(
+    request: Request,
+    measurement: CI_Measurement_Old,
+    user: User = Depends(authenticate) # pylint: disable=unused-argument
+    ):
+
+    measurement = html_escape_multi(measurement)
+
+    used_client_ip = get_connecting_ip(request)
+
+    co2i_transformed = int(measurement.co2i) if measurement.co2i else None
+
+    co2eq_transformed = int(float(measurement.co2eq)*1000000) if measurement.co2eq else None
+
+    query = '''
+        INSERT INTO
+            ci_measurements (energy_uj,
+                            repo,
+                            branch,
+                            workflow_id,
+                            run_id,
+                            label,
+                            source,
+                            cpu,
+                            commit_hash,
+                            duration_us,
+                            cpu_util_avg,
+                            workflow_name,
+                            lat,
+                            lon,
+                            city,
+                            carbon_intensity_g,
+                            carbon_ug,
+                            user_id,
+                            ip_address
+                            )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        '''
+
+    params = ( int(measurement.energy_value*1000), measurement.repo, measurement.branch,
+            measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
+            measurement.commit_hash, int(measurement.duration*1000000), measurement.cpu_util_avg, measurement.workflow_name,
+            measurement.lat, measurement.lon, measurement.city, co2i_transformed, co2eq_transformed, user._id, used_client_ip)
+
+
+    DB().query(query=query, params=params)
+
+    if measurement.energy_value <= 1 or (measurement.co2eq and co2eq_transformed <= 1):
+        error_helpers.log_error(
+            'Extremely small energy budget was submitted to old Eco-CI API',
+            measurement=measurement
+        )
+
+    return ORJSONResponse({'success': True}, status_code=200)
+
+
+
 # pylint: disable=invalid-name
 class CI_Measurement(BaseModel):
     energy_uj: int
@@ -1243,11 +1336,6 @@ class CI_Measurement(BaseModel):
         if not values or values.strip() == '':
             return None
         return values
-
-
-@app.post('/v1/ci/measurement/add')
-async def add_ci_deprecated():
-    return Response("This endpoint is not supported anymore. Please migrate to /v2/ci/measurement/add !", status_code=410)
 
 @app.post('/v2/ci/measurement/add')
 async def post_ci_measurement_add(

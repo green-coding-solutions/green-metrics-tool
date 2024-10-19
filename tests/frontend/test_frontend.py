@@ -70,6 +70,8 @@ def test_eco_ci_demo_data():
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     page.get_by_role("link", name="Eco-CI").click()
 
+    page.wait_for_load_state("load") # ALL JS should be done
+
     page.locator("#repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
     page.locator('#DataTables_Table_0 > tbody > tr > td.sorting_1 > a').click()
 
@@ -85,7 +87,7 @@ def test_eco_ci_demo_data():
     assert energy_avg_all_steps.strip() == '14.3 J (± 72.61%)'
 
     time_avg_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(3)").text_content()
-    assert time_avg_all_steps.strip() == '6.4s (± 59.48%)'
+    assert time_avg_all_steps.strip() == '6.4 s (± 59.48%)'
 
     cpu_avg_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(4)").text_content()
     assert cpu_avg_all_steps.strip() == '38.6% (± 36.31%%)'
@@ -105,7 +107,7 @@ def test_eco_ci_demo_data():
     assert energy_avg_single.strip() == '4.46 J (± 10.96%)'
 
     time_avg_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(3)").text_content()
-    assert time_avg_single.strip() == '2.8s (± 15.97%)'
+    assert time_avg_single.strip() == '2.8 s (± 15.97%)'
 
     cpu_avg_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(4)").text_content()
     assert cpu_avg_single.strip() == '27.6% (± 41.83%%)'
