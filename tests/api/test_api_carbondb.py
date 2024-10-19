@@ -3,6 +3,7 @@ import requests
 import ipaddress
 import time
 import math
+import json
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -86,24 +87,30 @@ def test_carbondb_add_force_carbon_intensity():
 
 def test_carbondb_missing_values():
     energydata_crap = {
-        'crap': 'data'
     }
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_crap, timeout=15)
     assert response.status_code == 422
-    assert response.text == '{"success":false,"err":[{"type":"missing","loc":["body","project"],"msg":"Field required","input":{"crap":"data"}},{"type":"missing","loc":["body","machine"],"msg":"Field required","input":{"crap":"data"}},{"type":"missing","loc":["body","type"],"msg":"Field required","input":{"crap":"data"}},{"type":"missing","loc":["body","time"],"msg":"Field required","input":{"crap":"data"}},{"type":"missing","loc":["body","energy_uj"],"msg":"Field required","input":{"crap":"data"}}],"body":{"crap":"data"}}'
+    assert response.text == '{"success":false,"err":[{"type":"missing","loc":["body","project"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","machine"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","type"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","time"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","energy_uj"],"msg":"Field required","input":{}}],"body":{}}'
 
 def test_carbondb_non_int():
     energydata_broken = {
         'type': 123,
         'energy_uj': 'no-int',
         'time': 'no-time',
-        'company': 345,
         'project': 678,
         'machine': 9,
     }
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_broken, timeout=15)
     assert response.status_code == 422
-    assert response.text == '{"success":false,"err":[{"type":"string_type","loc":["body","project"],"msg":"Input should be a valid string","input":678},{"type":"string_type","loc":["body","machine"],"msg":"Input should be a valid string","input":9},{"type":"string_type","loc":["body","type"],"msg":"Input should be a valid string","input":123},{"type":"int_parsing","loc":["body","time"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-time"},{"type":"int_parsing","loc":["body","energy_uj"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-int"}],"body":{"type":123,"energy_uj":"no-int","time":"no-time","company":345,"project":678,"machine":9}}'
+    assert response.text == '{"success":false,"err":[{"type":"string_type","loc":["body","project"],"msg":"Input should be a valid string","input":678},{"type":"string_type","loc":["body","machine"],"msg":"Input should be a valid string","input":9},{"type":"string_type","loc":["body","type"],"msg":"Input should be a valid string","input":123},{"type":"int_parsing","loc":["body","time"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-time"},{"type":"int_parsing","loc":["body","energy_uj"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-int"}],"body":{"type":123,"energy_uj":"no-int","time":"no-time","project":678,"machine":9}}'
+
+def test_carbondb_superflous():
+    energydata_superflous = energydata.copy()
+    energydata_superflous['no-need'] = 1
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_superflous, timeout=15)
+    assert response.status_code == 422
+    assert json.loads(response.text)['err'][0]['type'] == 'extra_forbidden'
+    assert json.loads(response.text)['err'][0]['loc'] == ['body','no-need']
 
 def test_carbondb_weird_tags():
     energydata_modified = energydata.copy()

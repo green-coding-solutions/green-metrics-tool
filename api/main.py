@@ -24,7 +24,7 @@ from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.datastructures import Headers as StarletteHeaders
 
-from pydantic import BaseModel, ValidationError, field_validator
+from pydantic import BaseModel, ValidationError, field_validator, ConfigDict
 from typing import Optional
 
 import anybadge
@@ -33,7 +33,7 @@ from api.object_specifications import Measurement
 from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics, carbondb_add, determine_comparison_case,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value, get_timeline_query,
-                         get_run_info, get_machine_list, get_artifact, store_artifact)
+                         get_run_info, get_machine_list, get_artifact, store_artifact, get_connecting_ip)
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -638,6 +638,8 @@ class HogMeasurement(BaseModel):
     settings: str
     machine_uuid: str
 
+    model_config = ConfigDict(extra='forbid')
+
 def replace_nan_with_zero(obj):
     if isinstance(obj, dict):
         for k, v in obj.items():
@@ -1072,6 +1074,9 @@ class Software(BaseModel):
     machine_id: int
     schedule_mode: str
 
+    model_config = ConfigDict(extra='forbid')
+
+
 @app.post('/v1/software/add')
 async def software_add(software: Software, user: User = Depends(authenticate)):
 
@@ -1208,7 +1213,7 @@ class CI_Measurement(BaseModel):
     run_id: str
     source: str
     label: str
-    duration: int
+    duration_us: int
     workflow_name: str = None
     filter_type: Optional[str] = None
     filter_project: Optional[str] = None
@@ -1217,10 +1222,14 @@ class CI_Measurement(BaseModel):
     lat: Optional[str] = ''
     lon: Optional[str] = ''
     city: Optional[str] = ''
-    co2i: Optional[str] = ''
-    co2eq: Optional[str] = ''
+    carbon_intensity_g: Optional[int] = None
+    carbon_ug: Optional[int] = None
+    ip: Optional[str] = None
 
-    # Empty string will not trigger error, but None will
+    model_config = ConfigDict(extra='forbid')
+
+
+    # Empty string will not trigger error on their own
     @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label')
     @classmethod
     def check_not_empty(cls, values, data):
@@ -1228,7 +1237,7 @@ class CI_Measurement(BaseModel):
             raise RequestValidationError(f"{data.field_name} must be set and not empty")
         return values
 
-    @field_validator('filter_type', 'filter_project', 'filter_machine', 'filter_tags')
+    @field_validator('filter_type', 'filter_project', 'filter_machine', 'filter_tags', 'ip')
     @classmethod
     def empty_str_to_none(cls, values, _):
         if not values or values.strip() == '':
@@ -1242,6 +1251,7 @@ async def add_ci_deprecated():
 
 @app.post('/v2/ci/measurement/add')
 async def post_ci_measurement_add(
+    request: Request,
     measurement: CI_Measurement,
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
@@ -1250,8 +1260,8 @@ async def post_ci_measurement_add(
 
     params = [measurement.energy_uj, measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
-            measurement.commit_hash, measurement.duration, measurement.cpu_util_avg, measurement.workflow_name,
-            measurement.lat, measurement.lon, measurement.city, measurement.co2i, measurement.co2eq,
+            measurement.commit_hash, measurement.duration_us, measurement.cpu_util_avg, measurement.workflow_name,
+            measurement.lat, measurement.lon, measurement.city, measurement.carbon_intensity_g, measurement.carbon_ug,
             measurement.filter_type, measurement.filter_project, measurement.filter_machine]
 
     tags_replacer = ' ARRAY[]::text[] '
@@ -1259,6 +1269,11 @@ async def post_ci_measurement_add(
         tags_replacer = f" ARRAY[{','.join(['%s']*len(measurement.filter_tags))}] "
         params = params + measurement.filter_tags
 
+    used_client_ip = measurement.ip # If an ip has been given with the data. We prioritize that
+    if used_client_ip is None:
+        used_client_ip = get_connecting_ip(request)
+
+    params.append(used_client_ip)
     params.append(user._id)
 
     query = f"""
@@ -1272,27 +1287,35 @@ async def post_ci_measurement_add(
                             source,
                             cpu,
                             commit_hash,
-                            duration,
+                            duration_us,
                             cpu_util_avg,
                             workflow_name,
                             lat,
                             lon,
                             city,
-                            co2i,
-                            co2eq,
+                            carbon_intensity_g,
+                            carbon_ug,
                             filter_type,
                             filter_project,
                             filter_machine,
                             filter_tags,
+                            ip_address,
                             user_id
                             )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 {tags_replacer},
-        %s)
+                %s, %s)
+
         """
 
     DB().query(query=query, params=params)
+
+    if measurement.energy_uj <= 1 or (measurement.carbon_ug and measurement.carbon_ug <= 1):
+        error_helpers.log_error(
+            'Extremely small energy budget was submitted to Eco-CI API',
+            measurement=measurement
+        )
 
     return ORJSONResponse({'success': True}, status_code=200)
 
@@ -1300,13 +1323,14 @@ async def post_ci_measurement_add(
 async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date):
 
     query = """
-        SELECT energy_uj, run_id, created_at, label, cpu, commit_hash, duration, source, cpu_util_avg,
+        SELECT energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util_avg,
                (SELECT workflow_name FROM ci_measurements AS latest_workflow
                 WHERE latest_workflow.repo = ci_measurements.repo
                 AND latest_workflow.branch = ci_measurements.branch
                 AND latest_workflow.workflow_id = ci_measurements.workflow_id
                 ORDER BY latest_workflow.created_at DESC
-                LIMIT 1) AS workflow_name, lat, lon, city, co2i, co2eq
+                LIMIT 1) AS workflow_name,
+               lat, lon, city, carbon_intensity_g, carbon_ug
         FROM ci_measurements
         WHERE
             repo = %s AND branch = %s AND workflow_id = %s
@@ -1421,6 +1445,9 @@ class EnergyData(BaseModel):
     carbon_intensity_g: Optional[int] = None # value is in g/kWh
     ip: Optional[str] = None
 
+    model_config = ConfigDict(extra='forbid')
+
+
     @field_validator('ip')
     @classmethod
     def empty_str_to_none(cls, values, _):
@@ -1440,14 +1467,8 @@ async def add_carbondb(
     user: User = Depends(authenticate) # pylint: disable=unused-argument
     ):
 
-    connecting_ip = request.headers.get("x-forwarded-for")
-    if connecting_ip:
-        connecting_ip = connecting_ip.split(",")[0]
-    else:
-        connecting_ip = request.client.host
-
     try:
-        carbondb_add(connecting_ip, energydata.dict(), 'CUSTOM', user._id)
+        carbondb_add(get_connecting_ip(request), energydata.dict(), 'CUSTOM', user._id)
     except ValueError as exc:
         raise RequestValidationError(str(exc)) from exc
 

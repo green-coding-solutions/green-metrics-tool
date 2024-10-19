@@ -807,3 +807,12 @@ def validate_carbondb_params(param, elements: list):
     for el in elements:
         if not re.fullmatch(r'[A-Za-z0-9\._-]+', el):
             raise ValueError(f"Parameter for '{param}' may only contain A-Za-z0-9._- characters and no spaces. Was: {el}")
+
+
+def get_connecting_ip(request):
+    connecting_ip = request.headers.get("x-forwarded-for")
+
+    if connecting_ip:
+        return connecting_ip.split(",")[0]
+
+    return request.client.host

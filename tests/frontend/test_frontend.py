@@ -1,6 +1,7 @@
 import os
 import pytest
 import time
+import requests
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
 
@@ -10,10 +11,15 @@ from lib.db import DB
 from tests import test_functions as Tests
 from playwright.sync_api import sync_playwright
 
+from api.main import CI_Measurement
+
+
 page = None
 context = None
 playwright = None
 browser = None
+
+API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
 
 ## Reset DB only once after module
 #pylint: disable=unused-argument
@@ -58,7 +64,8 @@ def test_home():
 
     assert value== 'Stress Test #4'
 
-def test_ci():
+
+def test_eco_ci_demo_data():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     page.get_by_role("link", name="Eco-CI").click()
@@ -111,6 +118,58 @@ def test_ci():
 
     count_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(7)").text_content()
     assert count_single.strip() == '5'
+
+
+def test_eco_ci_adding_data():
+
+    Tests.reset_db()
+
+    try:
+
+        for index in range(1,4):
+            measurement = CI_Measurement(energy_uj=(13_000_000*index),
+                        repo='testRepo',
+                        branch='testBranch',
+                        cpu='testCPU',
+                        cpu_util_avg=50,
+                        commit_hash='1234asdf',
+                        workflow='testWorkflow',
+                        run_id='testRunID',
+                        source='testSource',
+                        label='testLabel',
+                        duration_us=35323,
+                        workflow_name='testWorkflowName',
+                        lat="18.2972",
+                        lon="77.2793",
+                        city="Nine Mile",
+                        carbon_intensity_g=100,
+                        carbon_ug=323456
+            )
+            response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement.model_dump(), timeout=15)
+            assert response.status_code == 200, Tests.assertion_info('success', response.text)
+
+
+        page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+        page.get_by_role("link", name="Eco-CI").click()
+
+        page.locator("#repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
+        page.locator('#DataTables_Table_0 > tbody > tr > td.sorting_1 > a').click()
+
+        page.wait_for_load_state("load") # ALL JS should be done
+
+        energy_avg_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(2)").text_content()
+        assert energy_avg_all_steps.strip() == '26 J (± 50%)'
+
+        carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(6)").text_content()
+        assert carbon_all_steps.strip() == '0.3235 gCO2e (± 0%)'
+
+        carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(3)").text_content()
+        assert carbon_all_steps.strip() == '0.04 s (± 0%)'
+
+
+    finally: # reset state to expectation of this file
+        Tests.reset_db()
+        Tests.import_demo_data()
 
 
 def test_stats():

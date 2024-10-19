@@ -1,5 +1,5 @@
 from typing import List, Dict, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class Task(BaseModel):
     # We need to set the optional to a value as otherwise the key is required in the input
@@ -15,6 +15,9 @@ class Task(BaseModel):
     bytes_sent: int
     energy_impact: float
 
+    model_config = ConfigDict(extra='forbid')
+
+
 class Coalition(BaseModel):
     name: str
     cputime_ns: int
@@ -22,6 +25,8 @@ class Coalition(BaseModel):
     diskio_byteswritten: int = 0
     energy_impact: float
     tasks: List[Task]
+
+    model_config = ConfigDict(extra='forbid')
 
 class Processor(BaseModel):
     # https://docs.pydantic.dev/latest/migration/#required-optional-and-nullable-fields
@@ -38,8 +43,13 @@ class Processor(BaseModel):
     cpu_joules: Optional[float] = None
     igpu_watts: Optional[float] = None
 
+    model_config = ConfigDict(extra='forbid')
+
 class GPU(BaseModel):
     gpu_energy: Optional[int] = None
+
+    model_config = ConfigDict(extra='forbid')
+
 
 class Measurement(BaseModel):
     is_delta: bool
@@ -54,3 +64,5 @@ class Measurement(BaseModel):
     thermal_pressure: str
     sfi: Dict
     gpu: Optional[GPU] = None
+
+    model_config = ConfigDict(extra='forbid')
