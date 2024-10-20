@@ -138,7 +138,7 @@ class CI_Measurement(BaseModel):
     filter_type: Optional[str] = 'machine.ci'
     filter_project: Optional[str] = 'CI/CD'
     filter_machine: Optional[str] = 'unknown'
-    filter_tags: Optional[list] = []
+    filter_tags: Optional[list] = Field(default_factory=list) # never do a reference object as default as it will be shared
     lat: Optional[str] = ''
     lon: Optional[str] = ''
     city: Optional[str] = ''
@@ -163,6 +163,13 @@ class CI_Measurement(BaseModel):
         if not values or values.strip() == '':
             return None
         return values
+
+    @field_validator('filter_tags')
+    @classmethod
+    def check_empty_elements(cls, value):
+        if any(not item or item.strip() == '' for item in value):
+            raise ValueError("The list contains empty elements.")
+        return value
 
 
 
@@ -195,9 +202,16 @@ class EnergyData(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
 
-    @field_validator('ip')
+    @field_validator('ip', 'project', 'machine','type')
     @classmethod
     def empty_str_to_none(cls, values, _):
         if not values or values.strip() == '':
-            return None
+            raise ValueError('Value is empty')
         return values
+
+    @field_validator('tags')
+    @classmethod
+    def check_empty_elements(cls, value):
+        if any(not item or item.strip() == '' for item in value):
+            raise ValueError("The list contains empty elements.")
+        return value

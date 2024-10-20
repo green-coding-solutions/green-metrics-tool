@@ -29,7 +29,7 @@ def test_carbondb_add_unauthenticated():
     user.update()
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata, timeout=15)
-    assert response.status_code == 401
+    assert response.status_code == 401, Tests.assertion_info('success', response.text)
 
 def test_carbondb_add():
 
@@ -42,7 +42,7 @@ def test_carbondb_add():
     exp_data['longitude'] = 13.42486387066192
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata, timeout=15)
-    assert response.status_code == 204
+    assert response.status_code == 204, Tests.assertion_info('success', response.text)
 
     data = DB().fetch_one('SELECT * FROM carbondb_data_raw', fetch_mode='dict')
     assert data is not None or data != []
@@ -60,7 +60,7 @@ def test_carbondb_add_force_ip():
     exp_data['longitude'] = 153.0166 # Hmm, this can be flaky! But also we want to test the IP API
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
-    assert response.status_code == 204
+    assert response.status_code == 204, Tests.assertion_info('success', response.text)
 
     data = DB().fetch_one('SELECT * FROM carbondb_data_raw', fetch_mode='dict')
     assert data is not None or data != []
@@ -78,7 +78,7 @@ def test_carbondb_add_force_carbon_intensity():
     exp_data['carbon_kg'] = 5.555555555555555e-11
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
-    assert response.status_code == 204
+    assert response.status_code == 204, Tests.assertion_info('success', response.text)
 
     data = DB().fetch_one('SELECT * FROM carbondb_data_raw', fetch_mode='dict')
     assert data is not None or data != []
@@ -89,7 +89,7 @@ def test_carbondb_missing_values():
     energydata_crap = {
     }
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_crap, timeout=15)
-    assert response.status_code == 422
+    assert response.status_code == 422, Tests.assertion_info('success', response.text)
     assert response.text == '{"success":false,"err":[{"type":"missing","loc":["body","project"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","machine"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","type"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","time"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","energy_uj"],"msg":"Field required","input":{}}],"body":{}}'
 
 def test_carbondb_non_int():
@@ -101,23 +101,36 @@ def test_carbondb_non_int():
         'machine': 9,
     }
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_broken, timeout=15)
-    assert response.status_code == 422
+    assert response.status_code == 422, Tests.assertion_info('success', response.text)
     assert response.text == '{"success":false,"err":[{"type":"string_type","loc":["body","project"],"msg":"Input should be a valid string","input":678},{"type":"string_type","loc":["body","machine"],"msg":"Input should be a valid string","input":9},{"type":"string_type","loc":["body","type"],"msg":"Input should be a valid string","input":123},{"type":"int_parsing","loc":["body","time"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-time"},{"type":"int_parsing","loc":["body","energy_uj"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-int"}],"body":{"type":123,"energy_uj":"no-int","time":"no-time","project":678,"machine":9}}'
 
 def test_carbondb_superflous():
     energydata_superflous = energydata.copy()
     energydata_superflous['no-need'] = 1
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_superflous, timeout=15)
-    assert response.status_code == 422
+    assert response.status_code == 422, Tests.assertion_info('success', response.text)
     assert json.loads(response.text)['err'][0]['type'] == 'extra_forbidden'
     assert json.loads(response.text)['err'][0]['loc'] == ['body','no-need']
+
+def test_carbondb_empty_filters():
+    energydata_modified = energydata.copy()
+    energydata_modified['type'] = ''
+    energydata_modified['project'] = ''
+    energydata_modified['machine'] = ''
+    energydata_modified['tags'] = ['','']
+
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
+    assert response.status_code == 422, Tests.assertion_info('success', response.text)
+
+    assert response.text.startswith('''{"success":false,"err":[{"type":"value_error","loc":["body","tags"],"msg":"Value error, The list contains empty elements.","input":["",""],"ctx":{"error":{}}},{"type":"value_error","loc":["body","project"],"msg":"Value error, Value is empty","input":"","ctx":{"error":{}}},{"type":"value_error","loc":["body","machine"],"msg":"Value error, Value is empty","input":"","ctx":{"error":{}}},{"type":"value_error","loc":["body","type"],"msg":"Value error, Value is empty","input":"","ctx":{"error":{}}}]''')
+
 
 def test_carbondb_weird_tags():
     energydata_modified = energydata.copy()
     energydata_modified['tags'] = ['öla', '<asd>']
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
-    assert response.status_code == 204
+    assert response.status_code == 204, Tests.assertion_info('success', response.text)
 
     data = DB().fetch_one('SELECT tags FROM carbondb_data_raw', fetch_mode='dict')
     assert data['tags'] == energydata_modified['tags']
@@ -126,20 +139,21 @@ def test_carbondb_weird_tags():
 def test_carbondb_no_filters():
 
     response = requests.get(f"{API_URL}/v2/carbondb/filters", timeout=15, headers={'X-Authentication': 'DEFAULT'})
-    assert response.status_code == 200
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert response.text == '{"success":true,"data":{"types":null,"tags":null,"machines":null,"projects":null,"sources":null}}'
+
 
 
 def test_carbondb_alternative_user_and_data():
 
     Tests.import_demo_data()
     response = requests.get(f"{API_URL}/v2/carbondb/filters", timeout=15, headers={'X-Authentication': 'DEFAULT'})
-    assert response.status_code == 200
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert response.text == '{"success":true,"data":{"types":{"1":"machine.test","2":"generator.solar","3":"asdasd","4":"machine.ci","5":"machine.server"},"tags":{"111":"Environment setup (OS ubuntu-24.04","115":"green-coding.ai","118":"green-coding-solutions/ci-carbon-testing","119":"Measurement #1","120":"Environment setup (Python","135":"metrics.green-coding.io"},"machines":{"1":"GCS HQ Solar Panel","5":"metrics.green-coding.io","11":"green-coding.ai","20":"metrics.green-coding.io-alt","22":"ubuntu-latest"},"projects":{"1":"Projekt #1","2":"Projekt #2","3":"Projekt #3","4":"Projekt #4"},"sources":{"1":"UNDEFINED"}}}'
 
     Tests.insert_user(345, 'ALTERNATIVE-USER-CARBONDB')
     response = requests.get(f"{API_URL}/v2/carbondb/filters", timeout=15, headers={'X-Authentication': 'ALTERNATIVE-USER-CARBONDB'})
-    assert response.status_code == 200
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
 
     # no filters again for no user
     assert response.text == '{"success":true,"data":{"types":null,"tags":null,"machines":null,"projects":null,"sources":null}}'
