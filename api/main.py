@@ -1,7 +1,7 @@
 import faulthandler
 
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
-# Is the redundant call problematic
+# Is the redundant call problematic?
 faulthandler.enable()  # will catch segfaults and write to STDERR
 
 import zlib
@@ -9,8 +9,8 @@ import base64
 import orjson
 from typing import List
 from xml.sax.saxutils import escape as xml_escape
-import math
 from urllib.parse import urlparse
+from datetime import date
 
 from fastapi import FastAPI, Request, Response, Depends, HTTPException
 from fastapi.responses import ORJSONResponse
@@ -18,22 +18,21 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
-from datetime import date
 
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.datastructures import Headers as StarletteHeaders
 
-from pydantic import BaseModel, ValidationError, field_validator, ConfigDict
-from typing import Optional
+from pydantic import ValidationError
 
 import anybadge
 
-from api.object_specifications import Measurement
+from api.object_specifications import Measurement, CI_Measurement_Old, CI_Measurement, HogMeasurement, Software, EnergyData
 from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics, carbondb_add, determine_comparison_case,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value, get_timeline_query,
-                         get_run_info, get_machine_list, get_artifact, store_artifact, get_connecting_ip)
+                         get_run_info, get_machine_list, get_artifact, store_artifact, get_connecting_ip,
+                         validate_hog_measurement_data, replace_nan_with_zero)
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -632,72 +631,6 @@ async def get_jobs(machine_id: int | None = None, state: str | None = None):
     return ORJSONResponse({'success': True, 'data': data})
 
 
-class HogMeasurement(BaseModel):
-    time: int
-    data: str
-    settings: str
-    machine_uuid: str
-
-    model_config = ConfigDict(extra='forbid')
-
-def replace_nan_with_zero(obj):
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            if isinstance(v, (dict, list)):
-                replace_nan_with_zero(v)
-            elif isinstance(v, float) and math.isnan(v):
-                obj[k] = 0
-    elif isinstance(obj, list):
-        for i, item in enumerate(obj):
-            if isinstance(item, (dict, list)):
-                replace_nan_with_zero(item)
-            elif isinstance(item, float) and math.isnan(item):
-                obj[i] = 0
-    return obj
-
-
-def validate_measurement_data(data):
-    required_top_level_fields = [
-        'coalitions', 'all_tasks', 'elapsed_ns', 'processor', 'thermal_pressure'
-    ]
-    for field in required_top_level_fields:
-        if field not in data:
-            raise ValueError(f"Missing required field: {field}")
-
-    # Validate 'coalitions' structure
-    if not isinstance(data['coalitions'], list):
-        raise ValueError("Expected 'coalitions' to be a list")
-
-    for coalition in data['coalitions']:
-        required_coalition_fields = [
-            'name', 'tasks', 'energy_impact_per_s', 'cputime_ms_per_s',
-            'diskio_bytesread', 'diskio_byteswritten', 'intr_wakeups', 'idle_wakeups'
-        ]
-        for field in required_coalition_fields:
-            if field not in coalition:
-                raise ValueError(f"Missing required coalition field: {field}")
-            if field == 'tasks' and not isinstance(coalition['tasks'], list):
-                raise ValueError(f"Expected 'tasks' to be a list in coalition: {coalition['name']}")
-
-    # Validate 'all_tasks' structure
-    if 'energy_impact_per_s' not in data['all_tasks']:
-        raise ValueError("Missing 'energy_impact_per_s' in 'all_tasks'")
-
-    # Validate 'processor' structure based on the processor type
-    processor_fields = data['processor'].keys()
-    if 'ane_energy' in processor_fields:
-        required_processor_fields = ['combined_power', 'cpu_energy', 'gpu_energy', 'ane_energy']
-    elif 'package_joules' in processor_fields:
-        required_processor_fields = ['package_joules', 'cpu_joules', 'igpu_watts']
-    else:
-        raise ValueError("Unknown processor type")
-
-    for field in required_processor_fields:
-        if field not in processor_fields:
-            raise ValueError(f"Missing required processor field: {field}")
-
-    # All checks passed
-    return True
 
 @app.post('/v1/hog/add')
 async def hog_add(
@@ -724,9 +657,9 @@ async def hog_add(
 
 
         try:
-            validate_measurement_data(measurement_data)
+            validate_hog_measurement_data(measurement_data)
         except ValueError as exc:
-            print(f"Caught Exception in validate_measurement_data() {exc.__class__.__name__} {exc}")
+            print(f"Caught Exception in validate_hog_measurement_data() {exc.__class__.__name__} {exc}")
             raise exc
 
         coalitions = []
@@ -1065,17 +998,6 @@ async def hog_get_task_details(machine_uuid: str, measurements_id_start: int, me
     return ORJSONResponse({'success': True, 'tasks_data': tasks_data, 'coalitions_data': coalitions_data})
 
 
-class Software(BaseModel):
-    name: str
-    url: str
-    email: str
-    filename: str
-    branch: str
-    machine_id: int
-    schedule_mode: str
-
-    model_config = ConfigDict(extra='forbid')
-
 
 @app.post('/v1/software/add')
 async def software_add(software: Software, user: User = Depends(authenticate)):
@@ -1202,40 +1124,6 @@ async def robots_txt():
     return Response(content=data, media_type='text/plain')
 
 
-# pylint: disable=invalid-name
-class CI_Measurement_Old(BaseModel):
-    energy_value: int
-    energy_unit: str
-    repo: str
-    branch: str
-    cpu: str
-    cpu_util_avg: float
-    commit_hash: str
-    workflow: str   # workflow_id, change when we make API change of workflow_name being mandatory
-    run_id: str
-    source: str
-    label: str
-    duration: int
-    workflow_name: str = None
-    cb_company_uuid: Optional[str] = ''
-    cb_project_uuid: Optional[str] = ''
-    cb_machine_uuid: Optional[str] = ''
-    lat: Optional[str] = ''
-    lon: Optional[str] = ''
-    city: Optional[str] = ''
-    co2i: Optional[str] = ''
-    co2eq: Optional[str] = ''
-
-    model_config = ConfigDict(extra='forbid')
-
-    # Empty string will not trigger error on their own
-    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label')
-    @classmethod
-    def check_not_empty(cls, values, data):
-        if not values or values == '':
-            raise RequestValidationError(f"{data.field_name} must be set and not empty")
-        return values
-
 @app.post('/v1/ci/measurement/add')
 async def post_ci_measurement_add_deprecated(
     request: Request,
@@ -1292,50 +1180,6 @@ async def post_ci_measurement_add_deprecated(
 
     return ORJSONResponse({'success': True}, status_code=200)
 
-
-
-# pylint: disable=invalid-name
-class CI_Measurement(BaseModel):
-    energy_uj: int
-    repo: str
-    branch: str
-    cpu: str
-    cpu_util_avg: float
-    commit_hash: str
-    workflow: str   # workflow_id, change when we make API change of workflow_name being mandatory
-    run_id: str
-    source: str
-    label: str
-    duration_us: int
-    workflow_name: str = None
-    filter_type: Optional[str] = None
-    filter_project: Optional[str] = None
-    filter_machine: Optional[str] = None
-    filter_tags: Optional[list] = None
-    lat: Optional[str] = ''
-    lon: Optional[str] = ''
-    city: Optional[str] = ''
-    carbon_intensity_g: Optional[int] = None
-    carbon_ug: Optional[int] = None
-    ip: Optional[str] = None
-
-    model_config = ConfigDict(extra='forbid')
-
-
-    # Empty string will not trigger error on their own
-    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label')
-    @classmethod
-    def check_not_empty(cls, values, data):
-        if not values or values == '':
-            raise RequestValidationError(f"{data.field_name} must be set and not empty")
-        return values
-
-    @field_validator('filter_type', 'filter_project', 'filter_machine', 'ip')
-    @classmethod
-    def empty_str_to_none(cls, values, _):
-        if not values or values.strip() == '':
-            return None
-        return values
 
 @app.post('/v2/ci/measurement/add')
 async def post_ci_measurement_add(
@@ -1521,27 +1365,6 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str):
         num_value_padding_chars=1,
         default_color='green')
     return Response(content=str(badge), media_type="image/svg+xml")
-
-
-class EnergyData(BaseModel):
-    tags: Optional[list] = None
-    project: str
-    machine: str
-    type: str
-    time: int # value is in us as UTC timestamp
-    energy_uj: int # is in uJ
-    carbon_intensity_g: Optional[int] = None # value is in g/kWh
-    ip: Optional[str] = None
-
-    model_config = ConfigDict(extra='forbid')
-
-
-    @field_validator('ip')
-    @classmethod
-    def empty_str_to_none(cls, values, _):
-        if not values or values.strip() == '':
-            return None
-        return values
 
 
 @app.post('/v1/carbondb/add')

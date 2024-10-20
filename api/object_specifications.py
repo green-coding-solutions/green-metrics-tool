@@ -1,5 +1,18 @@
 from typing import List, Dict, Optional
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+from fastapi.exceptions import RequestValidationError
+
+
+###### HOG
+
+class HogMeasurement(BaseModel):
+    time: int
+    data: str
+    settings: str
+    machine_uuid: str
+
+    model_config = ConfigDict(extra='forbid')
+
 
 class Task(BaseModel):
     # We need to set the optional to a value as otherwise the key is required in the input
@@ -66,3 +79,125 @@ class Measurement(BaseModel):
     gpu: Optional[GPU] = None
 
     model_config = ConfigDict(extra='forbid')
+
+
+### Eco-CI
+
+
+
+
+# pylint: disable=invalid-name
+class CI_Measurement_Old(BaseModel):
+    energy_value: int
+    energy_unit: str
+    repo: str
+    branch: str
+    cpu: str
+    cpu_util_avg: float
+    commit_hash: str
+    workflow: str   # workflow_id, change when we make API change of workflow_name being mandatory
+    run_id: str
+    source: str
+    label: str
+    duration: int
+    workflow_name: str = None
+    cb_company_uuid: Optional[str] = ''
+    cb_project_uuid: Optional[str] = ''
+    cb_machine_uuid: Optional[str] = ''
+    lat: Optional[str] = ''
+    lon: Optional[str] = ''
+    city: Optional[str] = ''
+    co2i: Optional[str] = ''
+    co2eq: Optional[str] = ''
+
+    model_config = ConfigDict(extra='forbid')
+
+    # Empty string will not trigger error on their own
+    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label')
+    @classmethod
+    def check_not_empty(cls, values, data):
+        if not values or values == '':
+            raise RequestValidationError(f"{data.field_name} must be set and not empty")
+        return values
+
+
+# pylint: disable=invalid-name
+class CI_Measurement(BaseModel):
+    energy_uj: int
+    repo: str
+    branch: str
+    cpu: str
+    cpu_util_avg: float
+    commit_hash: str
+    workflow: str   # workflow_id, change when we make API change of workflow_name being mandatory
+    run_id: str
+    source: str
+    label: str
+    duration_us: int
+    workflow_name: str = None
+    filter_type: Optional[str] = None
+    filter_project: Optional[str] = None
+    filter_machine: Optional[str] = None
+    filter_tags: Optional[list] = None
+    lat: Optional[str] = ''
+    lon: Optional[str] = ''
+    city: Optional[str] = ''
+    carbon_intensity_g: Optional[int] = None
+    carbon_ug: Optional[int] = None
+    ip: Optional[str] = None
+
+    model_config = ConfigDict(extra='forbid')
+
+
+    # Empty string will not trigger error on their own
+    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label')
+    @classmethod
+    def check_not_empty(cls, values, data):
+        if not values or values == '':
+            raise RequestValidationError(f"{data.field_name} must be set and not empty")
+        return values
+
+    @field_validator('filter_type', 'filter_project', 'filter_machine', 'ip')
+    @classmethod
+    def empty_str_to_none(cls, values, _):
+        if not values or values.strip() == '':
+            return None
+        return values
+
+
+
+### Software Add
+
+class Software(BaseModel):
+    name: str
+    url: str
+    email: str
+    filename: str
+    branch: str
+    machine_id: int
+    schedule_mode: str
+
+    model_config = ConfigDict(extra='forbid')
+
+
+### CarbonDB
+
+class EnergyData(BaseModel):
+    tags: Optional[list] = None
+    project: str
+    machine: str
+    type: str
+    time: int # value is in us as UTC timestamp
+    energy_uj: int # is in uJ
+    carbon_intensity_g: Optional[int] = None # value is in g/kWh
+    ip: Optional[str] = None
+
+    model_config = ConfigDict(extra='forbid')
+
+
+    @field_validator('ip')
+    @classmethod
+    def empty_str_to_none(cls, values, _):
+        if not values or values.strip() == '':
+            return None
+        return values
