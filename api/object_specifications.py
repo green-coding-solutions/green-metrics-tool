@@ -1,5 +1,5 @@
 from typing import List, Dict, Optional
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, Field
 from fastapi.exceptions import RequestValidationError
 
 
@@ -135,10 +135,10 @@ class CI_Measurement(BaseModel):
     label: str
     duration_us: int
     workflow_name: str = None
-    filter_type: Optional[str] = None
-    filter_project: Optional[str] = None
-    filter_machine: Optional[str] = None
-    filter_tags: Optional[list] = None
+    filter_type: Optional[str] = 'machine.ci'
+    filter_project: Optional[str] = 'CI/CD'
+    filter_machine: Optional[str] = 'unknown'
+    filter_tags: Optional[list] = []
     lat: Optional[str] = ''
     lon: Optional[str] = ''
     city: Optional[str] = ''
@@ -183,14 +183,14 @@ class Software(BaseModel):
 ### CarbonDB
 
 class EnergyData(BaseModel):
-    tags: Optional[list] = None
+    tags: Optional[list] = Field(default_factory=list) # never do a reference object as default as it will be shared
     project: str
     machine: str
     type: str
     time: int # value is in us as UTC timestamp
     energy_uj: int # is in uJ
-    carbon_intensity_g: Optional[int] = None # value is in g/kWh
-    ip: Optional[str] = None
+    carbon_intensity_g: Optional[int] = None # Will be populated if not transmitted, so we never have NULL in DB
+    ip: Optional[str] = None  # Will be populated if not transmitted, so we never have NULL in DB
 
     model_config = ConfigDict(extra='forbid')
 
