@@ -32,7 +32,7 @@ MB = 1000*1000 # Note: GMT uses SI Units!
 def setup_module(module):
     global run_id #pylint: disable=global-statement
 
-    runner = Runner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/metric_providers_data.yml', skip_system_checks=True, dev_no_metrics=False, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/metric_providers_data.yml', skip_system_checks=True, dev_no_metrics=False, dev_no_sleeps=True, dev_cache_build=True)
 
     subprocess.run('sync', check=True) # we sync here so that we can later more granular check for written file size
 
