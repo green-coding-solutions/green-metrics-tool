@@ -89,12 +89,12 @@ jobs:
       with:
         category: "/language:${{matrix.language}}"
 
-      - name: Eco CI Energy Estimation - Get Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@main
-        with:
-          task: get-measurement
+    - name: Eco CI Energy Estimation - Get Measurement
+      uses: green-coding-solutions/eco-ci-energy-estimation@main
+      with:
+        task: get-measurement
 
-      - name: Eco CI Energy Estimation - End Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@main
-        with:
-          task: display-results
+    - name: Eco CI Energy Estimation - End Measurement
+      uses: green-coding-solutions/eco-ci-energy-estimation@main
+      with:
+        task: display-results
