@@ -123,6 +123,8 @@ ALTER TABLE "public"."ci_measurements" ALTER COLUMN "carbon_intensity_g" TYPE in
 
 ALTER TABLE "public"."ci_measurements" ALTER COLUMN "carbon_ug" TYPE DOUBLE PRECISION USING "carbon_ug"::DOUBLE PRECISION;
 
+UPDATE ci_measurements SET energy_uj = energy_uj*1000000;
+
 UPDATE ci_measurements SET carbon_ug = carbon_ug*1000000;
 
 UPDATE ci_measurements SET duration_us = duration_us*1000000;
