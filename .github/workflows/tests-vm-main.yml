@@ -9,11 +9,27 @@ jobs:
   run-tests-main:
     runs-on: ubuntu-24.04
     steps:
+
+      - name: Eco CI Energy Estimation - Initialize
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        with:
+          task: start-measurement
+          project: "Green Metrics Tool"
+          machine: "ubuntu-latest"
+          tags: "CI/CD, Main-Workflow"
+          gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
+          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+
       - id: check-date
         if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: green-coding-solutions/eco-ci-activity-checker@v1
         with:
           branch: 'main'
+
+      - name: Eco CI Energy Estimation - After Check Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        with:
+          task: get-measurement
 
       - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
         name: 'Checkout repository'
@@ -22,30 +38,19 @@ jobs:
           ref: 'main'
           submodules: 'true'
 
-      - name: Eco CI Energy Estimation - Initialize
-        uses: green-coding-solutions/eco-ci-energy-estimation@main
-        with:
-          task: start-measurement
-          company-uuid: "20b269ce-cd67-4788-8614-030eaf5a0b47"
-          project-uuid: "00000001-BCA5-451B-9E60-3A2FD07FA28D"
-          machine-uuid: "F6ABE057-59ED-4406-97C8-9FB61B789627"
-
       - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
         name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
-         metrics-to-turn-off: '--categories RAPL Machine Sensors Debug CGroupV2 MacOS GPU --providers PsuEnergyAcSdiaMachineProvider'
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Eco CI Energy Estimation - Get Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: get-measurement
-          branch: main
 
       - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
         name: Eco CI Energy Estimation - End Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: display-results
-          branch: main
