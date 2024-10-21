@@ -1168,9 +1168,9 @@ async def post_ci_measurement_add_deprecated(
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         '''
 
-    params = ( int(measurement.energy_value*1000), measurement.repo, measurement.branch,
+    params = ( measurement.energy_value*1000, measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
-            measurement.commit_hash, int(measurement.duration*1000000), measurement.cpu_util_avg, measurement.workflow_name,
+            measurement.commit_hash, measurement.duration*1000000, measurement.cpu_util_avg, measurement.workflow_name,
             measurement.lat, measurement.lon, measurement.city, co2i_transformed, co2eq_transformed,
             'machine.ci', 'CI/CD', 'unknown', [],
             user._id, used_client_ip)
