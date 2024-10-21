@@ -31,7 +31,7 @@ MEASUREMENT_MODEL_OLD = {'energy_value': 123,
                         'duration': 5,
                         'workflow_name': 'testWorkflowName'}
 
-MEASUREMENT_MODEL_NEW = {'energy_uj': 123,
+MEASUREMENT_MODEL_NEW = {'energy_uj': 123000,
                         'repo': 'testRepo',
                         'branch': 'testBranch',
                         'cpu': 'testCPU',
@@ -48,7 +48,7 @@ def test_old_api():
 
     measurement_model = MEASUREMENT_MODEL_OLD.copy()
     response = requests.post(f"{API_URL}/v1/ci/measurement/add", json=measurement_model, timeout=15)
-    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.status_code == 204, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
 
@@ -65,7 +65,7 @@ def test_old_api_with_co2():
     measurement_model['co2eq'] = '0.31321'
 
     response = requests.post(f"{API_URL}/v1/ci/measurement/add", json=measurement_model, timeout=15)
-    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.status_code == 204, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
 
@@ -83,7 +83,7 @@ def test_ci_measurement_add_default_user():
     measurement_model = MEASUREMENT_MODEL_NEW.copy()
 
     response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement_model, timeout=15)
-    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.status_code == 204, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
     compare_carbondb_data(measurement_model, data)
@@ -91,7 +91,6 @@ def test_ci_measurement_add_default_user():
     assert data['user_id'] == 1
     # assert the defaults set by the model
     assert data['filter_type'] == 'machine.ci'
-    assert data['filter_source'] == 'Eco-CI'
     assert data['filter_machine'] == 'unknown'
     assert data['filter_project'] == 'CI/CD'
     assert data['filter_tags'] == []
@@ -103,7 +102,7 @@ def test_ci_measurement_add_different_user():
     measurement_model = MEASUREMENT_MODEL_NEW.copy()
 
     response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement_model, timeout=15, headers={'X-Authentication': 'PYTEST'})
-    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.status_code == 204, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
     compare_carbondb_data(measurement_model, data)
@@ -122,7 +121,7 @@ def test_ci_measurement_add_co2():
     measurement_model['carbon_ug'] = 4567893453245
 
     response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement_model, timeout=15)
-    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.status_code == 204, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
     compare_carbondb_data(measurement_model, data)
@@ -134,7 +133,7 @@ def test_ci_measurement_add_small_with_warning():
     measurement_model['energy_uj'] = 1
 
     response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement_model, timeout=15)
-    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.status_code == 204, Tests.assertion_info('success', response.text)
     logs = subprocess.check_output(['docker', 'logs', 'test-green-coding-gunicorn-container', '-n', '10'], stderr=subprocess.STDOUT, encoding='UTF-8').strip()
 
     data = fetch_data_from_db(measurement_model['run_id'])
@@ -150,7 +149,7 @@ def test_ci_measurement_add_force_ip():
     measurement_model['ip'] = '1.1.1.1'
 
     response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement_model, timeout=15)
-    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.status_code == 204, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
 
@@ -168,7 +167,7 @@ def test_ci_measurement_add_filters():
     measurement_model['filter_type'] = 'CI / CD'
 
     response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement_model, timeout=15)
-    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert response.status_code == 204, Tests.assertion_info('success', response.text)
 
     data = fetch_data_from_db(measurement_model['run_id'])
     compare_carbondb_data(measurement_model, data)

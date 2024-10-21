@@ -217,11 +217,10 @@ CREATE TABLE ci_measurements (
     carbon_intensity_g int,
     carbon_ug bigint,
     ip_address INET,
-    filter_type text,
-    filter_project text,
-    filter_machine text,
-    filter_tags text[],
-    filter_source text DEFAULT 'Eco-CI',
+    filter_type text NOT NULL,
+    filter_project text NOT NULL,
+    filter_machine text NOT NULL,
+    filter_tags text[] NOT NULL,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
@@ -417,7 +416,7 @@ CREATE TABLE carbondb_data_raw (
     type text NOT NULL,
     project text NOT NULL,
     machine text NOT NULL,
-    source text NOT NULL,
+    source text NOT NULL CHECK (source IN ('CUSTOM', 'Eco-CI', 'Green Metrics Tool', 'Power HOG')),
     tags text[] NOT NULL,
     time BIGINT NOT NULL,
     energy_kwh DOUBLE PRECISION NOT NULL,
@@ -470,3 +469,11 @@ CREATE TABLE carbon_intensity (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (latitude, longitude, created_at)
 );
+
+
+CREATE VIEW carbondb_data_view AS
+SELECT cd.*, t.type as type_str, s.source as source_str, m.machine as machine_str, p.project as project_str FROM carbondb_data as cd
+LEFT JOIN carbondb_types as t ON cd.type = t.id
+LEFT JOIN carbondb_sources as s ON cd.source = s.id
+LEFT JOIN carbondb_machines as m ON cd.machine = m.id
+LEFT JOIN carbondb_projects as p ON cd.project = p.id;

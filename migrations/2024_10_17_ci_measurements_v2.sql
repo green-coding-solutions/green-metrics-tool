@@ -9,8 +9,7 @@ ALTER TABLE "public"."ci_measurements"
   ADD COLUMN "filter_type" text,
   ADD COLUMN "filter_project" text,
   ADD COLUMN "filter_machine" text,
-  ADD COLUMN "filter_tags" text[],
-  ADD COLUMN "filter_source" text DEFAULT 'Eco-CI'; -- add static column because we do not allow inserts from other source atm
+  ADD COLUMN "filter_tags" text[];
 
 ALTER TABLE "public"."ci_measurements" ALTER COLUMN "carbon_intensity_g" TYPE int USING "carbon_intensity_g"::int;
 
@@ -26,3 +25,22 @@ ALTER TABLE "public"."ci_measurements" ALTER COLUMN "carbon_ug" TYPE BIGINT USIN
 ALTER TABLE "public"."ci_measurements" ALTER COLUMN "user_id" SET NOT NULL;
 ALTER TABLE "public"."timeline_projects" ALTER COLUMN "user_id" SET NOT NULL;
 ALTER TABLE "public"."hog_measurements" ALTER COLUMN "user_id" SET NOT NULL;
+
+
+UPDATE ci_measurements SET filter_type = 'machine.ci' WHERE filter_type IS NULL;
+UPDATE ci_measurements SET filter_project = 'CI/CD' WHERE filter_project IS NULL;
+UPDATE ci_measurements SET filter_machine = 'unknown' WHERE filter_machine IS NULL;
+UPDATE ci_measurements SET filter_tags = '{}' WHERE filter_tags IS NULL;
+
+ALTER TABLE "public"."ci_measurements" ALTER COLUMN "filter_type" SET NOT NULL;
+ALTER TABLE "public"."ci_measurements" ALTER COLUMN "filter_project" SET NOT NULL;
+ALTER TABLE "public"."ci_measurements" ALTER COLUMN "filter_machine" SET NOT NULL;
+ALTER TABLE "public"."ci_measurements" ALTER COLUMN "filter_tags" SET NOT NULL;
+
+
+CREATE VIEW carbondb_data_view AS
+SELECT cd.*, t.type as type_str, s.source as source_str, m.machine as machine_str, p.project as project_str FROM carbondb_data as cd
+LEFT JOIN carbondb_types as t ON cd.type = t.id
+LEFT JOIN carbondb_sources as s ON cd.source = s.id
+LEFT JOIN carbondb_machines as m ON cd.machine = m.id
+LEFT JOIN carbondb_projects as p ON cd.project = p.id;

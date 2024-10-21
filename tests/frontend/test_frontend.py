@@ -62,7 +62,7 @@ def test_home():
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     value = page.locator("#runs-table > tbody > tr:nth-child(2) > td:nth-child(1) > a").text_content()
 
-    assert value== 'Stress Test #4'
+    assert value== 'Stress Test #2'
 
 
 def test_eco_ci_demo_data():
@@ -148,7 +148,7 @@ def test_eco_ci_adding_data():
                         carbon_ug=323456
             )
             response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement.model_dump(), timeout=15)
-            assert response.status_code == 200, Tests.assertion_info('success', response.text)
+            assert response.status_code == 204, Tests.assertion_info('success', response.text)
 
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')

@@ -101,9 +101,9 @@ class CI_Measurement_Old(BaseModel):
     label: str
     duration: int
     workflow_name: str = None
-    cb_company_uuid: Optional[str] = ''
-    cb_project_uuid: Optional[str] = ''
-    cb_machine_uuid: Optional[str] = ''
+    cb_company_uuid: Optional[str] = '' # will just be ignored as of now
+    cb_project_uuid: Optional[str] = '' # will just be ignored as of now
+    cb_machine_uuid: Optional[str] = '' # will just be ignored as of now
     lat: Optional[str] = ''
     lon: Optional[str] = ''
     city: Optional[str] = ''

@@ -1158,16 +1158,22 @@ async def post_ci_measurement_add_deprecated(
                             city,
                             carbon_intensity_g,
                             carbon_ug,
+                            filter_type,
+                            filter_project,
+                            filter_machine,
+                            filter_tags,
                             user_id,
                             ip_address
                             )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         '''
 
     params = ( int(measurement.energy_value*1000), measurement.repo, measurement.branch,
             measurement.workflow, measurement.run_id, measurement.label, measurement.source, measurement.cpu,
             measurement.commit_hash, int(measurement.duration*1000000), measurement.cpu_util_avg, measurement.workflow_name,
-            measurement.lat, measurement.lon, measurement.city, co2i_transformed, co2eq_transformed, user._id, used_client_ip)
+            measurement.lat, measurement.lon, measurement.city, co2i_transformed, co2eq_transformed,
+            'machine.ci', 'CI/CD', 'unknown', [],
+            user._id, used_client_ip)
 
 
     DB().query(query=query, params=params)
@@ -1178,7 +1184,7 @@ async def post_ci_measurement_add_deprecated(
             measurement=measurement
         )
 
-    return ORJSONResponse({'success': True}, status_code=200)
+    return Response(status_code=204)
 
 
 @app.post('/v2/ci/measurement/add')
@@ -1249,7 +1255,7 @@ async def post_ci_measurement_add(
             measurement=measurement
         )
 
-    return ORJSONResponse({'success': True}, status_code=200)
+    return Response(status_code=204)
 
 @app.get('/v1/ci/measurements')
 async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date):

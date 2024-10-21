@@ -795,7 +795,7 @@ def carbondb_add(connecting_ip, data, source, user_id):
 
     energy_J = float(data['energy_uj']) / 1e6
     energy_kWh = energy_J / (3_600*1_000)
-    carbon_kg = energy_kWh * carbon_intensity_g_per_kWh
+    carbon_kg = (energy_kWh * carbon_intensity_g_per_kWh)/1_000
 
     DB().query(
         query=query,

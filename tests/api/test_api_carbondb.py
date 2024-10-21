@@ -14,7 +14,7 @@ from tests import test_functions as Tests
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
 
-energydata = {
+ENERGY_DATA = {
     'type': 'machine.ci',
     'energy_uj': 1,
     'time': int(time.time() * 1e6),
@@ -28,20 +28,20 @@ def test_carbondb_add_unauthenticated():
     user._capabilities['api']['routes'] = []
     user.update()
 
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata, timeout=15)
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=ENERGY_DATA, timeout=15)
     assert response.status_code == 401, Tests.assertion_info('success', response.text)
 
 def test_carbondb_add():
 
-    exp_data = energydata.copy()
+    exp_data = ENERGY_DATA.copy()
     del exp_data['energy_uj']
     exp_data['energy_kwh'] = 2.7777777777777774e-13 # 1 uJ
-    exp_data['carbon_kg'] = 2.7777777777777777e-10 # 1e-6J / (3600 * 1000) = kwH = 2.7777777777777774e-13 => * 1000 => 2.77e-10 g = 2.77e-4 ug
+    exp_data['carbon_kg'] = 2.7777777777777777e-13 # 1e-6J / (3600 * 1000) = kwH = 2.7777777777777774e-13 => * 1000 => 2.77e-10 g = 2.77e-13 kg
     exp_data['carbon_intensity_g'] = 1000.0 # because we have no electricitymaps token set
     exp_data['latitude'] = 52.53721666833642
     exp_data['longitude'] = 13.42486387066192
 
-    response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata, timeout=15)
+    response = requests.post(f"{API_URL}/v2/carbondb/add", json=ENERGY_DATA, timeout=15)
     assert response.status_code == 204, Tests.assertion_info('success', response.text)
 
     data = DB().fetch_one('SELECT * FROM carbondb_data_raw', fetch_mode='dict')
@@ -49,7 +49,7 @@ def test_carbondb_add():
     assert_expected_data(exp_data, data)
 
 def test_carbondb_add_force_ip():
-    energydata_modified = energydata.copy()
+    energydata_modified = ENERGY_DATA.copy()
     energydata_modified['ip'] = '1.1.1.1'
 
 
@@ -69,13 +69,13 @@ def test_carbondb_add_force_ip():
 
 def test_carbondb_add_force_carbon_intensity():
 
-    energydata_modified = energydata.copy()
+    energydata_modified = ENERGY_DATA.copy()
     energydata_modified['carbon_intensity_g'] = 200
 
     exp_data = energydata_modified.copy()
     del exp_data['energy_uj']
     exp_data['carbon_intensity_g'] = 200
-    exp_data['carbon_kg'] = 5.555555555555555e-11
+    exp_data['carbon_kg'] = 5.555555555555555e-14
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
     assert response.status_code == 204, Tests.assertion_info('success', response.text)
@@ -105,7 +105,7 @@ def test_carbondb_non_int():
     assert response.text == '{"success":false,"err":[{"type":"string_type","loc":["body","project"],"msg":"Input should be a valid string","input":678},{"type":"string_type","loc":["body","machine"],"msg":"Input should be a valid string","input":9},{"type":"string_type","loc":["body","type"],"msg":"Input should be a valid string","input":123},{"type":"int_parsing","loc":["body","time"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-time"},{"type":"int_parsing","loc":["body","energy_uj"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"no-int"}],"body":{"type":123,"energy_uj":"no-int","time":"no-time","project":678,"machine":9}}'
 
 def test_carbondb_superflous():
-    energydata_superflous = energydata.copy()
+    energydata_superflous = ENERGY_DATA.copy()
     energydata_superflous['no-need'] = 1
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_superflous, timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
@@ -113,7 +113,7 @@ def test_carbondb_superflous():
     assert json.loads(response.text)['err'][0]['loc'] == ['body','no-need']
 
 def test_carbondb_empty_filters():
-    energydata_modified = energydata.copy()
+    energydata_modified = ENERGY_DATA.copy()
     energydata_modified['type'] = ''
     energydata_modified['project'] = ''
     energydata_modified['machine'] = ''
@@ -126,7 +126,7 @@ def test_carbondb_empty_filters():
 
 
 def test_carbondb_weird_tags():
-    energydata_modified = energydata.copy()
+    energydata_modified = ENERGY_DATA.copy()
     energydata_modified['tags'] = ['öla', '<asd>']
 
     response = requests.post(f"{API_URL}/v2/carbondb/add", json=energydata_modified, timeout=15)
