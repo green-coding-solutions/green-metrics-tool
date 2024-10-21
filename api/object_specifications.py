@@ -109,6 +109,7 @@ class CI_Measurement_Old(BaseModel):
     city: Optional[str] = ''
     co2i: Optional[str] = ''
     co2eq: Optional[str] = ''
+    project_id: Optional[str] = '' # legacy. Is ignored
 
     model_config = ConfigDict(extra='forbid')
 
