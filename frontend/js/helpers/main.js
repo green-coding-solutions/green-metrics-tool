@@ -123,7 +123,9 @@ const replaceRepoIcon = (uri) => {
 };
 
 const showNotification = (message_title, message_text, type='warning') => {
-    const message = (typeof message_text === 'string') ? message_text : JSON.stringify(message_text);
+    if (typeof message_text === 'object') console.log(message_text); // this is most likey an error. We need it in the console
+
+    const message = (typeof message_text === 'string' || typeof message_text === 'object') ? message_text : JSON.stringify(message_text);
     $('body')
       .toast({
         class: type,
@@ -264,5 +266,13 @@ $(document).ready(function () {
 
 $(window).on('load', function() {
     $("body").removeClass("preload"); // activate tranisition CSS properties again
+    $('.close')
+      .on('click', function() {
+        $(this)
+          .closest('.ui')
+          .transition('fade')
+        ;
+      })
+    ;
 });
 
