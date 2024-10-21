@@ -162,7 +162,7 @@ def build_and_store_phase_stats(run_id, sci=None):
             duration_in_years = duration_in_s / (60 * 60 * 24 * 365)
             embodied_carbon_share_g = (duration_in_years / sci['EL'] ) * sci['TE'] * sci['RS']
             embodied_carbon_share_ug = decimal.Decimal(embodied_carbon_share_g * 1_000_000)
-            csv_buffer.write(generate_csv_line(run_id, 'upstream_embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 'ug'))
+            csv_buffer.write(generate_csv_line(run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 'ug'))
 
         if phase['name'] == '[RUNTIME]' and machine_carbon_in_ug is not None and sci is not None and sci.get('R', 0) != 0:
             csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_carbon_in_ug + embodied_carbon_share_ug + network_io_carbon_in_ug) / sci['R'], 'TOTAL', None, None, f"ugCO2e/{sci['R_d']}"))
