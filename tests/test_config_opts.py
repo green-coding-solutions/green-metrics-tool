@@ -15,7 +15,7 @@ def test_global_timeout():
 
     measurement_total_duration = 1
 
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_build=False, dev_no_sleeps=True, dev_no_metrics=True, measurement_total_duration=1)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, measurement_total_duration=1)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -50,7 +50,7 @@ def reset_config_fixture():
 # Rethink how to do this test entirely
 def wip_test_idle_start_time(reset_config):
     GlobalConfig().config['measurement']['idle-time-start'] = 2
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_cache_build=True)
     run_id = runner.run()
     query = """
             SELECT
@@ -76,7 +76,7 @@ def wip_test_idle_start_time(reset_config):
 # Rethink how to do this test entirely
 def wip_test_idle_end_time(reset_config):
     GlobalConfig().config['measurement']['idle-time-end'] = 2
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_cache_build=True)
     run_id = runner.run()
     query = """
             SELECT
@@ -100,7 +100,7 @@ def wip_test_idle_end_time(reset_config):
 
 def wip_test_process_runtime_exceeded(reset_config):
     GlobalConfig().config['measurement']['flow-process-runtime'] = .1
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_sleeps=True, dev_cache_build=True)
     with pytest.raises(RuntimeError) as err:
         runner.run()
     expected_exception = 'Process exceeded runtime of 0.1s: stress-ng -c 1 -t 1 -q'
