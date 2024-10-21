@@ -49,8 +49,8 @@ def build_and_store_phase_stats(run_id, sci=None):
 
         cpu_utilization_containers = {} # reset
         cpu_utilization_machine = None
-        machine_co2_in_ug = None # reset
-        network_io_co2_in_ug = None
+        machine_carbon_in_ug = None # reset
+        network_io_carbon_in_ug = None
 
         select_query = """
             SELECT SUM(value), MAX(value), MIN(value), AVG(value), COUNT(value)
@@ -131,8 +131,8 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg, 'MEAN', power_max, power_min, 'mW'))
 
                 if metric.endswith('_machine') and sci.get('I', None) is not None:
-                    machine_co2_in_ug = decimal.Decimal((value_sum / 3_600) * sci['I'])
-                    csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_co2_')}", detail_name, f"{idx:03}_{phase['name']}", machine_co2_in_ug, 'TOTAL', None, None, 'ug'))
+                    machine_carbon_in_ug = decimal.Decimal((value_sum / 3_600) * sci['I'])
+                    csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", machine_carbon_in_ug, 'TOTAL', None, None, 'ug'))
 
                     if phase['name'] == '[IDLE]':
                         machine_power_idle = power_avg
@@ -153,19 +153,19 @@ def build_and_store_phase_stats(run_id, sci=None):
             network_io_in_mJ = network_io_in_kWh * 3_600_000_000
             csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", decimal.Decimal(network_io_in_mJ), 'TOTAL', None, None, 'mJ'))
             # co2 calculations
-            network_io_co2_in_ug = decimal.Decimal(network_io_in_kWh * config['sci']['I'] * 1_000_000)
-            csv_buffer.write(generate_csv_line(run_id, 'network_co2_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_co2_in_ug, 'TOTAL', None, None, 'ug'))
+            network_io_carbon_in_ug = decimal.Decimal(network_io_in_kWh * config['sci']['I'] * 1_000_000)
+            csv_buffer.write(generate_csv_line(run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, 'ug'))
         else:
-            network_io_co2_in_ug = decimal.Decimal(0)
+            network_io_carbon_in_ug = decimal.Decimal(0)
 
         if sci.get('EL', None) is not None and sci.get('TE', None) is not None and sci.get('RS', None) is not None:
             duration_in_years = duration_in_s / (60 * 60 * 24 * 365)
             embodied_carbon_share_g = (duration_in_years / sci['EL'] ) * sci['TE'] * sci['RS']
             embodied_carbon_share_ug = decimal.Decimal(embodied_carbon_share_g * 1_000_000)
-            csv_buffer.write(generate_csv_line(run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 'ug'))
+            csv_buffer.write(generate_csv_line(run_id, 'upstream_embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 'ug'))
 
-        if phase['name'] == '[RUNTIME]' and machine_co2_in_ug is not None and sci is not None and sci.get('R', 0) != 0:
-            csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_co2_in_ug + embodied_carbon_share_ug + network_io_co2_in_ug) / sci['R'], 'TOTAL', None, None, f"ugCO2e/{sci['R_d']}"))
+        if phase['name'] == '[RUNTIME]' and machine_carbon_in_ug is not None and sci is not None and sci.get('R', 0) != 0:
+            csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_carbon_in_ug + embodied_carbon_share_ug + network_io_carbon_in_ug) / sci['R'], 'TOTAL', None, None, f"ugCO2e/{sci['R_d']}"))
 
         if machine_power_idle and cpu_utilization_machine and cpu_utilization_containers:
             surplus_power_runtime = machine_power_runtime - machine_power_idle

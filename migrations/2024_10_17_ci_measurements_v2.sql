@@ -44,3 +44,7 @@ LEFT JOIN carbondb_types as t ON cd.type = t.id
 LEFT JOIN carbondb_sources as s ON cd.source = s.id
 LEFT JOIN carbondb_machines as m ON cd.machine = m.id
 LEFT JOIN carbondb_projects as p ON cd.project = p.id;
+
+UPDATE phase_stats
+SET metric = REPLACE(metric, '_co2_', '_carbon_')
+WHERE metric LIKE '%_co2_%';

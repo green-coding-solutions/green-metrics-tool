@@ -46,8 +46,8 @@ def copy_over_gmt():
                 EXTRACT(EPOCH FROM r.created_at) * 1e6 as time,
 
                 -- we do these two queries as subselects as if they were left joins they will blow up the table whenever we relax the condition that only one metric with same name may exist
-                (SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p WHERE p.run_id = r.id AND p.unit = 'mJ' AND p.metric LIKE '%energy_%_machine')/1e3/3600/1000 as energy_kwh,
-                (SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p2 WHERE p2.run_id = r.id AND p2.unit = 'ug' AND p2.metric LIKE '%carbon_%_machine')/1e9 as carbon_kg,
+                (SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p WHERE p.run_id = r.id AND p.unit = 'mJ' AND p.metric LIKE '%_energy_%_machine')/1e3/3600/1000 as energy_kwh,
+                (SELECT SUM(value::DOUBLE PRECISION) FROM phase_stats as p2 WHERE p2.run_id = r.id AND p2.unit = 'ug' AND p2.metric LIKE '%_carbon_%')/1e9 as carbon_kg,
 
                 0, -- there is no need for this column for further processing
                 0.0,  -- there is no need for this column for further processing
