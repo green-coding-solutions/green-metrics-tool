@@ -10,6 +10,7 @@ class HogMeasurement(BaseModel):
     data: str
     settings: str
     machine_uuid: str
+    row_id: int # we use this only for debugging
 
     model_config = ConfigDict(extra='forbid')
 
