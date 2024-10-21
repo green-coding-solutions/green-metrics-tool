@@ -398,7 +398,7 @@ const getLastRunBadge = async (repo, branch, workflow_id) => {
 
 const getMeasurements = async (repo, branch, workflow_id, start_date = null, end_date = null) => {
     if(end_date == null) end_date = dateToYMD(new Date(), short=true);
-    if(start_date == null) start_date = dateToYMD(new Date((new Date()).setDate((new Date).getDate() -30)), short=true);
+    if(start_date == null) start_date = dateToYMD(new Date((new Date()).setDate((new Date).getDate() -7)), short=true);
     const api_string=`/v1/ci/measurements?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`;
     return await makeAPICall(api_string);
 }
@@ -470,7 +470,7 @@ $(document).ready((e) => {
 
         getLastRunBadge(repo, branch, workflow_id) // async
 
-        $('#rangestart input').val(new Date((new Date()).setDate((new Date).getDate() -30))) // set default on load
+        $('#rangestart input').val(new Date((new Date()).setDate((new Date).getDate() -7))) // set default on load
         $('#rangeend input').val(new Date()) // set default on load
         dateTimePicker();
 
