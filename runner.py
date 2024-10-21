@@ -48,7 +48,7 @@ class Runner:
         *, uri, uri_type, name=None, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False,  skip_system_checks=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
-        dev_no_sleeps=False, dev_no_build=False, dev_no_metrics=False,
+        dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
         user_id=None, measurement_flow_process_duration=None, measurement_total_duration=None):
 
@@ -68,7 +68,7 @@ class Runner:
         self._full_docker_prune = full_docker_prune
         self._docker_prune = docker_prune
         self._dev_no_sleeps = dev_no_sleeps
-        self._dev_no_build = dev_no_build
+        self._dev_cache_build = dev_cache_build
         self._dev_no_metrics = dev_no_metrics
         self._dev_flow_timetravel = dev_flow_timetravel
         self._dev_no_optimizations = dev_no_optimizations
@@ -403,13 +403,13 @@ class Runner:
     def populate_image_names(self):
         for service_name, service in self._usage_scenario.get('services', {}).items():
             if not service.get('image', None): # image is a non-mandatory field. But we need it, so we tmp it
-                if self._dev_no_build:
+                if self._dev_cache_build:
                     service['image'] = f"{service_name}"
                 else:
                     service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
 
     def remove_docker_images(self):
-        if self._dev_no_build:
+        if self._dev_cache_build:
             return
 
         print(TerminalColors.HEADER, '\nRemoving all temporary GMT images', TerminalColors.ENDC)
@@ -536,7 +536,7 @@ class Runner:
         self.__metric_providers.sort(key=lambda item: 'rapl' not in item.__class__.__name__.lower())
 
     def download_dependencies(self):
-        if self._dev_no_build:
+        if self._dev_cache_build:
             print(TerminalColors.HEADER, '\nSkipping downloading dependencies', TerminalColors.ENDC)
             return
 
@@ -1659,7 +1659,7 @@ if __name__ == '__main__':
     parser.add_argument('--dev-flow-timetravel', action='store_true', help='Allows to repeat a failed flow or timetravel to beginning of flows or restart services.')
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
-    parser.add_argument('--dev-no-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
+    parser.add_argument('--dev-cache-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
     parser.add_argument('--dev-no-optimizations', action='store_true', help='Disable analysis after run to find possible optimizations.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
@@ -1675,9 +1675,9 @@ if __name__ == '__main__':
         error_helpers.log_error('--allow-unsafe and skip--unsafe in conjuction is not possible')
         sys.exit(1)
 
-    if args.dev_no_build and (args.docker_prune or args.full_docker_prune):
+    if args.dev_cache_build and (args.docker_prune or args.full_docker_prune):
         parser.print_help()
-        error_helpers.log_error('--dev-no-build blocks pruning docker images. Combination is not allowed')
+        error_helpers.log_error('--dev-cache-build blocks pruning docker images. Combination is not allowed')
         sys.exit(1)
 
     if args.full_docker_prune and GlobalConfig().config['postgresql']['host'] == 'green-coding-postgres-container':
@@ -1712,7 +1712,7 @@ if __name__ == '__main__':
                     skip_system_checks=args.skip_system_checks,
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                     full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
-                    dev_no_build=args.dev_no_build, dev_no_metrics=args.dev_no_metrics,
+                    dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics,
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
                     docker_prune=args.docker_prune)
 

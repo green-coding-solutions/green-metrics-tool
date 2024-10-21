@@ -19,15 +19,10 @@ run_stdout = None
 
 RUN_NAME = 'test_' + utils.randomword(12)
 
-
-# override per test cleanup, as the module setup requires writing to DB
-@pytest.fixture(autouse=False)
-def cleanup_after_test():
-    pass
-
 #pylint: disable=unused-argument
-@pytest.fixture(autouse=True, scope='module')
-def setup_and_cleanup_module():
+@pytest.fixture(autouse=True, scope='module') # override by setting scope to module only
+def setup_and_cleanup_test():
+    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml") # we want to do this globally for all tests
     yield
     Tests.reset_db()
 
@@ -42,7 +37,7 @@ def setup_module(module):
         subprocess.run(['docker', 'compose', '-f', GMT_DIR+folder+'compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = Runner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=False)
+        runner = Runner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=False)
         runner.run()
 
     #pylint: disable=global-statement

@@ -8,19 +8,18 @@ GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))+'/../../'
 import pytest
 from tests import test_functions as Tests
 from lib.db import DB
+from lib.global_config import GlobalConfig
+
 from lib import utils
 from runner import Runner
 from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
 from tools.phase_stats import build_and_store_phase_stats
 
-# override per test cleanup, as the module setup requires writing to DB
-@pytest.fixture(autouse=False)
-def cleanup_after_test():
-    pass
 
 #pylint: disable=unused-argument
-@pytest.fixture(autouse=True, scope='module')
-def setup_and_cleanup_module():
+@pytest.fixture(autouse=True, scope='module') # override by setting scope to module only
+def setup_and_cleanup_test():
+    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../test-config.yml") # we want to do this globally for all tests
     yield
     Tests.reset_db()
 
@@ -32,7 +31,7 @@ MB = 1000*1000 # Note: GMT uses SI Units!
 def setup_module(module):
     global run_id #pylint: disable=global-statement
 
-    runner = Runner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/metric_providers_data.yml', skip_system_checks=True, dev_no_metrics=False, dev_no_sleeps=True, dev_no_build=True)
+    runner = Runner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/metric_providers_data.yml', skip_system_checks=True, dev_no_metrics=False, dev_no_sleeps=True, dev_cache_build=True)
 
     subprocess.run('sync', check=True) # we sync here so that we can later more granular check for written file size
 
