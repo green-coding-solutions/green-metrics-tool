@@ -25,15 +25,8 @@ class User():
         del values['_id']
         return values
 
-    def to_dict(self):
-        values = self.__dict__.copy()
-        del values['_id']
-        return values
-
     def __repr__(self):
-        values = self.__dict__.copy()
-        del values['_id']
-        return str(values)
+        return str(self.to_dict())
 
     def update(self):
         DB().query("""
