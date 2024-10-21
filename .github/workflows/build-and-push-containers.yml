@@ -22,6 +22,16 @@ jobs:
       packages: write
       contents: read
     steps:
+      - name: Eco CI Energy Estimation - Initialize
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        with:
+          task: start-measurement
+          project: "Green Metrics Tool"
+          machine: "ubuntu-latest"
+          tags: "CI/CD,Build-Auxillary-Containers-Workflow"
+          gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
+          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -53,3 +63,13 @@ jobs:
         shell: bash
         run: |
           ./docker/auxiliary-containers/build-containers.sh ${{ github.event.inputs.container }}
+
+      - name: Eco CI Energy Estimation - Get Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        with:
+          task: get-measurement
+
+      - name: Eco CI Energy Estimation - End Measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        with:
+          task: display-results
