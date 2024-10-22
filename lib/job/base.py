@@ -23,7 +23,7 @@ from lib.configuration_check_error import ConfigurationCheckError
 """
 
 class Job(ABC):
-    def __init__(self, *, state, name, email, url,  branch, filename, machine_id, user_id, run_id, job_id, machine_description, message):
+    def __init__(self, *, state, name, email, url,  branch, filename, machine_id, user_id, run_id, job_id, machine_description, message, created_at = None):
         self._id = job_id
         self._state = state
         self._name = name
@@ -36,6 +36,7 @@ class Job(ABC):
         self._machine_description = machine_description
         self._run_id = run_id
         self._message = message
+        self._created_at = created_at
 
     @abstractmethod
     def check_job_running(self):
@@ -94,7 +95,8 @@ class Job(ABC):
         query = '''
             SELECT
                 j.id, j.state, j.name, j.email, j.url, j.branch,
-                j.filename, j.machine_id, j.user_id, m.description, j.message, r.id as run_id
+                j.filename, j.machine_id, j.user_id, m.description, j.message, r.id as run_id, j.created_at
+
             FROM jobs as j
             LEFT JOIN machines as m on m.id = j.machine_id
             LEFT JOIN runs as r on r.job_id = j.id
@@ -137,6 +139,7 @@ class Job(ABC):
             machine_description=job[9],
             message=job[10],
             run_id=job[11],
+            created_at=job[12],
         )
 
     @classmethod
