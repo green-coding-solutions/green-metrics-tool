@@ -1,6 +1,8 @@
 import faulthandler
 faulthandler.enable()  # will catch segfaults and write to stderr
 
+import os
+
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import error_helpers
@@ -10,8 +12,15 @@ from lib import error_helpers
 # During this process we also transform all text fields and transform them to integers and drop them into normalized
 # joined tables.
 
+########### Remove NULL values from tags
+# UPDATE carbondb_data_raw
+# SET tags = array_remove(tags, NULL)
+# WHERE array_position(tags, NULL) IS NOT NULL;
+
+
 def compress_carbondb_raw():
     query = '''
+
         INSERT INTO carbondb_types (type, user_id)
         SELECT DISTINCT type, user_id
         FROM carbondb_data_raw
@@ -39,7 +48,7 @@ def compress_carbondb_raw():
 
         DROP TABLE IF EXISTS carbondb_data_raw_tmp;
 
-        CREATE TABLE carbondb_data_raw_tmp AS
+        CREATE TEMPORARY TABLE carbondb_data_raw_tmp AS
         SELECT * FROM carbondb_data_raw;
 
         UPDATE carbondb_data_raw_tmp AS cdrt
@@ -92,7 +101,7 @@ def compress_carbondb_raw():
                 DATE_TRUNC('day', TO_TIMESTAMP(cdr.time / 1000000)),
                 SUM(cdr.energy_kwh),
                 SUM(cdr.carbon_kg),
-                (SUM(cdr.carbon_kg)*1e3) / SUM(cdr.energy_kwh), -- weighted average instead of just averaging carbon_intensity
+                COALESCE(SUM(cdr.carbon_kg)*1e3 / NULLIF(SUM(cdr.energy_kwh), 0), 0), -- weighted average instead of just averaging carbon_intensity. Since the solar panel might not be producing power at all for a day, which results in 0, we need to COALESCE and insert 0 in this case
                 COUNT(*),
                 cdr.user_id
             FROM
@@ -119,6 +128,7 @@ def compress_carbondb_raw():
 
 if __name__ == '__main__':
     try:
+        GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
         compress_carbondb_raw()
     except Exception as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=GlobalConfig().config['machine']['description'])

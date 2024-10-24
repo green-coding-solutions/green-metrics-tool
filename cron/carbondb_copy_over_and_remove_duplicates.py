@@ -1,6 +1,8 @@
 import faulthandler
 faulthandler.enable()  # will catch segfaults and write to stderr
 
+import os
+
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import error_helpers
@@ -105,6 +107,7 @@ def remove_duplicates():
 
 if __name__ == '__main__':
     try:
+        GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../manager-config.yml")
         copy_over_eco_ci()
         copy_over_gmt()
         remove_duplicates()
