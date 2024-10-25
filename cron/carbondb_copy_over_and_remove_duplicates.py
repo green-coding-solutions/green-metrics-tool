@@ -77,7 +77,7 @@ def validate_table_constraints():
         FROM
             information_schema.columns
         WHERE
-            table_name = 'carbondb_data_raw'  -- replace 'your_table' with the table name
+            table_name = 'carbondb_data_raw'
             AND column_name IN ('user_id', 'time', 'energy_kwh', 'carbon_kg', 'carbon_intensity_g', 'type', 'project', 'machine', 'source', 'tags')
     ''')
 
