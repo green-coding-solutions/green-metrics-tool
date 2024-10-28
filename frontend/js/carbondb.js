@@ -136,7 +136,10 @@ const fillBarChart = (y_axis, legend, labels, series) => {
             return `<strong>${escapeString(labels[params.componentIndex].date)}</strong><br>
                     Type: ${escapeString(labels[params.componentIndex].type)}<br>
                     Value: ${escapeString(labels[params.componentIndex].value)} ${escapeString(labels[params.componentIndex].unit)}<br>
-
+                    Project: ${escapeString(labels[params.componentIndex].project)}<br>
+                    Machine: ${escapeString(labels[params.componentIndex].machine)}<br>
+                    Source: ${escapeString(labels[params.componentIndex].source)}<br>
+                    Tags: ${escapeString(labels[params.componentIndex].tags)}<br>
                     `;
         }
 
@@ -220,6 +223,10 @@ const processData = (measurements) => {
         carbon_barchart_data.labels.push({
             type: dimensions_lookup['types'][type],
             date: date,
+            project: dimensions_lookup['projects'][project],
+            machine: dimensions_lookup['machines'][machine],
+            source: dimensions_lookup['sources'][source],
+            tags: tags.map( el => dimensions_lookup['tags'][el]),
             value: carbon,
             unit: 'kg',
         })
