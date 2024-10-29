@@ -372,7 +372,7 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
         selector = '.software-carbon-intensity';
     } else if(machine_power_metric_condition(metric_name)) {
         selector = '.machine-power';
-    } else if(machine_carbon_metric_condition(metric_name)) {
+    } else if(psu_machine_carbon_metric_condition(metric_name)) {
         selector = '.machine-co2';
     } else {
         return; // could not match key metric

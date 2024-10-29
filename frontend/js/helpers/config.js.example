@@ -379,8 +379,8 @@ const phase_time_metric_condition = (metric) => {
     return false;
 }
 
-const machine_carbon_metric_condition = (metric) => {
-    if(metric.match(/^.*_carbon_.*_machine$/) !== null) return true;
+const psu_machine_carbon_metric_condition = (metric) => {
+    if(metric.match(/^psu_.*_carbon_.*_machine$/) !== null) return true;
     return false;
 }
 
