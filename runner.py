@@ -1369,7 +1369,10 @@ class Runner:
 
         self.__notes_helper.add_note({'note': 'Start of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__start_measurement})
 
-    def end_measurement(self):
+    def end_measurement(self, skip_on_already_ended=False):
+        if self.__end_measurement is not None and skip_on_already_ended is False:
+            raise RuntimeError('end_measurement was requested although value as already set!')
+
         self.__end_measurement = int(time.time_ns() / 1_000)
         self.__notes_helper.add_note({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
 
@@ -1595,8 +1598,6 @@ class Runner:
             self.end_measurement()
             self.check_process_returncodes()
             self.custom_sleep(config['measurement']['post-test-sleep'])
-            self.store_phases()
-            self.update_start_and_end_times()
 
         except BaseException as exc:
             self.add_to_log(exc.__class__.__name__, str(exc))
@@ -1604,6 +1605,18 @@ class Runner:
             raise exc
         finally:
             try:
+                self.end_measurement(skip_on_already_ended=True) # end_measurement can already been set if error happens in check_process_returncodes
+                if self.__phases:
+                    last_phase_name, _ = next(reversed(self.__phases.items()))
+                    if self.__phases[last_phase_name].get('end', None) is None:
+                        self.__phases[last_phase_name]['end'] = int(time.time_ns() / 1_000)
+
+                    # Also patch Runtime phase separately, which we need as this will only get set after all child runtime phases
+                    if self.__phases.get('[RUNTIME]', None) is not None and self.__phases['[RUNTIME]'].get('end', None) is None:
+                        self.__phases['[RUNTIME]']['end'] = int(time.time_ns() / 1_000)
+
+                self.update_start_and_end_times()
+                self.store_phases()
                 self.read_container_logs()
             except BaseException as exc:
                 self.add_to_log(exc.__class__.__name__, str(exc))
@@ -1633,7 +1646,24 @@ class Runner:
                                 self.add_to_log(exc.__class__.__name__, str(exc))
                                 raise exc
                             finally:
-                                self.cleanup()  # always run cleanup automatically after each run
+                                try:
+                                    self.cleanup()  # always run cleanup automatically after each run
+                                except BaseException as exc:
+                                    self.add_to_log(exc.__class__.__name__, str(exc))
+                                    raise exc
+                                finally:
+                                    # After every run, even if it failed, we want to generate phase stats.
+                                    # They will not show the accurate data, but they are still neded to understand how
+                                    # much a failed run has accrued in total energy and carbon costs
+                                    print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
+
+                                    # get all the metrics from the measurements table grouped by metric
+                                    # loop over them issuing separate queries to the DB
+                                    from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
+
+                                    build_and_store_phase_stats(self._run_id, self._sci)
+
+
 
         print(TerminalColors.OKGREEN, arrows('MEASUREMENT SUCCESSFULLY COMPLETED'), TerminalColors.ENDC)
 
@@ -1721,22 +1751,14 @@ if __name__ == '__main__':
     try:
         run_id = runner.run()  # Start main code
 
-        # this code should live at a different position.
+        # this code can live at a different position.
         # From a user perspective it makes perfect sense to run both jobs directly after each other
         # In a cloud setup it however makes sense to free the measurement machine as soon as possible
         # So this code should be individually callable, separate from the runner
 
-        print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
 
-        # get all the metrics from the measurements table grouped by metric
-        # loop over them issuing separate queries to the DB
-        from tools.phase_stats import build_and_store_phase_stats
-
-        build_and_store_phase_stats(runner._run_id, runner._sci)
-
-        # We need to import this here as we need the correct config file
         if not runner._dev_no_optimizations:
-            import optimization_providers.base
+            import optimization_providers.base  # We need to import this here as we need the correct config file
             print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
             optimization_providers.base.import_reporters()
 

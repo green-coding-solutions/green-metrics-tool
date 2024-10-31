@@ -44,6 +44,10 @@ def build_and_store_phase_stats(run_id, sci=None):
     machine_power_runtime = None
     machine_energy_runtime = None
 
+    if not phases:
+        error_helpers.log_error('Phases object was empty and no phase_stats could be created. This can happen for failed runs, but should be very rare ...', run_id=run_id)
+        return
+
     for idx, phase in enumerate(phases):
         network_bytes_total = [] # reset; # we use array here and sum later, because checking for 0 alone not enough
 

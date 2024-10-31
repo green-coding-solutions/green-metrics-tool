@@ -21,9 +21,9 @@ def copy_over_eco_ci():
                 EXTRACT(EPOCH FROM created_at) * 1e6,
                 (energy_uj::DOUBLE PRECISION)/1e6/3600/1000, -- to get to kWh
                 (carbon_ug::DOUBLE PRECISION)/1e9, -- to get to kg
-                0,  -- there is no need for this column for further processing
-                0.0,  -- there is no need for this column for further processing
-                0.0,  -- there is no need for this column for further processing
+                0,  -- (carbon_intensity_g) there is no need for this column for further processing
+                0.0,  -- (latitude) there is no need for this column for further processing
+                0.0,  -- (longitude) there is no need for this column for further processing
                 ip_address,
                 user_id,
                 created_at
