@@ -220,6 +220,7 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
                 {detail_name_condition}
                 {limit_365_condition}
                 AND r.commit_timestamp IS NOT NULL
+                AND r.failed IS FALSE
             ORDER BY
                 p.metric ASC, p.detail_name ASC,
                 p.phase ASC, {sorting_condition}
