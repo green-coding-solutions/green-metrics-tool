@@ -16,7 +16,7 @@ server {
     }
 
     location / {
-        proxy_pass http://unix:/tmp/green-coding-api.sock;
+        proxy_pass http://unix:/tmp/gmt-sockets/api.sock;
         # Do not change this
         proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;

@@ -7,7 +7,7 @@ source /var/www/startup/venv/bin/activate
 --error-logfile=- \
 --worker-tmp-dir=/dev/shm \
 --worker-class=uvicorn_worker.UvicornWorker \
---bind unix:/tmp/green-coding-api.sock \
+--bind unix:/tmp/gmt-sockets/api.sock \
 -m 007 \
 --user www-data \
 --chdir /var/www/green-metrics-tool/api \
