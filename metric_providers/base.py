@@ -98,6 +98,11 @@ class BaseMetricProvider:
     def has_started(self):
         return self._has_started
 
+    def check_monotonic(self, df):
+        if not df['time'].is_monotonic_increasing:
+            raise ValueError(f"Data from metric provider {self._metric_name} is not monotonic increasing")
+
+
     def read_metrics(self, run_id, containers=None): #pylint: disable=unused-argument
         with open(self._filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
@@ -119,6 +124,8 @@ class BaseMetricProvider:
         df['unit'] = self._unit
         df['metric'] = self._metric_name
         df['run_id'] = run_id
+
+        self.check_monotonic(df)
 
         return df
 

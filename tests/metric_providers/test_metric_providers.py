@@ -203,3 +203,26 @@ def test_cpu_memory_carbon_providers():
         return
 
     assert seen_memory_used_procfs_system is True, "Did not see seen_memory_used_procfs_system metric"
+
+
+def test_monotonic():
+    obj = NetworkIoProcfsSystemProvider(100, remove_virtual_interfaces=False, skip_check=True)
+
+    with tempfile.NamedTemporaryFile(delete=True) as temp_file:
+        mock_temporary_network_file('./data/metrics/network_io_procfs_system.log', temp_file.name, 'dummy')
+
+        obj._filename = temp_file.name
+        df = obj.read_metrics('RUN_ID')
+
+
+def test_non_monotonic():
+    obj = NetworkIoProcfsSystemProvider(100, remove_virtual_interfaces=False, skip_check=True)
+
+    with tempfile.NamedTemporaryFile(delete=True) as temp_file:
+        mock_temporary_network_file('./data/metrics/network_io_procfs_system_non_monotonic.log', temp_file.name, 'dummy')
+
+        obj._filename = temp_file.name
+        with pytest.raises(ValueError) as e:
+            df = obj.read_metrics('RUN_ID')
+
+        assert str(e.value) == "Data from metric provider network_io_procfs_system is not monotonic increasing"
