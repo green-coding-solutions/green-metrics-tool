@@ -13,6 +13,8 @@ from lib.global_config import GlobalConfig
 from lib import utils
 from runner import Runner
 from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
+from metric_providers.cpu.energy.rapl.msr.component.provider import CpuEnergyRaplMsrComponentProvider
+
 from tools.phase_stats import build_and_store_phase_stats
 
 
@@ -45,6 +47,14 @@ def get_disk_usage(path="/"):
     used = usage.used
     free = usage.free
     return {'total': total, 'used': used, 'free': free}
+
+def mock_temporary_file(file_path, temp_file):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        file_contents = file.read()
+
+    # Write the modified contents back to the file
+    with open(temp_file, 'w', encoding='utf-8') as file:
+        file.write(file_contents)
 
 def mock_temporary_network_file(file_path, temp_file, actual_network_interface):
     with open(file_path, 'r', encoding='utf-8') as file:
@@ -209,20 +219,41 @@ def test_monotonic():
     obj = NetworkIoProcfsSystemProvider(100, remove_virtual_interfaces=False, skip_check=True)
 
     with tempfile.NamedTemporaryFile(delete=True) as temp_file:
-        mock_temporary_network_file('./data/metrics/network_io_procfs_system.log', temp_file.name, 'dummy')
+        mock_temporary_file('./data/metrics/network_io_procfs_system.log', temp_file.name)
 
         obj._filename = temp_file.name
-        df = obj.read_metrics('RUN_ID')
+        obj.read_metrics('RUN_ID')
 
 
 def test_non_monotonic():
     obj = NetworkIoProcfsSystemProvider(100, remove_virtual_interfaces=False, skip_check=True)
 
     with tempfile.NamedTemporaryFile(delete=True) as temp_file:
-        mock_temporary_network_file('./data/metrics/network_io_procfs_system_non_monotonic.log', temp_file.name, 'dummy')
+        mock_temporary_file('./data/metrics/network_io_procfs_system_non_monotonic.log', temp_file.name)
 
         obj._filename = temp_file.name
         with pytest.raises(ValueError) as e:
-            df = obj.read_metrics('RUN_ID')
+            obj.read_metrics('RUN_ID')
 
         assert str(e.value) == "Data from metric provider network_io_procfs_system is not monotonic increasing"
+
+def test_resolution_ok():
+    obj = CpuEnergyRaplMsrComponentProvider(100, skip_check=True)
+
+    with tempfile.NamedTemporaryFile(delete=True) as temp_file:
+        mock_temporary_file('./data/metrics/cpu_energy_rapl_msr_component.log', temp_file.name)
+
+        obj._filename = temp_file.name
+        obj.read_metrics('RUN_ID')
+
+def test_resolution_underflow():
+    obj = CpuEnergyRaplMsrComponentProvider(100, skip_check=True)
+
+    with tempfile.NamedTemporaryFile(delete=True) as temp_file:
+        mock_temporary_file('./data/metrics/cpu_energy_rapl_msr_component_undeflow.log', temp_file.name)
+
+        obj._filename = temp_file.name
+        with pytest.raises(ValueError) as e:
+            obj.read_metrics('RUN_ID')
+
+        assert str(e.value) == "Data from metric provider cpu_energy_rapl_msr_component is running into a resolution underflow. Values are <= 1 mJ"
