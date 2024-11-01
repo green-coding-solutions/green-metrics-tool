@@ -50,7 +50,7 @@ class Runner:
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
         dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
-        user_id=None, measurement_flow_process_duration=None, measurement_total_duration=None):
+        user_id=None, measurement_flow_process_duration=None, measurement_total_duration=None, dev_no_phase_stats=False):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -72,6 +72,7 @@ class Runner:
         self._dev_no_metrics = dev_no_metrics
         self._dev_flow_timetravel = dev_flow_timetravel
         self._dev_no_optimizations = dev_no_optimizations
+        self._dev_no_phase_stats = dev_no_phase_stats
         self._uri = uri
         self._uri_type = uri_type
         self._original_filename = filename
@@ -1523,6 +1524,7 @@ class Runner:
         '''
         try:
             config = GlobalConfig().config
+            self.start_measurement()
             self.check_system('start')
             self.initialize_folder(self._tmp_folder)
             self.checkout_repository()
@@ -1544,8 +1546,6 @@ class Runner:
                 self._debugger.pause('metric-providers (non-container) start complete. Waiting to start measurement')
 
             self.custom_sleep(config['measurement']['pre-test-sleep'])
-
-            self.start_measurement()
 
             self.start_phase('[BASELINE]')
             self.custom_sleep(config['measurement']['baseline-duration'])
@@ -1647,21 +1647,23 @@ class Runner:
                                 raise exc
                             finally:
                                 try:
-                                    self.cleanup()  # always run cleanup automatically after each run
+                                    if self._dev_no_phase_stats is False:
+                                        # After every run, even if it failed, we want to generate phase stats.
+                                        # They will not show the accurate data, but they are still neded to understand how
+                                        # much a failed run has accrued in total energy and carbon costs
+                                        print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
+
+                                        # get all the metrics from the measurements table grouped by metric
+                                        # loop over them issuing separate queries to the DB
+                                        from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
+                                        build_and_store_phase_stats(self._run_id, self._sci)
+
                                 except BaseException as exc:
                                     self.add_to_log(exc.__class__.__name__, str(exc))
                                     raise exc
                                 finally:
-                                    # After every run, even if it failed, we want to generate phase stats.
-                                    # They will not show the accurate data, but they are still neded to understand how
-                                    # much a failed run has accrued in total energy and carbon costs
-                                    print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
+                                    self.cleanup()  # always run cleanup automatically after each run
 
-                                    # get all the metrics from the measurements table grouped by metric
-                                    # loop over them issuing separate queries to the DB
-                                    from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
-
-                                    build_and_store_phase_stats(self._run_id, self._sci)
 
 
 
@@ -1689,6 +1691,7 @@ if __name__ == '__main__':
     parser.add_argument('--dev-flow-timetravel', action='store_true', help='Allows to repeat a failed flow or timetravel to beginning of flows or restart services.')
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
+    parser.add_argument('--dev-no-phase-stats', action='store_true', help='Do not calculate phase stats.')
     parser.add_argument('--dev-cache-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
     parser.add_argument('--dev-no-optimizations', action='store_true', help='Disable analysis after run to find possible optimizations.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
@@ -1744,7 +1747,7 @@ if __name__ == '__main__':
                     full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
                     dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics,
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
-                    docker_prune=args.docker_prune)
+                    docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats)
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except

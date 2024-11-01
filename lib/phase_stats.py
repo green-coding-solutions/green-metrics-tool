@@ -31,13 +31,23 @@ def build_and_store_phase_stats(run_id, sci=None):
             """
     metrics = DB().fetch_all(query, (run_id, ))
 
+    if not metrics:
+        error_helpers.log_error('Metrics was empty and no phase_stats could be created. This can happen for failed runs, but should be very rare ...', run_id=run_id)
+        return
+
+
     query = """
         SELECT phases, measurement_config
         FROM runs
         WHERE id = %s
         """
-    phases, measurement_config = DB().fetch_one(query, (run_id, ))
+    data = DB().fetch_one(query, (run_id, ))
 
+    if not data or not data[0] or not data[1]:
+        error_helpers.log_error('Phases object was empty and no phase_stats could be created. This can happen for failed runs, but should be very rare ...', run_id=run_id)
+        return
+
+    phases, measurement_config = data # unpack
 
     csv_buffer = StringIO()
 
@@ -45,9 +55,6 @@ def build_and_store_phase_stats(run_id, sci=None):
     machine_power_runtime = None
     machine_energy_runtime = None
 
-    if not phases:
-        error_helpers.log_error('Phases object was empty and no phase_stats could be created. This can happen for failed runs, but should be very rare ...', run_id=run_id)
-        return
 
     for idx, phase in enumerate(phases):
         network_bytes_total = [] # reset; # we use array here and sum later, because checking for 0 alone not enough
