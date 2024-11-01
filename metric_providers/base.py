@@ -115,7 +115,7 @@ class BaseMetricProvider:
         if df.isna().any().any():
             raise ValueError(f"Dataframe for {self._metric_name} contained NA values.")
 
-        df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]" # default, can be overriden in child
+        df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]" # default, can be overridden in child
         df['unit'] = self._unit
         df['metric'] = self._metric_name
         df['run_id'] = run_id
