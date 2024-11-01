@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import sys
 import faulthandler
-faulthandler.enable()  # will catch segfaults and write to stderr
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from lib.venv_checker import check_venv
 check_venv() # this check must even run before __main__ as imports might not get resolved
@@ -12,7 +13,6 @@ import json
 import os
 import time
 from html import escape
-import sys
 import importlib
 import re
 from io import StringIO

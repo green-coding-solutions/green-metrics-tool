@@ -1,5 +1,6 @@
+import sys
 import faulthandler
-faulthandler.enable()  # will catch segfaults and write to STDERR
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from functools import cache
 from html import escape as html_escape

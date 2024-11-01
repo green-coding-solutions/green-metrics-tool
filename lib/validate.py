@@ -18,8 +18,9 @@ This script is designed to be run manually via direct call or to be utilized as 
 
 '''
 
+import sys
 import faulthandler
-faulthandler.enable()  # will catch segfaults and write to stderr
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from lib.global_config import GlobalConfig
 from lib.db import DB

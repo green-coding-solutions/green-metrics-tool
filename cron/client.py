@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import sys
 import faulthandler
-faulthandler.enable()  # will catch segfaults and write to stderr
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import os
-import sys
 import time
 import subprocess
 import json

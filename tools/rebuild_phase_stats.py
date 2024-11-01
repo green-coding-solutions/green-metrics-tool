@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import faulthandler
-faulthandler.enable()  # will catch segfaults and write to stderr
-
 import sys
+import faulthandler
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from tools.phase_stats import build_and_store_phase_stats
 
