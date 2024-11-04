@@ -213,6 +213,7 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
                 AND r.filename = %s
                 AND r.branch = %s
                 AND r.end_measurement IS NOT NULL
+                AND r.failed != TRUE
                 AND r.machine_id = %s
                 AND p.phase LIKE %s
                 {metrics_condition}
