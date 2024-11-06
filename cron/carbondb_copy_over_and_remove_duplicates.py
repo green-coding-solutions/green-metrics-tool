@@ -29,9 +29,7 @@ def copy_over_eco_ci():
                 created_at
             FROM ci_measurements
             WHERE
-                created_at >= CURRENT_DATE
-                AND carbon_ug IS NOT NULL;
-
+                created_at >= CURRENT_DATE - INTERVAL '1 DAYS';
     ''')
 
 def copy_over_gmt():
@@ -63,7 +61,7 @@ def copy_over_gmt():
 
             WHERE
                 r.user_id IS NOT NULL
-                AND r.created_at >= CURRENT_DATE
+                AND r.created_at >= CURRENT_DATE - INTERVAL '30 DAYS'
             GROUP BY
                 r.id, m.description;
 
