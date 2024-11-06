@@ -5,9 +5,8 @@ import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
-from tools.phase_stats import build_and_store_phase_stats
-
 from lib.db import DB
+from tools.phase_stats import build_and_store_phase_stats
 
 if __name__ == '__main__':
     print('This will remove ALL phase_stats and completely rebuild them. Not data will get lost, but it will take some time. Continue? (y/N)')

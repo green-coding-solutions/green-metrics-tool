@@ -28,7 +28,6 @@ from lib.terminal_colors import TerminalColors
 from lib import error_helpers
 
 from runner import Runner
-from tools.phase_stats import build_and_store_phase_stats
 
 class ValidationWorkloadStddevError(RuntimeError):
     pass
@@ -90,8 +89,7 @@ def run_workload(name, uri, filename, branch):
         job_id=None,
     )
     # Start main code. Only URL is allowed for cron jobs
-    run_id = runner.run()
-    build_and_store_phase_stats(run_id, runner._sci)
+    runner.run()
 
 def validate_workload_stddev(data, metrics):
     warning = False
