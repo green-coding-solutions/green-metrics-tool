@@ -335,7 +335,9 @@ done
 
 if [[ $enterprise == true ]] ; then
     echo "Validating enterprise token"
-    curl --silent "https://www.green-coding.io/?enterprise=true&utm_source=${ee_token}" > /dev/null
+    curl --silent -X POST https://plausible.io/api/event \
+         -H 'Content-Type: application/json' \
+         --data '{"name":"api_test","url":"https://www.green-coding.io/?utm_source=${ee_token}","domain":"proxy.green-coding.io"}' > /dev/null
 fi
 
 
