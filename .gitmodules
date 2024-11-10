@@ -4,3 +4,6 @@
 [submodule "metric_providers/psu/energy/ac/xgboost/machine/model"]
     path = metric_providers/psu/energy/ac/xgboost/machine/model
     url = https://github.com/green-coding-solutions/spec-power-model
+[submodule "ee"]
+	path = ee
+	url = git@github.com:green-coding-solutions/gmt-enterprise.git
