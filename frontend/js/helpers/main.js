@@ -4,7 +4,7 @@
 */
 class GMTMenu extends HTMLElement {
    connectedCallback() {
-        this.innerHTML = `
+        let html_content = `
         <div id="menu" class="ui inverted vertical menu">
             <div class="item-container">
                 <a class="item" href="/index.html">
@@ -21,16 +21,30 @@ class GMTMenu extends HTMLElement {
                 </a>
                 <a class="item" href="/data-analysis.html">
                     <b><i class="chartline icon"></i>Data Analysis</b>
-                </a>
+                </a>`;
+
+        if (ACTIVATE_ECO_CI == true) {
+            html_content = `${html_content}
                 <a class="item" href="/ci-index.html">
                     <b><i class="seedling icon"></i>Eco-CI</b>
-                </a>
+                </a>`;
+        };
+
+        if (ACTIVATE_POWER_HOG == true) {
+            html_content = `${html_content}
                 <a class="item" href="/hog.html">
                     <b><i class="piggy bank icon"></i>Power Hog</b>
-                </a>
+                </a>`;
+        };
+
+        if (ACTIVATE_CARBON_DB == true) {
+            html_content = `${html_content}
                 <a class="item" href="/carbondb.html">
                     <b><i class="journal whills icon"></i>CarbonDB</b>
-                </a>
+                </a>`;
+        };
+
+        html_content = `${html_content}
                 <a class="item" href="/status.html">
                     <b><i class="database icon"></i>Status</b>
                 </a>
@@ -51,6 +65,8 @@ class GMTMenu extends HTMLElement {
             </div>
 
         </div> <!-- end menu -->`;
+
+        this.innerHTML = html_content;
     }
 }
 customElements.define('gmt-menu', GMTMenu);

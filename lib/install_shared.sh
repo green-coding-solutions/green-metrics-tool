@@ -23,6 +23,7 @@ enable_ssl=true
 ask_ssl=true
 cert_key=''
 cert_file=''
+enterprise=false
 
 function print_message {
     echo ""
@@ -123,6 +124,12 @@ function prepare_config() {
     eval "${sed_command} -e \"s|__API_URL__|$api_url|\" frontend/js/helpers/config.js"
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" frontend/js/helpers/config.js"
 
+    if [[ $enterprise == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|__ACTIVATE_ECO_CI__|true|\" frontend/js/helpers/config.js"
+    fi
+
     if [[ $enable_ssl == true ]] ; then
         eval "${sed_command} -e \"s|9142:9142|443:443|\" docker/compose.yml"
         eval "${sed_command} -e \"s|9142:9142|443:443|\" docker/compose.yml"
@@ -203,7 +210,14 @@ function setup_python() {
 
 function checkout_submodules() {
     print_message "Checking out further git submodules ..."
-    git submodule update --init
+
+    if [[ $(uname) != "Darwin" ]]; then
+        git submodule update --init lib/sgx-software-enable
+    fi
+    git submodule update --init metric_providers/psu/energy/ac/xgboost/machine/model
+    if [[ $enterprise == true ]] ; then
+        git submodule update --init ee
+    fi
 }
 
 function build_binaries() {
@@ -262,7 +276,7 @@ function finalize() {
 
 
 
-while getopts "p:a:m:nhtbisyrlc:k:" o; do
+while getopts "p:a:m:nhtbisyrlc:k:e:" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -311,9 +325,19 @@ while getopts "p:a:m:nhtbisyrlc:k:" o; do
         k)
             cert_key=${OPTARG}
             ;;
+        e)
+            ee_token=${OPTARG}
+            enterprise=true
+            ;;
 
     esac
 done
+
+if [[ $enterprise == true ]] ; then
+    echo "Validating enterprise token"
+    curl --silent "https://www.green-coding.io/?enterprise=true&utm_source=${ee_token}" > /dev/null
+fi
+
 
 if [[ $ask_ssl == true ]] ; then
     echo ""
