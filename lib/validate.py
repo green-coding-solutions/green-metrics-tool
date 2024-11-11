@@ -100,11 +100,11 @@ def validate_workload_stddev(data, metrics):
 
         if metrics[el['metric']]['type'] == 'stddev_rel':
             if el['stddev_rel'] > metrics[el['metric']]['threshold']:
-                print(TerminalColors.FAIL, 'Warning. Threshold exceeded!', TerminalColors.ENDC)
+                info_string_acc.append(f"=> Warning! Threshold of {metrics[el['metric']]['threshold']} exceeded. Value is: {el['stddev_rel']}. Metric: {el['metric']}")
                 warning = True
         elif metrics[el['metric']]['type'] == 'stddev':
             if el['stddev'] > metrics[el['metric']]['threshold']:
-                print(TerminalColors.FAIL, 'Warning. Threshold exceeded!', TerminalColors.ENDC)
+                info_string_acc.append(f"=> Warning! Threshold of {metrics[el['metric']]['threshold']} exceeded. Value is: {el['stddev']}. Metric: {el['metric']}")
                 warning = True
         else:
             raise ValueError(f"{el['metric']} had unknown threshhold validation type: {metrics[el['metric']]['type']}")
