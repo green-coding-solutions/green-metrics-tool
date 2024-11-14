@@ -512,7 +512,7 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated'):
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         badge_value = 'No energy data yet'
     else:
-        [energy_value, energy_unit] = rescale_energy_value(data[0], 'uJ')
+        [energy_value, energy_unit] = rescale_energy_value(data[0], data[1])
         badge_value= f"{energy_value:.2f} {energy_unit} {via}"
 
     badge = anybadge.Badge(
