@@ -33,11 +33,11 @@ def check_repo(repo_url, branch='main'):
         response = requests.get(url, timeout=10)
     except Exception as exc:
         error_helpers.log_error('Request to GitHub API failed',url=url,exception=str(exc))
-        raise RequestValidationError(f"Could not find URL {repo_url}. Is the URL public accessible and repo not empty?") from exc
+        raise RequestValidationError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?") from exc
 
     if response.status_code != 200:
         error_helpers.log_error('Request to GitHub API failed',url=url,status_code=response.status_code,status_text=response.text)
-        raise RequestValidationError(f"Could not find URL {repo_url}. Is the URL public accessible and repo not empty?")
+        raise RequestValidationError(f"Could not find repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?")
 
 def get_repo_last_marker(repo_url, marker):
 
@@ -57,7 +57,7 @@ def get_repo_last_marker(repo_url, marker):
         response = requests.get(url, timeout=10)
     except Exception as exc:
         error_helpers.log_error('Request to GitHub API failed',url=url,exception=str(exc))
-        raise RequestValidationError(f"Could not find URL {repo_url}. Is the URL public accessible and repo not empty?") from exc
+        raise RequestValidationError(f"Could not find repository {repo_url}. Is the repository publicly accessible and not empty?") from exc
 
     if response.status_code != 200:
         error_helpers.log_error('Request to GitHub API failed',url=url,status_code=response.status_code,status_text=response.text)
