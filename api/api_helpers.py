@@ -56,7 +56,12 @@ def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
 # The same unit for proper comparison!
 #
 def rescale_energy_value(value, unit):
-    # We only expect values to be mJ for energy!
+    if unit == 'mJ':
+        value = value * 1_000
+        unit = 'uJ'
+
+    # We only expect values to be uJ for energy in the future. Changing values now temporarily.
+    # TODO: Refactor this once all data in the DB is uJ
     if unit != 'uJ' and not unit.startswith('ugCO2e/'):
         raise RuntimeError('Unexpected unit occured for energy rescaling: ', unit)
 
