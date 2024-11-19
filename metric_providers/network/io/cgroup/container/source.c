@@ -81,9 +81,10 @@ static net_io_t get_network_cgroup(unsigned int pid) {
         exit(1);
     }
 
-    // skip first two lines
-    fgets(buf, 200, fd);
-    fgets(buf, 200, fd);
+    if (fgets(buf, 200, fd) == NULL || fgets(buf, 200, fd) == NULL) {
+        fprintf(stderr, "Error or EOF encountered while reading input.\n");
+        exit(1);
+    }
 
     int match_result = 0;
 
@@ -190,7 +191,7 @@ static int check_system(int rootless_mode) {
     } else {
         file_path_cgroup_procs = "/sys/fs/cgroup/system.slice/cgroup.procs";
     }
-    
+
     FILE* fd = fopen(file_path_cgroup_procs, "r");
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open cgroup.procs file at %s\n", file_path_cgroup_procs);
@@ -269,7 +270,7 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system(rootless_mode)); 
+        exit(check_system(rootless_mode));
     }
 
     int length = parse_containers(&containers, containers_string, rootless_mode);

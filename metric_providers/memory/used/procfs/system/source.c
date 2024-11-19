@@ -31,17 +31,21 @@ static unsigned long long int get_memory_procfs() {
         exit(1);
     }
 
+    if (fgets(buf, 200, fd) == NULL) {
+        fprintf(stderr, "Error or EOF encountered while reading input.\n");
+        exit(1);
+    }
 
-    fgets(buf, 200, fd);
     match_result = sscanf(buf, "MemTotal: %llu kB", &mem_total);
     if (match_result != 1) {
         fprintf(stderr, "Error - MemTotal could not be matched in /proc/meminfo\n");
         exit(1);
     }
 
-    fgets(buf, 200, fd); // drop MemFree
-
-    fgets(buf, 200, fd);
+    if (fgets(buf, 200, fd) == NULL || fgets(buf, 200, fd) == NULL) {
+        fprintf(stderr, "Error or EOF encountered while reading input.\n");
+        exit(1);
+    }
     match_result = sscanf(buf, "MemAvailable: %llu kB", &mem_available);
     if (match_result != 1) {
         fprintf(stderr, "Error - MemAvailable could not be matched in /proc/meminfo\n");
