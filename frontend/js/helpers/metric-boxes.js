@@ -149,7 +149,7 @@ class PhaseMetrics extends HTMLElement {
                             </div>
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="SCI by the Green Software Foundation">
-                            <u><a href="https://docs.green-coding.io/docs/measuring/sci/formula">see Details</a></u>
+                            <u><a href="https://docs.green-coding.io/docs/measuring/sci/">see Details</a></u>
                             <i class="question circle icon"></i>
                         </div>
                         <div class="ui bottom left attached label">
