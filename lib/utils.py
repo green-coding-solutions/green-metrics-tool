@@ -9,6 +9,8 @@ from fastapi.exceptions import RequestValidationError
 from lib import error_helpers
 from lib.db import DB
 
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 def get_git_api(parsed_url):
 
     if parsed_url.netloc in ['github.com', 'www.github.com']:
@@ -168,3 +170,12 @@ def get_architecture():
     if output == 'darwin':
         return 'macos'
     return output
+
+
+def is_rapl_energy_filtering_deactivated():
+    result = subprocess.run(['sudo', 'python3', '-m', 'lib.hardware_info_root', '--read-rapl-energy-filtering'],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            cwd=os.path.abspath(os.path.join(CURRENT_DIR, '..')),
+                            check=True, encoding='UTF-8')
+    return '1' != result.stdout.strip()
