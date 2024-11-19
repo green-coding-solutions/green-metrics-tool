@@ -124,14 +124,14 @@ def test_post_run_add_broken_repo_url():
     run = Software(name=run_name, url='h8gw4hruihuf', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
     response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
-    assert json.loads(response.text)['err'] == 'Could not find URL h8gw4hruihuf. Is the URL public accessible and repo not empty?'
+    assert json.loads(response.text)['err'] == 'Could not find repository h8gw4hruihuf and branch main. Is the repo publicly accessible, not empty and does the branch main exist?'
 
 def test_post_run_add_non_existent_repo():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, url='https://github.com/no-company-here/and-no-repo/', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
     response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 422, Tests.assertion_info('success', response.text)
-    assert json.loads(response.text)['err'] == 'Could not find URL https://github.com/no-company-here/and-no-repo/. Is the URL public accessible and repo not empty?'
+    assert json.loads(response.text)['err'] == 'Could not find repository https://github.com/no-company-here/and-no-repo/ and branch main. Is the repo publicly accessible, not empty and does the branch main exist?'
 
 
 

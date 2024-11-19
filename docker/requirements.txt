@@ -1,13 +1,13 @@
 gunicorn==23.0.0
 psycopg[binary]==3.2.3
-psycopg_pool==3.2.3
-fastapi[standard]==0.115.4
+psycopg_pool==3.2.4
+fastapi[standard]==0.115.5
 starlette>=0.35
 uvicorn[standard]==0.32.0
 pandas==2.2.3
 PyYAML==6.0.2
 anybadge==1.14.0
-orjson==3.10.10
+orjson==3.10.11
 scipy==1.14.1
 schema==0.7.7
 deepdiff==8.0.1

@@ -58,9 +58,6 @@ cluster:
         cpu_energy_rapl_msr_component:
           threshold: 0.01 # 1%
           type: stddev_rel
-        cpu_energy_rapl_msr_component:
-          threshold: 0.01 # 1%
-          type: stddev_rel
         psu_carbon_ac_mcp_machine:
           threshold: 0.01 # 1%
           type: stddev_rel

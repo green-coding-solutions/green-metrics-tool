@@ -18,8 +18,9 @@ This script is designed to be run manually via direct call or to be utilized as 
 
 '''
 
+import sys
 import faulthandler
-faulthandler.enable()  # will catch segfaults and write to stderr
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -27,7 +28,6 @@ from lib.terminal_colors import TerminalColors
 from lib import error_helpers
 
 from runner import Runner
-from tools.phase_stats import build_and_store_phase_stats
 
 class ValidationWorkloadStddevError(RuntimeError):
     pass
@@ -44,6 +44,7 @@ def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_windo
                 AND branch = %s
                 AND machine_id = %s
                 AND end_measurement IS NOT NULL
+                AND failed != TRUE
             ORDER BY created_at DESC
             LIMIT %s
         ) SELECT
@@ -88,8 +89,7 @@ def run_workload(name, uri, filename, branch):
         job_id=None,
     )
     # Start main code. Only URL is allowed for cron jobs
-    run_id = runner.run()
-    build_and_store_phase_stats(run_id, runner._sci)
+    runner.run()
 
 def validate_workload_stddev(data, metrics):
     warning = False
@@ -100,11 +100,11 @@ def validate_workload_stddev(data, metrics):
 
         if metrics[el['metric']]['type'] == 'stddev_rel':
             if el['stddev_rel'] > metrics[el['metric']]['threshold']:
-                print(TerminalColors.FAIL, 'Warning. Threshold exceeded!', TerminalColors.ENDC)
+                info_string_acc.append(f"=> Warning! Threshold of {metrics[el['metric']]['threshold']} exceeded. Value is: {el['stddev_rel']}. Metric: {el['metric']}")
                 warning = True
         elif metrics[el['metric']]['type'] == 'stddev':
             if el['stddev'] > metrics[el['metric']]['threshold']:
-                print(TerminalColors.FAIL, 'Warning. Threshold exceeded!', TerminalColors.ENDC)
+                info_string_acc.append(f"=> Warning! Threshold of {metrics[el['metric']]['threshold']} exceeded. Value is: {el['stddev']}. Metric: {el['metric']}")
                 warning = True
         else:
             raise ValueError(f"{el['metric']} had unknown threshhold validation type: {metrics[el['metric']]['type']}")

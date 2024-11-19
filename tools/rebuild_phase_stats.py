@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import faulthandler
-faulthandler.enable()  # will catch segfaults and write to stderr
-
 import sys
-
-from tools.phase_stats import build_and_store_phase_stats
+import faulthandler
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from lib.db import DB
+from tools.phase_stats import build_and_store_phase_stats
 
 if __name__ == '__main__':
     print('This will remove ALL phase_stats and completely rebuild them. Not data will get lost, but it will take some time. Continue? (y/N)')

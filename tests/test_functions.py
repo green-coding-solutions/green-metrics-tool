@@ -68,6 +68,7 @@ class RunUntilManager:
     def run_until(self, step):
         try:
             config = GlobalConfig().config
+            self.__runner.start_measurement()
             self.__runner.check_system('start')
             self.__runner.initialize_folder(self.__runner._tmp_folder)
             self.__runner.checkout_repository()
@@ -86,8 +87,6 @@ class RunUntilManager:
 
             self.__runner.start_metric_providers(allow_other=True, allow_container=False)
             self.__runner.custom_sleep(config['measurement']['pre-test-sleep'])
-
-            self.__runner.start_measurement()
 
             self.__runner.start_phase('[BASELINE]')
             self.__runner.custom_sleep(config['measurement']['baseline-duration'])
@@ -123,9 +122,18 @@ class RunUntilManager:
             self.__runner.end_measurement()
             self.__runner.check_process_returncodes()
             self.__runner.custom_sleep(config['measurement']['post-test-sleep'])
-            self.__runner.store_phases()
             self.__runner.update_start_and_end_times()
+            self.__runner.store_phases()
+            self.__runner.read_container_logs()
             self.__runner.read_and_cleanup_processes()
+            self.__runner.save_notes_runner()
+            self.__runner.stop_metric_providers()
+            self.__runner.save_stdout_logs()
+
+            if self.__runner._dev_no_phase_stats is False:
+                from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
+                build_and_store_phase_stats(self.__runner._run_id, self.__runner._sci)
+
         except BaseException as exc:
             self.__runner.add_to_log(exc.__class__.__name__, str(exc))
             raise exc

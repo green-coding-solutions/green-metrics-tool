@@ -1,13 +1,13 @@
 PyYAML==6.0.2
 pandas==2.2.3
 psycopg[binary]==3.2.3
-psycopg_pool==3.2.3
+psycopg_pool==3.2.4
 pyserial==3.5
 psutil==6.1.0
 schema==0.7.7
-aiohttp==3.10.10
+aiohttp==3.11.4
 
 # calibration script dep
-tqdm==4.66.6
+tqdm==4.67.0
 plotext==5.3.2
 docker==7.1.0

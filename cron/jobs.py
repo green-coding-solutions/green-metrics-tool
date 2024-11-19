@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # pylint: disable=cyclic-import
-import faulthandler
-faulthandler.enable()  # will catch segfaults and write to stderr
-
 import sys
+import faulthandler
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
+
 import os
 from datetime import datetime
 import argparse

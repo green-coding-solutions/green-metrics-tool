@@ -15,9 +15,6 @@ from runner import Runner
 from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
 from metric_providers.cpu.energy.rapl.msr.component.provider import CpuEnergyRaplMsrComponentProvider
 
-from tools.phase_stats import build_and_store_phase_stats
-
-
 #pylint: disable=unused-argument
 @pytest.fixture(autouse=True, scope='module') # override by setting scope to module only
 def setup_and_cleanup_test():
@@ -38,8 +35,6 @@ def setup_module(module):
     subprocess.run('sync', check=True) # we sync here so that we can later more granular check for written file size
 
     run_id = runner.run()
-
-    build_and_store_phase_stats(runner._run_id, runner._sci)
 
 def get_disk_usage(path="/"):
     usage = psutil.disk_usage(path)
