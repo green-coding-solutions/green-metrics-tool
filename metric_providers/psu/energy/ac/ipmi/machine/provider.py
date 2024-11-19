@@ -37,8 +37,6 @@ class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
         One can see that the value only changes once per second
         '''
 
-        df = df.sort_values(by=['time'], ascending=True)
-
         intervals = df['time'].diff()
         intervals[0] = intervals.mean()  # approximate first interval
 

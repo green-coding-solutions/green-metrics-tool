@@ -40,8 +40,6 @@ class GpuEnergyNvidiaSmiComponentProvider(BaseMetricProvider):
         One can see that the value only changes once per second
         '''
 
-        df = df.sort_values(by=['time'], ascending=True) # sort since we do diff and lines might be mixed up in order
-
         intervals = df['time'].diff()
         intervals[0] = intervals.mean()  # approximate first interval
 
