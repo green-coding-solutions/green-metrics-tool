@@ -1,8 +1,8 @@
-import faulthandler
-
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic?
-faulthandler.enable()  # will catch segfaults and write to STDERR
+import sys
+import faulthandler
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import zlib
 import base64

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # pylint: disable=cyclic-import
+
+import sys
 import faulthandler
-faulthandler.enable()  # will catch segfaults and write to stderr
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import os
 
@@ -14,7 +16,6 @@ from lib.db import DB
 from lib.user import User
 from lib.terminal_colors import TerminalColors
 from lib.system_checks import ConfigurationCheckError
-from tools.phase_stats import build_and_store_phase_stats
 from runner import Runner
 import optimization_providers.base
 
@@ -54,9 +55,6 @@ class RunJob(Job):
         try:
             # Start main code. Only URL is allowed for cron jobs
             self._run_id = runner.run()
-            user.deduct_measurement_quota(self._machine_id, int(runner._last_measurement_duration/1_000_000)) # duration in runner is in microseconds. We need seconds
-
-            build_and_store_phase_stats(self._run_id, runner._sci)
 
             # We need to import this here as we need the correct config file
             print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
@@ -85,3 +83,5 @@ class RunJob(Job):
                     message=f"Run-ID: {self._run_id}\nName: {self._name}\n\nDetails can also be found in the log under: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={self._run_id}\n\nError message: {exc}\n"
                 )
             raise exc
+        finally:
+            user.deduct_measurement_quota(self._machine_id, int(runner._last_measurement_duration/1_000_000)) # duration in runner is in microseconds. We need seconds
