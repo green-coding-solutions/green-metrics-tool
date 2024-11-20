@@ -1451,7 +1451,7 @@ class Runner:
         if logs_as_str:
             DB().query("""
                 UPDATE runs
-                SET logs=%s
+                SET logs= COALESCE(logs, '') || %s -- append
                 WHERE id = %s
                 """, params=(logs_as_str, self._run_id))
 
@@ -1623,19 +1623,19 @@ class Runner:
                 raise exc
             finally:
                 try:
-                    self.read_and_cleanup_processes()
+                    self.stop_metric_providers()
                 except BaseException as exc:
                     self.add_to_log(exc.__class__.__name__, str(exc))
                     raise exc
                 finally:
                     try:
-                        self.save_notes_runner()
+                        self.read_and_cleanup_processes()
                     except BaseException as exc:
                         self.add_to_log(exc.__class__.__name__, str(exc))
                         raise exc
                     finally:
                         try:
-                            self.stop_metric_providers()
+                            self.save_notes_runner()
                         except BaseException as exc:
                             self.add_to_log(exc.__class__.__name__, str(exc))
                             raise exc
