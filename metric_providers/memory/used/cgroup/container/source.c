@@ -105,7 +105,7 @@ static int parse_containers(container_t** containers, char* containers_string) {
 
         // trying out cgroups v2 without slice mountpoints. This is done in Github codespaces and Github actions
         snprintf((*containers)[length-1].path,
-            PATH_MAX
+            PATH_MAX,
             "/sys/fs/cgroup/docker/%s/memory.current",
             id);
         fd = fopen((*containers)[length-1].path, "r");

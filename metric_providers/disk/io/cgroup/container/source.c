@@ -80,6 +80,7 @@ static int parse_containers(container_t** containers, char* containers_string) {
     }
     char *id = strtok(containers_string,",");
     int length = 0;
+    FILE* fd = NULL;
 
     for (; id != NULL; id = strtok(NULL, ",")) {
         //printf("Token: %s\n", id);
@@ -111,7 +112,7 @@ static int parse_containers(container_t** containers, char* containers_string) {
 
         // trying out cgroups v2 without slice mountpoints. This is done in Github codespaces and Github actions
         snprintf((*containers)[length-1].path,
-            PATH_MAX
+            PATH_MAX,
             "/sys/fs/cgroup/docker/%s/io.stat",
             id);
         fd = fopen((*containers)[length-1].path, "r");
