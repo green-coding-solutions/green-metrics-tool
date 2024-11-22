@@ -4,6 +4,7 @@ set -euxo pipefail
 # we have to rename this makefile as it doesn't compile in Codespaces
 if [ -f /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile ]; then
     mv /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile.bak
+    git update-index --assume-unchanged /workspaces/green-metrics-tool/metric_providers/lm_sensors/Makefile
 fi
 
 /workspaces/green-metrics-tool/install_linux.sh -p testpw -a "https://${CODESPACE_NAME}-9142.app.github.dev" -m "https://${CODESPACE_NAME}-9143.app.github.dev" -t -i -s
@@ -18,7 +19,7 @@ sed -i '/green-coding-nginx:/,/green-coding-gunicorn:/ s/\(- 9142:80\)/- 9142:91
 
 python3 /workspaces/green-metrics-tool/disable_metric_providers.py --categories GPU RAPL Machine Sensors Debug --providers NetworkIoCgroupContainerProvider NetworkConnectionsProxyContainerProvider PsuEnergyAcSdiaMachineProvider
 
-git clone https://github.com/green-coding-berlin/example-applications.git --depth=1 --single-branch /workspaces/green-metrics-tool/example-applications || true
+git clone https://github.com/green-coding-solutions/example-applications.git --depth=1 --single-branch /workspaces/green-metrics-tool/example-applications || true
 
 source venv/bin/activate
 
