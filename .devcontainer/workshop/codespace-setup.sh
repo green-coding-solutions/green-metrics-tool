@@ -19,7 +19,7 @@ sed -i '/green-coding-nginx:/,/green-coding-gunicorn:/ s/\(- 9142:80\)/- 9142:91
 
 python3 /workspaces/green-metrics-tool/disable_metric_providers.py --categories GPU RAPL Machine Sensors Debug --providers NetworkIoCgroupContainerProvider NetworkConnectionsProxyContainerProvider PsuEnergyAcSdiaMachineProvider
 
-git clone https://github.com/green-coding-berlin/example-applications.git --depth=1 --single-branch /workspaces/green-metrics-tool/example-applications || true
+git clone https://github.com/green-coding-solutions/example-applications.git --depth=1 --single-branch /workspaces/green-metrics-tool/example-applications || true
 
 source venv/bin/activate
 
