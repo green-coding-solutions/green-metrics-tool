@@ -114,7 +114,7 @@ def parse_tcpdump(lines, split_ports=False):
                                 raise RuntimeError(f"Could not find TCP packet length for line: {line}")
                             packet_length = int(dns_packet_length[1])
                         else:
-                            raise RuntimeError("No packet length was detected for line {line}")
+                            raise RuntimeError(f"No packet length was detected for line {line}")
                     else:
                         packet_length = 40 + int(length_match.group(1))  # Assuming 40 bytes for IP + TCP headers
 
