@@ -1,6 +1,6 @@
 {
     "postStartCommand": "/workspaces/green-metrics-tool/.devcontainer/on-start.sh",
-    "forwardPorts": [9143],
+    "forwardPorts": [9142, 9143],
     "portsAttributes": {
         "9143": {
             "label": "metrics page"
