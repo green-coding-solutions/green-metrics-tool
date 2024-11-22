@@ -16,6 +16,11 @@
             ]
         },
         "vscode": {
+            "settings": {
+                "workbench.editorAssociations": {
+                    "*.md": "vscode.markdown.preview.editor" // Open markdown files in preview mode by default
+                }
+            },
             "extensions": 
             [
                 "ms-python.python",
