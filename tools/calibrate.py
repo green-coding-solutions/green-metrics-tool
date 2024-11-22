@@ -78,7 +78,7 @@ def check_temperature_increase(total_seconds, desc, temp_mean, temp_std, temp_pr
 
 
 
-def load_metric_providers(mp, pt_providers, provider_interval_override=None, rootless=False):
+def load_metric_providers(mp, pt_providers, provider_interval_override=None):
     global metric_providers
     metric_providers = [] # reset
 
@@ -87,9 +87,6 @@ def load_metric_providers(mp, pt_providers, provider_interval_override=None, roo
         module_path, class_name = metric_provider.rsplit('.', 1)
         module_path = f"metric_providers.{module_path}"
         conf = mp[metric_provider] or {}
-
-        if rootless and '.cgroup.' in module_path:
-            conf['rootless'] = True
 
         logging.info(f"Importing {class_name} from {module_path}")
 
@@ -156,7 +153,7 @@ def check_minimum_provider_configuration(mp):
         return check_provider(mp, ['cpu', '.energy', '.rapl'])
 
     def temp_provider(mp):
-        return check_provider(mp, ['lm_sensors', '.temperature'])
+        return check_provider(mp, ['lmsensors', '.temperature'])
 
     energy_provider = one_psu_provider(mp)
     if not energy_provider:
@@ -254,10 +251,7 @@ def check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time
 
     client = docker.from_env()
 
-    is_rootless = any('rootless' in option for option in client.info()['SecurityOptions'])
-    logging.debug(f"Rootless mode is {is_rootless}")
-
-    load_metric_providers(mp, mp, None, rootless=is_rootless)
+    load_metric_providers(mp, mp, None)
 
     # We need to start at least one container that just idles so we can also run the container providers
 

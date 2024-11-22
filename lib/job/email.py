@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # pylint: disable=cyclic-import
+import sys
 import faulthandler
-faulthandler.enable()  # will catch segfaults and write to stderr
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import os
 
@@ -21,4 +22,6 @@ class EmailJob(Job):
 
     #pylint: disable=arguments-differ
     def _process(self):
+        if self._created_at:
+            self._message = f"{self._message}\n\nOriginal date and time: {self._created_at} - This error was transported via E-Mail"
         email_helpers.send_email(self._email, self._name, self._message)

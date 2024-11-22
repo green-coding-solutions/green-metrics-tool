@@ -71,6 +71,9 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
                              dtype={'time': int, 'value': int}
                              )
 
+        if df.empty:
+            return df
+
         df['detail_name'] = '[DEFAULT]'  # standard container name when no further granularity was measured
         df['metric'] = self._metric_name
         df['run_id'] = run_id
@@ -79,10 +82,10 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
 
 
         if not self.cpu_chips:
-            raise RuntimeError(
+            raise MetricProviderConfigurationError(
                 'Please set the CPUChips config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
         if not self.tdp:
-            raise RuntimeError('Please set the TDP config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
+            raise MetricProviderConfigurationError('Please set the TDP config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
 
         # since the CPU-Utilization is a ratio, we technically have to divide by 10,000 to get a 0...1 range.
         # And then again at the end multiply with 1000 to get mW. We take the
@@ -90,9 +93,12 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
         df.value = ((df.value * self.tdp) / 6.5) * self.cpu_chips # will result in mW
         df.value = (df.value * df.time.diff()) / 1_000_000 # mW * us / 1_000_000 will result in mJ
 
+        # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
+        # Since one value is useless for us we drop the row
+        df.dropna(inplace=True)
+
         df['unit'] = self._unit
 
-        df.value = df.value.fillna(0)
         df.value = df.value.astype(int)
 
         return df

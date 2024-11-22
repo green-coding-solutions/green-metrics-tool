@@ -21,12 +21,12 @@ runs:
   using: 'composite'
   steps:
     - name: setup_python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.12'
 
     - id: python_cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: venv
         key: pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}-${{ hashFiles('docker/requirements.txt') }}-${{ hashFiles('metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt') }}
@@ -35,27 +35,24 @@ runs:
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
-        ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -n -b -t
+        ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -b -t -l
         source venv/bin/activate
-        python3 -m pip install -r requirements.txt
-        python3 -m pip install -r requirements-dev.txt
-        python3 -m pip install -r docker/requirements.txt
-        python3 -m pip install -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
 
-    - name: disable unneeded metric providers and run test setup script
+    - name: Install dev requirements and run test setup script
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
         source venv/bin/activate
-        python3 disable_metric_providers.py ${{ inputs.metrics-to-turn-off }}
+        python3 -m pip install -r requirements-dev.txt
+        playwright install --with-deps firefox
         cd tests && python3 setup-test-env.py --no-docker-build
 
     - name: Set up Docker Buildx
       id: buildx
-      uses: docker/setup-buildx-action@master
+      uses: docker/setup-buildx-action@v3
 
     - name: Login to Docker Registry
-      uses: docker/login-action@v2
+      uses: docker/login-action@v3
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
@@ -83,10 +80,6 @@ runs:
       working-directory: ${{ inputs.gmt-directory }}/tests
       run: |
         source ../venv/bin/activate && ./start-test-containers.sh -d
-
-    - name: Sleep for 10 seconds
-      run: sleep 10s
-      shell: bash
 
     # - name: Setup upterm session
     #   uses: lhotari/action-upterm@v1

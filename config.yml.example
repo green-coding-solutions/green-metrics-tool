@@ -26,10 +26,12 @@ admin:
   email_bcc: False
 
 
-
 cluster:
   api_url: __API_URL__
   metrics_url: __METRICS_URL__
+  cors_allowed_origins:
+      - __API_URL__
+      - __METRICS_URL__
   client:
     sleep_time_no_job: 300
     jobs_processing: "random"
@@ -38,17 +40,33 @@ cluster:
     shutdown_on_job_no: False
     control_workload:
       name: "Measurement control Workload"
-      uri: "https://github.com/green-coding-berlin/measurement-control-workload"
+      uri: "https://github.com/green-coding-solutions/measurement-control-workload"
       filename: "usage_scenario.yml"
       branch: "event-bound"
       comparison_window: 5
-      threshold: 0.01
       phase: "004_[RUNTIME]"
       metrics:
-        - "psu_energy_ac_mcp_machine"
-        - "psu_power_ac_mcp_machine"
-        - "cpu_power_rapl_msr_component"
-        - "cpu_energy_rapl_msr_component"
+        psu_energy_ac_mcp_machine:
+          threshold: 0.01 # 1%
+          type: stddev_rel
+        psu_power_ac_mcp_machine:
+          threshold: 0.01 # 1%
+          type: stddev_rel
+        cpu_power_rapl_msr_component:
+          threshold: 0.01 # 1%
+          type: stddev_rel
+        cpu_energy_rapl_msr_component:
+          threshold: 0.01 # 1%
+          type: stddev_rel
+        psu_carbon_ac_mcp_machine:
+          threshold: 0.01 # 1%
+          type: stddev_rel
+        network_total_cgroup_container:
+          threshold: 10000 # 10 kB
+          type: stddev
+        phase_time_syscall_system:
+          threshold: 0.01 # 1%
+          type: stddev_rel
 
 machine:
   id: 1
@@ -62,8 +80,6 @@ measurement:
   pre-test-sleep: 5
   idle-duration: 10
   baseline-duration: 5
-  flow-process-duration: 1800 # half hour
-  total-duration: 3600 # one hour
   post-test-sleep: 5
   phase-transition-time: 1
   boot:
@@ -84,7 +100,7 @@ measurement:
     #--- CGroupV2 - Turn these on if you have CGroupsV2 working on your machine
       cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
         resolution: 99
-      memory.total.cgroup.container.provider.MemoryTotalCgroupContainerProvider:
+      memory.used.cgroup.container.provider.MemoryUsedCgroupContainerProvider:
         resolution: 99
       network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
         resolution: 99
@@ -108,12 +124,12 @@ measurement:
 #      gpu.energy.nvidia.smi.component.provider.GpuEnergyNvidiaSmiComponentProvider:
 #        resolution: 99
     #--- Sensors - these providers need the lm-sensors package installed
-#      lm_sensors.temperature.component.provider.LmSensorsTemperatureComponentProvider:
+#      lmsensors.temperature.component.provider.LmsensorsTemperatureComponentProvider:
 #        resolution: 99
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000', 'coretemp-isa-0000']
 #        features: ['CPU', 'Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
-#      lm_sensors.fan.component.provider.LmSensorsFanComponentProvider:
+#      lmsensors.fan.component.provider.LmsensorsFanComponentProvider:
 #        resolution: 99
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000']
@@ -127,6 +143,16 @@ measurement:
 #        resolution: 99
 #      cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider:
 #        resolution: 99
+#      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
+#        resolution: 99
+#      network.io.procfs.system.provider.NetworkIoProcfsSystemProvider:
+#        resolution: 99
+#        remove_virtual_interfaces: True
+#      disk.used.statvfs.system.provider.DiskUsedStatvfsSystemProvider:
+#        resolution: 99
+#      memory.used.procfs.system.provider.MemoryUsedProcfsSystemProvider:
+#        resolution: 99
+
     #--- Architecture - MacOS
     macos:
     #--- MacOS: On Mac you only need this provider. Please remove all others!
@@ -152,6 +178,7 @@ measurement:
 #        CPUCores: 4
 #        CPUThreads: 4
 #        TDP: 65
+######### The value for memory must be in GB not in GiB
 #        HW_MemAmountGB: 16
 #        Hardware_Availability_Year: 2011
   #--- END
@@ -161,7 +188,7 @@ sci:
     # https://github.com/Green-Software-Foundation/sci/blob/main/Software_Carbon_Intensity/Software_Carbon_Intensity_Specification.md
 
     # The values specific to the machine will be set here. The values that are specific to the
-    # software, like R – Functional unit, will be set in the usage_scenario.yml
+    # software, like R (functional unit), will be set in the usage_scenario.yml
 
     # EL Expected Lifespan; the anticipated time that the equipment will be installed. Value is in years
     # The number 3.5 comes from a typical developer machine (Pro Laptop - https://dataviz.boavizta.org/terminalimpact)

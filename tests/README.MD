@@ -12,6 +12,7 @@ Make sure you have the required dev dependencies installed:
 
 ```bash
 python3 -m pip install -r ../requirements-dev.txt
+playwright install --with-deps firefox
 ```
 
 We assume that your green-metrics-tool is already set up to work on your machine, as it will use your local config.yml

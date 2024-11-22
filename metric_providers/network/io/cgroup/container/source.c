@@ -9,18 +9,27 @@
 #include <sys/time.h>
 #include <ctype.h>
 #include <getopt.h>
+#include <limits.h>
+#include "parse_int.h"
+
+#define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
 
 typedef struct container_t { // struct is a specification and this static makes no sense here
-    char path[BUFSIZ];
-    char *id;
+    char path[PATH_MAX];
+    char id[DOCKER_CONTAINER_ID_BUFFER];
     unsigned int pid;
 } container_t;
+
+typedef struct net_io_t {
+    unsigned long long int r_bytes;
+    unsigned long long int t_bytes;
+} net_io_t;
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
 // between Threads.
 // in any case, none of these variables should change between threads
-static int user_id = 0;
+static int user_id = -1;
 static unsigned int msleep_time=1000;
 
 static char *trimwhitespace(char *str) {
@@ -42,13 +51,13 @@ static char *trimwhitespace(char *str) {
   return str;
 }
 
-static unsigned long int get_network_cgroup(unsigned int pid) {
+static net_io_t get_network_cgroup(unsigned int pid) {
     char buf[200], ifname[20];
-    unsigned long int r_bytes, t_bytes, r_packets, t_packets;
+    unsigned long long int r_bytes, t_bytes, r_packets, t_packets;
+    net_io_t net_io = {0};
 
-
-    char ns_path[BUFSIZ];
-    sprintf(ns_path, "/proc/%u/ns/net",pid);
+    char ns_path[PATH_MAX];
+    snprintf(ns_path, PATH_MAX, "/proc/%u/ns/net", pid);
 
     int fd_ns = open(ns_path, O_RDONLY);   /* Get descriptor for namespace */
     if (fd_ns == -1) {
@@ -72,83 +81,125 @@ static unsigned long int get_network_cgroup(unsigned int pid) {
         exit(1);
     }
 
-    // skip first two lines
-    for (int i = 0; i < 2; i++) {
-        fgets(buf, 200, fd);
+    if (fgets(buf, 200, fd) == NULL || fgets(buf, 200, fd) == NULL) {
+        fprintf(stderr, "Error or EOF encountered while reading input.\n");
+        exit(1);
     }
 
-    unsigned long int total_bytes_all_interfaces = 0;
+    int match_result = 0;
 
     while (fgets(buf, 200, fd)) {
         // We are not counting dropped packets, as we believe they will at least show up in the
         // sender side as not dropped.
         // Since we are iterating over all relevant docker containers we should catch these packets at least in one /proc/net/dev file
-        sscanf(buf, "%[^:]: %lu %lu %*u %*u %*u %*u %*u %*u %lu %lu", ifname, &r_bytes, &r_packets, &t_bytes, &t_packets);
-        // printf("%s: rbytes: %lu rpackets: %lu tbytes: %lu tpackets: %lu\n", ifname, r_bytes, r_packets, t_bytes, t_packets);
+        match_result = sscanf(buf, "%[^:]: %llu %llu %*u %*u %*u %*u %*u %*u %llu %llu", ifname, &r_bytes, &r_packets, &t_bytes, &t_packets);
+        if (match_result != 5) {
+            fprintf(stderr, "Could not match network interface pattern\n");
+            exit(1);
+        }
+        // printf("%s: rbytes: %llu rpackets: %llu tbytes: %llu tpackets: %llu\n", ifname, r_bytes, r_packets, t_bytes, t_packets);
         if (strcmp(trimwhitespace(ifname), "lo") == 0) continue;
-        total_bytes_all_interfaces += r_bytes+t_bytes;
+        net_io.r_bytes += r_bytes;
+        net_io.t_bytes += t_bytes;
     }
 
     fclose(fd);
     close(fd_ns);
 
-    return total_bytes_all_interfaces;
+    return net_io;
 
 }
 
-static int output_stats(container_t *containers, int length) {
+static void output_stats(container_t *containers, int length) {
 
     struct timeval now;
     int i;
 
     gettimeofday(&now, NULL);
     for(i=0; i<length; i++) {
-        printf("%ld%06ld %lu %s\n", now.tv_sec, now.tv_usec, get_network_cgroup(containers[i].pid), containers[i].id);
+        net_io_t net_io = get_network_cgroup(containers[i].pid);
+        printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, net_io.r_bytes, net_io.t_bytes, containers[i].id);
     }
     usleep(msleep_time*1000);
-
-    return 1;
 }
 
-static int parse_containers(container_t** containers, char* containers_string, int rootless_mode) {
+static int parse_containers(container_t** containers, char* containers_string) {
     if(containers_string == NULL) {
         fprintf(stderr, "Please supply at least one container id with -s XXXX\n");
         exit(1);
     }
 
     *containers = malloc(sizeof(container_t));
+    if (!containers) {
+        fprintf(stderr, "Could not allocate memory for containers string\n");
+        exit(1);
+    }
     char *id = strtok(containers_string,",");
     int length = 0;
     FILE* fd = NULL;
+    int match_result = 0;
 
     for (; id != NULL; id = strtok(NULL, ",")) {
         //printf("Token: %s\n", id);
         length++;
         *containers = realloc(*containers, length * sizeof(container_t));
-        (*containers)[length-1].id = id;
+        if (!containers) {
+            fprintf(stderr, "Could not allocate memory for containers string\n");
+            exit(1);
+        }
+        strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
+        (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
+
         // trying out cgroups v2 with systemd slices. Typically done in rootless mode
-        sprintf((*containers)[length-1].path,
+        snprintf((*containers)[length-1].path,
+            PATH_MAX,
             "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/cgroup.procs",
             user_id, user_id, id);
         fd = fopen((*containers)[length-1].path, "r");
-        if (fd != NULL) { fscanf(fd, "%u", &(*containers)[length-1].pid); fclose(fd); continue;}
+        if (fd != NULL) {
+            match_result = fscanf(fd, "%u", &(*containers)[length-1].pid);
+            if (match_result != 1) {
+                fprintf(stderr, "Could not match container PID\n");
+                exit(1);
+            }
+            fclose(fd);
+            continue;
+        }
 
         // trying out cgroups v2 with systemd but non-slice mountpoints. Typically in non-rootless mode
-        sprintf((*containers)[length-1].path,
+        snprintf((*containers)[length-1].path,
+            PATH_MAX,
             "/sys/fs/cgroup/system.slice/docker-%s.scope/cgroup.procs",
             id);
         fd = fopen((*containers)[length-1].path, "r");
-        if (fd != NULL) { fscanf(fd, "%u", &(*containers)[length-1].pid); fclose(fd); continue;}
+        if (fd != NULL) {
+            match_result = fscanf(fd, "%u", &(*containers)[length-1].pid);
+            if (match_result != 1) {
+                fprintf(stderr, "Could not match container PID\n");
+                exit(1);
+            }
+            fclose(fd);
+            continue;
+        }
 
         // trying out cgroups v2 without slice mountpoints. This is done in Github codespaces and Github actions
         sprintf((*containers)[length-1].path,
             "/sys/fs/cgroup/docker/%s/cgroup.procs",
             id);
         fd = fopen((*containers)[length-1].path, "r");
-        if (fd != NULL) { fscanf(fd, "%u", &(*containers)[length-1].pid); fclose(fd); continue;}
+        if (fd != NULL) {
+            match_result = fscanf(fd, "%u", &(*containers)[length-1].pid);
+            if (match_result != 1) {
+                fprintf(stderr, "Could not match container PID\n");
+                exit(1);
+            }
+            fclose(fd);
+            continue;
+        }
 
-        fprintf(stderr, "Error - Could not open container for reading: %s. Maybe the container is not running anymore? Are you using --rootless mode? Errno: %d\n", id, errno);
+        fprintf(stderr, "Error - Could not open cgroup.procs for reading: %s. Maybe the container is not running anymore? Errno: %d\n", id, errno);
         exit(1);
+
     }
 
     if(length == 0) {
@@ -158,20 +209,13 @@ static int parse_containers(container_t** containers, char* containers_string, i
     return length;
 }
 
-static int check_system(int rootless_mode) {
+static int check_system() {
     const char* file_path_cgroup_procs;
     const char file_path_proc_net_dev[] = "/proc/net/dev";
     int found_error = 0;
 
-    if(rootless_mode) {
-        file_path_cgroup_procs = "/sys/fs/cgroup/user.slice/cgroup.procs";
-    } else {
-        file_path_cgroup_procs = "/sys/fs/cgroup/system.slice/cgroup.procs";
-    }
-    
-    FILE* fd = NULL;
-
-    fd = fopen(file_path_cgroup_procs, "r");
+    file_path_cgroup_procs = "/sys/fs/cgroup/cgroup.procs";
+    FILE* fd = fopen(file_path_cgroup_procs, "r");
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open cgroup.procs file at %s\n", file_path_cgroup_procs);
         found_error = 1;
@@ -188,7 +232,7 @@ static int check_system(int rootless_mode) {
     }
 
     if(found_error) {
-        exit(127);
+        exit(1);
     }
 
     return 0;
@@ -198,7 +242,6 @@ int main(int argc, char **argv) {
 
     int c;
     int check_system_flag = 0;
-    int rootless_mode = 0; // docker root is default
     char *containers_string = NULL;  // Dynamic buffer to store optarg
     container_t *containers = NULL;
 
@@ -207,7 +250,6 @@ int main(int argc, char **argv) {
 
     static struct option long_options[] =
     {
-        {"rootless", no_argument, NULL, 'r'},
         {"help", no_argument, NULL, 'h'},
         {"interval", no_argument, NULL, 'i'},
         {"containers", no_argument, NULL, 's'},
@@ -215,7 +257,7 @@ int main(int argc, char **argv) {
         {NULL, 0, NULL, 0}
     };
 
-    while ((c = getopt_long(argc, argv, "ri:s:hc", long_options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "i:s:hc", long_options, NULL)) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
@@ -225,14 +267,16 @@ int main(int argc, char **argv) {
             printf("\t-c      : check system and exit\n\n");
             exit(0);
         case 'i':
-            msleep_time = atoi(optarg);
-            break;
-        case 'r':
-            rootless_mode = 1;
+            msleep_time = parse_int(optarg);
             break;
         case 's':
             containers_string = (char *)malloc(strlen(optarg) + 1);  // Allocate memory
+            if (!containers_string) {
+                fprintf(stderr, "Could not allocate memory for containers string\n");
+                exit(1);
+            }
             strncpy(containers_string, optarg, strlen(optarg));
+            containers_string[strlen(optarg)] = '\0'; // Ensure NUL termination if max length
             break;
         case 'c':
             check_system_flag = 1;
@@ -244,10 +288,10 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system(rootless_mode)); 
+        exit(check_system());
     }
 
-    int length = parse_containers(&containers, containers_string, rootless_mode);
+    int length = parse_containers(&containers, containers_string);
 
     while(1) {
         output_stats(containers, length);

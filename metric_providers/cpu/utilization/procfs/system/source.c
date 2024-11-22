@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
+#include "parse_int.h"
 
 typedef struct procfs_time_t { // struct is a specification and this static makes no sense here
     unsigned long user_time;
@@ -29,15 +30,17 @@ static unsigned int msleep_time=1000;
 
 static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
 
-    FILE* fd = NULL;
-
-    fd = fopen("/proc/stat", "r");
+    FILE* fd = fopen("/proc/stat", "r");
     if ( fd == NULL) {
         fprintf(stderr, "Error - file %s failed to open: errno: %d\n", "/proc/stat/", errno);
         exit(1);
     }
 
-    fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &procfs_time_struct->user_time, &procfs_time_struct->nice_time, &procfs_time_struct->system_time, &procfs_time_struct->wait_time, &procfs_time_struct->iowait_time, &procfs_time_struct->irq_time, &procfs_time_struct->softirq_time, &procfs_time_struct->steal_time);
+    int match_result = fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &procfs_time_struct->user_time, &procfs_time_struct->nice_time, &procfs_time_struct->system_time, &procfs_time_struct->wait_time, &procfs_time_struct->iowait_time, &procfs_time_struct->irq_time, &procfs_time_struct->softirq_time, &procfs_time_struct->steal_time);
+    if (match_result != 8) {
+        fprintf(stderr, "Could not match cpu usage pattern\n");
+        exit(1);
+    }
 
     // debug
     // printf("Read: cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", procfs_time_struct->user_time, procfs_time_struct->nice_time, procfs_time_struct->system_time, procfs_time_struct->idle_time, procfs_time_struct->iowait_time, procfs_time_struct->irq_time, procfs_time_struct->softirq_time, procfs_time_struct->steal_time);
@@ -52,7 +55,7 @@ static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
 }
 
 
-static int output_stats() {
+static void output_stats() {
 
     long int  idle_reading, compute_time_reading;
     procfs_time_t main_cpu_reading_before;
@@ -75,19 +78,16 @@ static int output_stats() {
 
     // main output to Stdout
     printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, (compute_time_reading*10000) / (compute_time_reading+idle_reading) ); // Deliberate integer conversion. Precision with 0.01% is good enough
-
-    return 1;
 }
 
 static int check_system() {
     const char check_path[] = "/proc/stat";
     
-    FILE* fd = NULL;
-    fd = fopen(check_path, "r");
+    FILE* fd = fopen(check_path, "r");
 
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open %s file\n", check_path);
-        exit(127);
+        exit(1);
     }
     fclose(fd);
     return 0;
@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
             printf("\tCLOCKS_PER_SEC\t%ld\n", CLOCKS_PER_SEC);
             exit(0);
         case 'i':
-            msleep_time = atoi(optarg);
+            msleep_time = parse_int(optarg);
             break;
         case 'c':
             check_system_flag = 1;

@@ -11,18 +11,28 @@ var fetch_time_series = localStorage.getItem('fetch_time_series');
 if(fetch_time_series == 'true') fetch_time_series = true;
 else fetch_time_series = false;
 
-let toggleWatts = () => {
+var time_series_avg = localStorage.getItem('time_series_avg');
+if(time_series_avg == 'true') time_series_avg = true;
+else time_series_avg = false;
+
+
+const toggleWatts = () => {
     localStorage.setItem('display_in_watts', !display_in_watts);
     window.location.reload();
 }
 
-let toggleUnits = () => {
+const toggleUnits = () => {
     localStorage.setItem('display_in_metric_units', !display_in_metric_units);
     window.location.reload();
 }
 
-let toggleTimeSeries = () => {
+const toggleTimeSeries = () => {
     localStorage.setItem('fetch_time_series', !fetch_time_series);
+    window.location.reload();
+}
+
+const toggleTimeSeriesAVG = () => {
+    localStorage.setItem('time_series_avg', !time_series_avg);
     window.location.reload();
 }
 
@@ -40,6 +50,9 @@ let toggleTimeSeries = () => {
 
       if(fetch_time_series) $("#fetch-time-series-display").text("Currently fetching time series by default");
       else $("#fetch-time-series-display").text("Currently not fetching time series by default");
+
+      if(time_series_avg) $("#time-series-avg-display").text("Currently showing AVG time series");
+      else $("#time-series-avg-display").text("Currently not showing AVG in time series");
 
 
     });

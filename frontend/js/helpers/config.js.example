@@ -10,6 +10,24 @@ METRICS_URL = "__METRICS_URL__"
 METRIC_MAPPINGS = {
 
 
+    'disk_used_statvfs_system': {
+        'clean_name': 'Disk Usage',
+        'source': 'statvfs syscall',
+        'explanation': 'Disk used space of the root filesystem via statvfs syscall',
+    },
+
+    'disk_io_procfs_system': {
+        'clean_name': 'Disk I/O',
+        'source': 'procfs',
+        'explanation': 'Disk I/O via procfs',
+    },
+
+    'disk_total_procfs_system': {
+        'clean_name': 'Disk Data',
+        'source': 'formula',
+        'explanation': 'Disk I/O Total accumulated via procfs',
+    },
+
     'psu_energy_cgroup_container': {
         'clean_name': 'Container Energy',
         'source': 'estimation',
@@ -22,10 +40,10 @@ METRIC_MAPPINGS = {
         'explanation': 'Container power estimated via CPU-% share',
     },
 
-    'psu_co2_dc_rapl_msr_machine': {
-        'clean_name': 'Machine CO2',
+    'psu_carbon_dc_rapl_msr_machine': {
+        'clean_name': 'Machine CO₂',
         'source': 'RAPL',
-        'explanation': 'Machine CO2 calculated by formula via RAPL PSYS Domain',
+        'explanation': 'Machine CO₂ calculated by formula via RAPL PSYS Domain',
     },
 
     'psu_energy_dc_rapl_msr_machine': {
@@ -39,10 +57,10 @@ METRIC_MAPPINGS = {
         'explanation': 'Full machine power (DC) as reported by RAPL PSYS Domain',
     },
 
-    'psu_co2_ac_mcp_machine': {
-        'clean_name': 'Machine CO2',
+    'psu_carbon_ac_mcp_machine': {
+        'clean_name': 'Machine CO₂',
         'source': 'mcp',
-        'explanation': 'Machine CO2 calculated by formula via mcp',
+        'explanation': 'Machine CO₂ calculated by formula via mcp',
     },
 
     'psu_energy_ac_mcp_machine': {
@@ -71,45 +89,45 @@ METRIC_MAPPINGS = {
         'source': 'Syscall',
         'explanation': 'Duration of the phase measured by GMT through a syscall',
     },
-    'psu_co2_ac_ipmi_machine': {
-        'clean_name': 'Machine CO2',
+    'psu_carbon_ac_ipmi_machine': {
+        'clean_name': 'Machine CO₂',
         'source': 'Formula (IPMI)',
-        'explanation': 'Machine CO2 calculated by formula via IPMI measurement',
+        'explanation': 'Machine CO₂ calculated by formula via IPMI measurement',
     },
-    'psu_co2_dc_picolog_mainboard': {
-        'clean_name': 'Machine CO2',
+    'psu_carbon_dc_picolog_mainboard': {
+        'clean_name': 'Machine CO₂',
         'source': 'Formula (PicoLog)',
-        'explanation': 'Machine CO2 calculated by formula via PicoLog HRDL ADC-24 measurement',
+        'explanation': 'Machine CO₂ calculated by formula via PicoLog HRDL ADC-24 measurement',
     },
-    'psu_co2_ac_powerspy2_machine': {
-        'clean_name': 'Machine CO2',
+    'psu_carbon_ac_powerspy2_machine': {
+        'clean_name': 'Machine CO₂',
         'source': 'PowerSpy2',
-        'explanation': 'Machine CO2 calculated by formula via PowerSpy2 measurement',
+        'explanation': 'Machine CO₂ calculated by formula via PowerSpy2 measurement',
     },
-    'psu_co2_ac_xgboost_machine': {
-        'clean_name': 'Machine CO2',
+    'psu_carbon_ac_xgboost_machine': {
+        'clean_name': 'Machine CO₂',
         'source': 'Formula (XGBoost)',
-        'explanation': 'Machine CO2 calculated by formula via XGBoost estimation',
+        'explanation': 'Machine CO₂ calculated by formula via XGBoost estimation',
     },
     'network_energy_formula_global': {
         'clean_name': 'Network Transmission',
         'source': 'Formula',
         'explanation': 'Estimated external energy cost for network infrastructure.',
     },
-    'network_co2_formula_global': {
-        'clean_name': 'Network Transmission CO2',
+    'network_carbon_formula_global': {
+        'clean_name': 'Network Transmission CO₂',
         'source': 'Formula',
-        'explanation': 'Estimated external CO2 cost for network infrastructure.',
+        'explanation': 'Estimated external CO₂ cost for network infrastructure.',
     },
-     'lm_sensors_temperature_component': {
+     'lmsensors_temperature_component': {
         'clean_name': 'CPU Temperature',
-        'source': 'lm_sensors',
-        'explanation': 'CPU Temperature as reported by lm_sensors',
+        'source': 'lm-sensors',
+        'explanation': 'CPU Temperature as reported by lm-sensors',
     },
-    'lm_sensors_fan_component': {
+    'lmsensors_fan_component': {
         'clean_name': 'Fan Speed',
-        'source': 'lm_sensors',
-        'explanation': 'Fan speed as reported by lm_sensors',
+        'source': 'lm-sensors',
+        'explanation': 'Fan speed as reported by lm-sensors',
     },
     'psu_energy_ac_powerspy2_machine': {
         'clean_name': 'Machine Energy',
@@ -221,16 +239,42 @@ METRIC_MAPPINGS = {
         'source': 'cgroup',
         'explanation': 'CPU Utilization per container',
     },
-    'memory_total_cgroup_container': {
+    'memory_used_cgroup_container': {
         'clean_name': 'Memory Usage',
         'source': 'cgroup',
         'explanation': 'Memory Usage per container',
     },
+
+    'memory_used_procfs_system': {
+        'clean_name': 'Memory Usage',
+        'source': 'procfs',
+        'explanation': 'Memory Usage for whole system via procfs',
+    },
+
+    'network_total_cgroup_container': {
+        'clean_name': 'Network Traffic',
+        'source': 'cgroup',
+        'explanation': 'Network total data traffic for the container via cgroup reporting.',
+    },
+
     'network_io_cgroup_container': {
         'clean_name': 'Network I/O',
         'source': 'cgroup',
         'explanation': 'Network I/O. Details on https://docs.green-coding.io/docs/measuring/metric-providers/network-io-cgroup-container',
     },
+
+    'network_io_procfs_system': {
+        'clean_name': 'Network I/O',
+        'source': 'procfs',
+        'explanation': 'Network I/O for the whole system via procfs',
+    },
+
+    'network_total_procfs_system': {
+        'clean_name': 'Network Traffic',
+        'source': 'formula',
+        'explanation': 'Network total data traffic for the whole accumulated from procfs data',
+    },
+
     'gpu_energy_nvidia_smi_component': {
         'clean_name': 'GPU Energy',
         'source': 'NVIDA SMI',
@@ -271,10 +315,10 @@ METRIC_MAPPINGS = {
         'source': 'RAPL',
         'explanation': 'Derived RAPL based memory energy of DRAM domain',
     },
-    'psu_co2_ac_sdia_machine': {
-        'clean_name': 'Machine CO2',
+    'psu_carbon_ac_sdia_machine': {
+        'clean_name': 'Machine CO₂',
         'source': 'Formula (SDIA)',
-        'explanation': 'Machine CO2 calculated by formula via SDIA estimation',
+        'explanation': 'Machine CO₂ calculated by formula via SDIA estimation',
     },
 
     'psu_energy_ac_sdia_machine': {
@@ -328,20 +372,20 @@ const radar_chart_condition = (metric) => {
     return false;
 }
 
-// filter function for the CO2 calculations in the Detailed Metrics
+// filter function for the CO₂ calculations in the Detailed Metrics
 // please note that this metric must be unique per phase
 const phase_time_metric_condition = (metric) => {
     if(metric == 'phase_time_syscall_system') return true;
     return false;
 }
 
-const machine_co2_metric_condition = (metric) => {
-    if(metric.match(/^.*_co2_.*_machine$/) !== null) return true;
+const psu_machine_carbon_metric_condition = (metric) => {
+    if(metric.match(/^psu_carbon_.*_machine$/) !== null) return true;
     return false;
 }
 
-const network_co2_metric_condition = (metric) => {
-    if(metric == 'network_co2_formula_global') return true;
+const network_carbon_metric_condition = (metric) => {
+    if(metric == 'network_carbon_formula_global') return true;
     return false;
 }
 

@@ -1,23 +1,23 @@
+import sys
+import faulthandler
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
+
+from functools import cache
+from html import escape as html_escape
+import re
+import math
 import typing
-import io
 import ipaddress
 import json
 import uuid
-import faulthandler
-from functools import cache
-from html import escape as html_escape
+
 from starlette.background import BackgroundTask
-from fastapi.exceptions import RequestValidationError
 from fastapi.responses import ORJSONResponse
 import numpy as np
 import requests
 import scipy.stats
-
-from psycopg.rows import dict_row as psycopg_rows_dict_row
-
 from pydantic import BaseModel
 
-faulthandler.enable()  # will catch segfaults and write to STDERR
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -50,21 +50,29 @@ def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
     except redis.RedisError as e:
         error_helpers.log_error('Redis store_artifact failed', exception=e)
 
+
+# Note
+# ---------------
+# Use this function never in the phase_stats. The metrics must always be on
+# The same unit for proper comparison!
+#
 def rescale_energy_value(value, unit):
-    # We only expect values to be mJ for energy!
-    if unit != 'mJ' and not unit.startswith('ugCO2e/'):
-        raise RuntimeError('Unexpected unit occured for energy rescaling: ', unit)
+    if unit == 'mJ':
+        value = value * 1_000
+        unit = 'uJ'
+
+    # We only expect values to be uJ for energy in the future. Changing values now temporarily.
+    # TODO: Refactor this once all data in the DB is uJ
+    if unit != 'uJ' and not unit.startswith('ugCO2e/'):
+        raise ValueError('Unexpected unit occured for energy rescaling: ', unit)
 
     unit_type = unit[1:]
 
-    if unit.startswith('ugCO2e'): # bring also to mg
-        value = value / (10**3)
-        unit = f"m{unit_type}"
-
-    if value > 1_000_000_000: return [value/(10**12), f"G{unit_type}"]
-    if value > 1_000_000_000: return [value/(10**9), f"M{unit_type}"]
-    if value > 1_000_000: return [value/(10**6), f"k{unit_type}"]
-    if value > 1_000: return [value/(10**3), f"{unit_type}"]
+    if value > 1_000_000_000_000_000: return [value/(10**15), f"G{unit_type}"]
+    if value > 1_000_000_000_000: return [value/(10**12), f"M{unit_type}"]
+    if value > 1_000_000_000: return [value/(10**9), f"k{unit_type}"]
+    if value > 1_000_000: return [value/(10**6), f"{unit_type}"]
+    if value > 1_000: return [value/(10**3), f"m{unit_type}"]
     if value < 0.001: return [value*(10**3), f"n{unit_type}"]
 
     return [value, unit] # default, no change
@@ -155,8 +163,7 @@ def get_run_info(run_id):
             WHERE id = %s
             """
     params = (run_id,)
-    return DB().fetch_one(query, params=params, row_factory=psycopg_rows_dict_row)
-
+    return DB().fetch_one(query, params=params, fetch_mode='dict')
 
 def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, limit_365=False, sorting='run'):
 
@@ -211,6 +218,7 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
                 AND r.filename = %s
                 AND r.branch = %s
                 AND r.end_measurement IS NOT NULL
+                AND r.failed != TRUE
                 AND r.machine_id = %s
                 AND p.phase LIKE %s
                 {metrics_condition}
@@ -219,6 +227,7 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
                 {detail_name_condition}
                 {limit_365_condition}
                 AND r.commit_timestamp IS NOT NULL
+                AND r.failed IS FALSE
             ORDER BY
                 p.metric ASC, p.detail_name ASC,
                 p.phase ASC, {sorting_condition}
@@ -349,10 +358,7 @@ def get_phase_stats(ids):
                 branch ASC,
                 b.created_at ASC
             """
-    data = DB().fetch_all(query, (ids, ))
-    if data is None or data == []:
-        raise RuntimeError('Data is empty')
-    return data
+    return DB().fetch_all(query, (ids, ))
 
 # Would be interesting to know if in an application server like gunicor @cache
 # Will also work for subsequent requests ...?
@@ -465,8 +471,10 @@ def get_phase_stats_object(phase_stats, case):
             key = filename # Case C_2 : SoftwareDeveloper Case
         elif case == 'Machine':
             key = machine_description # Case C_1 : DataCenter Case
-        else:
+        elif commit_hash:
             key = commit_hash # No comparison case / Case A: Blue Angel / Case B: DevOps Case
+        else:
+            key = 'not-set'
 
         if phase not in phase_stats_object['data']: phase_stats_object['data'][phase] = {}
 
@@ -481,6 +489,9 @@ def get_phase_stats_object(phase_stats, case):
                 #'is_significant': None,  # currently no use for that
                 'data': {},
             }
+        elif phase_stats_object['data'][phase][metric_name]['unit'] != unit:
+            raise RuntimeError(f"Metric cannot be compared as units have changed: {unit} vs. {phase_stats_object['data'][phase][metric_name]['unit']}")
+
 
         if detail_name not in phase_stats_object['data'][phase][metric_name]['data']:
             phase_stats_object['data'][phase][metric_name]['data'][detail_name] = {
@@ -546,7 +557,15 @@ def add_phase_stats_statistics(phase_stats_object):
 
                         # JSON does not recognize the numpy data types. Sometimes int64 is returned
                         key_obj['mean'] = np.mean(key_obj['values']).item()
-                        key_obj['stddev'] = np.std(key_obj['values']).item()
+
+                        key_obj['stddev'] = np.std(key_obj['values'], correction=1).item()
+                        # We are using now the STDDEV of the sample for two reasons:
+                        # It is required by the Blue Angel for Software
+                        # We got many debates that in cases where the average is only estimated through measurements and is not absolute
+                        # one MUST use the sample STDDEV.
+                        # Still one could argue that one does not want to characterize the measured software but rather the measurement setup
+                        # it is safer to use the sample STDDEV as it is always higher
+
                         key_obj['max_mean'] = np.max(key_obj['values']).item() # overwrite with max of list
                         key_obj['min_mean'] = np.min(key_obj['values']).item() # overwrite with min of list
                         key_obj['ci'] = (key_obj['stddev']*t_stat).item()
@@ -613,13 +632,14 @@ class ORJSONResponseObjKeep(ORJSONResponse):
         self.content = content
         super().__init__(content, status_code, headers, media_type, background)
 
+# The decorator will not work between requests, so we are not prone to stale data over time
+@cache
 def get_geo(ip):
-    try:
-        ip_obj = ipaddress.ip_address(ip)
-        if ip_obj.is_private:
-            return('52.53721666833642', '13.424863870661927')
-    except ValueError:
-        return (None, None)
+
+    ip_obj = ipaddress.ip_address(ip) # may raise a ValueError
+    if ip_obj.is_private:
+        error_helpers.log_error(f"Private IP was submitted to get_geo {ip}. This is normal in development, but should not happen in production.")
+        return('52.53721666833642', '13.424863870661927')
 
     query = "SELECT ip_address, data FROM ip_data WHERE created_at > NOW() - INTERVAL '24 hours' AND ip_address=%s;"
     db_data = DB().fetch_all(query, (ip,))
@@ -627,21 +647,27 @@ def get_geo(ip):
     if db_data is not None and len(db_data) != 0:
         return (db_data[0][1].get('latitude'), db_data[0][1].get('longitude'))
 
-    latitude, longitude = get_geo_ipapi_co(ip)
+    latitude, longitude = get_geo_ip_api_com(ip)
 
-    if latitude is False:
-        latitude, longitude = get_geo_ip_api_com(ip)
-    if latitude is False:
+    if not latitude:
+        latitude, longitude = get_geo_ipapi_co(ip)
+    if not latitude:
         latitude, longitude = get_geo_ip_ipinfo(ip)
+    if not latitude:
+        raise RuntimeError(f"Could not get Geo-IP for {ip} after 3 tries")
 
-    #If all 3 fail there is something bigger wrong
     return (latitude, longitude)
 
 
 def get_geo_ipapi_co(ip):
 
-    response = requests.get(f"https://ipapi.co/{ip}/json/", timeout=10)
     print(f"Accessing https://ipapi.co/{ip}/json/")
+    try:
+        response = requests.get(f"https://ipapi.co/{ip}/json/", timeout=10)
+    except Exception as exc: #pylint: disable=broad-exception-caught
+        error_helpers.log_error('API request to ipapi.co failed ...', exception=exc)
+        return (False, False)
+
     if response.status_code == 200:
         resp_data = response.json()
 
@@ -655,12 +681,19 @@ def get_geo_ipapi_co(ip):
 
         return (resp_data.get('latitude'), resp_data.get('longitude'))
 
+    error_helpers.log_error(f"Could not get Geo-IP from ipapi.co for {ip}. Trying next ...", response=response)
+
     return (False, False)
 
 def get_geo_ip_api_com(ip):
 
-    response = requests.get(f"http://ip-api.com/json/{ip}", timeout=10)
     print(f"Accessing http://ip-api.com/json/{ip}")
+    try:
+        response = requests.get(f"http://ip-api.com/json/{ip}", timeout=10)
+    except Exception as exc: #pylint: disable=broad-exception-caught
+        error_helpers.log_error('API request to ip-api.com failed ...', exception=exc)
+        return (False, False)
+
     if response.status_code == 200:
         resp_data = response.json()
 
@@ -676,12 +709,19 @@ def get_geo_ip_api_com(ip):
 
         return (resp_data.get('latitude'), resp_data.get('longitude'))
 
+    error_helpers.log_error(f"Could not get Geo-IP from ip-api.com for {ip}. Trying next ...", response=response)
+
     return (False, False)
 
 def get_geo_ip_ipinfo(ip):
 
-    response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=10)
     print(f"Accessing https://ipinfo.io/{ip}/json")
+    try:
+        response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=10)
+    except Exception as exc: #pylint: disable=broad-exception-caught
+        error_helpers.log_error('API request to ipinfo.io failed ...', exception=exc)
+        return (False, False)
+
     if response.status_code == 200:
         resp_data = response.json()
 
@@ -699,8 +739,12 @@ def get_geo_ip_ipinfo(ip):
 
         return (resp_data.get('latitude'), resp_data.get('longitude'))
 
+    error_helpers.log_error(f"Could not get Geo-IP from ipinfo.io for {ip}. Trying next ...", response=response)
+
     return (False, False)
 
+# The decorator will not work between requests, so we are not prone to stale data over time
+@cache
 def get_carbon_intensity(latitude, longitude):
 
     if latitude is None or longitude is None:
@@ -712,14 +756,14 @@ def get_carbon_intensity(latitude, longitude):
     if db_data is not None and len(db_data) != 0:
         return db_data[0][2].get('carbonIntensity')
 
-    if not (token := GlobalConfig().config.get('electricity_maps_token')):
+    if not (electricitymaps_token := GlobalConfig().config.get('electricity_maps_token')):
         raise ValueError('You need to specify an electricitymap token in the config!')
 
-    if token == 'testing':
+    if electricitymaps_token == 'testing':
         # If we are running tests we always return 1000
         return 1000
 
-    headers = {'auth-token': token }
+    headers = {'auth-token': electricitymaps_token }
     params = {'lat': latitude, 'lon': longitude }
 
     response = requests.get('https://api.electricitymap.org/v3/carbon-intensity/latest', params=params, headers=headers, timeout=10)
@@ -731,50 +775,114 @@ def get_carbon_intensity(latitude, longitude):
 
         return resp_data.get('carbonIntensity')
 
+    error_helpers.log_error(f"Could not get carbon intensity from Electricitymaps.org for {params}", response=response)
+
     return None
 
-def carbondb_add(client_ip, energydatas):
+def carbondb_add(connecting_ip, data, source, user_id):
 
-    latitude, longitude = get_geo(client_ip)
-    carbon_intensity = get_carbon_intensity(latitude, longitude)
+    query = '''
+            INSERT INTO carbondb_data_raw
+                ("type", "project", "machine", "source", "tags","time","energy_kwh","carbon_kg","carbon_intensity_g","latitude","longitude","ip_address","user_id","created_at")
+            VALUES
+                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+    '''
 
-    data_rows = []
+    used_client_ip = data.get('ip', None) # An ip has been given with the data. We prioritize that
+    if used_client_ip is None:
+        used_client_ip = connecting_ip
 
-    for e in energydatas:
+    carbon_intensity_g_per_kWh = data.get('carbon_intensity_g', None)
 
-        if not isinstance(e, dict):
-            e = e.dict()
+    if carbon_intensity_g_per_kWh is not None: # we need this check explicitely as we want to allow 0 as possible value
+        latitude = None # no use to derive if we get supplied data. We rather indicate with NULL that user supplied
+        longitude = None # no use to derive if we get supplied data. We rather indicate with NULL that user supplied
+    else:
+        latitude, longitude = get_geo(used_client_ip) # cached
+        carbon_intensity_g_per_kWh = get_carbon_intensity(latitude, longitude) # cached
 
-        e = html_escape_multi(e)
+    energy_J = float(data['energy_uj']) / 1e6
+    energy_kWh = energy_J / (3_600*1_000)
+    carbon_kg = (energy_kWh * carbon_intensity_g_per_kWh)/1_000
 
-        fields_to_check = {
-            'type': e['type'],
-            'energy_value': e['energy_value'],
-            'time_stamp': e['time_stamp'],
-        }
+    DB().query(
+        query=query,
+        params=(
+            data['type'],
+            data['project'], data['machine'], source, data['tags'], data['time'], energy_kWh, carbon_kg, carbon_intensity_g_per_kWh, latitude, longitude, used_client_ip, user_id))
 
-        for field_name, field_value in fields_to_check.items():
-            if field_value is None or str(field_value).strip() == '':
-                raise RequestValidationError(f"{field_name.capitalize()} is empty. Ignoring everything!")
 
-        if 'ip' in e:
-            # An ip has been given with the data. Let's use this:
-            latitude, longitude = get_geo(e['ip'])
-            carbon_intensity = get_carbon_intensity(latitude, longitude)
+def validate_carbondb_params(param, elements: list):
+    for el in elements:
+        if not re.fullmatch(r'[A-Za-z0-9\._-]+', el):
+            raise ValueError(f"Parameter for '{param}' may only contain A-Za-z0-9._- characters and no spaces. Was: {el}")
 
-        energy_kwh = float(e['energy_value']) * 2.77778e-7
-        co2_value = energy_kwh * carbon_intensity
 
-        company_uuid = e['company'] if e['company'] is not None else ''
-        project_uuid = e['project'] if e['project'] is not None else ''
-        tags_clean = "{" + ",".join([f'"{tag.strip()}"' for tag in e['tags'].split(',') if e['tags']]) + "}" if e['tags'] is not None else ''
+def get_connecting_ip(request):
+    connecting_ip = request.headers.get("x-forwarded-for")
 
-        row = f"{e['type']}|{company_uuid}|{e['machine']}|{project_uuid}|{tags_clean}|{int(e['time_stamp'])}|{e['energy_value']}|{co2_value}|{carbon_intensity}|{latitude}|{longitude}|{client_ip}"
-        data_rows.append(row)
+    if connecting_ip:
+        return connecting_ip.split(",")[0]
 
-    data_str = "\n".join(data_rows)
-    data_file = io.StringIO(data_str)
+    return request.client.host
 
-    columns = ['type', 'company', 'machine', 'project', 'tags', 'time_stamp', 'energy_value', 'co2_value', 'carbon_intensity', 'latitude', 'longitude', 'ip_address']
 
-    DB().copy_from(file=data_file, table='carbondb_energy_data', columns=columns, sep='|')
+def replace_nan_with_zero(obj):
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(v, (dict, list)):
+                replace_nan_with_zero(v)
+            elif isinstance(v, float) and math.isnan(v):
+                obj[k] = 0
+    elif isinstance(obj, list):
+        for i, item in enumerate(obj):
+            if isinstance(item, (dict, list)):
+                replace_nan_with_zero(item)
+            elif isinstance(item, float) and math.isnan(item):
+                obj[i] = 0
+    return obj
+
+# Refactor have this in the Pydantic model?
+# https://github.com/green-coding-solutions/green-metrics-tool/issues/907
+def validate_hog_measurement_data(data):
+    required_top_level_fields = [
+        'coalitions', 'all_tasks', 'elapsed_ns', 'processor', 'thermal_pressure'
+    ]
+    for field in required_top_level_fields:
+        if field not in data:
+            raise ValueError(f"Missing required field: {field}")
+
+    # Validate 'coalitions' structure
+    if not isinstance(data['coalitions'], list):
+        raise ValueError("Expected 'coalitions' to be a list")
+
+    for coalition in data['coalitions']:
+        required_coalition_fields = [
+            'name', 'tasks', 'energy_impact_per_s', 'cputime_ms_per_s',
+            'diskio_bytesread', 'diskio_byteswritten', 'intr_wakeups', 'idle_wakeups'
+        ]
+        for field in required_coalition_fields:
+            if field not in coalition:
+                raise ValueError(f"Missing required coalition field: {field}")
+            if field == 'tasks' and not isinstance(coalition['tasks'], list):
+                raise ValueError(f"Expected 'tasks' to be a list in coalition: {coalition['name']}")
+
+    # Validate 'all_tasks' structure
+    if 'energy_impact_per_s' not in data['all_tasks']:
+        raise ValueError("Missing 'energy_impact_per_s' in 'all_tasks'")
+
+    # Validate 'processor' structure based on the processor type
+    processor_fields = data['processor'].keys()
+    if 'ane_energy' in processor_fields:
+        required_processor_fields = ['combined_power', 'cpu_energy', 'gpu_energy', 'ane_energy']
+    elif 'package_joules' in processor_fields:
+        required_processor_fields = ['package_joules', 'cpu_joules', 'igpu_watts']
+    else:
+        raise ValueError("Unknown processor type")
+
+    for field in required_processor_fields:
+        if field not in processor_fields:
+            raise ValueError(f"Missing required processor field: {field}")
+
+    # All checks passed
+    return True

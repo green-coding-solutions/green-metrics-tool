@@ -1,10 +1,3 @@
-// Note that we use the STDDEV of the population, as we want to quantify the accuracy and NOT the workload itself
-const calculateStatistics = (data) => {
-    const mean = data.reduce((sum, value) => sum + value.value, 0) / data.length;
-    const stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value.value - mean, 2), 0) / data.length);
-    return { mean, stddev };
-}
-
 const getCompareChartOptions = (legend, series, chart_type='line', x_axis='time', y_axis_name, mark_area=null,  graphic=null) => {
     let tooltip_trigger = (chart_type=='line') ? 'axis' : 'item';
 
@@ -136,7 +129,7 @@ const getLineBarChartOptions = (legend, labels, series, x_axis_name=null, y_axis
    }
 
    if(stddev) {
-       const { mean, stddev } = calculateStatistics(series[0].data);
+       const [ mean, stddev ] = calculateStatistics(series[0].data, true);
 
        legend.push('Stddev')
        series.push({
@@ -353,6 +346,7 @@ const createChartContainer = (container, title) => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");
     chart_node.classList.add('statistics-chart-card')
+    chart_node.classList.add('print-page-break')
     chart_node.classList.add('ui')
 
     chart_node.innerHTML = `

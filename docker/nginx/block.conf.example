@@ -1,0 +1,15 @@
+server {
+
+#__DEFAULT__    listen [::]:9142 default_server;
+#__DEFAULT__    listen 9142 default_server;
+
+#__SSL__    listen [::]:443 default_server ssl;
+#__SSL__    listen 443 default_server ssl;
+#__SSL__    ssl_certificate /etc/ssl/production.crt;
+#__SSL__    ssl_certificate_key /etc/ssl/production.key;
+
+
+    server_name _;
+
+    return 444;
+}

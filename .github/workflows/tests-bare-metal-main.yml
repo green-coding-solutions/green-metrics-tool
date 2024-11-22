@@ -7,7 +7,7 @@ on:
 
 jobs:
   run-tests-main:
-    runs-on: self-hosted
+    runs-on: local-test-arm64
     permissions:
       packages: write
       contents: read
@@ -20,6 +20,16 @@ jobs:
       #     branch: 'main'
       #     workflow-id: 45267391
 
+      - name: Eco CI Energy Estimation - Initialize
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        with:
+          task: start-measurement
+          project: "Green Metrics Tool"
+          machine: "ubuntu-latest"
+          tags: "CI/CD,Bare-Metal-main-Workflow"
+          gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
+          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+
       # - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
       - name: 'Checkout repository'
         uses: actions/checkout@v4
@@ -28,25 +38,29 @@ jobs:
           submodules: 'true'
 
       - name: Eco CI Energy Estimation - Initialize
-        uses: green-coding-solutions/eco-ci-energy-estimation@v3
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: start-measurement
+          project: "Green Metrics Tool"
+          machine: "ubuntu-latest"
+          tags: "CI/CD, PR-Workflow"
+          gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
+          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+
 
       # - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
       - name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
-         metrics-to-turn-off: 'Machine Sensors Debug MacOS'
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Eco CI Energy Estimation - Get Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@v3
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: get-measurement
-          branch: main
 
       - name: Eco CI Energy Estimation - End Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@v3
+        uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: display-results
-          branch: main
+          pr-comment: true

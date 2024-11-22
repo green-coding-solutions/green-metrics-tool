@@ -19,13 +19,11 @@
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
     <script src="/js/helpers/converters.js" defer></script>
-    <script src="/dist/js/math.min.js" defer></script>
     <script src="/dist/js/popup.min.js" defer></script>
     <script src="/dist/js/tab.min.js" defer></script>
     <script src="/dist/js/tablesort.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
-    <!-- <script src="/dist/js/apexcharts.min.js" defer></script> -->
     <script src="/dist/js/tab.min.js" defer></script>
     <script src="/js/ci.js" defer></script>
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
@@ -67,20 +65,20 @@
         <div class="ui form">
             <div class="three fields">
                 <div class="field">
-                    <label>Start date (inclusive)</label>
+                    <label>Start date (UTC)</label>
                     <div class="ui calendar" id="rangestart">
                         <div class="ui input left icon">
                             <i class="calendar icon"></i>
-                            <input type="text" placeholder="Start">
+                            <input name="range_start" type="text" placeholder="Start">
                         </div>
                     </div>
                 </div>
                 <div class="field">
-                    <label>End date (inclusive)</label>
+                    <label>End date (UTC)</label>
                     <div class="ui calendar" id="rangeend">
                         <div class="ui input left icon">
                             <i class="calendar icon"></i>
-                            <input type="text" placeholder="End">
+                            <input name="range_end" type="text" placeholder="End">
                         </div>
                     </div>
                 </div>
@@ -151,7 +149,7 @@
                     <th>Commit Hash</th>
                     <th>Location</th>
                     <th>Grid Intensity</th>
-                    <th>CO2eq of run</th>
+                    <th>gCO2eq of run</th>
                 </tr>
             </thead>
             <tbody id="ci-table"></tbody>

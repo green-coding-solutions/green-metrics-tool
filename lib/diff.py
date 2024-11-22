@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import sys
 import faulthandler
-faulthandler.enable()  # will catch segfaults and write to stderr
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from lib.db import DB
 from deepdiff import DeepDiff
-from psycopg.rows import dict_row as psycopg_rows_dict_row
 import json
 
 def get_diffable_row(uuid):
@@ -27,7 +27,7 @@ def get_diffable_row(uuid):
         FROM runs WHERE id = %s
     """
 
-    return DB().fetch_one(query, (uuid, ), row_factory=psycopg_rows_dict_row)
+    return DB().fetch_one(query, (uuid, ), fetch_mode='dict')
 
 def diff_rows(row_a,row_b):
     unified_diff = []

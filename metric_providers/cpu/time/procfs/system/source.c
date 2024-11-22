@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
-
+#include "parse_int.h"
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
@@ -17,12 +17,14 @@ static long int user_hz;
 static unsigned int msleep_time=1000;
 
 static long int read_cpu_proc() {
-    FILE* fd = NULL;
     long int user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time;
+    FILE* fd = fopen("/proc/stat", "r");
 
-    fd = fopen("/proc/stat", "r");
-
-    fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &user_time, &nice_time, &system_time, &idle_time, &iowait_time, &irq_time, &softirq_time, &steal_time);
+    int match_result = fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &user_time, &nice_time, &system_time, &idle_time, &iowait_time, &irq_time, &softirq_time, &steal_time);
+    if (match_result != 8) {
+        fprintf(stderr, "Could not match cpu usage pattern\n");
+        exit(1);
+    }
 
     // printf("Read: cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time);
     if(idle_time <= 0) fprintf(stderr, "Idle time strange value %ld \n", idle_time);
@@ -34,28 +36,23 @@ static long int read_cpu_proc() {
     return ((user_time+nice_time+system_time+idle_time+iowait_time+irq_time+softirq_time+steal_time)*1000000)/user_hz;
 }
 
-
-
-static int output_stats() {
+static void output_stats() {
 
     struct timeval now;
 
     gettimeofday(&now, NULL);
     printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, read_cpu_proc());
     usleep(msleep_time*1000);
-
-    return 1;
 }
 
 static int check_system() {
     const char check_path[] = "/proc/stat";
     
-    FILE* fd = NULL;
-    fd = fopen(check_path, "r");
+    FILE* fd = fopen(check_path, "r");
 
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open /proc/stat file\n");
-        exit(127);
+        exit(1);
     }
     fclose(fd);
     return 0;
@@ -89,7 +86,7 @@ int main(int argc, char **argv) {
             printf("\tCLOCKS_PER_SEC\t%ld\n", CLOCKS_PER_SEC);
             exit(0);
         case 'i':
-            msleep_time = atoi(optarg);
+            msleep_time = parse_int(optarg);
             break;
         case 'c':
             check_system_flag = 1;

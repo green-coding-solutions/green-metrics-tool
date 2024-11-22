@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import sys
 import faulthandler
-faulthandler.enable()  # will catch segfaults and write to stderr
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from lib.venv_checker import check_venv
 check_venv() # this check must even run before __main__ as imports might not get resolved
@@ -12,7 +13,6 @@ import json
 import os
 import time
 from html import escape
-import sys
 import importlib
 import re
 from io import StringIO
@@ -38,10 +38,7 @@ from lib.db import DB
 from lib.global_config import GlobalConfig
 from lib.notes import Notes
 from lib import system_checks
-
-
-
-from tools.machine import Machine
+from lib.machine import Machine
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -51,8 +48,9 @@ class Runner:
         *, uri, uri_type, name=None, filename='usage_scenario.yml', branch=None,
         debug_mode=False, allow_unsafe=False,  skip_system_checks=False,
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
-        dev_no_sleeps=False, dev_no_build=False, dev_no_metrics=False,
-        dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None):
+        dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
+        dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
+        user_id=None, measurement_flow_process_duration=None, measurement_total_duration=None, dev_no_phase_stats=False):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -70,10 +68,11 @@ class Runner:
         self._full_docker_prune = full_docker_prune
         self._docker_prune = docker_prune
         self._dev_no_sleeps = dev_no_sleeps
-        self._dev_no_build = dev_no_build
+        self._dev_cache_build = dev_cache_build
         self._dev_no_metrics = dev_no_metrics
         self._dev_flow_timetravel = dev_flow_timetravel
         self._dev_no_optimizations = dev_no_optimizations
+        self._dev_no_phase_stats = dev_no_phase_stats
         self._uri = uri
         self._uri_type = uri_type
         self._original_filename = filename
@@ -81,13 +80,20 @@ class Runner:
         self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
         self._usage_scenario = {}
         self._architecture = utils.get_architecture()
+
         self._sci = {'R_d': None, 'R': 0}
+        self._sci |= GlobalConfig().config.get('sci', None)  # merge in data from machine config like I, TE etc.
+
         self._job_id = job_id
         self._arguments = locals()
         self._repo_folder = f"{self._tmp_folder}/repo" # default if not changed in checkout_repository
         self._run_id = None
         self._commit_hash = None
         self._commit_timestamp = None
+        self._user_id = user_id
+        self._measurement_flow_process_duration = measurement_flow_process_duration
+        self._measurement_total_duration = measurement_total_duration
+        self._last_measurement_duration = 0
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
@@ -125,10 +131,19 @@ class Runner:
 
         # we also update the branch here again, as this might not be main in case of local filesystem
         self._run_id = DB().fetch_one("""
-                INSERT INTO runs (job_id, name, uri, email, branch, filename, commit_hash, commit_timestamp, runner_arguments, created_at)
-                VALUES (%s, %s, %s, 'manual', %s, %s, %s, %s, %s, NOW())
+                INSERT INTO runs (
+                    job_id, name, uri, email, branch, filename, commit_hash,
+                    commit_timestamp, runner_arguments, user_id, created_at
+                )
+                VALUES (
+                    %s, %s, %s, 'manual', %s, %s, %s,
+                    %s, %s, %s, NOW()
+                )
                 RETURNING id
-                """, params=(self._job_id, self._name, self._uri, self._branch, self._original_filename, self._commit_hash, self._commit_timestamp, json.dumps(self._arguments)))[0]
+                """, params=(
+                    self._job_id, self._name, self._uri, self._branch, self._original_filename, self._commit_hash,
+                    self._commit_timestamp, json.dumps(self._arguments), self._user_id
+                ))[0]
         return self._run_id
 
     def get_optimizations_ignore(self):
@@ -159,7 +174,7 @@ class Runner:
             raise ValueError(f"{path2} must not be in folder above root repo folder {self._repo_folder}")
 
         if force_path_as_root and Path(path).resolve(strict=True) not in Path(path, path2).resolve(strict=True).parents:
-            raise RuntimeError(f"{path2} must not be in folder above {path}")
+            raise ValueError(f"{path2} must not be in folder above {path}")
 
 
         if os.path.exists(filename):
@@ -240,6 +255,10 @@ class Runner:
 
         self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8').strip()
 
+        git_repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=self._repo_folder, encoding='UTF-8').strip()
+        if git_repo_root != self._repo_folder:
+            raise RuntimeError('Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename')
+
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
         self._commit_hash, self._commit_timestamp = get_repo_info(self._repo_folder)
@@ -272,7 +291,7 @@ class Runner:
                 try:
                     filename = runner_join_paths(self._root, nodes[0], force_path_as_root=True)
                 except RuntimeError as exc:
-                    raise RuntimeError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
+                    raise ValueError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
 
                 with open(filename, 'r', encoding='utf-8') as f:
                     # We want to enable a deep search for keys
@@ -385,13 +404,13 @@ class Runner:
     def populate_image_names(self):
         for service_name, service in self._usage_scenario.get('services', {}).items():
             if not service.get('image', None): # image is a non-mandatory field. But we need it, so we tmp it
-                if self._dev_no_build:
+                if self._dev_cache_build:
                     service['image'] = f"{service_name}"
                 else:
                     service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
 
     def remove_docker_images(self):
-        if self._dev_no_build:
+        if self._dev_cache_build:
             return
 
         print(TerminalColors.HEADER, '\nRemoving all temporary GMT images', TerminalColors.ENDC)
@@ -440,15 +459,13 @@ class Runner:
         machine_specs = hardware_info.get_default_values()
 
         if len(hardware_info_root.get_root_list()) > 0:
-            python_file = os.path.abspath(os.path.join(CURRENT_DIR, 'lib/hardware_info_root.py'))
-            ps = subprocess.run(['sudo', sys.executable, python_file], stdout=subprocess.PIPE, check=True, encoding='UTF-8')
+            ps = subprocess.run(['sudo', '/usr/bin/python3', '-m', 'lib.hardware_info_root'], stdout=subprocess.PIPE, cwd=CURRENT_DIR, check=True, encoding='UTF-8')
             machine_specs_root = json.loads(ps.stdout)
-
             machine_specs.update(machine_specs_root)
 
-
-        keys = ["measurement", "sci"]
-        measurement_config = {key: config.get(key, None) for key in keys}
+        measurement_config = {}
+        measurement_config['providers'] = utils.get_metric_providers(config)
+        measurement_config['sci'] = self._sci
 
         # Insert auxilary info for the run. Not critical.
         DB().query("""
@@ -481,28 +498,25 @@ class Runner:
             print(TerminalColors.WARNING, arrows('No metric providers were configured in config.yml. Was this intentional?'), TerminalColors.ENDC)
             return
 
-        docker_ps = subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='UTF-8', check=True)
-        rootless = False
-        if 'rootless' in docker_ps.stdout:
-            rootless = True
+        subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='UTF-8', check=True)
 
         for metric_provider in metric_providers: # will iterate over keys
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
             conf = metric_providers[metric_provider] or {}
 
-            if rootless and '.cgroup.' in module_path:
-                conf['rootless'] = True
-
-            if self._skip_system_checks:
-                conf['skip_check'] = True
-
             print(f"Importing {class_name} from {module_path}")
-            print(f"Configuration is {conf}")
-
             module = importlib.import_module(module_path)
 
-            metric_provider_obj = getattr(module, class_name)(**conf)
+            if self._skip_system_checks:
+                metric_provider_obj = getattr(module, class_name)(**conf, skip_check=True)
+                print(f"Configuration is {conf}; skip_check=true")
+            else:
+                metric_provider_obj = getattr(module, class_name)(**conf)
+                print(f"Configuration is {conf}")
+
+
+
 
             self.__metric_providers.append(metric_provider_obj)
 
@@ -514,7 +528,7 @@ class Runner:
         self.__metric_providers.sort(key=lambda item: 'rapl' not in item.__class__.__name__.lower())
 
     def download_dependencies(self):
-        if self._dev_no_build:
+        if self._dev_cache_build:
             print(TerminalColors.HEADER, '\nSkipping downloading dependencies', TerminalColors.ENDC)
             return
 
@@ -541,7 +555,6 @@ class Runner:
         return name
 
     def build_docker_images(self):
-        config = GlobalConfig().config
         print(TerminalColors.HEADER, '\nBuilding Docker images', TerminalColors.ENDC)
 
         # Create directory /tmp/green-metrics-tool/docker_images
@@ -597,7 +610,10 @@ class Runner:
 
                 print(' '.join(docker_build_command))
 
-                ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', timeout=config['measurement']['total-duration'], check=False)
+                if self._measurement_total_duration:
+                    ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', timeout=self._measurement_total_duration, check=False)
+                else:
+                    ps = subprocess.run(docker_build_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8', check=False)
 
                 if ps.returncode != 0:
                     print(f"Error: {ps.stderr} \n {ps.stdout}")
@@ -701,7 +717,6 @@ class Runner:
         # Check if there are service dependencies defined with 'depends_on'.
         # If so, change the order of the services accordingly.
         services_ordered = self.order_services(services)
-        known_container_names = []
         for service_name, service in services_ordered.items():
 
             if 'container_name' in service:
@@ -709,12 +724,8 @@ class Runner:
             else:
                 container_name = service_name
 
-            if container_name in known_container_names:
-                raise RuntimeError(f"Container name '{container_name}' was already assigned. Please choose unique container names.")
-
-            known_container_names.append(container_name)
-
-            print(TerminalColors.HEADER, '\nSetting up container: ', container_name, TerminalColors.ENDC)
+            print(TerminalColors.HEADER, '\nSetting up container for service:', service_name, TerminalColors.ENDC)
+            print('Container name:', container_name)
 
             print('Resetting container')
             # By using the -f we return with 0 if no container is found
@@ -889,49 +900,53 @@ class Runner:
 
             docker_run_string.append(self.clean_image_name(service['image']))
 
-            # Before starting the container, check if the dependent containers are ready.
-            # If not, wait for some time. If the container is not ready after a certain time, throw an error.
-            # If a healthcheck is defined, the dependent container must become "healthy".
+            # Before finally starting the container for the current service, check if the dependent services are ready.
+            # If not, wait for some time. If a dependent service is not ready after a certain time, throw an error.
+            # If a healthcheck is defined, the container of the dependent service must become "healthy".
             # If no healthcheck is defined, the container state "running" is sufficient.
             if 'depends_on' in service:
-                for dependent_container in service['depends_on']:
+                for dependent_service in service['depends_on']:
+                    dependent_container_name = dependent_service
+                    if 'container_name' in services[dependent_service]:
+                        dependent_container_name = services[dependent_service]["container_name"]
+
                     time_waited = 0
                     state = ''
                     health = 'healthy' # default because some containers have no health
                     max_waiting_time = config['measurement']['boot']['wait_time_dependencies']
                     while time_waited < max_waiting_time:
                         status_output = subprocess.check_output(
-                            ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container],
+                            ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container_name],
                             stderr=subprocess.STDOUT,
                             encoding='UTF-8',
                         )
                         state = status_output.strip()
                         if time_waited == 0 or state != "running":
-                            print(f"State of dependent container '{dependent_container}': {state}")
+                            print(f"Container state of dependent service '{dependent_service}': {state}")
 
                         if isinstance(service['depends_on'], dict) \
-                            and 'condition' in service['depends_on'][dependent_container]:
+                            and 'condition' in service['depends_on'][dependent_service]:
 
-                            condition = service['depends_on'][dependent_container]['condition']
+                            condition = service['depends_on'][dependent_service]['condition']
                             if condition == 'service_healthy':
                                 ps = subprocess.run(
-                                    ["docker", "container", "inspect", "-f", "{{.State.Health.Status}}", dependent_container],
+                                    ["docker", "container", "inspect", "-f", "{{.State.Health.Status}}", dependent_container_name],
                                     check=False,
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT, # put both in one stream
                                     encoding='UTF-8'
                                 )
                                 health = ps.stdout.strip()
-                                print(f"Health of dependent container '{dependent_container}': {health}")
+                                print(f"Container health of dependent service '{dependent_service}': {health}")
 
                                 if ps.returncode != 0 or health == '<nil>':
-                                    raise RuntimeError(f"Health check for dependent container '{dependent_container}' was requested by '{service_name}', but container has no healthcheck implemented! (Output was: {health})")
+                                    raise RuntimeError(f"Health check for service '{dependent_service}' was requested by '{service_name}', but service has no healthcheck implemented! (Output was: {health})")
                                 if health == 'unhealthy':
-                                    raise RuntimeError(f'Health check of container "{dependent_container}" failed terminally with status "unhealthy" after {time_waited}s')
+                                    raise RuntimeError(f'Health check of container "{dependent_container_name}" failed terminally with status "unhealthy" after {time_waited}s')
                             elif condition == 'service_started':
                                 pass
                             else:
-                                raise RuntimeError(f"Unsupported condition in healthcheck for service '{service_name}':  {condition}")
+                                raise RuntimeError(f"Unsupported condition in healthcheck for service '{service_name}': {condition}")
 
                         if state == 'running' and health == 'healthy':
                             break
@@ -940,9 +955,9 @@ class Runner:
                         time_waited += 1
 
                     if state != 'running':
-                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not running but '{state}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                        raise RuntimeError(f"State check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not running but '{state}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
                     if health != 'healthy':
-                        raise RuntimeError(f"Dependent container '{dependent_container}' of '{container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                        raise RuntimeError(f"Health check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
 
             if 'command' in service:  # must come last
                 for cmd in service['command'].split():
@@ -1053,9 +1068,8 @@ class Runner:
                 raise RuntimeError(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
     def check_total_runtime_exceeded(self):
-        config = GlobalConfig().config
-        if (time.time() - self.__start_measurement_seconds) > config['measurement']['total-duration']:
-            raise TimeoutError(f"Timeout of {config['measurement']['total-duration']} s was exceeded. This can be configured in 'total-duration'.")
+        if self._measurement_total_duration and (time.time() - self.__start_measurement_seconds) > self._measurement_total_duration:
+            raise TimeoutError(f"Timeout of {self._measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total-duration'.")
 
     def start_phase(self, phase, transition = True):
         config = GlobalConfig().config
@@ -1071,9 +1085,6 @@ class Runner:
 
         phase_time = int(time.time_ns() / 1_000)
         self.__notes_helper.add_note({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
-
-        if phase in self.__phases:
-            raise RuntimeError(f"'{phase}' as phase name has already used. Please set unique name for phases.")
 
         self.__phases[phase] = {'start': phase_time, 'name': phase}
 
@@ -1099,8 +1110,6 @@ class Runner:
         self.__notes_helper.add_note({'note': f"Ending phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
     def run_flows(self):
-        config = GlobalConfig().config
-        # run the flows
         ps_to_kill_tmp = []
         ps_to_read_tmp = []
         exception_occured = False
@@ -1115,7 +1124,7 @@ class Runner:
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
             try:
-                self.start_phase(flow['name'].replace('[', '').replace(']',''), transition=False)
+                self.start_phase(flow['name'], transition=False)
 
                 for cmd_obj in flow['commands']:
                     self.check_total_runtime_exceeded()
@@ -1150,7 +1159,7 @@ class Runner:
 
 
                         if cmd_obj.get('detach', False) is True:
-                            print('Process should be detached. Running asynchronously and detaching ...')
+                            print('Executing process asynchronously and detaching ...')
                             #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
                             ps = subprocess.Popen(
                                 docker_exec_command,
@@ -1166,15 +1175,25 @@ class Runner:
 
                             ps_to_kill_tmp.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
                         else:
-                            print(f"Process should be synchronous. Alloting {config['measurement']['flow-process-duration']}s runtime ...")
-                            ps = subprocess.run(
-                                docker_exec_command,
-                                stderr=stderr_behaviour,
-                                stdout=stdout_behaviour,
-                                encoding='UTF-8',
-                                check=False, # cause it will be checked later and also ignore-errors checked
-                                timeout=config['measurement']['flow-process-duration'],
-                            )
+                            print('Executing process synchronously.')
+                            if self._measurement_flow_process_duration:
+                                print(f"Alloting {self._measurement_flow_process_duration}s runtime ...")
+                                ps = subprocess.run(
+                                    docker_exec_command,
+                                    stderr=stderr_behaviour,
+                                    stdout=stdout_behaviour,
+                                    encoding='UTF-8',
+                                    check=False, # cause it will be checked later and also ignore-errors checked
+                                    timeout=self._measurement_flow_process_duration,
+                                )
+                            else:
+                                ps = subprocess.run(
+                                    docker_exec_command,
+                                    stderr=stderr_behaviour,
+                                    stdout=stdout_behaviour,
+                                    encoding='UTF-8',
+                                    check=False, # cause it will be checked later and also ignore-errors checked
+                                )
 
                         ps_to_read_tmp.append({
                             'cmd': docker_exec_command,
@@ -1194,7 +1213,7 @@ class Runner:
                     if self._debugger.active:
                         self._debugger.pause('Waiting to start next command in flow')
 
-                self.end_phase(flow['name'].replace('[', '').replace(']',''))
+                self.end_phase(flow['name'])
                 self.__ps_to_kill += ps_to_kill_tmp
                 self.__ps_to_read += ps_to_read_tmp # will otherwise be discarded, bc they confuse execption handling
                 self.check_process_returncodes()
@@ -1273,6 +1292,7 @@ class Runner:
             print('Imported', TerminalColors.HEADER, df.shape[0], TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
             if df is None or df.shape[0] == 0:
                 errors.append(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
+                continue
 
             f = StringIO(df.to_csv(index=False, header=False))
             DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')
@@ -1341,7 +1361,10 @@ class Runner:
 
         self.__notes_helper.add_note({'note': 'Start of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__start_measurement})
 
-    def end_measurement(self):
+    def end_measurement(self, skip_on_already_ended=False):
+        if self.__end_measurement is not None and skip_on_already_ended is False:
+            raise RuntimeError('end_measurement was requested although value as already set!')
+
         self.__end_measurement = int(time.time_ns() / 1_000)
         self.__notes_helper.add_note({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
 
@@ -1352,6 +1375,8 @@ class Runner:
             SET start_measurement=%s, end_measurement=%s
             WHERE id = %s
             """, params=(self.__start_measurement, self.__end_measurement, self._run_id))
+        self._last_measurement_duration = self.__end_measurement - self.__start_measurement
+
 
     def set_run_failed(self):
         if not self._run_id:
@@ -1423,7 +1448,7 @@ class Runner:
 
 
     def cleanup(self, continue_measurement=False):
-        #https://github.com/green-coding-berlin/green-metrics-tool/issues/97
+        #https://github.com/green-coding-solutions/green-metrics-tool/issues/97
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
 
         if continue_measurement is False:
@@ -1490,6 +1515,7 @@ class Runner:
         '''
         try:
             config = GlobalConfig().config
+            self.start_measurement()
             self.check_system('start')
             self.initialize_folder(self._tmp_folder)
             self.checkout_repository()
@@ -1512,21 +1538,19 @@ class Runner:
 
             self.custom_sleep(config['measurement']['pre-test-sleep'])
 
-            self.start_measurement()
-
             self.start_phase('[BASELINE]')
             self.custom_sleep(config['measurement']['baseline-duration'])
             self.end_phase('[BASELINE]')
 
             if self._debugger.active:
-                self._debugger.pause('Network setup complete. Waiting to start container build')
+                self._debugger.pause('Measurements started. Waiting to start container build')
 
             self.start_phase('[INSTALLATION]')
             self.build_docker_images()
             self.end_phase('[INSTALLATION]')
 
             if self._debugger.active:
-                self._debugger.pause('Network setup complete. Waiting to start container boot')
+                self._debugger.pause('Container build complete. Waiting to start container boot')
 
             self.start_phase('[BOOT]')
             self.setup_networks()
@@ -1534,7 +1558,7 @@ class Runner:
             self.end_phase('[BOOT]')
 
             if self._debugger.active:
-                self._debugger.pause('Container setup complete. Waiting to start container provider boot')
+                self._debugger.pause('Container setup complete. Waiting to start container providers')
 
             self.start_metric_providers(allow_container=True, allow_other=False)
 
@@ -1565,8 +1589,6 @@ class Runner:
             self.end_measurement()
             self.check_process_returncodes()
             self.custom_sleep(config['measurement']['post-test-sleep'])
-            self.store_phases()
-            self.update_start_and_end_times()
 
         except BaseException as exc:
             self.add_to_log(exc.__class__.__name__, str(exc))
@@ -1574,6 +1596,18 @@ class Runner:
             raise exc
         finally:
             try:
+                self.end_measurement(skip_on_already_ended=True) # end_measurement can already been set if error happens in check_process_returncodes
+                if self.__phases:
+                    last_phase_name, _ = next(reversed(self.__phases.items()))
+                    if self.__phases[last_phase_name].get('end', None) is None:
+                        self.__phases[last_phase_name]['end'] = int(time.time_ns() / 1_000)
+
+                    # Also patch Runtime phase separately, which we need as this will only get set after all child runtime phases
+                    if self.__phases.get('[RUNTIME]', None) is not None and self.__phases['[RUNTIME]'].get('end', None) is None:
+                        self.__phases['[RUNTIME]']['end'] = int(time.time_ns() / 1_000)
+
+                self.update_start_and_end_times()
+                self.store_phases()
                 self.read_container_logs()
             except BaseException as exc:
                 self.add_to_log(exc.__class__.__name__, str(exc))
@@ -1603,7 +1637,26 @@ class Runner:
                                 self.add_to_log(exc.__class__.__name__, str(exc))
                                 raise exc
                             finally:
-                                self.cleanup()  # always run cleanup automatically after each run
+                                try:
+                                    if self._dev_no_phase_stats is False:
+                                        # After every run, even if it failed, we want to generate phase stats.
+                                        # They will not show the accurate data, but they are still neded to understand how
+                                        # much a failed run has accrued in total energy and carbon costs
+                                        print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
+
+                                        # get all the metrics from the measurements table grouped by metric
+                                        # loop over them issuing separate queries to the DB
+                                        from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
+                                        build_and_store_phase_stats(self._run_id, self._sci)
+
+                                except BaseException as exc:
+                                    self.add_to_log(exc.__class__.__name__, str(exc))
+                                    raise exc
+                                finally:
+                                    self.cleanup()  # always run cleanup automatically after each run
+
+
+
 
         print(TerminalColors.OKGREEN, arrows('MEASUREMENT SUCCESSFULLY COMPLETED'), TerminalColors.ENDC)
 
@@ -1617,7 +1670,7 @@ if __name__ == '__main__':
     parser.add_argument('--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
     parser.add_argument('--name', type=str, help='A name which will be stored to the database to discern this run from others')
     parser.add_argument('--filename', type=str, default='usage_scenario.yml', help='An optional alternative filename if you do not want to use "usage_scenario.yml"')
-    parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Must be located in the same directory as the regular configuration file. Pass in only the name.')
+    parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
     parser.add_argument('--file-cleanup', action='store_true', help='Delete all temporary files that the runner produced')
     parser.add_argument('--debug', action='store_true', help='Activate steppable debug mode')
     parser.add_argument('--allow-unsafe', action='store_true', help='Activate unsafe volume bindings, ports and complex environment vars')
@@ -1629,7 +1682,8 @@ if __name__ == '__main__':
     parser.add_argument('--dev-flow-timetravel', action='store_true', help='Allows to repeat a failed flow or timetravel to beginning of flows or restart services.')
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
-    parser.add_argument('--dev-no-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
+    parser.add_argument('--dev-no-phase-stats', action='store_true', help='Do not calculate phase stats.')
+    parser.add_argument('--dev-cache-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
     parser.add_argument('--dev-no-optimizations', action='store_true', help='Disable analysis after run to find possible optimizations.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
@@ -1645,9 +1699,9 @@ if __name__ == '__main__':
         error_helpers.log_error('--allow-unsafe and skip--unsafe in conjuction is not possible')
         sys.exit(1)
 
-    if args.dev_no_build and (args.docker_prune or args.full_docker_prune):
+    if args.dev_cache_build and (args.docker_prune or args.full_docker_prune):
         parser.print_help()
-        error_helpers.log_error('--dev-no-build blocks pruning docker images. Combination is not allowed')
+        error_helpers.log_error('--dev-cache-build blocks pruning docker images. Combination is not allowed')
         sys.exit(1)
 
     if args.full_docker_prune and GlobalConfig().config['postgresql']['host'] == 'green-coding-postgres-container':
@@ -1675,42 +1729,30 @@ if __name__ == '__main__':
             parser.print_help()
             error_helpers.log_error('Config override file must be a yml file')
             sys.exit(1)
-        if not Path(f"{CURRENT_DIR}/{args.config_override}").is_file():
-            parser.print_help()
-            error_helpers.log_error(f"Could not find config override file on local system. Please double check: {CURRENT_DIR}/{args.config_override}")
-            sys.exit(1)
-        GlobalConfig(config_name=args.config_override)
+        GlobalConfig(config_location=args.config_override)
 
     runner = Runner(name=args.name, uri=args.uri, uri_type=run_type, filename=args.filename,
                     branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
                     skip_system_checks=args.skip_system_checks,
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                     full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
-                    dev_no_build=args.dev_no_build, dev_no_metrics=args.dev_no_metrics,
+                    dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics,
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
-                    docker_prune=args.docker_prune)
+                    docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats)
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
     try:
         run_id = runner.run()  # Start main code
 
-        # this code should live at a different position.
+        # this code can live at a different position.
         # From a user perspective it makes perfect sense to run both jobs directly after each other
         # In a cloud setup it however makes sense to free the measurement machine as soon as possible
         # So this code should be individually callable, separate from the runner
 
-        print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
 
-        # get all the metrics from the measurements table grouped by metric
-        # loop over them issuing separate queries to the DB
-        from tools.phase_stats import build_and_store_phase_stats
-
-        build_and_store_phase_stats(runner._run_id, runner._sci)
-
-        # We need to import this here as we need the correct config file
         if not runner._dev_no_optimizations:
-            import optimization_providers.base
+            import optimization_providers.base  # We need to import this here as we need the correct config file
             print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
             optimization_providers.base.import_reporters()
 

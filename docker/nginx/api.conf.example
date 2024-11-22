@@ -1,11 +1,13 @@
 server {
-    listen [::]:80;
-    listen [::]:9142;
-    listen [::]:443;
 
-    listen 80;
-    listen 9142;
-    listen 443;
+#__DEFAULT__    listen [::]:9142;
+#__DEFAULT__    listen 9142;
+
+#__SSL__    listen [::]:443 ssl;
+#__SSL__    listen 443 ssl;
+#__SSL__    ssl_certificate /etc/ssl/production.crt;
+#__SSL__    ssl_certificate_key /etc/ssl/production.key;
+
 
     server_name __API_URL__ ;
 
@@ -14,7 +16,7 @@ server {
     }
 
     location / {
-        proxy_pass http://unix:/tmp/green-coding-api.sock;
+        proxy_pass http://unix:/tmp/gmt-sockets/api.sock;
         # Do not change this
         proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;

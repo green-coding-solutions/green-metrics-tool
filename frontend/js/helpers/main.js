@@ -25,14 +25,17 @@ class GMTMenu extends HTMLElement {
                 <a class="item" href="/ci-index.html">
                     <b><i class="seedling icon"></i>Eco-CI</b>
                 </a>
-                <a class="item" href="/status.html">
-                    <b><i class="database icon"></i>Status</b>
-                </a>
                 <a class="item" href="/hog.html">
                     <b><i class="piggy bank icon"></i>Power Hog</b>
                 </a>
                 <a class="item" href="/carbondb.html">
                     <b><i class="journal whills icon"></i>CarbonDB</b>
+                </a>
+                <a class="item" href="/status.html">
+                    <b><i class="database icon"></i>Status</b>
+                </a>
+                <a class="item" href="/authentication.html">
+                    <b><i class="users icon"></i>Authentication</b>
                 </a>
                 <a class="item" href="/settings.html">
                     <b><i class="cogs icon"></i>Settings</b>
@@ -59,6 +62,39 @@ const getPretty = (metric_name, key)  => {
     }
     return METRIC_MAPPINGS[metric_name][key];
 }
+
+// We are using now the STDDEV of the sample for two reasons:
+// It is required by the Blue Angel for Software
+// We got many debates that in cases where the average is only estimated through measurements and is not absolute
+// one MUST use the sample STDDEV.
+// Still one could argue that one does not want to characterize the measured software but rather the measurement setup
+// it is safer to use the sample STDDEV as it is always higher
+const calculateStatistics = (data, object_access=false) => {
+    let sum = null;
+    let stddev = null;
+    let mean = null;
+    if (object_access == true) {
+        sum = data.reduce((sum, value) => sum + value.value, 0)
+        mean = sum / data.length;
+        if (data.length < 2) {
+            stddev = 0
+        } else {
+            stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value.value - mean, 2), 0) / (data.length - 1) );
+        }
+    } else {
+        sum = data.reduce((sum, value) => sum + value, 0)
+        mean = sum / data.length;
+        if (data.length < 2) {
+            stddev = 0
+        } else {
+            stddev = Math.sqrt(data.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / (data.length - 1) );
+        }
+    }
+    const stddev_rel = (stddev / mean) * 100;
+
+    return [ mean, stddev, sum, stddev_rel ];
+}
+
 
 const replaceRepoIcon = (uri) => {
 
@@ -87,7 +123,9 @@ const replaceRepoIcon = (uri) => {
 };
 
 const showNotification = (message_title, message_text, type='warning') => {
-    const message = (typeof message_text === 'string') ? message_text : JSON.stringify(message_text);
+    if (typeof message_text === 'object') console.log(message_text); // this is most likey an error. We need it in the console
+
+    const message = (typeof message_text === 'string' || typeof message_text === 'object') ? message_text : JSON.stringify(message_text);
     $('body')
       .toast({
         class: type,
@@ -138,7 +176,8 @@ const escapeString = (string) =>{
     return my_string.replace(reg, (match) => map[match]);
   }
 
-async function makeAPICall(path, values=null) {
+async function makeAPICall(path, values=null, force_authentication_token=null) {
+
 
     if(values != null ) {
         var options = {
@@ -149,7 +188,16 @@ async function makeAPICall(path, values=null) {
             }
         }
     }  else {
-        var options = { method: 'GET' }
+        var options = { method: 'GET', headers: {} }
+    }
+
+    if (force_authentication_token != null && force_authentication_token != '') {
+        options.headers['X-Authentication'] = force_authentication_token;
+    } else {
+        const authentication_token = localStorage.getItem('authentication_token');
+        if (authentication_token != null && authentication_token != '') {
+            options.headers['X-Authentication'] = authentication_token;
+        }
     }
 
     let json_response = null;
@@ -218,5 +266,13 @@ $(document).ready(function () {
 
 $(window).on('load', function() {
     $("body").removeClass("preload"); // activate tranisition CSS properties again
+    $('.close')
+      .on('click', function() {
+        $(this)
+          .closest('.ui')
+          .transition('fade')
+        ;
+      })
+    ;
 });
 

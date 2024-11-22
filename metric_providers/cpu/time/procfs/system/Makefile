@@ -1,4 +1,4 @@
-CFLAGS = -o3 -Wall
+CFLAGS = -O3 -Wall -I../../../../../lib/c
 
 metric-provider-binary: source.c
-	gcc $< $(CFLAGS) -o $@
+	gcc ../../../../../lib/c/parse_int.o $< $(CFLAGS) -o $@

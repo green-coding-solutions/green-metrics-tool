@@ -14,10 +14,17 @@
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <meta name="description" content="Measuring the energy of your software" />
     <script src="/dist/js/jquery.min.js" defer></script>
+    <script src="/dist/js/echarts.min.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
+    <script src="/dist/js/popup.min.js" defer></script>
+    <script src="/dist/js/calendar.min.js" defer></script>
+    <script src="/dist/js/accordion.min.js" defer></script>
+
+    <script src="/dist/js/dropdown.min.js" defer></script>
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
+    <script src="/js/carbondb.js" defer></script>
 
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
@@ -35,26 +42,244 @@
                 <div class="header">What is CarbonDB?
                 </div>
                 <div class="description">
+                    <i class="close icon"></i>
                     <p>The idea behind CarbonDB is that a lot of components in your stack produce different amounts of CO2 based on how much energy they consume, how long the hardware is used, what time and where certain operations are computed and many more. For companies it is vital to record all this data so they can a) improve their stack and also b) report the data as will be required by new EU laws. </p>
                     <p>The solution is a central database in which all the different services can report their usage and then there is a central point where analytics and further operations can be performed</p>
                     <p>You can read all about it under: <a href='https://www.green-coding.io/projects/carbondb/'>https://www.green-coding.io/projects/carbondb/</a></p>
                 </div>
-                <p>&NonBreakingSpace;</p>
-                <div class="header">Why am I not seeing any data?</div>
-                <div class="description">
-                    We don't require you to create an account to use our service. You create your own key when installing the tools that push to carbonDB. So only you know the keys.
-                    <ul>
-                        <li>You can access your company data under: <a href="/carbondb-lists.html?company_uuid=">/carbondb-lists.html?company_uuid=THE_ID_YOU_SET</a></li>
-                        <li>You can access your project data under: <a href="/carbondb-lists.html?project_uuid=">/carbondb-lists.html?project_uuid=THE_ID_YOU_SET</a></li>
-                        <li>You can access your machine data under: <a href="/carbondb-details.html?machine_uuid=">/carbondb-lists.html?machine_uuid=THE_ID_YOU_SET</a></li>
-                    </ul>
+            </div>
+        </div>
+        <div id="no-data-message" class="ui yellow icon message floated right">
+            <i class="info circle icon"></i>
+            <div class="content">
+                <div class="header">
+                    Why am I not seeing any data?
+                </div>
+                <p>Maybe your user ID is not correctly set in the Dashboard? Go to <a href="/authentication.html">Authentication</a> and enter your token.</p>
+                <p>If you are using the hosted version of GMT please note that CarbonDB is a premium feature and you need to get a token first.</p>
+            </div>
+        </div>
+        <div class="ui styled accordion full-width-card card carbondb-data">
+            <div id="show-filters" class="title">
+                <i class="dropdown icon"></i> Show Filters <i class="filter icon"></i>
+                <span id="filters-active" class="ui blue message float-right" style="margin: 0; display:none;"><i class="info icon"></i> Filters are active! Open Dropdown for details </span>
+            </div>
 
+            <div class="content">
 
-
+                <div class="ui form">
+                    <h3>Filters</h3>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Types to include:</label>
+                            <select id="types-include" class="ui fluid multiple search selection dropdown" name="types_include" multiple="">
+                                <option value="">Default: All</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Types to exclude:</label>
+                            <select id="types-exclude" class="ui fluid multiple search selection dropdown" name="types_exclude" multiple="">
+                                <option value="">Default: None</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Tags to include:</label>
+                            <select id="tags-include" class="ui fluid multiple search selection dropdown" name="tags_include" multiple="">
+                                <option value="">Default: All</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Tags to exclude:</label>
+                            <select id="tags-exclude" class="ui fluid multiple search selection dropdown" name="tags_exclude" multiple="">
+                                <option value="">Default: None</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Machines to include:</label>
+                            <select id="machines-include" class="ui fluid multiple search selection dropdown" name="machines_include" multiple="">
+                                <option value="">Default: All</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Machines to exclude:</label>
+                            <select id="machines-exclude" class="ui fluid multiple search selection dropdown" name="machines_exclude" multiple="">
+                                <option value="">Default: None</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Projects to include:</label>
+                            <select id="projects-include" class="ui fluid multiple search selection dropdown" name="projects_include" multiple="">
+                                <option value="">Default: All</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Projects to exclude:</label>
+                            <select id="projects-exclude" class="ui fluid multiple search selection dropdown" name="projects_exclude" multiple="">
+                                <option value="">Default: None</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Sources to include:</label>
+                            <select id="sources-include" class="ui fluid multiple search selection dropdown" name="sources_include" multiple="">
+                                <option value="">Default: All</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Sources to exclude:</label>
+                            <select id="sources-exclude" class="ui fluid multiple search selection dropdown" name="sources_exclude" multiple="">
+                                <option value="">Default: None</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="equal width fields">
+                        <div class="field">
+                            <label>Start date (UTC)</label>
+                            <div class="ui calendar" id="rangestart">
+                                <div class="ui input left icon">
+                                    <i class="calendar icon"></i>
+                                    <input name="range_start" type="text" placeholder="Start">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label>End date (UTC)</label>
+                            <div class="ui calendar" id="rangeend">
+                                <div class="ui input left icon">
+                                    <i class="calendar icon"></i>
+                                    <input name="range_end" type="text" placeholder="End">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label>&nbsp;</label>
+                            <button class="positive ui button" id="submit">Refresh</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
+        <div class="ui stackable five column grid">
+            <div class="column">
+                <div class="ui segment carbondb-data">
+                    <div class="ui fluid statistic">
+                        <div id="total-carbon" class="value">
+                            --
+                        </div>
+                        <div class="label">
+                            Total Carbon <span class="no-transform">[kg]</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="column">
+                <div class="ui segment carbondb-data">
+                    <div class="ui fluid statistic">
+                        <div id="total-energy" class="value">
+                            --
+                        </div>
+                        <div class="label">
+                            Total Energy <span class="no-transform">[kWh]</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="column">
+                <div class="ui segment carbondb-data">
+                    <div class="ui fluid statistic">
+                        <div id="total-machines" class="value">
+                            --
+                        </div>
+                        <div class="label">
+                            Total Machines
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="column">
+                <div class="ui segment carbondb-data">
+                    <div class="ui fluid statistic">
+                        <div id="carbon-per-machine" class="value">
+                            --
+                        </div>
+                        <div class="label">
+                            Carbon per machine <span class="no-transform">[kg/Unit]</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="column">
+                <div class="ui segment carbondb-data">
+                    <div class="ui fluid statistic">
+                        <div id="avg-carbon-intensity" class="value">
+                            --
+                        </div>
+                        <div class="label">
+                            AVG carbon intensity <span class="no-transform">[g]</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="ui stackable column grid">
+            <div class="ten wide column">
+                <div class="ui segment carbondb-data">
+                    <div class="ui statistics-chart-card" >
+                        <div class="statistics-chart" id="carbondb-barchart-carbon-chart"></div>
+                    </div>
+                </div>
+                <div class="ui segment carbondb-data">
+                    <div class="ui statistics-chart-card" >
+                        <div class="statistics-chart" id="carbondb-barchart-energy-chart"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="six wide column">
+                <div class="ui segment carbondb-data">
+                    <div class="ui statistics-chart-card-small">
+                        <div class="statistics-chart" id="carbondb-piechart-projects-chart"></div>
+                    </div>
+                </div>
+                <div class="ui segment carbondb-data">
+                    <div class="ui statistics-chart-card-small">
+                        <div class="content">
+                            <div class="description">
+                                <div class="statistics-chart" id="carbondb-piechart-types-chart"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui segment carbondb-data">
+                    <div class="ui statistics-chart-card-small">
+                        <div class="content">
+                            <div class="description">
+                                <div class="statistics-chart" id="carbondb-piechart-machines-chart"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui segment carbondb-data">
+                    <div class="ui statistics-chart-card-small">
+                        <div class="content">
+                            <div class="description">
+                                <div class="statistics-chart" id="carbondb-piechart-sources-chart"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
     </div>
 </body>
 </html>

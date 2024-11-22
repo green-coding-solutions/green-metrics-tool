@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
+#include "parse_int.h"
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
@@ -18,32 +19,33 @@ static unsigned int msleep_time=1000;
 static long int read_cpu_cgroup() {
 
     long int cpu_usage = -1;
-    FILE* fd = NULL;
-    fd = fopen("/sys/fs/cgroup/cpu.stat", "r"); // check for general readability only once
-    fscanf(fd, "usage_usec %ld", &cpu_usage);
+    FILE* fd = fopen("/sys/fs/cgroup/cpu.stat", "r"); // check for general readability only once
+    int match_result = fscanf(fd, "usage_usec %ld", &cpu_usage);
+    if (match_result != 1) {
+        fprintf(stderr, "Could not match usage_usec\n");
+        exit(1);
+    }
+
     fclose(fd);
     return cpu_usage;
 }
 
-static int output_stats() {
+static void output_stats() {
 
     struct timeval now;
     gettimeofday(&now, NULL);
 
     printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, read_cpu_cgroup());
     usleep(msleep_time*1000);
-
-    return 1;
 }
 
 static int check_system() {
     const char check_path[] = "/sys/fs/cgroup/cpu.stat";
-    FILE* fd = NULL;
-    fd = fopen(check_path, "r");
+    FILE* fd = fopen(check_path, "r");
 
     if (fd == NULL) {
         fprintf(stderr, "Couldn't open cpu.stat file at %s\n", check_path);
-        exit(127);
+        exit(1);
     }
     fclose(fd);
     return 0;
@@ -76,7 +78,7 @@ int main(int argc, char **argv) {
             printf("\tCLOCKS_PER_SEC\t%ld\n", CLOCKS_PER_SEC);
             exit(0);
         case 'i':
-            msleep_time = atoi(optarg);
+            msleep_time = parse_int(optarg);
             break;
         case 'c':
             check_system_flag = 1;

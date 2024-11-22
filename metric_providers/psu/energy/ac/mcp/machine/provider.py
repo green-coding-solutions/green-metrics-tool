@@ -1,6 +1,5 @@
 import os
 
-#pylint: disable=import-error, invalid-name
 from metric_providers.base import BaseMetricProvider
 
 class PsuEnergyAcMcpMachineProvider(BaseMetricProvider):
@@ -16,6 +15,9 @@ class PsuEnergyAcMcpMachineProvider(BaseMetricProvider):
 
     def read_metrics(self, run_id, containers=None):
         df = super().read_metrics(run_id, containers)
+
+        if df.empty:
+            return df
 
         '''
         Conversion to Joules
@@ -35,9 +37,13 @@ class PsuEnergyAcMcpMachineProvider(BaseMetricProvider):
 
         intervals = df['time'].diff()
         intervals[0] = intervals.mean()  # approximate first interval
+
+        # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
+        # Since one value is useless for us we drop the row
+        df.dropna(inplace=True)
+
         df['interval'] = intervals  # in microseconds
         df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_000_00, axis=1) # value is in centiwatts, so divide by 1_000_00 instead of 1_000 as we would do for Watts
-        df['value'] = df.value.fillna(0) # maybe not needed
         df['value'] = df.value.astype(int)
 
         df = df.drop(columns='interval')  # clean up

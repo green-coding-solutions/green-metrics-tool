@@ -13,3 +13,14 @@ class CpuFrequencySysfsCoreProvider(BaseMetricProvider):
             metric_provider_executable='get-scaling-cur-freq.sh',
             skip_check=skip_check,
         )
+
+    def read_metrics(self, run_id, containers=None):
+        df = super().read_metrics(run_id, containers)
+
+        if df.empty:
+            return df
+
+        df['detail_name'] = df.core_id
+        df = df.drop('core_id', axis=1)
+
+        return df

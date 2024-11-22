@@ -34,7 +34,6 @@ class BaseMetricProvider:
         self._sudo = sudo
         self._has_started = False
         self._disable_buffer = disable_buffer
-        self._rootless = None
         self._skip_check = skip_check
 
         self._tmp_folder = '/tmp/green-metrics-tool'
@@ -98,7 +97,18 @@ class BaseMetricProvider:
     def has_started(self):
         return self._has_started
 
-    def read_metrics(self, run_id, containers=None):
+    def check_monotonic(self, df):
+        if not df['time'].is_monotonic_increasing:
+            raise ValueError(f"Data from metric provider {self._metric_name} is not monotonic increasing")
+
+    def check_resolution_underflow(self, df):
+        if self._unit in ['mJ', 'uJ', 'Hz', 'us']:
+            if (df['value'] <= 1).any():
+                raise ValueError(f"Data from metric provider {self._metric_name} is running into a resolution underflow. Values are <= 1 {self._unit}")
+
+
+
+    def read_metrics(self, run_id, containers=None): #pylint: disable=unused-argument
         with open(self._filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
 
@@ -112,32 +122,16 @@ class BaseMetricProvider:
                              dtype=self._metrics
                              )
 
-        if self._metrics.get('sensor_name') is not None:
-            df['detail_name'] = df.sensor_name
-            df = df.drop('sensor_name', axis=1)
-        elif self._metrics.get('package_id') is not None:
-            df['detail_name'] = df.package_id
-            df = df.drop('package_id', axis=1)
-        elif self._metrics.get('dram_id') is not None:
-            df['detail_name'] = df.dram_id
-            df = df.drop('dram_id', axis=1)
-        elif self._metrics.get('psys_id') is not None:
-            df['detail_name'] = df.psys_id
-            df = df.drop('psys_id', axis=1)
-        elif self._metrics.get('core_id') is not None:
-            df['detail_name'] = df.core_id
-            df = df.drop('core_id', axis=1)
-        elif self._metrics.get('container_id') is not None:
-            df['detail_name'] = df.container_id
-            for container_id in containers:
-                df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]['name']
-            df = df.drop('container_id', axis=1)
-        else: # We use the default granularity from the name of the provider eg. "..._machine"  => [MACHINE]
-            df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]"
+        if df.isna().any().any():
+            raise ValueError(f"Dataframe for {self._metric_name} contained NA values.")
 
+        df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]" # default, can be overridden in child
         df['unit'] = self._unit
         df['metric'] = self._metric_name
         df['run_id'] = run_id
+
+        self.check_monotonic(df)
+        self.check_resolution_underflow(df)
 
         return df
 
@@ -159,13 +153,10 @@ class BaseMetricProvider:
             call_string += ' '  # space at start
             call_string += ' '.join(self._extra_switches)
 
-        # This needs refactoring see https://github.com/green-coding-berlin/green-metrics-tool/issues/45
+        # This needs refactoring see https://github.com/green-coding-solutions/green-metrics-tool/issues/45
         if (self._metrics.get('container_id') is not None) and (containers is not None):
             call_string += ' -s '
             call_string += ','.join(containers.keys())
-
-        if self._rootless is True:
-            call_string += ' --rootless '
 
         call_string += f" > {self._filename}"
 

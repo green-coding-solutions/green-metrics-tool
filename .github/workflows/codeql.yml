@@ -42,6 +42,17 @@ jobs:
         # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
 
     steps:
+
+    - name: Eco CI Energy Estimation - Initialize
+      uses: green-coding-solutions/eco-ci-energy-estimation@main
+      with:
+        task: start-measurement
+        project: "Green Metrics Tool"
+        machine: "ubuntu-latest"
+        tags: "CI/CD, CodeQL-Workflow"
+        gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
+        electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+
     - name: Checkout repository
       uses: actions/checkout@v4
 
@@ -77,3 +88,13 @@ jobs:
       uses: github/codeql-action/analyze@v3
       with:
         category: "/language:${{matrix.language}}"
+
+    - name: Eco CI Energy Estimation - Get Measurement
+      uses: green-coding-solutions/eco-ci-energy-estimation@main
+      with:
+        task: get-measurement
+
+    - name: Eco CI Energy Estimation - End Measurement
+      uses: green-coding-solutions/eco-ci-energy-estimation@main
+      with:
+        task: display-results

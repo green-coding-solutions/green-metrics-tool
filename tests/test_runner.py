@@ -9,38 +9,28 @@ from lib.global_config import GlobalConfig
 from lib.system_checks import ConfigurationCheckError
 from tests import test_functions as Tests
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-GlobalConfig().override_config(config_name='test-config.yml')
+GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
 test_data = [
-   (True, does_not_raise()),
-   (False, pytest.raises(ConfigurationCheckError)),
+   (True, f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml", does_not_raise()),
+   (False, f"{os.path.dirname(os.path.realpath(__file__))}/test-config-duplicate-psu-providers.yml", pytest.raises(ConfigurationCheckError)),
 ]
 
-@pytest.mark.parametrize("skip_system_checks,expectation", test_data)
-def test_check_system(skip_system_checks, expectation):
+@pytest.mark.parametrize("skip_system_checks,config_file,expectation", test_data)
+def test_check_system(skip_system_checks, config_file, expectation):
+
+    GlobalConfig().override_config(config_location=config_file)
     runner = Runner(uri="not_relevant", uri_type="folder", skip_system_checks=skip_system_checks)
 
-    if GlobalConfig().config['measurement']['metric-providers']['common'] is None:
-        GlobalConfig().config['measurement']['metric-providers']['common'] = {}
-
-    GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.foo.machine.provider.SomeProvider'] = {
-                'key': 'value'
-            }
-    GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.bar.machine.provider.SomeOtherProvider'] = {
-                'key': 'value'
-            }
     try:
         with expectation:
             runner.check_system()
     finally:
-        del GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.foo.machine.provider.SomeProvider']
-        del GlobalConfig().config['measurement']['metric-providers']['common']['psu.energy.ac.bar.machine.provider.SomeOtherProvider']
+        GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml") # reset, just in case. although done by fixture
 
 def test_reporters_still_running():
-    runner = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False)
-    runner2 = Runner(uri=CURRENT_DIR, uri_type='folder', filename='data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False)
+    runner2 = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False)
 
 
     with Tests.RunUntilManager(runner) as context:

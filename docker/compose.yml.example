@@ -36,16 +36,17 @@ services:
     depends_on:
       - green-coding-postgres
     ports:
-      - 9142:80
+      - 9142:9142
     restart: always
     volumes:
-      - green-coding-shared-tmp:/tmp
+      - green-coding-shared-sockets:/tmp/gmt-sockets
       - PATH_TO_GREEN_METRICS_TOOL_REPO:/var/www/green-metrics-tool:ro
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/api.conf:/etc/nginx/conf.d/api_nginx.conf:ro
       #- ./nginx/block.conf:/etc/nginx/conf.d/block_nginx.conf:ro
       - ./nginx/frontend.conf:/etc/nginx/conf.d/default.conf:ro
       # - TEST_CONFIG_SETUP:/var/www/green-metrics-tool/config.yml
+      - ./nginx/ssl:/etc/ssl:ro
   green-coding-gunicorn:
     build:
       context: .
@@ -56,7 +57,7 @@ services:
       - green-coding-postgres
     restart: always
     volumes:
-      - green-coding-shared-tmp:/tmp
+      - green-coding-shared-sockets:/tmp/gmt-sockets
       - PATH_TO_GREEN_METRICS_TOOL_REPO:/var/www/green-metrics-tool:ro
       # - TEST_CONFIG_SETUP:/var/www/green-metrics-tool/config.yml
 
@@ -70,10 +71,10 @@ services:
 
 
 # Although it would help us very much performance-wise the
-# Shared volume with only temporary data, green-coding-shared-tmp, must be
+# Shared volume with only temporary data, green-coding-shared-sockets, must be
 # of type overlayfs and cannot be tmpfs (https://docs.docker.com/storage/tmpfs/)
 # tmpfs being a RAM stored and faster volume is sadly not shareable between containers
 volumes:
   green-coding-postgres-data:
-  green-coding-shared-tmp:
+  green-coding-shared-sockets:
   green-coding-redis-data:

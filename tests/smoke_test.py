@@ -3,7 +3,7 @@ import os
 import subprocess
 import re
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
 from contextlib import redirect_stdout, redirect_stderr
 import pytest
@@ -11,6 +11,7 @@ import pytest
 from lib.db import DB
 from lib import utils
 from lib.global_config import GlobalConfig
+from tests import test_functions as Tests
 from runner import Runner
 
 run_stderr = None
@@ -18,33 +19,25 @@ run_stdout = None
 
 RUN_NAME = 'test_' + utils.randomword(12)
 
-
-# override per test cleanup, as the module setup requires writing to DB
-@pytest.fixture(autouse=False)
-def cleanup_after_test():
-    pass
-
 #pylint: disable=unused-argument
-@pytest.fixture(autouse=True, scope='module')
-def cleanup_after_module():
+@pytest.fixture(autouse=True, scope='module') # override by setting scope to module only
+def setup_and_cleanup_test():
+    GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml") # we want to do this globally for all tests
     yield
-    tables = DB().fetch_all("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
-    for table in tables:
-        table_name = table[0]
-        DB().query(f'TRUNCATE TABLE "{table_name}" RESTART IDENTITY CASCADE')
+    Tests.reset_db()
 
 # Runs once per file before any test(
 #pylint: disable=expression-not-assigned
 def setup_module(module):
     out = io.StringIO()
     err = io.StringIO()
-    GlobalConfig(config_name='test-config.yml').config
     with redirect_stdout(out), redirect_stderr(err):
-        uri = os.path.abspath(os.path.join(CURRENT_DIR, 'data/stress-application/'))
-        subprocess.run(['docker', 'compose', '-f', uri+'/compose.yml', 'build'], check=True)
+        folder = 'tests/data/stress-application/'
+        filename = 'usage_scenario.yml'
+        subprocess.run(['docker', 'compose', '-f', GMT_DIR+folder+'compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = Runner(name=RUN_NAME, uri=uri, uri_type='folder', dev_no_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=False)
+        runner = Runner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=False)
         runner.run()
 
     #pylint: disable=global-statement
@@ -80,10 +73,10 @@ def test_db_rows_are_written_and_presented():
     data = DB().fetch_all(query, (run_id,))
     assert(data is not None and data != [])
 
-    config = GlobalConfig(config_name='test-config.yml').config
+    config = GlobalConfig().config # will be pre-loaded with test-config.yml due to conftest.py
     metric_providers = utils.get_metric_providers_names(config)
 
-    # The network connection proxy provider writes to a different DB so we need to remove it here
+    # The network connection proxy provider writes to a different table so we need to remove it here
     if 'NetworkConnectionsProxyContainerProvider' in metric_providers:
         metric_providers.remove('NetworkConnectionsProxyContainerProvider')
 

@@ -8,92 +8,62 @@ const numberFormatterLong = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 4,
 });
 
-const calculateStats = (energy_measurements, co2eq_measurements, co2i_measurements, time_measurements, cpu_util_measurements) => {
+const calculateStats = (energy_measurements, carbon_ug_measurements, carbon_intensity_g_measurements, duration_us_measurements, cpu_util_measurements) => {
 
-    let energyAverage = '--'
-    let energyStdDeviation = '--'
-    let energyStdDevPercent = '--'
-    let energySum = '--';
-
-    let timeAverage = '--'
-    let timeStdDeviation = '--'
-    let timeStdDevPercent = '--'
-    let timeSum = '--';
-
-    let co2eqAverage = '--'
-    let co2eqStdDeviation = '--'
-    let co2eqStdDevPercent = '--'
-    let co2eqSum = '--';
-
-    let co2iAverage = '--'
-    let co2iStdDeviation = '--'
-    let co2iStdDevPercent = '--'
-
-    let cpuUtilStdDeviation = '--'
-    let cpuUtilAverage = '--'
-    let cpuUtilStdDevPercent = '--'
+    let energy_avg = energy_stddev = energy_stddev_rel = energy_sum = '--'
+    let duration_us_avg = duration_us_stddev = duration_us_stddev_rel = duration_us_sum = '--'
+    let carbon_ug_avg = carbon_ug_stddev = carbon_ug_stddev_rel = carbon_ug_sum ='--'
+    let carbon_intensity_g_avg = carbon_intensity_g_stddev = carbon_intensity_g_stddev_rel = '--'
+    let cpuUtil_stddev = cpuUtil_avg = cpuUtil_stddev_rel = '--'
 
     if (energy_measurements.length > 0) {
-        energyStdDeviation = (math.std(energy_measurements, normalization="uncorrected"));
-        energyAverage = (math.mean(energy_measurements));
-        energyStdDevPercent = ((energyStdDeviation / energyAverage) * 100);
-        energySum = (math.sum(energy_measurements));
+        [energy_avg, energy_stddev, energy_sum, energy_stddev_rel] = calculateStatistics(energy_measurements)
+    }
+    if (duration_us_measurements.length > 0) {
+        [duration_us_avg, duration_us_stddev, duration_us_sum, duration_us_stddev_rel] = calculateStatistics(duration_us_measurements)
+    }
+    if (carbon_ug_measurements.length > 0) {
+        [carbon_ug_avg, carbon_ug_stddev, carbon_ug_sum, carbon_ug_stddev_rel] = calculateStatistics(carbon_ug_measurements)
     }
 
-    if (time_measurements.length > 0) {
-        timeStdDeviation = (math.std(time_measurements, normalization="uncorrected"));
-        timeAverage = (math.mean(time_measurements));
-        timeStdDevPercent = ((timeStdDeviation / timeAverage) * 100);
-        timeSum = (math.sum(time_measurements));
+    // intentially skipping carbon_intensity_g_sum
+    if (carbon_intensity_g_measurements.length > 0) {
+        [carbon_intensity_g_avg, carbon_intensity_g_stddev, , carbon_intensity_g_stddev_rel] = calculateStatistics(carbon_intensity_g_measurements)
     }
 
-    if (co2eq_measurements.length > 0) {
-        co2eqStdDeviation = (math.std(co2eq_measurements, normalization="uncorrected"));
-        co2eqAverage = (math.mean(co2eq_measurements));
-        co2eqStdDevPercent = ((co2eqStdDeviation / co2eqAverage) * 100);
-        co2eqSum = (math.sum(co2eq_measurements));
-    }
-
-    if (co2i_measurements.length > 0) {
-        co2iStdDeviation = (math.std(co2i_measurements, normalization="uncorrected"));
-        co2iAverage = (math.mean(co2i_measurements));
-        co2iStdDevPercent = ((co2iStdDeviation / co2iAverage) * 100);
-    }
-
+    // intentially skipping cpuUtil_sum
     if (cpu_util_measurements.length > 0) {
-        cpuUtilStdDeviation = (math.std(cpu_util_measurements, normalization="uncorrected"));
-        cpuUtilAverage = (math.mean(cpu_util_measurements));
-        cpuUtilStdDevPercent = ((cpuUtilStdDeviation / cpuUtilAverage) * 100);
+        [cpuUtil_avg, cpuUtil_stddev, , cpuUtil_stddev_rel] = calculateStatistics(cpu_util_measurements)
     }
 
     return {
-        energy: {
-            average: energyAverage,
-            stdDeviation: energyStdDeviation,
-            stdDevPercent: energyStdDevPercent,
-            total: energySum
+        energy_uj: {
+            avg: energy_avg,
+            stddev: energy_stddev,
+            stddev_rel: energy_stddev_rel,
+            total: energy_sum
         },
-        time: {
-            average: timeAverage,
-            stdDeviation: timeStdDeviation,
-            stdDevPercent: timeStdDevPercent,
-            total: timeSum
+        duration_us: {
+            avg: duration_us_avg,
+            stddev: duration_us_stddev,
+            stddev_rel: duration_us_stddev_rel,
+            total: duration_us_sum
         },
-        co2eq: {
-            average: co2eqAverage,
-            stdDeviation: co2eqStdDeviation,
-            stdDevPercent: co2eqStdDevPercent,
-            total: co2eqSum
+        carbon_ug: {
+            avg: carbon_ug_avg,
+            stddev: carbon_ug_stddev,
+            stddev_rel: carbon_ug_stddev_rel,
+            total: carbon_ug_sum
         },
-        co2i: {
-            average: co2iAverage,
-            stdDeviation: co2iStdDeviation,
-            stdDevPercent: co2iStdDevPercent
+        carbon_intensity_g: {
+            avg: carbon_intensity_g_avg,
+            stddev: carbon_intensity_g_stddev,
+            stddev_rel: carbon_intensity_g_stddev_rel
         },
         cpu_util: {
-            average: cpuUtilAverage,
-            stdDeviation: cpuUtilStdDeviation,
-            stdDevPercent: cpuUtilStdDevPercent
+            avg: cpuUtil_avg,
+            stddev: cpuUtil_stddev,
+            stddev_rel: cpuUtil_stddev_rel
         },
     };
 };
@@ -103,62 +73,56 @@ const createStatsArrays = (measurements) => {  // iterates 2n times (1 full, 1 b
     const measurementsByLabel = {}
 
     const measurementsForFullRun = {
-        energy: [],
-        co2eq: [],
-        co2i: [],
-        time: [],
+        energy_uj: [],
+        carbon_ug: [],
+        carbon_intensity_g: [],
+        duration_us: [],
         cpu_util: [],
         count: 0
     };
 
     measurements.forEach(measurement => {
-        const run_id = measurement[2]
-        const energy = measurement[0] / 1000 // will make J
-        const time = measurement[7]
-        const cpuUtil = measurement[9]
-        const label = measurement[4]
-        const co2i = parseInt(measurement[14])
-        const co2eq = parseFloat(measurement[15])
+        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, carbon_ug] = measurement;
 
         if (!measurementsByLabel[label]) {
             measurementsByLabel[label] = {
-                energy: [],
-                co2eq: [],
-                co2i: [],
-                time: [],
+                energy_uj: [],
+                carbon_ug: [],
+                carbon_intensity_g: [],
+                duration_us: [],
                 cpu_util: [],
                 count: 0
             };
         }
         if (!measurementsByRun[run_id]) {
             measurementsByRun[run_id] = {
-                energy: [],
-                co2eq: [],
-                co2i: [],
-                time: [],
+                energy_uj: [],
+                carbon_ug: [],
+                carbon_intensity_g: [],
+                duration_us: [],
                 cpu_util: []
             };
         }
 
-        if (energy != null) {
-            measurementsByLabel[label].energy.push(energy);
-            measurementsByRun[run_id].energy.push(energy);
+        if (energy_uj != null) {
+            measurementsByLabel[label].energy_uj.push(energy_uj);
+            measurementsByRun[run_id].energy_uj.push(energy_uj);
         }
-        if (time != null) {
-            measurementsByLabel[label].time.push(time);
-            measurementsByRun[run_id].time.push(time);
+        if (duration_us != null) {
+            measurementsByLabel[label].duration_us.push(duration_us);
+            measurementsByRun[run_id].duration_us.push(duration_us);
         }
-        if (cpuUtil != null) {
-            measurementsByLabel[label].cpu_util.push(cpuUtil);
-            measurementsByRun[run_id].cpu_util.push(cpuUtil);
+        if (cpu_util != null) {
+            measurementsByLabel[label].cpu_util.push(cpu_util);
+            measurementsByRun[run_id].cpu_util.push(cpu_util);
         }
-        if (co2eq != null && !isNaN(co2eq)) {
-            measurementsByLabel[label].co2eq.push(co2eq);
-            measurementsByRun[run_id].co2eq.push(co2eq);
+        if (carbon_ug != null) {
+            measurementsByLabel[label].carbon_ug.push(carbon_ug);
+            measurementsByRun[run_id].carbon_ug.push(carbon_ug);
         }
-        if (co2i != null && !isNaN(co2i)) {
-            measurementsByLabel[label].co2i.push(co2i);
-            measurementsByRun[run_id].co2i.push(co2i);
+        if (carbon_intensity_g != null) {
+            measurementsByLabel[label].carbon_intensity_g.push(carbon_intensity_g);
+            measurementsByRun[run_id].carbon_intensity_g.push(carbon_intensity_g);
         }
         measurementsByLabel[label].count += 1;
         measurementsForFullRun.count += 1;
@@ -167,11 +131,11 @@ const createStatsArrays = (measurements) => {  // iterates 2n times (1 full, 1 b
 
 
    for (const run_id in measurementsByRun) {
-        if (measurementsByRun[run_id].energy) measurementsForFullRun.energy.push(measurementsByRun[run_id].energy);
-        if (measurementsByRun[run_id].co2eq) measurementsForFullRun.co2eq.push(measurementsByRun[run_id].co2eq);
-        if (measurementsByRun[run_id].time) measurementsForFullRun.time.push(measurementsByRun[run_id].time);
+        if (measurementsByRun[run_id].energy_uj) measurementsForFullRun.energy_uj.push(measurementsByRun[run_id].energy_uj);
+        if (measurementsByRun[run_id].carbon_ug) measurementsForFullRun.carbon_ug.push(measurementsByRun[run_id].carbon_ug);
+        if (measurementsByRun[run_id].duration_us) measurementsForFullRun.duration_us.push(measurementsByRun[run_id].duration_us);
         if (measurementsByRun[run_id].cpu_util) measurementsForFullRun.cpu_util.push(measurementsByRun[run_id].cpu_util);
-        if (measurementsByRun[run_id].co2i) measurementsForFullRun.co2i.push(measurementsByRun[run_id].co2i);
+        if (measurementsByRun[run_id].carbon_intensity_g) measurementsForFullRun.carbon_intensity_g.push(measurementsByRun[run_id].carbon_intensity_g);
     }
 
     return [measurementsForFullRun, measurementsByLabel];
@@ -182,6 +146,7 @@ const createChartContainer = (container, el) => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");
     chart_node.classList.add('statistics-chart-card')
+    chart_node.classList.add('print-page-break')
     chart_node.classList.add('ui')
 
     chart_node.innerHTML = `
@@ -231,14 +196,14 @@ const getChartOptions = (measurements) => {
     const labels = []
 
     measurements.forEach(measurement => { // iterate over all measurements, which are in row order
-        let [value, unit, run_id, timestamp, label, cpu, commit_hash, duration, source, cpu_util, workflow_name, lat, lon, city, co2i, co2eq] = measurement;
+        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, carbon_ug] = measurement;
         cpu_util = cpu_util ? cpu_util : '--';
         options.series.push({
             type: 'bar',
             smooth: true,
             stack: run_id,
             name: cpu,
-            data: [value],
+            data: [energy_uj/1000000],
             itemStyle: {
                 borderWidth: .5,
                 borderColor: '#000000',
@@ -247,19 +212,18 @@ const getChartOptions = (measurements) => {
         legend.add(cpu)
 
         labels.push({
-            value: value,
-            unit: unit,
+            energy_j: energy_uj/1000000,
             run_id: run_id,
             labels: [label],
             cpu_util: cpu_util,
-            duration: duration,
+            duration_s: duration_us/1000000,
             commit_hash: commit_hash,
-            timestamp: dateToYMD(new Date(timestamp)),
+            created_at: dateToYMD(new Date(created_at)),
             lat: lat,
             lon: lon,
             city: city,
-            co2i: co2i,
-            co2eq: co2eq
+            carbon_intensity_g: carbon_intensity_g,
+            carbon_g: carbon_ug / 1000000
         })
     });
 
@@ -275,14 +239,14 @@ const getChartOptions = (measurements) => {
         formatter: function (params, ticket, callback) {
             return `<strong>${escapeString(labels[params.componentIndex].labels[params.dataIndex])}</strong><br>
                     run_id: ${escapeString(labels[params.componentIndex].run_id)}<br>
-                    timestamp: ${labels[params.componentIndex].timestamp}<br>
+                    created_at: ${labels[params.componentIndex].created_at}<br>
                     commit_hash: ${escapeString(labels[params.componentIndex].commit_hash)}<br>
-                    value: ${escapeString(labels[params.componentIndex].value)} ${escapeString(labels[params.componentIndex].unit)}<br>
-                    duration: ${escapeString(labels[params.componentIndex].duration)} seconds<br>
+                    energy: ${escapeString(labels[params.componentIndex].energy_j)} J<br>
+                    duration: ${escapeString(labels[params.componentIndex].duration_s)} seconds<br>
                     avg. cpu. utilization: ${escapeString(labels[params.componentIndex].cpu_util)}%<br>
                     location of run: ${escapeString(labels[params.componentIndex].city || 'N/A')}<br>
-                    grid intensity: ${escapeString(labels[params.componentIndex].co2i || 'N/A')}<br>
-                    co2eq: ${escapeString(labels[params.componentIndex].co2eq || 'N/A')}<br>
+                    grid intensity: ${escapeString(labels[params.componentIndex].carbon_intensity_g || 'N/A')} g<br>
+                    carbon: ${escapeString(labels[params.componentIndex].carbon_g || 'N/A')} g<br>
                     `;
         }
     };
@@ -309,16 +273,16 @@ const displayStatsTable = (measurements) => {
     total_table.innerHTML = "";
     avg_table.innerHTML = "";
 
-    const full_run_stats = calculateStats(fullRunArray.energy, fullRunArray.co2eq, fullRunArray.co2i, fullRunArray.time, fullRunArray.cpu_util)
+    const full_run_stats = calculateStats(fullRunArray.energy_uj.flat(), fullRunArray.carbon_ug.flat(), fullRunArray.carbon_intensity_g.flat(), fullRunArray.duration_us.flat(), fullRunArray.cpu_util.flat())
 
     const full_run_stats_avg_node = document.createElement("tr")
     full_run_stats_avg_node.innerHTML += `
                             <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)" data-position="top left">All steps <i class="question circle icon small"></i> </td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.energy.average)} J (± ${numberFormatter.format(full_run_stats.energy.stdDevPercent)}%)</td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.time.average)}s (± ${numberFormatter.format(full_run_stats.time.stdDevPercent)}%)</td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.cpu_util.average)}% (± ${numberFormatter.format(full_run_stats.cpu_util.stdDevPercent)}%%)</td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.co2i.average)} gCO2/kWh (± ${numberFormatter.format(full_run_stats.co2i.stdDevPercent)}%)</td>
-                            <td class="td-index">${numberFormatterLong.format(full_run_stats.co2eq.average)} gCO2e (± ${numberFormatter.format(full_run_stats.co2eq.stdDevPercent)}%)</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.energy_uj.avg/1000000)} J (± ${numberFormatter.format(full_run_stats.energy_uj.stddev_rel)}%)</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.duration_us.avg/1000000)} s (± ${numberFormatter.format(full_run_stats.duration_us.stddev_rel)}%)</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.cpu_util.avg)}% (± ${numberFormatter.format(full_run_stats.cpu_util.stddev_rel)}%%)</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.carbon_intensity_g.avg)} gCO2/kWh (± ${numberFormatter.format(full_run_stats.carbon_intensity_g.stddev_rel)}%)</td>
+                            <td class="td-index">${numberFormatterLong.format(full_run_stats.carbon_ug.avg/1000000)} gCO2e (± ${numberFormatter.format(full_run_stats.carbon_ug.stddev_rel)}%)</td>
                             <td class="td-index">${numberFormatter.format(fullRunArray.count)}</td>`;
 
     avg_table.appendChild(full_run_stats_avg_node);
@@ -326,22 +290,22 @@ const displayStatsTable = (measurements) => {
     const full_run_stats_total_node = document.createElement("tr")
     full_run_stats_total_node.innerHTML += `
                             <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)" data-position="top left">All steps <i class="question circle icon small"></i> </td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.energy.total)} J</td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.time.total)}s</td>
-                            <td class="td-index">${numberFormatterLong.format(full_run_stats.co2eq.total)} gCO2e</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.energy_uj.total/1000000)} J</td>
+                            <td class="td-index">${numberFormatter.format(full_run_stats.duration_us.total/1000000)} s</td>
+                            <td class="td-index">${numberFormatterLong.format(full_run_stats.carbon_ug.total/1000000)} gCO2e</td>
                             <td class="td-index">${numberFormatter.format(fullRunArray.count)}</td>`;
     total_table.appendChild(full_run_stats_total_node)
 
     for (const label in labelsArray) {
-        const label_stats = calculateStats(labelsArray[label].energy, labelsArray[label].co2eq, labelsArray[label].co2i, labelsArray[label].time, labelsArray[label].cpu_util)
+        const label_stats = calculateStats(labelsArray[label].energy_uj, labelsArray[label].carbon_ug, labelsArray[label].carbon_intensity_g, labelsArray[label].duration_us, labelsArray[label].cpu_util)
         const label_stats_avg_node = document.createElement("tr")
         label_stats_avg_node.innerHTML += `
                                         <td class="td-index" data-tooltip="stats for the series of steps represented by the ${label} label"  data-position="top left">${label} <i class="question circle icon small"></i></td>
-                                        <td class="td-index">${numberFormatter.format(label_stats.energy.average)} J (± ${numberFormatter.format(label_stats.energy.stdDevPercent)}%)</td>
-                                        <td class="td-index">${numberFormatter.format(label_stats.time.average)}s (± ${numberFormatter.format(label_stats.time.stdDevPercent)}%)</td>
-                                        <td class="td-index">${numberFormatter.format(label_stats.cpu_util.average)}% (± ${numberFormatter.format(label_stats.cpu_util.stdDevPercent)}%%)</td>
-                                        <td class="td-index">${numberFormatter.format(label_stats.co2i.average)} gCO2/kWh (± ${numberFormatter.format(label_stats.co2i.stdDevPercent)}%)</td>
-                                        <td class="td-index">${numberFormatterLong.format(label_stats.co2eq.average)} gCO2e (± ${numberFormatter.format(label_stats.co2eq.stdDevPercent)}%)</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.energy_uj.avg/1000000)} J (± ${numberFormatter.format(label_stats.energy_uj.stddev_rel)}%)</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.duration_us.avg/1000000)} s (± ${numberFormatter.format(label_stats.duration_us.stddev_rel)}%)</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.cpu_util.avg)}% (± ${numberFormatter.format(label_stats.cpu_util.stddev_rel)}%%)</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.carbon_intensity_g.avg)} gCO2/kWh (± ${numberFormatter.format(label_stats.carbon_intensity_g.stddev_rel)}%)</td>
+                                        <td class="td-index">${numberFormatterLong.format(label_stats.carbon_ug.avg/1000000)} gCO2e (± ${numberFormatter.format(label_stats.carbon_ug.stddev_rel)}%)</td>
                                         <td class="td-index">${numberFormatter.format(labelsArray[label].count)}</td>`;
 
         avg_table.appendChild(label_stats_avg_node);
@@ -349,9 +313,9 @@ const displayStatsTable = (measurements) => {
         const label_stats_total_node = document.createElement("tr")
         label_stats_total_node.innerHTML += `
                                         <td class="td-index" data-tooltip="stats for the series of steps represented by the ${label} label"  data-position="top left">${label} <i class="question circle icon small"></i></td>
-                                        <td class="td-index">${numberFormatter.format(label_stats.energy.total)} J</td>
-                                        <td class="td-index">${numberFormatter.format(label_stats.time.total)}s</td>
-                                        <td class="td-index">${numberFormatterLong.format(label_stats.co2eq.total)} gCO2e</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.energy_uj.total/1000000)} J</td>
+                                        <td class="td-index">${numberFormatter.format(label_stats.duration_us.total/1000000)} s</td>
+                                        <td class="td-index">${numberFormatterLong.format(label_stats.carbon_ug.total/1000000)} gCO2e</td>
                                         <td class="td-index">${numberFormatter.format(labelsArray[label].count)}</td>`;
         total_table.appendChild(label_stats_total_node);
 
@@ -362,22 +326,14 @@ const displayCITable = (measurements, repo) => {
 
     document.querySelector("#ci-table").innerHTML = ''; // clear
 
-    measurements.forEach(el => {
+    measurements.forEach(measurement => {
         const li_node = document.createElement("tr");
 
-        const energy_value = el[0] / 1000;
-        const run_id = el[2];
-        const cpu = el[5];
-        const commit_hash = el[6];
+        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, carbon_ug] = measurement;
+
         const short_hash = commit_hash.substring(0, 7);
         const tooltip = `title="${commit_hash}"`;
-        const source = el[8];
-        const cpu_avg = el[9] ? el[9] : '--';
-        const lat = el[11];
-        const lon = el[12];
-        const city = el[13];
-        const co2i = el[14];
-        const co2eq = el[15];
+        const cpu_avg = cpu_util ? cpu_util : '--';
 
         let run_link = '';
 
@@ -395,23 +351,19 @@ const displayCITable = (measurements, repo) => {
         if (city){
             city_string = `${escapeString(city)} (${escapeString(lat)},${escapeString(lon)})`
         }
-        const created_at = el[3]
-
-        const label = el[4]
-        const duration = el[7]
 
         li_node.innerHTML = `
                             <td class="td-index">${run_link_node}</td>\
                             <td class="td-index">${escapeString(label)}</td>\
                             <td class="td-index"><span title="${escapeString(created_at)}">${dateToYMD(new Date(created_at))}</span></td>\
-                            <td class="td-index">${numberFormatter.format(energy_value)} J</td>\
+                            <td class="td-index">${numberFormatter.format(energy_uj/1000000)} J</td>\
                             <td class="td-index">${escapeString(cpu)}</td>\
                             <td class="td-index">${escapeString(cpu_avg)}%</td>
-                            <td class="td-index">${escapeString(duration)} s</td>
+                            <td class="td-index">${numberFormatter.format(duration_us/1000000)} s</td>
                             <td class="td-index" ${escapeString(tooltip)}>${escapeString(short_hash)}</td>\
                             <td class="td-index">${city_string}</td>
-                            <td class="td-index">${escapeString(co2i)} gCO2/kWh</td>
-                            <td class="td-index" title="${escapeString(co2eq)}">${escapeString(numberFormatterLong.format(co2eq))} gCO2e</td>
+                            <td class="td-index">${escapeString(carbon_intensity_g)} gCO2/kWh</td>
+                            <td class="td-index" title="${carbon_ug/1000000}">${escapeString(numberFormatterLong.format(carbon_ug/1000000))} gCO2e</td>
                             `;
         document.querySelector("#ci-table").appendChild(li_node);
     });
@@ -446,7 +398,7 @@ const getLastRunBadge = async (repo, branch, workflow_id) => {
 
 const getMeasurements = async (repo, branch, workflow_id, start_date = null, end_date = null) => {
     if(end_date == null) end_date = dateToYMD(new Date(), short=true);
-    if(start_date == null) start_date = dateToYMD(new Date((new Date()).setDate((new Date).getDate() -30)), short=true);
+    if(start_date == null) start_date = dateToYMD(new Date((new Date()).setDate((new Date).getDate() -7)), short=true);
     const api_string=`/v1/ci/measurements?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`;
     return await makeAPICall(api_string);
 }
@@ -479,7 +431,7 @@ const bindRefreshButton = (repo, branch, workflow_id, chart_instance) => {
         chart_instance.on('legendselectchanged', function (params) {
             // get list of all legends that are on
             const selectedLegends = params.selected;
-            const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[5]]);
+            const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[4]]);
             displayStatsTable(filteredMeasurements);
         });
     });
@@ -518,7 +470,7 @@ $(document).ready((e) => {
 
         getLastRunBadge(repo, branch, workflow_id) // async
 
-        $('#rangestart input').val(new Date((new Date()).setDate((new Date).getDate() -30))) // set default on load
+        $('#rangestart input').val(new Date((new Date()).setDate((new Date).getDate() -7))) // set default on load
         $('#rangeend input').val(new Date()) // set default on load
         dateTimePicker();
 
@@ -559,7 +511,7 @@ $(document).ready((e) => {
         chart_instance.on('legendselectchanged', function (params) {
             // get list of all legends that are on
             const selectedLegends = params.selected;
-            const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[5]]);
+            const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[4]]);
 
             displayStatsTable(filteredMeasurements);
         });

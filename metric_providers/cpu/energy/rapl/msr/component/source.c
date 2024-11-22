@@ -36,7 +36,8 @@
 #include <string.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
-
+#include <limits.h>
+#include "parse_int.h"
 
 /* AMD Support */
 #define MSR_AMD_RAPL_POWER_UNIT            0xc0010299
@@ -91,10 +92,10 @@
 
 static int open_msr(int core) {
 
-    char msr_filename[BUFSIZ];
+    char msr_filename[PATH_MAX];
     int fd;
 
-    sprintf(msr_filename, "/dev/cpu/%d/msr", core);
+    snprintf(msr_filename, PATH_MAX, "/dev/cpu/%d/msr", core);
     fd = open(msr_filename, O_RDONLY);
     if ( fd < 0 ) {
         if ( errno == ENXIO ) {
@@ -115,7 +116,7 @@ static int open_msr(int core) {
 
 static long long read_msr(int fd, unsigned int which) {
 
-    uint64_t data;
+    long long data;
 
     if ( pread(fd, &data, sizeof data, which) != sizeof data ) {
         perror("rdmsr:pread");
@@ -123,7 +124,7 @@ static long long read_msr(int fd, unsigned int which) {
         exit(127);
     }
 
-    return (long long)data;
+    return data;
 }
 
 #define CPU_VENDOR_INTEL    1
@@ -172,9 +173,11 @@ static int detect_cpu(void) {
 
     FILE *fff;
 
-    int vendor=-1,family,model=-1;
+    int vendor = -1;
+    int family,model = -1;
+    int match_result = 0;
     char buffer[BUFSIZ],*result;
-    char vendor_string[BUFSIZ];
+    char vendor_string[1024];
 
     fff=fopen("/proc/cpuinfo","r");
     if (fff==NULL) return -1;
@@ -184,7 +187,11 @@ static int detect_cpu(void) {
         if (result==NULL) break;
 
         if (!strncmp(result,"vendor_id",8)) {
-            sscanf(result,"%*s%*s%s",vendor_string);
+            match_result = sscanf(result,"%*s%*s%s",vendor_string);
+            if (match_result != 1) {
+                perror("match_vendor_string");
+                exit(127);
+            }
 
             if (!strncmp(vendor_string,"GenuineIntel",12)) {
                 vendor=CPU_VENDOR_INTEL;
@@ -195,10 +202,15 @@ static int detect_cpu(void) {
         }
 
         if (!strncmp(result,"cpu family",10)) {
-            sscanf(result,"%*s%*s%*s%d",&family);
+            match_result = sscanf(result,"%*s%*s%*s%d",&family);
+            if (match_result != 1) {
+                perror("match_family");
+                exit(127);
+            }
         }
 
         if (!strncmp(result,"model",5)) {
+            // do not force a result check here on model as in AMD systems this value is not supplied and will be set later
             sscanf(result,"%*s%*s%d",&model);
         }
 
@@ -214,8 +226,7 @@ static int detect_cpu(void) {
         msr_pkg_energy_status=MSR_INTEL_PKG_ENERGY_STATUS;
         msr_pp0_energy_status=MSR_INTEL_PP0_ENERGY_STATUS;
     }
-
-    if (vendor==CPU_VENDOR_AMD) {
+    else if (vendor==CPU_VENDOR_AMD) {
 
         msr_rapl_units=MSR_AMD_RAPL_POWER_UNIT;
         msr_pkg_energy_status=MSR_AMD_PKG_ENERGY_STATUS;
@@ -226,6 +237,9 @@ static int detect_cpu(void) {
             return -1;
         }
         model=CPU_AMD_FAM17H;
+    } else {
+        fprintf(stderr, "Could not detect vendor. Only Intel / AMD are supported atm ... \n");
+        return -1;
     }
 
     fclose(fff);
@@ -242,7 +256,7 @@ static int package_map[MAX_PACKAGES];
 
 static int detect_packages(void) {
 
-    char filename[BUFSIZ];
+    char filename[PATH_MAX];
     FILE *fff;
     int package;
     int i;
@@ -250,11 +264,15 @@ static int detect_packages(void) {
     for(i=0;i<MAX_PACKAGES;i++) package_map[i]=-1;
 
     for(i=0;i<MAX_CPUS;i++) {
-        sprintf(filename,"/sys/devices/system/cpu/cpu%d/topology/physical_package_id",i);
+        snprintf(filename, PATH_MAX, "/sys/devices/system/cpu/cpu%d/topology/physical_package_id",i);
         fff=fopen(filename,"r");
         if (fff==NULL) break;
-        fscanf(fff,"%d",&package);
+        int match_result = fscanf(fff,"%d",&package);
         fclose(fff);
+        if (match_result != 1) {
+            perror("read_package");
+            exit(127);
+        }
 
         if (package_map[package]==-1) {
             total_packages++;
@@ -338,7 +356,7 @@ static int check_availability(int cpu_model, int measurement_mode) {
     }
 
     if(measurement_mode == MEASURE_DRAM && !dram_avail) {
-        fprintf(stderr,"DRAM not available for your processer. %d \n", measurement_mode);
+        fprintf(stderr,"DRAM not available for your processer. %d\n", measurement_mode);
         exit(-1);
     }
 
@@ -408,81 +426,77 @@ static int check_system() {
     int fd = open_msr(0);
     if (fd < 0) {
         fprintf(stderr, "Couldn't open MSR 0\n");
-        exit(127);
+        exit(1);
     }
     long long msr_data = read_msr(fd, energy_status);
 
     if(msr_data <= 0) {
         fprintf(stderr, "rapl MSR had 0 or negative values: %lld\n", msr_data);
-        exit(127);
+        exit(1);
     }
     close(fd);
     return 0;
 
 }
 
-static int rapl_msr(int measurement_mode) {
-    int fd;
-    long long result;
-    double package_before[MAX_PACKAGES],package_after[MAX_PACKAGES];
-    int j;
+static void rapl_msr(int measurement_mode) {
+    int fd[total_packages];
     struct timeval now;
+    long long result[total_packages];
+    double energy_output = 0.0;
+    double package_before[total_packages],package_after[total_packages];
 
-    for(j=0;j<total_packages;j++) {
 
-        fd=open_msr(package_map[j]);
-        /* Package Energy */
-
-        result=read_msr(fd,energy_status);
-        /*
-        if(result<0){
-            fprintf(stderr,"Negative Energy Reading: %lld\n", result);
-            exit(-1);
-        }*/
-        package_before[j]=(double)result*energy_units[j];
-        close(fd);
+    for(int i=0;i<total_packages;i++) {
+        fd[i]=open_msr(package_map[i]);
     }
 
-    usleep(msleep_time*1000);
-
-    for(j=0;j<total_packages;j++) {
-        fd=open_msr(package_map[j]);
-
-        double energy_output = 0.0;
-        result=read_msr(fd,energy_status);
-
-        // As we are reading the MSR as an unsigned int, so the reading should never be negative
-        // However, in case it does somehow, we still don't want it to abort
-        /*
-        if(result<0){
-            fprintf(stderr,"Negative Energy Reading: %lld\n", result);
-            exit(-1);
-        }*/
-        package_after[j]=(double)result*energy_units[j];
-        energy_output = package_after[j]-package_before[j];
-
-        // The register can overflow at some point, leading to the subtraction giving an incorrect value (negative)
-        // For now, skip reporting this value. in the future, we can use a branchless alternative
-        if(energy_output>=0) {
-            gettimeofday(&now, NULL);
-            if (measurement_mode == MEASURE_ENERGY_PKG) {
-                printf("%ld%06ld %ld Package_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), j);
-            } else if (measurement_mode == MEASURE_DRAM) {
-                printf("%ld%06ld %ld DRAM_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), j);
-            } else if (measurement_mode == MEASURE_PSYS) {
-                printf("%ld%06ld %ld PSYS_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), j);
-            }
+    while(1) {
+        for(int j=0;j<total_packages;j++) {
+            result[j]=read_msr(fd[j],energy_status);
+            /*
+            if(result[j]<0){
+                fprintf(stderr,"Negative Energy Reading: %lld\n", result[j]);
+                exit(-1);
+            }*/
+            package_before[j]=(double)result[j]*energy_units[j];
         }
-        /*
-        else {
-            fprintf(stderr, "Energy reading had unexpected value: %f", energy_output);
-            exit(-1);
-        }*/
 
-        close(fd);
+        usleep(msleep_time*1000);
+
+        for(int k=0;k<total_packages;k++) {
+            result[k]=read_msr(fd[k],energy_status);
+
+            package_after[k]=(double)result[k]*energy_units[k];
+            energy_output = package_after[k]-package_before[k];
+
+            // The register can overflow at some point, leading to the subtraction giving an incorrect value (negative)
+            // For now, skip reporting this value. in the future, we can use a branchless alternative
+            if(energy_output>=0) {
+                gettimeofday(&now, NULL);
+                if (measurement_mode == MEASURE_ENERGY_PKG) {
+                    printf("%ld%06ld %ld Package_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), k);
+                } else if (measurement_mode == MEASURE_DRAM) {
+                    printf("%ld%06ld %ld DRAM_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), k);
+                } else if (measurement_mode == MEASURE_PSYS) {
+                    printf("%ld%06ld %ld PSYS_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), k);
+                }
+            }
+            /*
+            else {
+                fprintf(stderr, "Energy reading had unexpected value: %f", energy_output);
+                exit(-1);
+            }*/
+
+        }
+
     }
 
-    return 0;
+    // this code is never reachable atm, but we keep it in if we change the function in the future
+    for(int l=0;l<total_packages;l++) {
+        close(fd[l]);
+    }
+
 }
 
 int main(int argc, char **argv) {
@@ -503,7 +517,7 @@ int main(int argc, char **argv) {
             printf("\t-c      : check system and exit\n");
             exit(0);
         case 'i':
-            msleep_time = atoi(optarg);
+            msleep_time = parse_int(optarg);
             break;
         case 'd':
             measurement_mode=MEASURE_DRAM;
@@ -529,12 +543,10 @@ int main(int argc, char **argv) {
     setup_measurement_units(measurement_mode);
 
     if(check_system_flag){
-        exit(check_system()); 
+        exit(check_system());
     }
 
-    while(1) {
-        rapl_msr(measurement_mode);
-    }
+    rapl_msr(measurement_mode);
 
     return 0;
 }

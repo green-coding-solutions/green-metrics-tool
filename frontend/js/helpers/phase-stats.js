@@ -187,7 +187,7 @@ const displayComparisonMetrics = (phase_stats_object) => {
                         bottom_chart_present_keys[key] = true
                     }
 
-                    if (phase_stats_object.comparison_case == null && machine_co2_metric_condition(metric_name)) {
+                    if (phase_stats_object.comparison_case == null && psu_machine_carbon_metric_condition(metric_name)) {
                         if(co2_calculated) {
                             showWarning(phase, 'CO2 was already calculated! Do you have multiple machine energy reporters set?');
                         }

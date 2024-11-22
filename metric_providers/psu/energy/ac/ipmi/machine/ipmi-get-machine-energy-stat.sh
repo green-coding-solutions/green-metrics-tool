@@ -17,7 +17,7 @@ done
 i=$(bc <<< "scale=3; $i / 1000")
 
 if $check_system; then
-    first_line=$(sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics | head -1)
+    first_line=$(sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics | sed -n 1p)
     if ! [[ "$first_line" =~ ^"Current Power" ]]; then
         echo "Unable to find 'Current Power' in the output of 'sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics' command. Found $first_line instead">&2
         exit 1
@@ -34,6 +34,6 @@ fi
 
 
 while true; do
-    echo -en $(($(date +%s%N)/1000)) $(sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics | head -1 |  awk '{print $4}')"000\n"
+    echo -en $(date +"%s%6N") $(sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics | head -1 |  awk '{print $4}')"000\n"
     sleep $i
 done

@@ -4,9 +4,10 @@ from io import StringIO
 import pandas
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(CURRENT_DIR)
+sys.path.append(CURRENT_DIR) # needed to import model which is in subfolder
 
 import model.xgb as mlmodel
+
 from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
 from lib.global_config import GlobalConfig
 
@@ -70,6 +71,9 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
                               dtype={'time': int, 'value': int}
                               )
 
+        if df.empty:
+            return df
+
         df['detail_name'] = '[DEFAULT]'  # standard container name when no further granularity was measured
         df['metric'] = self._metric_name
         df['run_id'] = run_id
@@ -101,9 +105,12 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
         df.value = df.value.apply(lambda x: interpolated_predictions[x / 100])  # will result in W
         df.value = (df.value * df.time.diff()) / 1_000 # W * us / 1_000 will result in mJ
 
+        # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
+        # Since one value is useless for us we drop the row
+        df.dropna(inplace=True)
+
         df['unit'] = self._unit
 
-        df.value = df.value.fillna(0)
         df.value = df.value.astype(int)
 
         return df

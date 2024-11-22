@@ -1,0 +1,38 @@
+---
+name: Test Metric Provider Data accuracy
+author: Arne Tarara
+description: Test Metric Provider Data accuracy
+
+services:
+  curl-container:
+    image: curlimages/curl:8.10.1
+    command: sh
+
+  stress-container:
+    type: container
+    image: gcb_stress
+    build:
+      context: ../stress-application
+
+
+
+flow:
+  - name: Download
+    container: curl-container
+    commands:
+      - type: console
+        command: curl --fail https://freetestdata.com/wp-content/uploads/2021/09/Free_Test_Data_5MB_OGG.ogg --output /tmp/test_file.ogg --silent
+        note: Starting Download
+      - type: console
+        command: sync
+        note: Syncing to disk
+      - type: console
+        command: sleep 2
+        note: Sleeping for sync
+  - name: VM Stress
+    container: stress-container
+    commands:
+      - type: console
+        command: stress-ng --vm 0 --vm-bytes 60% --vm-keep --vm-method all -t 5 -q
+        note: Starting Download
+

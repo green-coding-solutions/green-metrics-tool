@@ -22,12 +22,12 @@ from lib.global_config import GlobalConfig
 from lib.terminal_colors import TerminalColors
 from lib.configuration_check_error import ConfigurationCheckError, Status
 
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 GMT_Resources = {
     'free_disk': 1024 ** 3, # 1GB in bytes
     'free_memory':  1024 ** 3, # 1GB in bytes
 }
-
-
 
 ######## CHECK FUNCTIONS ########
 def check_db():
@@ -80,14 +80,12 @@ start_checks = [
     (check_one_energy_and_scope_machine_provider, Status.ERROR, 'single energy scope machine provider', 'Please only select one provider with energy and scope machine'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
     (check_cpu_utilization, Status.WARN, '< 5% CPU utilization', 'Your system seems to be busy. Utilization is above 5%. Consider terminating some processes for a more stable measurement.'),
-    (check_free_disk, Status.ERROR, '1GB free hdd space', 'We recommend to free up some disk space'),
-    (check_free_memory, Status.ERROR, 'free memory', 'No free memory! Please kill some programs'),
+    (check_free_disk, Status.ERROR, '1 GiB free hdd space', 'We recommend to free up some disk space (< 1GiB available)'),
+    (check_free_memory, Status.ERROR, '1 GiB free memory', 'No free memory! Please kill some programs (< 1GiB available)'),
     (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.io/docs/installation/]'),
     (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
     (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output.'),
-
 ]
-
 
 def check_start():
     print(TerminalColors.HEADER, '\nRunning System Checks', TerminalColors.ENDC)

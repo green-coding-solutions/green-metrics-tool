@@ -5,8 +5,8 @@
 class PhaseMetrics extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
-        <h3 class="ui dividing header">Key metrics</h3>
-        <div class="ui four cards stackable no-transform-statistics">
+        <h3 class="ui dividing header print-page-break">Key metrics</h3>
+        <div class="ui four cards stackable">
             <div class="ui card phase-duration">
                 <div class="ui content">
                     <div class="ui top attached purple label overflow-ellipsis">Phase Duration <span class="si-unit"></span></div>
@@ -149,7 +149,7 @@ class PhaseMetrics extends HTMLElement {
                             </div>
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="SCI by the Green Software Foundation">
-                            <u><a href="https://docs.green-coding.io/docs/measuring/sci/formula">see Details</a></u>
+                            <u><a href="https://docs.green-coding.io/docs/measuring/sci/">see Details</a></u>
                             <i class="question circle icon"></i>
                         </div>
                         <div class="ui bottom left attached label">
@@ -364,7 +364,7 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
         selector = '.network-energy';
     } else if(phase_time_metric_condition(metric_name)) {
         selector = '.phase-duration';
-    } else if(network_co2_metric_condition(metric_name)) {
+    } else if(network_carbon_metric_condition(metric_name)) {
         selector = '.network-co2';
     } else if(embodied_carbon_share_metric_condition(metric_name)) {
         selector = '.embodied-carbon';
@@ -372,7 +372,7 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
         selector = '.software-carbon-intensity';
     } else if(machine_power_metric_condition(metric_name)) {
         selector = '.machine-power';
-    } else if(machine_co2_metric_condition(metric_name)) {
+    } else if(psu_machine_carbon_metric_condition(metric_name)) {
         selector = '.machine-co2';
     } else {
         return; // could not match key metric

@@ -20,6 +20,12 @@ jobs:
         uses: green-coding-solutions/eco-ci-energy-estimation@testing
         with:
           task: start-measurement
+          project: "Green Metrics Tool"
+          machine: "ubuntu-latest"
+          tags: "CI/CD, Test-Eco-CI-Workflow"
+          gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
+          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
+
 
       - name: Measuring idle cost 10 s
         shell: bash
@@ -30,20 +36,14 @@ jobs:
         name: 'Setup, Run, and Teardown Tests'
         uses: ./.github/actions/gmt-pytest
         with:
-         metrics-to-turn-off: '--categories RAPL Machine Sensors Debug CGroupV2 MacOS GPU --providers PsuEnergyAcSdiaMachineProvider'
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Eco CI Energy Estimation - Get Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@testing
         with:
           task: get-measurement
-          branch: main
 
       - name: Eco CI Energy Estimation - End Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@testing
         with:
           task: display-results
-          branch: main
-        
-
-

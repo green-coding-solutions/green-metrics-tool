@@ -223,6 +223,15 @@ const displayTimelineCharts = (metrics, notes) => {
     const chart_instances = [];
     const t0 = performance.now();
 
+    let time_series_avg = localStorage.getItem('time_series_avg');
+    let markline = {};
+    if(time_series_avg == 'true') {
+        markline = {
+                    precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
+                    data: [ {type: "average",label: {formatter: "AVG\n(selection):\n{c}"}}]
+        }
+    }
+
     for (const metric_name in metrics) {
 
         const element = createChartContainer("#chart-container", `${getPretty(metric_name, 'clean_name')} via ${getPretty(metric_name, 'source')} <i data-tooltip="${getPretty(metric_name, 'explanation')}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`);
@@ -239,20 +248,19 @@ const displayTimelineCharts = (metrics, notes) => {
                 symbol: 'none',
                 areaStyle: {},
                 data: metrics[metric_name].series[detail_name].data,
-                markLine: {
-                    precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
-                    data: [ {type: "average",label: {formatter: "AVG:\n{c}"}}]
-                }
+                markLine: markline,
             });
         }
         // now we add all notes to every chart
         legend.push('Notes')
         let notes_labels = [];
         let inner_counter = 0;
-        notes.forEach(note => {
-            notes_labels.push({xAxis: note[3]/1000, label: {formatter: note[2], position: note_positions[inner_counter%2]}})
-            inner_counter++;
-        });
+        if (notes != null) {
+            notes.forEach(note => {
+                notes_labels.push({xAxis: note[3]/1000, label: {formatter: note[2], position: note_positions[inner_counter%2]}})
+                inner_counter++;
+            });
+        }
 
         series.push({
             name: "Notes",
@@ -441,7 +449,6 @@ async function getTimeSeries() {
 
     note_data = note_data?.data;
 
-    if (note_data == null) return;
     displayTimelineCharts(metrics, note_data);
 }
 
