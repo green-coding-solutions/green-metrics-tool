@@ -181,6 +181,9 @@ measurement:
 ######### The value for memory must be in GB not in GiB
 #        HW_MemAmountGB: 16
 #        Hardware_Availability_Year: 2011
+######### vhost_ratio is the virtualization degree of the machine. For Bare Metal this is 1. For 1 out of 4 VMs this would be 0.25 etc.
+#        VHost_Ratio: 1
+
   #--- END
 
 
