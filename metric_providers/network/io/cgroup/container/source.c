@@ -11,11 +11,12 @@
 #include <getopt.h>
 #include <limits.h>
 #include "parse_int.h"
+#include "detect_cgroup_path.h"
 
 #define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
 
 typedef struct container_t { // struct is a specification and this static makes no sense here
-    char path[PATH_MAX];
+    char* path;
     char id[DOCKER_CONTAINER_ID_BUFFER];
     unsigned int pid;
 } container_t;
@@ -136,8 +137,6 @@ static int parse_containers(container_t** containers, char* containers_string) {
     }
     char *id = strtok(containers_string,",");
     int length = 0;
-    FILE* fd = NULL;
-    int match_result = 0;
 
     for (; id != NULL; id = strtok(NULL, ",")) {
         //printf("Token: %s\n", id);
@@ -150,56 +149,16 @@ static int parse_containers(container_t** containers, char* containers_string) {
         strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
         (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
 
-        // trying out cgroups v2 with systemd slices. Typically done in rootless mode
-        snprintf((*containers)[length-1].path,
-            PATH_MAX,
-            "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/cgroup.procs",
-            user_id, user_id, id);
-        fd = fopen((*containers)[length-1].path, "r");
+        (*containers)[length-1].path = detect_cgroup_path("cgroup.procs", user_id, id);
+        FILE* fd = fopen((*containers)[length-1].path, "r");
         if (fd != NULL) {
-            match_result = fscanf(fd, "%u", &(*containers)[length-1].pid);
+            int match_result = fscanf(fd, "%u", &(*containers)[length-1].pid);
             if (match_result != 1) {
                 fprintf(stderr, "Could not match container PID\n");
                 exit(1);
             }
             fclose(fd);
-            continue;
         }
-
-        // trying out cgroups v2 with systemd but non-slice mountpoints. Typically in non-rootless mode
-        snprintf((*containers)[length-1].path,
-            PATH_MAX,
-            "/sys/fs/cgroup/system.slice/docker-%s.scope/cgroup.procs",
-            id);
-        fd = fopen((*containers)[length-1].path, "r");
-        if (fd != NULL) {
-            match_result = fscanf(fd, "%u", &(*containers)[length-1].pid);
-            if (match_result != 1) {
-                fprintf(stderr, "Could not match container PID\n");
-                exit(1);
-            }
-            fclose(fd);
-            continue;
-        }
-
-        // trying out cgroups v2 without slice mountpoints. This is done in Github codespaces and Github actions
-        sprintf((*containers)[length-1].path,
-            "/sys/fs/cgroup/docker/%s/cgroup.procs",
-            id);
-        fd = fopen((*containers)[length-1].path, "r");
-        if (fd != NULL) {
-            match_result = fscanf(fd, "%u", &(*containers)[length-1].pid);
-            if (match_result != 1) {
-                fprintf(stderr, "Could not match container PID\n");
-                exit(1);
-            }
-            fclose(fd);
-            continue;
-        }
-
-        fprintf(stderr, "Error - Could not open cgroup.procs for reading: %s. Maybe the container is not running anymore? Errno: %d\n", id, errno);
-        exit(1);
-
     }
 
     if(length == 0) {

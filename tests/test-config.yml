@@ -78,6 +78,12 @@ measurement:
         resolution: 99
       memory.used.procfs.system.provider.MemoryUsedProcfsSystemProvider:
         resolution: 99
+      cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
+        resolution: 99
+      memory.used.cgroup.container.provider.MemoryUsedCgroupContainerProvider:
+        resolution: 99
+      network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
+        resolution: 99
     macos:
       cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
         resolution: 99

@@ -7,11 +7,13 @@
 #include <getopt.h>
 #include <limits.h>
 #include "parse_int.h"
+#include "detect_cgroup_path.h"
+
 
 #define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
 
 typedef struct container_t { // struct is a specification and this static makes no sense here
-    char path[PATH_MAX];
+    char* path;
     char id[DOCKER_CONTAINER_ID_BUFFER];
 } container_t;
 
@@ -94,32 +96,7 @@ static int parse_containers(container_t** containers, char* containers_string) {
         strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
         (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
 
-        // trying out cgroups v2 with systemd slices. Typically done in rootless mode
-        snprintf((*containers)[length-1].path,
-            PATH_MAX,
-            "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/io.stat",
-            user_id, user_id, id);
-        fd = fopen((*containers)[length-1].path, "r");
-        if (fd != NULL) { fclose(fd); continue;}
-
-        // trying out cgroups v2 with systemd but non-slice mountpoints. Typically in non-rootless mode
-        snprintf((*containers)[length-1].path,
-            PATH_MAX,
-            "/sys/fs/cgroup/system.slice/docker-%s.scope/io.stat",
-            id);
-        fd = fopen((*containers)[length-1].path, "r");
-        if (fd != NULL) { fclose(fd); continue;}
-
-        // trying out cgroups v2 without slice mountpoints. This is done in Github codespaces and Github actions
-        snprintf((*containers)[length-1].path,
-            PATH_MAX,
-            "/sys/fs/cgroup/docker/%s/io.stat",
-            id);
-        fd = fopen((*containers)[length-1].path, "r");
-        if (fd != NULL) { fclose(fd); continue;}
-
-        fprintf(stderr, "Error - Could not open container for reading: %s. Maybe the container is not running anymore? Errno: %d\n", id, errno);
-        exit(1);
+        (*containers)[length-1].path = detect_cgroup_path("io.stat", user_id, id);
     }
 
     if(length == 0) {
