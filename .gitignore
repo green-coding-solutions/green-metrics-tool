@@ -21,6 +21,5 @@ static-binary
 /tools/backup
 /manager-config.yml
 /venv/
-Makefile.bak
 /docker/test-compose.yml
 /tests/structure.sql
