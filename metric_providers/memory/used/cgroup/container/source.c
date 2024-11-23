@@ -74,7 +74,6 @@ static int parse_containers(container_t** containers, char* containers_string) {
 
     char *id = strtok(containers_string,",");
     int length = 0;
-    FILE* fd = NULL;
 
     for (; id != NULL; id = strtok(NULL, ",")) {
         //printf("Token: %s\n", id);
