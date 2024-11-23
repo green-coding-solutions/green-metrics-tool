@@ -8,11 +8,12 @@
 #include <getopt.h>
 #include <limits.h>
 #include "parse_int.h"
+#include "detect_cgroup_path.h"
 
 #define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
 
 typedef struct container_t { // struct is a specification and this static makes no sense here
-    char path[PATH_MAX];
+    char* path;
     char id[DOCKER_CONTAINER_ID_BUFFER];
 } container_t;
 
@@ -57,7 +58,7 @@ static long int get_cpu_stat(char* filename, int mode) {
     FILE* fd = fopen(filename, "r");
 
     if ( fd == NULL) {
-        fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Are you using --rootless mode? Errno: %d\n", filename, errno);
+        fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Errno: %d\n", filename, errno);
         exit(1);
     }
     if(mode == 1) {
@@ -127,7 +128,7 @@ static void output_stats(container_t* containers, int length) {
     }
 }
 
-static int parse_containers(container_t** containers, char* containers_string, int rootless_mode) {
+static int parse_containers(container_t** containers, char* containers_string) {
     if(containers_string == NULL) {
         fprintf(stderr, "Please supply at least one container id with -s XXXX\n");
         exit(1);
@@ -152,36 +153,23 @@ static int parse_containers(container_t** containers, char* containers_string, i
         strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
         (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
 
-        if(rootless_mode) {
-            snprintf((*containers)[length-1].path,
-                PATH_MAX,
-                "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/cpu.stat",
-                user_id, user_id, id);
-        } else {
-            snprintf((*containers)[length-1].path,
-                PATH_MAX,
-                "/sys/fs/cgroup/system.slice/docker-%s.scope/cpu.stat",
-                id);
-        }
+        (*containers)[length-1].path = detect_cgroup_path("cpu.stat", user_id, id);
     }
 
     if(length == 0) {
         fprintf(stderr, "Please supply at least one container id with -s XXXX\n");
         exit(1);
     }
+
     return length;
 }
 
-static int check_system(int rootless_mode) {
+static int check_system() {
     const char* file_path_cpu_stat;
     const char* file_path_proc_stat;
     int found_error = 0;
 
-    if(rootless_mode) {
-        file_path_cpu_stat = "/sys/fs/cgroup/user.slice/cpu.stat";
-    } else {
-        file_path_cpu_stat = "/sys/fs/cgroup/system.slice/cpu.stat";
-    }
+    file_path_cpu_stat = "/sys/fs/cgroup/cpu.stat";
     file_path_proc_stat = "/proc/stat";
     
     FILE* fd = fopen(file_path_cpu_stat, "r");
@@ -211,7 +199,6 @@ int main(int argc, char **argv) {
 
     int c;
     int check_system_flag = 0;
-    int rootless_mode = 0; // docker root is default
     char *containers_string = NULL;  // Dynamic buffer to store optarg
     container_t *containers = NULL;
 
@@ -221,7 +208,6 @@ int main(int argc, char **argv) {
 
     static struct option long_options[] =
     {
-        {"rootless", no_argument, NULL, 'r'},
         {"help", no_argument, NULL, 'h'},
         {"interval", no_argument, NULL, 'i'},
         {"containers", no_argument, NULL, 's'},
@@ -229,7 +215,7 @@ int main(int argc, char **argv) {
         {NULL, 0, NULL, 0}
     };
 
-    while ((c = getopt_long(argc, argv, "ri:s:hc", long_options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "i:s:hc", long_options, NULL)) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
@@ -251,9 +237,6 @@ int main(int argc, char **argv) {
         case 'i':
             msleep_time = parse_int(optarg);
             break;
-        case 'r':
-            rootless_mode = 1;
-            break;
         case 's':
             containers_string = (char *)malloc(strlen(optarg) + 1);  // Allocate memory
             if (!containers_string) {
@@ -273,10 +256,10 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system(rootless_mode)); 
+        exit(check_system());
     }
 
-    int length = parse_containers(&containers, containers_string, rootless_mode);
+    int length = parse_containers(&containers, containers_string);
 
     while(1) {
         output_stats(containers, length);

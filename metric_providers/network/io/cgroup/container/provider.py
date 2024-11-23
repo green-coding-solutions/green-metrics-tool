@@ -4,7 +4,7 @@ from lib import utils
 from metric_providers.base import BaseMetricProvider
 
 class NetworkIoCgroupContainerProvider(BaseMetricProvider):
-    def __init__(self, resolution, rootless=False, skip_check=False):
+    def __init__(self, resolution, skip_check=False):
         super().__init__(
             metric_name='network_io_cgroup_container',
             metrics={'time': int, 'received_bytes': int, 'transmitted_bytes': int, 'container_id': str},
@@ -13,7 +13,6 @@ class NetworkIoCgroupContainerProvider(BaseMetricProvider):
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
-        self._rootless = rootless
 
     def read_metrics(self, run_id, containers=None):
         df = super().read_metrics(run_id, containers)
