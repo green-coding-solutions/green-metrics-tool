@@ -13,7 +13,7 @@ from lib.global_config import GlobalConfig
 
 class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
     def __init__(self, *, resolution, HW_CPUFreq, CPUChips, CPUThreads, TDP,
-                 HW_MemAmountGB, CPUCores=None, Hardware_Availability_Year=None, skip_check=False):
+                 HW_MemAmountGB, CPUCores=None, Hardware_Availability_Year=None, VHost_Ratio=1, skip_check=False):
         super().__init__(
             metric_name="psu_energy_ac_xgboost_machine",
             metrics={"time": int, "value": int},
@@ -29,6 +29,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
         self.HW_MemAmountGB = HW_MemAmountGB
         self.CPUCores = CPUCores
         self.Hardware_Availability_Year=Hardware_Availability_Year
+        self.VHost_Ratio = VHost_Ratio
 
     # Since no process is ever started we just return None
     def get_stderr(self):
@@ -74,8 +75,6 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
         if df.empty:
             return df
 
-        df = df.sort_values(by=['time'], ascending=True)
-
         df['detail_name'] = '[DEFAULT]'  # standard container name when no further granularity was measured
         df['metric'] = self._metric_name
         df['run_id'] = run_id
@@ -105,6 +104,8 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
 
 
         df.value = df.value.apply(lambda x: interpolated_predictions[x / 100])  # will result in W
+        df.value = df.value*self.VHost_Ratio  # apply vhost_ratio
+
         df.value = (df.value * df.time.diff()) / 1_000 # W * us / 1_000 will result in mJ
 
         # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.

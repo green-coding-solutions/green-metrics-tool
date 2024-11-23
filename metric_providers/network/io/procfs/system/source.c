@@ -49,8 +49,10 @@ static void output_network_procfs() {
     }
 
     // skip first two lines
-    fgets(buf, 200, fd);
-    fgets(buf, 200, fd);
+    if (fgets(buf, 200, fd) == NULL || fgets(buf, 200, fd) == NULL) {
+        fprintf(stderr, "Error or EOF encountered while reading input.\n");
+        exit(1);
+    }
 
     int match_result = 0;
 

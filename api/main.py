@@ -1,8 +1,8 @@
-import faulthandler
-
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic?
-faulthandler.enable()  # will catch segfaults and write to STDERR
+import sys
+import faulthandler
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 import orjson
 from xml.sax.saxutils import escape as xml_escape
@@ -632,7 +632,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if not user.can_schedule_job(software.schedule_mode):
         raise RequestValidationError('Your user does not have the permissions to use that schedule mode.')
 
-    utils.check_repo(software.url) # if it exists through the git api
+    utils.check_repo(software.url, software.branch) # if it exists through the git api
 
     if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
 

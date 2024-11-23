@@ -1,7 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-
 if [[ $(uname) != "Linux" ]]; then
   echo "Error: This script can only be run on Linux."
   exit 1
@@ -88,5 +87,3 @@ if ! mount | grep -E '\s/tmp\s' | grep -Eq '\stmpfs\s' && [[ $ask_tmpfs == true 
 fi
 
 finalize
-
-

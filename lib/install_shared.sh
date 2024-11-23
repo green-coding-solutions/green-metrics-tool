@@ -236,6 +236,9 @@ function build_binaries() {
             if [[ $(uname) == "Linux" ]] && [[ "$make_path" == *"/mach/"* ]]; then
                 continue
             fi
+            if [[ "$make_path" == *"/lmsensors/"* ]] && [[ "${install_sensors}" == false ]]; then
+                continue
+            fi
             echo "Installing $subdir/metric-provider-binary ..."
             rm -f $subdir/metric-provider-binary 2> /dev/null
             make -C $subdir
@@ -304,7 +307,6 @@ while getopts "p:a:m:nhtbisyrlc:k:e:" o; do
             ;;
         s)
             install_sensors=false
-            # currently unused
             ;;
         r)
             install_msr_tools=false

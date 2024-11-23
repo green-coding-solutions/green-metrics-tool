@@ -74,8 +74,6 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
         if df.empty:
             return df
 
-        df = df.sort_values(by=['time'], ascending=True)
-
         df['detail_name'] = '[DEFAULT]'  # standard container name when no further granularity was measured
         df['metric'] = self._metric_name
         df['run_id'] = run_id

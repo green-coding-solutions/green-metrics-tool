@@ -38,10 +38,22 @@ METRIC_MAPPINGS = {
         'explanation': 'Container energy estimated via CPU-% share',
     },
 
+    'psu_energy_cgroup_slice': {
+        'clean_name': 'Container Energy (+Idle)',
+        'source': 'estimation',
+        'explanation': 'Container energy estimated via CPU-% share (incl. idle)',
+    },
+
     'psu_power_cgroup_container': {
         'clean_name': 'Container Power',
         'source': 'estimation',
         'explanation': 'Container power estimated via CPU-% share',
+    },
+
+    'psu_power_cgroup_slice': {
+        'clean_name': 'Container Power (+Idle)',
+        'source': 'estimation',
+        'explanation': 'Container power estimated via CPU-% share incl. Idle',
     },
 
     'psu_carbon_dc_rapl_msr_machine': {

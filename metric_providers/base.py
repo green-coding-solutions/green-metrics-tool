@@ -34,7 +34,6 @@ class BaseMetricProvider:
         self._sudo = sudo
         self._has_started = False
         self._disable_buffer = disable_buffer
-        self._rootless = None
         self._skip_check = skip_check
 
         self._tmp_folder = '/tmp/green-metrics-tool'
@@ -98,6 +97,17 @@ class BaseMetricProvider:
     def has_started(self):
         return self._has_started
 
+    def check_monotonic(self, df):
+        if not df['time'].is_monotonic_increasing:
+            raise ValueError(f"Data from metric provider {self._metric_name} is not monotonic increasing")
+
+    def check_resolution_underflow(self, df):
+        if self._unit in ['mJ', 'uJ', 'Hz', 'us']:
+            if (df['value'] <= 1).any():
+                raise ValueError(f"Data from metric provider {self._metric_name} is running into a resolution underflow. Values are <= 1 {self._unit}")
+
+
+
     def read_metrics(self, run_id, containers=None): #pylint: disable=unused-argument
         with open(self._filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
@@ -115,10 +125,13 @@ class BaseMetricProvider:
         if df.isna().any().any():
             raise ValueError(f"Dataframe for {self._metric_name} contained NA values.")
 
-        df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]" # default, can be overriden in child
+        df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]" # default, can be overridden in child
         df['unit'] = self._unit
         df['metric'] = self._metric_name
         df['run_id'] = run_id
+
+        self.check_monotonic(df)
+        self.check_resolution_underflow(df)
 
         return df
 
@@ -144,9 +157,6 @@ class BaseMetricProvider:
         if (self._metrics.get('container_id') is not None) and (containers is not None):
             call_string += ' -s '
             call_string += ','.join(containers.keys())
-
-        if self._rootless is True:
-            call_string += ' --rootless '
 
         call_string += f" > {self._filename}"
 

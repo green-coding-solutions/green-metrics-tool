@@ -1,5 +1,6 @@
+import sys
 import faulthandler
-faulthandler.enable()  # will catch segfaults and write to STDERR
+faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from urllib.parse import urlparse
 
@@ -64,7 +65,7 @@ def rescale_energy_value(value, unit):
     # We only expect values to be uJ for energy in the future. Changing values now temporarily.
     # TODO: Refactor this once all data in the DB is uJ
     if unit != 'uJ' and not unit.startswith('ugCO2e/'):
-        raise RuntimeError('Unexpected unit occured for energy rescaling: ', unit)
+        raise ValueError('Unexpected unit occured for energy rescaling: ', unit)
 
     unit_type = unit[1:]
 
@@ -218,6 +219,7 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
                 AND r.filename = %s
                 AND r.branch = %s
                 AND r.end_measurement IS NOT NULL
+                AND r.failed != TRUE
                 AND r.machine_id = %s
                 AND p.phase LIKE %s
                 {metrics_condition}
