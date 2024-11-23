@@ -1451,7 +1451,7 @@ class Runner:
         if logs_as_str:
             DB().query("""
                 UPDATE runs
-                SET logs= COALESCE(logs, '') || %s -- append
+                SET logs = COALESCE(logs, '') || %s -- append
                 WHERE id = %s
                 """, params=(logs_as_str, self._run_id))
 
