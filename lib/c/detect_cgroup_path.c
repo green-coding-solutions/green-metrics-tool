@@ -13,6 +13,8 @@ char* detect_cgroup_path(const char* controller, int user_id, const char* id) {
         exit(1);
     }
 
+    FILE* fd = NULL;
+
     // Try cgroups v2 with systemd slices (typically in rootless mode)
     snprintf(path, PATH_MAX,
              "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/%s",
