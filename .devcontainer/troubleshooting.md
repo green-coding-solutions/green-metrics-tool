@@ -25,14 +25,3 @@ then ensure that the Docker containers of GMT are running.
 ```sh
 docker compose -f docker/compose.yml up -d
 ```
-
-## Error cpu_utilization_cgroup_container provider could not be started
-
-If you see an error like the following
-
-```log
-Exception (<class 'metric_providers.base.MetricProviderConfigurationError'>): cpu_utilization_cgroup_container provider could not be started.
-Error: Couldn't open cpu.stat file at /sys/fs/cgroup/system.slice/cpu.stat
-```
-
-then you probably have not used the argument `--skip-system-checks`. In the GitHub Codespaces, the cgroups check does not work, so we have to disable the check. The metrics provider still works.

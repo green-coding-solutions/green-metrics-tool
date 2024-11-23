@@ -5,7 +5,7 @@ Thank you for trying out the Green Metrics Tool :-)
 Please run the following command in the terminal to set up everything! 🚀
 
 ```sh
-bash .devcontainer/workshop/codespace-setup.sh
+bash .devcontainer/codespace-setup.sh
 ```
 
 It will take about 3 minutes.
