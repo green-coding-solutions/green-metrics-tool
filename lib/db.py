@@ -1,11 +1,19 @@
 #pylint: disable=consider-using-enumerate
+import os
 from psycopg_pool import ConnectionPool
 import psycopg.rows
-
+import pytest
 from lib.global_config import GlobalConfig
+
+def is_pytest_session():
+    return "pytest" in os.environ.get('_', '')
+
 class DB:
 
     def __new__(cls):
+        if is_pytest_session() and GlobalConfig().config['postgresql']['host'] != 'test-green-coding-postgres-container':
+            pytest.exit(f"You are accessing the live/local database ({GlobalConfig().config['postgresql']['host']}) while running pytest. This might clear the DB. Aborting for security ...", returncode=1)
+
         if not hasattr(cls, 'instance'):
             cls.instance = super(DB, cls).__new__(cls)
         return cls.instance
