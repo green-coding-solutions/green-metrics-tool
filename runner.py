@@ -498,10 +498,7 @@ class Runner:
             print(TerminalColors.WARNING, arrows('No metric providers were configured in config.yml. Was this intentional?'), TerminalColors.ENDC)
             return
 
-        docker_ps = subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='UTF-8', check=True)
-        rootless = False
-        if 'rootless' in docker_ps.stdout:
-            rootless = True
+        subprocess.run(["docker", "info"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, encoding='UTF-8', check=True)
 
         for metric_provider in metric_providers: # will iterate over keys
             module_path, class_name = metric_provider.rsplit('.', 1)
@@ -511,13 +508,7 @@ class Runner:
             print(f"Importing {class_name} from {module_path}")
             module = importlib.import_module(module_path)
 
-            if rootless and '.cgroup.' in module_path and self._skip_system_checks:
-                metric_provider_obj = getattr(module, class_name)(**conf, rootless=True, skip_check=True)
-                print(f"Configuration is {conf}; rootless=true, skip_check=True")
-            elif rootless and '.cgroup.' in module_path:
-                metric_provider_obj = getattr(module, class_name)(**conf, rootless=True)
-                print(f"Configuration is {conf}; rootless=true")
-            elif self._skip_system_checks:
+            if self._skip_system_checks:
                 metric_provider_obj = getattr(module, class_name)(**conf, skip_check=True)
                 print(f"Configuration is {conf}; skip_check=true")
             else:

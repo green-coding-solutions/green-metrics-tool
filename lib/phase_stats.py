@@ -182,14 +182,16 @@ def build_and_store_phase_stats(run_id, sci=None):
         if machine_power_idle and cpu_utilization_machine and cpu_utilization_containers:
             surplus_power_runtime = machine_power_runtime - machine_power_idle
             surplus_energy_runtime = machine_energy_runtime - (machine_power_idle * decimal.Decimal(duration / 10**6))
+
             total_container_utilization = sum(cpu_utilization_containers.values())
             if int(total_container_utilization) == 0:
                 continue
 
             for detail_name, container_utilization in cpu_utilization_containers.items():
+                csv_buffer.write(generate_csv_line(run_id, 'psu_energy_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_energy_runtime * (container_utilization / total_container_utilization), 'TOTAL', None, None, 'mJ'))
+                csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_power_runtime * (container_utilization / total_container_utilization), 'TOTAL', None, None, 'mW'))
                 csv_buffer.write(generate_csv_line(run_id, 'psu_energy_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_energy_runtime * (container_utilization / total_container_utilization), 'TOTAL', None, None, 'mJ'))
                 csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * (container_utilization / total_container_utilization), 'TOTAL', None, None, 'mW'))
-
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning
     DB().copy_from(

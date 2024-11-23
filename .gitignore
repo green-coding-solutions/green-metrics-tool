@@ -14,13 +14,13 @@ metric-provider-binary
 .vscode
 static-binary
 .pytest_cache
-/docker/test-compose.yml
-/tests/structure.sql
-/tools/sgx_enable
-/venv/
 /lib/hardware_info_root.py
 /tools/cluster/cleanup.sh
 /node_modules/
 /lib/c/parse_int.o
 /tools/backup
 /manager-config.yml
+/venv/
+Makefile.bak
+/docker/test-compose.yml
+/tests/structure.sql

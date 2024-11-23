@@ -41,7 +41,7 @@ class PowermetricsProvider(BaseMetricProvider):
             ]
 
 
-    def check_system(self):
+    def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
         # no call to super().check_system() as we have different logic of finding the process
         if self._pm_process_count > 0:
             raise MetricProviderConfigurationError('Another instance of powermetrics is already running on the system!\n'

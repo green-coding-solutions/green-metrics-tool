@@ -5,7 +5,7 @@ from lib import utils
 from metric_providers.base import BaseMetricProvider
 
 class DiskIoProcfsSystemProvider(BaseMetricProvider):
-    def __init__(self, resolution, rootless=False, skip_check=False):
+    def __init__(self, resolution, skip_check=False):
         super().__init__(
             metric_name='disk_io_procfs_system',
             metrics={'time': int, 'read_sectors': int, 'written_sectors': int, 'device': str},
@@ -14,8 +14,6 @@ class DiskIoProcfsSystemProvider(BaseMetricProvider):
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
-        self._rootless = rootless
-
 
     def read_metrics(self, run_id, containers=None):
         df = super().read_metrics(run_id, containers)
