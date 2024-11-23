@@ -658,3 +658,11 @@ def authenticate(authentication_token=Depends(header_scheme), request: Request =
     except UserAuthenticationError:
         raise HTTPException(status_code=401, detail="Invalid token") from UserAuthenticationError
     return user
+
+def get_connecting_ip(request):
+    connecting_ip = request.headers.get("x-forwarded-for")
+
+    if connecting_ip:
+        return connecting_ip.split(",")[0]
+
+    return request.client.host

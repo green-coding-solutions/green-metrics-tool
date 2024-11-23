@@ -20,6 +20,7 @@ from starlette.datastructures import Headers as StarletteHeaders
 
 import anybadge
 
+from api import eco_ci
 from api.object_specifications import Software
 from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics, determine_comparison_case,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
@@ -731,11 +732,12 @@ async def robots_txt():
 async def read_authentication_token(user: User = Depends(authenticate)):
     return ORJSONResponse({'success': True, 'data': user.to_dict()})
 
+app.include_router(eco_ci.router)
+
 # include enterprise functionality if activated
 if GlobalConfig().config.get('ee_token', False):
-    from ee.api import carbondb, eco_ci, power_hog
+    from ee.api import carbondb, power_hog
     app.include_router(carbondb.router)
-    app.include_router(eco_ci.router)
     app.include_router(power_hog.router)
 
 if __name__ == '__main__':
