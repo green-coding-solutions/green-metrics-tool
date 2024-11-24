@@ -35,8 +35,10 @@ runs:
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
-        ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -b -t -l
+        ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -b -t -l -e
         source venv/bin/activate
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Install dev requirements and run test setup script
       shell: bash
@@ -45,7 +47,7 @@ runs:
         source venv/bin/activate
         python3 -m pip install -r requirements-dev.txt
         playwright install --with-deps firefox
-        cd tests && python3 setup-test-env.py --no-docker-build
+        cd tests && python3 setup-test-env.py --no-docker-build --ee
 
     - name: Set up Docker Buildx
       id: buildx
