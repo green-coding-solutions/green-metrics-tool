@@ -109,4 +109,4 @@ optimization:
     - example_optimization_test
 
 electricity_maps_token: 'testing'
-ee_token: 'testing'
+#ee_token: 'testing'
