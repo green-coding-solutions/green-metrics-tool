@@ -57,14 +57,14 @@ def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
 # Use this function never in the phase_stats. The metrics must always be on
 # The same unit for proper comparison!
 #
-def rescale_energy_value(value, unit):
+def rescale_metric_value(value, unit):
     if unit == 'mJ':
         value = value * 1_000
         unit = 'uJ'
 
     # We only expect values to be uJ for energy in the future. Changing values now temporarily.
     # TODO: Refactor this once all data in the DB is uJ
-    if unit != 'uJ' and not unit.startswith('ugCO2e/'):
+    if unit not in ('uJ', 'ug') and not unit.startswith('ugCO2e/'):
         raise ValueError('Unexpected unit occured for energy rescaling: ', unit)
 
     unit_type = unit[1:]

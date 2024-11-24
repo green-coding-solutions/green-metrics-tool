@@ -382,15 +382,39 @@ function dateTimePicker() {
     });
 }
 
-const getLastRunBadge = async (repo, branch, workflow_id) => {
+const getBadges = async (repo, branch, workflow_id) => {
     try {
         const link_node = document.createElement("a")
         const img_node = document.createElement("img")
         img_node.src = `${API_URL}/v1/ci/badge/get?repo=${repo}&branch=${branch}&workflow=${workflow_id}`
-        link_node.href = window.location.href
-        link_node.appendChild(img_node)
-        document.querySelector("span.energy-badge-container").appendChild(link_node)
-        document.querySelector(".copy-badge").addEventListener('click', copyToClipboard)
+        link_node.href = '#'
+
+        const energy_last = link_node.cloneNode(true)
+        const energy_last_image = img_node.cloneNode(true)
+        energy_last.appendChild(energy_last_image)
+
+        const carbon_last = link_node.cloneNode(true)
+        const carbon_last_image = img_node.cloneNode(true)
+        carbon_last_image.src = `${carbon_last_image.src}&metric=carbon`
+        carbon_last.appendChild(carbon_last_image)
+
+        const energy_totals = link_node.cloneNode(true)
+        const energy_totals_image = img_node.cloneNode(true)
+        energy_totals_image.src = `${energy_totals_image.src}&mode=totals`
+        energy_totals.appendChild(energy_totals_image)
+
+        const carbon_totals = link_node.cloneNode(true)
+        const carbon_totals_image = img_node.cloneNode(true)
+        carbon_totals_image.src = `${carbon_totals_image.src}&mode=totals&metric=carbon`
+        carbon_totals.appendChild(carbon_totals_image)
+
+
+        document.querySelector("#energy-badge-container-last").appendChild(energy_last)
+        document.querySelector("#energy-badge-container-totals").appendChild(energy_totals)
+        document.querySelector("#carbon-badge-container-last").appendChild(carbon_last)
+        document.querySelector("#carbon-badge-container-totals").appendChild(carbon_totals)
+
+        document.querySelectorAll(".copy-badge").forEach(el => {el.addEventListener('click', copyToClipboard)})
     } catch (err) {
         showNotification('Could not get badge data from API', err);
     }
@@ -468,7 +492,7 @@ $(document).ready((e) => {
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params.get('branch'))}</td></tr>`)
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow ID:</strong></td><td>${escapeString(workflow_id)}</td></tr>`)
 
-        getLastRunBadge(repo, branch, workflow_id) // async
+        getBadges(repo, branch, workflow_id) // async
 
         $('#rangestart input').val(new Date((new Date()).setDate((new Date).getDate() -7))) // set default on load
         $('#rangeend input').val(new Date()) // set default on load

@@ -3,8 +3,9 @@ from datetime import date
 from fastapi import APIRouter
 from fastapi import Request, Response, Depends
 from fastapi.responses import ORJSONResponse
+from fastapi.exceptions import RequestValidationError
 
-from api.api_helpers import authenticate, html_escape_multi, get_connecting_ip, rescale_energy_value
+from api.api_helpers import authenticate, html_escape_multi, get_connecting_ip, rescale_metric_value
 from api.object_specifications import CI_Measurement_Old, CI_Measurement
 
 import anybadge
@@ -238,30 +239,47 @@ async def get_ci_runs(repo: str, sort_by: str = 'name'):
     return ORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
 
 @router.get('/v1/ci/badge/get')
-async def get_ci_badge_get(repo: str, branch: str, workflow:str):
-    query = """
-        SELECT SUM(energy_uj), MAX(run_id)
+async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'last', metric: str = 'energy'):
+    if metric == 'energy':
+        metric = 'energy_uj'
+        metric_unit = 'uJ'
+        label = 'Energy used'
+        default_color = 'orange'
+    elif metric == 'carbon':
+        metric = 'carbon_ug'
+        metric_unit = 'ug'
+        label = 'Carbon emitted'
+        default_color = 'black'
+    else:
+        raise RequestValidationError('Unsupported metric requested')
+
+    query = f"""
+        SELECT SUM({metric})
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow_id = %s
-        GROUP BY run_id
-        ORDER BY MAX(created_at) DESC
-        LIMIT 1
     """
+
+    if mode == 'last':
+        query = f"""{query}
+            GROUP BY run_id
+            ORDER BY MAX(created_at) DESC
+        """
+
 
     params = (repo, branch, workflow)
     data = DB().fetch_one(query, params=params)
 
-    if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
+    if data is None or data == [] or data[0] is None: # special check for SUM element as this is aggregate query which always returns result
         return Response(status_code=204) # No-Content
 
-    energy_value = data[0]
+    metric_value = data[0]
 
-    [energy_value, energy_unit] = rescale_energy_value(energy_value, 'uJ')
-    badge_value= f"{energy_value:.2f} {energy_unit}"
+    [metric_value, metric_unit] = rescale_metric_value(metric_value, metric_unit)
+    badge_value= f"{metric_value:.2f} {metric_unit}"
 
     badge = anybadge.Badge(
-        label='Energy Used',
+        label=label,
         value=xml_escape(badge_value),
         num_value_padding_chars=1,
-        default_color='green')
+        default_color=default_color)
     return Response(content=str(badge), media_type="image/svg+xml")
