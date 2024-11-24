@@ -222,3 +222,7 @@ sci:
 # You can get this under https://api-portal.electricitymaps.com/
 # This is a free service please note that you need to pay if you want to use this commercially!
 #electricity_maps_token: '123'
+
+# GMT can activate additional enterprise only functionality
+# If you have a subscription insert your token here
+ee_token: False

@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: 'main'
-          submodules: 'true'
+          submodules: 'false'
 
       - name: Eco CI Energy Estimation - Initialize
         uses: green-coding-solutions/eco-ci-energy-estimation@main

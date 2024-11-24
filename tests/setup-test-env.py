@@ -99,6 +99,18 @@ def edit_compose_file():
     with open(test_compose_path, 'w', encoding='utf8') as test_compose_file:
         yaml.dump(compose, test_compose_file)
 
+def create_test_config_file(ee=False):
+    print('Creating test-config.yml...')
+
+    with open('test-config.yml.example', 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    if ee:
+        print('Activating enterprise ...')
+        content = content.replace('#ee_token:', 'ee_token:')
+
+    with open('test-config.yml', 'w', encoding='utf-8') as file:
+        file.write(content)
 
 def edit_etc_hosts():
     subprocess.run(['./edit-etc-hosts.sh'], check=True)
@@ -112,9 +124,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-docker-build', action='store_true',
                         help='Do not build the docker image')
+    parser.add_argument('--ee', action='store_true',
+                        help='Enable enterprise tests')
+
     args = parser.parse_args()
 
     copy_sql_structure()
+    create_test_config_file(args.ee)
     edit_compose_file()
     edit_etc_hosts()
     if not args.no_docker_build:

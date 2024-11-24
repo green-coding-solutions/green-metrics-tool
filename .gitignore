@@ -24,3 +24,4 @@ static-binary
 /docker/test-compose.yml
 /tests/structure.sql
 tools/sgx_enable
+/tests/test-config.yml

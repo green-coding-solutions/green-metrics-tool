@@ -2,6 +2,10 @@
 API_URL = "__API_URL__"
 METRICS_URL = "__METRICS_URL__"
 
+ACTIVATE_CARBON_DB = __ACTIVATE_CARBON_DB__;
+ACTIVATE_ECO_CI = true; // Eco-CI is always active as open source. But can be deactivated if not needed
+ACTIVATE_POWER_HOG = __ACTIVATE_POWER_HOG__;
+
 /*
     The following are configurations to customize de Detailed Metrics / Compare view according to your needs.
     The components are fixed, but you can rename then and include different metrics if needed
