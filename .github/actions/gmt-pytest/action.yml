@@ -35,7 +35,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}
       run: |
-        ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -b -t -l -e
+        ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -b -t -l -e github-actions-test
         source venv/bin/activate
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
