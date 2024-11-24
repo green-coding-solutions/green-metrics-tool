@@ -238,7 +238,6 @@ async def get_ci_runs(repo: str, sort_by: str = 'name'):
 
     return ORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
 
-@router.get('/v1/ci/badge/get')
 async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'last', metric: str = 'energy'):
     if metric == 'energy':
         metric = 'energy_uj'
@@ -282,4 +281,5 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
         value=xml_escape(badge_value),
         num_value_padding_chars=1,
         default_color=default_color)
+
     return Response(content=str(badge), media_type="image/svg+xml")
