@@ -1,1 +1,0 @@
-../../ee/frontend/js/carbondb-lists.js

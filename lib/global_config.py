@@ -1,6 +1,7 @@
 import os
 import yaml
 
+
 class FrozenDict(dict):
     def __setattr__(self, key, value):
         raise TypeError("GlobalConfig is immutable once loaded! (__setattr__)")
@@ -45,12 +46,10 @@ class GlobalConfig:
             with open(config_location, encoding='utf8') as config_file:
                 self.config = freeze_dict(yaml.load(config_file, yaml.FullLoader))
 
-
     ## add an override function that will always set the config to a new value
     def override_config(self, config_location=f"{os.path.dirname(os.path.realpath(__file__))}/../config.yml"):
         with open(config_location, encoding='utf8') as config_file:
             self.config = freeze_dict(yaml.load(config_file, yaml.FullLoader))
-
 
 if __name__ == '__main__':
     print(GlobalConfig().config['measurement'])
