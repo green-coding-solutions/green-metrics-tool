@@ -10,7 +10,7 @@ from lib.db import DB
 class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
     def __init__(self, *, split_ports=True, skip_check=False):
         super().__init__(
-            metric_name='network_connections_tcpdump_system_provider',
+            metric_name='network_connections_tcpdump_system',
             metrics={},
             resolution=None,
             unit=None,
