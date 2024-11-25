@@ -51,7 +51,7 @@ METRIC_MAPPINGS = {
     },
 
     'psu_energy_cgroup_slice': {
-        'clean_name': 'Container Energy (+Idle)',
+        'clean_name': 'Container Energy (+Baseline-Share)',
         'source': 'estimation',
         'explanation': 'Container energy estimated via CPU-% share (incl. idle)',
     },
@@ -63,7 +63,7 @@ METRIC_MAPPINGS = {
     },
 
     'psu_power_cgroup_slice': {
-        'clean_name': 'Container Power (+Idle)',
+        'clean_name': 'Container Power (+Baseline-Share)',
         'source': 'estimation',
         'explanation': 'Container power estimated via CPU-% share incl. Idle',
     },
