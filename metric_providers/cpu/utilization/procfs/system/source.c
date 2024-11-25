@@ -50,8 +50,8 @@ static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
     // after this multiplication we are on microseconds
     // integer division is deliberately, cause we don't loose precision as *1000000 is done before
 
-    procfs_time_struct->idle_time = procfs_time_struct->wait_time + procfs_time_struct->iowait_time;
-    procfs_time_struct->compute_time = procfs_time_struct->user_time + procfs_time_struct->nice_time + procfs_time_struct->system_time + procfs_time_struct->irq_time + procfs_time_struct->softirq_time + procfs_time_struct->steal_time;
+    procfs_time_struct->idle_time = procfs_time_struct->wait_time + procfs_time_struct->iowait_time + procfs_time_struct->nice_time + procfs_time_struct->irq_time + procfs_time_struct->softirq_time +  procfs_time_struct->steal_time;
+    procfs_time_struct->compute_time = procfs_time_struct->user_time + procfs_time_struct->system_time;
 }
 
 
