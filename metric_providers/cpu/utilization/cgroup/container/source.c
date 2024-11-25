@@ -39,7 +39,7 @@ static long int read_cpu_proc(FILE *fd) {
 
     // after this multiplication we are on microseconds
     // integer division is deliberately, cause we don't loose precision as *1000000 is done before
-    return ((user_time+system_time)*1000000)/user_hz;
+    return ((user_time+nice_time+system_time+idle_time+iowait_time+irq_time+softirq_time+steal_time)*1000000)/user_hz;
 }
 
 
