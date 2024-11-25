@@ -55,7 +55,7 @@ linux_info_list = [
     # If another scaling driver is used the info will be in /sys/devices/system/cpu/cpufreq/boost
     # See https://wiki.archlinux.org/title/CPU_frequency_scaling
     # See further: https://www.kernel.org/doc/html/v5.17/admin-guide/pm/intel_pstate.html#user-space-interface-in-sysfs
-    [rfwr, 'Turbo Boost', '/sys/devices/system/cpu/intel_pstate/no_turbo', r'(?P<o>.*)'],
+    [rfwr, 'Turbo Boost (1=off)', '/sys/devices/system/cpu/intel_pstate/no_turbo', r'(?P<o>.*)'],
     [rfwr, 'Turbo Boost (Legacy non intel_pstate)', '/sys/devices/system/cpu/cpufreq/boost', r'(?P<o>.*)'],
     [rfwr, 'Virtualization', '/proc/cpuinfo', r'(?P<o>hypervisor)'],
     [rpwrs, 'SGX', f"{os.path.join(CURRENT_PATH, '../tools/sgx_enable')} -s", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],

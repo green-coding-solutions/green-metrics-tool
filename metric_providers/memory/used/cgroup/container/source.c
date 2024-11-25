@@ -7,11 +7,12 @@
 #include <getopt.h>
 #include <limits.h>
 #include "parse_int.h"
+#include "detect_cgroup_path.h"
 
 #define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
 
 typedef struct container_t { // struct is a specification and this static makes no sense here
-    char path[PATH_MAX];
+    char* path;
     char id[DOCKER_CONTAINER_ID_BUFFER];
 } container_t;
 
@@ -27,7 +28,7 @@ static unsigned long long int get_memory_cgroup(char* filename) {
 
     FILE * fd = fopen(filename, "r");
     if ( fd == NULL) {
-        fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Are you using --rootless mode? Errno: %d\n", filename, errno);
+        fprintf(stderr, "Error - Could not open path for reading: %s. Maybe the container is not running anymore? Errno: %d\n", filename, errno);
         exit(1);
     }
 
@@ -59,7 +60,7 @@ static void output_stats(container_t *containers, int length) {
     usleep(msleep_time*1000);
 }
 
-static int parse_containers(container_t** containers, char* containers_string, int rootless_mode) {
+static int parse_containers(container_t** containers, char* containers_string) {
     if(containers_string == NULL) {
         fprintf(stderr, "Please supply at least one container id with -s XXXX\n");
         exit(1);
@@ -78,6 +79,7 @@ static int parse_containers(container_t** containers, char* containers_string, i
         //printf("Token: %s\n", id);
         length++;
         *containers = realloc(*containers, length * sizeof(container_t));
+
         if (!containers) {
             fprintf(stderr, "Could not allocate memory for containers string\n");
             exit(1);
@@ -85,17 +87,7 @@ static int parse_containers(container_t** containers, char* containers_string, i
         strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
         (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
 
-        if(rootless_mode) {
-            snprintf((*containers)[length-1].path,
-                PATH_MAX,
-                "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/user.slice/docker-%s.scope/memory.current",
-                user_id, user_id, id);
-        } else {
-            snprintf((*containers)[length-1].path,
-                PATH_MAX,
-                "/sys/fs/cgroup/system.slice/docker-%s.scope/memory.current",
-                id);
-        }
+        (*containers)[length-1].path = detect_cgroup_path("memory.current", user_id, id);
     }
 
     if(length == 0) {
@@ -105,19 +97,15 @@ static int parse_containers(container_t** containers, char* containers_string, i
     return length;
 }
 
-static int check_system(int rootless_mode) {
+static int check_system() {
     const char* check_path;
 
-    if(rootless_mode) {
-        check_path = "/sys/fs/cgroup/user.slice/memory.current";
-    } else {
-        check_path = "/sys/fs/cgroup/system.slice/memory.current";
-    }
+    check_path = "/sys/fs/cgroup/memory.stat"; // note: the .current is only available in slices. if the memory.stat file is present, we expect the .current also in the slices
 
     FILE* fd = fopen(check_path, "r");
 
     if (fd == NULL) {
-        fprintf(stderr, "Couldn't open memory.current file at %s\n", check_path);
+        fprintf(stderr, "Couldn't open memory.stat file at %s\n", check_path);
         exit(1);
     }
     fclose(fd);
@@ -128,7 +116,6 @@ int main(int argc, char **argv) {
 
     int c;
     int check_system_flag = 0;
-    int rootless_mode = 0; // docker root is default
     char *containers_string = NULL;  // Dynamic buffer to store optarg
     container_t *containers = NULL;
 
@@ -137,7 +124,6 @@ int main(int argc, char **argv) {
 
     static struct option long_options[] =
     {
-        {"rootless", no_argument, NULL, 'r'},
         {"help", no_argument, NULL, 'h'},
         {"interval", no_argument, NULL, 'i'},
         {"containers", no_argument, NULL, 's'},
@@ -145,7 +131,7 @@ int main(int argc, char **argv) {
         {NULL, 0, NULL, 0}
     };
 
-    while ((c = getopt_long(argc, argv, "ri:s:hc", long_options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "i:s:hc", long_options, NULL)) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
@@ -156,9 +142,6 @@ int main(int argc, char **argv) {
             exit(0);
         case 'i':
             msleep_time = parse_int(optarg);
-            break;
-        case 'r':
-            rootless_mode = 1;
             break;
         case 's':
             containers_string = (char *)malloc(strlen(optarg) + 1);  // Allocate memory
@@ -179,10 +162,10 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system(rootless_mode));
+        exit(check_system());
     }
 
-    int length = parse_containers(&containers, containers_string, rootless_mode);
+    int length = parse_containers(&containers, containers_string);
 
     while(1) {
         output_stats(containers, length);

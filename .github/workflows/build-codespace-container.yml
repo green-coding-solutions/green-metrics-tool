@@ -20,6 +20,9 @@ jobs:
           gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
           electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_TOKEN }}
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -31,13 +34,21 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ inputs.github-token }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Build and push gunicorn container
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     context: ./docker
+      #     file: ./docker/Dockerfile-gunicorn
+      #     push: true
+      #     tags: ghcr.io/green-coding-berlin/green-coding-gunicorn-container:latest
 
       - name: Build and push Docker container
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: /.devcontainer/containerized/Dockerfile  # Path to the Dockerfile
+          file: ./.devcontainer/containerized/Dockerfile
           push: true
           tags: ghcr.io/green-coding-solutions/codespace-container:latest
 

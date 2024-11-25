@@ -78,7 +78,7 @@ machine:
 measurement:
   system_check_threshold: 3 # Can be 1=INFO, 2=WARN or 3=ERROR
   pre-test-sleep: 5
-  idle-duration: 5
+  idle-duration: 10
   baseline-duration: 5
   post-test-sleep: 5
   phase-transition-time: 1
@@ -103,6 +103,8 @@ measurement:
       memory.used.cgroup.container.provider.MemoryUsedCgroupContainerProvider:
         resolution: 99
       network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
+        resolution: 99
+      disk.io.cgroup.container.provider.DiskIoCgroupContainerProvider:
         resolution: 99
     #--- RAPL - Only enable these if you have RAPL enabled on your machine
 #      cpu.energy.rapl.msr.component.provider.CpuEnergyRaplMsrComponentProvider:
@@ -181,12 +183,13 @@ measurement:
 ######### The value for memory must be in GB not in GiB
 #        HW_MemAmountGB: 16
 #        Hardware_Availability_Year: 2011
+######### vhost_ratio is the virtualization degree of the machine. For Bare Metal this is 1. For 1 out of 4 VMs this would be 0.25 etc.
+#        VHost_Ratio: 1
+#
 ###### DEBUG
 #      network.connections.tcpdump.system.provider.NetworkConnectionsTcpdumpSystemProvider:
 #        split_ports: True
-
-
-  #--- END
+#--- END
 
 
 sci:
@@ -224,3 +227,7 @@ sci:
 # You can get this under https://api-portal.electricitymaps.com/
 # This is a free service please note that you need to pay if you want to use this commercially!
 #electricity_maps_token: '123'
+
+# GMT can activate additional enterprise only functionality
+# If you have a subscription insert your token here
+ee_token: False

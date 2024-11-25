@@ -4,7 +4,7 @@ from lib import utils
 from metric_providers.base import BaseMetricProvider
 
 class DiskIoCgroupContainerProvider(BaseMetricProvider):
-    def __init__(self, resolution, rootless=False, skip_check=False):
+    def __init__(self, resolution, skip_check=False):
         super().__init__(
             metric_name='disk_io_cgroup_container',
             metrics={'time': int, 'read_bytes': int, 'written_bytes': int, 'container_id': str},
@@ -13,7 +13,6 @@ class DiskIoCgroupContainerProvider(BaseMetricProvider):
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
-        self._rootless = rootless
 
     def read_metrics(self, run_id, containers=None):
         df = super().read_metrics(run_id, containers)
@@ -42,5 +41,10 @@ class DiskIoCgroupContainerProvider(BaseMetricProvider):
         df['value'] = df['read_bytes_intervals'] + df['written_bytes_intervals']
         df['value'] = df.value.astype(int)
         df = df.drop(columns=['read_bytes','written_bytes', 'written_bytes_intervals', 'read_bytes_intervals'])  # clean up
+
+        df['detail_name'] = df.container_id
+        for container_id in containers:
+            df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]['name']
+        df = df.drop('container_id', axis=1)
 
         return df
