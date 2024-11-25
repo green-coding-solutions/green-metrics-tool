@@ -108,7 +108,7 @@ def parse_tcpdump(lines, split_ports=False):
                     length_match = re.search(length_pattern, line)
 
                     if not length_match or not length_match.group(1):
-                        if '.53 ' in line or '.53:' in line: # try DNS match
+                        if '.53 ' in line or '.53:' in line or '.5353 ' in line or '.5353:' in line: # try DNS / MDNS match
                             dns_packet_length = re.match(r'.*\((\d+)\)$', line)
                             if not dns_packet_length:
                                 raise RuntimeError(f"Could not find TCP packet length for line: {line}")
