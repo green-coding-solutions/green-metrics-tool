@@ -43,9 +43,15 @@ class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
         if not stderr:
             return stderr
 
-        # truncate the first bogus line with information similar to:
+        # truncate the first two bogus line with information similar to:
         # tcpdump: listening on eno2, link-type EN10MB (Ethernet), snapshot length 262144 bytes
-        return stderr[stderr.find("\n")+1:]
+        line_token = stderr.find("\n")
+        if line_token and 'tcpdump: data link type' in stderr[:line_token]:
+            stderr = stderr[stderr.find("\n")+1:]
+        if line_token and 'tcpdump: listening on' in stderr[:line_token]:
+            stderr = stderr[stderr.find("\n")+1:]
+
+        return stderr
 
 def get_primary_interface():
     gateways = netifaces.gateways()

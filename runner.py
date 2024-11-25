@@ -1072,9 +1072,10 @@ class Runner:
         self.custom_sleep(2)
 
         for metric_provider in self.__metric_providers:
-            if metric_provider._metric_name.endswith('_container') and not allow_container:
+            if (metric_provider._metric_name.endswith('_container') or metric_provider._metric_name == 'network_connections_tcpdump_system' ) and not allow_container:
                 continue
-            if not metric_provider._metric_name.endswith('_container') and not allow_other:
+
+            if not metric_provider._metric_name.endswith('_container') and metric_provider._metric_name != 'network_connections_tcpdump_system' and not allow_other:
                 continue
 
             stderr_read = metric_provider.get_stderr()

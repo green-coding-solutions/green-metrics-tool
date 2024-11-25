@@ -152,8 +152,7 @@ measurement:
 #        resolution: 99
 #      memory.used.procfs.system.provider.MemoryUsedProcfsSystemProvider:
 #        resolution: 99
-#      network.connections.tcpdump.system.provider.NetworkConnectionsTcpdumpSystemProvider:
-#        split_ports: True
+
     #--- Architecture - MacOS
     macos:
     #--- MacOS: On Mac you only need this provider. Please remove all others!
@@ -182,6 +181,11 @@ measurement:
 ######### The value for memory must be in GB not in GiB
 #        HW_MemAmountGB: 16
 #        Hardware_Availability_Year: 2011
+###### DEBUG
+#      network.connections.tcpdump.system.provider.NetworkConnectionsTcpdumpSystemProvider:
+#        split_ports: True
+
+
   #--- END
 
 
