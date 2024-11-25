@@ -26,6 +26,18 @@ METRIC_MAPPINGS = {
         'explanation': 'Disk I/O via procfs',
     },
 
+    'disk_io_cgroup_container_clean_name': {
+        'clean_name': 'Disk I/O',
+        'source': 'cgroup',
+        'explanation': 'Disk I/O per container',
+    },
+
+    'disk_total_cgroup_container_clean_name': {
+        'clean_name': 'Disk Data',
+        'source': 'formula',
+        'explanation': 'Disk I/O totals accumulated via cgroup per container',
+    },
+
     'disk_total_procfs_system': {
         'clean_name': 'Disk Data',
         'source': 'formula',

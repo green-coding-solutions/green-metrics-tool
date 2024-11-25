@@ -42,4 +42,9 @@ class DiskIoCgroupContainerProvider(BaseMetricProvider):
         df['value'] = df.value.astype(int)
         df = df.drop(columns=['read_bytes','written_bytes', 'written_bytes_intervals', 'read_bytes_intervals'])  # clean up
 
+        df['detail_name'] = df.container_id
+        for container_id in containers:
+            df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]['name']
+        df = df.drop('container_id', axis=1)
+
         return df

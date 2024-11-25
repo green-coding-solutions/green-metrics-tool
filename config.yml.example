@@ -104,6 +104,8 @@ measurement:
         resolution: 99
       network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
         resolution: 99
+      disk.io.cgroup.container.provider.DiskIoCgroupContainerProvider:
+        resolution: 99
     #--- RAPL - Only enable these if you have RAPL enabled on your machine
 #      cpu.energy.rapl.msr.component.provider.CpuEnergyRaplMsrComponentProvider:
 #        resolution: 99
