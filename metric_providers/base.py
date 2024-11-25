@@ -99,7 +99,7 @@ class BaseMetricProvider:
 
     def check_monotonic(self, df):
         if not df['time'].is_monotonic_increasing:
-            raise ValueError(f"Data from metric provider {self._metric_name} is not monotonic increasing")
+            raise ValueError(f"Time from metric provider {self._metric_name} is not monotonic increasing")
 
     def check_resolution_underflow(self, df):
         if self._unit in ['mJ', 'uJ', 'Hz', 'us']:
