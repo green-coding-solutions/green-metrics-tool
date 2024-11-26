@@ -180,7 +180,7 @@ def build_and_store_phase_stats(run_id, sci=None):
         if phase['name'] == '[RUNTIME]' and machine_carbon_in_ug is not None and sci is not None and sci.get('R', 0) != 0:
             csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_carbon_in_ug + embodied_carbon_share_ug + network_io_carbon_in_ug) / sci['R'], 'TOTAL', None, None, f"ugCO2e/{sci['R_d']}"))
 
-        if machine_power_baseline and cpu_utilization_machine and cpu_utilization_containers:
+        if machine_power_phase and machine_power_baseline and cpu_utilization_machine and cpu_utilization_containers:
             surplus_power_runtime = machine_power_phase - machine_power_baseline
             surplus_energy_runtime = machine_energy_phase - (machine_power_baseline * decimal.Decimal(duration / 10**6)) # we do not subtract phase energy here but calculate, becuase phases have different length
 
