@@ -108,6 +108,7 @@ def build_and_store_phase_stats(run_id, sci=None):
                 'cpu_utilization_procfs_system',
                 'cpu_utilization_mach_system',
                 'cpu_utilization_cgroup_container',
+                'cpu_utilization_cgroup_system',
                 'memory_used_cgroup_container',
                 'memory_used_procfs_system',
                 'energy_impact_powermetrics_vm',
@@ -118,7 +119,7 @@ def build_and_store_phase_stats(run_id, sci=None):
 
                 if metric in ('cpu_utilization_procfs_system', 'cpu_utilization_mach_system'):
                     cpu_utilization_machine = avg_value
-                if metric in ('cpu_utilization_cgroup_container', ):
+                if metric in ('cpu_utilization_cgroup_container', 'cpu_utilization_cgroup_system', ):
                     cpu_utilization_containers[detail_name] = avg_value
 
             elif metric in ['network_io_cgroup_container', 'network_io_procfs_system', 'disk_io_procfs_system', 'disk_io_cgroup_container']:

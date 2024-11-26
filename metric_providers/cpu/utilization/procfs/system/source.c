@@ -14,8 +14,13 @@ typedef struct procfs_time_t { // struct is a specification and this static make
     unsigned long iowait_time;
     unsigned long irq_time;
     unsigned long softirq_time;
-    unsigned long steal_time;
-    // guest times are ignored as they are already accounted in user_time, system_time
+    // technically here is also steal_time, guest_time, guest_nice time
+    // but these values are not compatible with old systems (to be fair: < linux 2.6)
+    // but they are zero in our non-virtualized setups anyway
+    // and if you are in a virtualized environment we make the case, that this is not time we see as the utilization of the looked at system. It happended outside
+    // gmt reporters are to capture the work done. Not all time executed somewhere out of scope
+
+
     unsigned long compute_time; // custom attr by us not in standard /proc/stat format
     unsigned long idle_time; // custom attr by us not in standard /proc/stat format
 } procfs_time_t;
@@ -36,19 +41,21 @@ static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
         exit(1);
     }
 
-    int match_result = fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld %ld", &procfs_time_struct->user_time, &procfs_time_struct->nice_time, &procfs_time_struct->system_time, &procfs_time_struct->wait_time, &procfs_time_struct->iowait_time, &procfs_time_struct->irq_time, &procfs_time_struct->softirq_time, &procfs_time_struct->steal_time);
-    if (match_result != 8) {
+    // see explanation above in procfs_time_struct why we do not caputure steal_time etc.
+    int match_result = fscanf(fd, "cpu %ld %ld %ld %ld %ld %ld %ld", &procfs_time_struct->user_time, &procfs_time_struct->nice_time, &procfs_time_struct->system_time, &procfs_time_struct->wait_time, &procfs_time_struct->iowait_time, &procfs_time_struct->irq_time, &procfs_time_struct->softirq_time);
+    if (match_result != 7) {
         fprintf(stderr, "Could not match cpu usage pattern\n");
         exit(1);
     }
 
     // debug
-    // printf("Read: cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", procfs_time_struct->user_time, procfs_time_struct->nice_time, procfs_time_struct->system_time, procfs_time_struct->idle_time, procfs_time_struct->iowait_time, procfs_time_struct->irq_time, procfs_time_struct->softirq_time, procfs_time_struct->steal_time);
+    // printf("Read: cpu %ld %ld %ld %ld %ld %ld %ld %ld %ld\n", procfs_time_struct->user_time, procfs_time_struct->nice_time, procfs_time_struct->system_time, procfs_time_struct->idle_time, procfs_time_struct->iowait_time, procfs_time_struct->irq_time, procfs_time_struct->softirq_time);
 
     fclose(fd);
 
-    procfs_time_struct->idle_time = procfs_time_struct->wait_time + procfs_time_struct->iowait_time + procfs_time_struct->nice_time + procfs_time_struct->irq_time + procfs_time_struct->softirq_time +  procfs_time_struct->steal_time;
-    procfs_time_struct->compute_time = procfs_time_struct->user_time + procfs_time_struct->system_time;
+    procfs_time_struct->idle_time = procfs_time_struct->wait_time + procfs_time_struct->iowait_time + procfs_time_struct->nice_time + procfs_time_struct->irq_time + procfs_time_struct->softirq_time;
+    // in /proc/stat nice time is NOT included in the user time! (it is in cgroups however though)
+    procfs_time_struct->compute_time = procfs_time_struct->user_time + procfs_time_struct->system_time + procfs_time_struct->nice_time;
 }
 
 
