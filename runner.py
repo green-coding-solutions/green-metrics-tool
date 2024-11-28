@@ -1611,30 +1611,35 @@ class Runner:
                 self.read_container_logs()
             except BaseException as exc:
                 self.add_to_log(exc.__class__.__name__, str(exc))
+                self.set_run_failed()
                 raise exc
             finally:
                 try:
                     self.read_and_cleanup_processes()
                 except BaseException as exc:
                     self.add_to_log(exc.__class__.__name__, str(exc))
+                    self.set_run_failed()
                     raise exc
                 finally:
                     try:
                         self.save_notes_runner()
                     except BaseException as exc:
                         self.add_to_log(exc.__class__.__name__, str(exc))
+                        self.set_run_failed()
                         raise exc
                     finally:
                         try:
                             self.stop_metric_providers()
                         except BaseException as exc:
                             self.add_to_log(exc.__class__.__name__, str(exc))
+                            self.set_run_failed()
                             raise exc
                         finally:
                             try:
                                 self.save_stdout_logs()
                             except BaseException as exc:
                                 self.add_to_log(exc.__class__.__name__, str(exc))
+                                self.set_run_failed()
                                 raise exc
                             finally:
                                 try:
@@ -1651,6 +1656,7 @@ class Runner:
 
                                 except BaseException as exc:
                                     self.add_to_log(exc.__class__.__name__, str(exc))
+                                    self.set_run_failed()
                                     raise exc
                                 finally:
                                     self.cleanup()  # always run cleanup automatically after each run
