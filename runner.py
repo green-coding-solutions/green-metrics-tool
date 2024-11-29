@@ -464,6 +464,8 @@ class Runner:
             machine_specs.update(machine_specs_root)
 
         measurement_config = {}
+
+        measurement_config['settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric-providers'}
         measurement_config['providers'] = utils.get_metric_providers(config)
         measurement_config['sci'] = self._sci
 
