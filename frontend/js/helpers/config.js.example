@@ -14,6 +14,12 @@ ACTIVATE_POWER_HOG = __ACTIVATE_POWER_HOG__;
 METRIC_MAPPINGS = {
 
 
+    'cpu_utilization_cgroup_system': {
+        'clean_name': 'CPU %',
+        'source': 'cgroup',
+        'explanation': 'CPU Utilization per system cgroup',
+    },
+
     'disk_used_statvfs_system': {
         'clean_name': 'Disk Usage',
         'source': 'statvfs syscall',
@@ -26,13 +32,13 @@ METRIC_MAPPINGS = {
         'explanation': 'Disk I/O via procfs',
     },
 
-    'disk_io_cgroup_container_clean_name': {
+    'disk_io_cgroup_container': {
         'clean_name': 'Disk I/O',
         'source': 'cgroup',
         'explanation': 'Disk I/O per container',
     },
 
-    'disk_total_cgroup_container_clean_name': {
+    'disk_total_cgroup_container': {
         'clean_name': 'Disk Data',
         'source': 'formula',
         'explanation': 'Disk I/O totals accumulated via cgroup per container',

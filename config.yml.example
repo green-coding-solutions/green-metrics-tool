@@ -157,8 +157,10 @@ measurement:
 #      cpu.utilization.cgroup.system.provider.CpuUtilizationCgroupSystemProvider:
 #        resolution: 99
 #        cgroups:
-#            "org.gnome.Shell@wayland.service": "Window Manager incl. X11"
-#            "session-2.scope": "GNOME Desktop"
+#            "org.gnome.Shell@wayland.service":
+#                name: "Window Manager incl. X11"
+#            "session-2.scope":
+#                name: "GNOME Desktop"
 
     #--- Architecture - MacOS
     macos:
