@@ -14,6 +14,24 @@ ACTIVATE_POWER_HOG = __ACTIVATE_POWER_HOG__;
 METRIC_MAPPINGS = {
 
 
+    'memory_used_cgroup_system': {
+        'clean_name': 'Memory Used',
+        'source': 'cgroup',
+        'explanation': 'Memory used in system cgroup',
+    },
+
+    'disk_total_cgroup_system': {
+        'clean_name': 'Disk Data',
+        'source': 'cgroup',
+        'explanation': 'Disk I/O totals accumulated via system cgroup',
+    },
+
+    'disk_io_cgroup_system': {
+        'clean_name': 'Disk I/O',
+        'source': 'cgroup',
+        'explanation': 'Disk I/O per system cgroup',
+    },
+
     'cpu_utilization_cgroup_system': {
         'clean_name': 'CPU %',
         'source': 'cgroup',
