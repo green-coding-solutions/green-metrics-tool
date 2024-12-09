@@ -298,5 +298,19 @@ const displayComparisonMetrics = (phase_stats_object) => {
     // marks the first runtime step and is shown by default
     document.querySelector('a.step[data-tab="[RUNTIME]"').dispatchEvent(new Event('click'));
 
+    // now we override if given
+    let phase_to_display = window.location.hash.split('#')[1];
+    if (phase_to_display != null) {
+        const allowed_phases = ['BASELINE', 'INSTALLATION', 'BOOT', 'IDLE', 'RUNTIME', 'REMOVE'];
+        phase_to_display = phase_to_display.split('__');
+        if (allowed_phases.includes(phase_to_display[0])) {
+            document.querySelector(`a.step[data-tab="[${phase_to_display[0]}]"`).dispatchEvent(new Event('click'));
+        }
+        const sub_phase_regex = /^[\.\s0-9a-zA-Z_\(\)-]+$/; // Matches strings containing only letters and digits
+        if (phase_to_display[1] != null && sub_phase_regex.test(phase_to_display[1])) {
+            document.querySelector(`a.runtime-step[data-tab="${phase_to_display[1]}"`).dispatchEvent(new Event('click'));
+        }
+    }
+
     window.dispatchEvent(new Event('resize'));
 }
