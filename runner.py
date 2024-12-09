@@ -1041,11 +1041,18 @@ class Runner:
 
         print(TerminalColors.HEADER, '\nStarting metric providers', TerminalColors.ENDC)
 
+        # Here we start all container related providers
+        # This includes tcpdump, which is only for debugging of the containers itself
+        # If debugging of the tool itself is wanted tcpdump should be started adjacent to the tool and not inline
         for metric_provider in self.__metric_providers:
-            if metric_provider._metric_name.endswith('_container') and not allow_container:
+            if (metric_provider._metric_name.endswith('_container') or metric_provider._metric_name == 'network_connections_tcpdump_system' ) and not allow_container:
                 continue
-            if not metric_provider._metric_name.endswith('_container') and not allow_other:
+
+            if not metric_provider._metric_name.endswith('_container') and metric_provider._metric_name != 'network_connections_tcpdump_system' and not allow_other:
                 continue
+
+            if metric_provider.has_started():
+                raise RuntimeError(f"Metric provider {metric_provider.__class__.__name__} was already started!")
 
             message = f"Booting {metric_provider.__class__.__name__}"
             metric_provider.start_profiling(self.__containers)
@@ -1058,9 +1065,10 @@ class Runner:
         self.custom_sleep(2)
 
         for metric_provider in self.__metric_providers:
-            if metric_provider._metric_name.endswith('_container') and not allow_container:
+            if (metric_provider._metric_name.endswith('_container') or metric_provider._metric_name == 'network_connections_tcpdump_system' ) and not allow_container:
                 continue
-            if not metric_provider._metric_name.endswith('_container') and not allow_other:
+
+            if not metric_provider._metric_name.endswith('_container') and metric_provider._metric_name != 'network_connections_tcpdump_system' and not allow_other:
                 continue
 
             stderr_read = metric_provider.get_stderr()
@@ -1444,7 +1452,7 @@ class Runner:
         if logs_as_str:
             DB().query("""
                 UPDATE runs
-                SET logs=%s
+                SET logs = COALESCE(logs, '') || %s -- append
                 WHERE id = %s
                 """, params=(logs_as_str, self._run_id))
 
@@ -1617,21 +1625,21 @@ class Runner:
                 raise exc
             finally:
                 try:
-                    self.read_and_cleanup_processes()
+                    self.stop_metric_providers()
                 except BaseException as exc:
                     self.add_to_log(exc.__class__.__name__, str(exc))
                     self.set_run_failed()
                     raise exc
                 finally:
                     try:
-                        self.save_notes_runner()
+                        self.read_and_cleanup_processes()
                     except BaseException as exc:
                         self.add_to_log(exc.__class__.__name__, str(exc))
                         self.set_run_failed()
                         raise exc
                     finally:
                         try:
-                            self.stop_metric_providers()
+                            self.save_notes_runner()
                         except BaseException as exc:
                             self.add_to_log(exc.__class__.__name__, str(exc))
                             self.set_run_failed()

@@ -132,9 +132,9 @@ class RunUntilManager:
             self.__runner.update_start_and_end_times()
             self.__runner.store_phases()
             self.__runner.read_container_logs()
+            self.__runner.stop_metric_providers()
             self.__runner.read_and_cleanup_processes()
             self.__runner.save_notes_runner()
-            self.__runner.stop_metric_providers()
             self.__runner.save_stdout_logs()
 
             if self.__runner._dev_no_phase_stats is False:
