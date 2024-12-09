@@ -299,7 +299,7 @@ const displayComparisonMetrics = (phase_stats_object) => {
     document.querySelector('a.step[data-tab="[RUNTIME]"').dispatchEvent(new Event('click'));
 
     // now we override if given
-    let phase_to_display = window.location.hash.split('#')[1];
+    let phase_to_display = decodeURIComponent(window.location.hash).split('#')[1];
     if (phase_to_display != null) {
         const allowed_phases = ['BASELINE', 'INSTALLATION', 'BOOT', 'IDLE', 'RUNTIME', 'REMOVE'];
         phase_to_display = phase_to_display.split('__');
