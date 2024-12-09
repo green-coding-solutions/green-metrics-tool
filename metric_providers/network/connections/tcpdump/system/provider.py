@@ -2,7 +2,7 @@ import os
 import re
 from collections import defaultdict
 import ipaddress
-#import netifaces
+# import netifaces # netifaces has been abandoned. Find new implementation TODO
 
 from metric_providers.base import BaseMetricProvider
 from lib.db import DB
@@ -161,13 +161,16 @@ def parse_ip_port(address):
         return None, None
 
 def generate_stats_string(stats, filter_host=False):
-    primary_interface = get_primary_interface()
-    ip_addresses = get_ip_addresses(primary_interface)
+
+    if filter_host:
+        raise NotImplementedError('netifaces has been abandoned. A new implementation to enable filter_host is not done yet')
+    #primary_interface = get_primary_interface()
+    #ip_addresses = get_ip_addresses(primary_interface)
 
     buffer = []
     for ip, data in stats.items():
-        if filter_host and ip in ip_addresses:
-            continue
+        #if filter_host and ip in ip_addresses:
+        #    continue
 
         buffer.append(f"IP: {ip} (as sender or receiver. aggregated)")
         buffer.append(f"  Total transmitted data: {data['total_bytes']} bytes")
