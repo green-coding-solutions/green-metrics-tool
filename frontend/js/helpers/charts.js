@@ -95,9 +95,9 @@ const getCompareChartOptions = (legend, series, chart_type='line', x_axis='time'
             mark_point.data.push({ name: 'Missing', coord: [0, 0], value: 'Missing Data', label: { show: true } })
         } else { // single runs have missing metrics. Happens if run ended prematurely in earlier phase or did not run at all
             data = series[index]
-            for (el_index in series[index]) {
-                if (series[index][el_index] == null) {
-                    mark_point.data.push({ name: 'Missing', coord: [el_index, 0], value: 'Missing Data', label: { show: true } })
+            for (let i = 0; i < series[index].length; i++) {
+                if (series[index][i] == null) {
+                    mark_point.data.push({ name: 'Missing', coord: [i, 0], value: 'Missing Data', label: { show: true } })
                 }
             }
         }
@@ -553,11 +553,11 @@ const displayTotalChart = (legend, labels, data) => {
 
     const series = [];
 
-    for (const key in data) {
+    for (let key in data) {
         const mark_point_data = []
-        for (el_index in data[key]) {
-            if (data[key][el_index] == null) {
-                mark_point_data.push({ name: 'Missing', coord: [parseInt(el_index), 0], value: 'Missing Data', label: { show: true } })
+        for (let i = 0; i < data[key].length; i++) {
+            if (data[key][i] == null) {
+                mark_point_data.push({ name: 'Missing', coord: [i, 0], value: 'Missing Data', label: { show: true } })
             }
         }
         series.push({
