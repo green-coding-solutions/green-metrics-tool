@@ -14,9 +14,10 @@ if __name__ == '__main__':
 
     ids = args.ids.split(',')
 
-    case = api_helpers.determine_comparison_case(ids)
+    case, comparison_db_key = api_helpers.determine_comparison_case(ids)
+    comparison_details = api_helpers.get_comparison_details(ids, comparison_db_key)
     phase_stats = api_helpers.get_phase_stats(ids)
-    phase_stats_object = api_helpers.get_phase_stats_object(phase_stats, case)
+    phase_stats_object = api_helpers.get_phase_stats_object(phase_stats, case, comparison_details)
     phase_stats_object = api_helpers.add_phase_stats_statistics(phase_stats_object)
 
     print(json.dumps(phase_stats_object, indent=4))
