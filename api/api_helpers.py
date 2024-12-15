@@ -250,7 +250,7 @@ def get_comparison_details(ids, comparison_db_key):
     ''').format(sql.Identifier(comparison_db_key))
 
     data = DB().fetch_all(query, (ids, ))
-    if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
+    if data is None or data == []:
         raise RuntimeError('Could not get comparison details')
 
     comparison_details = OrderedDict()
