@@ -1,13 +1,3 @@
-const numberFormatter = new Intl.NumberFormat('en-US', {
-  style: 'decimal',
-  maximumFractionDigits: 2,
-});
-
-const numberFormatterLong = new Intl.NumberFormat('en-US', {
-  style: 'decimal',
-  maximumFractionDigits: 4,
-});
-
 const calculateStats = (energy_measurements, carbon_ug_measurements, carbon_intensity_g_measurements, duration_us_measurements, cpu_util_measurements) => {
 
     let energy_avg = energy_stddev = energy_stddev_rel = energy_sum = '--'
