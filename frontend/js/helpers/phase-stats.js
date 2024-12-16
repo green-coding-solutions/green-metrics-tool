@@ -58,7 +58,7 @@ const getAndShowPhase = () => {
     } else {
         // although there are multiple .step.runtime-step containers the first one
         // marks the first runtime step and is shown by default
-        document.querySelector('a.step[data-tab="[RUNTIME]"').dispatchEvent(new Event('click'));
+        document.querySelector('a.step[data-tab="[RUNTIME]"]').dispatchEvent(new Event('click'));
     }
 
     return shown_phase;
