@@ -20,6 +20,7 @@ const getCompareChartOptions = (legend, series, chart_type='line', x_axis='time'
         tooltip: {
             triggerOn: 'click',
             formatter: function (params, ticket, callback) {
+                if(params.componentType != 'series') return; // no overlay for markLine and markArea etc.
                 if (select_diff_buffer.length > 0) {
                     window.open(`/compare.html?ids=${select_diff_buffer[0]},${comparison_details[params.seriesIndex][params.dataIndex].run_id}`, '_blank');
                     select_diff_buffer = [] // reset
