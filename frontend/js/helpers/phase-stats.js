@@ -112,7 +112,7 @@ const createPhaseTab = (phase) => {
 
 const buildPhaseTabs = (phase_stats_object) => {
 
-    for (phase in phase_stats_object['data']) {
+    for (const phase in phase_stats_object['data']) {
         createPhaseTab(phase); // will not create already existing phase tabs
         createTableHeader(
             phase,
