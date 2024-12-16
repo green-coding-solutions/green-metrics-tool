@@ -311,3 +311,7 @@ a,
     page-break-before: always;
   }
 }
+
+
+/* Allow clickable boxes for chart overlays */
+.statistics-chart div { pointer-events: all !important }

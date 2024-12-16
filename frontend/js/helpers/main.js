@@ -269,6 +269,18 @@ async function sortName() {
     await getRepositories('name');
 }
 
+const numberFormatter = new Intl.NumberFormat('en-US', {
+  style: 'decimal', // You can also use 'currency', 'percent', or 'unit'
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+const numberFormatterLong = new Intl.NumberFormat('en-US', {
+  style: 'decimal',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 4,
+});
+
 $(document).ready(function () {
     $(document).on('click','#menu-toggle.closed', openMenu);
     $(document).on('click','#menu-toggle.opened', closeMenu);
