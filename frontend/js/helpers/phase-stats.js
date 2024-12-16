@@ -65,7 +65,8 @@ const getAndShowPhase = () => {
 }
 
 const showWarning = (phase, warning) => {
-    if (phase == '[RUNTIME]' ) phase == '[[RUNTIME]]';
+    if (phase == '[RUNTIME]' ) phase = '[[RUNTIME]]'; // map to "All Flows" phase
+
     document.querySelector(`div.tab[data-tab='${phase}'] .ui.warning.message`).classList.remove('hidden');
     const newListItem = document.createElement("li");
     newListItem.textContent = warning;
