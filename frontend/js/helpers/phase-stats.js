@@ -219,7 +219,7 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_
             let compare_chart_data = []
             let compare_chart_mark = []
             let compare_chart_labels = []
-            let metric_box_data = [...Array(phase_stats_object.comparison_identifiers.length)].map(e => {{}})
+            let metric_box_data = Array(phase_stats_object.comparison_identifiers.length).fill().map(() => ({}))
 
             // we loop over all keys that exist, not over the one that are present in detail_data['data']
             phase_stats_object.comparison_identifiers.forEach((key,key_index) => {
