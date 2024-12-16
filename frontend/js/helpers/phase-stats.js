@@ -201,9 +201,16 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_
             /* END BLOCK LABELS*/
 
             if (
-                (phase_stats_object.comparison_identifiers.length == 2 && detail_data['data'][phase_stats_object.comparison_identifiers[0]]?.values?.length != detail_data['data'][phase_stats_object.comparison_identifiers[1]]?.values?.length)
+                (phase_stats_object.comparison_identifiers.length == 2
+                    && (
+                        detail_data['data'][phase_stats_object.comparison_identifiers[0]]?.values == null
+                        || detail_data['data'][phase_stats_object.comparison_identifiers[0]]?.values?.includes(null)
+                        || detail_data['data'][phase_stats_object.comparison_identifiers[1]]?.values == null
+                        || detail_data['data'][phase_stats_object.comparison_identifiers[1]].values.includes(null)
+                    )
+                )
                 ||
-                (phase_stats_object.comparison_identifiers.length == 1 && detail_data['data'][phase_stats_object.comparison_identifiers[0]]?.values?.length != run_count)
+                (phase_stats_object.comparison_identifiers.length == 1 && detail_data['data'][phase_stats_object.comparison_identifiers[0]]?.values?.includes(null))
             ) {
                 showWarning(phase, `${metric_name} ${detail_name} was missing from at least one comparison.`)
             }
