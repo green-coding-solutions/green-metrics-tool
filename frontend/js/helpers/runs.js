@@ -11,7 +11,7 @@ const updateCompareCount = () => {
     const countButton = document.getElementById('compare-button');
     const checkedCount = document.querySelectorAll('input[type=checkbox]:checked').length;
     countButton.textContent = `Compare: ${checkedCount} Run(s)`;
-    if (checkedCount == 0) {
+    if (checkedCount === 0) {
         document.querySelector('#unselect-button').style.display = 'none';
     } else {
         document.querySelector('#unselect-button').style.display = 'block';
