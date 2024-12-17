@@ -169,6 +169,9 @@ class Runner:
         Path(path).mkdir(parents=True, exist_ok=True)
 
     def save_notes_runner(self):
+        if not self._run_id:
+            return # Nothing to do, but also no hard error needed
+
         print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
         self.__notes_helper.save_to_db(self._run_id)
 
@@ -1370,6 +1373,9 @@ class Runner:
         self.__notes_helper.add_note({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
 
     def update_start_and_end_times(self):
+        if not self._run_id:
+            return # Nothing to do, but also no hard error needed
+
         print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
         DB().query("""
             UPDATE runs
@@ -1391,6 +1397,9 @@ class Runner:
 
 
     def store_phases(self):
+        if not self._run_id:
+            return # Nothing to do, but also no hard error needed
+
         print(TerminalColors.HEADER, '\nUpdating phases in DB', TerminalColors.ENDC)
         # internally PostgreSQL stores JSON ordered. This means our name-indexed dict will get
         # re-ordered. Therefore we change the structure and make it a list now.
@@ -1437,6 +1446,9 @@ class Runner:
                 self.add_to_log(container_id, f"stderr: {log.stderr}")
 
     def save_stdout_logs(self):
+        if not self._run_id:
+            return # Nothing to do, but also no hard error needed
+
         print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
         logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.__stdout_logs.items()])
         logs_as_str = logs_as_str.replace('\x00','')
@@ -1643,7 +1655,7 @@ class Runner:
                                 raise exc
                             finally:
                                 try:
-                                    if self._dev_no_phase_stats is False:
+                                    if self._run_id and self._dev_no_phase_stats is False:
                                         # After every run, even if it failed, we want to generate phase stats.
                                         # They will not show the accurate data, but they are still neded to understand how
                                         # much a failed run has accrued in total energy and carbon costs
