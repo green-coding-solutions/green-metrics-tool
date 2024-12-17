@@ -278,7 +278,11 @@ a,
     overflow: scroll;
 }
 
-#compare-button, #sort-button {
+#unselect-button {
+    display: none;
+}
+
+#sort-button {
     float: right;
 }
 
