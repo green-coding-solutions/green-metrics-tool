@@ -126,26 +126,6 @@ class Runner:
             print(TerminalColors.HEADER, '\nSleeping for : ', sleep_time, TerminalColors.ENDC)
             time.sleep(sleep_time)
 
-    def initialize_run(self):
-        # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
-
-        # we also update the branch here again, as this might not be main in case of local filesystem
-        self._run_id = DB().fetch_one("""
-                INSERT INTO runs (
-                    job_id, name, uri, email, branch, filename, commit_hash,
-                    commit_timestamp, runner_arguments, user_id, created_at
-                )
-                VALUES (
-                    %s, %s, %s, 'manual', %s, %s, %s,
-                    %s, %s, %s, NOW()
-                )
-                RETURNING id
-                """, params=(
-                    self._job_id, self._name, self._uri, self._branch, self._original_filename, self._commit_hash,
-                    self._commit_timestamp, json.dumps(self._arguments), self._user_id
-                ))[0]
-        return self._run_id
-
     def get_optimizations_ignore(self):
         return self._usage_scenario.get('optimizations_ignore', [])
 
@@ -189,6 +169,9 @@ class Runner:
         Path(path).mkdir(parents=True, exist_ok=True)
 
     def save_notes_runner(self):
+        if not self._run_id:
+            return # Nothing to do, but also no hard error needed
+
         print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
         self.__notes_helper.save_to_db(self._run_id)
 
@@ -448,7 +431,7 @@ class Runner:
         machine = Machine(machine_id=config['machine'].get('id'), description=config['machine'].get('description'))
         machine.register()
 
-    def update_and_insert_specs(self):
+    def initialize_run(self):
         config = GlobalConfig().config
 
         gmt_hash, _ = get_repo_info(CURRENT_DIR)
@@ -469,21 +452,32 @@ class Runner:
         measurement_config['providers'] = utils.get_metric_providers(config)
         measurement_config['sci'] = self._sci
 
-        # Insert auxilary info for the run. Not critical.
-        DB().query("""
-            UPDATE runs
-            SET
-                machine_id=%s, machine_specs=%s, measurement_config=%s,
-                usage_scenario = %s, gmt_hash=%s
-            WHERE id = %s
-            """, params=(
-            config['machine']['id'],
-            escape(json.dumps(machine_specs), quote=False),
-            json.dumps(measurement_config),
-            escape(json.dumps(self._usage_scenario), quote=False),
-            gmt_hash,
-            self._run_id)
-        )
+
+        # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
+        self._run_id = DB().fetch_one("""
+                INSERT INTO runs (
+                    job_id, name, uri, branch, filename,
+                    commit_hash, commit_timestamp, runner_arguments,
+                    machine_specs, measurement_config,
+                    usage_scenario, gmt_hash,
+                    machine_id, user_id, created_at
+                )
+                VALUES (
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s,
+                    %s, %s,
+                    %s, %s,
+                    %s, %s, NOW()
+                )
+                RETURNING id
+                """, params=(
+                    self._job_id, self._name, self._uri, self._branch, self._original_filename,
+                    self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
+                    escape(json.dumps(machine_specs), quote=False), json.dumps(measurement_config),
+                    escape(json.dumps(self._usage_scenario), quote=False), gmt_hash,
+                    GlobalConfig().config['machine']['id'], self._user_id,
+                ))[0]
+        return self._run_id
 
     def import_metric_providers(self):
         if self._dev_no_metrics:
@@ -1379,6 +1373,9 @@ class Runner:
         self.__notes_helper.add_note({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
 
     def update_start_and_end_times(self):
+        if not self._run_id:
+            return # Nothing to do, but also no hard error needed
+
         print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
         DB().query("""
             UPDATE runs
@@ -1400,6 +1397,9 @@ class Runner:
 
 
     def store_phases(self):
+        if not self._run_id:
+            return # Nothing to do, but also no hard error needed
+
         print(TerminalColors.HEADER, '\nUpdating phases in DB', TerminalColors.ENDC)
         # internally PostgreSQL stores JSON ordered. This means our name-indexed dict will get
         # re-ordered. Therefore we change the structure and make it a list now.
@@ -1446,6 +1446,9 @@ class Runner:
                 self.add_to_log(container_id, f"stderr: {log.stderr}")
 
     def save_stdout_logs(self):
+        if not self._run_id:
+            return # Nothing to do, but also no hard error needed
+
         print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
         logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.__stdout_logs.items()])
         logs_as_str = logs_as_str.replace('\x00','')
@@ -1525,20 +1528,19 @@ class Runner:
         '''
         try:
             config = GlobalConfig().config
-            self.start_measurement()
+            self.start_measurement() # we start as early as possible to include initialization overhead
             self.check_system('start')
             self.initialize_folder(self._tmp_folder)
             self.checkout_repository()
-            self.initialize_run()
             self.initial_parse()
+            self.register_machine_id()
             self.import_metric_providers()
             self.populate_image_names()
             self.prepare_docker()
             self.check_running_containers()
             self.remove_docker_images()
             self.download_dependencies()
-            self.register_machine_id()
-            self.update_and_insert_specs()
+            self.initialize_run() # have this as close to the start of measurement
             if self._debugger.active:
                 self._debugger.pause('Initial load complete. Waiting to start metric providers')
 
@@ -1653,7 +1655,7 @@ class Runner:
                                 raise exc
                             finally:
                                 try:
-                                    if self._dev_no_phase_stats is False:
+                                    if self._run_id and self._dev_no_phase_stats is False:
                                         # After every run, even if it failed, we want to generate phase stats.
                                         # They will not show the accurate data, but they are still neded to understand how
                                         # much a failed run has accrued in total energy and carbon costs
