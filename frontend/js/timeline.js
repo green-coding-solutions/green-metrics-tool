@@ -12,13 +12,6 @@ window.onresize = function() { // set callback when ever the user changes the vi
     })
 }
 
-
-const numberFormatter = new Intl.NumberFormat('en-US', {
-  style: 'decimal', // You can also use 'currency', 'percent', or 'unit'
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
 function* colorIterator() {
     colors = [
         '#88a788',

@@ -22,7 +22,8 @@ import anybadge
 
 from api import eco_ci
 from api.object_specifications import Software
-from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics, determine_comparison_case,
+from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics,
+                         determine_comparison_case,get_comparison_details,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, rescale_energy_value, get_timeline_query,
                          get_run_info, get_machine_list, get_artifact, store_artifact,
@@ -290,14 +291,16 @@ async def compare_in_repo(ids: str):
         return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
 
     try:
-        case = determine_comparison_case(ids)
+        case, comparison_db_key = determine_comparison_case(ids)
     except RuntimeError as err:
         raise RequestValidationError(str(err)) from err
+
+    comparison_details = get_comparison_details(ids, comparison_db_key)
 
     if not (phase_stats := get_phase_stats(ids)):
         return Response(status_code=204) # No-Content
 
-    phase_stats_object = get_phase_stats_object(phase_stats, case)
+    phase_stats_object = get_phase_stats_object(phase_stats, case, comparison_details)
     phase_stats_object = add_phase_stats_statistics(phase_stats_object)
     phase_stats_object['common_info'] = {}
 
@@ -373,7 +376,7 @@ async def get_phase_stats_single(run_id: str):
     if not (phase_stats := get_phase_stats([run_id])):
         return Response(status_code=204) # No-Content
 
-    phase_stats_object = get_phase_stats_object(phase_stats, None)
+    phase_stats_object = get_phase_stats_object(phase_stats, None, None, [run_id])
     phase_stats_object = add_phase_stats_statistics(phase_stats_object)
 
     store_artifact(ArtifactType.STATS, str(run_id), orjson.dumps(phase_stats_object)) # pylint: disable=no-member
