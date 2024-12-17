@@ -81,16 +81,16 @@ def test_eco_ci_demo_data():
     time.sleep(2) # wait for new data to render
 
     energy_avg_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(2)").text_content()
-    assert energy_avg_all_steps.strip() == '14.3 J (± 72.61%)'
+    assert energy_avg_all_steps.strip() == '14.30 J (± 72.61%)'
 
     time_avg_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(3)").text_content()
-    assert time_avg_all_steps.strip() == '6.4 s (± 59.48%)'
+    assert time_avg_all_steps.strip() == '6.40 s (± 59.48%)'
 
     cpu_avg_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(4)").text_content()
-    assert cpu_avg_all_steps.strip() == '38.6% (± 36.31%%)'
+    assert cpu_avg_all_steps.strip() == '38.60% (± 36.31%%)'
 
     grid_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(5)").text_content()
-    assert grid_all_steps.strip() == '494.2 gCO2/kWh (± 5.16%)'
+    assert grid_all_steps.strip() == '494.20 gCO2/kWh (± 5.16%)'
 
     carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(6)").text_content()
     assert carbon_all_steps.strip() == '0.008 gCO2e (± 71.27%)'
@@ -104,13 +104,13 @@ def test_eco_ci_demo_data():
     assert energy_avg_single.strip() == '4.46 J (± 10.96%)'
 
     time_avg_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(3)").text_content()
-    assert time_avg_single.strip() == '2.8 s (± 15.97%)'
+    assert time_avg_single.strip() == '2.80 s (± 15.97%)'
 
     cpu_avg_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(4)").text_content()
-    assert cpu_avg_single.strip() == '27.6% (± 41.83%%)'
+    assert cpu_avg_single.strip() == '27.60% (± 41.83%%)'
 
     grid_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(5)").text_content()
-    assert grid_single.strip() == '494.2 gCO2/kWh (± 5.47%)'
+    assert grid_single.strip() == '494.20 gCO2/kWh (± 5.47%)'
 
     carbon_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(6)").text_content()
     assert carbon_single.strip() == '0.0026 gCO2e (± 9.83%)'
@@ -157,13 +157,13 @@ def test_eco_ci_adding_data():
         page.wait_for_load_state("load") # ALL JS should be done
 
         energy_avg_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(2)").text_content()
-        assert energy_avg_all_steps.strip() == '26 J (± 50%)'
+        assert energy_avg_all_steps.strip() == '26.00 J (± 50.00%)'
 
         carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(6)").text_content()
-        assert carbon_all_steps.strip() == '0.3235 gCO2e (± 0%)'
+        assert carbon_all_steps.strip() == '0.3235 gCO2e (± 0.00%)'
 
         carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(3)").text_content()
-        assert carbon_all_steps.strip() == '0.04 s (± 0%)'
+        assert carbon_all_steps.strip() == '0.04 s (± 0.00%)'
 
 
     finally: # reset state to expectation of this file
@@ -258,18 +258,16 @@ def test_repositories_and_compare():
     new_page.locator('a.step[data-tab="[RUNTIME]"]').click()
     new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
 
-
-
-    first_metric = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(1)").text_content()
+    first_metric = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(1)").text_content()
     assert first_metric.strip() == 'CPU Power (Package)'
 
-    first_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(6)").text_content()
+    first_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(6)").text_content()
     assert first_value.strip() == '8.50'
 
-    first_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(7)").text_content()
+    first_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(7)").text_content()
     assert first_unit.strip() == 'W'
 
-    first_stddev = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(8)").text_content()
+    first_stddev = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(8)").text_content()
     assert first_stddev.strip() == '± 2.85%'
 
 
@@ -277,16 +275,16 @@ def test_repositories_and_compare():
     new_page.locator('a.step[data-tab="[BASELINE]"]').click()
     new_page.locator('div[data-tab="[BASELINE]"] .ui.accordion a').click()
 
-    first_metric = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(1)").text_content()
+    first_metric = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(7) > td:nth-child(1)").text_content()
     assert first_metric.strip() == 'CPU Energy (Package)'
 
-    first_value = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(6)").text_content()
+    first_value = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(7) > td:nth-child(6)").text_content()
     assert first_value.strip() == '9.21'
 
-    first_unit = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(7)").text_content()
+    first_unit = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(7) > td:nth-child(7)").text_content()
     assert first_unit.strip() == 'J'
 
-    first_stddev = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(8)").text_content()
+    first_stddev = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(7) > td:nth-child(8)").text_content()
     assert first_stddev.strip() == '± 13.53%'
 
     new_page.close()

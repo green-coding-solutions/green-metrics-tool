@@ -273,7 +273,7 @@ const displayStatsTable = (measurements) => {
                             <td class="td-index">${numberFormatter.format(full_run_stats.cpu_util.avg)}% (± ${numberFormatter.format(full_run_stats.cpu_util.stddev_rel)}%%)</td>
                             <td class="td-index">${numberFormatter.format(full_run_stats.carbon_intensity_g.avg)} gCO2/kWh (± ${numberFormatter.format(full_run_stats.carbon_intensity_g.stddev_rel)}%)</td>
                             <td class="td-index">${numberFormatterLong.format(full_run_stats.carbon_ug.avg/1000000)} gCO2e (± ${numberFormatter.format(full_run_stats.carbon_ug.stddev_rel)}%)</td>
-                            <td class="td-index">${numberFormatter.format(fullRunArray.count)}</td>`;
+                            <td class="td-index">${fullRunArray.count}</td>`;
 
     avg_table.appendChild(full_run_stats_avg_node);
 
@@ -283,7 +283,7 @@ const displayStatsTable = (measurements) => {
                             <td class="td-index">${numberFormatter.format(full_run_stats.energy_uj.total/1000000)} J</td>
                             <td class="td-index">${numberFormatter.format(full_run_stats.duration_us.total/1000000)} s</td>
                             <td class="td-index">${numberFormatterLong.format(full_run_stats.carbon_ug.total/1000000)} gCO2e</td>
-                            <td class="td-index">${numberFormatter.format(fullRunArray.count)}</td>`;
+                            <td class="td-index">${fullRunArray.count}</td>`;
     total_table.appendChild(full_run_stats_total_node)
 
     for (const label in labelsArray) {
@@ -296,7 +296,7 @@ const displayStatsTable = (measurements) => {
                                         <td class="td-index">${numberFormatter.format(label_stats.cpu_util.avg)}% (± ${numberFormatter.format(label_stats.cpu_util.stddev_rel)}%%)</td>
                                         <td class="td-index">${numberFormatter.format(label_stats.carbon_intensity_g.avg)} gCO2/kWh (± ${numberFormatter.format(label_stats.carbon_intensity_g.stddev_rel)}%)</td>
                                         <td class="td-index">${numberFormatterLong.format(label_stats.carbon_ug.avg/1000000)} gCO2e (± ${numberFormatter.format(label_stats.carbon_ug.stddev_rel)}%)</td>
-                                        <td class="td-index">${numberFormatter.format(labelsArray[label].count)}</td>`;
+                                        <td class="td-index">${labelsArray[label].count}</td>`;
 
         avg_table.appendChild(label_stats_avg_node);
 
@@ -306,7 +306,7 @@ const displayStatsTable = (measurements) => {
                                         <td class="td-index">${numberFormatter.format(label_stats.energy_uj.total/1000000)} J</td>
                                         <td class="td-index">${numberFormatter.format(label_stats.duration_us.total/1000000)} s</td>
                                         <td class="td-index">${numberFormatterLong.format(label_stats.carbon_ug.total/1000000)} gCO2e</td>
-                                        <td class="td-index">${numberFormatter.format(labelsArray[label].count)}</td>`;
+                                        <td class="td-index">${labelsArray[label].count}</td>`;
         total_table.appendChild(label_stats_total_node);
 
     };
