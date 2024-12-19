@@ -690,7 +690,7 @@ class ORJSONResponseObjKeep(ORJSONResponse):
 header_scheme = APIKeyHeader(
     name='X-Authentication',
     scheme_name='Header',
-    description='Authentication key - See https://docs.green-coding.io/authentication',
+    description='Authentication key',
     auto_error=False
 )
 
