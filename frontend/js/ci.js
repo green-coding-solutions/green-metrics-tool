@@ -377,32 +377,52 @@ const getBadges = async (repo, branch, workflow_id) => {
         const link_node = document.createElement("a")
         const img_node = document.createElement("img")
         img_node.src = `${API_URL}/v1/ci/badge/get?repo=${repo}&branch=${branch}&workflow=${workflow_id}`
+        img_node.onerror = function() {this.src='/images/no-data-badge.webp'}
         link_node.href = '#'
 
         const energy_last = link_node.cloneNode(true)
         const energy_last_image = img_node.cloneNode(true)
+        energy_last_image.onerror = function() {this.src='/images/no-data-badge.webp'}
         energy_last.appendChild(energy_last_image)
 
         const carbon_last = link_node.cloneNode(true)
         const carbon_last_image = img_node.cloneNode(true)
         carbon_last_image.src = `${carbon_last_image.src}&metric=carbon`
+        carbon_last_image.onerror = function() {this.src='/images/no-data-badge.webp'}
         carbon_last.appendChild(carbon_last_image)
 
         const energy_totals = link_node.cloneNode(true)
         const energy_totals_image = img_node.cloneNode(true)
         energy_totals_image.src = `${energy_totals_image.src}&mode=totals`
+        energy_totals_image.onerror = function() {this.src='/images/no-data-badge.webp'}
         energy_totals.appendChild(energy_totals_image)
 
         const carbon_totals = link_node.cloneNode(true)
         const carbon_totals_image = img_node.cloneNode(true)
         carbon_totals_image.src = `${carbon_totals_image.src}&mode=totals&metric=carbon`
+        carbon_totals_image.onerror = function() {this.src='/images/no-data-badge.webp'}
         carbon_totals.appendChild(carbon_totals_image)
+
+        const carbon_totals_monthly = link_node.cloneNode(true)
+        const carbon_totals_monthly_image = img_node.cloneNode(true)
+        carbon_totals_monthly_image.src = `${carbon_totals_monthly_image.src}&mode=totals&metric=carbon&duration_days=30`
+        carbon_totals_monthly_image.onerror = function() {this.src='/images/no-data-badge.webp'}
+        carbon_totals_monthly.appendChild(carbon_totals_monthly_image)
+
+        const energy_totals_monthly = link_node.cloneNode(true)
+        const energy_totals_monthly_image = img_node.cloneNode(true)
+        energy_totals_monthly_image.src = `${energy_totals_monthly_image.src}&mode=totals&duration_days=30`
+        energy_totals_monthly_image.onerror = function() {this.src='/images/no-data-badge.webp'}
+        energy_totals_monthly.appendChild(energy_totals_monthly_image)
 
 
         document.querySelector("#energy-badge-container-last").appendChild(energy_last)
         document.querySelector("#energy-badge-container-totals").appendChild(energy_totals)
         document.querySelector("#carbon-badge-container-last").appendChild(carbon_last)
         document.querySelector("#carbon-badge-container-totals").appendChild(carbon_totals)
+
+        document.querySelector("#energy-badge-container-totals-monthly").appendChild(energy_totals_monthly)
+        document.querySelector("#carbon-badge-container-totals-monthly").appendChild(carbon_totals_monthly)
 
         document.querySelectorAll(".copy-badge").forEach(el => {el.addEventListener('click', copyToClipboard)})
     } catch (err) {

@@ -238,7 +238,8 @@ async def get_ci_runs(repo: str, sort_by: str = 'name'):
 
     return ORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
 
-async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'last', metric: str = 'energy'):
+@router.get('/v1/ci/badge/get')
+async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'last', metric: str = 'energy', duration_days: int | None = None):
     if metric == 'energy':
         metric = 'energy_uj'
         metric_unit = 'uJ'
@@ -252,6 +253,10 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
     else:
         raise RequestValidationError('Unsupported metric requested')
 
+
+    params = [repo, branch, workflow]
+
+
     query = f"""
         SELECT SUM({metric})
         FROM ci_measurements
@@ -263,9 +268,11 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
             GROUP BY run_id
             ORDER BY MAX(created_at) DESC
         """
+    elif mode == 'totals' and duration_days:
+        query = f"{query} AND created_at > NOW() - make_interval(days => %s)"
+        params.append(duration_days)
 
 
-    params = (repo, branch, workflow)
     data = DB().fetch_one(query, params=params)
 
     if data is None or data == [] or data[0] is None: # special check for SUM element as this is aggregate query which always returns result
