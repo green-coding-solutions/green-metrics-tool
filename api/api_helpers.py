@@ -4,6 +4,7 @@ faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to st
 
 from urllib.parse import urlparse
 
+from collections import OrderedDict
 from functools import cache
 from html import escape as html_escape
 import typing
@@ -17,6 +18,7 @@ import numpy as np
 import scipy.stats
 from pydantic import BaseModel
 
+from psycopg import sql
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -237,6 +239,43 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
 
     return (query, params)
 
+def get_comparison_details(ids, comparison_db_key):
+
+    query = sql.SQL('''
+        SELECT
+            id, name, created_at, commit_hash, commit_timestamp, gmt_hash, {}
+        FROM runs
+        WHERE id = ANY(%s::uuid[])
+        ORDER BY created_at  -- Must be same order as in get_phase_stats
+    ''').format(sql.Identifier(comparison_db_key))
+
+    data = DB().fetch_all(query, (ids, ))
+    if data is None or data == []:
+        raise RuntimeError('Could not get comparison details')
+
+    comparison_details = OrderedDict()
+
+    for row in data:
+        comparison_key = row[6]
+        run_id = str(row[0]) # UUID must be converted
+        if comparison_key not in comparison_details:
+            comparison_details[comparison_key] = OrderedDict()
+        comparison_details[comparison_key][run_id] = {
+            'run_id': run_id,
+            'name': row[1],
+            'created_at': row[2],
+            'commit_hash': row[3],
+            'commit_timestamp': row[4],
+            'gmt_hash': row[5],
+        }
+
+    # to back-fill None values later we need to index every element
+    for item in comparison_details.values():
+        for index, inner_item in enumerate(item.values()):
+            inner_item['index'] = index
+
+    return comparison_details
+
 def determine_comparison_case(ids):
 
     query = '''
@@ -271,7 +310,7 @@ def determine_comparison_case(ids):
     # case = 'Repeated Run' # Case A: Blue Angel
     # case = 'Multi-Commit' # Case D: Evolution of repo over time
 
-
+    #pylint: disable=no-else-raise,no-else-return
     if repos == 2: # diff repos
         if usage_scenarios <= 2: # diff repo, diff usage scenarios. diff usage scenarios are NORMAL for now
             if machine_ids == 2: # diff repo, diff usage scenarios, diff machine_ids
@@ -281,7 +320,7 @@ def determine_comparison_case(ids):
                     if commit_hashes <= 2: # diff repo, diff usage scenarios, same machine_ids,  same branches, diff/same commits_hashes
                         # for two repos we expect two different hashes, so this is actually a normal case
                         # even if they are identical we do not care, as the repos are different anyway
-                        case = 'Repository' # Case D
+                        return ('Repository', 'uri') # Case D
                     else:
                         raise RuntimeError('Different repos & more than 2 different commits commits not supported')
                 else:
@@ -296,7 +335,7 @@ def determine_comparison_case(ids):
                 raise RuntimeError('Different usage scenarios & machines not supported')
             if branches <= 1:
                 if commit_hashes == 1: # same repo, diff usage scenarios, same machines, same branches, same commit hashes
-                    case = 'Usage Scenario' # Case C_2
+                    return ('Usage Scenario', 'filename') # Case C_2
                 else: # same repo, diff usage scenarios, same machines, same branches, diff commit hashes
                     raise RuntimeError('Different usage scenarios & commits not supported')
             else: # same repo, diff usage scenarios, same machines, diff branches
@@ -305,7 +344,7 @@ def determine_comparison_case(ids):
             if machine_ids == 2: # same repo, same usage scenarios, diff machines
                 if branches <= 1:
                     if commit_hashes == 1: # same repo, same usage scenarios, diff machines, same branches, same commit hashes
-                        case = 'Machine' # Case C_1
+                        return ('Machine', 'machine_id') # Case C_1
                     else: # same repo, same usage scenarios, diff machines, same branches, diff commit hashes
                         raise RuntimeError('Different machines & commits not supported')
                 else: # same repo, same usage scenarios, diff machines, diff branches
@@ -314,15 +353,15 @@ def determine_comparison_case(ids):
             elif machine_ids == 1: # same repo, same usage scenarios, same machines
                 if branches <= 1:
                     if commit_hashes == 2: # same repo, same usage scenarios, same machines, diff commit hashes
-                        case = 'Commit' # Case B
+                        return ('Commit', 'commit_hash') # Case B
                     elif commit_hashes > 2: # same repo, same usage scenarios, same machines, many commit hashes
                         raise RuntimeError('Multiple commits comparison not supported. Please switch to Timeline view')
                     else: # same repo, same usage scenarios, same machines, same branches, same commit hashes
-                        case = 'Repeated Run' # Case A
+                        return ('Repeated Run', 'commit_hash') # Case A
                 else: # same repo, same usage scenarios, same machines, diff branch
                     # diff branches will have diff commits in most cases. so we allow 2, but no more
                     if commit_hashes <= 2:
-                        case = 'Branch' # Case C_3
+                        return ('Branch', 'branch') # Case C_3
                     else:
                         raise RuntimeError('Different branches and more than 2 commits not supported')
             else:
@@ -335,13 +374,14 @@ def determine_comparison_case(ids):
         # multiple t-tests / ANOVA etc. and hard to grasp, only a focus on one metric shall be provided.
         raise RuntimeError('Less than 1 or more than 2 repos not supported for overview. Please apply metric filter.')
 
-    return case
+    raise RuntimeError('Could not determine comparison case after checking all conditions')
 
 def get_phase_stats(ids):
     query = """
             SELECT
                 a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.min_value, a.unit,
-                b.uri, c.description, b.filename, b.commit_hash, b.branch
+                b.uri, c.description, b.filename, b.commit_hash, b.branch,
+                b.id
             FROM phase_stats as a
             LEFT JOIN runs as b on b.id = a.run_id
             LEFT JOIN machines as c on c.id = b.machine_id
@@ -349,20 +389,13 @@ def get_phase_stats(ids):
             WHERE
                 a.run_id = ANY(%s::uuid[])
             ORDER BY
-                a.phase ASC,
-                a.metric ASC,
-                a.detail_name ASC,
-                b.uri ASC,
-                b.machine_id ASC,
-                b.filename ASC,
-                b.commit_hash ASC,
-                branch ASC,
-                b.created_at ASC
+                b.created_at ASC -- Must be same order as in get_comparison_details
             """
     return DB().fetch_all(query, (ids, ))
 
 # Would be interesting to know if in an application server like gunicor @cache
 # Will also work for subsequent requests ...?
+# Update: It does, but only for the same worker. We are caching this request anyway now in Redis
 '''  Object structure
     comparison_case: str
     statistics: dict
@@ -448,19 +481,27 @@ def get_phase_stats(ids):
                                 values: list // the actual values
             ...
 '''
-def get_phase_stats_object(phase_stats, case):
+def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comparison_identifiers=None):
 
     phase_stats_object = {
         'comparison_case': case,
-        'comparison_details': set(),
-        'data': {}
+        'comparison_details': comparison_details,
+        'comparison_identifiers': comparison_identifiers,
+        'data': OrderedDict()
     }
+
+    if comparison_details: # override with parsed data
+        phase_stats_object['comparison_details'] = transform_dict_to_list_two_level(comparison_details) # list, becase better parseable in echarts and lower overhead in JSON
+        phase_stats_object['comparison_identifiers'] = list(comparison_details.keys())
 
     for phase_stat in phase_stats:
         [
             phase, metric_name, detail_name, value, metric_type, max_value, min_value, unit,
-            repo, machine_description, filename, commit_hash, branch
-        ] = phase_stat # unpack
+            repo, machine_description, filename, commit_hash, branch,
+            run_id
+        ] = phase_stat
+
+        run_id = str(run_id)
 
         phase = phase.split('_', maxsplit=1)[1] # remove the 001_ prepended stuff again, which is only for ordering
 
@@ -472,12 +513,12 @@ def get_phase_stats_object(phase_stats, case):
             key = filename # Case C_2 : SoftwareDeveloper Case
         elif case == 'Machine':
             key = machine_description # Case C_1 : DataCenter Case
-        elif commit_hash:
-            key = commit_hash # No comparison case / Case A: Blue Angel / Case B: DevOps Case
+        elif case in ('Commit', 'Repeated Run'):
+            key = commit_hash # Repeated Run
         else:
-            key = 'not-set'
+            key = run_id # No comparison case - Single view
 
-        if phase not in phase_stats_object['data']: phase_stats_object['data'][phase] = {}
+        if phase not in phase_stats_object['data']: phase_stats_object['data'][phase] = OrderedDict()
 
         if metric_name not in phase_stats_object['data'][phase]:
             phase_stats_object['data'][phase][metric_name] = {
@@ -488,7 +529,7 @@ def get_phase_stats_object(phase_stats, case):
                 #'ci': None,  # currently no use for that
                 #'p_value': None,  # currently no use for that
                 #'is_significant': None,  # currently no use for that
-                'data': {},
+                'data': OrderedDict(),
             }
         elif phase_stats_object['data'][phase][metric_name]['unit'] != unit:
             raise RuntimeError(f"Metric cannot be compared as units have changed: {unit} vs. {phase_stats_object['data'][phase][metric_name]['unit']}")
@@ -504,7 +545,7 @@ def get_phase_stats_object(phase_stats, case):
                 # 'ci': None, # since we only compare two keys atm this  could no be calculated.
                 'p_value': None, # comparing the means of two machines, branches etc. Both cases must have multiple values for this to get populated
                 'is_significant': None, # comparing the means of two machines, branches etc. Both cases must have multiple values for this to get populated
-                'data': {},
+                'data': OrderedDict(),
             }
 
         detail_data = phase_stats_object['data'][phase][metric_name]['data'][detail_name]['data']
@@ -519,20 +560,27 @@ def get_phase_stats_object(phase_stats, case):
                 'ci': None,
                 'p_value': None, # only for the last key the list compare to the rest. one-sided t-test
                 'is_significant': None, # only for the last key the list compare to the rest. one-sided t-test
-                'values': [],
+                'values': [value],
             }
-            phase_stats_object['comparison_details'].add(key)
+            if comparison_details:
+                detail_data[key]['values'] = [None for _ in comparison_details[key]] # create None filled list in comparision casese so that we can later understand which values are missing when parsing in JS for example
 
-        detail_data[key]['values'].append(value)
+        # we replace None where we can with actual values
+        if comparison_details:
+            detail_data[key]['values'][comparison_details[key][run_id]['index']] = value
 
         # since we do not save the min/max values we need to to the comparison here in every loop again
         # all other statistics are derived later in add_phase_stats_statistics()
         detail_data[key]['max'] = max((x for x in [max_value, detail_data[key]['max']] if x is not None), default=None)
         detail_data[key]['min'] = min((x for x in [min_value, detail_data[key]['min']] if x is not None), default=None)
 
-    phase_stats_object['comparison_details'] = list(phase_stats_object['comparison_details'])
-
     return phase_stats_object
+
+def transform_dict_to_list_two_level(my_dict):
+    my_list = [[] for _ in range(len(my_dict))]
+    for index, item in enumerate(my_dict.values()):
+        my_list[index] = list(item.values())
+    return list(my_list)
 
 
 '''
@@ -549,17 +597,19 @@ def add_phase_stats_statistics(phase_stats_object):
 
                     # if a detail has multiple values we calculate a std.dev and the one-sided t-test for the last value
 
-                    key_obj['mean'] = key_obj['values'][0] # default. might be overridden
-                    key_obj['max_mean'] = key_obj['values'][0] # default. might be overridden
-                    key_obj['min_mean'] = key_obj['values'][0] # default. might be overridden
+                    values_none_filtered = [item for item in key_obj['values'] if item is not None]
+                    key_obj['mean'] = values_none_filtered[0] # default. might be overridden
+                    key_obj['max_mean'] = values_none_filtered[0] # default. might be overridden
+                    key_obj['min_mean'] = values_none_filtered[0] # default. might be overridden
 
-                    if len(key_obj['values']) > 1:
-                        t_stat = get_t_stat(len(key_obj['values']))
+                    if len(values_none_filtered) > 1:
+
+                        t_stat = get_t_stat(len(values_none_filtered))
 
                         # JSON does not recognize the numpy data types. Sometimes int64 is returned
-                        key_obj['mean'] = np.mean(key_obj['values']).item()
+                        key_obj['mean'] = np.mean(values_none_filtered).item()
 
-                        key_obj['stddev'] = np.std(key_obj['values'], correction=1).item()
+                        key_obj['stddev'] = np.std(values_none_filtered, correction=1).item()
                         # We are using now the STDDEV of the sample for two reasons:
                         # It is required by the Blue Angel for Software
                         # We got many debates that in cases where the average is only estimated through measurements and is not absolute
@@ -567,12 +617,12 @@ def add_phase_stats_statistics(phase_stats_object):
                         # Still one could argue that one does not want to characterize the measured software but rather the measurement setup
                         # it is safer to use the sample STDDEV as it is always higher
 
-                        key_obj['max_mean'] = np.max(key_obj['values']).item() # overwrite with max of list
-                        key_obj['min_mean'] = np.min(key_obj['values']).item() # overwrite with min of list
+                        key_obj['max_mean'] = np.max(values_none_filtered).item() # overwrite with max of list
+                        key_obj['min_mean'] = np.min(values_none_filtered).item() # overwrite with min of list
                         key_obj['ci'] = (key_obj['stddev']*t_stat).item()
 
-                        if len(key_obj['values']) > 2:
-                            data_c = key_obj['values'].copy()
+                        if len(values_none_filtered) > 2:
+                            data_c = values_none_filtered.copy()
                             pop_mean = data_c.pop()
                             _, p_value = scipy.stats.ttest_1samp(data_c, pop_mean)
                             if not np.isnan(p_value):
@@ -584,11 +634,11 @@ def add_phase_stats_statistics(phase_stats_object):
 
 
     ## builds stats between the keys
-    if len(phase_stats_object['comparison_details']) == 2:
+    if len(phase_stats_object['comparison_identifiers']) == 2:
         # since we currently allow only two comparisons we hardcode this here
-        # this is then needed to rebuild if we would allow more
-        key1 = phase_stats_object['comparison_details'][0]
-        key2 = phase_stats_object['comparison_details'][1]
+        # this is then needed to rebuild if we would allow more !IMPROVEMENT
+        key1 = phase_stats_object['comparison_identifiers'][0]
+        key2 = phase_stats_object['comparison_identifiers'][1]
 
         # we need to traverse only one branch of the tree like structure, as we only need to compare matching metrics
         for _, phase_data in phase_stats_object['data'].items():
@@ -598,7 +648,10 @@ def add_phase_stats_statistics(phase_stats_object):
                         continue
 
                     # Welch-Test because we cannot assume equal variances
-                    _, p_value = scipy.stats.ttest_ind(detail['data'][key1]['values'], detail['data'][key2]['values'], equal_var=False)
+                    values_none_filtered_1 = [item for item in detail['data'][key1]['values'] if item is not None]
+                    values_none_filtered_2 = [item for item in detail['data'][key2]['values'] if item is not None]
+
+                    _, p_value = scipy.stats.ttest_ind(values_none_filtered_1, values_none_filtered_2, equal_var=False)
 
                     if not np.isnan(p_value):
                         detail['p_value'] = p_value.item()

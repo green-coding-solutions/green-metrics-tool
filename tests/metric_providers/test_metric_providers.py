@@ -230,7 +230,7 @@ def test_non_monotonic():
         with pytest.raises(ValueError) as e:
             obj.read_metrics('RUN_ID')
 
-        assert str(e.value) == "Data from metric provider network_io_procfs_system is not monotonic increasing"
+        assert str(e.value) == "Time from metric provider network_io_procfs_system is not monotonic increasing"
 
 def test_resolution_ok():
     obj = CpuEnergyRaplMsrComponentProvider(100, skip_check=True)

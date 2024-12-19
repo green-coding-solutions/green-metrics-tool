@@ -79,8 +79,8 @@ class RunUntilManager:
             self.__runner.check_system('start')
             self.__runner.initialize_folder(self.__runner._tmp_folder)
             self.__runner.checkout_repository()
-            self.__runner.initialize_run()
             self.__runner.initial_parse()
+            self.__runner.register_machine_id()
             self.__runner.import_metric_providers()
             if step == 'import_metric_providers':
                 return
@@ -89,8 +89,7 @@ class RunUntilManager:
             self.__runner.check_running_containers()
             self.__runner.remove_docker_images()
             self.__runner.download_dependencies()
-            self.__runner.register_machine_id()
-            self.__runner.update_and_insert_specs()
+            self.__runner.initialize_run()
 
             self.__runner.start_metric_providers(allow_other=True, allow_container=False)
             self.__runner.custom_sleep(config['measurement']['pre-test-sleep'])
@@ -132,9 +131,9 @@ class RunUntilManager:
             self.__runner.update_start_and_end_times()
             self.__runner.store_phases()
             self.__runner.read_container_logs()
+            self.__runner.stop_metric_providers()
             self.__runner.read_and_cleanup_processes()
             self.__runner.save_notes_runner()
-            self.__runner.stop_metric_providers()
             self.__runner.save_stdout_logs()
 
             if self.__runner._dev_no_phase_stats is False:

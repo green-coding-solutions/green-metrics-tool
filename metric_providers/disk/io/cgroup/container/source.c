@@ -48,10 +48,13 @@ static disk_io_t get_disk_cgroup(char* filename) {
 
     fclose(fd);
 
-    if(rbytes < 0 || wbytes < 0) {
-        fprintf(stderr, "Error - io.stat could not be read or was < 0.");
-        exit(1);
-    }
+    // we initially had this check in the provider, but it very often happens that no io.stat file is produced if
+    // the container has not written to disk so far.
+    // erroring here thus seems to be the wrong way. Code left uncommented because we are still monitoring if this design choice is apt.
+    //if(rbytes < 0 || wbytes < 0) {
+    //    fprintf(stderr, "Error - io.stat could not be read or was < 0.");
+    //    exit(1);
+    //}
 
     return disk_io;
 }

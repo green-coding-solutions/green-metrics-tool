@@ -143,7 +143,7 @@ const fillRunTab = (selector, data, parent = '') => {
 }
 
 
-const getTimelineMetrics = (measurements_data, start_measurement, end_measurement) => {
+const buildTimelineChartData = (measurements_data) => {
     const metrics = {}
     const t0 = performance.now();
 
@@ -210,7 +210,7 @@ const getTimelineMetrics = (measurements_data, start_measurement, end_measuremen
     }
 
     const t1 = performance.now();
-    console.log(`getTimelineMetrics Took ${t1 - t0} milliseconds.`);
+    console.log(`buildTimelineMetrics Took ${t1 - t0} milliseconds.`);
     return metrics;
 }
 
@@ -280,7 +280,7 @@ const displayTimelineCharts = (metrics, notes) => {
     }
 
     const t1 = performance.now();
-    console.log(`DisplayTimelineCharts took ${t1 - t0} milliseconds.`);
+    console.log(`buildTimelineCharts took ${t1 - t0} milliseconds.`);
 
     window.onresize = function() { // set callback when ever the user changes the viewport
         chart_instances.forEach(chart_instance => {
@@ -417,47 +417,33 @@ const getURLParams = () => {
     return url_params;
 }
 
-async function getTimeSeries() {
+async function fetchTimelineData(url_params) {
     document.querySelector('#api-loader').style.display = '';
-
     document.querySelector('#loader-question').remove();
 
-    let measurement_data = null;
-    let note_data = null;
-    let url_params = getURLParams();
-    if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
-        showNotification('No run id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
-        return;
-    }
-
     try {
-        measurement_data = await makeAPICall('/v1/measurements/single/' + url_params.get('id'))
+        const measurement_data = await makeAPICall('/v1/measurements/single/' + url_params.get('id'))
+        return measurement_data?.data;
     } catch (err) {
         showNotification('Could not get stats data from API', err);
     }
+    return null;
+}
 
-    measurement_data = measurement_data?.data;
-
-     if (measurement_data == null) return;
-    const metrics = getTimelineMetrics(measurement_data);
-
+async function fetchTimelineNotes(url_params) {
     try {
-        note_data = await makeAPICall('/v1/notes/' + url_params.get('id'))
+        const note_data = await makeAPICall('/v1/notes/' + url_params.get('id'))
+        return note_data?.data;
     } catch (err) {
         showNotification('Could not get notes data from API', err);
     }
-
-    note_data = note_data?.data;
-
-    displayTimelineCharts(metrics, note_data);
+    return null;
 }
 
 
 /* Chart starting code*/
 $(document).ready( (e) => {
     (async () => {
-
-        document.querySelector('#fetch-time-series').addEventListener('click', getTimeSeries);
 
         let url_params = getURLParams();
         if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
@@ -477,9 +463,32 @@ $(document).ready( (e) => {
 
         if (optimizations_data != null) displayOptimizationsData(optimizations_data);
 
-        if(phase_stats_data != null) displayComparisonMetrics(phase_stats_data)
+        if(phase_stats_data != null)  {
+            buildPhaseTabs(phase_stats_data)
+            renderCompareChartsForPhase(phase_stats_data, getAndShowPhase());
+            displayTotalChart(...buildTotalChartData(phase_stats_data));
 
-        if (localStorage.getItem('fetch_time_series') === 'true') getTimeSeries(url_params);
+            document.querySelectorAll('.ui.steps.phases .step, .runtime-step').forEach(node => node.addEventListener('click', el => {
+                const phase = el.currentTarget.getAttribute('data-tab');
+                renderCompareChartsForPhase(phase_stats_data, phase);
+            }));
+        }
+
+
+        if (localStorage.getItem('fetch_time_series') === 'true') {
+            const timeline_data = await fetchTimelineData(url_params);
+            const timeline_notes = await fetchTimelineNotes(url_params);
+            const timeline_chart_data = buildTimelineChartData(timeline_data);
+            displayTimelineCharts(timeline_chart_data, timeline_notes);
+        } else {
+            document.querySelector('#fetch-time-series').addEventListener('click', async () => {
+                const timeline_data = await fetchTimelineData(url_params);
+                const timeline_notes = await fetchTimelineNotes(url_params);
+                const timeline_chart_data = buildTimelineChartData(timeline_data);
+                displayTimelineCharts(timeline_chart_data, timeline_notes);
+            });
+        }
+
 
         // after all charts instances have been placed
         // the flexboxes might have rearranged. We need to trigger resize

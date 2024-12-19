@@ -26,6 +26,18 @@ METRIC_MAPPINGS = {
         'explanation': 'Disk I/O via procfs',
     },
 
+    'disk_io_cgroup_container_clean_name': {
+        'clean_name': 'Disk I/O',
+        'source': 'cgroup',
+        'explanation': 'Disk I/O per container',
+    },
+
+    'disk_total_cgroup_container_clean_name': {
+        'clean_name': 'Disk Data',
+        'source': 'formula',
+        'explanation': 'Disk I/O totals accumulated via cgroup per container',
+    },
+
     'disk_total_procfs_system': {
         'clean_name': 'Disk Data',
         'source': 'formula',
@@ -39,7 +51,7 @@ METRIC_MAPPINGS = {
     },
 
     'psu_energy_cgroup_slice': {
-        'clean_name': 'Container Energy (+Idle)',
+        'clean_name': 'Container Energy (+Baseline-Share)',
         'source': 'estimation',
         'explanation': 'Container energy estimated via CPU-% share (incl. idle)',
     },
@@ -51,7 +63,7 @@ METRIC_MAPPINGS = {
     },
 
     'psu_power_cgroup_slice': {
-        'clean_name': 'Container Power (+Idle)',
+        'clean_name': 'Container Power (+Baseline-Share)',
         'source': 'estimation',
         'explanation': 'Container power estimated via CPU-% share incl. Idle',
     },
