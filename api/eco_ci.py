@@ -267,6 +267,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
         query = f"""{query}
             GROUP BY run_id
             ORDER BY MAX(created_at) DESC
+            LIMIT 1
         """
     elif mode == 'totals' and duration_days:
         query = f"{query} AND created_at > NOW() - make_interval(days => %s)"
