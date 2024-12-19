@@ -65,7 +65,7 @@ def rescale_energy_value(value, unit):
         unit = 'uJ'
 
     # We only expect values to be uJ for energy in the future. Changing values now temporarily.
-    # TODO: Refactor this once all data in the DB is uJ
+    # TODO: Refactor this once all data in the DB is uJ  # pylint: disable=fixme
     if unit != 'uJ' and not unit.startswith('ugCO2e/'):
         raise ValueError('Unexpected unit occured for energy rescaling: ', unit)
 
@@ -690,7 +690,7 @@ class ORJSONResponseObjKeep(ORJSONResponse):
 header_scheme = APIKeyHeader(
     name='X-Authentication',
     scheme_name='Header',
-    description='Authentication key - See https://docs.green-coding.io/authentication',
+    description='Authentication key',
     auto_error=False
 )
 
