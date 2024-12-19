@@ -205,14 +205,14 @@ def test_stats():
     assert chart_label.strip() == 'CPU % via procfs'
 
 
-    first_metric = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(1)").text_content()
-    assert first_metric.strip() == 'CPU Energy (Package)'
+    first_metric = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(7) > td:nth-child(1)").text_content()
+    assert first_metric.strip() == 'Machine Power'
 
-    first_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(6)").text_content()
-    assert first_value.strip() == '45.05'
+    first_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(7) > td:nth-child(6)").text_content()
+    assert first_value.strip() == '14.62'
 
-    first_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(7)").text_content()
-    assert first_unit.strip() == 'J'
+    first_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(7) > td:nth-child(7)").text_content()
+    assert first_unit.strip() == 'W'
 
 
     # click on baseline
@@ -220,13 +220,13 @@ def test_stats():
     new_page.locator('div[data-tab="[BASELINE]"] .ui.accordion .title > a').click()
 
     first_metric = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(1)").text_content()
-    assert first_metric.strip() == 'CPU Energy (Package)'
+    assert first_metric.strip() == 'Embodied Carbon'
 
     first_value = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(6)").text_content()
-    assert first_value.strip() == '9.69'
+    assert first_value.strip() == '0.01'
 
     first_unit = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(7)").text_content()
-    assert first_unit.strip() == 'J'
+    assert first_unit.strip() == 'g'
 
     new_page.close()
 

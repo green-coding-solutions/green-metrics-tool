@@ -280,10 +280,7 @@ a,
 
 #unselect-button {
     display: none;
-}
-
-#sort-button {
-    float: right;
+    margin-top: 10px;
 }
 
 .wide.card {
