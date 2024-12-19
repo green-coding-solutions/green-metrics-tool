@@ -22,6 +22,7 @@ import shutil
 import yaml
 from collections import OrderedDict
 from datetime import datetime
+import platform
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -117,6 +118,8 @@ class Runner:
         self.__docker_params = []
         self.__working_folder = self._repo_folder
         self.__working_folder_rel = ''
+        self.__image_sizes = {}
+        self.__volume_sizes = {}
 
         # we currently do not use this variable
         # self.__filename = self._original_filename # this can be changed later if working directory changes
@@ -654,6 +657,43 @@ class Runner:
 
         # Delete the directory /tmp/gmt_docker_images
         shutil.rmtree(temp_dir)
+
+    def save_image_and_volume_sizes(self):
+
+        for _, service in self._usage_scenario.get('services', {}).items():
+            tmp_img_name = self.clean_image_name(service['image'])
+
+            # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
+            output = subprocess.check_output(
+                f"docker image inspect {tmp_img_name} " + '--format={{.Size}}',
+                shell=True,
+                encoding='UTF-8',
+            )
+            self.__image_sizes[service['image']] = int(output.strip())
+
+        # du -s -b does not work on macOS and also the docker image is in a VM and not accessible with du for us
+        if self._allow_unsafe and platform.system() != 'Darwin':
+            for volume in self._usage_scenario.get('volumes', {}):
+                # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
+                output = subprocess.check_output(
+                    f"docker volume inspect {volume} " + '--format={{.Mountpoint}}',
+                    shell=True,
+                    encoding='UTF-8',
+                )
+                output = subprocess.check_output(
+                    f"du -s -b {output.strip()} | cut -f1",
+                    shell=True,
+                    encoding='UTF-8',
+                )
+
+                self.__volume_sizes[volume] = output.strip()
+
+        DB().query("""
+            UPDATE runs
+            SET machine_specs = machine_specs || %s
+            WHERE id = %s
+            """, params=(json.dumps({'Image Sizes': self.__image_sizes, 'Volume Sizes': self.__volume_sizes}), self._run_id))
+
 
 
     def setup_networks(self):
@@ -1512,6 +1552,9 @@ class Runner:
         #self.__filename = self._original_filename # # we currently do not use this variable
         self.__working_folder = self._repo_folder
         self.__working_folder_rel = ''
+        self.__image_sizes = {}
+        self.__volume_sizes = {}
+
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
@@ -1560,6 +1603,8 @@ class Runner:
             self.start_phase('[INSTALLATION]')
             self.build_docker_images()
             self.end_phase('[INSTALLATION]')
+
+            self.save_image_and_volume_sizes()
 
             if self._debugger.active:
                 self._debugger.pause('Container build complete. Waiting to start container boot')
