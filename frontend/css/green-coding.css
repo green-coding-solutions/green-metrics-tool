@@ -295,6 +295,11 @@ a,
     white-space: nowrap;
 }
 
+/* Since we have a without href we need to force pointer */
+a {
+    cursor: pointer;
+}
+
 .close.icon {
     cursor: pointer;
     position: absolute;

@@ -32,10 +32,10 @@
 <body class="preload">
     <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
-        <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> CI Run Info</h1>
+        <h1 class="ui header float left"><a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> CI Run Info</h1>
         <div class="ui full-width-card card">
             <div class="content">
-                <div class="header"><a class="ui red ribbon label" href="#">
+                <div class="header"><a class="ui red ribbon label">
                     <h3>General Info</h3>
                 </a></div>
                 <div class="description">
@@ -45,11 +45,11 @@
                                 <td><strong>Last Run Badge:</strong></td>
                                 <td>
                                     <span id="energy-badge-container-last" class="badge-container"></span>
-                                    <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
                                 </td>
                                 <td>
                                     <span id="carbon-badge-container-last" class="badge-container"></span>
-                                    <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
                                 </td>
                             </tr>
                             <tr>
@@ -60,18 +60,18 @@
                                 </td>
                                 <td>
                                     <span id="carbon-badge-container-totals" class="badge-container"></span>
-                                    <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
                                 </td>
                             </tr>
                             <tr>
                                 <td data-position="bottom left" data-inverted="" data-tooltip="Modify the badge source code to show alternative durations like 60 days, 365 days etc."><strong>Monthly Badge <i class="question circle icon"></i>: </strong></td>
                                 <td>
                                     <span id="energy-badge-container-totals-monthly" class="badge-container"></span>
-                                    <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
                                 </td>
                                 <td>
                                     <span id="carbon-badge-container-totals-monthly" class="badge-container"></span>
-                                    <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
                                 </td>
                             </tr>
                         </table>
@@ -119,7 +119,7 @@
 
         </div>
         <div class = "ui segment" id="stats-container">
-            <div class="header"><a class="ui teal ribbon label" href="#">
+            <div class="header"><a class="ui teal ribbon label">
                     <h3>Pipeline stats</h3>
                 </a></div>
                 <br/>
@@ -159,7 +159,7 @@
             </div>
         </div>
         <div class="ui segment" id="runs-table">
-            <div class="header"><a class="ui teal ribbon label" href="#">
+            <div class="header"><a class="ui teal ribbon label">
                     <h3 data-tooltip="The runs table shows all measurements your pipeline has made in the selected timeframe" data-position="top left">Runs Table <i class="question circle icon "></i> </h3>
                 </a></div>
             <table class="ui sortable celled striped table">
