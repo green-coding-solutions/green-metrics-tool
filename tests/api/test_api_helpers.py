@@ -41,10 +41,10 @@ def test_rescale_metric_value():
 
 
     with pytest.raises(ValueError):
-        api_helpers.rescale_metric_value(100, 'xJ') # expecting only mJ and uJ
+        api_helpers.rescale_metric_value(100, 'xJ')
 
     with pytest.raises(ValueError):
-        api_helpers.rescale_metric_value(100, 'uj') # expecting only mJ and uJ
+        api_helpers.rescale_metric_value(100, 'uj')
 
 
 
