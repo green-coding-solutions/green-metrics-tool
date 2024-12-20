@@ -74,6 +74,8 @@ const createStatsArrays = (measurements) => {  // iterates 2n times (1 full, 1 b
     measurements.forEach(measurement => {
         let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, carbon_ug] = measurement;
 
+        label = escapeString(label) // we print it later and it is user submitted string
+
         if (!measurementsByLabel[label]) {
             measurementsByLabel[label] = {
                 energy_uj: [],
@@ -267,30 +269,30 @@ const displayStatsTable = (measurements) => {
 
     const full_run_stats_avg_node = document.createElement("tr")
     full_run_stats_avg_node.innerHTML += `
-                            <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)" data-position="top left">All steps <i class="question circle icon small"></i> </td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.energy_uj.avg/1000000)} J (± ${numberFormatter.format(full_run_stats.energy_uj.stddev_rel)}%)</td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.duration_us.avg/1000000)} s (± ${numberFormatter.format(full_run_stats.duration_us.stddev_rel)}%)</td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.cpu_util.avg)}% (± ${numberFormatter.format(full_run_stats.cpu_util.stddev_rel)}%%)</td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.carbon_intensity_g.avg)} gCO2/kWh (± ${numberFormatter.format(full_run_stats.carbon_intensity_g.stddev_rel)}%)</td>
-                            <td class="td-index">${numberFormatterLong.format(full_run_stats.carbon_ug.avg/1000000)} gCO2e (± ${numberFormatter.format(full_run_stats.carbon_ug.stddev_rel)}%)</td>
-                            <td class="td-index">${fullRunArray.count}</td>`;
+                            <td class="bold td-index" data-tooltip="Averages for whole run" data-position="top left">Total run <i class="question circle icon small"></i> </td>
+                            <td class="bold td-index">${numberFormatter.format(full_run_stats.energy_uj.avg/1000000)} J (± ${numberFormatter.format(full_run_stats.energy_uj.stddev_rel)}%)</td>
+                            <td class="bold td-index">${numberFormatter.format(full_run_stats.duration_us.avg/1000000)} s (± ${numberFormatter.format(full_run_stats.duration_us.stddev_rel)}%)</td>
+                            <td class="bold td-index">${numberFormatter.format(full_run_stats.cpu_util.avg)}% (± ${numberFormatter.format(full_run_stats.cpu_util.stddev_rel)}%%)</td>
+                            <td class="bold td-index">${numberFormatter.format(full_run_stats.carbon_intensity_g.avg)} gCO2/kWh (± ${numberFormatter.format(full_run_stats.carbon_intensity_g.stddev_rel)}%)</td>
+                            <td class="bold td-index">${numberFormatterLong.format(full_run_stats.carbon_ug.avg/1000000)} gCO2e (± ${numberFormatter.format(full_run_stats.carbon_ug.stddev_rel)}%)</td>
+                            <td class="bold td-index">${fullRunArray.count}</td>`;
 
     avg_table.appendChild(full_run_stats_avg_node);
 
     const full_run_stats_total_node = document.createElement("tr")
     full_run_stats_total_node.innerHTML += `
-                            <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)" data-position="top left">All steps <i class="question circle icon small"></i> </td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.energy_uj.total/1000000)} J</td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.duration_us.total/1000000)} s</td>
-                            <td class="td-index">${numberFormatterLong.format(full_run_stats.carbon_ug.total/1000000)} gCO2e</td>
-                            <td class="td-index">${fullRunArray.count}</td>`;
+                            <td class="bold td-index" data-tooltip="Totals for whole run" data-position="top left">Per total run <i class="question circle icon small"></i> </td>
+                            <td class="bold td-index">${numberFormatter.format(full_run_stats.energy_uj.total/1000000)} J</td>
+                            <td class="bold td-index">${numberFormatter.format(full_run_stats.duration_us.total/1000000)} s</td>
+                            <td class="bold td-index">${numberFormatterLong.format(full_run_stats.carbon_ug.total/1000000)} gCO2e</td>
+                            <td class="bold td-index">${fullRunArray.count}</td>`;
     total_table.appendChild(full_run_stats_total_node)
 
     for (const label in labelsArray) {
         const label_stats = calculateStats(labelsArray[label].energy_uj, labelsArray[label].carbon_ug, labelsArray[label].carbon_intensity_g, labelsArray[label].duration_us, labelsArray[label].cpu_util)
         const label_stats_avg_node = document.createElement("tr")
         label_stats_avg_node.innerHTML += `
-                                        <td class="td-index" data-tooltip="stats for the series of steps represented by the ${label} label"  data-position="top left">${label} <i class="question circle icon small"></i></td>
+                                        <td class="td-index" data-tooltip="Averages per step '${label}'"  data-position="top left">${label} <i class="question circle icon small"></i></td>
                                         <td class="td-index">${numberFormatter.format(label_stats.energy_uj.avg/1000000)} J (± ${numberFormatter.format(label_stats.energy_uj.stddev_rel)}%)</td>
                                         <td class="td-index">${numberFormatter.format(label_stats.duration_us.avg/1000000)} s (± ${numberFormatter.format(label_stats.duration_us.stddev_rel)}%)</td>
                                         <td class="td-index">${numberFormatter.format(label_stats.cpu_util.avg)}% (± ${numberFormatter.format(label_stats.cpu_util.stddev_rel)}%%)</td>
@@ -302,7 +304,7 @@ const displayStatsTable = (measurements) => {
 
         const label_stats_total_node = document.createElement("tr")
         label_stats_total_node.innerHTML += `
-                                        <td class="td-index" data-tooltip="stats for the series of steps represented by the ${label} label"  data-position="top left">${label} <i class="question circle icon small"></i></td>
+                                        <td class="td-index" data-tooltip="Totals per step '${label}'"  data-position="top left">${label} <i class="question circle icon small"></i></td>
                                         <td class="td-index">${numberFormatter.format(label_stats.energy_uj.total/1000000)} J</td>
                                         <td class="td-index">${numberFormatter.format(label_stats.duration_us.total/1000000)} s</td>
                                         <td class="td-index">${numberFormatterLong.format(label_stats.carbon_ug.total/1000000)} gCO2e</td>
