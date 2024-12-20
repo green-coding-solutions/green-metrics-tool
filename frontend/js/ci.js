@@ -473,6 +473,9 @@ const bindRefreshButton = (repo, branch, workflow_id, chart_instance) => {
 
 $(document).ready((e) => {
     (async () => {
+
+        $('.ui.secondary.menu .item').tab(); // must happen very early so tab menu is not broken if return happens
+
         const query_string = window.location.search;
         const url_params = (new URLSearchParams(query_string))
 
@@ -549,8 +552,6 @@ $(document).ready((e) => {
 
             displayStatsTable(filteredMeasurements);
         });
-
-        $('.ui.secondary.menu .item').tab();
 
         setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);
     })();
