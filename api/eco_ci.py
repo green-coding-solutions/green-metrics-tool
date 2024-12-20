@@ -243,35 +243,48 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
     if metric == 'energy':
         metric = 'energy_uj'
         metric_unit = 'uJ'
-        label = 'Energy used'
+        label = 'energy used'
         default_color = 'orange'
     elif metric == 'carbon':
         metric = 'carbon_ug'
         metric_unit = 'ug'
-        label = 'Carbon emitted'
+        label = 'carbon emitted'
         default_color = 'black'
     else:
         raise RequestValidationError('Unsupported metric requested')
 
 
+    if duration_days and (duration_days < 1 or duration_days > 365):
+        raise RequestValidationError('Duration days must be between 1 and 365 days')
+
     params = [repo, branch, workflow]
 
 
-    query = f"""
-        SELECT SUM({metric})
+    query = '''
+        SELECT {}({})
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow_id = %s
-    """
+        {}
+    '''
 
-    if mode == 'last':
-        query = f"""{query}
-            GROUP BY run_id
-            ORDER BY MAX(created_at) DESC
-            LIMIT 1
-        """
-    elif mode == 'totals' and duration_days:
-        query = f"{query} AND created_at > NOW() - make_interval(days => %s)"
+    if mode == 'avg':
+        if not duration_days:
+            raise RequestValidationError('Duration days must be set for average')
+        query = query.format('AVG', metric, 'AND created_at > NOW() - make_interval(days => %s)')
         params.append(duration_days)
+        label = f"Per run moving average ({duration_days} days) {label}"
+    elif mode == 'last':
+        query = query.format('SUM', metric, 'GROUP BY run_id ORDER BY MAX(created_at) DESC LIMIT 1')
+        label = f"Last run {label}"
+    elif mode == 'totals' and duration_days:
+        query = query.format('SUM', metric, 'AND created_at > NOW() - make_interval(days => %s)')
+        params.append(duration_days)
+        label = f"Last {duration_days} days total {label}"
+    elif mode == 'totals':
+        query = query.format('SUM', metric, '')
+        label = f"All runs total {label}"
+    else:
+        raise RuntimeError('Unknown mode')
 
 
     data = DB().fetch_one(query, params=params)
