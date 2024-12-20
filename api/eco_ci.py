@@ -260,28 +260,33 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
     params = [repo, branch, workflow]
 
 
-    query = '''
-        SELECT {}({})
+    query = f"""
+        SELECT SUM({metric})
         FROM ci_measurements
         WHERE repo = %s AND branch = %s AND workflow_id = %s
-        {}
-    '''
+    """
 
     if mode == 'avg':
         if not duration_days:
             raise RequestValidationError('Duration days must be set for average')
-        query = query.format('AVG', metric, 'AND created_at > NOW() - make_interval(days => %s)')
+        query = f"""
+            WITH my_table as (
+                SELECT SUM({metric}) my_sum
+                FROM ci_measurements
+                WHERE repo = %s AND branch = %s AND workflow_id = %s AND created_at > NOW() - make_interval(days => %s)
+                GROUP BY run_id
+            ) SELECT AVG(my_sum) FROM my_table;
+        """
         params.append(duration_days)
         label = f"Per run moving average ({duration_days} days) {label}"
     elif mode == 'last':
-        query = query.format('SUM', metric, 'GROUP BY run_id ORDER BY MAX(created_at) DESC LIMIT 1')
+        query = f"{query} GROUP BY run_id ORDER BY MAX(created_at) DESC LIMIT 1"
         label = f"Last run {label}"
     elif mode == 'totals' and duration_days:
-        query = query.format('SUM', metric, 'AND created_at > NOW() - make_interval(days => %s)')
+        query = f"{query} AND created_at > NOW() - make_interval(days => %s)"
         params.append(duration_days)
         label = f"Last {duration_days} days total {label}"
     elif mode == 'totals':
-        query = query.format('SUM', metric, '')
         label = f"All runs total {label}"
     else:
         raise RuntimeError('Unknown mode')

@@ -209,23 +209,30 @@ def test_ci_badge_get_average():
 
     for i in range(1,3):
         measurement_model = MEASUREMENT_MODEL_NEW.copy()
-        measurement_model['energy_uj'] += i*1000
-        measurement_model['carbon_ug'] = i*1000
-
+        measurement_model['carbon_ug'] = 1000
         response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement_model, timeout=15)
         assert response.status_code == 204, Tests.assertion_info('success', response.text)
+
+    for i in range(1,6):
+        measurement_model = MEASUREMENT_MODEL_NEW.copy()
+        measurement_model['energy_uj'] *= 1000
+        measurement_model['carbon_ug'] = i*100000
+        measurement_model['run_id'] = 'Other run'
+        response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement_model, timeout=15)
+        assert response.status_code == 204, Tests.assertion_info('success', response.text)
+
 
 
     response = requests.get(f"{API_URL}/v1/ci/badge/get?repo={MEASUREMENT_MODEL_NEW['repo']}&branch={MEASUREMENT_MODEL_NEW['branch']}&workflow={MEASUREMENT_MODEL_NEW['workflow']}&mode=avg&duration_days=5", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert 'Per run moving average (5 days) energy used' in response.text, Tests.assertion_info('success', response.text)
-    assert '124.50 mJ' in response.text, Tests.assertion_info('success', response.text)
+    assert '307.62 J' in response.text, Tests.assertion_info('success', response.text)
 
     response = requests.get(f"{API_URL}/v1/ci/badge/get?repo={MEASUREMENT_MODEL_NEW['repo']}&branch={MEASUREMENT_MODEL_NEW['branch']}&workflow={MEASUREMENT_MODEL_NEW['workflow']}&mode=avg&duration_days=5&metric=carbon", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
 
     assert 'Per run moving average (5 days) carbon emitted' in response.text, Tests.assertion_info('success', response.text)
-    assert '1.50 mg' in response.text, Tests.assertion_info('success', response.text)
+    assert '751.00 mg' in response.text, Tests.assertion_info('success', response.text)
 
 
 ## helpers
