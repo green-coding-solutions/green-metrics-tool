@@ -300,13 +300,13 @@ const getMeasurementsAndStats = async (repo, branch, workflow_id) => {
     const start_date = dateToYMD(new Date($('#rangestart input').val()), short=true);
     const end_date = dateToYMD(new Date($('#rangeend input').val()), short=true);
 
-    history.pushState(null, '', `${window.location.origin}${window.location.pathname}?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`); // replace URL to bookmark!
-
     const query_string=`repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`;
     const [measurements, stats] = await Promise.all([
         makeAPICall(`/v1/ci/measurements?${query_string}`),
         makeAPICall(`/v1/ci/stats?${query_string}`)
     ]);
+
+    history.pushState(null, '', `${window.location.origin}${window.location.pathname}?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`); // replace URL to bookmark!
 
     return [measurements, stats];
 }
