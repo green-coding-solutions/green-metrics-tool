@@ -179,6 +179,63 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
 
     return ORJSONResponse({'success': True, 'data': data})
 
+@router.get('/v1/ci/stats')
+async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, end_date: date):
+
+
+    query = '''
+        WITH my_table as (
+            SELECT
+                SUM(energy_uj) as a,
+                SUM(duration_us) as b,
+                SUM(cpu_util_avg) as c,
+                SUM(carbon_intensity_g) as d,
+                SUM(carbon_ug) as e
+            FROM ci_measurements
+            WHERE
+                repo = %s AND branch = %s AND workflow_id = %s
+                AND DATE(created_at) >= TO_DATE(%s, 'YYYY-MM-DD') AND DATE(created_at) <= TO_DATE(%s, 'YYYY-MM-DD')
+            GROUP BY run_id
+        ) SELECT
+            -- Cast is to avoid DECIMAL which ORJJSON cannot handle
+            AVG(a)::float, SUM(a)::float, STDDEV(a)::float, (STDDEV(a) / NULLIF(AVG(a), 0))::float * 100,
+            AVG(b)::float, SUM(b)::float, STDDEV(b)::float, (STDDEV(b) / NULLIF(AVG(b), 0))::float * 100,
+            AVG(c)::float, SUM(c)::float, STDDEV(c)::float, (STDDEV(c) / NULLIF(AVG(c), 0))::float * 100,
+            AVG(d)::float, SUM(d)::float, STDDEV(d)::float, (STDDEV(d) / NULLIF(AVG(d), 0))::float * 100,
+            AVG(e)::float, SUM(e)::float, STDDEV(e)::float, (STDDEV(e) / NULLIF(AVG(e), 0))::float * 100,
+            COUNT(*)
+        FROM my_table;
+    '''
+    params = (repo, branch, workflow, str(start_date), str(end_date))
+    totals_data = DB().fetch_one(query, params=params)
+
+    if totals_data is None or totals_data[0] is None: # aggregate query always returns row
+        return Response(status_code=204)  # No-Content
+
+    query = '''
+        SELECT
+            -- Cast is to avoid DECIMAL which ORJJSON cannot handle
+            AVG(energy_uj)::float, SUM(energy_uj)::float, STDDEV(energy_uj)::float, (STDDEV(energy_uj) / NULLIF(AVG(energy_uj), 0))::float * 100,
+            AVG(duration_us)::float, SUM(duration_us)::float, STDDEV(duration_us)::float, (STDDEV(duration_us) / NULLIF(AVG(duration_us), 0))::float * 100,
+            AVG(cpu_util_avg)::float, SUM(cpu_util_avg)::float, STDDEV(cpu_util_avg)::float, (STDDEV(cpu_util_avg) / NULLIF(AVG(cpu_util_avg), 0))::float * 100,
+            AVG(carbon_intensity_g)::float, SUM(carbon_intensity_g)::float, STDDEV(carbon_intensity_g)::float, (STDDEV(carbon_intensity_g) / NULLIF(AVG(carbon_intensity_g), 0))::float * 100,
+            AVG(carbon_ug)::float, SUM(carbon_ug)::float, STDDEV(carbon_ug)::float, (STDDEV(carbon_ug) / NULLIF(AVG(carbon_ug), 0))::float * 100,
+            COUNT(*), label
+        FROM ci_measurements
+        WHERE
+            repo = %s AND branch = %s AND workflow_id = %s
+            AND DATE(created_at) >= TO_DATE(%s, 'YYYY-MM-DD') AND DATE(created_at) <= TO_DATE(%s, 'YYYY-MM-DD')
+        GROUP BY label
+    '''
+    params = (repo, branch, workflow, str(start_date), str(end_date))
+    per_label_data = DB().fetch_all(query, params=params)
+
+    if per_label_data is None or per_label_data[0] is None:
+        return Response(status_code=204)  # No-Content
+
+    return ORJSONResponse({'success': True, 'data': {'totals': totals_data, 'per_label': per_label_data}})
+
+
 @router.get('/v1/ci/repositories')
 async def get_ci_repositories(repo: str | None = None, sort_by: str = 'name'):
 
