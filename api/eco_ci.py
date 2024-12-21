@@ -330,7 +330,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
             WITH my_table as (
                 SELECT SUM({metric}) my_sum
                 FROM ci_measurements
-                WHERE repo = %s AND branch = %s AND workflow_id = %s AND created_at > NOW() - make_interval(days => %s)
+                WHERE repo = %s AND branch = %s AND workflow_id = %s AND DATE(created_at) > NOW() - make_interval(days => %s)
                 GROUP BY run_id
             ) SELECT AVG(my_sum) FROM my_table;
         """
@@ -340,7 +340,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
         query = f"{query} GROUP BY run_id ORDER BY MAX(created_at) DESC LIMIT 1"
         label = f"Last run {label}"
     elif mode == 'totals' and duration_days:
-        query = f"{query} AND created_at > NOW() - make_interval(days => %s)"
+        query = f"{query} AND DATE(created_at) > NOW() - make_interval(days => %s)"
         params.append(duration_days)
         label = f"Last {duration_days} days total {label}"
     elif mode == 'totals':
