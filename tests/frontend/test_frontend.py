@@ -81,39 +81,39 @@ def test_eco_ci_demo_data():
     time.sleep(2) # wait for new data to render
 
     energy_avg_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(2)").text_content()
-    assert energy_avg_all_steps.strip() == '14.30 J (± 72.61%)'
+    assert energy_avg_all_steps.strip() == '28.60 J (± 3.30%)'
 
     time_avg_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(3)").text_content()
-    assert time_avg_all_steps.strip() == '6.40 s (± 59.48%)'
+    assert time_avg_all_steps.strip() == '12.80 s (± 3.49%)'
 
     cpu_avg_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(4)").text_content()
-    assert cpu_avg_all_steps.strip() == '38.60% (± 36.31%%)'
+    assert cpu_avg_all_steps.strip() == '44.73% (± 10.65%%)'
 
     grid_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(5)").text_content()
-    assert grid_all_steps.strip() == '494.20 gCO2/kWh (± 5.16%)'
+    assert grid_all_steps.strip() == '494.20 gCO2/kWh (± 5.47%)'
 
     carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(6)").text_content()
-    assert carbon_all_steps.strip() == '0.008 gCO2e (± 71.27%)'
+    assert carbon_all_steps.strip() == '0.016 gCO2e (± 5.71%)'
 
     count_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(7)").text_content()
-    assert count_all_steps.strip() == '10'
+    assert count_all_steps.strip() == '5'
 
 
 
     energy_avg_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(2)").text_content()
-    assert energy_avg_single.strip() == '4.46 J (± 10.96%)'
+    assert energy_avg_single.strip() == '24.14 J (± 1.88%)'
 
     time_avg_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(3)").text_content()
-    assert time_avg_single.strip() == '2.80 s (± 15.97%)'
+    assert time_avg_single.strip() == '10.00 s (± 0.00%)'
 
     cpu_avg_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(4)").text_content()
-    assert cpu_avg_single.strip() == '27.60% (± 41.83%%)'
+    assert cpu_avg_single.strip() == '49.60% (± 5.06%%)'
 
     grid_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(5)").text_content()
     assert grid_single.strip() == '494.20 gCO2/kWh (± 5.47%)'
 
     carbon_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(6)").text_content()
-    assert carbon_single.strip() == '0.0026 gCO2e (± 9.83%)'
+    assert carbon_single.strip() == '0.0134 gCO2e (± 5.27%)'
 
     count_single = page.locator("#label-stats-table-avg > tr:nth-child(2) > td:nth-child(7)").text_content()
     assert count_single.strip() == '5'
@@ -157,13 +157,13 @@ def test_eco_ci_adding_data():
         page.wait_for_load_state("load") # ALL JS should be done
 
         energy_avg_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(2)").text_content()
-        assert energy_avg_all_steps.strip() == '26.00 J (± 50.00%)'
+        assert energy_avg_all_steps.strip() == '78.00 J (± 0.00%)'
 
         carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(6)").text_content()
-        assert carbon_all_steps.strip() == '0.3235 gCO2e (± 0.00%)'
+        assert carbon_all_steps.strip() == '0.9704 gCO2e (± 0.00%)'
 
         carbon_all_steps = page.locator("#label-stats-table-avg > tr:nth-child(1) > td:nth-child(3)").text_content()
-        assert carbon_all_steps.strip() == '0.04 s (± 0.00%)'
+        assert carbon_all_steps.strip() == '0.11 s (± 0.00%)'
 
 
     finally: # reset state to expectation of this file

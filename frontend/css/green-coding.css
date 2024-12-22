@@ -310,6 +310,10 @@ a {
     transition: opacity .1s ease;
 }
 
+.bold {
+    font-weight: bold;
+}
+
 
 /* PRINT STYLESHEETS */
 @media print {

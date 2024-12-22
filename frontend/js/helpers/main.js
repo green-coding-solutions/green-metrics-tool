@@ -71,6 +71,11 @@ class GMTMenu extends HTMLElement {
 }
 customElements.define('gmt-menu', GMTMenu);
 
+const getURLParams = () => {
+    const query_string = window.location.search;
+    return (new URLSearchParams(query_string))
+}
+
 const getPretty = (metric_name, key)  => {
     if (METRIC_MAPPINGS[metric_name] == null || METRIC_MAPPINGS[metric_name][key] == null) {
         console.log(metric_name, ' is undefined in METRIC_MAPPINGS or has no key');

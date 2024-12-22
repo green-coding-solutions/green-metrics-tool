@@ -1,9 +1,3 @@
-const getURLParams = () => {
-    const query_string = window.location.search;
-    const url_params = (new URLSearchParams(query_string))
-    return url_params;
-}
-
 let chart_instances = [];
 
 window.onresize = function() { // set callback when ever the user changes the viewport

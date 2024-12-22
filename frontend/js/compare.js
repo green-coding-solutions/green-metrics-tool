@@ -1,10 +1,3 @@
-const getURLParams = () => {
-    const query_string = window.location.search;
-    const url_params = (new URLSearchParams(query_string))
-    return url_params;
-}
-
-
 async function fetchDiff() {
     document.querySelector('#diff-question').remove();
     document.querySelector('#loader-diff').style.display = '';
