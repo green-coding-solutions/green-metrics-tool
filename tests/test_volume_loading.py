@@ -189,7 +189,7 @@ def test_volume_inspect():
 
     if platform.system() == 'Darwin':
         print('Running volume inspect tests on Darwin is not supported. Skipping test', file=sys.stderr)
-        return
+        pytest.skip()
 
 
     output = subprocess.check_output(['docker', 'info', '-f', '{{.DockerRootDir}}'], encoding='UTF-8')
@@ -198,7 +198,7 @@ def test_volume_inspect():
         os.listdir(output.strip())
     except PermissionError:
         print('Permission error encountered with checking docker directory. Skipping test for this platform', file=sys.stderr)
-        return
+        pytest.skip()
 
     ps = subprocess.run(
         ['docker', 'volume', 'inspect', '2g89huiwecjuShjg_Sdnufewiuasd'],
