@@ -102,6 +102,8 @@ class RunUntilManager:
             self.__runner.build_docker_images()
             self.__runner.end_phase('[INSTALLATION]')
 
+            self.__runner.save_image_and_volume_sizes()
+
             self.__runner.start_phase('[BOOT]')
             self.__runner.setup_networks()
             if step == 'setup_networks':
