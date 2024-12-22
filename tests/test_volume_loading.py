@@ -1,6 +1,8 @@
 import os
 import subprocess
 import io
+import platform
+import sys
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -9,6 +11,7 @@ import pytest
 
 from tests import test_functions as Tests
 from runner import Runner
+from lib.db import DB
 
 def test_volume_load_no_escape():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_etc_hosts.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
@@ -180,3 +183,55 @@ def test_volume_loading_subdirectories_subdir2():
 
     expect_copied_testfile_4 = "stdout from process: ['docker', 'exec', 'test-container', 'grep', 'testfile4-content', '/tmp/testfile4-correctly-copied'] testfile4-content"
     assert expect_copied_testfile_4 in run_stdout, Tests.assertion_info(expect_copied_testfile_4, f"expected output not in {run_stdout}")
+
+
+def test_volume_inspect():
+
+    if platform.system() == 'Darwin':
+        print('Running volume inspect tests on Darwin is not supported. Skipping test', file=sys.stderr)
+        return
+
+
+    output = subprocess.check_output(['docker', 'info', '-f', '{{.DockerRootDir}}'], encoding='UTF-8')
+
+    try:
+        os.listdir(output.strip())
+    except PermissionError:
+        print('Permission error encountered with checking docker directory. Skipping test for this platform', file=sys.stderr)
+        return
+
+    ps = subprocess.run(
+        ['docker', 'volume', 'inspect', '2g89huiwecjuShjg_Sdnufewiuasd'],
+        check=False,
+    )
+    assert ps.returncode == 1, 'docker volume of 2g89huiwecjuShjg_Sdnufewiuasd seems to be present on file system. Cannot execute test safely'
+
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_with_named_volume.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, allow_unsafe=True)
+
+
+    try:
+        subprocess.check_output(['docker', 'volume', 'create', '2g89huiwecjuShjg_Sdnufewiuasd'])
+
+        # fill the volume with 1 MB
+        subprocess.check_output(['docker', 'run', '-it', '--rm', '-v', '2g89huiwecjuShjg_Sdnufewiuasd:/data', 'alpine', 'dd', 'if=/dev/zero', 'of=/data/file1', 'bs=1M', 'count=1'])
+
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_networks')
+
+        query = """
+                SELECT
+                    machine_specs->'Container Image Sizes',
+                    machine_specs->'Container Volume Sizes'
+                FROM
+                    runs
+                WHERE
+                    id = %s
+                """
+
+        data = DB().fetch_one(query, (runner._run_id,))
+
+        assert 9000000 < data[0]['gcb_stress'] < 10000000, data
+        assert 1000000 < data[1]['2g89huiwecjuShjg_Sdnufewiuasd'] < 1100000, data # 0 because it is just an empty file node so far
+
+    finally:
+        subprocess.check_output(['docker', 'volume', 'rm', '2g89huiwecjuShjg_Sdnufewiuasd'])

@@ -687,14 +687,14 @@ class Runner:
                         encoding='UTF-8',
                     )
 
-                    self.__volume_sizes[volume] = output.strip().split('\t', maxsplit=1)[0]
+                    self.__volume_sizes[volume] = int(output.strip().split('\t', maxsplit=1)[0])
                 except Exception as exc:
                     raise RuntimeError('Docker volumes could not be inspected. This can happen if you are storing images in a root only accessible location. Consider switching to docker rootless, running with --skip-volume-inspect or running GMT with sudo.') from exc
         DB().query("""
             UPDATE runs
             SET machine_specs = machine_specs || %s
             WHERE id = %s
-            """, params=(json.dumps({'Image Sizes': self.__image_sizes, 'Volume Sizes': self.__volume_sizes}), self._run_id))
+            """, params=(json.dumps({'Container Image Sizes': self.__image_sizes, 'Container Volume Sizes': self.__volume_sizes}), self._run_id))
 
 
 
