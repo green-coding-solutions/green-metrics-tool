@@ -56,43 +56,35 @@ const populateMachines = async () => {
 
 }
 
-const fillInputsFromURL = () => {
-    let url_params = getURLParams();
+const fillInputsFromURL = (url_params) => {
 
-    if(url_params.get('uri') == null
-        || url_params.get('uri') == ''
-        || url_params.get('uri') == 'null') {
+
+    if(url_params['uri'] == null
+        || url_params['uri'] == ''
+        || url_params['uri'] == 'null') {
         showNotification('No uri', 'uri parameter in URL is empty or not present. Did you follow a correct URL?');
         throw "Error";
     }
-    $('input[name="uri"]').val(escapeString(url_params.get('uri')));
-    $('#uri').text(escapeString(url_params.get('uri')));
+    $('input[name="uri"]').val(escapeString(url_params['uri']));
+    $('#uri').text(escapeString(url_params['uri']));
 
     // all variables can be set via URL initially
-    if(url_params.get('branch') != null) {
-        $('input[name="branch"]').val(escapeString(url_params.get('branch')));
-        $('#branch').text(escapeString(url_params.get('branch')));
+    if(url_params['branch'] != null) {
+        $('input[name="branch"]').val(escapeString(url_params['branch']));
+        $('#branch').text(escapeString(url_params['branch']));
     }
-    if(url_params.get('filename') != null) {
-        $('input[name="filename"]').val(escapeString(url_params.get('filename')));
-        $('#filename').text(escapeString(url_params.get('filename')));
+    if(url_params['filename'] != null) {
+        $('input[name="filename"]').val(escapeString(url_params['filename']));
+        $('#filename').text(escapeString(url_params['filename']));
     }
-    if(url_params.get('machine_id') != null) {
-        $('select[name="machine_id"]').val(escapeString(url_params.get('machine_id')));
+    if(url_params['machine_id'] != null) {
+        $('select[name="machine_id"]').val(escapeString(url_params['machine_id']));
         $('#machine').text($('select[name="machine_id"] :checked').text());
     }
-    if(url_params.get('sorting') != null) $(`#sorting-${url_params.get('sorting')}`).prop('checked', true);
-    if(url_params.get('phase') != null) $(`#phase-${url_params.get('phase')}`).prop('checked', true);
-    if(url_params.get('metrics') != null) $(`#metrics-${url_params.get('metrics')}`).prop('checked', true);
+    if(url_params['sorting'] != null) $(`#sorting-${url_params['sorting']}`).prop('checked', true);
+    if(url_params['phase'] != null) $(`#phase-${url_params['phase']}`).prop('checked', true);
+    if(url_params['metrics'] != null) $(`#metrics-${url_params['metrics']}`).prop('checked', true);
 
-    // these two need no escaping, as the date library will always produce a result
-    // it might fail parsing the date however
-    try {
-        if(url_params.get('start_date') != null) $('#rangestart').calendar({initialDate: url_params.get('start_date')});
-        if(url_params.get('end_date') != null) $('#rangeend').calendar({initialDate: url_params.get('end_date')});
-    } catch (err) {
-        console.log("Date parsing failed")
-    }
 }
 
 const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null) => {
@@ -130,10 +122,8 @@ const loadCharts = async () => {
     document.querySelector("#chart-container").innerHTML = ''; // reset
     document.querySelector("#badge-container").innerHTML = ''; // reset
 
-    const api_url = `/v1/timeline?${buildQueryParams()}`;
-
     try {
-        var phase_stats_data = (await makeAPICall(api_url)).data
+        var phase_stats_data = (await makeAPICall(`/v1/timeline?${buildQueryParams()}`)).data
         history.pushState(null, '', `${window.location.origin}${window.location.pathname}?${buildQueryParams()}`); // replace URL to bookmark!
     } catch (err) {
         showNotification('Could not get compare in-repo data from API', err);
@@ -267,23 +257,16 @@ const loadCharts = async () => {
 $(document).ready( (e) => {
     (async () => {
         $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data
-        $('#rangestart').calendar({
-            type: 'date',
-            endCalendar: $('#rangeend'),
-            initialDate: new Date((new Date()).setDate((new Date).getDate() -30)),
-        });
-        $('#rangeend').calendar({
-            type: 'date',
-            startCalendar: $('#rangestart'),
-            initialDate: new Date(),
-        });
+
+        const url_params = getURLParams();
+        dateTimePicker(30, url_params);
 
         await populateMachines();
 
         $('#submit').on('click', function() {
             loadCharts()
         });
-        fillInputsFromURL();
+        fillInputsFromURL(url_params);
         loadCharts();
     })();
 });

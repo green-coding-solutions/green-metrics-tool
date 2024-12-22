@@ -1,15 +1,10 @@
 async function fetchDiff() {
     document.querySelector('#diff-question').remove();
     document.querySelector('#loader-diff').style.display = '';
-
-    const url_params = getURLParams();
     document.querySelector('#diff-container').insertAdjacentHTML('beforebegin', '<h2>Configuration and Settings diff</h2>')
     try {
-        let api_url = '/v1/diff?ids=';
-        params.forEach( id => {
-            api_url = `${api_url}${id}`
-        });
-        const diffString = (await makeAPICall(api_url)).data
+        const url_params = getURLParams();
+        const diffString = (await makeAPICall(`/v1/diff?ids=${url_params['ids']}`)).data
         const targetElement = document.getElementById('diff-container');
         const configuration = { drawFileList: true, matching: 'lines', highlight: true };
 
@@ -27,21 +22,17 @@ $(document).ready( (e) => {
     (async () => {
         const url_params = getURLParams();
 
-        if(url_params.get('ids') == null
-            || url_params.get('ids') == ''
-            || url_params.get('ids') == 'null') {
+        if(url_params['ids'] == null
+            || url_params['ids'] == ''
+            || url_params['ids'] == 'null') {
             showNotification('No ids', 'ids parameter in URL is empty or not present. Did you follow a correct URL?');
             throw "Error";
         }
 
-        params = url_params.getAll('ids');
-        const run_count = params[0].split(",").length
+
+        const run_count = url_params['ids'].split(",").length
         try {
-            let api_url = '/v1/compare?ids=';
-            params.forEach( id => {
-                api_url = `${api_url}${id}`
-            });
-            window.phase_stats_data = (await makeAPICall(api_url)).data
+            window.phase_stats_data = (await makeAPICall(`/v1/compare?ids=${url_params['ids']}`)).data
         } catch (err) {
             showNotification('Could not get compare in-repo data from API', err);
         }

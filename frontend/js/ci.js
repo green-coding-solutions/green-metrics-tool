@@ -226,18 +226,6 @@ const displayRunDetailsTable = (measurements, repo) => {
     $('table').tablesort();
 }
 
-
-function dateTimePicker() {
-    $('#rangestart').calendar({
-        type: 'date',
-        endCalendar: $('#rangeend')
-    });
-    $('#rangeend').calendar({
-        type: 'date',
-        startCalendar: $('#rangestart')
-    });
-}
-
 const getBadges = async (repo, branch, workflow_id) => {
     try {
         const link_node = document.createElement("a")
@@ -346,21 +334,6 @@ const bindRefreshButton = (repo, branch, workflow_id, chart_instance) => {
     });
 }
 
-const populateInputs = (url_params) => {
-
-    // set defaults first, so we have filled in data if we fail
-    const start_date = (url_params.get('start_date') == null) ? dateToYMD(new Date((new Date()).setDate((new Date).getDate() -7)), short=true) : url_params.get('start_date');
-    const end_date = (url_params.get('end_date') == null) ? dateToYMD(new Date(), short=true) : url_params.get('end_date');
-
-    // these two need no escaping, as the date library will always produce a result
-    // it might fail parsing the date however
-    try {
-        $('#rangestart').calendar({initialDate: start_date});
-        $('#rangeend').calendar({initialDate: end_date});
-    } catch (err) {
-        showNotification('Date error', 'Date parsing failed');
-    }
-}
 
 $(document).ready((e) => {
     (async () => {
@@ -369,9 +342,9 @@ $(document).ready((e) => {
 
         const url_params = getURLParams();
 
-        let branch = escapeString(url_params.get('branch'));
-        let repo = escapeString(url_params.get('repo'));
-        let workflow_id = escapeString(url_params.get('workflow'));
+        let branch = escapeString(url_params['branch']);
+        let repo = escapeString(url_params['repo']);
+        let workflow_id = escapeString(url_params['workflow']);
         const ci_data_node = document.querySelector('#ci-data')
 
         if (repo == null || repo == '' || repo == 'null') {
@@ -392,14 +365,12 @@ $(document).ready((e) => {
 
         bindRefreshButton(repo, branch, workflow_id, chart_instance)
 
-        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params.get('branch'))}</td></tr>`)
+        ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params['branch'])}</td></tr>`)
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow ID:</strong></td><td>${escapeString(workflow_id)}</td></tr>`)
 
         getBadges(repo, branch, workflow_id) // async
 
-        populateInputs(url_params);
-
-        dateTimePicker();
+        dateTimePicker(7, url_params);
 
         let measurements = null;
         let stats = null;

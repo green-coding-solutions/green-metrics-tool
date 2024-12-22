@@ -71,9 +71,26 @@ class GMTMenu extends HTMLElement {
 }
 customElements.define('gmt-menu', GMTMenu);
 
+const dateTimePicker = (days_before=30, url_params=null) => {
+
+    $('#rangestart').calendar({
+        type: 'date',
+        endCalendar: $('#rangeend'),
+        initialDate: (url_params['start_date'] != null) ? url_params['start_date'] : new Date((new Date()).setDate((new Date).getDate() - days_before)),
+    });
+
+    $('#rangeend').calendar({
+        type: 'date',
+        startCalendar: $('#rangestart'),
+        initialDate: (url_params['end_date'] != null) ? url_params['end_date'] : new Date(),
+    });
+
+}
+
 const getURLParams = () => {
-    const query_string = window.location.search;
-    return (new URLSearchParams(query_string))
+    const url_params = new URLSearchParams(window.location.search);
+    if (!url_params.size) return {};
+    return Object.fromEntries(url_params.entries())
 }
 
 const getPretty = (metric_name, key)  => {
@@ -198,7 +215,6 @@ const escapeString = (string) =>{
   }
 
 async function makeAPICall(path, values=null, force_authentication_token=null) {
-
 
     if(values != null ) {
         var options = {

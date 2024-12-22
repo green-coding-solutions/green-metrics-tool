@@ -301,24 +301,24 @@ async function makeBaseAPICalls(url_params) {
     let optimizations_data = null;
 
     try {
-        run_data = await makeAPICall('/v1/run/' + url_params.get('id'))
+        run_data = await makeAPICall('/v1/run/' + url_params['id'])
     } catch (err) {
         showNotification('Could not get run data from API', err);
     }
 
     try {
-        phase_stats_data = await makeAPICall('/v1/phase_stats/single/' + url_params.get('id'))
+        phase_stats_data = await makeAPICall('/v1/phase_stats/single/' + url_params['id'])
     } catch (err) {
         showNotification('Could not get phase_stats data from API', err);
     }
 
     try {
-        network_data = await makeAPICall('/v1/network/' + url_params.get('id'))
+        network_data = await makeAPICall('/v1/network/' + url_params['id'])
     } catch (err) {
         showNotification('Could not get network intercepts data from API', err);
     }
     try {
-        optimizations_data = await makeAPICall('/v1/optimizations/' + url_params.get('id'))
+        optimizations_data = await makeAPICall('/v1/optimizations/' + url_params['id'])
     } catch (err) {
         showNotification('Could not get optimizations data from API', err);
     }
@@ -333,8 +333,8 @@ const renderBadges = (url_params) => {
     document.querySelectorAll("#badges span.energy-badge-container").forEach(el => {
         const link_node = document.createElement("a")
         const img_node = document.createElement("img")
-        link_node.href = `${METRICS_URL}/stats.html?id=${url_params.get('id')}`
-        img_node.src = `${API_URL}/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
+        link_node.href = `${METRICS_URL}/stats.html?id=${url_params['id']}`
+        img_node.src = `${API_URL}/v1/badge/single/${url_params['id']}?metric=${el.attributes['data-metric'].value}`
         link_node.appendChild(img_node)
         el.appendChild(link_node)
     })
@@ -410,7 +410,7 @@ async function fetchTimelineData(url_params) {
     document.querySelector('#loader-question').remove();
 
     try {
-        const measurement_data = await makeAPICall('/v1/measurements/single/' + url_params.get('id'))
+        const measurement_data = await makeAPICall('/v1/measurements/single/' + url_params['id'])
         return measurement_data?.data;
     } catch (err) {
         showNotification('Could not get stats data from API', err);
@@ -420,7 +420,7 @@ async function fetchTimelineData(url_params) {
 
 async function fetchTimelineNotes(url_params) {
     try {
-        const note_data = await makeAPICall('/v1/notes/' + url_params.get('id'))
+        const note_data = await makeAPICall('/v1/notes/' + url_params['id'])
         return note_data?.data;
     } catch (err) {
         showNotification('Could not get notes data from API', err);
@@ -435,7 +435,7 @@ $(document).ready( (e) => {
 
         let url_params = getURLParams();
 
-        if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
+        if(url_params['id'] == null || url_params['id'] == '' || url_params['id'] == 'null') {
             showNotification('No run id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
             return;
         }
