@@ -51,7 +51,8 @@ class Runner:
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
         dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
-        user_id=None, measurement_flow_process_duration=None, measurement_total_duration=None, dev_no_phase_stats=False):
+        user_id=None, measurement_flow_process_duration=None, measurement_total_duration=None, dev_no_phase_stats=False,
+        skip_volume_inspect=False):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -65,6 +66,7 @@ class Runner:
         self._allow_unsafe = allow_unsafe
         self._skip_unsafe = skip_unsafe
         self._skip_system_checks = skip_system_checks
+        self._skip_volume_inspect = skip_volume_inspect
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
         self._docker_prune = docker_prune
@@ -672,22 +674,22 @@ class Runner:
             self.__image_sizes[service['image']] = int(output.strip())
 
         # du -s -b does not work on macOS and also the docker image is in a VM and not accessible with du for us
-        if self._allow_unsafe and platform.system() != 'Darwin':
+        if not self._skip_volume_inspect and self._allow_unsafe and platform.system() != 'Darwin':
             for volume in self._usage_scenario.get('volumes', {}):
                 # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
-                output = subprocess.check_output(
-                    f"docker volume inspect {volume} " + '--format={{.Mountpoint}}',
-                    shell=True,
-                    encoding='UTF-8',
-                )
-                output = subprocess.check_output(
-                    f"du -s -b {output.strip()} | cut -f1",
-                    shell=True,
-                    encoding='UTF-8',
-                )
+                try:
+                    output = subprocess.check_output(
+                        ['docker', 'volume', 'inspect', volume, '--format={{.Mountpoint}}'],
+                        encoding='UTF-8',
+                    )
+                    output = subprocess.check_output(
+                        ['du', '-s', '-b', output.strip()],
+                        encoding='UTF-8',
+                    )
 
-                self.__volume_sizes[volume] = output.strip()
-
+                    self.__volume_sizes[volume] = output.strip().split('\t', maxsplit=1)[0]
+                except Exception as exc:
+                    raise RuntimeError('Docker volumes could not be inspected. This can happen if you are storing images in a root only accessible location. Consider switching to docker rootless, running with --skip-volume-inspect or running GMT with sudo.') from exc
         DB().query("""
             UPDATE runs
             SET machine_specs = machine_specs || %s
@@ -1742,6 +1744,7 @@ if __name__ == '__main__':
     parser.add_argument('--verbose-provider-boot', action='store_true', help='Boot metric providers gradually')
     parser.add_argument('--full-docker-prune', action='store_true', help='Stop and remove all containers, build caches, volumes and images on the system')
     parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
+    parser.add_argument('--skip-volume-inspect', action='store_true', help='Disable docker volume inspection. Can help if you encounter permission issues.')
     parser.add_argument('--dev-flow-timetravel', action='store_true', help='Allows to repeat a failed flow or timetravel to beginning of flows or restart services.')
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
@@ -1801,7 +1804,8 @@ if __name__ == '__main__':
                     full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
                     dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics,
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
-                    docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats)
+                    docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats,
+                    skip_volume_inspect=args.skip_volume_inspect)
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
