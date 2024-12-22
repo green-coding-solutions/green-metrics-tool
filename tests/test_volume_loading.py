@@ -213,7 +213,7 @@ def test_volume_inspect():
         subprocess.check_output(['docker', 'volume', 'create', '2g89huiwecjuShjg_Sdnufewiuasd'])
 
         # fill the volume with 1 MB
-        subprocess.check_output(['docker', 'run', '-it', '--rm', '-v', '2g89huiwecjuShjg_Sdnufewiuasd:/data', 'alpine', 'dd', 'if=/dev/zero', 'of=/data/file1', 'bs=1M', 'count=1'])
+        subprocess.check_output(['docker', 'run', '--rm', '-v', '2g89huiwecjuShjg_Sdnufewiuasd:/data', 'alpine', 'dd', 'if=/dev/zero', 'of=/data/file1', 'bs=1M', 'count=1'])
 
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_networks')

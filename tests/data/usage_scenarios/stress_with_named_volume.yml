@@ -11,11 +11,11 @@ services:
       context: ../stress-application
 
 flow:
-  - name: Stress
+  - name: Noop
     container: test-container
     commands:
       - type: console
-        command: stress-ng -c 1 -t 100
+        command: stress-ng -c 1 -t 1
 
 volumes:
   2g89huiwecjuShjg_Sdnufewiuasd:
