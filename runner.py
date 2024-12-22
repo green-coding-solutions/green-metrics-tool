@@ -22,6 +22,7 @@ import shutil
 import yaml
 from collections import OrderedDict
 from datetime import datetime
+import platform
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -50,7 +51,8 @@ class Runner:
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
         dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
-        user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, dev_no_phase_stats=False):
+        user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, dev_no_phase_stats=False,
+        skip_volume_inspect=False):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -64,6 +66,7 @@ class Runner:
         self._allow_unsafe = allow_unsafe
         self._skip_unsafe = skip_unsafe
         self._skip_system_checks = skip_system_checks
+        self._skip_volume_inspect = skip_volume_inspect
         self._verbose_provider_boot = verbose_provider_boot
         self._full_docker_prune = full_docker_prune
         self._docker_prune = docker_prune
@@ -117,6 +120,8 @@ class Runner:
         self.__docker_params = []
         self.__working_folder = self._repo_folder
         self.__working_folder_rel = ''
+        self.__image_sizes = {}
+        self.__volume_sizes = {}
 
         # we currently do not use this variable
         # self.__filename = self._original_filename # this can be changed later if working directory changes
@@ -125,26 +130,6 @@ class Runner:
         if not self._dev_no_sleeps:
             print(TerminalColors.HEADER, '\nSleeping for : ', sleep_time, TerminalColors.ENDC)
             time.sleep(sleep_time)
-
-    def initialize_run(self):
-        # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
-
-        # we also update the branch here again, as this might not be main in case of local filesystem
-        self._run_id = DB().fetch_one("""
-                INSERT INTO runs (
-                    job_id, name, uri, email, branch, filename, commit_hash,
-                    commit_timestamp, runner_arguments, user_id, created_at
-                )
-                VALUES (
-                    %s, %s, %s, 'manual', %s, %s, %s,
-                    %s, %s, %s, NOW()
-                )
-                RETURNING id
-                """, params=(
-                    self._job_id, self._name, self._uri, self._branch, self._original_filename, self._commit_hash,
-                    self._commit_timestamp, json.dumps(self._arguments), self._user_id
-                ))[0]
-        return self._run_id
 
     def get_optimizations_ignore(self):
         return self._usage_scenario.get('optimizations_ignore', [])
@@ -189,6 +174,9 @@ class Runner:
         Path(path).mkdir(parents=True, exist_ok=True)
 
     def save_notes_runner(self):
+        if not self._run_id:
+            return # Nothing to do, but also no hard error needed
+
         print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
         self.__notes_helper.save_to_db(self._run_id)
 
@@ -448,7 +436,7 @@ class Runner:
         machine = Machine(machine_id=config['machine'].get('id'), description=config['machine'].get('description'))
         machine.register()
 
-    def update_and_insert_specs(self):
+    def initialize_run(self):
         config = GlobalConfig().config
 
         gmt_hash, _ = get_repo_info(CURRENT_DIR)
@@ -469,21 +457,32 @@ class Runner:
         measurement_config['providers'] = utils.get_metric_providers(config)
         measurement_config['sci'] = self._sci
 
-        # Insert auxilary info for the run. Not critical.
-        DB().query("""
-            UPDATE runs
-            SET
-                machine_id=%s, machine_specs=%s, measurement_config=%s,
-                usage_scenario = %s, gmt_hash=%s
-            WHERE id = %s
-            """, params=(
-            config['machine']['id'],
-            escape(json.dumps(machine_specs), quote=False),
-            json.dumps(measurement_config),
-            escape(json.dumps(self._usage_scenario), quote=False),
-            gmt_hash,
-            self._run_id)
-        )
+
+        # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
+        self._run_id = DB().fetch_one("""
+                INSERT INTO runs (
+                    job_id, name, uri, branch, filename,
+                    commit_hash, commit_timestamp, runner_arguments,
+                    machine_specs, measurement_config,
+                    usage_scenario, gmt_hash,
+                    machine_id, user_id, created_at
+                )
+                VALUES (
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s,
+                    %s, %s,
+                    %s, %s,
+                    %s, %s, NOW()
+                )
+                RETURNING id
+                """, params=(
+                    self._job_id, self._name, self._uri, self._branch, self._original_filename,
+                    self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
+                    escape(json.dumps(machine_specs), quote=False), json.dumps(measurement_config),
+                    escape(json.dumps(self._usage_scenario), quote=False), gmt_hash,
+                    GlobalConfig().config['machine']['id'], self._user_id,
+                ))[0]
+        return self._run_id
 
     def import_metric_providers(self):
         if self._dev_no_metrics:
@@ -660,6 +659,43 @@ class Runner:
 
         # Delete the directory /tmp/gmt_docker_images
         shutil.rmtree(temp_dir)
+
+    def save_image_and_volume_sizes(self):
+
+        for _, service in self._usage_scenario.get('services', {}).items():
+            tmp_img_name = self.clean_image_name(service['image'])
+
+            # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
+            output = subprocess.check_output(
+                f"docker image inspect {tmp_img_name} " + '--format={{.Size}}',
+                shell=True,
+                encoding='UTF-8',
+            )
+            self.__image_sizes[service['image']] = int(output.strip())
+
+        # du -s -b does not work on macOS and also the docker image is in a VM and not accessible with du for us
+        if not self._skip_volume_inspect and self._allow_unsafe and platform.system() != 'Darwin':
+            for volume in self._usage_scenario.get('volumes', {}):
+                # This will report bogus values on macOS sadly that do not align with "docker images" size info ...
+                try:
+                    output = subprocess.check_output(
+                        ['docker', 'volume', 'inspect', volume, '--format={{.Mountpoint}}'],
+                        encoding='UTF-8',
+                    )
+                    output = subprocess.check_output(
+                        ['du', '-s', '-b', output.strip()],
+                        encoding='UTF-8',
+                    )
+
+                    self.__volume_sizes[volume] = int(output.strip().split('\t', maxsplit=1)[0])
+                except Exception as exc:
+                    raise RuntimeError('Docker volumes could not be inspected. This can happen if you are storing images in a root only accessible location. Consider switching to docker rootless, running with --skip-volume-inspect or running GMT with sudo.') from exc
+        DB().query("""
+            UPDATE runs
+            SET machine_specs = machine_specs || %s
+            WHERE id = %s
+            """, params=(json.dumps({'Container Image Sizes': self.__image_sizes, 'Container Volume Sizes': self.__volume_sizes}), self._run_id))
+
 
 
     def setup_networks(self):
@@ -1379,6 +1415,9 @@ class Runner:
         self.__notes_helper.add_note({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
 
     def update_start_and_end_times(self):
+        if not self._run_id:
+            return # Nothing to do, but also no hard error needed
+
         print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
         DB().query("""
             UPDATE runs
@@ -1400,6 +1439,9 @@ class Runner:
 
 
     def store_phases(self):
+        if not self._run_id:
+            return # Nothing to do, but also no hard error needed
+
         print(TerminalColors.HEADER, '\nUpdating phases in DB', TerminalColors.ENDC)
         # internally PostgreSQL stores JSON ordered. This means our name-indexed dict will get
         # re-ordered. Therefore we change the structure and make it a list now.
@@ -1446,6 +1488,9 @@ class Runner:
                 self.add_to_log(container_id, f"stderr: {log.stderr}")
 
     def save_stdout_logs(self):
+        if not self._run_id:
+            return # Nothing to do, but also no hard error needed
+
         print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
         logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.__stdout_logs.items()])
         logs_as_str = logs_as_str.replace('\x00','')
@@ -1509,6 +1554,9 @@ class Runner:
         #self.__filename = self._original_filename # # we currently do not use this variable
         self.__working_folder = self._repo_folder
         self.__working_folder_rel = ''
+        self.__image_sizes = {}
+        self.__volume_sizes = {}
+
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
 
@@ -1525,20 +1573,19 @@ class Runner:
         '''
         try:
             config = GlobalConfig().config
-            self.start_measurement()
+            self.start_measurement() # we start as early as possible to include initialization overhead
             self.check_system('start')
             self.initialize_folder(self._tmp_folder)
             self.checkout_repository()
-            self.initialize_run()
             self.initial_parse()
+            self.register_machine_id()
             self.import_metric_providers()
             self.populate_image_names()
             self.prepare_docker()
             self.check_running_containers()
             self.remove_docker_images()
             self.download_dependencies()
-            self.register_machine_id()
-            self.update_and_insert_specs()
+            self.initialize_run() # have this as close to the start of measurement
             if self._debugger.active:
                 self._debugger.pause('Initial load complete. Waiting to start metric providers')
 
@@ -1558,6 +1605,8 @@ class Runner:
             self.start_phase('[INSTALLATION]')
             self.build_docker_images()
             self.end_phase('[INSTALLATION]')
+
+            self.save_image_and_volume_sizes()
 
             if self._debugger.active:
                 self._debugger.pause('Container build complete. Waiting to start container boot')
@@ -1653,7 +1702,7 @@ class Runner:
                                 raise exc
                             finally:
                                 try:
-                                    if self._dev_no_phase_stats is False:
+                                    if self._run_id and self._dev_no_phase_stats is False:
                                         # After every run, even if it failed, we want to generate phase stats.
                                         # They will not show the accurate data, but they are still neded to understand how
                                         # much a failed run has accrued in total energy and carbon costs
@@ -1696,6 +1745,7 @@ if __name__ == '__main__':
     parser.add_argument('--verbose-provider-boot', action='store_true', help='Boot metric providers gradually')
     parser.add_argument('--full-docker-prune', action='store_true', help='Stop and remove all containers, build caches, volumes and images on the system')
     parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
+    parser.add_argument('--skip-volume-inspect', action='store_true', help='Disable docker volume inspection. Can help if you encounter permission issues.')
     parser.add_argument('--dev-flow-timetravel', action='store_true', help='Allows to repeat a failed flow or timetravel to beginning of flows or restart services.')
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
@@ -1755,7 +1805,8 @@ if __name__ == '__main__':
                     full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
                     dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics,
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
-                    docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id)
+                    docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
+                    skip_volume_inspect=args.skip_volume_inspect)
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except

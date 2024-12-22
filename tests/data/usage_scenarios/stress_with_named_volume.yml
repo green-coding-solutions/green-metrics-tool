@@ -1,0 +1,21 @@
+---
+name: Test Stress with named volume
+author: Arne Tarara
+description: test
+
+services:
+  test-container:
+    type: container
+    image: gcb_stress
+    build:
+      context: ../stress-application
+
+flow:
+  - name: Noop
+    container: test-container
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1
+
+volumes:
+  2g89huiwecjuShjg_Sdnufewiuasd:

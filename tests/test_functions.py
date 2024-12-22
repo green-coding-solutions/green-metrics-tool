@@ -79,8 +79,8 @@ class RunUntilManager:
             self.__runner.check_system('start')
             self.__runner.initialize_folder(self.__runner._tmp_folder)
             self.__runner.checkout_repository()
-            self.__runner.initialize_run()
             self.__runner.initial_parse()
+            self.__runner.register_machine_id()
             self.__runner.import_metric_providers()
             if step == 'import_metric_providers':
                 return
@@ -89,8 +89,7 @@ class RunUntilManager:
             self.__runner.check_running_containers()
             self.__runner.remove_docker_images()
             self.__runner.download_dependencies()
-            self.__runner.register_machine_id()
-            self.__runner.update_and_insert_specs()
+            self.__runner.initialize_run()
 
             self.__runner.start_metric_providers(allow_other=True, allow_container=False)
             self.__runner.custom_sleep(config['measurement']['pre-test-sleep'])
@@ -102,6 +101,8 @@ class RunUntilManager:
             self.__runner.start_phase('[INSTALLATION]')
             self.__runner.build_docker_images()
             self.__runner.end_phase('[INSTALLATION]')
+
+            self.__runner.save_image_and_volume_sizes()
 
             self.__runner.start_phase('[BOOT]')
             self.__runner.setup_networks()

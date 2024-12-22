@@ -31,7 +31,7 @@
     <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
         <h1 class="ui header float left">
-            <a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a>
+            <a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a>
             Green Metrics Tool - All Repositories
         </h1>
         <div class="ui full-width-card segment card">
@@ -61,9 +61,12 @@
             <thead>
                 <tr>
                     <th>
-                        Repositories (<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.)
-                        <button id="compare-button" onclick="compareButton()" class="ui small button blue right">Compare: 0 Run(s)</button>
-                        <button id="sort-button" class="ui small button right purple"><i class="text icon"></i><span>Sort name</span></button>
+                        Repositories (<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.)+
+                        <div class="float-right">
+                            <button id="compare-button" onclick="compareButton()" class="ui small button blue">Compare: 0 Run(s)</button>
+                            <button id="unselect-button" class="ui mini button red right">Unselect all</button>
+                        </div>
+                        <button id="sort-button" class="ui small button purple float-right"><i class="text icon"></i><span>Sort name</span></button>
                     </th>
                 </tr>
             </thead>

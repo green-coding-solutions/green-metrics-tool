@@ -405,18 +405,6 @@ const displayOptimizationsData = (optimizations_data) => {
     $('#optimization_count').html(optimizations_data.length)
 }
 
-
-const getURLParams = () => {
-    const query_string = window.location.search;
-    const url_params = (new URLSearchParams(query_string))
-
-    if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
-        showNotification('No run id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
-        throw "Error";
-    }
-    return url_params;
-}
-
 async function fetchTimelineData(url_params) {
     document.querySelector('#api-loader').style.display = '';
     document.querySelector('#loader-question').remove();
@@ -446,6 +434,7 @@ $(document).ready( (e) => {
     (async () => {
 
         let url_params = getURLParams();
+
         if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
             showNotification('No run id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
             return;

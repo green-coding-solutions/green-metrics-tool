@@ -1,137 +1,3 @@
-const calculateStats = (energy_measurements, carbon_ug_measurements, carbon_intensity_g_measurements, duration_us_measurements, cpu_util_measurements) => {
-
-    let energy_avg = energy_stddev = energy_stddev_rel = energy_sum = '--'
-    let duration_us_avg = duration_us_stddev = duration_us_stddev_rel = duration_us_sum = '--'
-    let carbon_ug_avg = carbon_ug_stddev = carbon_ug_stddev_rel = carbon_ug_sum ='--'
-    let carbon_intensity_g_avg = carbon_intensity_g_stddev = carbon_intensity_g_stddev_rel = '--'
-    let cpuUtil_stddev = cpuUtil_avg = cpuUtil_stddev_rel = '--'
-
-    if (energy_measurements.length > 0) {
-        [energy_avg, energy_stddev, energy_sum, energy_stddev_rel] = calculateStatistics(energy_measurements)
-    }
-    if (duration_us_measurements.length > 0) {
-        [duration_us_avg, duration_us_stddev, duration_us_sum, duration_us_stddev_rel] = calculateStatistics(duration_us_measurements)
-    }
-    if (carbon_ug_measurements.length > 0) {
-        [carbon_ug_avg, carbon_ug_stddev, carbon_ug_sum, carbon_ug_stddev_rel] = calculateStatistics(carbon_ug_measurements)
-    }
-
-    // intentially skipping carbon_intensity_g_sum
-    if (carbon_intensity_g_measurements.length > 0) {
-        [carbon_intensity_g_avg, carbon_intensity_g_stddev, , carbon_intensity_g_stddev_rel] = calculateStatistics(carbon_intensity_g_measurements)
-    }
-
-    // intentially skipping cpuUtil_sum
-    if (cpu_util_measurements.length > 0) {
-        [cpuUtil_avg, cpuUtil_stddev, , cpuUtil_stddev_rel] = calculateStatistics(cpu_util_measurements)
-    }
-
-    return {
-        energy_uj: {
-            avg: energy_avg,
-            stddev: energy_stddev,
-            stddev_rel: energy_stddev_rel,
-            total: energy_sum
-        },
-        duration_us: {
-            avg: duration_us_avg,
-            stddev: duration_us_stddev,
-            stddev_rel: duration_us_stddev_rel,
-            total: duration_us_sum
-        },
-        carbon_ug: {
-            avg: carbon_ug_avg,
-            stddev: carbon_ug_stddev,
-            stddev_rel: carbon_ug_stddev_rel,
-            total: carbon_ug_sum
-        },
-        carbon_intensity_g: {
-            avg: carbon_intensity_g_avg,
-            stddev: carbon_intensity_g_stddev,
-            stddev_rel: carbon_intensity_g_stddev_rel
-        },
-        cpu_util: {
-            avg: cpuUtil_avg,
-            stddev: cpuUtil_stddev,
-            stddev_rel: cpuUtil_stddev_rel
-        },
-    };
-};
-
-const createStatsArrays = (measurements) => {  // iterates 2n times (1 full, 1 by run ID)
-    const measurementsByRun = {}
-    const measurementsByLabel = {}
-
-    const measurementsForFullRun = {
-        energy_uj: [],
-        carbon_ug: [],
-        carbon_intensity_g: [],
-        duration_us: [],
-        cpu_util: [],
-        count: 0
-    };
-
-    measurements.forEach(measurement => {
-        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, carbon_ug] = measurement;
-
-        if (!measurementsByLabel[label]) {
-            measurementsByLabel[label] = {
-                energy_uj: [],
-                carbon_ug: [],
-                carbon_intensity_g: [],
-                duration_us: [],
-                cpu_util: [],
-                count: 0
-            };
-        }
-        if (!measurementsByRun[run_id]) {
-            measurementsByRun[run_id] = {
-                energy_uj: [],
-                carbon_ug: [],
-                carbon_intensity_g: [],
-                duration_us: [],
-                cpu_util: []
-            };
-        }
-
-        if (energy_uj != null) {
-            measurementsByLabel[label].energy_uj.push(energy_uj);
-            measurementsByRun[run_id].energy_uj.push(energy_uj);
-        }
-        if (duration_us != null) {
-            measurementsByLabel[label].duration_us.push(duration_us);
-            measurementsByRun[run_id].duration_us.push(duration_us);
-        }
-        if (cpu_util != null) {
-            measurementsByLabel[label].cpu_util.push(cpu_util);
-            measurementsByRun[run_id].cpu_util.push(cpu_util);
-        }
-        if (carbon_ug != null) {
-            measurementsByLabel[label].carbon_ug.push(carbon_ug);
-            measurementsByRun[run_id].carbon_ug.push(carbon_ug);
-        }
-        if (carbon_intensity_g != null) {
-            measurementsByLabel[label].carbon_intensity_g.push(carbon_intensity_g);
-            measurementsByRun[run_id].carbon_intensity_g.push(carbon_intensity_g);
-        }
-        measurementsByLabel[label].count += 1;
-        measurementsForFullRun.count += 1;
-    });
-
-
-
-   for (const run_id in measurementsByRun) {
-        if (measurementsByRun[run_id].energy_uj) measurementsForFullRun.energy_uj.push(measurementsByRun[run_id].energy_uj);
-        if (measurementsByRun[run_id].carbon_ug) measurementsForFullRun.carbon_ug.push(measurementsByRun[run_id].carbon_ug);
-        if (measurementsByRun[run_id].duration_us) measurementsForFullRun.duration_us.push(measurementsByRun[run_id].duration_us);
-        if (measurementsByRun[run_id].cpu_util) measurementsForFullRun.cpu_util.push(measurementsByRun[run_id].cpu_util);
-        if (measurementsByRun[run_id].carbon_intensity_g) measurementsForFullRun.carbon_intensity_g.push(measurementsByRun[run_id].carbon_intensity_g);
-    }
-
-    return [measurementsForFullRun, measurementsByLabel];
-
-}
-
 const createChartContainer = (container, el) => {
     const chart_node = document.createElement("div")
     chart_node.classList.add("card");
@@ -247,6 +113,7 @@ const getChartOptions = (measurements) => {
 const displayGraph = (chart_instance, measurements) => {
 
     const options = getChartOptions(measurements); // iterates
+    chart_instance.clear();
     chart_instance.setOption(options);
 
     window.onresize = function () { // set callback when ever the user changes the viewport
@@ -254,8 +121,7 @@ const displayGraph = (chart_instance, measurements) => {
     }
 }
 
-const displayStatsTable = (measurements) => {
-    const [fullRunArray, labelsArray] = createStatsArrays(measurements); // iterates 2n times
+const displayStatsTable = (stats) => {
 
     const total_table = document.querySelector("#label-stats-table-total");
     const avg_table = document.querySelector("#label-stats-table-avg");
@@ -263,57 +129,57 @@ const displayStatsTable = (measurements) => {
     total_table.innerHTML = "";
     avg_table.innerHTML = "";
 
-    const full_run_stats = calculateStats(fullRunArray.energy_uj.flat(), fullRunArray.carbon_ug.flat(), fullRunArray.carbon_intensity_g.flat(), fullRunArray.duration_us.flat(), fullRunArray.cpu_util.flat())
-
     const full_run_stats_avg_node = document.createElement("tr")
     full_run_stats_avg_node.innerHTML += `
-                            <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)" data-position="top left">All steps <i class="question circle icon small"></i> </td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.energy_uj.avg/1000000)} J (± ${numberFormatter.format(full_run_stats.energy_uj.stddev_rel)}%)</td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.duration_us.avg/1000000)} s (± ${numberFormatter.format(full_run_stats.duration_us.stddev_rel)}%)</td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.cpu_util.avg)}% (± ${numberFormatter.format(full_run_stats.cpu_util.stddev_rel)}%%)</td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.carbon_intensity_g.avg)} gCO2/kWh (± ${numberFormatter.format(full_run_stats.carbon_intensity_g.stddev_rel)}%)</td>
-                            <td class="td-index">${numberFormatterLong.format(full_run_stats.carbon_ug.avg/1000000)} gCO2e (± ${numberFormatter.format(full_run_stats.carbon_ug.stddev_rel)}%)</td>
-                            <td class="td-index">${fullRunArray.count}</td>`;
+                            <td class="bold td-index" data-tooltip="Averages for whole run" data-position="top left">Total run <i class="question circle icon small"></i> </td>
+                            <td class="bold td-index">${numberFormatter.format(stats.totals[0]/1000000)} J (± ${numberFormatter.format(stats.totals[3])}%)</td>
+                            <td class="bold td-index">${numberFormatter.format(stats.totals[4]/1000000)} s (± ${numberFormatter.format(stats.totals[7])}%)</td>
+                            <td class="bold td-index">${numberFormatter.format(stats.totals[8])}% (± ${numberFormatter.format(stats.totals[11])}%%)</td>
+                            <td class="bold td-index">${numberFormatter.format(stats.totals[12])} gCO2/kWh (± ${numberFormatter.format(stats.totals[15])}%)</td>
+                            <td class="bold td-index">${numberFormatterLong.format(stats.totals[16]/1000000)} gCO2e (± ${numberFormatter.format(stats.totals[19])}%)</td>
+                            <td class="bold td-index">${stats.totals[20]}</td>`;
 
     avg_table.appendChild(full_run_stats_avg_node);
 
     const full_run_stats_total_node = document.createElement("tr")
     full_run_stats_total_node.innerHTML += `
-                            <td class="td-index" data-tooltip="Stats for the series of runs (labels aggregated for each pipeline run)" data-position="top left">All steps <i class="question circle icon small"></i> </td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.energy_uj.total/1000000)} J</td>
-                            <td class="td-index">${numberFormatter.format(full_run_stats.duration_us.total/1000000)} s</td>
-                            <td class="td-index">${numberFormatterLong.format(full_run_stats.carbon_ug.total/1000000)} gCO2e</td>
-                            <td class="td-index">${fullRunArray.count}</td>`;
+                            <td class="bold td-index" data-tooltip="Totals for whole run" data-position="top left">Per total run <i class="question circle icon small"></i> </td>
+                            <td class="bold td-index">${numberFormatter.format(stats.totals[1]/1000000)} J</td>
+                            <td class="bold td-index">${numberFormatter.format(stats.totals[5]/1000000)} s</td>
+                            <td class="bold td-index">${numberFormatterLong.format(stats.totals[17]/1000000)} gCO2e</td>
+                            <td class="bold td-index">${stats.totals[20]}</td>`;
     total_table.appendChild(full_run_stats_total_node)
 
-    for (const label in labelsArray) {
-        const label_stats = calculateStats(labelsArray[label].energy_uj, labelsArray[label].carbon_ug, labelsArray[label].carbon_intensity_g, labelsArray[label].duration_us, labelsArray[label].cpu_util)
+    stats.per_label.forEach((row) =>{
         const label_stats_avg_node = document.createElement("tr")
+        const label = row[21];
         label_stats_avg_node.innerHTML += `
-                                        <td class="td-index" data-tooltip="stats for the series of steps represented by the ${label} label"  data-position="top left">${label} <i class="question circle icon small"></i></td>
-                                        <td class="td-index">${numberFormatter.format(label_stats.energy_uj.avg/1000000)} J (± ${numberFormatter.format(label_stats.energy_uj.stddev_rel)}%)</td>
-                                        <td class="td-index">${numberFormatter.format(label_stats.duration_us.avg/1000000)} s (± ${numberFormatter.format(label_stats.duration_us.stddev_rel)}%)</td>
-                                        <td class="td-index">${numberFormatter.format(label_stats.cpu_util.avg)}% (± ${numberFormatter.format(label_stats.cpu_util.stddev_rel)}%%)</td>
-                                        <td class="td-index">${numberFormatter.format(label_stats.carbon_intensity_g.avg)} gCO2/kWh (± ${numberFormatter.format(label_stats.carbon_intensity_g.stddev_rel)}%)</td>
-                                        <td class="td-index">${numberFormatterLong.format(label_stats.carbon_ug.avg/1000000)} gCO2e (± ${numberFormatter.format(label_stats.carbon_ug.stddev_rel)}%)</td>
-                                        <td class="td-index">${labelsArray[label].count}</td>`;
+                                        <td class="td-index" data-tooltip="Averages per step '${label}'"  data-position="top left">${label} <i class="question circle icon small"></i></td>
+                                        <td class=" td-index">${numberFormatter.format(row[0]/1000000)} J (± ${numberFormatter.format(row[3])}%)</td>
+                                        <td class=" td-index">${numberFormatter.format(row[4]/1000000)} s (± ${numberFormatter.format(row[7])}%)</td>
+                                        <td class=" td-index">${numberFormatter.format(row[8])}% (± ${numberFormatter.format(row[11])}%%)</td>
+                                        <td class=" td-index">${numberFormatter.format(row[12])} gCO2/kWh (± ${numberFormatter.format(row[15])}%)</td>
+                                        <td class=" td-index">${numberFormatterLong.format(row[16]/1000000)} gCO2e (± ${numberFormatter.format(row[19])}%)</td>
+                                        <td class="td-index">${row[20]}</td>`;
 
         avg_table.appendChild(label_stats_avg_node);
 
         const label_stats_total_node = document.createElement("tr")
         label_stats_total_node.innerHTML += `
-                                        <td class="td-index" data-tooltip="stats for the series of steps represented by the ${label} label"  data-position="top left">${label} <i class="question circle icon small"></i></td>
-                                        <td class="td-index">${numberFormatter.format(label_stats.energy_uj.total/1000000)} J</td>
-                                        <td class="td-index">${numberFormatter.format(label_stats.duration_us.total/1000000)} s</td>
-                                        <td class="td-index">${numberFormatterLong.format(label_stats.carbon_ug.total/1000000)} gCO2e</td>
-                                        <td class="td-index">${labelsArray[label].count}</td>`;
+                                        <td class="td-index" data-tooltip="Totals per step '${label}'"  data-position="top left">${label} <i class="question circle icon small"></i></td>
+                                        <td class=" td-index">${numberFormatter.format(row[0]/1000000)} J (± ${numberFormatter.format(row[3])}%)</td>
+                                        <td class=" td-index">${numberFormatter.format(row[4]/1000000)} s (± ${numberFormatter.format(row[7])}%)</td>
+                                        <td class=" td-index">${numberFormatterLong.format(row[17]/1000000)} gCO2e (± ${numberFormatter.format(row[19])}%)</td>
+                                        <td class="td-index">${row[20]}</td>`;
         total_table.appendChild(label_stats_total_node);
 
-    };
+    }) ;
+
 }
 
-const displayCITable = (measurements, repo) => {
+const displayRunDetailsTable = (measurements, repo) => {
 
+    document.querySelector("#run-details-table").style.display = ''; // show
     document.querySelector("#ci-table").innerHTML = ''; // clear
 
     measurements.forEach(measurement => {
@@ -372,48 +238,100 @@ function dateTimePicker() {
     });
 }
 
-const getLastRunBadge = async (repo, branch, workflow_id) => {
+const getBadges = async (repo, branch, workflow_id) => {
     try {
         const link_node = document.createElement("a")
         const img_node = document.createElement("img")
         img_node.src = `${API_URL}/v1/ci/badge/get?repo=${repo}&branch=${branch}&workflow=${workflow_id}`
-        link_node.href = window.location.href
-        link_node.appendChild(img_node)
-        document.querySelector("span.energy-badge-container").appendChild(link_node)
-        document.querySelector(".copy-badge").addEventListener('click', copyToClipboard)
+        img_node.onerror = function() {this.src='/images/no-data-badge.webp'}
+        link_node.href = '#'
+
+        const energy_last = link_node.cloneNode(true)
+        const energy_last_image = img_node.cloneNode(true)
+        energy_last_image.onerror = function() {this.src='/images/no-data-badge.webp'}
+        energy_last.appendChild(energy_last_image)
+
+        const carbon_last = link_node.cloneNode(true)
+        const carbon_last_image = img_node.cloneNode(true)
+        carbon_last_image.src = `${carbon_last_image.src}&metric=carbon`
+        carbon_last_image.onerror = function() {this.src='/images/no-data-badge.webp'}
+        carbon_last.appendChild(carbon_last_image)
+
+        const energy_totals = link_node.cloneNode(true)
+        const energy_totals_image = img_node.cloneNode(true)
+        energy_totals_image.src = `${energy_totals_image.src}&mode=totals`
+        energy_totals_image.onerror = function() {this.src='/images/no-data-badge.webp'}
+        energy_totals.appendChild(energy_totals_image)
+
+        const carbon_totals = link_node.cloneNode(true)
+        const carbon_totals_image = img_node.cloneNode(true)
+        carbon_totals_image.src = `${carbon_totals_image.src}&mode=totals&metric=carbon`
+        carbon_totals_image.onerror = function() {this.src='/images/no-data-badge.webp'}
+        carbon_totals.appendChild(carbon_totals_image)
+
+        const carbon_totals_monthly = link_node.cloneNode(true)
+        const carbon_totals_monthly_image = img_node.cloneNode(true)
+        carbon_totals_monthly_image.src = `${carbon_totals_monthly_image.src}&mode=totals&metric=carbon&duration_days=30`
+        carbon_totals_monthly_image.onerror = function() {this.src='/images/no-data-badge.webp'}
+        carbon_totals_monthly.appendChild(carbon_totals_monthly_image)
+
+        const energy_totals_monthly = link_node.cloneNode(true)
+        const energy_totals_monthly_image = img_node.cloneNode(true)
+        energy_totals_monthly_image.src = `${energy_totals_monthly_image.src}&mode=totals&duration_days=30`
+        energy_totals_monthly_image.onerror = function() {this.src='/images/no-data-badge.webp'}
+        energy_totals_monthly.appendChild(energy_totals_monthly_image)
+
+
+        document.querySelector("#energy-badge-container-last").appendChild(energy_last)
+        document.querySelector("#energy-badge-container-totals").appendChild(energy_totals)
+        document.querySelector("#carbon-badge-container-last").appendChild(carbon_last)
+        document.querySelector("#carbon-badge-container-totals").appendChild(carbon_totals)
+
+        document.querySelector("#energy-badge-container-totals-monthly").appendChild(energy_totals_monthly)
+        document.querySelector("#carbon-badge-container-totals-monthly").appendChild(carbon_totals_monthly)
+
+        document.querySelectorAll(".copy-badge").forEach(el => {el.addEventListener('click', copyToClipboard)})
     } catch (err) {
         showNotification('Could not get badge data from API', err);
     }
 }
 
-const getMeasurements = async (repo, branch, workflow_id, start_date = null, end_date = null) => {
-    if(end_date == null) end_date = dateToYMD(new Date(), short=true);
-    if(start_date == null) start_date = dateToYMD(new Date((new Date()).setDate((new Date).getDate() -7)), short=true);
-    const api_string=`/v1/ci/measurements?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`;
-    return await makeAPICall(api_string);
+const getMeasurementsAndStats = async (repo, branch, workflow_id) => {
+    const start_date = dateToYMD(new Date($('#rangestart input').val()), short=true);
+    const end_date = dateToYMD(new Date($('#rangeend input').val()), short=true);
+
+    const query_string=`repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`;
+    const [measurements, stats] = await Promise.all([
+        makeAPICall(`/v1/ci/measurements?${query_string}`),
+        makeAPICall(`/v1/ci/stats?${query_string}`)
+    ]);
+
+    history.pushState(null, '', `${window.location.origin}${window.location.pathname}?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`); // replace URL to bookmark!
+
+    return [measurements, stats];
 }
 
 const bindRefreshButton = (repo, branch, workflow_id, chart_instance) => {
     // When the user selects a subset of the measurement data via the date-picker
     $('#submit').on('click', async function () {
-        const startDate = dateToYMD(new Date($('#rangestart input').val()), short=true);
-        const endDate = dateToYMD(new Date($('#rangeend input').val()), short=true);
 
         let measurements = null;
+        let stats = null;
         try {
-            measurements = await getMeasurements(repo, branch, workflow_id, startDate, endDate); // iterates I
+            [measurements, stats] = await getMeasurementsAndStats(repo, branch, workflow_id); // iterates I
+
         } catch (err) {
             showNotification('Could not get data from API', err);
             return; // abort
         }
 
-        displayStatsTable(measurements.data); //iterates II
-        displayCITable(measurements.data, repo); // Iterates I (total: 1)
+        if (document.querySelector('#run-details-table').style.display != 'none') {
+            displayRunDetailsTable(measurements.data, repo);
+        }
 
-        // set new chart instance options
-        const options = getChartOptions(measurements.data); //iterates I
-        chart_instance.clear();
-        chart_instance.setOption(options);
+        displayStatsTable(stats.data); //iterates II
+
+        displayGraph(chart_instance, measurements.data)
 
         chart_instance.off('legendselectchanged') // remove
         // we need to re-bind the handler here and can also not really refactor that
@@ -422,15 +340,34 @@ const bindRefreshButton = (repo, branch, workflow_id, chart_instance) => {
             // get list of all legends that are on
             const selectedLegends = params.selected;
             const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[4]]);
-            displayStatsTable(filteredMeasurements);
+            // displayStatsTable(filteredMeasurements); -- this does not work anymore, as we are now fetching the data from the API
+            // this decision was done as the JS code was very unmaintainable and SQL was far more readable. Performance was even though. Rework this if functionality needed
         });
     });
 }
 
+const populateInputs = (url_params) => {
+
+    // set defaults first, so we have filled in data if we fail
+    const start_date = (url_params.get('start_date') == null) ? dateToYMD(new Date((new Date()).setDate((new Date).getDate() -7)), short=true) : url_params.get('start_date');
+    const end_date = (url_params.get('end_date') == null) ? dateToYMD(new Date(), short=true) : url_params.get('end_date');
+
+    // these two need no escaping, as the date library will always produce a result
+    // it might fail parsing the date however
+    try {
+        $('#rangestart').calendar({initialDate: start_date});
+        $('#rangeend').calendar({initialDate: end_date});
+    } catch (err) {
+        showNotification('Date error', 'Date parsing failed');
+    }
+}
+
 $(document).ready((e) => {
     (async () => {
-        const query_string = window.location.search;
-        const url_params = (new URLSearchParams(query_string))
+
+        $('.ui.secondary.menu .item').tab(); // must happen very early so tab menu is not broken if return happens
+
+        const url_params = getURLParams();
 
         let branch = escapeString(url_params.get('branch'));
         let repo = escapeString(url_params.get('repo'));
@@ -458,15 +395,16 @@ $(document).ready((e) => {
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${escapeString(url_params.get('branch'))}</td></tr>`)
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow ID:</strong></td><td>${escapeString(workflow_id)}</td></tr>`)
 
-        getLastRunBadge(repo, branch, workflow_id) // async
+        getBadges(repo, branch, workflow_id) // async
 
-        $('#rangestart input').val(new Date((new Date()).setDate((new Date).getDate() -7))) // set default on load
-        $('#rangeend input').val(new Date()) // set default on load
+        populateInputs(url_params);
+
         dateTimePicker();
 
         let measurements = null;
+        let stats = null;
         try {
-            measurements = await getMeasurements(repo, branch, workflow_id)
+            [measurements, stats] = await getMeasurementsAndStats(repo, branch, workflow_id)
         } catch (err) {
             showNotification('Could not get data from API', err);
             return; // abort
@@ -491,22 +429,26 @@ $(document).ready((e) => {
         const repo_link_node = `<a href="${repo_link}" target="_blank">${repo}</a>`
         ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Repository:</strong></td><td>${repo_link_node}</td></tr>`)
 
-        displayCITable(measurements.data, repo); // Iterates I (total: 1)
 
         displayGraph(chart_instance, measurements.data) // iterates I (total: 2)
 
-        displayStatsTable(measurements.data) // iterates II (total: 4)
+        displayStatsTable(stats.data) // iterates II (total: 4)
+
+        document.querySelector('#display-run-details-table').addEventListener('click', () => {
+            document.querySelector('#api-loader').style.display = '';
+            document.querySelector('#loader-question').remove();
+            setTimeout(() => {displayRunDetailsTable(measurements.data, repo); document.querySelector('#api-loader').remove();}, 100); // we need to include a mini delay here, because otherwise the loader does not render, but is blocked by the hefty calculation
+        });
+
 
         // On legend change, recalculate stats table
         chart_instance.on('legendselectchanged', function (params) {
             // get list of all legends that are on
             const selectedLegends = params.selected;
             const filteredMeasurements = measurements.data.filter(measurement => selectedLegends[measurement[4]]);
-
-            displayStatsTable(filteredMeasurements);
+            // displayStatsTable(filteredMeasurements); -- this does not work anymore, as we are now fetching the data from the API
+            // this decision was done as the JS code was very unmaintainable and SQL was far more readable. Performance was even though. Rework this if functionality needed
         });
-
-        $('.ui.secondary.menu .item').tab();
 
         setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);
     })();

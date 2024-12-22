@@ -278,8 +278,9 @@ a,
     overflow: scroll;
 }
 
-#compare-button, #sort-button {
-    float: right;
+#unselect-button {
+    display: none;
+    margin-top: 10px;
 }
 
 .wide.card {
@@ -294,6 +295,11 @@ a,
     white-space: nowrap;
 }
 
+/* Since we have a without href we need to force pointer */
+a {
+    cursor: pointer;
+}
+
 .close.icon {
     cursor: pointer;
     position: absolute;
@@ -302,6 +308,10 @@ a,
     right: .5em;
     opacity: .7;
     transition: opacity .1s ease;
+}
+
+.bold {
+    font-weight: bold;
 }
 
 
