@@ -349,8 +349,8 @@ const bindRefreshButton = (repo, branch, workflow_id, chart_instance) => {
 const populateInputs = (url_params) => {
 
     // set defaults first, so we have filled in data if we fail
-    const start_date = (url_params.get('start_date') == null) ? dateToYMD(new Date(), short=true) : url_params.get('start_date');
-    const end_date = (url_params.get('end_date') == null) ? dateToYMD(new Date((new Date()).setDate((new Date).getDate() -7)), short=true) : url_params.get('end_date');
+    const start_date = (url_params.get('start_date') == null) ? dateToYMD(new Date((new Date()).setDate((new Date).getDate() -7)), short=true) : url_params.get('start_date');
+    const end_date = (url_params.get('end_date') == null) ? dateToYMD(new Date(), short=true) : url_params.get('end_date');
 
     // these two need no escaping, as the date library will always produce a result
     // it might fail parsing the date however
