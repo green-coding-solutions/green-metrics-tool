@@ -188,8 +188,8 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
             SELECT
                 SUM(energy_uj) as a,
                 SUM(duration_us) as b,
-                SUM(cpu_util_avg) as c,
-                SUM(carbon_intensity_g) as d,
+                SUM(cpu_util_avg * duration_us) / NULLIF(SUM(duration_us), 0)  as c, -- weighted average
+                SUM(carbon_intensity_g * duration_us) / NULLIF(SUM(duration_us), 0) as d,-- weighted average
                 SUM(carbon_ug) as e
             FROM ci_measurements
             WHERE
@@ -200,8 +200,8 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
             -- Cast is to avoid DECIMAL which ORJJSON cannot handle
             AVG(a)::float, SUM(a)::float, STDDEV(a)::float, (STDDEV(a) / NULLIF(AVG(a), 0))::float * 100,
             AVG(b)::float, SUM(b)::float, STDDEV(b)::float, (STDDEV(b) / NULLIF(AVG(b), 0))::float * 100,
-            AVG(c)::float, SUM(c)::float, STDDEV(c)::float, (STDDEV(c) / NULLIF(AVG(c), 0))::float * 100,
-            AVG(d)::float, SUM(d)::float, STDDEV(d)::float, (STDDEV(d) / NULLIF(AVG(d), 0))::float * 100,
+            AVG(c)::float, NULL, STDDEV(c)::float, (STDDEV(c) / NULLIF(AVG(c), 0))::float * 100, -- SUM of cpu_util_avg makes no sense
+            AVG(d)::float, NULL, STDDEV(d)::float, (STDDEV(d) / NULLIF(AVG(d), 0))::float * 100, -- SUM of carbon_intensity_g makes no sense
             AVG(e)::float, SUM(e)::float, STDDEV(e)::float, (STDDEV(e) / NULLIF(AVG(e), 0))::float * 100,
             COUNT(*)
         FROM my_table;
@@ -215,10 +215,11 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
     query = '''
         SELECT
             -- Cast is to avoid DECIMAL which ORJJSON cannot handle
+            -- Here we do not need a weighted average, even if the times differ, because we specifically want to look per step and duration is not relevant
             AVG(energy_uj)::float, SUM(energy_uj)::float, STDDEV(energy_uj)::float, (STDDEV(energy_uj) / NULLIF(AVG(energy_uj), 0))::float * 100,
             AVG(duration_us)::float, SUM(duration_us)::float, STDDEV(duration_us)::float, (STDDEV(duration_us) / NULLIF(AVG(duration_us), 0))::float * 100,
-            AVG(cpu_util_avg)::float, SUM(cpu_util_avg)::float, STDDEV(cpu_util_avg)::float, (STDDEV(cpu_util_avg) / NULLIF(AVG(cpu_util_avg), 0))::float * 100,
-            AVG(carbon_intensity_g)::float, SUM(carbon_intensity_g)::float, STDDEV(carbon_intensity_g)::float, (STDDEV(carbon_intensity_g) / NULLIF(AVG(carbon_intensity_g), 0))::float * 100,
+            AVG(cpu_util_avg)::float, NULL, STDDEV(cpu_util_avg)::float, (STDDEV(cpu_util_avg) / NULLIF(AVG(cpu_util_avg), 0))::float * 100, -- SUM of cpu_util_avg makes no sense
+            AVG(carbon_intensity_g)::float, NULL, STDDEV(carbon_intensity_g)::float, (STDDEV(carbon_intensity_g) / NULLIF(AVG(carbon_intensity_g), 0))::float * 100, -- SUM of carbon_intensity_g makes no sense
             AVG(carbon_ug)::float, SUM(carbon_ug)::float, STDDEV(carbon_ug)::float, (STDDEV(carbon_ug) / NULLIF(AVG(carbon_ug), 0))::float * 100,
             COUNT(*), label
         FROM ci_measurements
@@ -307,6 +308,7 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
         metric_unit = 'ug'
         label = 'carbon emitted'
         default_color = 'black'
+    # Do not easily add values like cpu_util or carbon_intensity_g here. They need a weighted average in the SQL query later!
     else:
         raise RequestValidationError('Unsupported metric requested')
 
