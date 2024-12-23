@@ -87,6 +87,7 @@ def run_workload(name, uri, filename, branch):
         full_docker_prune=False,
         docker_prune=True,
         job_id=None,
+        user_id=0, # User id 0 is the [GMT-SYSTEM] user
     )
     # Start main code. Only URL is allowed for cron jobs
     runner.run()

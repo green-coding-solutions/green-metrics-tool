@@ -8,13 +8,16 @@ from lib.db import DB
 class User():
 
     def __init__(self, user_id: int):
+        if user_id == 0:
+            raise UserAuthenticationError('User 0 is system user and cannot log in')
+
         user = DB().fetch_one("""
                 SELECT id, name, capabilities
                 FROM users
                 WHERE id = %s
                 """, params=(user_id, ))
         if not user:
-            raise RuntimeError(f"User with id {user_id} not found in database")
+            raise UserAuthenticationError(f"User with id {user_id} not found in database")
 
         self._id = user[0]
         self._name = user[1]
@@ -34,6 +37,12 @@ class User():
             SET capabilities = %s
             WHERE id = %s
             """, params=(json.dumps(self._capabilities), self._id, ))
+
+    def visible_users(self):
+        return self._capabilities['user']['visible_users']
+
+    def is_super_user(self):
+        return bool(self._capabilities['user']['is_super_user'])
 
     def can_use_machine(self, machine_id: int):
         return machine_id in self._capabilities['machines']

@@ -39,7 +39,7 @@ async function getRepositories(sort_by = 'date') {
 
             if(!$.fn.DataTable.isDataTable(table)) {
                 const uri = this.getAttribute('data-uri');
-                getRunsTable($(table), `${API_URL}/v1/runs?uri=${uri}&uri_mode=exact`, false, false, true)
+                getRunsTable($(table), `/v1/runs?uri=${uri}&uri_mode=exact`, false, false, true)
             }
     }});
 }

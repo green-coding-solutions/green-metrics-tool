@@ -153,9 +153,9 @@ async def post_ci_measurement_add(
     return Response(status_code=204)
 
 @router.get('/v1/ci/measurements')
-async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date):
+async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date: date, end_date: date, user: User = Depends(authenticate)):
 
-    query = """
+    query = '''
         SELECT energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util_avg,
                (SELECT workflow_name FROM ci_measurements AS latest_workflow
                 WHERE latest_workflow.repo = ci_measurements.repo
@@ -166,12 +166,14 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
                lat, lon, city, carbon_intensity_g, carbon_ug
         FROM ci_measurements
         WHERE
-            repo = %s AND branch = %s AND workflow_id = %s
+            (TRUE = %s OR user_id = ANY(%s::int[]))
+            AND repo = %s AND branch = %s AND workflow_id = %s
             AND DATE(created_at) >= TO_DATE(%s, 'YYYY-MM-DD')
             AND DATE(created_at) <= TO_DATE(%s, 'YYYY-MM-DD')
         ORDER BY run_id ASC, created_at ASC
-    """
-    params = (repo, branch, workflow, str(start_date), str(end_date))
+    '''
+
+    params = (user.is_super_user(), user.visible_users(), repo, branch, workflow, str(start_date), str(end_date))
     data = DB().fetch_all(query, params=params)
 
     if data is None or data == []:
@@ -180,7 +182,7 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
     return ORJSONResponse({'success': True, 'data': data})
 
 @router.get('/v1/ci/stats')
-async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, end_date: date):
+async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, end_date: date, user: User = Depends(authenticate)):
 
 
     query = '''
@@ -193,7 +195,8 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
                 SUM(carbon_ug) as e
             FROM ci_measurements
             WHERE
-                repo = %s AND branch = %s AND workflow_id = %s
+                (TRUE = %s OR user_id = ANY(%s::int[]))
+                AND repo = %s AND branch = %s AND workflow_id = %s
                 AND DATE(created_at) >= TO_DATE(%s, 'YYYY-MM-DD') AND DATE(created_at) <= TO_DATE(%s, 'YYYY-MM-DD')
             GROUP BY run_id
         ) SELECT
@@ -206,7 +209,8 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
             COUNT(*)
         FROM my_table;
     '''
-    params = (repo, branch, workflow, str(start_date), str(end_date))
+
+    params = (user.is_super_user(), user.visible_users(), repo, branch, workflow, str(start_date), str(end_date))
     totals_data = DB().fetch_one(query, params=params)
 
     if totals_data is None or totals_data[0] is None: # aggregate query always returns row
@@ -224,11 +228,12 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
             COUNT(*), label
         FROM ci_measurements
         WHERE
-            repo = %s AND branch = %s AND workflow_id = %s
+            (TRUE = %s OR user_id = ANY(%s::int[]))
+            AND repo = %s AND branch = %s AND workflow_id = %s
             AND DATE(created_at) >= TO_DATE(%s, 'YYYY-MM-DD') AND DATE(created_at) <= TO_DATE(%s, 'YYYY-MM-DD')
         GROUP BY label
     '''
-    params = (repo, branch, workflow, str(start_date), str(end_date))
+    params = (user.is_super_user(), user.visible_users(), repo, branch, workflow, str(start_date), str(end_date))
     per_label_data = DB().fetch_all(query, params=params)
 
     if per_label_data is None or per_label_data[0] is None:
@@ -238,14 +243,15 @@ async def get_ci_stats(repo: str, branch: str, workflow: str, start_date: date, 
 
 
 @router.get('/v1/ci/repositories')
-async def get_ci_repositories(repo: str | None = None, sort_by: str = 'name'):
+async def get_ci_repositories(repo: str | None = None, sort_by: str = 'name', user: User = Depends(authenticate)):
 
-    params = []
-    query = """
+    query = '''
         SELECT repo, source, MAX(created_at) as last_run
         FROM ci_measurements
-        WHERE 1=1
-    """
+        WHERE
+            (TRUE = %s OR user_id = ANY(%s::int[]))
+    '''
+    params = [user.is_super_user(), user.visible_users()]
 
     if repo: # filter is currently not used, but may be a feature in the future
         query = f"{query} AND ci_measurements.repo = %s  \n"
@@ -266,10 +272,10 @@ async def get_ci_repositories(repo: str | None = None, sort_by: str = 'name'):
 
 
 @router.get('/v1/ci/runs')
-async def get_ci_runs(repo: str, sort_by: str = 'name'):
+async def get_ci_runs(repo: str, sort_by: str = 'name', user: User = Depends(authenticate)):
 
-    params = []
-    query = """
+
+    query = '''
         SELECT repo, branch, workflow_id, source, MAX(created_at) as last_run,
                 (SELECT workflow_name FROM ci_measurements AS latest_workflow
                 WHERE latest_workflow.repo = ci_measurements.repo
@@ -278,8 +284,11 @@ async def get_ci_runs(repo: str, sort_by: str = 'name'):
                 ORDER BY latest_workflow.created_at DESC
                 LIMIT 1) AS workflow_name
         FROM ci_measurements
-        WHERE 1=1
-    """
+        WHERE
+            (TRUE = %s OR user_id = ANY(%s::int[]))
+    '''
+
+    params = [user.is_super_user(), user.visible_users()]
 
     query = f"{query} AND ci_measurements.repo = %s  \n"
     params.append(repo)
@@ -296,8 +305,11 @@ async def get_ci_runs(repo: str, sort_by: str = 'name'):
 
     return ORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
 
+# Route to display a badge for a CI run
+## A complex case to allow public visibility of the badge but restricting everything else would be to have
+## User 1 restricted to only this route but a fully populated 'visible_users' array
 @router.get('/v1/ci/badge/get')
-async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'last', metric: str = 'energy', duration_days: int | None = None):
+async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'last', metric: str = 'energy', duration_days: int | None = None, user: User = Depends(authenticate)):
     if metric == 'energy':
         metric = 'energy_uj'
         metric_unit = 'uJ'
@@ -316,14 +328,16 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
     if duration_days and (duration_days < 1 or duration_days > 365):
         raise RequestValidationError('Duration days must be between 1 and 365 days')
 
-    params = [repo, branch, workflow]
 
 
     query = f"""
         SELECT SUM({metric})
         FROM ci_measurements
-        WHERE repo = %s AND branch = %s AND workflow_id = %s
+        WHERE
+            (TRUE = %s OR user_id = ANY(%s::int[]))
+            AND repo = %s AND branch = %s AND workflow_id = %s
     """
+    params = [user.is_super_user(), user.visible_users(), repo, branch, workflow]
 
     if mode == 'avg':
         if not duration_days:
@@ -332,7 +346,9 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
             WITH my_table as (
                 SELECT SUM({metric}) my_sum
                 FROM ci_measurements
-                WHERE repo = %s AND branch = %s AND workflow_id = %s AND DATE(created_at) > NOW() - make_interval(days => %s)
+                WHERE
+                    (TRUE = %s OR user_id = ANY(%s::int[]))
+                    AND repo = %s AND branch = %s AND workflow_id = %s AND DATE(created_at) > NOW() - make_interval(days => %s)
                 GROUP BY run_id
             ) SELECT AVG(my_sum) FROM my_table;
         """

@@ -65,30 +65,30 @@ const showActiveFilters = (key, value) => {
 }
 
 const getFilterQueryStringFromURI = () => {
-    const url_params = (new URLSearchParams(window.location.search))
+    const url_params = getURLParams();
     let query_string = '';
-    if (url_params.get('uri') != null && url_params.get('uri').trim() != '') {
-        const uri = url_params.get('uri').trim()
+    if (url_params['uri'] != null && url_params['uri'].trim() != '') {
+        const uri = url_params['uri'].trim()
         query_string = `${query_string}&uri=${uri}`
         showActiveFilters('uri', uri)
     }
-    if (url_params.get('filename') != null && url_params.get('filename').trim() != '') {
-        const filename = url_params.get('filename').trim()
+    if (url_params['filename'] != null && url_params['filename'].trim() != '') {
+        const filename = url_params['filename'].trim()
         query_string = `${query_string}&filename=${filename}`
         showActiveFilters('filename', filename)
     }
-    if (url_params.get('branch') != null && url_params.get('branch').trim() != '') {
-        const branch = url_params.get('branch').trim()
+    if (url_params['branch'] != null && url_params['branch'].trim() != '') {
+        const branch = url_params['branch'].trim()
         query_string = `${query_string}&branch=${branch}`
         showActiveFilters('branch', branch)
     }
-    if (url_params.get('machine_id') != null && url_params.get('machine_id').trim() != '') {
-        const machine_id = url_params.get('machine_id').trim()
+    if (url_params['machine_id'] != null && url_params['machine_id'].trim() != '') {
+        const machine_id = url_params['machine_id'].trim()
         query_string = `${query_string}&machine_id=${machine_id}`
         showActiveFilters('machine_id', machine_id)
     }
-    if (url_params.get('machine') != null && url_params.get('machine').trim() != '') {
-        const machine = url_params.get('machine').trim()
+    if (url_params['machine'] != null && url_params['machine'].trim() != '') {
+        const machine = url_params['machine'].trim()
         query_string = `${query_string}&machine=${machine}`
         showActiveFilters('machine', machine)
     }
@@ -97,7 +97,16 @@ const getFilterQueryStringFromURI = () => {
     return query_string
 }
 
-const getRunsTable = (el, url, include_uri=true, include_button=true, searching=false) => {
+const getRunsTable = async (el, url, include_uri=true, include_button=true, searching=false) => {
+
+    let runs = null;
+
+    try {
+        runs = await makeAPICall(url)
+    } catch (err) {
+        showNotification('Could not get run data from API', err);
+        return
+    }
 
     const columns = [
         {
@@ -162,7 +171,7 @@ const getRunsTable = (el, url, include_uri=true, include_button=true, searching=
         //     initCollapsed: true,
         // },
         searching: searching,
-        ajax: url,
+        data: runs.data,
         columns: columns,
         deferRender: true,
         drawCallback: function(settings) {

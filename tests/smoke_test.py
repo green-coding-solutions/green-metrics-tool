@@ -45,6 +45,9 @@ def setup_module(module):
     run_stderr = err.getvalue()
     run_stdout = out.getvalue()
 
+def test_run_has_used_default_user():
+    assert utils.get_run_data(RUN_NAME)['user_id'] == 1
+
 def test_no_errors():
     # Assert that there is no std.err output
     assert run_stderr == ''

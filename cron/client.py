@@ -147,7 +147,7 @@ if __name__ == '__main__':
                     if client_main['send_control_workload_status_mail'] and config_main['admin']['notification_email']:
                         Job.insert(
                             'email',
-                            user_id=None,
+                            user_id=0, # User 0 is the [GMT-SYSTEM] user
                             email=config_main['admin']['notification_email'],
                             name=f"{config_main['machine']['description']} is operating normally. All STDDEV fine.",
                             message='\n'.join(message)
