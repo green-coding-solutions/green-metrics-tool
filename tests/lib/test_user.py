@@ -9,7 +9,7 @@ from tests import test_functions as Tests
 
 
 def test_user_zero_fails():
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(UserAuthenticationError) as e:
         User(0)
     assert str(e.value) == 'User 0 is system user and cannot log in'
 
