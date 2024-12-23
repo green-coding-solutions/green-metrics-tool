@@ -718,8 +718,8 @@ def authenticate(authentication_token=Depends(header_scheme), request: Request =
 
         user.deduct_api_quota(request.scope["route"].path, 1)
 
-    except UserAuthenticationError:
-        raise HTTPException(status_code=401, detail="Invalid token") from UserAuthenticationError
+    except UserAuthenticationError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from UserAuthenticationError
     return user
 
 def get_connecting_ip(request):

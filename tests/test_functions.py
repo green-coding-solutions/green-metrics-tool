@@ -8,6 +8,17 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.global_config import GlobalConfig
 
+def update_user_token(user_id, token):
+    sha256_hash = hashlib.sha256()
+    sha256_hash.update(token.encode('UTF-8'))
+
+    DB().query('''
+        UPDATE users
+        SET token = %s
+        WHERE id = %s
+    ''', params=(sha256_hash.hexdigest(), user_id))
+
+
 def insert_user(user_id, token):
     sha256_hash = hashlib.sha256()
     sha256_hash.update(token.encode('UTF-8'))
