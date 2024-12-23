@@ -82,8 +82,9 @@ class SchemaChecker():
         elif isinstance(value, dict):
             for key, item in value.items():
                 self.contains_no_invalid_chars(key)
-                if item is not None:
-                    self.contains_no_invalid_chars(item)
+                if item and 'internal' in item:
+                    if not isinstance(item['internal'], bool):
+                        raise SchemaError("networks modifier 'internal' must be boolean")
         else:
             raise SchemaError("'networks' should be a list or a dictionary")
 

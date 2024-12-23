@@ -881,6 +881,14 @@ def test_non_git_root_supplied():
         Tests.assertion_info('Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename', str(e.value))
 
 
+def test_internal_network():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/internal_network.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+
+    with pytest.raises(RuntimeError) as e:
+        runner.run()
+
+    assert str(e.value) == "Process '['docker', 'exec', 'test-container', 'curl', '-s', '--fail', 'https://www.google.de']' had bad returncode: 126. Stderr: ; Detached process: False. Please also check the stdout in the logs and / or enable stdout logging to debug further."
+
 
     ## rethink this one
 def wip_test_verbose_provider_boot():
