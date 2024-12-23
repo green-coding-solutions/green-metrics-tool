@@ -133,7 +133,7 @@ const buildCommitLink = (run_data) => {
 }
 
 const fillRunTab = (selector, data, parent = '') => {
-    for (item in data) {
+    for (const item in data) {
         if(typeof data[item] == 'object')
             fillRunTab(selector, data[item], `${item}.`)
         else
