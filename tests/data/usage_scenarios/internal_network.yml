@@ -1,0 +1,24 @@
+---
+name: Internal network test
+author: Arne Tarara
+description: test
+
+networks:
+  gmt-test-network:
+    internal: true
+    
+services:
+  test-container:
+    type: container
+    image: gcb_stress
+    build:
+      context: ../stress-application
+    networks: 
+      - gmt-test-network
+
+flow:
+  - name: External network should fail
+    container: test-container
+    commands:
+      - type: console
+        command: curl -s --fail https://www.google.de
