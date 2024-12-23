@@ -38,8 +38,11 @@ class User():
             WHERE id = %s
             """, params=(json.dumps(self._capabilities), self._id, ))
 
-    def is_super_admin(self):
-        return bool(self._capabilities['user']['is_super_admin'])
+    def visible_users(self):
+        return self._capabilities['user']['visible_users']
+
+    def is_super_user(self):
+        return bool(self._capabilities['user']['is_super_user'])
 
     def can_use_machine(self, machine_id: int):
         return machine_id in self._capabilities['machines']

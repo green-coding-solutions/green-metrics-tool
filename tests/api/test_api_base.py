@@ -19,6 +19,18 @@ def test_route_forbidden():
     assert response.status_code == 401
     assert response.text == '{"success":false,"err":"Route not allowed"}'
 
+# This method is just a safe-guard in case FastAPI ever changes the mechanic that an authentication parameter
+# can be overriden through a simple query string
+def test_no_user_query_string_override():
+    response = requests.get(f"{API_URL}/v1/authentication/data?user=2", timeout=15)
+
+    assert response.status_code == 200
+    json_data = json.loads(response.text)
+
+    assert json_data['success'] is True
+    assert json_data['data']['_name'] == 'DEFAULT'
+
+
 def test_can_read_authentication_data():
     response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15)
     assert response.status_code == 200

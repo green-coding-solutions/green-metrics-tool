@@ -2,8 +2,6 @@ import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
-from urllib.parse import urlparse
-
 from collections import OrderedDict
 from functools import cache
 from html import escape as html_escape
@@ -153,7 +151,7 @@ def get_machine_list():
 
     return DB().fetch_all(query)
 
-def get_run_info(run_id):
+def get_run_info(user, run_id):
     query = """
             SELECT
                 id, name, uri, branch, commit_hash,
@@ -163,12 +161,14 @@ def get_run_info(run_id):
                 measurement_config, machine_specs, machine_id, usage_scenario,
                 created_at, invalid_run, phases, logs, failed
             FROM runs
-            WHERE id = %s
+            WHERE
+                (TRUE = %s OR user_id = ANY(%s::int[]))
+                AND id = %s
             """
-    params = (run_id,)
+    params = (user.is_super_user(), user.visible_users(), run_id)
     return DB().fetch_one(query, params=params, fetch_mode='dict')
 
-def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, limit_365=False, sorting='run'):
+def get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, limit_365=False, sorting='run'):
 
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
@@ -176,7 +176,7 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
     if branch is None or branch.strip() == '':
         branch = 'main'
 
-    params = [uri, filename, branch, machine_id, f"%{phase}"]
+    params = [user.is_super_user(), user.visible_users(), uri, filename, branch, machine_id, f"%{phase}"]
 
     metrics_condition = ''
     if metrics is None or metrics.strip() == '' or metrics.strip() == 'key':
@@ -217,7 +217,8 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
             LEFT JOIN phase_stats as p ON
                 r.id = p.run_id
             WHERE
-                r.uri = %s
+                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                AND r.uri = %s
                 AND r.filename = %s
                 AND r.branch = %s
                 AND r.end_measurement IS NOT NULL
@@ -239,17 +240,20 @@ def get_timeline_query(uri, filename, machine_id, branch, metrics, phase, start_
 
     return (query, params)
 
-def get_comparison_details(ids, comparison_db_key):
+def get_comparison_details(user, ids, comparison_db_key):
 
     query = sql.SQL('''
         SELECT
             id, name, created_at, commit_hash, commit_timestamp, gmt_hash, {}
         FROM runs
-        WHERE id = ANY(%s::uuid[])
+        WHERE
+            (TRUE = %s OR user_id = ANY(%s::int[]))
+            AND id = ANY(%s::uuid[])
         ORDER BY created_at  -- Must be same order as in get_phase_stats
     ''').format(sql.Identifier(comparison_db_key))
 
-    data = DB().fetch_all(query, (ids, ))
+    params = (user.is_super_user(), user.visible_users(), ids)
+    data = DB().fetch_all(query, params=params)
     if data is None or data == []:
         raise RuntimeError('Could not get comparison details')
 
@@ -276,12 +280,14 @@ def get_comparison_details(ids, comparison_db_key):
 
     return comparison_details
 
-def determine_comparison_case(ids):
+def determine_comparison_case(user, ids):
 
     query = '''
             WITH uniques as (
                 SELECT uri, filename, machine_id, commit_hash, branch FROM runs
-                WHERE id = ANY(%s::uuid[])
+                WHERE
+                    (TRUE = %s OR user_id = ANY(%s::int[]))
+                    AND id = ANY(%s::uuid[])
                 GROUP BY uri, filename, machine_id, commit_hash, branch
             )
             SELECT
@@ -289,8 +295,8 @@ def determine_comparison_case(ids):
                 COUNT(DISTINCT commit_hash ), COUNT(DISTINCT branch)
             FROM uniques
     '''
-
-    data = DB().fetch_one(query, (ids, ))
+    params = (user.is_super_user(), user.visible_users(), ids)
+    data = DB().fetch_one(query, params=params)
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         raise RuntimeError('Could not determine compare case')
 
@@ -376,7 +382,7 @@ def determine_comparison_case(ids):
 
     raise RuntimeError('Could not determine comparison case after checking all conditions')
 
-def get_phase_stats(ids):
+def get_phase_stats(user, ids):
     query = """
             SELECT
                 a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.min_value, a.unit,
@@ -387,11 +393,13 @@ def get_phase_stats(ids):
             LEFT JOIN machines as c on c.id = b.machine_id
 
             WHERE
-                a.run_id = ANY(%s::uuid[])
+                (TRUE = %s OR b.user_id = ANY(%s::int[]))
+                AND a.run_id = ANY(%s::uuid[])
             ORDER BY
                 b.created_at ASC -- Must be same order as in get_comparison_details
             """
-    return DB().fetch_all(query, (ids, ))
+    params = (user.is_super_user(), user.visible_users(), ids)
+    return DB().fetch_all(query, params=params)
 
 # Would be interesting to know if in an application server like gunicor @cache
 # Will also work for subsequent requests ...?
@@ -695,20 +703,20 @@ header_scheme = APIKeyHeader(
 )
 
 def authenticate(authentication_token=Depends(header_scheme), request: Request = None):
-    parsed_url = urlparse(str(request.url))
+
     try:
         if not authentication_token or authentication_token.strip() == '': # Note that if no token is supplied this will authenticate as the DEFAULT user, which in FOSS systems has full capabilities
             authentication_token = 'DEFAULT'
 
         user = User.authenticate(SecureVariable(authentication_token))
 
-        if not user.can_use_route(parsed_url.path):
+        if not user.can_use_route(request.scope["route"].path):
             raise HTTPException(status_code=401, detail="Route not allowed") from UserAuthenticationError
 
-        if not user.has_api_quota(parsed_url.path):
+        if not user.has_api_quota(request.scope["route"].path):
             raise HTTPException(status_code=401, detail="Quota exceeded") from UserAuthenticationError
 
-        user.deduct_api_quota(parsed_url.path, 1)
+        user.deduct_api_quota(request.scope["route"].path, 1)
 
     except UserAuthenticationError:
         raise HTTPException(status_code=401, detail="Invalid token") from UserAuthenticationError

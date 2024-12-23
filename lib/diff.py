@@ -9,7 +9,7 @@ from lib.db import DB
 from deepdiff import DeepDiff
 import json
 
-def get_diffable_row(uuid):
+def get_diffable_rows(user, uuids):
     query = """SELECT
         uri,
         branch,
@@ -24,12 +24,22 @@ def get_diffable_row(uuid):
         usage_scenario,
         measurement_config,
         runner_arguments
-        FROM runs WHERE id = %s
+        FROM runs
+        WHERE
+            (TRUE = %s OR user_id = ANY(%s::int[]))
+            AND id = ANY(%s::uuid[])
     """
 
-    return DB().fetch_one(query, (uuid, ), fetch_mode='dict')
+    params = (user.is_super_admin(), user.visible_users(), uuids)
+    return DB().fetch_all(query, params, fetch_mode='dict')
 
-def diff_rows(row_a,row_b):
+def diff_rows(rows):
+    if len(rows) != 2:
+        raise ValueError(f"Diffing currently only supported for 2 rows. Amount of valid IDs supplied: {len(rows)}")
+
+    row_a = rows[0]
+    row_b = rows[1]
+
     unified_diff = []
     for field in row_a:
         field_a = json.dumps(row_a[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_a[field], (dict, list))  else str(row_a[field])
@@ -81,6 +91,6 @@ def diff_rows(row_a,row_b):
     return "\n".join(unified_diff)
 
 if __name__ == '__main__':
-    a = get_diffable_row('6f34b31e-f35c-4601-ae0d-6fd04a951aaf')
-    b = get_diffable_row('70ed5b3f-fa90-43fe-abcc-d4bf8048786a')
-    print(diff_rows(a,b))
+    from lib.user import User
+    diffable_rows = get_diffable_rows(User(1), ['6f34b31e-f35c-4601-ae0d-6fd04a951aaf', '70ed5b3f-fa90-43fe-abcc-d4bf8048786a'])
+    print(diff_rows(diffable_rows))

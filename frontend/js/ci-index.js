@@ -31,12 +31,12 @@ async function getRepositories(sort_by = 'date') {
             </td>`;
     });
     $('.ui.accordion').accordion({
-        onOpen: function(value, text) {
+        onOpen: async function(value, text) {
             const table = this.querySelector('table');
 
             if(!$.fn.DataTable.isDataTable(table)) {
                 const repo = this.getAttribute('data-uri');
-                getCIRunsTable($(table), `${API_URL}/v1/ci/runs?repo=${repo}`, false, false, true)
+                await getCIRunsTable($(table), `/v1/ci/runs?repo=${repo}`, false, false, true)
             }
     }});
 };
@@ -69,7 +69,16 @@ function getRepoUri(repo, source) {
     }
 }
 
-const getCIRunsTable = (el, url, include_uri=true, include_button=true, searching=false) => {
+const getCIRunsTable = async (el, url, include_uri=true, include_button=true, searching=false) => {
+
+    let ci_data = null;
+    try {
+        ci_data = await makeAPICall(url);
+        console.log(ci_data.data);
+    } catch (err) {
+        showNotification('Could not get CI data from API', err);
+        return
+    }
 
     const columns = [
         {
@@ -91,7 +100,7 @@ const getCIRunsTable = (el, url, include_uri=true, include_button=true, searchin
         //     initCollapsed: true,
         // },
         searching: searching,
-        ajax: url,
+        data: ci_data.data,
         columns: columns,
         deferRender: true,
     });
