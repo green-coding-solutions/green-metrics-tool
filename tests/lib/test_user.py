@@ -18,20 +18,9 @@ def test_empty_token_fails():
         User.authenticate(SecureVariable(''))
     assert str(e.value) == 'User with corresponding token not found'
 
-def test_even_if_token_set_for_user_zero_creation_still_fails():
-    Tests.update_user_token(0, 'asd')
-    try:
-        with pytest.raises(UserAuthenticationError) as e:
-            User.authenticate(SecureVariable('asd'))
-        assert str(e.value) == 'User 0 is system user and cannot log in'
-    finally:
-        Tests.update_user_token(0, '')
-
 def test_even_if_token_set_for_user_zero_authenticate_still_fails():
     Tests.update_user_token(0, 'asd')
-    try:
-        with pytest.raises(UserAuthenticationError) as e:
-            User.authenticate(SecureVariable('asd'))
-        assert str(e.value) == 'User 0 is system user and cannot log in'
-    finally:
-        Tests.update_user_token(0, '')
+
+    with pytest.raises(UserAuthenticationError) as e:
+        User.authenticate(SecureVariable('asd'))
+    assert str(e.value) == 'User 0 is system user and cannot log in'

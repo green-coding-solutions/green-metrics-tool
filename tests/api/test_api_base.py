@@ -73,13 +73,9 @@ def test_authenticate_with_empty_token_will_return_default():
 
 def test_even_if_token_set_for_user_zero_api_will_still_fail():
     Tests.update_user_token(0, 'asd')
-    try:
-        response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15, headers={'X-Authentication': 'asd'})
-        assert response.status_code == 401
+    response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15, headers={'X-Authentication': 'asd'})
+    assert response.status_code == 401
 
-        json_data = json.loads(response.text)
+    json_data = json.loads(response.text)
 
-        assert json_data['err'] == 'User 0 is system user and cannot log in'
-
-    finally:
-        Tests.update_user_token(0, '')
+    assert json_data['err'] == 'User 0 is system user and cannot log in'
