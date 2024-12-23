@@ -706,7 +706,12 @@ class Runner:
                 print('Creating network: ', network)
                 # remove first if present to not get error, but do not make check=True, as this would lead to inf. loop
                 subprocess.run(['docker', 'network', 'rm', network], stderr=subprocess.DEVNULL, check=False)
-                subprocess.run(['docker', 'network', 'create', network], check=True)
+
+                if self._usage_scenario['networks'][network] and self._usage_scenario['networks'][network].get('internal', False):
+                    subprocess.check_output(['docker', 'network', 'create', '--internal', network])
+                else:
+                    subprocess.check_output(['docker', 'network', 'create', network])
+
                 self.__networks.append(network)
         else:
             print(TerminalColors.HEADER, '\nNo network found. Creating default network', TerminalColors.ENDC)
