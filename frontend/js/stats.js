@@ -72,8 +72,18 @@ class CO2Tangible extends HTMLElement {
 
 customElements.define('co2-tangible', CO2Tangible);
 
-const fillRunData = (run_data, key = null) => {
+const fetchAndFillRunData = async (url_params) => {
 
+    let run = null;
+
+    try {
+        run = await makeAPICall('/v1/run/' + url_params['id'])
+    } catch (err) {
+        showNotification('Could not get run data from API', err);
+        return
+    }
+
+    const run_data = run.data
 
     for (const item in run_data) {
         if (item == 'machine_specs') {
@@ -291,44 +301,7 @@ const displayTimelineCharts = (metrics, notes) => {
     document.querySelector('#api-loader').remove();
 }
 
-
-
-async function makeBaseAPICalls(url_params) {
-
-    let run_data = null;
-    let phase_stats_data = null;
-    let network_data = null;
-    let optimizations_data = null;
-
-    try {
-        run_data = await makeAPICall('/v1/run/' + url_params['id'])
-    } catch (err) {
-        showNotification('Could not get run data from API', err);
-    }
-
-    try {
-        phase_stats_data = await makeAPICall('/v1/phase_stats/single/' + url_params['id'])
-    } catch (err) {
-        showNotification('Could not get phase_stats data from API', err);
-    }
-
-    try {
-        network_data = await makeAPICall('/v1/network/' + url_params['id'])
-    } catch (err) {
-        showNotification('Could not get network intercepts data from API', err);
-    }
-    try {
-        optimizations_data = await makeAPICall('/v1/optimizations/' + url_params['id'])
-    } catch (err) {
-        showNotification('Could not get optimizations data from API', err);
-    }
-
-
-
-    return [run_data?.data, phase_stats_data?.data, network_data?.data, optimizations_data?.data];
-}
-
-const renderBadges = (url_params) => {
+const renderBadges = async (url_params) => {
 
     document.querySelectorAll("#badges span.energy-badge-container").forEach(el => {
         const link_node = document.createElement("a")
@@ -343,11 +316,40 @@ const renderBadges = (url_params) => {
     })
 }
 
-const displayNetworkIntercepts = (network_data) => {
-    if (network_data.length === 0) {
+const fetchAndFillPhaseStatsData = async (url_params) => {
+
+    let phase_stats = null;
+    try {
+        phase_stats = await makeAPICall('/v1/phase_stats/single/' + url_params['id'])
+    } catch (err) {
+        showNotification('Could not get phase_stats data from API', err);
+    }
+
+
+    buildPhaseTabs(phase_stats.data)
+    renderCompareChartsForPhase(phase_stats.data, getAndShowPhase());
+    displayTotalChart(...buildTotalChartData(phase_stats.data));
+
+    document.querySelectorAll('.ui.steps.phases .step, .runtime-step').forEach(node => node.addEventListener('click', el => {
+        const phase = el.currentTarget.getAttribute('data-tab');
+        renderCompareChartsForPhase(phase_stats.data, phase);
+    }));
+
+}
+
+const fetchAndFillNetworkIntercepts = async (url_params) => {
+    let network = null;
+    try {
+        network = await makeAPICall('/v1/network/' + url_params['id'])
+    } catch (err) {
+        showNotification('Could not get network intercepts data from API', err);
+        return
+    }
+
+    if (network.data.length === 0) {
         document.querySelector("#network-divider").insertAdjacentHTML('afterEnd', '<p>No external network connections were detected.</p>')
     } else {
-        for (const item of network_data) {
+        for (const item of network.data) {
             date = new Date(Number(item[2]));
             date = date.toLocaleString();
             document.querySelector("#network-intercepts").insertAdjacentHTML('beforeend', `<tr><td><strong>${date}</strong></td><td>${item[3]}</td><td>${item[4]}</td></tr>`)
@@ -355,7 +357,15 @@ const displayNetworkIntercepts = (network_data) => {
     }
 }
 
-const displayOptimizationsData = (optimizations_data) => {
+const fetchAndFillOptimizationsData = async (url_params) => {
+
+    let optimizations = null;
+    try {
+        optimizations = await makeAPICall('/v1/optimizations/' + url_params['id'])
+    } catch (err) {
+        showNotification('Could not get optimizations data from API', err);
+        return
+    }
 
     const optimizationTemplate = `
             <div class="content">
@@ -377,7 +387,7 @@ const displayOptimizationsData = (optimizations_data) => {
     `;
     const container = document.getElementById("optimizationsContainer");
 
-    optimizations_data.forEach(optimization => {
+    optimizations.data.forEach(optimization => {
         let optimizationHTML = optimizationTemplate
             .replace("{{header}}", optimization[0])
             .replace("{{label}}", optimization[1])
@@ -402,30 +412,31 @@ const displayOptimizationsData = (optimizations_data) => {
 
     });
 
-    $('#optimization_count').html(optimizations_data.length)
+    $('#optimization_count').html(optimizations.data.length)
 }
 
 async function fetchTimelineData(url_params) {
     document.querySelector('#api-loader').style.display = '';
     document.querySelector('#loader-question').remove();
 
+    let measurements = null;
     try {
-        const measurement_data = await makeAPICall('/v1/measurements/single/' + url_params['id'])
-        return measurement_data?.data;
+        measurements = await makeAPICall('/v1/measurements/single/' + url_params['id'])
     } catch (err) {
         showNotification('Could not get stats data from API', err);
     }
-    return null;
+    return measurements?.data;
+
 }
 
 async function fetchTimelineNotes(url_params) {
+    let notes = null;
     try {
-        const note_data = await makeAPICall('/v1/notes/' + url_params['id'])
-        return note_data?.data;
+        notes = await makeAPICall('/v1/notes/' + url_params['id'])
     } catch (err) {
         showNotification('Could not get notes data from API', err);
     }
-    return null;
+    return notes?.data;
 }
 
 
@@ -440,28 +451,11 @@ $(document).ready( (e) => {
             return;
         }
 
-        let [run_data, phase_stats_data, network_data, optimizations_data] = await makeBaseAPICalls(url_params);
-
-        if (run_data == null) return; // no need to process any further if even core data not available
-
         renderBadges(url_params);
-
-        fillRunData(run_data);
-
-        if (network_data != null) displayNetworkIntercepts(network_data);
-
-        if (optimizations_data != null) displayOptimizationsData(optimizations_data);
-
-        if(phase_stats_data != null)  {
-            buildPhaseTabs(phase_stats_data)
-            renderCompareChartsForPhase(phase_stats_data, getAndShowPhase());
-            displayTotalChart(...buildTotalChartData(phase_stats_data));
-
-            document.querySelectorAll('.ui.steps.phases .step, .runtime-step').forEach(node => node.addEventListener('click', el => {
-                const phase = el.currentTarget.getAttribute('data-tab');
-                renderCompareChartsForPhase(phase_stats_data, phase);
-            }));
-        }
+        fetchAndFillRunData(url_params);
+        fetchAndFillNetworkIntercepts(url_params);
+        fetchAndFillOptimizationsData(url_params);
+        fetchAndFillPhaseStatsData(url_params);
 
 
         if (localStorage.getItem('fetch_time_series') === 'true') {
