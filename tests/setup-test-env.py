@@ -2,6 +2,7 @@ import os
 from copy import deepcopy
 import subprocess
 import yaml
+import shutil
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -16,28 +17,21 @@ test_compose_path = os.path.join(current_dir, f"../docker/{TEST_COMPOSE_NAME}")
 
 DB_PW = 'testpw'
 
-def copy_sql_structure():
+def copy_sql_structure(ee=False):
     print('Copying SQL structure...')
-    subprocess.run(
-        ['cp', '-f', '../docker/structure.sql', './structure.sql'],
-        check=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
+    shutil.copyfile('../docker/structure.sql', './structure.sql')
 
     if utils.get_architecture() == 'macos':
         command = ['sed', '-i', "", 's/green-coding/test-green-coding/g', './structure.sql']
     else:
         command = ['sed', '-i', 's/green-coding/test-green-coding/g', './structure.sql']
 
-    subprocess.run(
-        command,
-        check=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
-    )
+    subprocess.check_output(command)
+
+    if ee:
+        with open('../ee/docker/structure_ee.sql', 'r', encoding='utf-8') as source, open('./structure.sql', 'a', encoding='utf-8') as target:
+            target.write(source.read())
+            print("Enterprise DB definitions of '../ee/docker/structure.sql' appended to './structure.sql' successfully.")
 
 def edit_compose_file():
     print('Creating test-compose.yml...')
@@ -129,7 +123,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    copy_sql_structure()
+    copy_sql_structure(args.ee)
     create_test_config_file(args.ee)
     edit_compose_file()
     edit_etc_hosts()
