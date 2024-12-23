@@ -371,16 +371,20 @@ async def compare_in_repo(ids: str, user: User = Depends(authenticate)):
 
     try:
         case, comparison_db_key = determine_comparison_case(user, ids)
-    except RuntimeError as err:
-        raise RequestValidationError(str(err)) from err
+    except RuntimeError as exc:
+        raise RequestValidationError(str(exc)) from exc
 
     comparison_details = get_comparison_details(user, ids, comparison_db_key)
 
     if not (phase_stats := get_phase_stats(user, ids)):
         return Response(status_code=204) # No-Content
 
-    phase_stats_object = get_phase_stats_object(phase_stats, case, comparison_details)
-    phase_stats_object = add_phase_stats_statistics(phase_stats_object)
+    try:
+        phase_stats_object = get_phase_stats_object(phase_stats, case, comparison_details)
+        phase_stats_object = add_phase_stats_statistics(phase_stats_object)
+    except ValueError as exc:
+        raise RequestValidationError(str(exc)) from exc
+
     phase_stats_object['common_info'] = {}
 
     try:
@@ -455,8 +459,11 @@ async def get_phase_stats_single(run_id: str, user: User = Depends(authenticate)
     if not (phase_stats := get_phase_stats(user, [run_id])):
         return Response(status_code=204) # No-Content
 
-    phase_stats_object = get_phase_stats_object(phase_stats, None, None, [run_id])
-    phase_stats_object = add_phase_stats_statistics(phase_stats_object)
+    try:
+        phase_stats_object = get_phase_stats_object(phase_stats, None, None, [run_id])
+        phase_stats_object = add_phase_stats_statistics(phase_stats_object)
+    except ValueError as exc:
+        raise RequestValidationError(str(exc)) from exc
 
     store_artifact(ArtifactType.STATS, f"{user._id}_{str(run_id)}", orjson.dumps(phase_stats_object)) # pylint: disable=no-member
 
@@ -775,7 +782,7 @@ async def diff(ids: str, user: User = Depends(authenticate)):
     try:
         diff_runs = diff_rows(get_diffable_rows(user, ids))
     except ValueError as exc:
-        raise RequestValidationError(exc) from exc
+        raise RequestValidationError(str(exc)) from exc
 
     store_artifact(ArtifactType.DIFF, f"{user._id}_{str(ids)}", diff_runs)
 

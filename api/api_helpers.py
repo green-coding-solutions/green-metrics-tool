@@ -540,7 +540,7 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
                 'data': OrderedDict(),
             }
         elif phase_stats_object['data'][phase][metric_name]['unit'] != unit:
-            raise RuntimeError(f"Metric cannot be compared as units have changed: {unit} vs. {phase_stats_object['data'][phase][metric_name]['unit']}")
+            raise ValueError(f"Metric cannot be compared as units have changed: {unit} vs. {phase_stats_object['data'][phase][metric_name]['unit']}")
 
 
         if detail_name not in phase_stats_object['data'][phase][metric_name]['data']:
