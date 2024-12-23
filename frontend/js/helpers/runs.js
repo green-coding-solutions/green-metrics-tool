@@ -99,10 +99,10 @@ const getFilterQueryStringFromURI = () => {
 
 const getRunsTable = async (el, url, include_uri=true, include_button=true, searching=false) => {
 
-    let run_data = null;
+    let runs = null;
 
     try {
-        run_data = await makeAPICall(url)
+        runs = await makeAPICall(url)
     } catch (err) {
         showNotification('Could not get run data from API', err);
         return
@@ -171,7 +171,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         //     initCollapsed: true,
         // },
         searching: searching,
-        data: run_data.data,
+        data: runs.data,
         columns: columns,
         deferRender: true,
         drawCallback: function(settings) {
