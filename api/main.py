@@ -477,19 +477,21 @@ async def get_measurements_single(run_id: str, user: User = Depends(authenticate
         raise RequestValidationError('Run ID is not a valid UUID or empty')
 
     query = '''
-            SELECT m.detail_name, m.time, m.metric,
-                   m.value, m.unit
-            FROM measurements as m
-            JOIN runs as r ON m.run_id = r.id
+            SELECT
+                mm.detail_name, mv.time, mm.metric,
+                   mv.value, mm.unit
+            FROM measurement_metrics as mm
+            JOIN measurement_values as mv ON mv.measurement_metric_id = mm.id
+            JOIN runs as r ON mm.run_id = r.id
             WHERE
                 (TRUE = %s OR r.user_id = ANY(%s::int[]))
-                AND m.run_id = %s
+                AND mm.run_id = %s
     '''
 
     params = (user.is_super_user(), user.visible_users(), run_id)
 
     # extremely important to order here, cause the charting library in JS cannot do that automatically!
-    query = f"{query} ORDER BY m.metric ASC, m.detail_name ASC, m.time ASC"
+    query = f"{query} ORDER BY mm.metric ASC, mm.detail_name ASC, mv.time ASC"
 
     data = DB().fetch_all(query, params=params)
     if data is None or data == []:

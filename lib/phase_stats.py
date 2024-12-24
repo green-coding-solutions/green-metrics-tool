@@ -23,10 +23,9 @@ def build_and_store_phase_stats(run_id, sci=None):
         sci = {}
 
     query = """
-            SELECT metric, unit, detail_name
-            FROM measurements
+            SELECT id, metric, unit, detail_name
+            FROM measurement_metrics
             WHERE run_id = %s
-            GROUP BY metric, unit, detail_name
             ORDER BY metric ASC -- we need this ordering for later, when we read again
             """
     metrics = DB().fetch_all(query, (run_id, ))
@@ -34,7 +33,6 @@ def build_and_store_phase_stats(run_id, sci=None):
     if not metrics:
         error_helpers.log_error('Metrics was empty and no phase_stats could be created. This can happen for failed runs, but should be very rare ...', run_id=run_id)
         return
-
 
     query = """
         SELECT phases, measurement_config
@@ -66,8 +64,8 @@ def build_and_store_phase_stats(run_id, sci=None):
 
         select_query = """
             SELECT SUM(value), MAX(value), MIN(value), AVG(value), COUNT(value)
-            FROM measurements
-            WHERE run_id = %s AND metric = %s AND detail_name = %s AND time > %s and time < %s
+            FROM measurement_values
+            WHERE measurement_metric_id = %s AND time > %s and time < %s
         """
 
         duration = phase['end']-phase['start']
@@ -75,7 +73,7 @@ def build_and_store_phase_stats(run_id, sci=None):
         csv_buffer.write(generate_csv_line(run_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", duration, 'TOTAL', None, None, 'us'))
 
         # now we go through all metrics in the run and aggregate them
-        for (metric, unit, detail_name) in metrics: # unpack
+        for (measurement_metric_id, metric, unit, detail_name) in metrics: # unpack
             # -- saved for future if I need lag time query
             #    WITH times as (
             #        SELECT id, value, time, (time - LAG(time) OVER (ORDER BY detail_name ASC, time ASC)) AS diff, unit
@@ -87,8 +85,8 @@ def build_and_store_phase_stats(run_id, sci=None):
             provider_name = metric.replace('_', '.') + '.provider.' + utils.get_pascal_case(metric) + 'Provider'
             provider_resolution_in_ms = measurement_config['providers'][provider_name]['resolution']
 
-            results = DB().fetch_one(select_query,
-                (run_id, metric, detail_name, phase['start'], phase['end'], ))
+            params = (measurement_metric_id, phase['start'], phase['end'])
+            results = DB().fetch_one(select_query, params=params)
 
             value_sum = 0
             max_value = 0
