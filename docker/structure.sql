@@ -15,8 +15,8 @@ CREATE TABLE users (
     updated_at timestamp with time zone
 );
 
-CREATE UNIQUE INDEX name_unique ON users(name text_ops);
-CREATE UNIQUE INDEX token_unique ON users(token text_ops);
+CREATE UNIQUE INDEX name_unique ON users(name);
+CREATE UNIQUE INDEX token_unique ON users(token);
 
 CREATE TRIGGER users_moddatetime
     BEFORE UPDATE ON users
