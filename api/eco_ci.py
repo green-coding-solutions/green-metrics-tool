@@ -272,7 +272,7 @@ async def get_ci_repositories(repo: str | None = None, sort_by: str = 'name', us
 
 
 @router.get('/v1/ci/runs')
-async def get_ci_runs(repo: str, sort_by: str = 'name', user: User = Depends(authenticate)):
+async def get_ci_runs(repo: str, user: User = Depends(authenticate)):
 
 
     query = '''
@@ -286,20 +286,14 @@ async def get_ci_runs(repo: str, sort_by: str = 'name', user: User = Depends(aut
         FROM ci_measurements
         WHERE
             (TRUE = %s OR user_id = ANY(%s::int[]))
+            AND ci_measurements.repo = %s
+            GROUP BY repo, branch, workflow_id, source
+            ORDER BY last_run DESC
     '''
 
-    params = [user.is_super_user(), user.visible_users()]
+    params = (user.is_super_user(), user.visible_users(), repo)
 
-    query = f"{query} AND ci_measurements.repo = %s  \n"
-    params.append(repo)
-    query = f"{query} GROUP BY repo, branch, workflow_id, source"
-
-    if sort_by == 'date':
-        query = f"{query} ORDER BY last_run DESC"
-    else:
-        query = f"{query} ORDER BY repo ASC"
-
-    data = DB().fetch_all(query, params=tuple(params))
+    data = DB().fetch_all(query, params=params)
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 
