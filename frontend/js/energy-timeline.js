@@ -1,8 +1,9 @@
 $(document).ready(function () {
 
     (async () => {
+        let measurements = null;
         try {
-            var measurements = await makeAPICall('/v1/timeline-projects');
+            measurements = await makeAPICall('/v1/timeline-projects');
         } catch (err) {
             showNotification('Could not get data from API', err);
             return;

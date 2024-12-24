@@ -122,14 +122,15 @@ const loadCharts = async () => {
     document.querySelector("#chart-container").innerHTML = ''; // reset
     document.querySelector("#badge-container").innerHTML = ''; // reset
 
+    let phase_stats_data = null;
     try {
-        var phase_stats_data = (await makeAPICall(`/v1/timeline?${buildQueryParams()}`)).data
-        history.pushState(null, '', `${window.location.origin}${window.location.pathname}?${buildQueryParams()}`); // replace URL to bookmark!
+        phase_stats_data = (await makeAPICall(`/v1/timeline?${buildQueryParams()}`)).data
     } catch (err) {
         showNotification('Could not get compare in-repo data from API', err);
+        return
     }
 
-    if (phase_stats_data == undefined) return;
+    history.pushState(null, '', `${window.location.origin}${window.location.pathname}?${buildQueryParams()}`); // replace URL to bookmark!
 
     let legends = {};
     let series = {};
@@ -264,7 +265,7 @@ $(document).ready( (e) => {
         await populateMachines();
 
         $('#submit').on('click', function() {
-            loadCharts()
+            loadCharts();
         });
         fillInputsFromURL(url_params);
         loadCharts();
