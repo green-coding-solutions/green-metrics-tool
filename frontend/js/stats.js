@@ -355,8 +355,7 @@ const fetchAndFillNetworkIntercepts = async (url_params) => {
         document.querySelector("#network-divider").insertAdjacentHTML('afterEnd', '<p>No external network connections were detected.</p>')
     } else {
         for (const item of network.data) {
-            date = new Date(Number(item[2]));
-            date = date.toLocaleString();
+            const date = (new Date(Number(item[2]))).toLocaleString();
             document.querySelector("#network-intercepts").insertAdjacentHTML('beforeend', `<tr><td><strong>${date}</strong></td><td>${item[3]}</td><td>${item[4]}</td></tr>`)
         }
     }
