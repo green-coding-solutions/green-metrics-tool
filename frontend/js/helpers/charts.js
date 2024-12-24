@@ -32,7 +32,7 @@ const getCompareChartOptions = (legend, series, chart_type='line', x_axis='time'
                         date: ${comparison_details[params.seriesIndex][params.dataIndex].created_at}<br>
                         value: ${numberFormatter.format(params.value)}<br>
                         commit_timestamp: ${comparison_details[params.seriesIndex][params.dataIndex].commit_timestamp}<br>
-                        commit_hash: <a href="${$("#uri").text()}/commit/${comparison_details[params.seriesIndex][params.dataIndex].commit_hash}" target="_blank">${comparison_details[params.seriesIndex][params.dataIndex].commit_hash}</a><br>
+                        commit_hash: <a href="${comparison_details[params.seriesIndex][params.dataIndex].repo}/commit/${comparison_details[params.seriesIndex][params.dataIndex].commit_hash}" target="_blank">${comparison_details[params.seriesIndex][params.dataIndex].commit_hash}</a><br>
                         gmt_hash: <a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${comparison_details[params.seriesIndex][params.dataIndex].gmt_hash}" target="_blank">${comparison_details[params.seriesIndex][params.dataIndex].gmt_hash}</a><br>
                         <br>
                         👉 <a href="" class="select-diff-run" onClick="return addToDiffSelection(this);" data-run-id="${comparison_details[params.seriesIndex][params.dataIndex].run_id}" target="_blank">Diff with ... (?)</a>

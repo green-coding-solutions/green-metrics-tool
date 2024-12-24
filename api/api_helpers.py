@@ -244,7 +244,7 @@ def get_comparison_details(user, ids, comparison_db_key):
 
     query = sql.SQL('''
         SELECT
-            id, name, created_at, commit_hash, commit_timestamp, gmt_hash, {}
+            id, name, created_at, uri, commit_hash, commit_timestamp, gmt_hash, {}
         FROM runs
         WHERE
             (TRUE = %s OR user_id = ANY(%s::int[]))
@@ -260,7 +260,7 @@ def get_comparison_details(user, ids, comparison_db_key):
     comparison_details = OrderedDict()
 
     for row in data:
-        comparison_key = row[6]
+        comparison_key = row[7]
         run_id = str(row[0]) # UUID must be converted
         if comparison_key not in comparison_details:
             comparison_details[comparison_key] = OrderedDict()
@@ -268,9 +268,10 @@ def get_comparison_details(user, ids, comparison_db_key):
             'run_id': run_id,
             'name': row[1],
             'created_at': row[2],
-            'commit_hash': row[3],
-            'commit_timestamp': row[4],
-            'gmt_hash': row[5],
+            'repo': row[3],
+            'commit_hash': row[4],
+            'commit_timestamp': row[5],
+            'gmt_hash': row[6],
         }
 
     # to back-fill None values later we need to index every element
