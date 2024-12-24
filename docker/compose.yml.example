@@ -11,7 +11,8 @@ services:
       - POSTGRES_PASSWORD=PLEASE_CHANGE_THIS
     volumes:
       - green-coding-postgres-data:/var/lib/postgresql/data
-      - ./structure.sql:/docker-entrypoint-initdb.d/structure.sql:ro
+      - ./structure.sql:/docker-entrypoint-initdb.d/01-structure.sql:ro
+#EE-ONLY#      - ./../ee/docker/structure_ee.sql:/docker-entrypoint-initdb.d/02-structure_ee.sql:ro
   # If you want to use a shared socket between postgres and gunicorn please add
   #   - ./postgres/socket:/var/run/postgresql
   # Also add this to the green-coding-gunicorn then
