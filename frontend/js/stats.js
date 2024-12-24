@@ -328,6 +328,7 @@ const fetchAndFillPhaseStatsData = async (url_params) => {
         phase_stats = await makeAPICall('/v1/phase_stats/single/' + url_params['id'])
     } catch (err) {
         showNotification('Could not get phase_stats data from API', err);
+        return
     }
 
 
