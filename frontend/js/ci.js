@@ -312,8 +312,8 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
 
     history.pushState(null, '', `${window.location.origin}${window.location.pathname}?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`); // replace URL to bookmark!
 
-    const source = escapeString(measurements.data[0][8]);
-    let workflow_name = escapeString(measurements.data[0][10]);
+    const source = escapeString(measurements.data[0][7]);
+    let workflow_name = escapeString(measurements.data[0][9]);
     populateRunInfos(repo, branch, source, workflow_name, workflow_id)
 
     $('#display-run-details-table').off('click');
@@ -345,14 +345,13 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
 
 const populateRunInfos = (repo, branch, source, workflow_name, workflow_id) => {
 
-    const ci_data_node = document.querySelector('#ci-data')
-    ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Branch:</strong></td><td>${branch}</td></tr>`)
-    ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow ID:</strong></td><td>${workflow_id}</td></tr>`)
+    document.querySelector('#ci-data-branch').innerText =  branch;
+    document.querySelector('#ci-data-workflow-id').innerText =  workflow_id;
 
     if (workflow_name == '' || workflow_name == null) {
         workflow_name = workflow_id ;
     }
-    ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${workflow_name}</td></tr>`)
+    document.querySelector('#ci-data-workflow').innerText =  workflow_name;
 
     let repo_link = ''
     if(source == 'github') {
@@ -363,8 +362,7 @@ const populateRunInfos = (repo, branch, source, workflow_name, workflow_id) => {
     }
 
     const repo_link_node = `<a href="${repo_link}" target="_blank">${repo}</a>`
-    ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Repository:</strong></td><td>${repo_link_node}</td></tr>`)
-
+    document.querySelector('#ci-data-repo').innerHTML =  repo_link_node;
 }
 
 
