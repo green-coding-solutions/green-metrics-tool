@@ -31,13 +31,13 @@ $(document).ready( (e) => {
 
 
         const run_count = url_params['ids'].split(",").length
+        let phase_stats_data = null
         try {
-            window.phase_stats_data = (await makeAPICall(`/v1/compare?ids=${url_params['ids']}`)).data
+            phase_stats_data = (await makeAPICall(`/v1/compare?ids=${url_params['ids']}`)).data
         } catch (err) {
             showNotification('Could not get compare in-repo data from API', err);
+            return
         }
-
-        if (phase_stats_data == undefined) return;
 
         let comparison_identifiers = phase_stats_data.comparison_identifiers.map((el) => replaceRepoIcon(el));
         comparison_identifiers = comparison_identifiers.join(' vs. ')

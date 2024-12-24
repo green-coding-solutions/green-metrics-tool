@@ -74,7 +74,6 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
     let ci_data = null;
     try {
         ci_data = await makeAPICall(url);
-        console.log(ci_data.data);
     } catch (err) {
         showNotification('Could not get CI data from API', err);
         return

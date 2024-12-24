@@ -312,8 +312,8 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
 
     history.pushState(null, '', `${window.location.origin}${window.location.pathname}?repo=${repo}&branch=${branch}&workflow=${workflow_id}&start_date=${start_date}&end_date=${end_date}`); // replace URL to bookmark!
 
-    const source = measurements.data[0][8];
-    let workflow_name = measurements.data[0][10];
+    const source = escapeString(measurements.data[0][8]);
+    let workflow_name = escapeString(measurements.data[0][10]);
     populateRunInfos(repo, branch, source, workflow_name, workflow_id)
 
     $('#display-run-details-table').off('click');
@@ -352,7 +352,7 @@ const populateRunInfos = (repo, branch, source, workflow_name, workflow_id) => {
     if (workflow_name == '' || workflow_name == null) {
         workflow_name = workflow_id ;
     }
-    ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${escapeString(workflow_name)}</td></tr>`)
+    ci_data_node.insertAdjacentHTML('afterbegin', `<tr><td><strong>Workflow:</strong></td><td>${workflow_name}</td></tr>`)
 
     let repo_link = ''
     if(source == 'github') {
@@ -379,7 +379,6 @@ $(document).ready((e) => {
         const repo = escapeString(url_params['repo']);
         const workflow_id = escapeString(url_params['workflow']);
 
-
         if (repo == null || repo == '' || repo == 'null') {
             showNotification('No Repo', 'Repo parameter in URL is empty or not present. Did you follow a correct URL?');
             return;
@@ -404,6 +403,7 @@ $(document).ready((e) => {
 
         $('#submit').on('click', async function () {
             refreshView(repo, branch, workflow_id, chart_instance)
+
         });
 
     })();

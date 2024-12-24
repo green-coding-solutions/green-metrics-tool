@@ -130,7 +130,7 @@ const fetchAndFillRunData = async (url_params) => {
 
 }
 
-const buildCommitLink = (run_data) => {
+const buildCommitLink = async (run_data) => {
     let commit_link;
     commit_link = run_data['uri'].endsWith('.git') ? run_data['uri'].slice(0, -4) : run_data['uri']
     if (run_data['uri'].includes('github')) {
@@ -142,8 +142,8 @@ const buildCommitLink = (run_data) => {
     return commit_link;
 }
 
-const fillRunTab = (selector, data, parent = '') => {
-    for (item in data) {
+const fillRunTab = async (selector, data, parent = '') => {
+    for (const item in data) {
         if(typeof data[item] == 'object')
             fillRunTab(selector, data[item], `${item}.`)
         else
@@ -153,7 +153,7 @@ const fillRunTab = (selector, data, parent = '') => {
 }
 
 
-const buildTimelineChartData = (measurements_data) => {
+const buildTimelineChartData = async (measurements_data) => {
     const metrics = {}
     const t0 = performance.now();
 
@@ -224,7 +224,7 @@ const buildTimelineChartData = (measurements_data) => {
     return metrics;
 }
 
-const displayTimelineCharts = (metrics, notes) => {
+const displayTimelineCharts = async (metrics, notes) => {
 
     const note_positions = [
         'insideStartTop',
@@ -299,6 +299,11 @@ const displayTimelineCharts = (metrics, notes) => {
     }
 
     document.querySelector('#api-loader').remove();
+
+    // after all charts instances have been placed
+    // the flexboxes might have rearranged. We need to trigger resize
+    setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);
+
 }
 
 const renderBadges = async (url_params) => {
@@ -415,7 +420,7 @@ const fetchAndFillOptimizationsData = async (url_params) => {
     $('#optimization_count').html(optimizations.data.length)
 }
 
-async function fetchTimelineData(url_params) {
+const fetchTimelineData = async (url_params) => {
     document.querySelector('#api-loader').style.display = '';
     document.querySelector('#loader-question').remove();
 
@@ -429,7 +434,7 @@ async function fetchTimelineData(url_params) {
 
 }
 
-async function fetchTimelineNotes(url_params) {
+const fetchTimelineNotes = async (url_params) => {
     let notes = null;
     try {
         notes = await makeAPICall('/v1/notes/' + url_params['id'])
@@ -459,23 +464,22 @@ $(document).ready( (e) => {
 
 
         if (localStorage.getItem('fetch_time_series') === 'true') {
-            const timeline_data = await fetchTimelineData(url_params);
-            const timeline_notes = await fetchTimelineNotes(url_params);
-            const timeline_chart_data = buildTimelineChartData(timeline_data);
+            const [timeline_data, timeline_notes] = await Promise.all([
+                fetchTimelineData(url_params),
+                fetchTimelineNotes(url_params)
+            ]);
+            const timeline_chart_data = await buildTimelineChartData(timeline_data);
             displayTimelineCharts(timeline_chart_data, timeline_notes);
         } else {
             document.querySelector('#fetch-time-series').addEventListener('click', async () => {
-                const timeline_data = await fetchTimelineData(url_params);
-                const timeline_notes = await fetchTimelineNotes(url_params);
-                const timeline_chart_data = buildTimelineChartData(timeline_data);
+                const [timeline_data, timeline_notes] = await Promise.all([
+                    fetchTimelineData(url_params),
+                    fetchTimelineNotes(url_params)
+                ]);
+                const timeline_chart_data = await buildTimelineChartData(timeline_data);
                 displayTimelineCharts(timeline_chart_data, timeline_notes);
             });
         }
-
-
-        // after all charts instances have been placed
-        // the flexboxes might have rearranged. We need to trigger resize
-        setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);
     })();
 });
 

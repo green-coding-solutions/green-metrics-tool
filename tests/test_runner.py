@@ -44,3 +44,14 @@ def test_reporters_still_running():
 
             expected_error = r'Another instance of the \w+ metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.'
             assert re.match(expected_error, str(e.value)), Tests.assertion_info(expected_error, str(e.value))
+
+
+def test_runner_can_use_different_user():
+    USER_ID = 758932
+    Tests.insert_user(USER_ID, "My bad password")
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, user_id=USER_ID)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+
+    assert runner._user_id == USER_ID

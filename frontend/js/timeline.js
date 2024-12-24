@@ -265,7 +265,7 @@ $(document).ready( (e) => {
         await populateMachines();
 
         $('#submit').on('click', function() {
-            loadCharts()
+            loadCharts();
         });
         fillInputsFromURL(url_params);
         loadCharts();

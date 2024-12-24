@@ -9,7 +9,7 @@ class User():
 
     def __init__(self, user_id: int):
         if user_id == 0:
-            raise RuntimeError('User 0 is system user and cannot log in')
+            raise UserAuthenticationError('User 0 is system user and cannot log in')
 
         user = DB().fetch_one("""
                 SELECT id, name, capabilities
@@ -17,7 +17,7 @@ class User():
                 WHERE id = %s
                 """, params=(user_id, ))
         if not user:
-            raise RuntimeError(f"User with id {user_id} not found in database")
+            raise UserAuthenticationError(f"User with id {user_id} not found in database")
 
         self._id = user[0]
         self._name = user[1]
