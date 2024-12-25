@@ -264,7 +264,7 @@ async def get_ci_repositories(repo: str | None = None, sort_by: str = 'name', us
     else:
         query = f"{query} ORDER BY repo ASC"
 
-    data = DB().fetch_all(query, params=tuple(params))
+    data = DB().fetch_all(query, params=params)
     if data is None or data == []:
         return Response(status_code=204) # No-Content
 

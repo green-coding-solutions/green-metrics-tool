@@ -243,7 +243,7 @@ async function makeAPICall(path, values=null, force_authentication_token=null) {
     .then(response => {
         if (response.status == 204) {
             // 204 responses use no body, so json() call would fail
-            return {success: false, err: "Data is empty"}
+            return {success: false, err: "No data to display. API returned empty response (HTTP 204)"}
         }
         return response.json()
     })
