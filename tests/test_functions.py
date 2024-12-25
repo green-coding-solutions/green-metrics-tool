@@ -70,7 +70,7 @@ def reset_db():
         encoding='UTF-8'
     )
     subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', 'psql --port 9573 < ./docker-entrypoint-initdb.d/structure.sql'],
+        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', 'psql --port 9573 < ./docker-entrypoint-initdb.d/01-structure.sql'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,

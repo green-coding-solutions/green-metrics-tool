@@ -21,6 +21,11 @@ def copy_sql_structure(ee=False):
     print('Copying SQL structure...')
     shutil.copyfile('../docker/structure.sql', './structure.sql')
 
+    if ee:
+        with open('../ee/docker/structure_ee.sql', 'r', encoding='utf-8') as source, open('./structure.sql', 'a', encoding='utf-8') as target:
+            target.write(source.read())
+            print("Enterprise DB definitions of '../ee/docker/structure.sql' appended to './structure.sql' successfully.")
+
     if utils.get_architecture() == 'macos':
         command = ['sed', '-i', "", 's/green-coding/test-green-coding/g', './structure.sql']
     else:
@@ -28,10 +33,6 @@ def copy_sql_structure(ee=False):
 
     subprocess.check_output(command)
 
-    if ee:
-        with open('../ee/docker/structure_ee.sql', 'r', encoding='utf-8') as source, open('./structure.sql', 'a', encoding='utf-8') as target:
-            target.write(source.read())
-            print("Enterprise DB definitions of '../ee/docker/structure.sql' appended to './structure.sql' successfully.")
 
 def edit_compose_file():
     print('Creating test-compose.yml...')
