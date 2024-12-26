@@ -106,8 +106,6 @@ class BaseMetricProvider:
             if (df['value'] <= 1).any():
                 raise ValueError(f"Data from metric provider {self._metric_name} is running into a resolution underflow. Values are <= 1 {self._unit}")
 
-
-
     def read_metrics(self, run_id, containers=None): #pylint: disable=unused-argument
         with open(self._filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
