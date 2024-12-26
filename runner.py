@@ -15,7 +15,6 @@ import time
 from html import escape
 import importlib
 import re
-from io import StringIO
 from pathlib import Path
 import random
 import shutil
@@ -40,6 +39,7 @@ from lib.global_config import GlobalConfig
 from lib.notes import Notes
 from lib import system_checks
 from lib.machine import Machine
+from lib import metric_importer
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -1345,8 +1345,8 @@ class Runner:
                 errors.append(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
                 continue
 
-            f = StringIO(df.to_csv(index=False, header=False))
-            DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')
+            metric_importer.import_measurements(df)
+
         self.__metric_providers.clear()
         if errors:
             raise RuntimeError("\n".join(errors))
