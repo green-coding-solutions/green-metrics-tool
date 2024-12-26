@@ -1,0 +1,69 @@
+DEBUG     Dec 24 14:33:15.547 [19359]: sending stored logs
+NOTICE    Dec 24 14:33:15.547 [19359]: Initializing tinyproxy ...
+NOTICE    Dec 24 14:33:15.547 [19359]: Reloading config file
+NOTICE    Dec 24 14:33:15.547 [19359]: Reloading config file finished
+DEBUG     Dec 24 14:33:15.547 [19359]: done sending stored logs
+CONNECT   Dec 24 14:34:46.069 [19359]: Connect (file descriptor 5): 192.168.178.39
+CONNECT   Dec 24 14:34:46.069 [19359]: Request (file descriptor 5): CONNECT index.docker.io:443 HTTP/1.1
+CONNECT   Dec 24 14:34:46.204 [19359]: Established connection to host "index.docker.io" using file descriptor 6.
+CONNECT   Dec 24 14:34:46.599 [19359]: Connect (file descriptor 7): 192.168.178.39
+CONNECT   Dec 24 14:34:46.600 [19359]: Request (file descriptor 7): CONNECT auth.docker.io:443 HTTP/1.1
+CONNECT   Dec 24 14:34:46.710 [19359]: Established connection to host "auth.docker.io" using file descriptor 8.
+CONNECT   Dec 24 14:34:48.003 [19359]: Connect (file descriptor 9): 192.168.178.39
+CONNECT   Dec 24 14:34:48.003 [19359]: Request (file descriptor 9): CONNECT production.cloudflare.docker.com:443 HTTP/1.1
+CONNECT   Dec 24 14:34:48.038 [19359]: Established connection to host "production.cloudflare.docker.com" using file descriptor 10.
+CONNECT   Dec 24 14:34:48.161 [19359]: Connect (file descriptor 11): 192.168.178.39
+CONNECT   Dec 24 14:34:48.161 [19359]: Request (file descriptor 11): CONNECT index.docker.io:443 HTTP/1.1
+CONNECT   Dec 24 14:34:48.276 [19359]: Established connection to host "index.docker.io" using file descriptor 12.
+CONNECT   Dec 24 14:34:48.657 [19359]: Connect (file descriptor 13): 192.168.178.39
+CONNECT   Dec 24 14:34:48.657 [19359]: Request (file descriptor 13): CONNECT auth.docker.io:443 HTTP/1.1
+CONNECT   Dec 24 14:34:48.771 [19359]: Established connection to host "auth.docker.io" using file descriptor 14.
+CONNECT   Dec 24 14:34:50.017 [19359]: Connect (file descriptor 15): 192.168.178.39
+CONNECT   Dec 24 14:34:50.017 [19359]: Request (file descriptor 15): CONNECT docker-images-prod.6aa30f8b08e16409b46e0173d6de2f56.r2.cloudflarestorage.com:443 HTTP/1.1
+CONNECT   Dec 24 14:34:50.056 [19359]: Established connection to host "docker-images-prod.6aa30f8b08e16409b46e0173d6de2f56.r2.cloudflarestorage.com" using file descriptor 16.
+CONNECT   Dec 24 14:34:50.659 [19359]: Connect (file descriptor 17): 192.168.178.39
+CONNECT   Dec 24 14:34:50.659 [19359]: Request (file descriptor 17): CONNECT docker-images-prod.6aa30f8b08e16409b46e0173d6de2f56.r2.cloudflarestorage.com:443 HTTP/1.1
+CONNECT   Dec 24 14:34:50.668 [19359]: Established connection to host "docker-images-prod.6aa30f8b08e16409b46e0173d6de2f56.r2.cloudflarestorage.com" using file descriptor 18.
+CONNECT   Dec 24 14:35:10.167 [19359]: Connect (file descriptor 5): 192.168.178.39
+CONNECT   Dec 24 14:35:10.167 [19359]: Request (file descriptor 5): CONNECT index.docker.io:443 HTTP/1.1
+CONNECT   Dec 24 14:35:10.308 [19359]: Established connection to host "index.docker.io" using file descriptor 6.
+CONNECT   Dec 24 14:35:38.955 [19359]: Connect (file descriptor 5): 192.168.178.39
+CONNECT   Dec 24 14:35:38.955 [19359]: Request (file descriptor 5): CONNECT index.docker.io:443 HTTP/1.1
+CONNECT   Dec 24 14:35:39.083 [19359]: Established connection to host "index.docker.io" using file descriptor 6.
+CONNECT   Dec 24 14:35:39.466 [19359]: Connect (file descriptor 7): 192.168.178.39
+CONNECT   Dec 24 14:35:39.467 [19359]: Request (file descriptor 7): CONNECT production.cloudflare.docker.com:443 HTTP/1.1
+CONNECT   Dec 24 14:35:39.476 [19359]: Established connection to host "production.cloudflare.docker.com" using file descriptor 8.
+CONNECT   Dec 24 14:35:49.204 [19359]: Connect (file descriptor 5): 192.168.178.39
+CONNECT   Dec 24 14:35:49.204 [19359]: Request (file descriptor 5): CONNECT index.docker.io:443 HTTP/1.1
+CONNECT   Dec 24 14:35:49.318 [19359]: Established connection to host "index.docker.io" using file descriptor 6.
+CONNECT   Dec 24 14:35:56.757 [19359]: Connect (file descriptor 5): 192.168.178.39
+CONNECT   Dec 24 14:35:56.757 [19359]: Request (file descriptor 5): CONNECT index.docker.io:443 HTTP/1.1
+CONNECT   Dec 24 14:35:56.867 [19359]: Established connection to host "index.docker.io" using file descriptor 6.
+CONNECT   Dec 24 14:36:27.722 [19359]: Connect (file descriptor 5): 192.168.178.39
+CONNECT   Dec 24 14:36:27.722 [19359]: Request (file descriptor 5): GET http://deb.debian.org/debian/dists/bookworm/InRelease HTTP/1.1
+CONNECT   Dec 24 14:36:27.778 [19359]: Established connection to host "deb.debian.org" using file descriptor 6.
+CONNECT   Dec 24 14:36:27.842 [19359]: Connect (file descriptor 5): 192.168.178.39
+CONNECT   Dec 24 14:36:27.842 [19359]: Request (file descriptor 5): GET http://deb.debian.org/debian/dists/bookworm-updates/InRelease HTTP/1.1
+CONNECT   Dec 24 14:36:27.873 [19359]: Established connection to host "deb.debian.org" using file descriptor 6.
+CONNECT   Dec 24 14:36:27.922 [19359]: Connect (file descriptor 5): 192.168.178.39
+CONNECT   Dec 24 14:36:27.922 [19359]: Request (file descriptor 5): GET http://deb.debian.org/debian-security/dists/bookworm-security/InRelease HTTP/1.1
+CONNECT   Dec 24 14:36:27.937 [19359]: Established connection to host "deb.debian.org" using file descriptor 6.
+CONNECT   Dec 24 14:36:27.982 [19359]: Connect (file descriptor 5): 192.168.178.39
+CONNECT   Dec 24 14:36:27.982 [19359]: Request (file descriptor 5): GET http://deb.debian.org/debian/dists/bookworm/main/binary-amd64/by-hash/SHA256/cb8392d7e8ba314a04633e7fed33ff514ef6119dda5af4bdba5ccb21d71654c4 HTTP/1.1
+CONNECT   Dec 24 14:36:27.997 [19359]: Established connection to host "deb.debian.org" using file descriptor 6.
+CONNECT   Dec 24 14:36:28.857 [19359]: Connect (file descriptor 5): 192.168.178.39
+CONNECT   Dec 24 14:36:28.858 [19359]: Request (file descriptor 5): GET http://deb.debian.org/debian/dists/bookworm-updates/main/binary-amd64/by-hash/SHA256/64e4a9766638953a07fd287b1f9aa360c724e7e59d5ff61c300c7f764dd90ea0 HTTP/1.1
+CONNECT   Dec 24 14:36:28.876 [19359]: Established connection to host "deb.debian.org" using file descriptor 6.
+CONNECT   Dec 24 14:36:28.906 [19359]: Connect (file descriptor 5): 192.168.178.39
+CONNECT   Dec 24 14:36:28.906 [19359]: Request (file descriptor 5): GET http://deb.debian.org/debian-security/dists/bookworm-security/main/binary-amd64/by-hash/SHA256/384358513eb33dba1b3ba891b1799f08fa4dd859f80369de28d9d32e5da12b61 HTTP/1.1
+CONNECT   Dec 24 14:36:28.922 [19359]: Established connection to host "deb.debian.org" using file descriptor 6.
+CONNECT   Dec 24 14:36:31.370 [19359]: Connect (file descriptor 5): 192.168.178.39
+CONNECT   Dec 24 14:36:31.370 [19359]: Request (file descriptor 5): GET http://deb.debian.org/debian/pool/main/l/luajit/libluajit-5.1-common_2.1.0%7ebeta3%2bgit20220320%2bdfsg-4.1_all.deb HTTP/1.1
+CONNECT   Dec 24 14:36:31.385 [19359]: Established connection to host "deb.debian.org" using file descriptor 6.
+CONNECT   Dec 24 14:36:31.436 [19359]: Connect (file descriptor 5): 192.168.178.39
+CONNECT   Dec 24 14:36:31.436 [19359]: Request (file descriptor 5): GET http://deb.debian.org/debian/pool/main/l/luajit/libluajit-5.1-2_2.1.0%7ebeta3%2bgit20220320%2bdfsg-4.1_amd64.deb HTTP/1.1
+CONNECT   Dec 24 14:36:31.453 [19359]: Established connection to host "deb.debian.org" using file descriptor 6.
+CONNECT   Dec 24 14:36:31.530 [19359]: Connect (file descriptor 5): 192.168.178.39
+CONNECT   Dec 24 14:36:31.531 [19359]: Request (file descriptor 5): GET http://deb.debian.org/debian/pool/main/w/wrk/wrk_4.1.0-3%2bb2_amd64.deb HTTP/1.1
+CONNECT   Dec 24 14:36:31.547 [19359]: Established connection to host "deb.debian.org" using file descriptor 6.
+NOTICE    Dec 24 14:40:55.503 [19359]: Shutting down.

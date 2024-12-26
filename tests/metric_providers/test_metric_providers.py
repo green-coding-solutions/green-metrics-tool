@@ -70,7 +70,7 @@ def test_splitting_by_group():
 
     actual_network_interface = utils.get_network_interfaces(mode='physical')[0]
     with tempfile.NamedTemporaryFile(delete=True) as temp_file:
-        mock_temporary_network_file('./data/metrics/network_io_procfs_system.log', temp_file.name, actual_network_interface)
+        mock_temporary_network_file('./data/metrics/network_io_procfs_system_short.log', temp_file.name, actual_network_interface)
 
         obj._filename = temp_file.name
         df = obj.read_metrics('RUN_ID')
@@ -214,7 +214,7 @@ def test_monotonic():
     obj = NetworkIoProcfsSystemProvider(100, remove_virtual_interfaces=False, skip_check=True)
 
     with tempfile.NamedTemporaryFile(delete=True) as temp_file:
-        mock_temporary_file('./data/metrics/network_io_procfs_system.log', temp_file.name)
+        mock_temporary_file('./data/metrics/network_io_procfs_system_short.log', temp_file.name)
 
         obj._filename = temp_file.name
         obj.read_metrics('RUN_ID')
@@ -236,7 +236,7 @@ def test_resolution_ok():
     obj = CpuEnergyRaplMsrComponentProvider(100, skip_check=True)
 
     with tempfile.NamedTemporaryFile(delete=True) as temp_file:
-        mock_temporary_file('./data/metrics/cpu_energy_rapl_msr_component.log', temp_file.name)
+        mock_temporary_file('./data/metrics/cpu_energy_rapl_msr_component_short.log', temp_file.name)
 
         obj._filename = temp_file.name
         obj.read_metrics('RUN_ID')
