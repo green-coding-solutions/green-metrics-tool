@@ -1,12 +1,82 @@
 import os
 import subprocess
 import hashlib
+import json
 
 from lib.db import DB
+from lib import metric_importer
+from metric_providers.cpu.utilization.cgroup.container.provider import CpuUtilizationCgroupContainerProvider
+from metric_providers.psu.energy.ac.mcp.machine.provider import PsuEnergyAcMcpMachineProvider
+from metric_providers.cpu.energy.rapl.msr.component.provider import CpuEnergyRaplMsrComponentProvider
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+TEST_MEASUREMENT_CONTAINERS = {'bb0ea912f295ab0d8b671caf061929de9bb8b106128c071d6a196f9b6c05cd98': {'name': 'Arne'}, 'f78f0ca43069836d975f2bd4c45724227bbc71fc4788e60b33a77f1494cd2e0c': {'name': 'Not-Arne'}}
+TEST_MEASUREMENT_START_TIME = 1735047190000000
+TEST_MEASUREMENT_END_TIME = 1735047660000000
+TEST_MEASUREMENT_DURATION = TEST_MEASUREMENT_END_TIME - TEST_MEASUREMENT_START_TIME
+TEST_MEASUREMENT_DURATION_S = TEST_MEASUREMENT_DURATION / 1_000_000
+TEST_MEASUREMENT_DURATION_H = TEST_MEASUREMENT_DURATION_S/60/60
+
 from lib.global_config import GlobalConfig
+
+def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename', user_id=1):
+    # spoof time from the beginning of UNIX time until now.
+    phases = [
+        {"start": TEST_MEASUREMENT_START_TIME-8, "name": "[BASELINE]", "end": TEST_MEASUREMENT_START_TIME-7},
+        {"start": TEST_MEASUREMENT_START_TIME-6, "name": "[INSTALL]", "end": TEST_MEASUREMENT_START_TIME-5},
+        {"start": TEST_MEASUREMENT_START_TIME-4, "name": "[BOOT]", "end": TEST_MEASUREMENT_START_TIME-3},
+        {"start": TEST_MEASUREMENT_START_TIME-2, "name": "[IDLE]", "end": TEST_MEASUREMENT_START_TIME-1},
+        {"start": TEST_MEASUREMENT_START_TIME, "name": "[RUNTIME]", "end": TEST_MEASUREMENT_END_TIME},
+        {"start": TEST_MEASUREMENT_END_TIME+1, "name": "[REMOVE]", "end": TEST_MEASUREMENT_END_TIME+2},
+    ]
+
+    return DB().fetch_one('''
+        INSERT INTO runs (uri, branch, filename, phases, user_id)
+        VALUES
+        (%s, %s, %s, %s, %s) RETURNING id;
+    ''', params=(uri, branch, filename, json.dumps(phases), user_id))[0]
+
+def import_cpu_utilization(run_id):
+
+    obj = CpuUtilizationCgroupContainerProvider(99, skip_check=True)
+
+    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_utilization_cgroup_container.log')
+    df = obj.read_metrics(run_id, containers=TEST_MEASUREMENT_CONTAINERS)
+
+    metric_importer.import_measurements(df)
+    #metric_importer.import_measurements(df, 'cpu_utilization_cgroup_container', run_id)
+
+    with open(obj._filename, encoding='utf-8') as f:
+        return f.readlines()
+
+
+
+def import_machine_energy(run_id):
+
+    obj = PsuEnergyAcMcpMachineProvider(99, skip_check=True)
+
+    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/psu_energy_ac_mcp_machine.log')
+    df = obj.read_metrics(run_id)
+
+    metric_importer.import_measurements(df)
+    #metric_importer.import_measurements(df, 'psu_energy_ac_mcp_machine', run_id)
+
+    with open(obj._filename, encoding='utf-8') as f:
+        return f.readlines()
+
+def import_cpu_energy(run_id):
+
+    obj = CpuEnergyRaplMsrComponentProvider(99, skip_check=True)
+
+    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_energy_rapl_msr_component.log')
+    df = obj.read_metrics(run_id)
+
+    metric_importer.import_measurements(df)
+    #metric_importer.import_measurements(df, 'cpu_energy_rapl_msr_component', run_id)
+
+    with open(obj._filename, encoding='utf-8') as f:
+        return f.readlines()
 
 def update_user_token(user_id, token):
     sha256_hash = hashlib.sha256()
