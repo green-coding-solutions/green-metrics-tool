@@ -1,0 +1,39 @@
+CREATE TABLE measurement_metrics (
+    id SERIAL PRIMARY KEY,
+    run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    metric text NOT NULL,
+    detail_name text NOT NULL,
+    unit text NOT NULL
+);
+
+CREATE UNIQUE INDEX measurement_metrics_get ON measurement_metrics(run_id,metric,detail_name);
+CREATE INDEX measurement_metrics_build_and_store_phase_stats ON measurement_metrics(run_id,metric,detail_name,unit);
+CREATE INDEX measurement_metrics_build_phases ON measurement_metrics(metric,detail_name,unit);
+
+CREATE TABLE measurement_values (
+    measurement_metric_id int NOT NULL REFERENCES measurement_metrics(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    value bigint NOT NULL,
+    time bigint NOT NULL
+);
+
+CREATE INDEX measurement_values_mmid ON measurement_values(measurement_metric_id);
+CREATE UNIQUE INDEX measurement_values_unique ON measurement_values(measurement_metric_id, time);
+
+INSERT INTO measurement_metrics (run_id, metric, detail_name, unit)
+SELECT DISTINCT run_id, metric, detail_name, unit
+FROM measurements;
+
+INSERT INTO measurement_values (measurement_metric_id, value, time)
+SELECT 
+    mm.id AS measurement_metric_id,
+    m.value,
+    m.time
+FROM 
+    measurements m
+JOIN 
+    measurement_metrics mm
+ON 
+    m.run_id = mm.run_id
+    AND m.metric = mm.metric
+    AND m.detail_name = mm.detail_name
+    AND m.unit = mm.unit;
