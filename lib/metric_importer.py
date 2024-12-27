@@ -1,6 +1,7 @@
 from io import StringIO
 
 from lib.db import DB
+from metric_providers.network.connections.tcpdump.system.provider import generate_stats_string
 
 def import_measurements_new(df, metric_name, run_id):
 
@@ -20,22 +21,36 @@ def import_measurements_new(df, metric_name, run_id):
 
     DB().copy_from(file=f, table='measurement_values', columns=['measurement_metric_id', 'value', 'time'], sep=',')
 
-def import_measurements(df):
-    df = add_effective_resolution_and_jitter(df) # works already on the reference. return just for clarity
+def import_measurements(df, metric_name, run_id, containers=None):
 
-    f = StringIO(df.to_csv(index=False, header=False))
-    DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')
+    if metric_name == 'network_connections_proxy_container_dockerproxy':
+
+        df['run_id'] = run_id
+        f = StringIO(df.to_csv(index=False, header=False))
+        DB().copy_from(file=f, table='network_intercepts', columns=df.columns, sep=',')
+
+    elif metric_name == 'network_connections_tcpdump_system':
+        DB().query("""
+            UPDATE runs
+            SET logs= COALESCE(logs, '') || %s -- append
+            WHERE id = %s
+            """, params=(generate_stats_string(df), run_id))
+
+    else:
+
+        if 'container_id' in df.columns:
+            df = map_container_id_to_detail_name(df, containers)
+
+        df['run_id'] = run_id
+
+        f = StringIO(df.to_csv(index=False, header=False))
+        DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')
 
 
-# This method could also be placed in the metric_providers/base.py
-# However, since we want it to trigger a warning only and not fail hard we have segmented it out
-# Maybe due for a rework once we have better understood how critical resolution jitter is for making claims about the measurement
-def add_effective_resolution_and_jitter(df):
-
-    df['effective_resolution'] = df.groupby(['detail_name', 'unit'])['time'].diff()
-    df['resolution_max'] = df.groupby(['detail_name', 'unit'])['effective_resolution'].transform('max')
-    df['resolution_avg'] = df.groupby(['detail_name', 'unit'])['effective_resolution'].transform('mean')
-    df['resolution_95p'] = df.groupby(['detail_name', 'unit'])['effective_resolution'].transform(lambda x: x.quantile(0.95))
-    df = df.drop(columns=['effective_resolution'])
+def map_container_id_to_detail_name(df, containers=None):
+    df['detail_name'] = df.container_id
+    for container_id in containers:
+        df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]['name']
+    df = df.drop('container_id', axis=1)
 
     return df

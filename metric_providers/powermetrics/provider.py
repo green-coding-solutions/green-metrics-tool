@@ -7,7 +7,6 @@ import xml
 import pandas
 import signal
 
-from lib.db import DB
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 
 class PowermetricsProvider(BaseMetricProvider):
@@ -107,7 +106,16 @@ class PowermetricsProvider(BaseMetricProvider):
 
         self._ps = None
 
-    def read_metrics(self, run_id, containers=None):
+    def _parse_metrics(self, df):
+        return df # noop, as we have already set detail_name individually in _read_metrics
+
+    def _add_unit_and_metric(self, df):
+        return df # noop, as we have already set detail_name individually in _read_metrics
+
+    def _check_resolution_underflow(self, df):
+        pass # noop, as values with powermetrics exhibit sparse data very often and are 0
+
+    def _read_metrics(self):
 
         with open(self._filename, 'rb') as metrics_file:
             datas = metrics_file.read()
@@ -115,7 +123,8 @@ class PowermetricsProvider(BaseMetricProvider):
         # Sometimes the container stops so fast that there will be no data in the file as powermetrics takes some time
         # to start. In this case we can't really do anything
         if datas == b'':
-            return 0
+            return pandas.DataFrame()
+
 
         datas = datas.split(b'\x00')
 
@@ -212,11 +221,8 @@ class PowermetricsProvider(BaseMetricProvider):
 
         df = pandas.DataFrame.from_records(dfs, columns=['time', 'value', 'metric', 'detail_name', 'unit'])
 
-        df['run_id'] = run_id
-
-        # Set the invalid run string to indicate, that it was mac and we can't rely on the data
-        invalid_message = 'Measurements are not reliable as they are done on a Mac. See our blog for details.'
-        DB().query('UPDATE runs SET invalid_run=%s WHERE id = %s', params=(invalid_message, run_id))
+        if df.empty:
+            raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")
 
         return df
 

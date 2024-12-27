@@ -22,11 +22,7 @@ class MemoryEnergyRaplMsrComponentProvider(BaseMetricProvider):
         if not is_rapl_energy_filtering_deactivated():
             raise MetricProviderConfigurationError('RAPL energy filtering is active and might skew results!')
 
-    def read_metrics(self, run_id, containers=None):
-        df = super().read_metrics(run_id, containers)
-
-        if df.empty:
-            return df
+    def _parse_metrics(self, df):
 
         df['detail_name'] = df.dram_id
         df = df.drop('dram_id', axis=1)
