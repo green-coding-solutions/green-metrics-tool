@@ -96,7 +96,7 @@ def test_phase_embodied_and_operational_carbon():
     assert psu_carbon_ac_mcp_machine['metric'] == 'psu_carbon_ac_mcp_machine'
     assert psu_carbon_ac_mcp_machine['detail_name'] == '[machine]'
     assert psu_carbon_ac_mcp_machine['unit'] == 'ug'
-    math.isclose(psu_carbon_ac_mcp_machine['value'], psu_energy_ac_mcp_machine['value'] * MICROJOULES_TO_KWH * sci['I'] * 1_000_000)
+    assert math.isclose(psu_carbon_ac_mcp_machine['value'], psu_energy_ac_mcp_machine['value'] * MICROJOULES_TO_KWH * sci['I'] * 1_000_000)
     assert psu_carbon_ac_mcp_machine['type'] == 'TOTAL'
 
     phase_time_in_years = Tests.TEST_MEASUREMENT_DURATION_S / (60 * 60 * 24 * 365)
@@ -106,5 +106,5 @@ def test_phase_embodied_and_operational_carbon():
     assert embodied_carbon_share_machine['metric'] == 'embodied_carbon_share_machine'
     assert embodied_carbon_share_machine['detail_name'] == '[SYSTEM]'
     assert embodied_carbon_share_machine['unit'] == 'ug'
-    math.isclose(embodied_carbon_share_machine['value'], embodied_carbon_expected)
+    assert math.isclose(embodied_carbon_share_machine['value'], embodied_carbon_expected)
     assert embodied_carbon_share_machine['type'] == 'TOTAL'
