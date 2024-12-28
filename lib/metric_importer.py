@@ -48,8 +48,7 @@ def import_measurements(df, metric_name, run_id, containers=None):
         DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')
         f.close()
 
-
-def map_container_id_to_detail_name(df, containers=None):
+def map_container_id_to_detail_name(df, containers):
     df['detail_name'] = df.container_id
     for container_id in containers:
         df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]['name']
