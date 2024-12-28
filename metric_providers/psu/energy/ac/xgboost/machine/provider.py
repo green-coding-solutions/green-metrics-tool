@@ -45,7 +45,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
         config = GlobalConfig().config
         if 'cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider' not in config['measurement']['metric-providers']['linux']:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease activate the CpuUtilizationProcfsSystemProvider in the config.yml\n \
-                This is required to run PsuEnergyAcSdiaMachineProvider")
+                This is required to run PsuEnergyAcXgboostMachineProvider")
 
     def _read_metrics(self):
 

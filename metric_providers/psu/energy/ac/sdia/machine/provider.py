@@ -62,7 +62,7 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
             else:
                 raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log or /tmp/green-metrics-tool/cpu_utilization_mach_system.log file. \
                     Did you activate the CpuUtilizationProcfsSystemProvider or CpuUtilizationMacSystemProvider in the config.yml too? \
-                    This is required to run PsuEnergyAcXgboostMachineProvider')
+                    This is required to run PsuEnergyAcSdiaMachineProvider')
 
         return super()._read_metrics()
 

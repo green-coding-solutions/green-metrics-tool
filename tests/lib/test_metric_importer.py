@@ -15,14 +15,14 @@ def test_import_cpu_utilization():
 
 
     result = results[0]
-    assert result[0] == len(measurement_lines)/2 # since we group, lenght mus be divided by groups
+    assert result[0] == len(measurement_lines)/2 # since we group, length mus be divided by groups
     assert math.isclose(result[1], 3958.59401, rel_tol=1e-5), 'AVG value not in expected range'
     assert math.isclose(result[2], 99373.57636, rel_tol=1e-5), 'Resolution was not in expected range'
     assert math.isclose(result[3], 100688.0, rel_tol=1e-5), 'MAX resolution was not in expected range'
     assert math.isclose(result[4],  99696.0, rel_tol=1e-5), '95p resolution was not in expected range'
 
     result = results[1]
-    assert result[0] == len(measurement_lines)/2 # since we group, lenght mus be divided by groups
+    assert result[0] == len(measurement_lines)/2 # since we group, length mus be divided by groups
     assert math.isclose(result[1], 1985.44716, rel_tol=1e-5), 'AVG value not in expected range'
     assert math.isclose(result[2], 99373.57636, rel_tol=1e-5), 'Resolution was not in expected range'
     assert math.isclose(result[3], 100688.0, rel_tol=1e-5), 'MAX resolution was not in expected range'

@@ -140,11 +140,11 @@ class BaseMetricProvider:
         # we group by everything apart from time and value itself
         # for most metric providers only detail_name and container_id should be present and differ though
         excluded_columns = ['time', 'value']
-        grouping_colums = [col for col in df.columns if col not in excluded_columns]
-        df['effective_resolution'] = df.groupby(grouping_colums)['time'].diff()
-        df['resolution_max'] = df.groupby(grouping_colums)['effective_resolution'].transform('max')
-        df['resolution_avg'] = df.groupby(grouping_colums)['effective_resolution'].transform('mean')
-        df['resolution_95p'] = df.groupby(grouping_colums)['effective_resolution'].transform(lambda x: x.quantile(0.95))
+        grouping_columms = [col for col in df.columns if col not in excluded_columns]
+        df['effective_resolution'] = df.groupby(grouping_columms)['time'].diff()
+        df['resolution_max'] = df.groupby(grouping_columms)['effective_resolution'].transform('max')
+        df['resolution_avg'] = df.groupby(grouping_columms)['effective_resolution'].transform('mean')
+        df['resolution_95p'] = df.groupby(grouping_columms)['effective_resolution'].transform(lambda x: x.quantile(0.95))
         df = df.drop('effective_resolution', axis=1)
 
         if (resolution_95p := df['resolution_95p'].max()) >= self._resolution*1000*1.2:

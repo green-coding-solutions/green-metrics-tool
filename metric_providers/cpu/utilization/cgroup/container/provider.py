@@ -10,5 +10,5 @@ class CpuUtilizationCgroupContainerProvider(BaseMetricProvider):
             resolution=resolution,
             unit='Ratio',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
-            skip_check = skip_check,
+            skip_check=skip_check,
         )
