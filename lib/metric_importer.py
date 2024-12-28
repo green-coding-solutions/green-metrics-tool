@@ -18,8 +18,8 @@ def import_measurements_new(df, metric_name, run_id):
 
     f = StringIO(df[['measurement_metric_id', 'value', 'time']]
         .to_csv(index=False, header=False))
-
     DB().copy_from(file=f, table='measurement_values', columns=['measurement_metric_id', 'value', 'time'], sep=',')
+    f.close()
 
 def import_measurements(df, metric_name, run_id, containers=None):
 
@@ -28,6 +28,7 @@ def import_measurements(df, metric_name, run_id, containers=None):
         df['run_id'] = run_id
         f = StringIO(df.to_csv(index=False, header=False))
         DB().copy_from(file=f, table='network_intercepts', columns=df.columns, sep=',')
+        f.close()
 
     elif metric_name == 'network_connections_tcpdump_system':
         DB().query("""
@@ -45,6 +46,7 @@ def import_measurements(df, metric_name, run_id, containers=None):
 
         f = StringIO(df.to_csv(index=False, header=False))
         DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')
+        f.close()
 
 
 def map_container_id_to_detail_name(df, containers=None):
