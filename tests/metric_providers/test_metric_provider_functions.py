@@ -31,7 +31,7 @@ def test_value_resolution_ok():
 
 def test_value_resolution_underflow():
     obj = CpuEnergyRaplMsrComponentProvider(1000, skip_check=True)
-    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_energy_rapl_msr_component_undeflow.log')
+    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_energy_rapl_msr_component_underflow.log')
 
     with pytest.raises(ValueError) as e:
         obj.read_metrics()

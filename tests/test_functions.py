@@ -4,6 +4,7 @@ import hashlib
 import json
 
 from lib.db import DB
+from lib.global_config import GlobalConfig
 from lib import metric_importer
 from metric_providers.cpu.utilization.cgroup.container.provider import CpuUtilizationCgroupContainerProvider
 from metric_providers.psu.energy.ac.mcp.machine.provider import PsuEnergyAcMcpMachineProvider
@@ -17,8 +18,6 @@ TEST_MEASUREMENT_END_TIME = 1735047660000000
 TEST_MEASUREMENT_DURATION = TEST_MEASUREMENT_END_TIME - TEST_MEASUREMENT_START_TIME
 TEST_MEASUREMENT_DURATION_S = TEST_MEASUREMENT_DURATION / 1_000_000
 TEST_MEASUREMENT_DURATION_H = TEST_MEASUREMENT_DURATION_S/60/60
-
-from lib.global_config import GlobalConfig
 
 def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename', user_id=1):
     # spoof time from the beginning of UNIX time until now.
