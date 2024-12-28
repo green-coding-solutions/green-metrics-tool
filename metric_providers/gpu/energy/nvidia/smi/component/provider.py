@@ -18,11 +18,8 @@ class GpuEnergyNvidiaSmiComponentProvider(BaseMetricProvider):
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
         super().check_system(check_command=['which', 'nvidia-smi'], check_error_message="nvidia-smi is not installed on the system")
 
-    def read_metrics(self, run_id, containers=None):
-        df = super().read_metrics(run_id, containers)
-
-        if df.empty:
-            return df
+    def _parse_metrics(self, df):
+        df = super()._parse_metrics(df) # sets detail_name
 
         '''
         Conversion to Joules

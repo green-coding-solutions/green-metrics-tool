@@ -13,11 +13,8 @@ class PsuEnergyAcMcpMachineProvider(BaseMetricProvider):
             skip_check=skip_check,
         )
 
-    def read_metrics(self, run_id, containers=None):
-        df = super().read_metrics(run_id, containers)
-
-        if df.empty:
-            return df
+    def _parse_metrics(self, df):
+        df = super()._parse_metrics(df) # sets detail_name
 
         '''
         Conversion to Joules

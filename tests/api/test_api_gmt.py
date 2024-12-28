@@ -26,9 +26,9 @@ def test_get_runs():
     run_name = 'test_' + utils.randomword(12)
     uri = os.path.abspath(os.path.join(
             CURRENT_DIR, 'stress-application/'))
-    pid = DB().fetch_one("INSERT INTO runs (name,uri,branch,filename,email,created_at,user_id) \
+    pid = DB().fetch_one("INSERT INTO runs (name,uri,branch,filename,created_at,user_id) \
                     VALUES \
-                    (%s,%s,'testing','testing', 'testing', NOW(), 1) RETURNING id;", params=(run_name, uri))[0]
+                    (%s,%s,'testing','testing',NOW(),1) RETURNING id;", params=(run_name, uri))[0]
 
     response = requests.get(f"{API_URL}/v1/runs?repo=&filename=", timeout=15)
     res_json = response.json()

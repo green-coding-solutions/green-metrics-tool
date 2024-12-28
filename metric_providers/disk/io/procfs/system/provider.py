@@ -15,11 +15,8 @@ class DiskIoProcfsSystemProvider(BaseMetricProvider):
             skip_check=skip_check,
         )
 
-    def read_metrics(self, run_id, containers=None):
-        df = super().read_metrics(run_id, containers)
-
-        if df.empty:
-            return df
+    def _parse_metrics(self, df):
+        df['detail_name'] = df['device']
 
         df = df.sort_values(by=['device', 'time'], ascending=True)
 
@@ -42,7 +39,6 @@ class DiskIoProcfsSystemProvider(BaseMetricProvider):
         df['blocksize'] = df['device'].apply(self.get_blocksize)
         df['value'] = (df['read_sectors_intervals'] + df['written_sectors_intervals'])*df['blocksize']
         df['value'] = df.value.astype(int)
-        df['detail_name'] = df['device']
         df = df.drop(columns=['read_sectors','written_sectors', 'written_sectors_intervals', 'read_sectors_intervals', 'device', 'blocksize'])  # clean up
 
         return df

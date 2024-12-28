@@ -15,7 +15,6 @@ import time
 from html import escape
 import importlib
 import re
-from io import StringIO
 from pathlib import Path
 import random
 import shutil
@@ -40,6 +39,7 @@ from lib.global_config import GlobalConfig
 from lib.notes import Notes
 from lib import system_checks
 from lib.machine import Machine
+from lib import metric_importer
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -1334,19 +1334,16 @@ class Runner:
             except Exception as exc:
                 errors.append(f"Could not stop profiling on {metric_provider.__class__.__name__}: {str(exc)}")
 
-            df = metric_provider.read_metrics(self._run_id, self.__containers)
-            if isinstance(df, int):
-                print('Imported', TerminalColors.HEADER, df, TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
-                # If df returns an int the data has already been committed to the db
+            try:
+                df = metric_provider.read_metrics()
+            except RuntimeError as exc:
+                errors.append(f"{metric_provider.__class__.__name__} returned error message: {str(exc)}")
                 continue
 
-            print('Imported', TerminalColors.HEADER, df.shape[0], TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
-            if df is None or df.shape[0] == 0:
-                errors.append(f"No metrics were able to be imported from: {metric_provider.__class__.__name__}")
-                continue
+            metric_importer.import_measurements(df, metric_provider._metric_name, self._run_id, self.__containers)
 
-            f = StringIO(df.to_csv(index=False, header=False))
-            DB().copy_from(file=f, table='measurements', columns=df.columns, sep=',')
+            print('Imported', TerminalColors.HEADER, len(df), TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
+
         self.__metric_providers.clear()
         if errors:
             raise RuntimeError("\n".join(errors))

@@ -10,7 +10,6 @@ from io import StringIO
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
-from lib import utils
 from lib import error_helpers
 
 def generate_csv_line(run_id, metric, detail_name, phase_name, value, value_type, max_value, min_value, unit):
@@ -23,7 +22,7 @@ def build_and_store_phase_stats(run_id, sci=None):
         sci = {}
 
     query = """
-            SELECT metric, unit, detail_name
+            SELECT metric, unit, detail_name, AVG(resolution_avg)
             FROM measurements
             WHERE run_id = %s
             GROUP BY metric, unit, detail_name
@@ -37,17 +36,17 @@ def build_and_store_phase_stats(run_id, sci=None):
 
 
     query = """
-        SELECT phases, measurement_config
+        SELECT phases
         FROM runs
         WHERE id = %s
         """
-    data = DB().fetch_one(query, (run_id, ))
+    phases = DB().fetch_one(query, (run_id, ))
 
-    if not data or not data[0] or not data[1]:
+    if not phases or not phases[0]:
         error_helpers.log_error('Phases object was empty and no phase_stats could be created. This can happen for failed runs, but should be very rare ...', run_id=run_id)
         return
 
-    phases, measurement_config = data # unpack
+    phases = phases[0]
 
     csv_buffer = StringIO()
 
@@ -75,7 +74,7 @@ def build_and_store_phase_stats(run_id, sci=None):
         csv_buffer.write(generate_csv_line(run_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", duration, 'TOTAL', None, None, 'us'))
 
         # now we go through all metrics in the run and aggregate them
-        for (metric, unit, detail_name) in metrics: # unpack
+        for metric, unit, detail_name, resolution_avg  in metrics: # unpack
             # -- saved for future if I need lag time query
             #    WITH times as (
             #        SELECT id, value, time, (time - LAG(time) OVER (ORDER BY detail_name ASC, time ASC)) AS diff, unit
@@ -83,9 +82,6 @@ def build_and_store_phase_stats(run_id, sci=None):
             #        WHERE run_id = %s AND metric = %s
             #        ORDER BY detail_name ASC, time ASC
             #    ) -- Backlog: if we need derivatives / integrations in the future
-
-            provider_name = metric.replace('_', '.') + '.provider.' + utils.get_pascal_case(metric) + 'Provider'
-            provider_resolution_in_ms = measurement_config['providers'][provider_name]['resolution']
 
             results = DB().fetch_one(select_query,
                 (run_id, metric, detail_name, phase['start'], phase['end'], ))
@@ -121,10 +117,10 @@ def build_and_store_phase_stats(run_id, sci=None):
                 if metric in ('cpu_utilization_cgroup_container', ):
                     cpu_utilization_containers[detail_name] = avg_value
 
-            elif metric in ['network_io_cgroup_container', 'network_io_procfs_system', 'disk_io_procfs_system', 'disk_io_cgroup_container']:
+            elif metric in ['network_io_cgroup_container', 'network_io_procfs_system', 'disk_io_procfs_system', 'disk_io_cgroup_container', 'disk_io_bytesread_powermetrics_vm', 'disk_io_byteswritten_powermetrics_vm']:
                 # I/O values should be per second. However we have very different timing intervals.
                 # So we do not directly use the average here, as this would be the average per sampling frequency. We go through the duration
-                provider_conversion_factor_to_s = decimal.Decimal(provider_resolution_in_ms/1_000)
+                provider_conversion_factor_to_s = decimal.Decimal(resolution_avg/1_000_000)
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", avg_value/provider_conversion_factor_to_s, 'MEAN', max_value/provider_conversion_factor_to_s, min_value/provider_conversion_factor_to_s, f"{unit}/s"))
 
                 # we also generate a total line to see how much total data was processed
@@ -152,8 +148,9 @@ def build_and_store_phase_stats(run_id, sci=None):
                         machine_energy_phase = value_sum
                         machine_power_phase = power_avg
 
-            else:
-                error_helpers.log_error('Unmapped phase_stat found, using default', metric=metric, detail_name=detail_name, run_id=run_id)
+            else: # Default
+                if metric not in ('cpu_time_powermetrics_vm', ):
+                    error_helpers.log_error('Unmapped phase_stat found, using default', metric=metric, detail_name=detail_name, run_id=run_id)
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, unit))
 
         # after going through detail metrics, create cumulated ones

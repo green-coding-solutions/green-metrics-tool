@@ -5,10 +5,9 @@ import ipaddress
 # import netifaces # netifaces has been abandoned. Find new implementation TODO
 
 from metric_providers.base import BaseMetricProvider
-from lib.db import DB
 
 class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
-    def __init__(self, *, split_ports=True, skip_check=False):
+    def __init__(self, *_, split_ports=True, skip_check=False):
         super().__init__(
             metric_name='network_connections_tcpdump_system',
             metrics={},
@@ -21,21 +20,30 @@ class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
         self.split_ports = split_ports
 
 
-    def read_metrics(self, run_id, containers=None):
+    def _read_metrics(self):
         with open(self._filename, 'r', encoding='utf-8') as file:
             lines = file.readlines()
+            if not lines: # a bit of a hack, because we are expecting a dict later and it will get returned prematurely as list if empty
+                return {}
+            return lines
 
-        stats = parse_tcpdump(lines, split_ports=self.split_ports)
+    def _parse_metrics(self, df):
+        return parse_tcpdump(df, split_ports=self.split_ports)
 
-        if rows := len(stats):
-            DB().query("""
-                UPDATE runs
-                SET logs= COALESCE(logs, '') || %s -- append
-                WHERE id = %s
-                """, params=(generate_stats_string(stats), run_id))
-            return rows
+    def _check_empty(self, df):
+        pass # noop. Just for overwriting. Empty data is ok for this reporter
 
-        return 0
+    def _add_unit_and_metric(self, df):
+        return df # noop. Just for overwriting
+
+    def _check_monotonic(self, df):
+        pass  # noop. Just for overwriting
+
+    def _check_resolution_underflow(self, df):
+        pass  # noop. Just for overwriting
+
+    def _add_and_validate_resolution_and_jitter(self, df):
+        return df  # noop. Just for overwriting
 
     def get_stderr(self):
         stderr = super().get_stderr()
@@ -178,7 +186,6 @@ def parse_ip_port(address):
         return None, None
 
 def generate_stats_string(stats, filter_host=False):
-
     if filter_host:
         raise NotImplementedError('netifaces has been abandoned. A new implementation to enable filter_host is not done yet')
     #primary_interface = get_primary_interface()

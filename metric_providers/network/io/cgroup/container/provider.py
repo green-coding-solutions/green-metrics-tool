@@ -14,12 +14,8 @@ class NetworkIoCgroupContainerProvider(BaseMetricProvider):
             skip_check=skip_check,
         )
 
-    def read_metrics(self, run_id, containers=None):
-        df = super().read_metrics(run_id, containers)
-
-
-        if df.empty:
-            return df
+    def _parse_metrics(self, df):
+        df = super()._parse_metrics(df) # sets detail_name
 
         df = df.sort_values(by=['container_id', 'time'], ascending=True)
 
@@ -42,10 +38,6 @@ class NetworkIoCgroupContainerProvider(BaseMetricProvider):
         df['value'] = df['received_bytes_intervals'] + df['transmitted_bytes_intervals']
         df['value'] = df.value.astype(int)
 
-        df['detail_name'] = df.container_id
-        for container_id in containers:
-            df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]['name']
-
-        df = df.drop(columns=['received_bytes','transmitted_bytes', 'transmitted_bytes_intervals', 'received_bytes_intervals', 'container_id'])  # clean up
+        df = df.drop(columns=['received_bytes','transmitted_bytes', 'transmitted_bytes_intervals', 'received_bytes_intervals'])  # clean up
 
         return df
