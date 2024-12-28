@@ -1,5 +1,4 @@
 import os
-import math
 
 GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))+'/../../'
 
@@ -7,6 +6,7 @@ from tests import test_functions as Tests
 from lib.db import DB
 from lib.phase_stats import build_and_store_phase_stats
 
+MILLIJOULES_TO_KWH = 2.77778e-10
 MICROJOULES_TO_KWH = 2.77778e-13
 
 def test_phase_stats_single():
@@ -96,7 +96,9 @@ def test_phase_embodied_and_operational_carbon():
     assert psu_carbon_ac_mcp_machine['metric'] == 'psu_carbon_ac_mcp_machine'
     assert psu_carbon_ac_mcp_machine['detail_name'] == '[machine]'
     assert psu_carbon_ac_mcp_machine['unit'] == 'ug'
-    assert math.isclose(psu_carbon_ac_mcp_machine['value'], psu_energy_ac_mcp_machine['value'] * MICROJOULES_TO_KWH * sci['I'] * 1_000_000)
+
+    operational_carbon_expected = int(psu_energy_ac_mcp_machine['value'] * MILLIJOULES_TO_KWH * sci['I'] * 1_000_000)
+    assert psu_carbon_ac_mcp_machine['value'] == operational_carbon_expected
     assert psu_carbon_ac_mcp_machine['type'] == 'TOTAL'
 
     phase_time_in_years = Tests.TEST_MEASUREMENT_DURATION_S / (60 * 60 * 24 * 365)
@@ -106,5 +108,5 @@ def test_phase_embodied_and_operational_carbon():
     assert embodied_carbon_share_machine['metric'] == 'embodied_carbon_share_machine'
     assert embodied_carbon_share_machine['detail_name'] == '[SYSTEM]'
     assert embodied_carbon_share_machine['unit'] == 'ug'
-    assert math.isclose(embodied_carbon_share_machine['value'], embodied_carbon_expected)
+    assert embodied_carbon_share_machine['value'] == embodied_carbon_expected
     assert embodied_carbon_share_machine['type'] == 'TOTAL'
