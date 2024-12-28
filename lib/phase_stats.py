@@ -117,7 +117,7 @@ def build_and_store_phase_stats(run_id, sci=None):
                 if metric in ('cpu_utilization_cgroup_container', ):
                     cpu_utilization_containers[detail_name] = avg_value
 
-            elif metric in ['network_io_cgroup_container', 'network_io_procfs_system', 'disk_io_procfs_system', 'disk_io_cgroup_container']:
+            elif metric in ['network_io_cgroup_container', 'network_io_procfs_system', 'disk_io_procfs_system', 'disk_io_cgroup_container', 'disk_io_bytesread_powermetrics_vm', 'disk_io_byteswritten_powermetrics_vm']:
                 # I/O values should be per second. However we have very different timing intervals.
                 # So we do not directly use the average here, as this would be the average per sampling frequency. We go through the duration
                 provider_conversion_factor_to_s = decimal.Decimal(resolution_avg/1_000_000)
@@ -148,8 +148,9 @@ def build_and_store_phase_stats(run_id, sci=None):
                         machine_energy_phase = value_sum
                         machine_power_phase = power_avg
 
-            else:
-                error_helpers.log_error('Unmapped phase_stat found, using default', metric=metric, detail_name=detail_name, run_id=run_id)
+            else: # Default
+                if metric not in ('cpu_time_powermetrics_vm', 'cpu_time_powermetrics_vm'):
+                    error_helpers.log_error('Unmapped phase_stat found, using default', metric=metric, detail_name=detail_name, run_id=run_id)
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, unit))
 
         # after going through detail metrics, create cumulated ones
