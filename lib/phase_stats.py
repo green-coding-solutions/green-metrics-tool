@@ -149,7 +149,7 @@ def build_and_store_phase_stats(run_id, sci=None):
                         machine_power_phase = power_avg
 
             else: # Default
-                if metric not in ('cpu_time_powermetrics_vm', 'cpu_time_powermetrics_vm'):
+                if metric not in ('cpu_time_powermetrics_vm', ):
                     error_helpers.log_error('Unmapped phase_stat found, using default', metric=metric, detail_name=detail_name, run_id=run_id)
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', max_value, min_value, unit))
 
