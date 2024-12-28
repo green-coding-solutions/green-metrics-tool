@@ -124,10 +124,12 @@ class BaseMetricProvider:
         if df.isna().any().any():
             raise ValueError(f"Dataframe for {self._metric_name} contained NA values.")
 
+        return df
+
+    def _check_empty(self, df):
         if df.empty:
             raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")
 
-        return df
 
     def _parse_metrics(self, df): # can be overriden in child
         df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]" # default, can be overridden in child
@@ -164,8 +166,7 @@ class BaseMetricProvider:
 
         df = self._read_metrics() # is not always returning a data frame, but can in rare cases also return a list if no actual numeric measurements are captured
 
-        if len(df) == 0:
-            return df
+        self._check_empty(df)
 
         self._check_monotonic(df) # check must be made before data frame is potentially sorted in _parse_metrics
         self._check_resolution_underflow(df)

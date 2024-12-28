@@ -88,6 +88,9 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
 
         return pandas.DataFrame.from_records(parsed_lines, columns=['time', 'connection_type', 'protocol']) # may be empty as no network traffic can happen
 
+    def _check_empty(self, df):
+        pass # noop. Just for overwriting. Empty data is ok for this reporter
+
     def _check_monotonic(self, df):
         pass  # noop. Just for overwriting
 
