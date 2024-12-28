@@ -63,14 +63,14 @@ def test_tcpdump_macos():
     assert '50417/TCP: 16 packets, 3318 bytes' in stats
 
 def test_powermetrics():
-    obj = PowermetricsProvider(1000, skip_check=True)
+    obj = PowermetricsProvider(499, skip_check=True)
     obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/powermetrics.log')
 
     df = obj.read_metrics()
 
     assert list(df.metric.unique()) == ['cpu_time_powermetrics_vm', 'disk_io_bytesread_powermetrics_vm', 'disk_io_byteswritten_powermetrics_vm', 'energy_impact_powermetrics_vm', 'cores_energy_powermetrics_component', 'gpu_energy_powermetrics_component', 'ane_energy_powermetrics_component']
 
-    assert math.isclose(df[df.metric == 'energy_impact_powermetrics_vm'].value.mean(), 228.8620, rel_tol=1e-5)
+    assert math.isclose(df[df.metric == 'energy_impact_powermetrics_vm'].value.mean(), 430.823529, rel_tol=1e-5)
 
 def test_cloud_energy():
     filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_mach_system.log')
