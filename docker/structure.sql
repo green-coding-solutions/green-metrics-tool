@@ -88,7 +88,6 @@ CREATE TABLE runs (
     branch text NOT NULL,
     commit_hash text,
     commit_timestamp timestamp with time zone,
-    email text,
     categories int[],
     usage_scenario json,
     filename text NOT NULL,
