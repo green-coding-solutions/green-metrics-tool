@@ -46,10 +46,7 @@ def import_cpu_utilization(run_id):
 
     metric_importer.import_measurements(df, 'cpu_utilization_cgroup_container', run_id, containers=TEST_MEASUREMENT_CONTAINERS)
 
-    with open(obj._filename, encoding='utf-8') as f:
-        return f.readlines()
-
-
+    return df
 
 def import_machine_energy(run_id):
 
@@ -60,8 +57,7 @@ def import_machine_energy(run_id):
 
     metric_importer.import_measurements(df, 'psu_energy_ac_mcp_machine', run_id)
 
-    with open(obj._filename, encoding='utf-8') as f:
-        return f.readlines()
+    return df
 
 def import_cpu_energy(run_id):
 
@@ -72,8 +68,7 @@ def import_cpu_energy(run_id):
 
     metric_importer.import_measurements(df, 'cpu_energy_rapl_msr_component', run_id)
 
-    with open(obj._filename, encoding='utf-8') as f:
-        return f.readlines()
+    return df
 
 def update_user_token(user_id, token):
     sha256_hash = hashlib.sha256()
