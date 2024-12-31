@@ -6,7 +6,7 @@ starlette>=0.35
 uvicorn[standard]==0.34.0
 pandas==2.2.3
 PyYAML==6.0.2
-anybadge==1.14.0
+anybadge==1.15.6
 orjson==3.10.12
 scipy==1.14.1
 schema==0.7.7
