@@ -37,7 +37,8 @@ const createTableHeader = (phase, comparison_keys, comparison_case, comparison_a
             <th>Value</th>
             <th>Unit</th>
             <th>Max.</th>
-            <th>Min.</th>`;
+            <th>Min.</th>
+            <th><span data-position="bottom left" data-inverted="" data-tooltip="Achieved sampling rate"><i class="question circle icon"></i>SR (mean/95p/max)</span></th>`;
     }
 }
 

@@ -247,7 +247,8 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
             <td>${value}</td>
             <td>${unit}</td>
             <td>${max_value}</td>
-            <td>${min_value}</td>`;
+            <td>${min_value}</td>
+            <td>${metric_data.sampling_resolution_avg.toFixed(0)} / ${metric_data.sampling_resolution_95p.toFixed(0)} / ${metric_data.sampling_resolution_max.toFixed(0)} ms</td>`;
     }
 
 

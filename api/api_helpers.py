@@ -386,7 +386,8 @@ def determine_comparison_case(user, ids):
 def get_phase_stats(user, ids):
     query = """
             SELECT
-                a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.min_value, a.unit,
+                a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.min_value,
+                a.sampling_resolution_avg, a.sampling_resolution_max, a.sampling_resolution_95p, a.unit,
                 b.uri, c.description, b.filename, b.commit_hash, b.branch,
                 b.id
             FROM phase_stats as a
@@ -505,7 +506,8 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
 
     for phase_stat in phase_stats:
         [
-            phase, metric_name, detail_name, value, metric_type, max_value, min_value, unit,
+            phase, metric_name, detail_name, value, metric_type, max_value, min_value,
+            sampling_resolution_avg, sampling_resolution_max, sampling_resolution_95p, unit,
             repo, machine_description, filename, commit_hash, branch,
             run_id
         ] = phase_stat
@@ -533,6 +535,9 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
             phase_stats_object['data'][phase][metric_name] = {
                 'type': metric_type,
                 'unit': unit,
+                'sampling_resolution_avg': sampling_resolution_avg,
+                'sampling_resolution_max': sampling_resolution_max,
+                'sampling_resolution_95p': sampling_resolution_95p,
                 #'mean': None, # currently no use for that
                 #'stddev': None,  # currently no use for that
                 #'ci': None,  # currently no use for that
