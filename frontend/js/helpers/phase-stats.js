@@ -12,7 +12,8 @@ const createTableHeader = (phase, comparison_keys, comparison_case, comparison_a
             <th><span class="overflow-ellipsis" style="width: 100px; display:block;" title="${comparison_keys[1]}">${replaceRepoIcon(comparison_keys[1])}</span></th>
             <th>Unit</th>
             <th>Change</th>
-            <th>Significant (T-Test)</th>`;
+            <th>Significant (T-Test)</th>
+            <th><span data-position="bottom left" data-inverted="" data-tooltip="Achieved sampling rate (Mean of means, max of 95p and max of max)"><i class="question circle icon"></i> SR (Ø/95p/max)</span></th>`;
     } else if(comparison_case !== null) {
         tr.innerHTML = `
             <th>Metric</th>
@@ -25,8 +26,9 @@ const createTableHeader = (phase, comparison_keys, comparison_case, comparison_a
             <th>StdDev</th>
             <th>Max.</th>
             <th>Min.</th>
-            <th>Max. (of means)</th>
-            <th>Min. (of means)</th>`;
+            <th><i class="question circle icon"></i> Max. (Ø)</th>
+            <th><i class="question circle icon"></i> Min. (Ø)</th>
+            <th><span data-position="bottom left" data-inverted="" data-tooltip="Achieved sampling rate (Mean of means, max of 95p and max of max)"><i class="question circle icon"></i> SR (Ø/95p/max)</span></th>`;
     } else {
         tr.innerHTML = `
             <th>Metric</th>

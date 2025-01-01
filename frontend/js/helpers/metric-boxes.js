@@ -235,7 +235,8 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
             <td>${max_value}</td>
             <td>${min_value}</td>
             <td>${max_mean_value}</td>
-            <td>${min_mean_value}</td>`;
+            <td>${min_mean_value}</td>
+            <td>${detail_data.sr_avg_avg.toFixed(0)} / ${detail_data.sr_95p_max.toFixed(0)} / ${detail_data.sr_max_max.toFixed(0)} ms</td>`;
 
     } else {
         tr.innerHTML = `
@@ -248,7 +249,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
             <td>${unit}</td>
             <td>${max_value}</td>
             <td>${min_value}</td>
-            <td>${metric_data.sr_avg.toFixed(0)} / ${metric_data.sr_95p.toFixed(0)} / ${metric_data.sr_max.toFixed(0)} ms</td>`;
+            <td>${detail_data.sr_avg_avg.toFixed(0)} / ${detail_data.sr_95p_max.toFixed(0)} / ${detail_data.sr_max_max.toFixed(0)} ms</td>`;
     }
 
 
