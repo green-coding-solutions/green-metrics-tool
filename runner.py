@@ -1410,7 +1410,9 @@ class Runner:
         self.__notes_helper.add_note({'note': 'Start of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__start_measurement})
 
     def end_measurement(self, skip_on_already_ended=False):
-        if self.__end_measurement is not None and skip_on_already_ended is False:
+        if self.__end_measurement:
+            if skip_on_already_ended:
+                return
             raise RuntimeError('end_measurement was requested although value as already set!')
 
         self.__end_measurement = int(time.time_ns() / 1_000)
