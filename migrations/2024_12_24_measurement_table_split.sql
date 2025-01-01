@@ -39,6 +39,6 @@ ON
     AND m.unit = mm.unit;
 
 ALTER TABLE phase_stats
-    ADD COLUMN "sampling_resolution_avg" DOUBLE PRECISION NOT NULL,
-    ADD COLUMN "sampling_resolution_max" DOUBLE PRECISION NOT NULL,
-    ADD COLUMN "sampling_resolution_95p" DOUBLE PRECISION NOT NULL;
+    ADD COLUMN "sampling_rate_avg" DOUBLE PRECISION NOT NULL,
+    ADD COLUMN "sampling_rate_max" DOUBLE PRECISION NOT NULL,
+    ADD COLUMN "sampling_rate_95p" DOUBLE PRECISION NOT NULL;
