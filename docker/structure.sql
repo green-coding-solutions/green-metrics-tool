@@ -238,10 +238,10 @@ CREATE TRIGGER ci_measurements_moddatetime
 
 CREATE TABLE client_status (
     id SERIAL PRIMARY KEY,
-	status_code TEXT NOT NULL,
-	machine_id int REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-	"data" TEXT,
-	run_id uuid REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    status_code TEXT NOT NULL,
+    machine_id int REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    "data" TEXT,
+    run_id uuid REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );

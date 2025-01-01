@@ -14,6 +14,17 @@ ACTIVATE_POWER_HOG = __ACTIVATE_POWER_HOG__;
 METRIC_MAPPINGS = {
 
 
+    'disk_total_bytesread_powermetrics_vm': {
+        'clean_name': 'Disk Total (Read)',
+        'source': 'powermetrics',
+        'explanation': 'Disk Total bytes read',
+    },
+    'disk_total_byteswritten_powermetrics_vm': {
+        'clean_name': 'Disk Total (Write)',
+        'source': 'powermetrics',
+        'explanation': 'Disk total bytes written',
+    },
+
     'disk_used_statvfs_system': {
         'clean_name': 'Disk Usage',
         'source': 'statvfs syscall',
@@ -248,14 +259,14 @@ METRIC_MAPPINGS = {
         'explanation': 'Effective execution time of the CPU for all cores combined',
     },
     'disk_io_bytesread_powermetrics_vm': {
-        'clean_name': 'Bytes read (HDD/SDD)',
+        'clean_name': 'Disk I/O (Read)',
         'source': 'powermetrics',
-        'explanation': 'Effective execution time of the CPU for all cores combined',
+        'explanation': 'Disk I/O - Bytes read per second for SDD/HDD',
     },
     'disk_io_byteswritten_powermetrics_vm': {
-        'clean_name': 'Bytes written (HDD/SDD)',
+        'clean_name': 'Disk I/O (Write)',
         'source': 'powermetrics',
-        'explanation': 'Effective execution time of the CPU for all cores combined',
+        'explanation': 'Disk I/O - Bytes written per second for SDD/HDD',
     },
     'energy_impact_powermetrics_vm': {
         'clean_name': 'Energy impact',
