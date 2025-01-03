@@ -243,7 +243,7 @@ def get_comparison_details(user, ids, comparison_db_key):
         WHERE
             (TRUE = %s OR user_id = ANY(%s::int[]))
             AND id = ANY(%s::uuid[])
-        ORDER BY created_at DESC -- must be same order as get_phase_stats so that the order in the comparison bar charts aligns with the comparsion_details array
+        ORDER BY created_at ASC -- must be same order as get_phase_stats so that the order in the comparison bar charts aligns with the comparsion_details array
     ''').format(sql.Identifier(comparison_db_key))
 
     params = (user.is_super_user(), user.visible_users(), ids)
@@ -392,7 +392,7 @@ def get_phase_stats(user, ids):
                 (TRUE = %s OR b.user_id = ANY(%s::int[]))
                 AND a.run_id = ANY(%s::uuid[])
             ORDER BY
-                -- at least the run_ids must be same order as get_comparsion_details so that the order in the comparison bar charts aligns with the comparsion_details array
+                -- at least the run_ids must be same order as get_comparison_details so that the order in the comparison bar charts aligns with the comparsion_details array
                 b.created_at ASC,
                 a.id ASC
             """
