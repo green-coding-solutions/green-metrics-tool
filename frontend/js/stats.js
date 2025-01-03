@@ -196,7 +196,7 @@ const buildTimelineChartData = async (measurements_data) => {
                 value = value/(time_after-time_before); // convert Joules to Watts by dividing through the time difference of two measurements
                 metrics[metric_name].converted_unit = 'W';
             } else if(!transform_timelines_energy_to_power && metrics[metric_name].unit == 'W') {
-                value = value*(time_after-time_before); // convert Joules to Watts by dividing through the time difference of two measurements
+                value = value*(time_after-time_before); // convert Watts to Joules by multiplying with the time difference of two measurements
                 metrics[metric_name].converted_unit = 'J';
             }
             time_before = time_after;

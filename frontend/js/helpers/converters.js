@@ -2,9 +2,9 @@ let display_in_watthours = localStorage.getItem('display_in_watthours');
 if(display_in_watthours == 'true') display_in_watthours = true;
 else display_in_watthours = false;
 
-const transformIfNotNull = (value, divivde_by) => {
+const transformIfNotNull = (value, divide_by) => {
     if (value == null) return null;
-    return (value / divivde_by);
+    return (value / divide_by);
 }
 
 // we do not allow a dynamic rescaling here, as we need all the units we feed into
@@ -46,7 +46,7 @@ const convertValue = (value, unit) => {
         case 'Bytes':
             return [transformIfNotNull(value, 1_000_000), `MB${unit.substr(5)}`];
         default:
-            return [value, unit];        // no conversion in default calse
+            return [value, unit];        // no conversion in default case
     }
 }
 

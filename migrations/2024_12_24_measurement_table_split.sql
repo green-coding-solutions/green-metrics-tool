@@ -47,7 +47,7 @@ ALTER TABLE phase_stats
     ADD COLUMN "sampling_rate_max" int,
     ADD COLUMN "sampling_rate_95p" int;
 
-UPDATE phase_stats SET sampling_rate_avg = 0.0, sampling_rate_max = 0.0, sampling_rate_95p = 0.0;
+UPDATE phase_stats SET sampling_rate_avg = 0, sampling_rate_max = 0, sampling_rate_95p = 0;
 
 ALTER TABLE "public"."phase_stats"
     ALTER COLUMN "sampling_rate_avg" SET NOT NULL,
