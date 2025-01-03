@@ -141,17 +141,17 @@ class BaseMetricProvider:
         # for most metric providers only detail_name and container_id should be present and differ though
         excluded_columns = ['time', 'value']
         grouping_columms = [col for col in df.columns if col not in excluded_columns]
-        df['effective_resolution'] = df.groupby(grouping_columms)['time'].diff()
-        df['resolution_max'] = df.groupby(grouping_columms)['effective_resolution'].transform('max')
-        df['resolution_avg'] = df.groupby(grouping_columms)['effective_resolution'].transform('mean')
-        df['resolution_95p'] = df.groupby(grouping_columms)['effective_resolution'].transform(lambda x: x.quantile(0.95))
-        df = df.drop('effective_resolution', axis=1)
+        df['sampling_rate'] = df.groupby(grouping_columms)['time'].diff()
+        df['sampling_rate_max'] = df.groupby(grouping_columms)['sampling_rate'].transform('max')
+        df['sampling_rate_avg'] = df.groupby(grouping_columms)['sampling_rate'].transform('mean')
+        df['sampling_rate_95p'] = df.groupby(grouping_columms)['sampling_rate'].transform(lambda x: x.quantile(0.95))
+        df = df.drop('sampling_rate', axis=1)
 
-        if (resolution_95p := df['resolution_95p'].max()) >= self._resolution*1000*1.2:
-            raise RuntimeError(f"Resolution 95p was absurdly high: {resolution_95p} compared to base resolution of {self._resolution*1000}", df)
+        if (resolution_95p := df['sampling_rate_95p'].max()) >= self._resolution*1000*1.2:
+            raise RuntimeError(f"Effective sampling resolution (95p) was absurdly high: {resolution_95p} compared to target resolution of {self._resolution*1000}", df)
 
-        if (resolution_95p := df['resolution_95p'].min()) <= self._resolution*1000*0.8:
-            raise RuntimeError(f"Resolution 95p was absurdly low: {resolution_95p} compared to base resolution of {self._resolution*1000}", df)
+        if (resolution_95p := df['sampling_rate_95p'].min()) <= self._resolution*1000*0.8:
+            raise RuntimeError(f"Effective sampling resolution (95p) was absurdly low: {resolution_95p} compared to target resolution of {self._resolution*1000}", df)
 
 
         return df

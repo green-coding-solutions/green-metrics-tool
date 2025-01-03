@@ -1329,6 +1329,7 @@ class Runner:
                 errors.append(f"Stderr on {metric_provider.__class__.__name__} was NOT empty: {stderr_read}")
 
             # pylint: disable=broad-exception-caught
+            # we definitely want to first try to stop all providers and then fail
             try:
                 metric_provider.stop_profiling()
             except Exception as exc:

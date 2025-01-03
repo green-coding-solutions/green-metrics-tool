@@ -112,27 +112,27 @@ CREATE TRIGGER runs_moddatetime
     EXECUTE PROCEDURE moddatetime (updated_at);
 
 
-CREATE TABLE measurements (
+CREATE TABLE measurement_metrics (
     id SERIAL PRIMARY KEY,
-    run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE ,
-    detail_name text NOT NULL,
+    run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
     metric text NOT NULL,
-    value bigint NOT NULL,
-    resolution_avg DOUBLE PRECISION NOT NULL,
-    resolution_max DOUBLE PRECISION NOT NULL,
-    resolution_95p DOUBLE PRECISION NOT NULL,
-    unit text NOT NULL,
-    time bigint NOT NULL,
-    created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone
+    detail_name text NOT NULL,
+    unit text NOT NULL
 );
-CREATE UNIQUE INDEX measurements_get ON measurements(run_id ,metric ,detail_name ,time );
-CREATE INDEX measurements_build_and_store_phase_stats ON measurements(run_id, metric, unit, detail_name);
-CREATE INDEX measurements_build_phases ON measurements(metric, unit, detail_name);
-CREATE TRIGGER measurements_moddatetime
-    BEFORE UPDATE ON measurements
-    FOR EACH ROW
-    EXECUTE PROCEDURE moddatetime (updated_at);
+
+CREATE UNIQUE INDEX measurement_metrics_get ON measurement_metrics(run_id,metric,detail_name); -- technically we could allow also different units, but we want to see the use case for that first
+CREATE INDEX measurement_metrics_build_and_store_phase_stats ON measurement_metrics(run_id,metric,detail_name,unit);
+CREATE INDEX measurement_metrics_build_phases ON measurement_metrics(metric,detail_name,unit);
+
+CREATE TABLE measurement_values (
+    measurement_metric_id int NOT NULL REFERENCES measurement_metrics(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    value bigint NOT NULL,
+    time bigint NOT NULL
+);
+
+CREATE INDEX measurement_values_mmid ON measurement_values(measurement_metric_id);
+CREATE UNIQUE INDEX measurement_values_unique ON measurement_values(measurement_metric_id, time);
+
 
 CREATE TABLE network_intercepts (
     id SERIAL PRIMARY KEY,
@@ -172,6 +172,9 @@ CREATE TABLE phase_stats (
     type text NOT NULL,
     max_value bigint,
     min_value bigint,
+    sampling_rate_avg DOUBLE PRECISION NOT NULL,
+    sampling_rate_max DOUBLE PRECISION NOT NULL,
+    sampling_rate_95p DOUBLE PRECISION NOT NULL,
     unit text NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
@@ -235,10 +238,10 @@ CREATE TRIGGER ci_measurements_moddatetime
 
 CREATE TABLE client_status (
     id SERIAL PRIMARY KEY,
-	status_code TEXT NOT NULL,
-	machine_id int REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,
-	"data" TEXT,
-	run_id uuid REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    status_code TEXT NOT NULL,
+    machine_id int REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    "data" TEXT,
+    run_id uuid REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );

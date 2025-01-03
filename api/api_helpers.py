@@ -249,7 +249,7 @@ def get_comparison_details(user, ids, comparison_db_key):
         WHERE
             (TRUE = %s OR user_id = ANY(%s::int[]))
             AND id = ANY(%s::uuid[])
-        ORDER BY created_at  -- Must be same order as in get_phase_stats
+        ORDER BY created_at DESC -- must be same order as get_phase_stats so that the order in the comparison bar charts aligns with the comparsion_details array
     ''').format(sql.Identifier(comparison_db_key))
 
     params = (user.is_super_user(), user.visible_users(), ids)
@@ -386,7 +386,8 @@ def determine_comparison_case(user, ids):
 def get_phase_stats(user, ids):
     query = """
             SELECT
-                a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.min_value, a.unit,
+                a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.min_value,
+                a.sampling_rate_avg, a.sampling_rate_max, a.sampling_rate_95p, a.unit,
                 b.uri, c.description, b.filename, b.commit_hash, b.branch,
                 b.id
             FROM phase_stats as a
@@ -397,7 +398,9 @@ def get_phase_stats(user, ids):
                 (TRUE = %s OR b.user_id = ANY(%s::int[]))
                 AND a.run_id = ANY(%s::uuid[])
             ORDER BY
-                b.created_at ASC -- Must be same order as in get_comparison_details
+                -- at least the run_ids must be same order as get_comparsion_details so that the order in the comparison bar charts aligns with the comparsion_details array
+                b.created_at ASC,
+                a.id ASC
             """
     params = (user.is_super_user(), user.visible_users(), ids)
     return DB().fetch_all(query, params=params)
@@ -505,7 +508,8 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
 
     for phase_stat in phase_stats:
         [
-            phase, metric_name, detail_name, value, metric_type, max_value, min_value, unit,
+            phase, metric_name, detail_name, value, metric_type, max_value, min_value,
+            sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit,
             repo, machine_description, filename, commit_hash, branch,
             run_id
         ] = phase_stat
@@ -566,17 +570,29 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
                 'max_mean': None,
                 'min_mean': None,
                 'stddev': None,
+                'sr_avg_avg': None,
+                'sr_max_max': None,
+                'sr_95p_max': None,
+                'sr_avg_values': [sampling_rate_avg], # temporary, we will delete this later
+                'sr_max_values': [sampling_rate_max], # temporary, we will delete this later
+                'sr_95p_values': [sampling_rate_95p], # temporary, we will delete this later
                 'ci': None,
                 'p_value': None, # only for the last key the list compare to the rest. one-sided t-test
                 'is_significant': None, # only for the last key the list compare to the rest. one-sided t-test
                 'values': [value],
             }
-            if comparison_details:
-                detail_data[key]['values'] = [None for _ in comparison_details[key]] # create None filled list in comparision casese so that we can later understand which values are missing when parsing in JS for example
+            if comparison_details: # create None filled lists in comparision casese so that we can later understand which values are missing when parsing in JS for example
+                detail_data[key]['values'] = [None for _ in comparison_details[key]]
+                detail_data[key]['sr_avg_values'] = [None for _ in comparison_details[key]]
+                detail_data[key]['sr_max_values'] = [None for _ in comparison_details[key]]
+                detail_data[key]['sr_95p_values'] = [None for _ in comparison_details[key]]
 
         # we replace None where we can with actual values
         if comparison_details:
             detail_data[key]['values'][comparison_details[key][run_id]['index']] = value
+            detail_data[key]['sr_avg_values'][comparison_details[key][run_id]['index']] = sampling_rate_avg
+            detail_data[key]['sr_max_values'][comparison_details[key][run_id]['index']] = sampling_rate_max
+            detail_data[key]['sr_95p_values'][comparison_details[key][run_id]['index']] = sampling_rate_95p
 
         # since we do not save the min/max values we need to to the comparison here in every loop again
         # all other statistics are derived later in add_phase_stats_statistics()
@@ -607,9 +623,16 @@ def add_phase_stats_statistics(phase_stats_object):
                     # if a detail has multiple values we calculate a std.dev and the one-sided t-test for the last value
 
                     values_none_filtered = [item for item in key_obj['values'] if item is not None]
+                    sr_avg_values_none_filtered = [item for item in key_obj['sr_avg_values'] if item is not None]
+                    sr_max_values_none_filtered = [item for item in key_obj['sr_max_values'] if item is not None]
+                    sr_95p_values_none_filtered = [item for item in key_obj['sr_95p_values'] if item is not None]
+
                     key_obj['mean'] = values_none_filtered[0] # default. might be overridden
                     key_obj['max_mean'] = values_none_filtered[0] # default. might be overridden
                     key_obj['min_mean'] = values_none_filtered[0] # default. might be overridden
+                    key_obj['sr_avg_avg'] = sr_avg_values_none_filtered[0] # default. might be overridden
+                    key_obj['sr_max_max'] = sr_max_values_none_filtered[0] # default. might be overridden
+                    key_obj['sr_95p_max'] = sr_95p_values_none_filtered[0] # default. might be overridden
 
                     if len(values_none_filtered) > 1:
 
@@ -617,6 +640,7 @@ def add_phase_stats_statistics(phase_stats_object):
 
                         # JSON does not recognize the numpy data types. Sometimes int64 is returned
                         key_obj['mean'] = np.mean(values_none_filtered).item()
+                        key_obj['sr_avg_avg'] = np.mean(sr_avg_values_none_filtered).item()
 
                         key_obj['stddev'] = np.std(values_none_filtered, correction=1).item()
                         # We are using now the STDDEV of the sample for two reasons:
@@ -627,7 +651,11 @@ def add_phase_stats_statistics(phase_stats_object):
                         # it is safer to use the sample STDDEV as it is always higher
 
                         key_obj['max_mean'] = np.max(values_none_filtered).item() # overwrite with max of list
+                        key_obj['sr_max_max'] = np.max(sr_max_values_none_filtered).item() # overwrite with max of list
+                        key_obj['sr_95p_max'] = np.max(sr_95p_values_none_filtered).item() # overwrite with max of list
+
                         key_obj['min_mean'] = np.min(values_none_filtered).item() # overwrite with min of list
+
                         key_obj['ci'] = (key_obj['stddev']*t_stat).item()
 
                         if len(values_none_filtered) > 2:
@@ -640,6 +668,12 @@ def add_phase_stats_statistics(phase_stats_object):
                                     key_obj['is_significant'] = False
                                 else:
                                     key_obj['is_significant'] = True
+
+                    # remove temporary keys only needed for mean/max/min calculations
+                    del key_obj['sr_avg_values']
+                    del key_obj['sr_max_values']
+                    del key_obj['sr_95p_values']
+
 
 
     ## builds stats between the keys
