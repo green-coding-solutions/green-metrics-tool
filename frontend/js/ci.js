@@ -46,7 +46,7 @@ const getEChartsOptions = () => {
 
 const getChartOptions = (measurements) => {
     const options = getEChartsOptions();
-    options.title.text = `Workflow energy cost per run [mJ]`;
+    options.title.text = `Workflow energy cost per run [J]`;
 
     const legend = new Set()
     const labels = []

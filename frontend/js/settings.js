@@ -1,27 +1,21 @@
 
-var display_in_watts = localStorage.getItem('display_in_watts');
-if(display_in_watts == 'true') display_in_watts = true;
-else display_in_watts = false;
+const display_in_watthours = localStorage.getItem('display_in_watthours') == 'true' ? true : false;
+const transform_timelines_energy_to_power = localStorage.getItem('transform_timelines_energy_to_power') == 'true' ? true : false;
+const display_in_metric_units = localStorage.getItem('display_in_metric_units') == 'true' ? true : false;
+const fetch_time_series = localStorage.getItem('fetch_time_series') == 'true' ? true : false;
+const time_series_avg = localStorage.getItem('time_series_avg') == 'true' ? true : false;
 
-var display_in_metric_units = localStorage.getItem('display_in_metric_units');
-if(display_in_metric_units == 'true') display_in_metric_units = true;
-else display_in_metric_units = false;
-
-var fetch_time_series = localStorage.getItem('fetch_time_series');
-if(fetch_time_series == 'true') fetch_time_series = true;
-else fetch_time_series = false;
-
-var time_series_avg = localStorage.getItem('time_series_avg');
-if(time_series_avg == 'true') time_series_avg = true;
-else time_series_avg = false;
-
-
-const toggleWatts = () => {
-    localStorage.setItem('display_in_watts', !display_in_watts);
+const toggleWattHours = () => {
+    localStorage.setItem('display_in_watthours', !display_in_watthours);
     window.location.reload();
 }
 
-const toggleUnits = () => {
+const toggleTimelinesEnergyPower = () => {
+    localStorage.setItem('transform_timelines_energy_to_power', !transform_timelines_energy_to_power);
+    window.location.reload();
+}
+
+const toggleMetricUnits = () => {
     localStorage.setItem('display_in_metric_units', !display_in_metric_units);
     window.location.reload();
 }
@@ -42,8 +36,11 @@ const toggleTimeSeriesAVG = () => {
     $(window).on('load', function() {
       $('.ui.secondary.menu .item').tab();
 
-      if(display_in_watts) $("#energy-display").text("Currently showing Watts");
+      if(display_in_watthours) $("#energy-display").text("Currently showing Watt-Hours");
       else $("#energy-display").text("Currently showing Joules");
+
+      if(transform_timelines_energy_to_power) $("#timeline-energy-or-power").text("Currently showing power timelines");
+      else $("#timeline-energy-or-power").text("Currently showing energy timelines");
 
       if(display_in_metric_units) $("#units-display").text("Currently showing metric units");
       else $("#units-display").text("Currently showing imperial units");

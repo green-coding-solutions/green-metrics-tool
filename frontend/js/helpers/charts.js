@@ -475,14 +475,14 @@ const removeKeyMetricsRadarChart = (phase) => {
     document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart`).remove()
 }
 
-const displayKeyMetricsBarChart = (legend, labels, data, phase) => {
+const displayKeyMetricsBarChart = (legend, labels, data, phase, unit) => {
 
     let series = data.map((el, idx) => { return {type: "bar", name: legend[idx], data: el}})
     let chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .statistics-chart`);
     document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .chart-title`).innerText = TOP_BAR_CHART_TITLE;
 
     let myChart = echarts.init(chartDom);
-    let options = getLineBarChartOptions(null, labels, series, null, TOP_BAR_CHART_UNIT, 'category', null, true);
+    let options = getLineBarChartOptions(null, labels, series, null, unit, 'category', null, true);
     myChart.setOption(options);
 
     // set callback when ever the user changes the viewport
@@ -546,7 +546,7 @@ const displayKeyMetricsEmbodiedCarbonChart = (phase) => {
 
 }
 
-const displayTotalChart = (legend, labels, data) => {
+const displayTotalChart = (legend, labels, data, unit) => {
     const chartDom = document.querySelector(`#total-phases-data .bar-chart .statistics-chart`);
     document.querySelector(`#total-phases-data .bar-chart .chart-title`).innerText = TOTAL_CHART_BOTTOM_TITLE;
 
@@ -573,7 +573,7 @@ const displayTotalChart = (legend, labels, data) => {
     }
 
 
-    const options = getLineBarChartOptions(null, labels, series, null, TOTAL_CHART_UNIT, 'category', null, true)
+    const options = getLineBarChartOptions(null, labels, series, null, unit, 'category', null, true)
 
     myChart.setOption(options);
         // set callback when ever the user changes the viewport

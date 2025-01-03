@@ -187,24 +187,24 @@ customElements.define('phase-metrics', PhaseMetrics);
 const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, detail_data, comparison_case)  => {
     let max_value = ''
     if (detail_data.max != null) {
-        let [max,max_unit] = convertValue(detail_data.max, metric_data.unit);
-        max_value = `${max} ${max_unit}`;
+        const [max,max_unit] = convertValue(detail_data.max, metric_data.unit);
+        max_value = `${max?.toFixed(2)} ${max_unit}`;
     }
     let min_value = ''
     if (detail_data.min != null) {
-        let [min,min_unit] = convertValue(detail_data.min, metric_data.unit);
-        min_value = `${min} ${min_unit}`;
+        const [min,min_unit] = convertValue(detail_data.min, metric_data.unit);
+        min_value = `${min?.toFixed(2)} ${min_unit}`;
     }
 
     let max_mean_value = ''
     if (detail_data.max_mean != null) {
-        let [max_mean,max_unit] = convertValue(detail_data.max_mean, metric_data.unit);
-        max_mean_value = `${max_mean} ${max_unit}`;
+        const [max_mean,max_unit] = convertValue(detail_data.max_mean, metric_data.unit);
+        max_mean_value = `${max_mean?.toFixed(2)} ${max_unit}`;
     }
     let min_mean_value = ''
     if (detail_data.min_mean != null) {
-        let [min_mean,min_unit] = convertValue(detail_data.min_mean, metric_data.unit);
-        min_mean_value = `${min_mean} ${min_unit}`;
+        const [min_mean,min_unit] = convertValue(detail_data.min_mean, metric_data.unit);
+        min_mean_value = `${min_mean?.toFixed(2)} ${min_unit}`;
     }
 
 
@@ -219,7 +219,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
     let scope = metric_name.split('_')
     scope = scope[scope.length-1]
 
-    let [value, unit] = convertValue(detail_data.mean, metric_data.unit);
+    const [transformed_value, transformed_unit] = convertValue(detail_data.mean, metric_data.unit);
 
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
     if(comparison_case !== null) {
@@ -229,14 +229,18 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
             <td>${scope}</td>
             <td>${detail_name}</td>
             <td>${metric_data.type}</td>
-            <td>${value}</td>
-            <td>${unit}</td>
+            <td>${transformed_value?.toFixed(2)}</td>
+            <td>${transformed_unit}</td>
             <td>${std_dev_text_table}</td>
             <td>${max_value}</td>
             <td>${min_value}</td>
             <td>${max_mean_value}</td>
             <td>${min_mean_value}</td>
-            <td>${detail_data.sr_avg_avg.toFixed(0)} / ${detail_data.sr_95p_max.toFixed(0)} / ${detail_data.sr_max_max.toFixed(0)} ms</td>`;
+            <td>
+                <span title="${detail_data.sr_avg_avg} us">${(detail_data.sr_avg_avg/1000).toFixed(0)}</span> /
+                <span title="${detail_data.sr_95p_max} us">${(detail_data.sr_95p_max/1000).toFixed(0)}</span> /
+                <span title="${detail_data.sr_max_max} us">${(detail_data.sr_max_max/1000).toFixed(0)}</span> ms
+            </td>`;
 
     } else {
         tr.innerHTML = `
@@ -245,17 +249,21 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
             <td>${scope}</td>
             <td>${detail_name}</td>
             <td>${metric_data.type}</td>
-            <td>${value}</td>
-            <td>${unit}</td>
+            <td>${transformed_value?.toFixed(2)}</td>
+            <td>${transformed_unit}</td>
             <td>${max_value}</td>
             <td>${min_value}</td>
-            <td>${detail_data.sr_avg_avg.toFixed(0)} / ${detail_data.sr_95p_max.toFixed(0)} / ${detail_data.sr_max_max.toFixed(0)} ms</td>`;
+            <td>
+                <span title="${detail_data.sr_avg_avg} us">${(detail_data.sr_avg_avg/1000).toFixed(0)}</span> /
+                <span title="${detail_data.sr_95p_max} us">${(detail_data.sr_95p_max/1000).toFixed(0)}</span> /
+                <span title="${detail_data.sr_max_max} us">${(detail_data.sr_max_max/1000).toFixed(0)}</span> ms
+            </td>`;
     }
 
 
     updateKeyMetric(
         phase, metric_name, getPretty(metric_name, 'clean_name'), detail_name,
-        value , std_dev_text, unit, detail_data.mean, metric_data.unit,
+        transformed_value.toFixed(2) , std_dev_text, transformed_unit, detail_data.mean, metric_data.unit,
         getPretty(metric_name, 'explanation'), getPretty(metric_name, 'source')
     );
 }
@@ -267,35 +275,34 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
 const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, detail_data_array, is_significant)  => {
 
     // no max, we use significant rather
-    let extra_label = 'not significant / no-test';
-    if (is_significant == true) extra_label = 'Significant';
+    const extra_label = (is_significant == true) ? 'Significant' : 'not significant / no-test';
 
     // TODO: Remove this guard clause once we want to support more than 2 compared items
     if (detail_data_array.length > 2) throw "Comparions > 2 currently not implemented"
 
     // no value conversion in this block, cause we just use relatives
-    let value = 'N/A';
+    let relative_difference = 'N/A';
     if (detail_data_array[0] == 0 && detail_data_array[1] == 0) {
-        value = 0;
+        relative_difference = 0;
     } else if (detail_data_array[0] == null || detail_data_array[1] == null) {
-        value = 'not comparable';
+        relative_difference = 'not comparable';
     } else {
-       value = detail_data_array[0] == 0 ? 0: (((detail_data_array[1] - detail_data_array[0])/detail_data_array[0])*100).toFixed(2);
+       relative_difference = detail_data_array[0] == 0 ? 0: (((detail_data_array[1] - detail_data_array[0])/detail_data_array[0])*100).toFixed(2);
     }
 
     let icon_color = 'positive';
-    if (value > 0) {
+    if (relative_difference > 0) {
         icon_color = 'error';
-        value = `+ ${value} %`;
+        relative_difference = `+ ${relative_difference} %`;
     } else {
-        value = `${value} %`; // minus (-) already present in number
+        relative_difference = `${relative_difference} %`; // minus (-) already present in number
     }
 
     let scope = metric_name.split('_')
     scope = scope[scope.length-1]
 
-    let [value_1, unit] = convertValue(detail_data_array[0], metric_data.unit);
-    let [value_2, _] = convertValue(detail_data_array[1], metric_data.unit);
+    const [transformed_value_1, transformed_unit] = convertValue(detail_data_array[0], metric_data.unit);
+    const [transformed_value_2, _] = convertValue(detail_data_array[1], metric_data.unit);
 
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
     tr.innerHTML = `
@@ -304,24 +311,22 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
         <td>${scope}</td>
         <td>${detail_name}</td>
         <td>${metric_data.type}</td>
-        <td>${value_1}</td>
-        <td>${value_2}</td>
-        <td>${unit}</td>
-        <td class="${icon_color}">${value}</td>
+        <td>${transformed_value_1?.toFixed(2)}</td>
+        <td>${transformed_value_2?.toFixed(2)}</td>
+        <td>${transformed_unit}</td>
+        <td class="${icon_color}">${relative_difference}</td>
         <td>${extra_label}</td>`;
 
     updateKeyMetric(
         phase, metric_name, getPretty(metric_name, 'clean_name'), detail_name,
-        value, '', metric_data.unit, null, null,
+        relative_difference, '', transformed_unit, null, null,
         getPretty(metric_name, 'explanation'), getPretty(metric_name, 'source')
     );
 
 }
 
 const calculateCO2 = (phase, total_CO2_in_ug) => {
-    let display_in_metric_units = localStorage.getItem('display_in_metric_units');
-    if(display_in_metric_units == 'true') display_in_metric_units = true;
-    else display_in_metric_units = false;
+    const display_in_metric_units = localStorage.getItem('display_in_metric_units') == 'true' ? true : false;
 
     // network via formula: https://www.green-coding.io/co2-formulas/
     let total_CO2_in_kg = total_CO2_in_ug / 1_000_000_000;
@@ -381,7 +386,7 @@ const updateKeyMetric = (phase, metric_name, clean_name, detail_name, value, std
     }
 
 
-    document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerText = `${(value)} ${std_dev_text}`
+    document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value span`).innerText = `${value} ${std_dev_text}`
 
     document.querySelector(`div.tab[data-tab='${phase}'] ${selector} .value`).setAttribute('title', `${raw_value} [${raw_unit}]`)
 

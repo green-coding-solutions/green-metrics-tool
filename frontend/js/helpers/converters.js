@@ -1,45 +1,52 @@
+let display_in_watthours = localStorage.getItem('display_in_watthours');
+if(display_in_watthours == 'true') display_in_watthours = true;
+else display_in_watthours = false;
+
+const transformIfNotNull = (value, divivde_by) => {
+    if (value == null) return null;
+    return (value / divivde_by);
+}
+
+// we do not allow a dynamic rescaling here, as we need all the units we feed into
+// to be on the same order of magnitude for comparisons and calcuations
+//
+// Function furthemore uses .substr instead of just replacing the unit, as some units have demominators like Bytes/s or
+// ugCO2e/ page request which we want to retain
 const convertValue = (value, unit) => {
-    // we do not allow a dynamic rescaling here, as we need all the units we feed into
-    // to be on the same order of magnitude
 
-    if (value == null) return [value, unit];
+    const compare_unit = unit.split('/', 2)[0]
 
-    if(unit.startsWith('ugCO2e/')) return [(value/(10**6)).toFixed(2), unit.substr(1)]
-
-    switch (unit) {
-    case 'mJ':
-        return [(value / 1_000).toFixed(2), 'J'];
-        break;
-    case 'mW':
-        return [(value / 1_000).toFixed(2), 'W'];
-        break;
-    case 'Ratio':
-        return [(value / 100).toFixed(2), '%'];
-        break;
-    case 'centi°C':
-        return [(value / 100).toFixed(2), '°C'];
-        break;
-    case 'Hz':
-        return [(value / 1000000).toFixed(2), 'GHz'];
-        break;
-    case 'ns':
-        return [(value / 1_000_000_000).toFixed(2), 's'];
-        break;
-    case 'us':
-        return [(value / 1_000_000).toFixed(2), 's'];
-        break;
-    case 'ug':
-        return [(value/(10**6)).toFixed(2), 'g']
-        break;
-    case 'Bytes':
-        return [(value / 1_000_000).toFixed(2), 'MB'];
-        break;
-    case 'Bytes/s':
-        return [(value / 1_000_000).toFixed(2), 'MB/s'];
-        break;
-
-    default:
-        return [value, unit];        // no conversion in default calse
+    switch (compare_unit) {
+        case 'ugCO2e':
+            return [transformIfNotNull(value, 1_000_000), unit.substr(1)]
+        case 'mJ':
+            if (display_in_watthours)
+                return [transformIfNotNull(value, 1_000 * 3_600), `Wh${unit.substr(2)}`];
+            else
+                return [transformIfNotNull(value, 1_000), unit.substr(1)];
+        case 'uJ':
+            if (display_in_watthours)
+                return [transformIfNotNull(value, 1_000_000 * 3_600), `Wh${unit.substr(2)}`];
+            else
+                return [transformIfNotNull(value, 1_000_000), unit.substr(1)];
+        case 'mW':
+            return [transformIfNotNull(value, 1_000), unit.substr(1)];
+        case 'Ratio':
+            return [transformIfNotNull(value, 100), `%${unit.substr(5)}`];
+        case 'centi°C':
+            return [transformIfNotNull(value, 100), unit.substr(5)];
+        case 'Hz':
+            return [transformIfNotNull(value, 1000000), `G${unit}`];
+        case 'ns':
+            return [transformIfNotNull(value, 1_000_000_000), unit.substr(1)];
+        case 'us':
+            return [transformIfNotNull(value, 1_000_000), unit.substr(1)];
+        case 'ug':
+            return [transformIfNotNull(value, 1_000_000), unit.substr(1)]
+        case 'Bytes':
+            return [transformIfNotNull(value, 1_000_000), `MB${unit.substr(5)}`];
+        default:
+            return [value, unit];        // no conversion in default calse
     }
 }
 
