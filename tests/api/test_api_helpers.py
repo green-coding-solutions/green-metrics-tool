@@ -29,8 +29,6 @@ def test_rescale_metric_value():
 
     assert api_helpers.rescale_metric_value(10000, 'uJ') == [10, 'mJ']
 
-    assert api_helpers.rescale_metric_value(10000, 'mJ') == [10, 'J']
-
     assert api_helpers.rescale_metric_value(324_000_000_000, 'uJ') == [324, 'kJ']
 
     assert api_helpers.rescale_metric_value(324_000_000_000, 'ugCO2e/Page Request') == [324, 'kgCO2e/Page Request']
@@ -46,7 +44,8 @@ def test_rescale_metric_value():
     with pytest.raises(ValueError):
         api_helpers.rescale_metric_value(100, 'uj')
 
-
+    with pytest.raises(ValueError):
+        assert api_helpers.rescale_metric_value(10000, 'mJ') == [10, 'J']
 
 def test_escape_dict():
     messy_dict = {"link": '<a href="http://www.github.com">Click me</a>'}

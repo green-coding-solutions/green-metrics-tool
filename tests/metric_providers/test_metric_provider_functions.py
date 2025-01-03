@@ -35,7 +35,7 @@ def test_value_resolution_underflow():
 
     with pytest.raises(ValueError) as e:
         obj.read_metrics()
-    assert str(e.value) == "Data from metric provider cpu_energy_rapl_msr_component is running into a resolution underflow. Values are <= 1 mJ"
+    assert str(e.value) == "Data from metric provider cpu_energy_rapl_msr_component is running into a resolution underflow. Values are <= 1 uJ"
 
 def test_tcpdump_linux():
     obj = NetworkConnectionsTcpdumpSystemProvider(1000, skip_check=True)
@@ -81,4 +81,4 @@ def test_cloud_energy():
 
     assert df.metric.unique() == ['psu_energy_ac_xgboost_machine']
 
-    assert math.isclose(df[df.metric == 'psu_energy_ac_xgboost_machine'].value.mean(), 10055.48076, rel_tol=1e-5)
+    assert math.isclose(df[df.metric == 'psu_energy_ac_xgboost_machine'].value.mean(), 10055480, rel_tol=1e-5)

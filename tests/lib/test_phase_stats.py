@@ -1,5 +1,4 @@
 import os
-import math
 
 GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))+'/../../'
 
@@ -7,8 +6,7 @@ from tests import test_functions as Tests
 from lib.db import DB
 from lib.phase_stats import build_and_store_phase_stats
 
-MILLIJOULES_TO_KWH = 2.77778e-10
-MICROJOULES_TO_KWH = 2.77778e-13
+MICROJOULES_TO_KWH = 1/(3_600*1_000_000_000)
 
 def test_phase_stats_single_energy():
     run_id = Tests.insert_run()
@@ -24,28 +22,30 @@ def test_phase_stats_single_energy():
     assert data[0]['unit'] == 'us'
     assert data[0]['value'] == Tests.TEST_MEASUREMENT_END_TIME - Tests.TEST_MEASUREMENT_START_TIME
     assert data[0]['type'] == 'TOTAL'
-    assert math.isclose(data[0]['sampling_rate_avg'], 0, rel_tol=1e-5), 'AVG sampling rate not in expected range'
-    assert math.isclose(data[0]['sampling_rate_max'], 0.0, rel_tol=1e-5), 'MAX sampling rate not in expected range'
-    assert math.isclose(data[0]['sampling_rate_95p'], 0.0, rel_tol=1e-5), '95p sampling rate not in expected range'
+    assert data[0]['sampling_rate_avg'] == 0, 'AVG sampling rate not in expected range'
+    assert data[0]['sampling_rate_max'] == 0, 'MAX sampling rate not in expected range'
+    assert data[0]['sampling_rate_95p'] == 0, '95p sampling rate not in expected range'
 
 
     assert data[1]['metric'] == 'psu_energy_ac_mcp_machine'
     assert data[1]['detail_name'] == '[machine]'
-    assert data[1]['unit'] == 'mJ'
-    assert data[1]['value'] == 13175452
+    assert data[1]['unit'] == 'uJ'
+    assert data[1]['value'] == 13177695386
     assert data[1]['type'] == 'TOTAL'
-    assert math.isclose(data[1]['sampling_rate_avg'], 101.67376, rel_tol=1e-5), 'AVG sampling rate not in expected range'
-    assert math.isclose(data[1]['sampling_rate_max'], 107.613, rel_tol=1e-5), 'MAX sampling rate not in expected range'
-    assert math.isclose(data[1]['sampling_rate_95p'], 104.67055, rel_tol=1e-5), '95p sampling rate not in expected range'
+    assert data[1]['sampling_rate_avg'] == 101674, 'AVG sampling rate not in expected range'
+    assert data[1]['sampling_rate_max'] == 107613, 'MAX sampling rate not in expected range'
+    assert data[1]['sampling_rate_95p'] == 104671, '95p sampling rate not in expected range'
+    assert isinstance(data[1]['sampling_rate_95p'], int)
 
     assert data[2]['metric'] == 'psu_power_ac_mcp_machine'
     assert data[2]['detail_name'] == '[machine]'
     assert data[2]['unit'] == 'mW'
-    assert data[2]['value'] == 28033
+    assert data[2]['value'] == 28038
     assert data[2]['type'] == 'MEAN'
-    assert math.isclose(data[2]['sampling_rate_avg'], 101.67376, rel_tol=1e-5), 'AVG sampling rate not in expected range'
-    assert math.isclose(data[2]['sampling_rate_max'], 107.613, rel_tol=1e-5), 'MAX sampling rate not in expected range'
-    assert math.isclose(data[2]['sampling_rate_95p'], 104.67055, rel_tol=1e-5), '95p sampling rate not in expected range'
+    assert data[1]['sampling_rate_avg'] == 101674, 'AVG sampling rate not in expected range'
+    assert data[1]['sampling_rate_max'] == 107613, 'MAX sampling rate not in expected range'
+    assert data[1]['sampling_rate_95p'] == 104671, '95p sampling rate not in expected range'
+    assert isinstance(data[2]['sampling_rate_95p'], int)
 
 
 def test_phase_stats_single_cgroup():
@@ -63,9 +63,10 @@ def test_phase_stats_single_cgroup():
     assert data[0]['value'] == Tests.TEST_MEASUREMENT_END_TIME - Tests.TEST_MEASUREMENT_START_TIME
     assert data[0]['type'] == 'TOTAL'
 
-    assert math.isclose(data[1]['sampling_rate_avg'], 99.37357, rel_tol=1e-5), 'AVG sampling rate not in expected range'
-    assert math.isclose(data[1]['sampling_rate_max'], 100.688, rel_tol=1e-5), 'MAX sampling rate not in expected range'
-    assert math.isclose(data[1]['sampling_rate_95p'],  99.6960, rel_tol=1e-5), '95p sampling rate not in expected range'
+    assert data[1]['sampling_rate_avg'] == 99374, 'AVG sampling rate not in expected range'
+    assert data[1]['sampling_rate_max'] == 100688, 'MAX sampling rate not in expected range'
+    assert data[1]['sampling_rate_95p'] == 99696, '95p sampling rate not in expected range'
+    assert isinstance(data[1]['sampling_rate_95p'], int)
 
 def test_phase_stats_multi():
     run_id = Tests.insert_run()
@@ -80,13 +81,13 @@ def test_phase_stats_multi():
     assert len(data) == 7
     assert data[1]['metric'] == 'cpu_energy_rapl_msr_component'
     assert data[1]['phase'] == '004_[RUNTIME]'
-    assert data[1]['value'] == 5495149
+    assert data[1]['value'] == 5495149000
     assert data[1]['type'] == 'TOTAL'
-    assert data[1]['unit'] == 'mJ'
+    assert data[1]['unit'] == 'uJ'
     assert data[1]['detail_name'] == 'Package_0'
-    assert math.isclose(data[1]['sampling_rate_avg'], 99.2167, rel_tol=1e-5), 'AVG sampling rate not in expected range'
-    assert math.isclose(data[1]['sampling_rate_max'], 107.827, rel_tol=1e-5), 'MAX sampling rate not in expected range'
-    assert math.isclose(data[1]['sampling_rate_95p'],  99.486, rel_tol=1e-5), '95p sampling rate not in expected range'
+    assert data[1]['sampling_rate_avg'] == 99217, 'AVG sampling rate not in expected range'
+    assert data[1]['sampling_rate_max'] == 107827, 'MAX sampling rate not in expected range'
+    assert data[1]['sampling_rate_95p'] ==  99486, '95p sampling rate not in expected range'
 
 
     assert data[2]['metric'] == 'cpu_power_rapl_msr_component'
@@ -95,9 +96,9 @@ def test_phase_stats_multi():
     assert data[2]['type'] == 'MEAN'
     assert data[2]['unit'] == 'mW'
     assert data[2]['detail_name'] == 'Package_0'
-    assert math.isclose(data[2]['sampling_rate_avg'], 99.2167, rel_tol=1e-5), 'AVG sampling rate not in expected range'
-    assert math.isclose(data[2]['sampling_rate_max'], 107.827, rel_tol=1e-5), 'MAX sampling rate not in expected range'
-    assert math.isclose(data[2]['sampling_rate_95p'],  99.486, rel_tol=1e-5), '95p sampling rate not in expected range'
+    assert data[2]['sampling_rate_avg'] == 99217, 'AVG sampling rate not in expected range'
+    assert data[2]['sampling_rate_max'] == 107827, 'MAX sampling rate not in expected range'
+    assert data[2]['sampling_rate_95p'] ==  99486, '95p sampling rate not in expected range'
 
 
     assert data[3]['metric'] == 'cpu_utilization_cgroup_container'
@@ -106,9 +107,9 @@ def test_phase_stats_multi():
     assert data[3]['type'] == 'MEAN'
     assert data[3]['unit'] == 'Ratio'
     assert data[3]['detail_name'] == 'Arne'
-    assert math.isclose(data[3]['sampling_rate_avg'], 99.37357, rel_tol=1e-5), 'AVG sampling rate not in expected range'
-    assert math.isclose(data[3]['sampling_rate_max'], 100.688, rel_tol=1e-5), 'MAX sampling rate not in expected range'
-    assert math.isclose(data[3]['sampling_rate_95p'],  99.696, rel_tol=1e-5), '95p sampling rate not in expected range'
+    assert data[3]['sampling_rate_avg'] == 99374, 'AVG sampling rate not in expected range'
+    assert data[3]['sampling_rate_max'] == 100688, 'MAX sampling rate not in expected range'
+    assert data[3]['sampling_rate_95p'] ==  99696, '95p sampling rate not in expected range'
 
 
     assert data[4]['metric'] == 'cpu_utilization_cgroup_container'
@@ -117,9 +118,9 @@ def test_phase_stats_multi():
     assert data[4]['type'] == 'MEAN'
     assert data[4]['unit'] == 'Ratio'
     assert data[4]['detail_name'] == 'Not-Arne'
-    assert math.isclose(data[3]['sampling_rate_avg'], 99.37357, rel_tol=1e-5), 'AVG sampling rate not in expected range'
-    assert math.isclose(data[3]['sampling_rate_max'], 100.688, rel_tol=1e-5), 'MAX sampling rate not in expected range'
-    assert math.isclose(data[3]['sampling_rate_95p'],  99.696, rel_tol=1e-5), '95p sampling rate not in expected range'
+    assert data[3]['sampling_rate_avg'] == 99374, 'AVG sampling rate not in expected range'
+    assert data[3]['sampling_rate_max'] == 100688, 'MAX sampling rate not in expected range'
+    assert data[3]['sampling_rate_95p'] ==  99696, '95p sampling rate not in expected range'
 
 
 def test_phase_embodied_and_operational_carbon():
@@ -142,7 +143,7 @@ def test_phase_embodied_and_operational_carbon():
     assert psu_carbon_ac_mcp_machine['detail_name'] == '[machine]'
     assert psu_carbon_ac_mcp_machine['unit'] == 'ug'
 
-    operational_carbon_expected = int(psu_energy_ac_mcp_machine['value'] * MILLIJOULES_TO_KWH * sci['I'] * 1_000_000)
+    operational_carbon_expected = int(psu_energy_ac_mcp_machine['value'] * MICROJOULES_TO_KWH * sci['I'] * 1_000_000)
     assert psu_carbon_ac_mcp_machine['value'] == operational_carbon_expected
     assert psu_carbon_ac_mcp_machine['type'] == 'TOTAL'
 
@@ -156,6 +157,7 @@ def test_phase_embodied_and_operational_carbon():
     assert embodied_carbon_share_machine['value'] == embodied_carbon_expected
     assert embodied_carbon_share_machine['type'] == 'TOTAL'
 
-    assert math.isclose(embodied_carbon_share_machine['sampling_rate_avg'], 0.0, rel_tol=1e-5), 'AVG sampling rate not in expected range'
-    assert math.isclose(embodied_carbon_share_machine['sampling_rate_max'], 0.0, rel_tol=1e-5), 'MAX sampling rate not in expected range'
-    assert math.isclose(embodied_carbon_share_machine['sampling_rate_95p'],  0.0, rel_tol=1e-5), '95p sampling rate not in expected range'
+    assert embodied_carbon_share_machine['sampling_rate_avg'] == 0, 'AVG sampling rate not in expected range'
+    assert embodied_carbon_share_machine['sampling_rate_max'] == 0, 'MAX sampling rate not in expected range'
+    assert embodied_carbon_share_machine['sampling_rate_95p'] == 0, '95p sampling rate not in expected range'
+    assert isinstance(embodied_carbon_share_machine['sampling_rate_avg'], int)
