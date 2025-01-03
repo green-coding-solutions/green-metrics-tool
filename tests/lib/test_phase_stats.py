@@ -42,9 +42,9 @@ def test_phase_stats_single_energy():
     assert data[2]['unit'] == 'mW'
     assert data[2]['value'] == 28038
     assert data[2]['type'] == 'MEAN'
-    assert data[1]['sampling_rate_avg'] == 101674, 'AVG sampling rate not in expected range'
-    assert data[1]['sampling_rate_max'] == 107613, 'MAX sampling rate not in expected range'
-    assert data[1]['sampling_rate_95p'] == 104671, '95p sampling rate not in expected range'
+    assert data[2]['sampling_rate_avg'] == 101674, 'AVG sampling rate not in expected range'
+    assert data[2]['sampling_rate_max'] == 107613, 'MAX sampling rate not in expected range'
+    assert data[2]['sampling_rate_95p'] == 104671, '95p sampling rate not in expected range'
     assert isinstance(data[2]['sampling_rate_95p'], int)
 
 def test_phase_stats_single_cgroup():
