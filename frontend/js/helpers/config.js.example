@@ -267,6 +267,7 @@ METRIC_MAPPINGS = {
         'clean_name': 'Disk I/O (Write)',
         'source': 'powermetrics',
         'explanation': 'Disk I/O - Bytes written per second for SSD/HDD',
+
     },
     'energy_impact_powermetrics_vm': {
         'clean_name': 'Energy impact',

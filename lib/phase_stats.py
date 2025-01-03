@@ -156,6 +156,7 @@ def build_and_store_phase_stats(run_id, sci=None):
 
                 if metric.endswith('_machine') and sci.get('I', None) is not None:
                     machine_carbon_in_ug = decimal.Decimal((value_sum / 3_600_000) * sci['I'])
+
                     csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", machine_carbon_in_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
 
                     if phase['name'] == '[BASELINE]':

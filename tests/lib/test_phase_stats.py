@@ -47,7 +47,6 @@ def test_phase_stats_single_energy():
     assert data[1]['sampling_rate_95p'] == 104671, '95p sampling rate not in expected range'
     assert isinstance(data[2]['sampling_rate_95p'], int)
 
-
 def test_phase_stats_single_cgroup():
     run_id = Tests.insert_run()
     Tests.import_cpu_utilization(run_id)
@@ -89,7 +88,6 @@ def test_phase_stats_multi():
     assert data[1]['sampling_rate_max'] == 107827, 'MAX sampling rate not in expected range'
     assert data[1]['sampling_rate_95p'] ==  99486, '95p sampling rate not in expected range'
 
-
     assert data[2]['metric'] == 'cpu_power_rapl_msr_component'
     assert data[2]['phase'] == '004_[RUNTIME]'
     assert data[2]['value'] == 11692
@@ -99,7 +97,6 @@ def test_phase_stats_multi():
     assert data[2]['sampling_rate_avg'] == 99217, 'AVG sampling rate not in expected range'
     assert data[2]['sampling_rate_max'] == 107827, 'MAX sampling rate not in expected range'
     assert data[2]['sampling_rate_95p'] ==  99486, '95p sampling rate not in expected range'
-
 
     assert data[3]['metric'] == 'cpu_utilization_cgroup_container'
     assert data[3]['phase'] == '004_[RUNTIME]'
@@ -111,7 +108,6 @@ def test_phase_stats_multi():
     assert data[3]['sampling_rate_max'] == 100688, 'MAX sampling rate not in expected range'
     assert data[3]['sampling_rate_95p'] ==  99696, '95p sampling rate not in expected range'
 
-
     assert data[4]['metric'] == 'cpu_utilization_cgroup_container'
     assert data[4]['phase'] == '004_[RUNTIME]'
     assert data[4]['value'] == 3959
@@ -121,7 +117,6 @@ def test_phase_stats_multi():
     assert data[3]['sampling_rate_avg'] == 99374, 'AVG sampling rate not in expected range'
     assert data[3]['sampling_rate_max'] == 100688, 'MAX sampling rate not in expected range'
     assert data[3]['sampling_rate_95p'] ==  99696, '95p sampling rate not in expected range'
-
 
 def test_phase_embodied_and_operational_carbon():
     run_id = Tests.insert_run()

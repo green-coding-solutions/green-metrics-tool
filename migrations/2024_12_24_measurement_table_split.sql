@@ -53,4 +53,3 @@ ALTER TABLE "public"."phase_stats"
     ALTER COLUMN "sampling_rate_avg" SET NOT NULL,
     ALTER COLUMN "sampling_rate_max" SET NOT NULL,
     ALTER COLUMN "sampling_rate_95p" SET NOT NULL;
-

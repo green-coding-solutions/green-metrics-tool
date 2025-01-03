@@ -151,7 +151,6 @@ class BaseMetricProvider:
         if (sampling_rate_95p := df['sampling_rate_95p'].min()) <= self._resolution*1000*0.8:
             raise RuntimeError(f"Effective sampling rate (95p) was absurdly low: {sampling_rate_95p} compared to target rate of {self._resolution*1000}", df)
 
-
         return df
 
     def _add_unit_and_metric(self, df): # can be overriden in child

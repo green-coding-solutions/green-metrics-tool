@@ -222,7 +222,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
     const [transformed_value, transformed_unit] = convertValue(detail_data.mean, metric_data.unit);
 
     let tr = document.querySelector(`div.tab[data-tab='${phase}'] table.compare-metrics-table tbody`).insertRow();
-    if(comparison_case !== null) {
+    if(comparison_case != null) {
         tr.innerHTML = `
             <td data-position="bottom left" data-inverted="" data-tooltip="${getPretty(metric_name, 'explanation')}"><i class="question circle icon"></i>${getPretty(metric_name, 'clean_name')}</td>
             <td>${getPretty(metric_name, 'source')}</td>
