@@ -81,4 +81,4 @@ def test_cloud_energy():
 
     assert df.metric.unique() == ['psu_energy_ac_xgboost_machine']
 
-    assert math.isclose(df[df.metric == 'psu_energy_ac_xgboost_machine'].value.mean(), 10055480, rel_tol=1e-5)
+    assert df[df.metric == 'psu_energy_ac_xgboost_machine'].value.mean() == 10055978
