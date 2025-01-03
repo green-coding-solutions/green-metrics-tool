@@ -145,11 +145,11 @@ class BaseMetricProvider:
         df['sampling_rate_95p'] = df.groupby(grouping_columms)['sampling_rate'].transform(lambda x: x.quantile(0.95))
         df = df.drop('sampling_rate', axis=1)
 
-        if (resolution_95p := df['sampling_rate_95p'].max()) >= self._resolution*1000*1.2:
-            raise RuntimeError(f"Effective sampling resolution (95p) was absurdly high: {resolution_95p} compared to target resolution of {self._resolution*1000}", df)
+        if (sampling_rate_95p := df['sampling_rate_95p'].max()) >= self._resolution*1000*1.2:
+            raise RuntimeError(f"Effective sampling rate (95p) was absurdly high: {sampling_rate_95p} compared to target rate of {self._resolution*1000}", df)
 
-        if (resolution_95p := df['sampling_rate_95p'].min()) <= self._resolution*1000*0.8:
-            raise RuntimeError(f"Effective sampling resolution (95p) was absurdly low: {resolution_95p} compared to target resolution of {self._resolution*1000}", df)
+        if (sampling_rate_95p := df['sampling_rate_95p'].min()) <= self._resolution*1000*0.8:
+            raise RuntimeError(f"Effective sampling rate (95p) was absurdly low: {sampling_rate_95p} compared to target rate of {self._resolution*1000}", df)
 
 
         return df

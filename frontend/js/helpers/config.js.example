@@ -261,12 +261,12 @@ METRIC_MAPPINGS = {
     'disk_io_bytesread_powermetrics_vm': {
         'clean_name': 'Disk I/O (Read)',
         'source': 'powermetrics',
-        'explanation': 'Disk I/O - Bytes read per second for SDD/HDD',
+        'explanation': 'Disk I/O - Bytes read per second for SSD/HDD',
     },
     'disk_io_byteswritten_powermetrics_vm': {
         'clean_name': 'Disk I/O (Write)',
         'source': 'powermetrics',
-        'explanation': 'Disk I/O - Bytes written per second for SDD/HDD',
+        'explanation': 'Disk I/O - Bytes written per second for SSD/HDD',
     },
     'energy_impact_powermetrics_vm': {
         'clean_name': 'Energy impact',
