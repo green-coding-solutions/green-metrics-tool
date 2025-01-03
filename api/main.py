@@ -491,6 +491,7 @@ async def get_measurements_single(run_id: str, user: User = Depends(authenticate
     params = (user.is_super_user(), user.visible_users(), run_id)
 
     # extremely important to order here, cause the charting library in JS cannot do that automatically!
+    # Furthermore we do time-lag caclulations and need the order of metric first and then time in stats.js:179... . Please do not change
     query = f"{query} ORDER BY mm.metric ASC, mm.detail_name ASC, mv.time ASC"
 
     data = DB().fetch_all(query, params=params)
