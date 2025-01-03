@@ -36,7 +36,7 @@ const convertValue = (value, unit) => {
         case 'centi°C':
             return [transformIfNotNull(value, 100), unit.substr(5)];
         case 'Hz':
-            return [transformIfNotNull(value, 1000000), `G${unit}`];
+            return [transformIfNotNull(value, 1_000_000_000), `G${unit}`];
         case 'ns':
             return [transformIfNotNull(value, 1_000_000_000), unit.substr(1)];
         case 'us':

@@ -1,6 +1,7 @@
 (() => {
     $(window).on('load', function() {
-        if (localStorage.getItem('authentication_token') != null) {
+        const authentication_token = localStorage.getItem('authentication_token');
+        if (authentication_token != null) {
             $("#authentication-token").val(authentication_token);
         }
     })
