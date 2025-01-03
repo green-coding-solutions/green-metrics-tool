@@ -172,9 +172,9 @@ CREATE TABLE phase_stats (
     type text NOT NULL,
     max_value bigint,
     min_value bigint,
-    sampling_rate_avg DOUBLE PRECISION NOT NULL,
-    sampling_rate_max DOUBLE PRECISION NOT NULL,
-    sampling_rate_95p DOUBLE PRECISION NOT NULL,
+    sampling_rate_avg int NOT NULL,
+    sampling_rate_max int NOT NULL,
+    sampling_rate_95p int NOT NULL,
     unit text NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone

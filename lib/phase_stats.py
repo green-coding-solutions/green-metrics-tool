@@ -69,10 +69,10 @@ def build_and_store_phase_stats(run_id, sci=None):
                 FROM measurement_values
                 WHERE measurement_metric_id = %s AND time > %s and time < %s
             )
-            SELECT SUM(value), MAX(value), MIN(value), AVG(value), COUNT(value),
-                COALESCE(AVG(diff), 0)/1000.0 as sampling_rate_avg,
-                COALESCE(MAX(diff), 0)/1000.0 as sampling_rate_max,
-                COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY diff), 0)/1000.0 AS sampling_rate_95p
+            SELECT SUM(value)::bigint, MAX(value)::bigint, MIN(value)::bigint, AVG(value)::bigint, COUNT(value),
+                COALESCE(AVG(diff), 0)::bigint as sampling_rate_avg,
+                COALESCE(MAX(diff), 0)::bigint as sampling_rate_max,
+                COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY diff), 0)::bigint AS sampling_rate_95p
             FROM lag_table
         """
 
@@ -127,8 +127,17 @@ def build_and_store_phase_stats(run_id, sci=None):
             elif metric in ['network_io_cgroup_container', 'network_io_procfs_system', 'disk_io_procfs_system', 'disk_io_cgroup_container', 'disk_io_bytesread_powermetrics_vm', 'disk_io_byteswritten_powermetrics_vm']:
                 # I/O values should be per second. However we have very different timing intervals.
                 # So we do not directly use the average here, as this would be the average per sampling frequency. We go through the duration
-                provider_conversion_factor_to_s = decimal.Decimal(sampling_rate_avg/1_000_000)
-                csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", avg_value/provider_conversion_factor_to_s, 'MEAN', max_value/provider_conversion_factor_to_s, min_value/provider_conversion_factor_to_s, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, f"{unit}/s"))
+                if sampling_rate_avg == 0:
+                    max_value_per_s = 0
+                    min_value_per_s = 0
+                    avg_value_per_s = 0
+                else:
+                    provider_conversion_factor_to_s = sampling_rate_avg/1_000_000_000
+                    max_value_per_s = max_value/provider_conversion_factor_to_s
+                    min_value_per_s = min_value/provider_conversion_factor_to_s
+                    avg_value_per_s = avg_value/provider_conversion_factor_to_s
+
+                csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", avg_value_per_s, 'MEAN', max_value_per_s, min_value_per_s, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, f"{unit}/s"))
 
                 # we also generate a total line to see how much total data was processed
                 csv_buffer.write(generate_csv_line(run_id, metric.replace('_io_', '_total_'), detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
@@ -136,17 +145,17 @@ def build_and_store_phase_stats(run_id, sci=None):
                 if metric == 'network_io_cgroup_container': # save to calculate CO2 later. We do this only for the cgroups. Not for the system to not double count
                     network_bytes_total.append(value_sum)
 
-            elif "_energy_" in metric and unit == 'mJ':
+            elif "_energy_" in metric and unit == 'uJ':
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", value_sum, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
                 # for energy we want to deliver an extra value, the watts.
                 # Here we need to calculate the average differently
-                power_avg = (value_sum * 10**6) / duration
-                power_max = (max_value * 10**6) / (duration / value_count)
-                power_min = (min_value * 10**6) / (duration / value_count)
+                power_avg = (value_sum * 10**3) / duration
+                power_max = (max_value * 10**3) / (duration / value_count)
+                power_min = (min_value * 10**3) / (duration / value_count)
                 csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_power_')}", detail_name, f"{idx:03}_{phase['name']}", power_avg, 'MEAN', power_max, power_min, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'mW'))
 
                 if metric.endswith('_machine') and sci.get('I', None) is not None:
-                    machine_carbon_in_ug = decimal.Decimal((value_sum / 3_600) * sci['I'])
+                    machine_carbon_in_ug = decimal.Decimal((value_sum / 3_600_000) * sci['I'])
                     csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", machine_carbon_in_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
 
                     if phase['name'] == '[BASELINE]':
@@ -166,11 +175,11 @@ def build_and_store_phase_stats(run_id, sci=None):
             # network via formula: https://www.green-coding.io/co2-formulas/
             # pylint: disable=invalid-name
             network_io_in_kWh = float(sum(network_bytes_total) / 1_000_000_000) * 0.002651650429449553
-            network_io_in_mJ = network_io_in_kWh * 3_600_000_000
-            csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", decimal.Decimal(network_io_in_mJ), 'TOTAL', None, None, 0.0, 0.0, 0.0, 'mJ'))
+            network_io_in_uJ = network_io_in_kWh * 3_600_000_000_000
+            csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", decimal.Decimal(network_io_in_uJ), 'TOTAL', None, None, 0, 0, 0, 'uJ'))
             # co2 calculations
             network_io_carbon_in_ug = decimal.Decimal(network_io_in_kWh * config['sci']['I'] * 1_000_000)
-            csv_buffer.write(generate_csv_line(run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, 0.0, 0.0, 0.0, 'ug'))
+            csv_buffer.write(generate_csv_line(run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, 0, 0, 0, 'ug'))
         else:
             network_io_carbon_in_ug = decimal.Decimal(0)
 
@@ -178,10 +187,10 @@ def build_and_store_phase_stats(run_id, sci=None):
             duration_in_years = duration_in_s / (60 * 60 * 24 * 365)
             embodied_carbon_share_g = (duration_in_years / sci['EL'] ) * sci['TE'] * sci['RS']
             embodied_carbon_share_ug = decimal.Decimal(embodied_carbon_share_g * 1_000_000)
-            csv_buffer.write(generate_csv_line(run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 0.0, 0.0, 0.0, 'ug'))
+            csv_buffer.write(generate_csv_line(run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 0, 0, 0, 'ug'))
 
         if phase['name'] == '[RUNTIME]' and machine_carbon_in_ug is not None and sci is not None and sci.get('R', 0) != 0:
-            csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_carbon_in_ug + embodied_carbon_share_ug + network_io_carbon_in_ug) / sci['R'], 'TOTAL', None, None, 0.0, 0.0, 0.0, f"ugCO2e/{sci['R_d']}"))
+            csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_carbon_in_ug + embodied_carbon_share_ug + network_io_carbon_in_ug) / sci['R'], 'TOTAL', None, None, 0, 0, 0, f"ugCO2e/{sci['R_d']}"))
 
         if machine_power_baseline and cpu_utilization_machine and cpu_utilization_containers:
             surplus_power_runtime = machine_power_phase - machine_power_baseline
@@ -195,10 +204,10 @@ def build_and_store_phase_stats(run_id, sci=None):
                 else:
                     splitting_ratio = container_utilization / total_container_utilization
 
-                csv_buffer.write(generate_csv_line(run_id, 'psu_energy_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_energy_phase * splitting_ratio, 'TOTAL', None, None, 0.0, 0.0, 0.0, 'mJ'))
-                csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_power_phase * splitting_ratio, 'TOTAL', None, None, 0.0, 0.0, 0.0, 'mW'))
-                csv_buffer.write(generate_csv_line(run_id, 'psu_energy_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_energy_runtime * splitting_ratio, 'TOTAL', None, None, 0.0, 0.0, 0.0, 'mJ'))
-                csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * splitting_ratio, 'TOTAL', None, None, 0.0, 0.0, 0.0, 'mW'))
+                csv_buffer.write(generate_csv_line(run_id, 'psu_energy_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_energy_phase * splitting_ratio, 'TOTAL', None, None, 0, 0, 0, 'uJ'))
+                csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_power_phase * splitting_ratio, 'TOTAL', None, None, 0, 0, 0, 'mW'))
+                csv_buffer.write(generate_csv_line(run_id, 'psu_energy_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_energy_runtime * splitting_ratio, 'TOTAL', None, None, 0, 0, 0, 'uJ'))
+                csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * splitting_ratio, 'TOTAL', None, None, 0, 0, 0, 'mW'))
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning
     DB().copy_from(
