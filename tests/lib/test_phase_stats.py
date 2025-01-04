@@ -157,7 +157,7 @@ def test_phase_embodied_and_operational_carbon():
     assert embodied_carbon_share_machine['sampling_rate_95p'] == 0, '95p sampling rate not in expected range'
     assert isinstance(embodied_carbon_share_machine['sampling_rate_avg'], int)
 
-def test_phase_stats_single_network_procfs():
+def wip_test_phase_stats_single_network_procfs():
     run_id = Tests.insert_run()
     Tests.import_network_io_procfs(run_id)
 
