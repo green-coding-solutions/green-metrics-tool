@@ -156,3 +156,38 @@ def test_phase_embodied_and_operational_carbon():
     assert embodied_carbon_share_machine['sampling_rate_max'] == 0, 'MAX sampling rate not in expected range'
     assert embodied_carbon_share_machine['sampling_rate_95p'] == 0, '95p sampling rate not in expected range'
     assert isinstance(embodied_carbon_share_machine['sampling_rate_avg'], int)
+
+def test_phase_stats_single_network_procfs():
+    run_id = Tests.insert_run()
+    Tests.import_network_io_procfs(run_id)
+
+    build_and_store_phase_stats(run_id)
+
+    data = DB().fetch_all('SELECT metric, detail_name, unit, value, type, sampling_rate_avg, sampling_rate_max, sampling_rate_95p FROM phase_stats WHERE phase = %s ', params=('004_[RUNTIME]', ), fetch_mode='dict')
+
+    assert len(data) == 23
+    assert data[1]['metric'] == 'network_io_procfs_system'
+    assert data[1]['detail_name'] == 'br-3d6ff3fb0904'
+    assert data[1]['value'] == 649004
+    assert data[1]['sampling_rate_avg'] == 99482, 'AVG sampling rate not in expected range'
+    assert data[1]['sampling_rate_max'] == 105929, 'MAX sampling rate not in expected range'
+    assert data[1]['sampling_rate_95p'] == 100488, '95p sampling rate not in expected range'
+    assert isinstance(data[1]['sampling_rate_95p'], int)
+
+    assert data[3]['metric'] == 'network_io_procfs_system'
+    assert data[3]['detail_name'] == 'br-6062a8cb12d5'
+    assert data[3]['value'] == 403
+
+    assert data[3]['sampling_rate_avg'] == 99476, 'AVG sampling rate not in expected range'
+    assert data[3]['sampling_rate_max'] == 105929, 'MAX sampling rate not in expected range'
+    assert data[3]['sampling_rate_95p'] == 100465, '95p sampling rate not in expected range'
+    assert isinstance(data[3]['sampling_rate_95p'], int)
+
+    assert data[5]['metric'] == 'network_io_procfs_system'
+    assert data[5]['detail_name'] == 'docker0'
+    assert data[5]['value'] == 0
+
+    assert data[5]['sampling_rate_avg'] == 99476, 'AVG sampling rate not in expected range'
+    assert data[5]['sampling_rate_max'] == 105929, 'MAX sampling rate not in expected range'
+    assert data[5]['sampling_rate_95p'] == 100465, '95p sampling rate not in expected range'
+    assert isinstance(data[5]['sampling_rate_95p'], int)
