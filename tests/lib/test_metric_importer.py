@@ -32,7 +32,7 @@ def test_import_machine_energy():
     result = results[0]
 
     assert result[0] == len(measurement_lines)
-    assert math.isclose(result[1], 2921.3863, rel_tol=1e-5), 'AVG value not in expected range'
+    assert math.isclose(result[1], 2921883.6776, rel_tol=1e-5), 'AVG value not in expected range'
 
 
 def test_import_cpu_energy():
@@ -46,4 +46,4 @@ def test_import_cpu_energy():
     result = results[0]
 
     assert result[0] == len(measurement_lines)
-    assert math.isclose(result[1], 1194.5976, rel_tol=1e-5), 'AVG value not in expected range'
+    assert math.isclose(result[1], 1194597.6086, rel_tol=1e-5), 'AVG value not in expected range'

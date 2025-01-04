@@ -9,7 +9,7 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
             metric_name='psu_energy_ac_sdia_machine',
             metrics={'time': int, 'value': int},
             resolution=resolution,
-            unit='mJ',
+            unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
@@ -66,6 +66,10 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
 
         return super()._read_metrics()
 
+    # SDIA Provider does only use CPU utilization as an input metric and thus cannot actually suffer from an underflow
+    def _check_resolution_underflow(self, df):
+        pass
+
     def _parse_metrics(self, df):
         df = super()._parse_metrics(df)
 
@@ -73,7 +77,7 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
         # And then again at the end multiply with 1000 to get mW. We take the
         # shortcut and just mutiply the 0.65 ratio from the SDIA by 10 -> 6.5
         df.value = ((df.value * self.tdp) / 6.5) * self.cpu_chips # will result in mW
-        df.value = (df.value * df.time.diff()) / 1_000_000 # mW * us / 1_000_000 will result in mJ
+        df.value = (df.value * df.time.diff()) / 1_000 # mW * us / 1_000 will result in uJ
 
         # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
         # Since one value is useless for us we drop the row

@@ -65,13 +65,13 @@ def test_db_rows_are_written_and_presented():
     run_id = utils.get_run_data(RUN_NAME)['id']
     assert(run_id is not None and run_id != '')
     query = """
-            SELECT
-                metric, COUNT(*) as count
-            FROM
-                measurements
-            WHERE run_id = %s
+            SELECT mm.metric, COUNT(mm.id) as count
+            FROM measurement_metrics as mm
+            JOIN measurement_values as mv
+            ON mm.id = mv.measurement_metric_id
+            WHERE mm.run_id = %s
             GROUP BY
-                metric
+                mm.metric
             """
     data = DB().fetch_all(query, (run_id,))
     assert(data is not None and data != [])

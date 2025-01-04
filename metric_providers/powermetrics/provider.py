@@ -18,7 +18,7 @@ class PowermetricsProvider(BaseMetricProvider):
             metric_name='powermetrics',
             metrics={'time': int, 'value': int},
             resolution=resolution,
-            unit='mJ',
+            unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='/usr/bin/powermetrics',
             sudo=True,
@@ -149,8 +149,8 @@ class PowermetricsProvider(BaseMetricProvider):
 
             cum_time = cum_time + data['elapsed_ns']
 
-            # we want microjoule. Therefore / 10**9 to get seconds and the values are already in mW
-            conversion_factor = data['elapsed_ns'] / 1_000_000_000
+            # we want microjoule. Therefore / 10**6 to get milli-seconds and the values are already in mW => ms * mW = uJ
+            power_to_uJ = data['elapsed_ns'] / 1_000_000
             cum_time_ms = int(cum_time / 1_000)
 
             # coalitions gives us a list so we need to find the named entry
@@ -186,38 +186,38 @@ class PowermetricsProvider(BaseMetricProvider):
 
             if 'cpu_power' in data['processor']:
                 dfs.append([cum_time_ms,
-                            int(float(data['processor']['cpu_power']) * conversion_factor),
+                            int(float(data['processor']['cpu_power']) * power_to_uJ),
                            'cores_energy_powermetrics_component',
                            '[COMPONENT]',
-                           'mJ'])
+                           'uJ'])
 
             if 'package_joules' in data['processor']:
                 dfs.append([cum_time_ms,
-                            int(float(data['processor']['package_joules']) * 1000),
+                            int(float(data['processor']['package_joules']) * 1_000_000),
                            'cpu_energy_powermetrics_component',
                            '[COMPONENT]',
-                           'mJ'])
+                           'uJ'])
 
             if 'gpu_power' in data['processor']:
                 dfs.append([cum_time_ms,
-                            int(float(data['processor']['gpu_power']) * conversion_factor),
+                            int(float(data['processor']['gpu_power']) * power_to_uJ),
                             'gpu_energy_powermetrics_component',
                             '[COMPONENT]',
-                            'mJ'])
+                            'uJ'])
 
             #if 'combined_power' in data['processor']:
             #    dfs.append([cum_time_ms,
-            #                int(float(data['processor']['combined_power']) * conversion_factor),
+            #                int(float(data['processor']['combined_power']) * power_to_uJ),
             #                'system_combined_power',
             #                '[COMPONENT]',
-            #                'mJ'])
+            #                'uJ'])
 
             if 'ane_power' in data['processor']:
                 dfs.append([cum_time_ms,
-                            int(float(data['processor']['ane_power']) * conversion_factor),
+                            int(float(data['processor']['ane_power']) * power_to_uJ),
                             'ane_energy_powermetrics_component',
                             '[COMPONENT]',
-                            'mJ'])
+                            'uJ'])
 
         df = pandas.DataFrame.from_records(dfs, columns=['time', 'value', 'metric', 'detail_name', 'unit'])
 

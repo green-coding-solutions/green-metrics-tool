@@ -475,11 +475,11 @@ static void rapl_msr(int measurement_mode) {
             if(energy_output>=0) {
                 gettimeofday(&now, NULL);
                 if (measurement_mode == MEASURE_ENERGY_PKG) {
-                    printf("%ld%06ld %ld Package_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), k);
+                    printf("%ld%06ld %lld Package_%d\n", now.tv_sec, now.tv_usec, (long long)(energy_output*1000000), k);
                 } else if (measurement_mode == MEASURE_DRAM) {
-                    printf("%ld%06ld %ld DRAM_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), k);
+                    printf("%ld%06ld %lld DRAM_%d\n", now.tv_sec, now.tv_usec, (long long)(energy_output*1000000), k);
                 } else if (measurement_mode == MEASURE_PSYS) {
-                    printf("%ld%06ld %ld PSYS_%d\n", now.tv_sec, now.tv_usec, (long int)(energy_output*1000), k);
+                    printf("%ld%06ld %lld PSYS_%d\n", now.tv_sec, now.tv_usec, (long long)(energy_output*1000000), k);
                 }
             }
             /*

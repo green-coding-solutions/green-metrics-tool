@@ -9,12 +9,13 @@ from lib import metric_importer
 from metric_providers.cpu.utilization.cgroup.container.provider import CpuUtilizationCgroupContainerProvider
 from metric_providers.psu.energy.ac.mcp.machine.provider import PsuEnergyAcMcpMachineProvider
 from metric_providers.cpu.energy.rapl.msr.component.provider import CpuEnergyRaplMsrComponentProvider
+from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 TEST_MEASUREMENT_CONTAINERS = {'bb0ea912f295ab0d8b671caf061929de9bb8b106128c071d6a196f9b6c05cd98': {'name': 'Arne'}, 'f78f0ca43069836d975f2bd4c45724227bbc71fc4788e60b33a77f1494cd2e0c': {'name': 'Not-Arne'}}
 TEST_MEASUREMENT_START_TIME = 1735047190000000
-TEST_MEASUREMENT_END_TIME = 1735047660000000
+TEST_MEASUREMENT_END_TIME = 1735996789871827
 TEST_MEASUREMENT_DURATION = TEST_MEASUREMENT_END_TIME - TEST_MEASUREMENT_START_TIME
 TEST_MEASUREMENT_DURATION_S = TEST_MEASUREMENT_DURATION / 1_000_000
 TEST_MEASUREMENT_DURATION_H = TEST_MEASUREMENT_DURATION_S/60/60
@@ -55,6 +56,17 @@ def import_machine_energy(run_id):
     df = obj.read_metrics()
 
     metric_importer.import_measurements(df, 'psu_energy_ac_mcp_machine', run_id)
+
+    return df
+
+def import_network_io_procfs(run_id):
+
+    obj = NetworkIoProcfsSystemProvider(99, skip_check=True, remove_virtual_interfaces=False)
+
+    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_procfs_system.log')
+    df = obj.read_metrics()
+
+    metric_importer.import_measurements(df, 'network_io_procfs_system', run_id)
 
     return df
 

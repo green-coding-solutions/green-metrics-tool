@@ -215,7 +215,7 @@ def check_energy_values(data, timing_start, timing_end, provider_interval, mode)
     std_value = data['value'].std()
 
     if len(data['value']) < 3:
-        raise SystemExit(f"Not enough data points for idle time calculation (amount: {len(data['value'])}; Std: {round(std_value,2)} mJ). Please extend the idle time duration. {data}")
+        raise SystemExit(f"Not enough data points for idle time calculation (amount: {len(data['value'])}; Std: {round(std_value,2)} uJ). Please extend the idle time duration. {data}")
 
     threshold = STD_THRESHOLD_MULTI * std_value
 
@@ -226,9 +226,9 @@ def check_energy_values(data, timing_start, timing_end, provider_interval, mode)
         logging.error(f"""here are outliers in your {mode} data or the StdDev is > 3%. It looks like your system is not in a stable state!
                         Please make sure that the are no jobs running in the background. Aborting!""")
         logging.info('\n%s', data)
-        logging.info('Mean Energy: %s mJ', round(mean_value,2))
+        logging.info('Mean Energy: %s uJ', round(mean_value,2))
         logging.info('Mean Power: %s W', round(mean_value/provider_interval,2))
-        logging.info('Std. Dev: %s mJ', round(std_value,2))
+        logging.info('Std. Dev: %s uJ', round(std_value,2))
         logging.info('Std. Dev (rel): %s %%', round((std_value / mean_value) * 100,2))
         logging.info('Allowed threshold: %s', threshold)
         logging.info('Outliers: %s', outliers)
@@ -237,9 +237,9 @@ def check_energy_values(data, timing_start, timing_end, provider_interval, mode)
             raise SystemExit('System not stable.')
 
     logging.info(f"{GREEN}System {mode} measurement successful{NC}")
-    logging.info('Mean Energy: %s mJ', round(mean_value,2))
+    logging.info('Mean Energy: %s uJ', round(mean_value,2))
     logging.info('Mean Power: %s W', round(mean_value/provider_interval,2))
-    logging.info('Std. Dev: %s mJ', round(std_value,2))
+    logging.info('Std. Dev: %s uJ', round(std_value,2))
     logging.info('Std. Dev (rel): %s %%', round((std_value / mean_value) * 100,2))
     logging.info('----------------------------------------------------------')
 
@@ -278,7 +278,7 @@ def check_configured_provider_energy_overhead(mp, energy_provider_key, idle_time
 
     logging.info(f"{GREEN}Provider idle energy overhead measurement successful.{NC}")
 
-    logging.info(f"Idle Energy overhead is: {energy_all_mean_value - energy_baseline_mean_value} mJ")
+    logging.info(f"Idle Energy overhead is: {energy_all_mean_value - energy_baseline_mean_value} uJ")
     logging.info(f"Idle Energy overhead (rel.): {((energy_all_mean_value - energy_baseline_mean_value) / energy_baseline_mean_value) * 100} %")
     logging.info(f"Idle Power overhead is: {(energy_all_mean_value - energy_baseline_mean_value) / provider_interval} W")
     logging.info('-----------------------------------------------------------------------------------------')
@@ -311,13 +311,13 @@ def check_values(data):
             display_value = mean_value / 100
             display_max = max_value / 100
             display_std = std_value / 100
-        elif group.iloc[0]['unit'] == 'mJ':
+        elif group.iloc[0]['unit'] == 'uJ':
             display_unit = group.iloc[0]['unit']
             display_value = mean_value
             display_max = max_value
             display_std = std_value
         else:
-            raise SystemExit(f"Unknown unit detected for {name}: {group.iloc[0]['unit']}; Only expecting mJ and centi°C.")
+            raise SystemExit(f"Unknown unit detected for {name}: {group.iloc[0]['unit']}; Only expecting uJ and centi°C.")
 
 
         threshold = STD_THRESHOLD_MULTI * std_value
@@ -449,7 +449,7 @@ def stress_system(stress_command, stress_time, cooldown_time, temp_mean, temp_st
 
     logging.info(f"{GREEN}Provider effective energy overhead measurement successful.{NC}")
 
-    logging.info(f"Peak system energy is: {energy_stress_mean_value} mJ")
+    logging.info(f"Peak system energy is: {energy_stress_mean_value} uJ")
     logging.info(f"Peak system power is: {energy_stress_mean_value / provider_interval} W")
 
     logging.info(f"Effective energy overhead (rel.) is: {((energy_all_mean_value - energy_baseline_mean_value) / (energy_stress_mean_value - energy_baseline_mean_value)) * 100} %")

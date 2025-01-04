@@ -179,6 +179,9 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_
 
     let top_bar_chart_labels = [];
     let top_bar_chart_data =  [[],[]];
+    let top_bar_chart_unit = null;
+
+    let compare_chart_unit = null;
 
     let co2_calculated = false;
 
@@ -226,12 +229,18 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_
 
             // we loop over all keys that exist, not over the one that are present in detail_data['data']
             phase_stats_object.comparison_identifiers.forEach((key,key_index) => {
+                const [transformed_mean, transformed_unit] = convertValue(detail_data['data'][key]?.mean, metric_data.unit)
+                const [transformed_ci, ] = convertValue(detail_data['data'][key]?.ci, metric_data.unit)
+                const transformed_values = detail_data['data'][key]?.values.map( value => convertValue(value, metric_data.unit)[0]);
+                compare_chart_unit = transformed_unit;
+
                 if(radar_chart_condition(metric_name) && phase_stats_object.comparison_identifiers.length >= 2) {
-                    radar_chart_data[key_index].push(detail_data['data'][key]?.mean)
+                    radar_chart_data[key_index].push(transformed_mean)
                 }
 
                 if (top_bar_chart_condition(metric_name)) {
-                    top_bar_chart_data[key_index].push(detail_data['data'][key]?.mean)
+                    top_bar_chart_unit = transformed_unit;
+                    top_bar_chart_data[key_index].push(transformed_mean)
                 }
 
                 if (phase_stats_object.comparison_case == null && psu_machine_carbon_metric_condition(metric_name)) {
@@ -239,17 +248,17 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_
                         showWarning(phase, 'CO2 was already calculated! Do you have multiple machine energy reporters set?');
                     }
                     // mean will always be present, as we only have one key and thus we need no ?.
-                    calculateCO2(phase, detail_data['data'][key].mean);
+                    calculateCO2(phase, detail_data['data'][key].mean); // must take the untransformed value, as it expects ug
                     co2_calculated = true;
                 }
 
-                metric_box_data[key_index] = detail_data['data'][key]?.mean
-                compare_chart_data.push(detail_data['data'][key]?.values)
+                metric_box_data[key_index] = transformed_mean
+                compare_chart_data.push(transformed_values)
                 compare_chart_labels.push(`${phase_stats_object.comparison_case}: ${key}`)
                 compare_chart_mark.push({
                     name:'Confidence Interval',
-                    bottom: detail_data['data'][key]?.mean-detail_data['data'][key]?.ci,
-                    top: detail_data['data'][key]?.mean+detail_data['data'][key]?.ci
+                    bottom: transformed_mean-transformed_ci,
+                    top: transformed_mean+transformed_ci
                 })
             }) // end key
 
@@ -266,7 +275,7 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_
                 displayCompareChart(
                     phase,
                     `${getPretty(metric_name, 'clean_name')} via ${getPretty(metric_name, 'source')} - ${detail_name} <i data-tooltip="${getPretty(metric_name, 'explanation')}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></i>`,
-                    metric_data.unit,
+                    compare_chart_unit,
                     compare_chart_labels,
                     compare_chart_data,
                     compare_chart_mark,
@@ -296,7 +305,8 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_
         radar_legend,
         top_bar_chart_labels,
         top_bar_chart_data,
-        phase
+        phase,
+        top_bar_chart_unit,
     )
 
     // displayKeyMetricsEmbodiedCarbonChart(phase);
@@ -311,6 +321,7 @@ const buildTotalChartData = (phase_stats_object) => {
     let total_chart_bottom_data =  {};
     let total_chart_bottom_legend =  {};
     let total_chart_bottom_labels = [];
+    let transformed_total_chart_bottom_unit = null;
 
     for (const phase in phase_stats_object['data']) {
         let phase_data = phase_stats_object['data'][phase];
@@ -335,16 +346,19 @@ const buildTotalChartData = (phase_stats_object) => {
                     } else {
                         total_chart_bottom_legend[phase].push(getPretty(metric_name, 'clean_name'));
                         found_bottom_chart_metric = `${metric_name} ${detail_name}`;
+                        total_chart_bottom_unit = convertValue(0, metric_data.unit)[1]
                     }
                 }
                 // we loop over all keys that exist, not over the one that are present in detail_data['data']
                 phase_stats_object.comparison_identifiers.forEach((key,key_index) => {
+                    const [transformed_total_chart_bottom_mean, transformed_unit] = convertValue(detail_data['data'][key]?.mean, metric_data.unit)
+                    transformed_total_chart_bottom_unit = transformed_unit;
 
                     if (total_chart_bottom_condition(metric_name) && `${metric_name} ${detail_name}` == found_bottom_chart_metric) {
                         if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
                             total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] = []
                         }
-                        total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`].push(detail_data['data'][key]?.mean)
+                        total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`].push(transformed_total_chart_bottom_mean)
                         bottom_chart_present_keys[key] = true
                     }
                 })
@@ -364,5 +378,5 @@ const buildTotalChartData = (phase_stats_object) => {
 
     } // end phase_stats_object['data']
 
-    return [total_chart_bottom_legend, total_chart_bottom_labels, total_chart_bottom_data];
+    return [total_chart_bottom_legend, total_chart_bottom_labels, total_chart_bottom_data, transformed_total_chart_bottom_unit];
 }

@@ -171,8 +171,13 @@ class PowerSpy2:
                             rmsPower = rmsPower * conversion_factor
                         else:
                             rmsPower = rmsPower * milliseconds
+                    elif unit == 'uJ':
+                        if use_package_time:
+                            rmsPower = rmsPower * 1_000 * conversion_factor
+                        else:
+                            rmsPower = rmsPower * 1_000 * milliseconds
                     else:
-                        raise ValueError("Unit needs to be mW, W, J or mJ")
+                        raise ValueError("Unit needs to be mW, W, J, uJ or mJ")
 
                 # We have no real way of showing which unit the output is. The user will need to take care of this!
                 sys.stdout.buffer.write(f"{int(time.time_ns()/ 1000)} {int(rmsPower)}\n".encode())

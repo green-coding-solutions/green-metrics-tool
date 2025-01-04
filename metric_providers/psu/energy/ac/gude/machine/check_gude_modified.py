@@ -24,10 +24,10 @@ def main(resolution):
 
         # print(data) # DEBUG
         timestamp_after = time.time_ns()
-        effective_sleep_time = timestamp_after - timestamp_before
-        # print(effective_sleep_time / 1_000_000_000) # DEBUG
-        # we want microjoule. Therefore / 10**9 to get seconds and then * 10**3 to get mJ
-        conversion_factor = effective_sleep_time / 1_000_000
+        effective_sleep_time_ns = timestamp_after - timestamp_before
+        # print(effective_sleep_time_ns / 1_000_000_000) # DEBUG
+        # we want microjoule. Therefore / 10**6 to get to micro-seconds
+        conversion_factor = effective_sleep_time_ns / 1_000
         print(int(timestamp_after / 1_000), int(data['sensor_values']
               [0]['values'][0][4]['v'] * conversion_factor), flush=True)
 

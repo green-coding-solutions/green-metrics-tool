@@ -157,9 +157,7 @@ const buildTimelineChartData = async (measurements_data) => {
     const metrics = {}
     const t0 = performance.now();
 
-    let display_in_watts = localStorage.getItem('display_in_watts');
-    if(display_in_watts == 'true') display_in_watts = true;
-    else display_in_watts = false;
+    const transform_timelines_energy_to_power = localStorage.getItem('transform_timelines_energy_to_power') == 'true' ? true : false;
 
     try {
          // define here as var (not let!), so we can alert it later in error case.
@@ -194,16 +192,16 @@ const buildTimelineChartData = async (measurements_data) => {
                 }
             }
 
-            if(display_in_watts && metrics[metric_name].unit == 'J') {
+            if(transform_timelines_energy_to_power && metrics[metric_name].unit == 'J') {
                 value = value/(time_after-time_before); // convert Joules to Watts by dividing through the time difference of two measurements
                 metrics[metric_name].converted_unit = 'W';
-            } else if(!display_in_watts && metrics[metric_name].unit == 'W') {
-                value = value*(time_after-time_before); // convert Joules to Watts by dividing through the time difference of two measurements
+            } else if(!transform_timelines_energy_to_power && metrics[metric_name].unit == 'W') {
+                value = value*(time_after-time_before); // convert Watts to Joules by multiplying with the time difference of two measurements
                 metrics[metric_name].converted_unit = 'J';
             }
             time_before = time_after;
 
-            if(metric_changed && display_in_watts) return; // if watts display then the first graph value will be zero. We skip that.
+            if(metric_changed && transform_timelines_energy_to_power) return; // if watts display then the first graph value will be zero. We skip that.
 
             // Depending on the charting library the object has to be reformatted
             // First we check if structure is initialized
@@ -233,9 +231,8 @@ const displayTimelineCharts = async (metrics, notes) => {
     const chart_instances = [];
     const t0 = performance.now();
 
-    let time_series_avg = localStorage.getItem('time_series_avg');
     let markline = {};
-    if(time_series_avg == 'true') {
+    if(localStorage.getItem('time_series_avg') == 'true') {
         markline = {
                     precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
                     data: [ {type: "average",label: {formatter: "AVG\n(selection):\n{c}"}}]
