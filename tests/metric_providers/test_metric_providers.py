@@ -66,7 +66,7 @@ def test_splitting_by_group():
     if utils.get_architecture() == 'macos':
         return
 
-    obj = NetworkIoProcfsSystemProvider(100, remove_virtual_interfaces=False)
+    obj = NetworkIoProcfsSystemProvider(1000, remove_virtual_interfaces=False)
 
     actual_network_interface = utils.get_network_interfaces(mode='physical')[0]
     with tempfile.NamedTemporaryFile(delete=True) as temp_file:
