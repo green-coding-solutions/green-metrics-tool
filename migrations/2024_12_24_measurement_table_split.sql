@@ -1,5 +1,7 @@
 UPDATE measurements SET value = value * 1000, unit = 'uJ' WHERE unit = 'mJ';
 
+UPDATE phase_stats SET unit = 'uJ', value = value*1000 WHERE unit = 'mJ';
+
 CREATE TABLE measurement_metrics (
     id SERIAL PRIMARY KEY,
     run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
