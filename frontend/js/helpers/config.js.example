@@ -34,25 +34,37 @@ METRIC_MAPPINGS = {
     'disk_io_procfs_system': {
         'clean_name': 'Disk I/O',
         'source': 'procfs',
-        'explanation': 'Disk I/O via procfs',
+        'explanation': 'Disk I/O for whole system via procfs',
     },
 
-    'disk_io_cgroup_container_clean_name': {
+    'disk_io_cgroup_container': {
         'clean_name': 'Disk I/O',
         'source': 'cgroup',
-        'explanation': 'Disk I/O per container',
+        'explanation': 'Disk I/O per container via cgroup',
     },
 
-    'disk_total_cgroup_container_clean_name': {
+    'disk_io_cgroup_system': {
+        'clean_name': 'Disk I/O',
+        'source': 'cgroup',
+        'explanation': 'Disk I/O for system cgroup',
+    },
+
+    'disk_total_cgroup_system': {
+        'clean_name': 'Disk I/O',
+        'source': 'cgroup',
+        'explanation': 'Disk I/O Totals accumulated for system cgroup',
+    },
+
+    'disk_total_cgroup_container': {
         'clean_name': 'Disk Data',
         'source': 'formula',
-        'explanation': 'Disk I/O totals accumulated via cgroup per container',
+        'explanation': 'Disk I/O Totals accumulated per container via cgroup',
     },
 
     'disk_total_procfs_system': {
         'clean_name': 'Disk Data',
         'source': 'formula',
-        'explanation': 'Disk I/O Total accumulated via procfs',
+        'explanation': 'Disk I/O Totals for whole system accumulated via procfs',
     },
 
     'psu_energy_cgroup_container': {
@@ -261,13 +273,12 @@ METRIC_MAPPINGS = {
     'disk_io_bytesread_powermetrics_vm': {
         'clean_name': 'Disk I/O (Read)',
         'source': 'powermetrics',
-        'explanation': 'Disk I/O - Bytes read per second for SSD/HDD',
+        'explanation': 'Disk I/O - Bytes read per second for SDD/HDD',
     },
     'disk_io_byteswritten_powermetrics_vm': {
         'clean_name': 'Disk I/O (Write)',
         'source': 'powermetrics',
-        'explanation': 'Disk I/O - Bytes written per second for SSD/HDD',
-
+        'explanation': 'Disk I/O - Bytes written per second for SDD/HDD',
     },
     'energy_impact_powermetrics_vm': {
         'clean_name': 'Energy impact',
@@ -277,12 +288,23 @@ METRIC_MAPPINGS = {
     'cpu_utilization_cgroup_container': {
         'clean_name': 'CPU %',
         'source': 'cgroup',
-        'explanation': 'CPU Utilization per container',
+        'explanation': 'CPU Utilization per container via cgroup',
+    },
+    'cpu_utilization_cgroup_system': {
+        'clean_name': 'CPU %',
+        'source': 'procfs',
+        'explanation': 'CPU Utilization for whole system via procfs',
     },
     'memory_used_cgroup_container': {
         'clean_name': 'Memory Usage',
         'source': 'cgroup',
-        'explanation': 'Memory Usage per container',
+        'explanation': 'Memory Usage per container via cgroup',
+    },
+
+    'memory_used_cgroup_system': {
+        'clean_name': 'Memory Usage',
+        'source': 'cgroup',
+        'explanation': 'Memory Usage per system cgroup',
     },
 
     'memory_used_procfs_system': {
