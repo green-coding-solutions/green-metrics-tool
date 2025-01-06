@@ -39,6 +39,10 @@ if [[ $build_sgx == true ]] ; then
     rm lib/sgx-software-enable/sgx_enable.o
 fi
 
+print_message "Enabling cache cleanup without sudo via sudoers entry"
+echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/sysctl -w vm.drop_caches=3" | sudo tee /etc/sudoers.d/green-coding-drop-caches
+sudo chmod 500 /etc/sudoers.d/green-coding-drop-caches
+
 print_message "Setting the cluster cleanup.sh file to be owned by root"
 sudo cp -f $PWD/tools/cluster/cleanup_original.sh $PWD/tools/cluster/cleanup.sh
 sudo chown root:root $PWD/tools/cluster/cleanup.sh

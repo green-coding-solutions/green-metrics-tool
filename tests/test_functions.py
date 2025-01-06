@@ -161,6 +161,7 @@ class RunUntilManager:
         try:
             config = GlobalConfig().config
             self.__runner.start_measurement()
+            self.__runner.clear_caches()
             self.__runner.check_system('start')
             self.__runner.initialize_folder(self.__runner._tmp_folder)
             self.__runner.checkout_repository()

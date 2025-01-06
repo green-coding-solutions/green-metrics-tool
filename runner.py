@@ -180,6 +180,14 @@ class Runner:
         print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
         self.__notes_helper.save_to_db(self._run_id)
 
+    def clear_caches(self):
+        subprocess.check_output(['sync'])
+
+        if platform.system() == 'Darwin':
+            return
+        # 3 instructs kernel to drops page caches AND inode caches
+        subprocess.check_output(['/usr/sbin/sysctl', '-w', 'vm.drop_caches=3'])
+
     def check_system(self, mode='start'):
         if self._skip_system_checks:
             print("System check skipped")
@@ -1579,6 +1587,7 @@ class Runner:
         try:
             config = GlobalConfig().config
             self.start_measurement() # we start as early as possible to include initialization overhead
+            self.clear_caches()
             self.check_system('start')
             self.initialize_folder(self._tmp_folder)
             self.checkout_repository()
