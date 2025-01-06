@@ -130,7 +130,7 @@ const fetchAndFillRunData = async (url_params) => {
 
 }
 
-const buildCommitLink = async (run_data) => {
+const buildCommitLink = (run_data) => {
     let commit_link;
     commit_link = run_data['uri'].endsWith('.git') ? run_data['uri'].slice(0, -4) : run_data['uri']
     if (run_data['uri'].includes('github')) {

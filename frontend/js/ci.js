@@ -343,7 +343,7 @@ const refreshView = async (repo, branch, workflow_id, chart_instance) => {
     setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);
 }
 
-const populateRunInfos = (repo, branch, source, workflow_name, workflow_id) => {
+const populateRunInfos = async (repo, branch, source, workflow_name, workflow_id) => {
 
     document.querySelector('#ci-data-branch').innerText =  branch;
     document.querySelector('#ci-data-workflow-id').innerText =  workflow_id;
