@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <getopt.h>
+#include <string.h>
+#include <ctype.h>
 #include "parse_int.h"
 
 // All variables are made static, because we believe that this will
@@ -12,18 +14,38 @@
 // in any case, none of these variables should change between threads
 static unsigned int msleep_time=1000;
 
-static unsigned long long int get_memory_procfs() {
+// just a helper function
+void print_repr(const char *str) {
+    while (*str) {
+        if (*str == '\n') {
+            printf("\\n");
+        } else if (*str == '\t') {
+            printf("\\t");
+        } else if (*str == '\r') {
+            printf("\\r");
+        } else if (*str == '\\') {
+            printf("\\\\");
+        } else if (isprint((unsigned char)*str)) {
+            putchar(*str);  // Print printable characters as-is
+        } else {
+            // Print non-printable characters as hex
+            printf("\\x%02x", (unsigned char)*str);
+        }
+        str++;
+    }
+    printf("\n");
+}
 
-    // cat /proc/meminfo
-    // MemTotal:       32646584 kB
-    // MemFree:        28813256 kB
-    // MemAvailable:   30162336 kB
+static long long int get_memory_procfs() {
 
-    unsigned long long int mem_total = 0;
-    unsigned long long int mem_available = 0;
-    unsigned long long int mem_used = 0;
-    int match_result = 0;
-    char buf[200];
+    long long int active = -1;
+    long long int slab_unreclaimable = -1;
+    long long int kernel_stack = -1;
+    long long int percpu = -1;
+    long long int unevictable = -1;
+    long long int totals = 0;
+    unsigned long long int value = 0;
+    char key[128];
 
     FILE * fd = fopen("/proc/meminfo", "r");
     if ( fd == NULL) {
@@ -31,38 +53,64 @@ static unsigned long long int get_memory_procfs() {
         exit(1);
     }
 
-    if (fgets(buf, 200, fd) == NULL) {
-        fprintf(stderr, "Error or EOF encountered while reading input.\n");
-        exit(1);
+    while (fscanf(fd, "%127[^:]:%*[ \t]%llu kB\n", key, &value) == 2) {
+        //printf("%s\n", key);
+        //print_repr(key); // for debugging
+        if (strcmp(key, "Active") == 0) { // contains anon and file equivalent to cgroups
+            active = value;
+            totals += value;
+        } else if (strcmp(key, "SUnreclaim") == 0) {
+            slab_unreclaimable = value;
+            totals += value;
+        } else if (strcmp(key, "KernelStack") == 0) {
+            kernel_stack = value;
+            totals += value;
+        } else if (strcmp(key, "Percpu") == 0) {
+            percpu = value;
+            totals += value;
+        } else if (strcmp(key, "Unevictable") == 0) {
+            unevictable = value;
+            totals += value;
+        }
+
+        if (totals < 0) {
+            fprintf(stderr, "Integer overflow in adding memory\n");
+            exit(1);
+        }
+
+        // we DO NOT subtract shmem as we do in the cgroups, as in the OS we want to account for it
+        // we further deduct inactive_* as this can be freed to be compatbile with how
+        // we caclulate for the cgroup reporter
+        // inactive does not have to be subtracted, as it already is not present
     }
 
-    match_result = sscanf(buf, "MemTotal: %llu kB", &mem_total);
-    if (match_result != 1) {
-        fprintf(stderr, "Error - MemTotal could not be matched in /proc/meminfo\n");
-        exit(1);
-    }
+    fclose(fd);
 
-    if (fgets(buf, 200, fd) == NULL || fgets(buf, 200, fd) == NULL) {
-        fprintf(stderr, "Error or EOF encountered while reading input.\n");
+    if (active == -1) {
+        fprintf(stderr, "Could not match active\n");
         exit(1);
     }
-    match_result = sscanf(buf, "MemAvailable: %llu kB", &mem_available);
-    if (match_result != 1) {
-        fprintf(stderr, "Error - MemAvailable could not be matched in /proc/meminfo\n");
+    if (slab_unreclaimable == -1) {
+        fprintf(stderr, "Could not match slab_unreclaimable\n");
+        exit(1);
+    }
+    if (kernel_stack == -1) {
+        fprintf(stderr, "Could not match kernel_stack\n");
+        exit(1);
+    }
+    if (percpu == -1) {
+        fprintf(stderr, "Could not match percpu\n");
+        exit(1);
+    }
+    if (unevictable == -1) {
+        fprintf(stderr, "Could not match unevictable\n");
         exit(1);
     }
 
     // note that here we need to use 1024 instead of 1000 as we are already coming from kiB and not kB
-    mem_used = (mem_total - mem_available) * 1024; // outputted value is in Bytes then
+    totals = totals * 1024; // outputted value is in Bytes then
 
-    fclose(fd);
-
-    if(mem_used <= 0) {
-        fprintf(stderr, "Error - /proc/meminfo was <= 0. Value: %llu\n", mem_used);
-        exit(1);
-    }
-
-    return mem_used;
+    return totals;
 
 }
 
@@ -71,7 +119,7 @@ static void output_stats() {
     struct timeval now;
 
     gettimeofday(&now, NULL);
-    printf("%ld%06ld %llu\n", now.tv_sec, now.tv_usec, get_memory_procfs());
+    printf("%ld%06ld %lld\n", now.tv_sec, now.tv_usec, get_memory_procfs());
     usleep(msleep_time*1000);
 
 }
