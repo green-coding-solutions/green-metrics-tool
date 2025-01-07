@@ -41,10 +41,10 @@ static long long int get_memory_cgroup(char* filename) {
 
     while (fscanf(fd, "%127s %llu", key, &value) == 2) {
         if (strcmp(key, "active_anon") == 0) {
-            anon = value;
+            active_anon = value;
             totals += value;
         } else if (strcmp(key, "active_file") == 0) {
-            file = value;
+            active_file = value;
             totals += value;
         } else if (strcmp(key, "slab_unreclaimable") == 0) {
             slab_unreclaimable = value;
