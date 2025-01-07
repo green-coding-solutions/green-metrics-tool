@@ -40,7 +40,6 @@ static long long int get_memory_procfs() {
 
     long long int active = -1;
     long long int slab_unreclaimable = -1;
-    long long int kernel_stack = -1;
     long long int percpu = -1;
     long long int unevictable = -1;
     long long int totals = 0;
@@ -61,9 +60,6 @@ static long long int get_memory_procfs() {
             totals += value;
         } else if (strcmp(key, "SUnreclaim") == 0) {
             slab_unreclaimable = value;
-            totals += value;
-        } else if (strcmp(key, "KernelStack") == 0) {
-            kernel_stack = value;
             totals += value;
         } else if (strcmp(key, "Percpu") == 0) {
             percpu = value;
@@ -92,10 +88,6 @@ static long long int get_memory_procfs() {
     }
     if (slab_unreclaimable == -1) {
         fprintf(stderr, "Could not match slab_unreclaimable\n");
-        exit(1);
-    }
-    if (kernel_stack == -1) {
-        fprintf(stderr, "Could not match kernel_stack\n");
         exit(1);
     }
     if (percpu == -1) {

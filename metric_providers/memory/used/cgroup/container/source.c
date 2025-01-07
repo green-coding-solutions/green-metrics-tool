@@ -24,15 +24,11 @@ static int user_id = -1;
 static unsigned int msleep_time=1000;
 
 static long long int get_memory_cgroup(char* filename) {
-    long long int file = -1;
-    long long int anon = -1;
-    long long int inactive_file = -1;
-    long long int inactive_anon = -1;
+    long long int active_file = -1;
+    long long int active_anon = -1;
     long long int slab_unreclaimable = -1;
-    long long int kernel_stack = -1;
     long long int percpu = -1;
     long long int unevictable = -1;
-    long long int shmem = -1;
     long long int totals = 0;
     unsigned long long int value = 0;
     char key[128];
@@ -44,17 +40,14 @@ static long long int get_memory_cgroup(char* filename) {
     }
 
     while (fscanf(fd, "%127s %llu", key, &value) == 2) {
-        if (strcmp(key, "anon") == 0) {
+        if (strcmp(key, "active_anon") == 0) {
             anon = value;
             totals += value;
-        } else if (strcmp(key, "file") == 0) {
+        } else if (strcmp(key, "active_file") == 0) {
             file = value;
             totals += value;
         } else if (strcmp(key, "slab_unreclaimable") == 0) {
             slab_unreclaimable = value;
-            totals += value;
-        } else if (strcmp(key, "kernel_stack") == 0) {
-            kernel_stack = value;
             totals += value;
         } else if (strcmp(key, "percpu") == 0) {
             percpu = value;
@@ -62,15 +55,6 @@ static long long int get_memory_cgroup(char* filename) {
         } else if (strcmp(key, "unevictable") == 0) {
             unevictable = value;
             totals += value;
-        }  else if (strcmp(key, "shmem") == 0) {
-            shmem = value;
-            totals -= value;
-        } else if (strcmp(key, "inactive_file") == 0) {
-            inactive_file = value;
-            totals -= value;
-        } else if (strcmp(key, "inactive_anon") == 0) {
-            inactive_anon = value;
-            totals -= value;
         }
 
         if (totals < 0) {
@@ -78,10 +62,6 @@ static long long int get_memory_cgroup(char* filename) {
             exit(1);
         }
 
-        // we subtract shmem, because it is counted often already in active_anon
-        // and furthermore can easily lead to double counting
-        // we further deduct inactive_* as this can be freed to be compatbile with how
-        // we caclulate for the procfs reporter
         // finally we do NOT subtract file_mapped as this actually used memory if not
         // deductible via inactive_file
         // in case file_mapped is a shared file it will also show up in shmem
@@ -90,29 +70,18 @@ static long long int get_memory_cgroup(char* filename) {
 
     fclose(fd);
 
-    if (anon == -1) {
-        fprintf(stderr, "Could not match anon\n");
+    if (active_anon == -1) {
+        fprintf(stderr, "Could not match active_anon\n");
         exit(1);
     }
 
-    if (file == -1) {
-        fprintf(stderr, "Could not match file\n");
+    if (active_file == -1) {
+        fprintf(stderr, "Could not match active_file\n");
         exit(1);
     }
-    if (inactive_file == -1) {
-        fprintf(stderr, "Could not match inactive_file\n");
-        exit(1);
-    }
-    if (inactive_anon == -1) {
-        fprintf(stderr, "Could not match inactive_anon\n");
-        exit(1);
-    }
+
     if (slab_unreclaimable == -1) {
         fprintf(stderr, "Could not match slab_unreclaimable\n");
-        exit(1);
-    }
-    if (kernel_stack == -1) {
-        fprintf(stderr, "Could not match kernel_stack\n");
         exit(1);
     }
     if (percpu == -1) {
@@ -123,10 +92,7 @@ static long long int get_memory_cgroup(char* filename) {
         fprintf(stderr, "Could not match unevictable\n");
         exit(1);
     }
-    if (shmem == -1) {
-        fprintf(stderr, "Could not match shmem\n");
-        exit(1);
-    }
+
 
     return totals;
 }
