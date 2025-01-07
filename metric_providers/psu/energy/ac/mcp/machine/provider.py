@@ -8,16 +8,13 @@ class PsuEnergyAcMcpMachineProvider(BaseMetricProvider):
             metric_name='psu_energy_ac_mcp_machine',
             metrics={'time': int, 'value': int},
             resolution=resolution,
-            unit="mJ",
+            unit="uJ",
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
 
-    def read_metrics(self, run_id, containers=None):
-        df = super().read_metrics(run_id, containers)
-
-        if df.empty:
-            return df
+    def _parse_metrics(self, df):
+        df = super()._parse_metrics(df) # sets detail_name
 
         '''
         Conversion to Joules
@@ -43,7 +40,7 @@ class PsuEnergyAcMcpMachineProvider(BaseMetricProvider):
         df.dropna(inplace=True)
 
         df['interval'] = intervals  # in microseconds
-        df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_000_00, axis=1) # value is in centiwatts, so divide by 1_000_00 instead of 1_000 as we would do for Watts
+        df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_00, axis=1) # value is in centiwatts (0.01 W), so divide by 1_00 to get Watts and multiply with us to get micro-Joules
         df['value'] = df.value.astype(int)
 
         df = df.drop(columns='interval')  # clean up

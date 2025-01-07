@@ -1,4 +1,11 @@
-const getCompareChartOptions = (legend, series, chart_type='line', x_axis='time', y_axis_name, mark_area=null,  graphic=null) => {
+let select_diff_buffer = [];
+
+const addToDiffSelection = (node) => {
+    select_diff_buffer.push(node.getAttribute('data-run-id'));
+    return false;
+}
+
+const getCompareChartOptions = (legend, series, chart_type='line', x_axis='time', y_axis_name, mark_area=null,  graphic=null, comparison_details=null, comparison_identifiers=null) => {
     let tooltip_trigger = (chart_type=='line') ? 'axis' : 'item';
 
     let series_count = series.length;
@@ -10,15 +17,36 @@ const getCompareChartOptions = (legend, series, chart_type='line', x_axis='time'
     max = Math.round(max*1.2)
 
     let options =  {
-        tooltip: {trigger: tooltip_trigger},
-            xAxis: [],
-            yAxis: [],
-            areaStyle: {},
-            grid: [],
-            series: [],
-            animation: false,
-            graphic: graphic,
-            legend: [],
+        tooltip: {
+            triggerOn: 'click',
+            formatter: function (params, ticket, callback) {
+                if(params.componentType != 'series') return; // no overlay for markLine and markArea etc.
+                if (select_diff_buffer.length > 0) {
+                    window.open(`/compare.html?ids=${select_diff_buffer[0]},${comparison_details[params.seriesIndex][params.dataIndex].run_id}`, '_blank');
+                    select_diff_buffer = [] // reset
+                    return false;
+                }
+
+                return `<strong>${comparison_details[params.seriesIndex][params.dataIndex].name}</strong><br>
+                        run_id: <a href="/stats.html?id=${comparison_details[params.seriesIndex][params.dataIndex].run_id}"  target="_blank">${comparison_details[params.seriesIndex][params.dataIndex].run_id}</a><br>
+                        date: ${comparison_details[params.seriesIndex][params.dataIndex].created_at}<br>
+                        value: ${numberFormatter.format(params.value)}<br>
+                        commit_timestamp: ${comparison_details[params.seriesIndex][params.dataIndex].commit_timestamp}<br>
+                        commit_hash: <a href="${comparison_details[params.seriesIndex][params.dataIndex].repo}/commit/${comparison_details[params.seriesIndex][params.dataIndex].commit_hash}" target="_blank">${comparison_details[params.seriesIndex][params.dataIndex].commit_hash}</a><br>
+                        gmt_hash: <a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${comparison_details[params.seriesIndex][params.dataIndex].gmt_hash}" target="_blank">${comparison_details[params.seriesIndex][params.dataIndex].gmt_hash}</a><br>
+                        <br>
+                        👉 <a href="" class="select-diff-run" onClick="return addToDiffSelection(this);" data-run-id="${comparison_details[params.seriesIndex][params.dataIndex].run_id}" target="_blank">Diff with ... (?)</a>
+                        `;
+            },
+        },
+        xAxis: [],
+        yAxis: [],
+        areaStyle: {},
+        grid: [],
+        series: [],
+        animation: false,
+        graphic: graphic,
+        legend: [],
     }
 
     series.forEach((item, index) => {
@@ -58,17 +86,36 @@ const getCompareChartOptions = (legend, series, chart_type='line', x_axis='time'
               type: 'scroll',
             }
         );
+        let mark_point = {
+          data: []
+        };
+
+        let data = [null] // default. Used as indicator for missing data
+
+        if (series[index] == null) { // whole series to compare is missing. Happens if different metrics where captured
+            mark_point.data.push({ name: 'Missing', coord: [0, 0], value: 'Missing Data', label: { show: true } })
+        } else { // single runs have missing metrics. Happens if run ended prematurely in earlier phase or did not run at all
+            data = series[index]
+            for (let i = 0; i < series[index].length; i++) {
+                if (series[index][i] == null) {
+                    mark_point.data.push({ name: 'Missing', coord: [i, 0], value: 'Missing Data', label: { show: true } })
+                }
+            }
+        }
+
+
         options.series.push(
             {
                 type: chart_type,
-                data: series[index],
+                data: data,
                 xAxisIndex: index,
                 yAxisIndex:index,
                 markLine: {
                     precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
                     data: [ {type: "average",label: {formatter: "Mean:\n{c}"}}]
-                }
-            }
+                },
+                markPoint: mark_point,
+            },
         );
         if (mark_area != null) {
             options['series'][index]['markArea'] = {
@@ -428,14 +475,14 @@ const removeKeyMetricsRadarChart = (phase) => {
     document.querySelector(`.ui.tab[data-tab='${phase}'] .radar-chart`).remove()
 }
 
-const displayKeyMetricsBarChart = (legend, labels, data, phase) => {
+const displayKeyMetricsBarChart = (legend, labels, data, phase, unit) => {
 
     let series = data.map((el, idx) => { return {type: "bar", name: legend[idx], data: el}})
     let chartDom = document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .statistics-chart`);
     document.querySelector(`.ui.tab[data-tab='${phase}'] .bar-chart .chart-title`).innerText = TOP_BAR_CHART_TITLE;
 
     let myChart = echarts.init(chartDom);
-    let options = getLineBarChartOptions(null, labels, series, null, TOP_BAR_CHART_UNIT, 'category', null, true);
+    let options = getLineBarChartOptions(null, labels, series, null, unit, 'category', null, true);
     myChart.setOption(options);
 
     // set callback when ever the user changes the viewport
@@ -499,27 +546,35 @@ const displayKeyMetricsEmbodiedCarbonChart = (phase) => {
 
 }
 
-const displayTotalChart = (legend, labels, data) => {
-
-    let chartDom = document.querySelector(`#total-phases-data .bar-chart .statistics-chart`);
+const displayTotalChart = (legend, labels, data, unit) => {
+    const chartDom = document.querySelector(`#total-phases-data .bar-chart .statistics-chart`);
     document.querySelector(`#total-phases-data .bar-chart .chart-title`).innerText = TOTAL_CHART_BOTTOM_TITLE;
 
-    let myChart = echarts.init(chartDom);
+    const myChart = echarts.init(chartDom);
 
-    let series = [];
-    for (const key in data) {
+    const series = [];
+
+    for (let key in data) {
+        const mark_point_data = []
+        for (let i = 0; i < data[key].length; i++) {
+            if (data[key][i] == null) {
+                mark_point_data.push({ name: 'Missing', coord: [i, 0], value: 'Missing Data', label: { show: true } })
+            }
+        }
         series.push({
               name: key,
               type: 'bar',
               emphasis: {
                 focus: 'series'
               },
-              data: data[key]
+              data: data[key],
+              markPoint: {data: mark_point_data}
         })
     }
 
 
-    let options = getLineBarChartOptions(null, labels, series, null, TOTAL_CHART_UNIT, 'category', null, true)
+    const options = getLineBarChartOptions(null, labels, series, null, unit, 'category', null, true)
+
     myChart.setOption(options);
         // set callback when ever the user changes the viewport
     // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks
@@ -531,11 +586,10 @@ const displayTotalChart = (legend, labels, data) => {
 }
 
 
-const displayCompareChart = (phase, title, y_axis_name, legend, data, mark_area, graphic) => {
-
+const displayCompareChart = (phase, title, y_axis_name, legend, data, mark_area=null, graphic=null, comparison_details=null, comparison_identifiers=null) => {
     const element = createChartContainer(`.ui.tab[data-tab='${phase}'] .compare-chart-container`, title);
     const myChart = echarts.init(element);
-    let options = getCompareChartOptions(legend, data, 'bar', 'category', y_axis_name, mark_area);
+    let options = getCompareChartOptions(legend, data, 'bar', 'category', y_axis_name, mark_area, graphic, comparison_details, comparison_identifiers);
     myChart.setOption(options);
     // set callback when ever the user changes the viewport
     // we need to use jQuery here and not Vanilla JS to not overwrite but add multiple resize callbacks
@@ -544,4 +598,3 @@ const displayCompareChart = (phase, title, y_axis_name, legend, data, mark_area,
     });
 
 }
-

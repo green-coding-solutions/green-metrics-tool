@@ -1,7 +1,5 @@
 import os
 import sys
-from io import StringIO
-import pandas
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(CURRENT_DIR) # needed to import model which is in subfolder
@@ -12,13 +10,13 @@ from metric_providers.base import BaseMetricProvider, MetricProviderConfiguratio
 from lib.global_config import GlobalConfig
 
 class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
-    def __init__(self, *, resolution, HW_CPUFreq, CPUChips, CPUThreads, TDP,
-                 HW_MemAmountGB, CPUCores=None, Hardware_Availability_Year=None, VHost_Ratio=1, skip_check=False):
+    def __init__(self, resolution, *, HW_CPUFreq, CPUChips, CPUThreads, TDP,
+                 HW_MemAmountGB, CPUCores=None, Hardware_Availability_Year=None, VHost_Ratio=1, skip_check=False, filename=None):
         super().__init__(
             metric_name="psu_energy_ac_xgboost_machine",
             metrics={"time": int, "value": int},
             resolution=resolution,
-            unit="mJ",
+            unit="uJ",
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
@@ -30,6 +28,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
         self.CPUCores = CPUCores
         self.Hardware_Availability_Year=Hardware_Availability_Year
         self.VHost_Ratio = VHost_Ratio
+        self._filename = filename
 
     # Since no process is ever started we just return None
     def get_stderr(self):
@@ -46,38 +45,29 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
         config = GlobalConfig().config
         if 'cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider' not in config['measurement']['metric-providers']['linux']:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease activate the CpuUtilizationProcfsSystemProvider in the config.yml\n \
-                This is required to run PsuEnergyAcSdiaMachineProvider")
+                This is required to run PsuEnergyAcXgboostMachineProvider")
 
-    def read_metrics(self, run_id, containers=None):
+    def _read_metrics(self):
 
-        filename = None
-        if os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'):
-            filename = '/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'
-        elif os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_mach_system.log'):
-            filename = '/tmp/green-metrics-tool/cpu_utilization_mach_system.log'
-        else:
-            raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log or /tmp/green-metrics-tool/cpu_utilization_mach_system.log file. \
-                Did you activate the CpuUtilizationProcfsSystemProvider or CpuUtilizationMacSystemProvider in the config.yml too? \
-                This is required to run PsuEnergyAcXgboostMachineProvider')
+        if not self._filename:
+            if os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'):
+                self._filename = '/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'
+            elif os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_mach_system.log'):
+                self._filename = '/tmp/green-metrics-tool/cpu_utilization_mach_system.log'
+            else:
+                raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log or /tmp/green-metrics-tool/cpu_utilization_mach_system.log file. \
+                    Did you activate the CpuUtilizationProcfsSystemProvider or CpuUtilizationMacSystemProvider in the config.yml too? \
+                    This is required to run PsuEnergyAcXgboostMachineProvider')
 
-        with open(filename, 'r', encoding='utf-8') as file:
-            csv_data = file.read()
-        # remove the last line from the string, as it may be broken due to the output buffering of the metrics reporter
-        csv_data = csv_data[:csv_data.rfind('\n')]
+        return super()._read_metrics()
 
-        # pylint: disable=invalid-name
-        df = pandas.read_csv(StringIO(csv_data),
-                              sep=' ',
-                              names={'time': int, 'value': int}.keys(),
-                              dtype={'time': int, 'value': int}
-                              )
+    # Cloud-Energy does only use CPU utilization as an input metric and thus cannot actually suffer from an underflow
+    def _check_resolution_underflow(self, df):
+        pass
 
-        if df.empty:
-            return df
+    def _parse_metrics(self, df):
 
-        df['detail_name'] = '[DEFAULT]'  # standard container name when no further granularity was measured
-        df['metric'] = self._metric_name
-        df['run_id'] = run_id
+        df = super()._parse_metrics(df)
 
         Z = df.loc[:, ['value']]
 
@@ -106,14 +96,15 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
         df.value = df.value.apply(lambda x: interpolated_predictions[x / 100])  # will result in W
         df.value = df.value*self.VHost_Ratio  # apply vhost_ratio
 
-        df.value = (df.value * df.time.diff()) / 1_000 # W * us / 1_000 will result in mJ
+        df.value = df.value * df.time.diff() # W * us will result in uJ
 
         # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
         # Since one value is useless for us we drop the row
         df.dropna(inplace=True)
 
-        df['unit'] = self._unit
-
         df.value = df.value.astype(int)
+
+        if df.empty:
+            raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")
 
         return df

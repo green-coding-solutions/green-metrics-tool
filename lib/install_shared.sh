@@ -127,6 +127,9 @@ function prepare_config() {
     if [[ $enterprise == true ]]; then
         eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|true|\" frontend/js/helpers/config.js"
         eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|#EE-ONLY#||\" docker/compose.yml"
+
+        eval "${sed_command} -e \"s|ee_token:.*$|ee_token: ${ee_token}|\" config.yml"
     else
         eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
         eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|false|\" frontend/js/helpers/config.js"

@@ -278,8 +278,9 @@ a,
     overflow: scroll;
 }
 
-#compare-button, #sort-button {
-    float: right;
+#unselect-button {
+    display: none;
+    margin-top: 10px;
 }
 
 .wide.card {
@@ -294,6 +295,11 @@ a,
     white-space: nowrap;
 }
 
+/* Since we have a without href we need to force pointer */
+a {
+    cursor: pointer;
+}
+
 .close.icon {
     cursor: pointer;
     position: absolute;
@@ -304,6 +310,10 @@ a,
     transition: opacity .1s ease;
 }
 
+.bold {
+    font-weight: bold;
+}
+
 
 /* PRINT STYLESHEETS */
 @media print {
@@ -311,3 +321,7 @@ a,
     page-break-before: always;
   }
 }
+
+
+/* Allow clickable boxes for chart overlays */
+.statistics-chart div { pointer-events: all !important }

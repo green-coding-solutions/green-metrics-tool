@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 import platform
 import subprocess
 from packaging.version import parse
+import pandas
 
-from lib.db import DB
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -65,15 +65,15 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
                 '--env', f"NO_PROXY={no_proxy_list}",
                 '--env', f"no_proxy={no_proxy_list}"]
 
-
-    def read_metrics(self, run_id, containers=None):
-        records_added = 0
+    def _read_metrics(self):
         with open(self._filename, 'r', encoding='utf-8') as file:
-            lines = file.readlines()
+            return file.readlines()
 
+    def _parse_metrics(self, df):
         pattern = re.compile(r"CONNECT\s+([A-Za-z]{3} \d{2} \d{2}:\d{2}:\d{2}(?:\.\d{3})?) \[\d+\]: Request \(file descriptor \d+\): (.+) (.+)")
 
-        for line in lines:
+        parsed_lines = []
+        for line in df:
             match = pattern.search(line)
             if match:
                 date_str, connection_type, protocol = match.groups()
@@ -84,14 +84,21 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
                     date = datetime.strptime(f"{datetime.now().year} {date_str}", '%Y %b %d %H:%M:%S')
 
                 time =  int(date.replace(tzinfo=timezone.utc).timestamp() * 1000)
+                parsed_lines.append([time, connection_type, protocol])
 
-                query = '''
-                    INSERT INTO network_intercepts (run_id, time, connection_type, protocol)
-                    VALUES (%s, %s, %s, %s)
-                    RETURNING id
-                    '''
-                params = (run_id, time, connection_type, protocol)
-                DB().fetch_one(query, params=params)
-                records_added += 1
+        return pandas.DataFrame.from_records(parsed_lines, columns=['time', 'connection_type', 'protocol']) # may be empty as no network traffic can happen
 
-        return records_added
+    def _check_empty(self, df):
+        pass # noop. Just for overwriting. Empty data is ok for this reporter
+
+    def _check_monotonic(self, df):
+        pass  # noop. Just for overwriting
+
+    def _add_unit_and_metric(self, df):
+        return df # noop. Just for overwriting
+
+    def _check_resolution_underflow(self, df):
+        pass  # noop. Just for overwriting
+
+    def _add_and_validate_resolution_and_jitter(self, df):
+        return df # noop. Just for overwriting

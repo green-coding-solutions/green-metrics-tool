@@ -14,11 +14,8 @@ class DiskIoCgroupContainerProvider(BaseMetricProvider):
             skip_check=skip_check,
         )
 
-    def read_metrics(self, run_id, containers=None):
-        df = super().read_metrics(run_id, containers)
-
-        if df.empty:
-            return df
+    def _parse_metrics(self, df):
+        df = super()._parse_metrics(df) # sets detail_name
 
         df = df.sort_values(by=['container_id', 'time'], ascending=True)
 
@@ -41,10 +38,5 @@ class DiskIoCgroupContainerProvider(BaseMetricProvider):
         df['value'] = df['read_bytes_intervals'] + df['written_bytes_intervals']
         df['value'] = df.value.astype(int)
         df = df.drop(columns=['read_bytes','written_bytes', 'written_bytes_intervals', 'read_bytes_intervals'])  # clean up
-
-        df['detail_name'] = df.container_id
-        for container_id in containers:
-            df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]['name']
-        df = df.drop('container_id', axis=1)
 
         return df

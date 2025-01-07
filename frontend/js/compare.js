@@ -1,21 +1,10 @@
-const getURLParams = () => {
-    const query_string = window.location.search;
-    const url_params = (new URLSearchParams(query_string))
-    return url_params;
-}
-
 async function fetchDiff() {
     document.querySelector('#diff-question').remove();
     document.querySelector('#loader-diff').style.display = '';
-
-    const url_params = getURLParams();
     document.querySelector('#diff-container').insertAdjacentHTML('beforebegin', '<h2>Configuration and Settings diff</h2>')
     try {
-        let api_url = '/v1/diff?ids=';
-        params.forEach( id => {
-            api_url = `${api_url}${id}`
-        });
-        const diffString = (await makeAPICall(api_url)).data
+        const url_params = getURLParams();
+        const diffString = (await makeAPICall(`/v1/diff?ids=${url_params['ids']}`)).data
         const targetElement = document.getElementById('diff-container');
         const configuration = { drawFileList: true, matching: 'lines', highlight: true };
 
@@ -33,32 +22,28 @@ $(document).ready( (e) => {
     (async () => {
         const url_params = getURLParams();
 
-        if(url_params.get('ids') == null
-            || url_params.get('ids') == ''
-            || url_params.get('ids') == 'null') {
+        if(url_params['ids'] == null
+            || url_params['ids'] == ''
+            || url_params['ids'] == 'null') {
             showNotification('No ids', 'ids parameter in URL is empty or not present. Did you follow a correct URL?');
             throw "Error";
         }
 
-        params = url_params.getAll('ids');
-        const run_count = params[0].split(",").length
+
+        const run_count = url_params['ids'].split(",").length
+        let phase_stats_data = null
         try {
-            let api_url = '/v1/compare?ids=';
-            params.forEach( id => {
-                api_url = `${api_url}${id}`
-            });
-            var phase_stats_data = (await makeAPICall(api_url)).data
+            phase_stats_data = (await makeAPICall(`/v1/compare?ids=${url_params['ids']}`)).data
         } catch (err) {
             showNotification('Could not get compare in-repo data from API', err);
+            return
         }
 
-        if (phase_stats_data == undefined) return;
-
-        let comparison_details = phase_stats_data.comparison_details.map((el) => replaceRepoIcon(el));
-        comparison_details = comparison_details.join(' vs. ')
+        let comparison_identifiers = phase_stats_data.comparison_identifiers.map((el) => replaceRepoIcon(el));
+        comparison_identifiers = comparison_identifiers.join(' vs. ')
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${phase_stats_data.comparison_case}</td></tr>`)
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Number of runs compared</strong></td><td>${run_count}</td></tr>`)
-        document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${comparison_details}</td></tr>`)
+        document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${comparison_identifiers}</td></tr>`)
         Object.keys(phase_stats_data['common_info']).forEach(function(key) {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${key}</strong></td><td>${phase_stats_data['common_info'][key]}</td></tr>`)
           });
@@ -70,7 +55,14 @@ $(document).ready( (e) => {
 
         document.querySelector('#fetch-diff').addEventListener('click', fetchDiff);
 
-        displayComparisonMetrics(phase_stats_data)
+        buildPhaseTabs(phase_stats_data)
+        renderCompareChartsForPhase(phase_stats_data, getAndShowPhase(), run_count);
+        displayTotalChart(...buildTotalChartData(phase_stats_data));
+
+        document.querySelectorAll('.ui.steps.phases .step, .runtime-step').forEach(node => node.addEventListener('click', el => {
+            const phase = el.currentTarget.getAttribute('data-tab');
+            renderCompareChartsForPhase(phase_stats_data, phase, run_count);
+        }));
 
     })();
 });

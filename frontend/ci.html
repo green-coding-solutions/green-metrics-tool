@@ -32,20 +32,50 @@
 <body class="preload">
     <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
-        <h1 class="ui header float left"><a href="#" id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> CI Run Info</h1>
+        <h1 class="ui header float left"><a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a> CI Run Info</h1>
         <div class="ui full-width-card card">
             <div class="content">
-                <div class="header"><a class="ui red ribbon label" href="#">
+                <div class="header"><a class="ui red ribbon label">
                     <h3>General Info</h3>
                 </a></div>
                 <div class="description">
                     <div class="ui segment">
                         <table class="table-hover" id="ci-data">
+                            <tr><td><strong>Repository:</strong></td><td id="ci-data-repo"></td></tr>
+                            <tr><td><strong>Workflow:</strong></td><td id="ci-data-workflow"></td></tr>
+                            <tr><td><strong>Workflow ID:</strong></td><td id="ci-data-workflow-id"></td></tr>
+                            <tr><td><strong>Branch:</strong></td><td id="ci-data-branch"></td></tr>
                             <tr>
                                 <td><strong>Last Run Badge:</strong></td>
                                 <td>
-                                    <span class="energy-badge-container" data-metric="ml-estimated"></span>
+                                    <span id="energy-badge-container-last" class="badge-container"></span>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
+                                </td>
+                                <td>
+                                    <span id="carbon-badge-container-last" class="badge-container"></span>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Totals Badge:</strong></td>
+                                <td>
+                                    <span id="energy-badge-container-totals" class="badge-container"></span>
                                     <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                                </td>
+                                <td>
+                                    <span id="carbon-badge-container-totals" class="badge-container"></span>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td data-position="bottom left" data-inverted="" data-tooltip="Modify the badge source code to show alternative durations like 60 days, 365 days etc."><strong>Monthly Badge <i class="question circle icon"></i>: </strong></td>
+                                <td>
+                                    <span id="energy-badge-container-totals-monthly" class="badge-container"></span>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
+                                </td>
+                                <td>
+                                    <span id="carbon-badge-container-totals-monthly" class="badge-container"></span>
+                                    <a class="copy-badge"><i class="copy icon"></i></a>
                                 </td>
                             </tr>
                         </table>
@@ -93,7 +123,7 @@
 
         </div>
         <div class = "ui segment" id="stats-container">
-            <div class="header"><a class="ui teal ribbon label" href="#">
+            <div class="header"><a class="ui teal ribbon label">
                     <h3>Pipeline stats</h3>
                 </a></div>
                 <br/>
@@ -132,8 +162,34 @@
                 </table>
             </div>
         </div>
-        <div class="ui segment" id="runs-table">
-            <div class="header"><a class="ui teal ribbon label" href="#">
+
+       <div id="loader-question" class="ui icon info message blue">
+            <i class="info circle icon"></i>
+
+            <div class="content">
+                <div class="header">
+                    Runs detail table is not displayed automatically
+                </div>
+                <p>Please click the button below to fetch data.</p>
+                <p>You can change the default behaviour under <a href="/settings.html" style="text-decoration: underline; font-weight: bold;">Settings</a></p>
+                <button id="display-run-details-table" class="blue ui button">Display runs table</button>
+            </div>
+            <ul></ul>
+        </div>
+
+        <div class="ui one cards" id="api-loader" style="display:none;">
+            <div class="card" style="min-height: 300px">
+                <div class="ui active dimmer">
+                    <div class="ui indeterminate text loader">Building table ...</div>
+                </div>
+                <p></p>
+            </div>
+        </div>
+        <div id="chart-container"></div>
+
+
+        <div class="ui segment" id="run-details-table" style="display: none">
+            <div class="header"><a class="ui teal ribbon label">
                     <h3 data-tooltip="The runs table shows all measurements your pipeline has made in the selected timeframe" data-position="top left">Runs Table <i class="question circle icon "></i> </h3>
                 </a></div>
             <table class="ui sortable celled striped table">

@@ -4,6 +4,7 @@ import platform
 import subprocess
 from io import StringIO
 import pandas
+from typing import final
 
 from lib.system_checks import ConfigurationCheckError
 from lib import process_helpers
@@ -97,18 +98,16 @@ class BaseMetricProvider:
     def has_started(self):
         return self._has_started
 
-    def check_monotonic(self, df):
+    def _check_monotonic(self, df):
         if not df['time'].is_monotonic_increasing:
             raise ValueError(f"Time from metric provider {self._metric_name} is not monotonic increasing")
 
-    def check_resolution_underflow(self, df):
+    def _check_resolution_underflow(self, df):
         if self._unit in ['mJ', 'uJ', 'Hz', 'us']:
             if (df['value'] <= 1).any():
                 raise ValueError(f"Data from metric provider {self._metric_name} is running into a resolution underflow. Values are <= 1 {self._unit}")
 
-
-
-    def read_metrics(self, run_id, containers=None): #pylint: disable=unused-argument
+    def _read_metrics(self):  # can be overriden in child
         with open(self._filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
 
@@ -125,13 +124,54 @@ class BaseMetricProvider:
         if df.isna().any().any():
             raise ValueError(f"Dataframe for {self._metric_name} contained NA values.")
 
+        return df
+
+    def _check_empty(self, df):
+        if df.empty:
+            raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")
+
+
+    def _parse_metrics(self, df): # can be overriden in child
         df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]" # default, can be overridden in child
+        return df
+
+    def _add_and_validate_resolution_and_jitter(self, df):
+        # DF can have many columns still. Since all of them might have induced a separate timing row
+        # we group by everything apart from time and value itself
+        # for most metric providers only detail_name and container_id should be present and differ though
+        excluded_columns = ['time', 'value']
+        grouping_columms = [col for col in df.columns if col not in excluded_columns]
+        df['sampling_rate'] = df.groupby(grouping_columms)['time'].diff()
+        df['sampling_rate_95p'] = df.groupby(grouping_columms)['sampling_rate'].transform(lambda x: x.quantile(0.95))
+        df = df.drop('sampling_rate', axis=1)
+
+        if (sampling_rate_95p := df['sampling_rate_95p'].max()) >= self._resolution*1000*1.2:
+            raise RuntimeError(f"Effective sampling rate (95p) was absurdly high: {sampling_rate_95p} compared to target rate of {self._resolution*1000}", df)
+
+        if (sampling_rate_95p := df['sampling_rate_95p'].min()) <= self._resolution*1000*0.8:
+            raise RuntimeError(f"Effective sampling rate (95p) was absurdly low: {sampling_rate_95p} compared to target rate of {self._resolution*1000}", df)
+
+        return df
+
+    def _add_unit_and_metric(self, df): # can be overriden in child
         df['unit'] = self._unit
         df['metric'] = self._metric_name
-        df['run_id'] = run_id
+        return df
 
-        self.check_monotonic(df)
-        self.check_resolution_underflow(df)
+    @final
+    def read_metrics(self): # should not be overriden
+
+        df = self._read_metrics() # is not always returning a data frame, but can in rare cases also return a list if no actual numeric measurements are captured
+
+        self._check_empty(df)
+
+        self._check_monotonic(df) # check must be made before data frame is potentially sorted in _parse_metrics
+        self._check_resolution_underflow(df)
+
+        df = self._parse_metrics(df)
+        df = self._add_unit_and_metric(df)
+
+        df = self._add_and_validate_resolution_and_jitter(df)
 
         return df
 

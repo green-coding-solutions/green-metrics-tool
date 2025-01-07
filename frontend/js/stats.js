@@ -72,8 +72,18 @@ class CO2Tangible extends HTMLElement {
 
 customElements.define('co2-tangible', CO2Tangible);
 
-const fillRunData = (run_data, key = null) => {
+const fetchAndFillRunData = async (url_params) => {
 
+    let run = null;
+
+    try {
+        run = await makeAPICall('/v1/run/' + url_params['id'])
+    } catch (err) {
+        showNotification('Could not get run data from API', err);
+        return
+    }
+
+    const run_data = run.data
 
     for (const item in run_data) {
         if (item == 'machine_specs') {
@@ -132,8 +142,8 @@ const buildCommitLink = (run_data) => {
     return commit_link;
 }
 
-const fillRunTab = (selector, data, parent = '') => {
-    for (item in data) {
+const fillRunTab = async (selector, data, parent = '') => {
+    for (const item in data) {
         if(typeof data[item] == 'object')
             fillRunTab(selector, data[item], `${item}.`)
         else
@@ -143,13 +153,11 @@ const fillRunTab = (selector, data, parent = '') => {
 }
 
 
-const getTimelineMetrics = (measurements_data, start_measurement, end_measurement) => {
+const buildTimelineChartData = async (measurements_data) => {
     const metrics = {}
     const t0 = performance.now();
 
-    let display_in_watts = localStorage.getItem('display_in_watts');
-    if(display_in_watts == 'true') display_in_watts = true;
-    else display_in_watts = false;
+    const transform_timelines_energy_to_power = localStorage.getItem('transform_timelines_energy_to_power') == 'true' ? true : false;
 
     try {
          // define here as var (not let!), so we can alert it later in error case.
@@ -184,16 +192,16 @@ const getTimelineMetrics = (measurements_data, start_measurement, end_measuremen
                 }
             }
 
-            if(display_in_watts && metrics[metric_name].unit == 'J') {
+            if(transform_timelines_energy_to_power && metrics[metric_name].unit == 'J') {
                 value = value/(time_after-time_before); // convert Joules to Watts by dividing through the time difference of two measurements
                 metrics[metric_name].converted_unit = 'W';
-            } else if(!display_in_watts && metrics[metric_name].unit == 'W') {
-                value = value*(time_after-time_before); // convert Joules to Watts by dividing through the time difference of two measurements
+            } else if(!transform_timelines_energy_to_power && metrics[metric_name].unit == 'W') {
+                value = value*(time_after-time_before); // convert Watts to Joules by multiplying with the time difference of two measurements
                 metrics[metric_name].converted_unit = 'J';
             }
             time_before = time_after;
 
-            if(metric_changed && display_in_watts) return; // if watts display then the first graph value will be zero. We skip that.
+            if(metric_changed && transform_timelines_energy_to_power) return; // if watts display then the first graph value will be zero. We skip that.
 
             // Depending on the charting library the object has to be reformatted
             // First we check if structure is initialized
@@ -210,11 +218,11 @@ const getTimelineMetrics = (measurements_data, start_measurement, end_measuremen
     }
 
     const t1 = performance.now();
-    console.log(`getTimelineMetrics Took ${t1 - t0} milliseconds.`);
+    console.log(`buildTimelineMetrics Took ${t1 - t0} milliseconds.`);
     return metrics;
 }
 
-const displayTimelineCharts = (metrics, notes) => {
+const displayTimelineCharts = async (metrics, notes) => {
 
     const note_positions = [
         'insideStartTop',
@@ -223,9 +231,8 @@ const displayTimelineCharts = (metrics, notes) => {
     const chart_instances = [];
     const t0 = performance.now();
 
-    let time_series_avg = localStorage.getItem('time_series_avg');
     let markline = {};
-    if(time_series_avg == 'true') {
+    if(localStorage.getItem('time_series_avg') == 'true') {
         markline = {
                     precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
                     data: [ {type: "average",label: {formatter: "AVG\n(selection):\n{c}"}}]
@@ -280,7 +287,7 @@ const displayTimelineCharts = (metrics, notes) => {
     }
 
     const t1 = performance.now();
-    console.log(`DisplayTimelineCharts took ${t1 - t0} milliseconds.`);
+    console.log(`buildTimelineCharts took ${t1 - t0} milliseconds.`);
 
     window.onresize = function() { // set callback when ever the user changes the viewport
         chart_instances.forEach(chart_instance => {
@@ -289,52 +296,20 @@ const displayTimelineCharts = (metrics, notes) => {
     }
 
     document.querySelector('#api-loader').remove();
+
+    // after all charts instances have been placed
+    // the flexboxes might have rearranged. We need to trigger resize
+    setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);
+
 }
 
-
-
-async function makeBaseAPICalls(url_params) {
-
-    let run_data = null;
-    let phase_stats_data = null;
-    let network_data = null;
-    let optimizations_data = null;
-
-    try {
-        run_data = await makeAPICall('/v1/run/' + url_params.get('id'))
-    } catch (err) {
-        showNotification('Could not get run data from API', err);
-    }
-
-    try {
-        phase_stats_data = await makeAPICall('/v1/phase_stats/single/' + url_params.get('id'))
-    } catch (err) {
-        showNotification('Could not get phase_stats data from API', err);
-    }
-
-    try {
-        network_data = await makeAPICall('/v1/network/' + url_params.get('id'))
-    } catch (err) {
-        showNotification('Could not get network intercepts data from API', err);
-    }
-    try {
-        optimizations_data = await makeAPICall('/v1/optimizations/' + url_params.get('id'))
-    } catch (err) {
-        showNotification('Could not get optimizations data from API', err);
-    }
-
-
-
-    return [run_data?.data, phase_stats_data?.data, network_data?.data, optimizations_data?.data];
-}
-
-const renderBadges = (url_params) => {
+const renderBadges = async (url_params) => {
 
     document.querySelectorAll("#badges span.energy-badge-container").forEach(el => {
         const link_node = document.createElement("a")
         const img_node = document.createElement("img")
-        link_node.href = `${METRICS_URL}/stats.html?id=${url_params.get('id')}`
-        img_node.src = `${API_URL}/v1/badge/single/${url_params.get('id')}?metric=${el.attributes['data-metric'].value}`
+        link_node.href = `${METRICS_URL}/stats.html?id=${url_params['id']}`
+        img_node.src = `${API_URL}/v1/badge/single/${url_params['id']}?metric=${el.attributes['data-metric'].value}`
         link_node.appendChild(img_node)
         el.appendChild(link_node)
     })
@@ -343,19 +318,56 @@ const renderBadges = (url_params) => {
     })
 }
 
-const displayNetworkIntercepts = (network_data) => {
-    if (network_data.length === 0) {
+const fetchAndFillPhaseStatsData = async (url_params) => {
+
+    let phase_stats = null;
+    try {
+        phase_stats = await makeAPICall('/v1/phase_stats/single/' + url_params['id'])
+    } catch (err) {
+        showNotification('Could not get phase_stats data from API', err);
+        return
+    }
+
+
+    buildPhaseTabs(phase_stats.data)
+    renderCompareChartsForPhase(phase_stats.data, getAndShowPhase());
+    displayTotalChart(...buildTotalChartData(phase_stats.data));
+
+    document.querySelectorAll('.ui.steps.phases .step, .runtime-step').forEach(node => node.addEventListener('click', el => {
+        const phase = el.currentTarget.getAttribute('data-tab');
+        renderCompareChartsForPhase(phase_stats.data, phase);
+    }));
+
+}
+
+const fetchAndFillNetworkIntercepts = async (url_params) => {
+    let network = null;
+    try {
+        network = await makeAPICall('/v1/network/' + url_params['id'])
+    } catch (err) {
+        showNotification('Could not get network intercepts data from API', err);
+        return
+    }
+
+    if (network.data.length === 0) {
         document.querySelector("#network-divider").insertAdjacentHTML('afterEnd', '<p>No external network connections were detected.</p>')
     } else {
-        for (const item of network_data) {
-            date = new Date(Number(item[2]));
-            date = date.toLocaleString();
+        for (const item of network.data) {
+            const date = (new Date(Number(item[2]))).toLocaleString();
             document.querySelector("#network-intercepts").insertAdjacentHTML('beforeend', `<tr><td><strong>${date}</strong></td><td>${item[3]}</td><td>${item[4]}</td></tr>`)
         }
     }
 }
 
-const displayOptimizationsData = (optimizations_data) => {
+const fetchAndFillOptimizationsData = async (url_params) => {
+
+    let optimizations = null;
+    try {
+        optimizations = await makeAPICall('/v1/optimizations/' + url_params['id'])
+    } catch (err) {
+        showNotification('Could not get optimizations data from API', err);
+        return
+    }
 
     const optimizationTemplate = `
             <div class="content">
@@ -377,7 +389,7 @@ const displayOptimizationsData = (optimizations_data) => {
     `;
     const container = document.getElementById("optimizationsContainer");
 
-    optimizations_data.forEach(optimization => {
+    optimizations.data.forEach(optimization => {
         let optimizationHTML = optimizationTemplate
             .replace("{{header}}", optimization[0])
             .replace("{{label}}", optimization[1])
@@ -402,54 +414,31 @@ const displayOptimizationsData = (optimizations_data) => {
 
     });
 
-    $('#optimization_count').html(optimizations_data.length)
+    $('#optimization_count').html(optimizations.data.length)
 }
 
-
-const getURLParams = () => {
-    const query_string = window.location.search;
-    const url_params = (new URLSearchParams(query_string))
-
-    if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
-        showNotification('No run id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
-        throw "Error";
-    }
-    return url_params;
-}
-
-async function getTimeSeries() {
+const fetchTimelineData = async (url_params) => {
     document.querySelector('#api-loader').style.display = '';
-
     document.querySelector('#loader-question').remove();
 
-    let measurement_data = null;
-    let note_data = null;
-    let url_params = getURLParams();
-    if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
-        showNotification('No run id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
-        return;
-    }
-
+    let measurements = null;
     try {
-        measurement_data = await makeAPICall('/v1/measurements/single/' + url_params.get('id'))
+        measurements = await makeAPICall('/v1/measurements/single/' + url_params['id'])
     } catch (err) {
         showNotification('Could not get stats data from API', err);
     }
+    return measurements?.data;
 
-    measurement_data = measurement_data?.data;
+}
 
-     if (measurement_data == null) return;
-    const metrics = getTimelineMetrics(measurement_data);
-
+const fetchTimelineNotes = async (url_params) => {
+    let notes = null;
     try {
-        note_data = await makeAPICall('/v1/notes/' + url_params.get('id'))
+        notes = await makeAPICall('/v1/notes/' + url_params['id'])
     } catch (err) {
         showNotification('Could not get notes data from API', err);
     }
-
-    note_data = note_data?.data;
-
-    displayTimelineCharts(metrics, note_data);
+    return notes?.data;
 }
 
 
@@ -457,33 +446,37 @@ async function getTimeSeries() {
 $(document).ready( (e) => {
     (async () => {
 
-        document.querySelector('#fetch-time-series').addEventListener('click', getTimeSeries);
-
         let url_params = getURLParams();
-        if(url_params.get('id') == null || url_params.get('id') == '' || url_params.get('id') == 'null') {
+
+        if(url_params['id'] == null || url_params['id'] == '' || url_params['id'] == 'null') {
             showNotification('No run id', 'ID parameter in URL is empty or not present. Did you follow a correct URL?');
             return;
         }
 
-        let [run_data, phase_stats_data, network_data, optimizations_data] = await makeBaseAPICalls(url_params);
-
-        if (run_data == null) return; // no need to process any further if even core data not available
-
         renderBadges(url_params);
+        fetchAndFillRunData(url_params);
+        fetchAndFillNetworkIntercepts(url_params);
+        fetchAndFillOptimizationsData(url_params);
+        fetchAndFillPhaseStatsData(url_params);
 
-        fillRunData(run_data);
 
-        if (network_data != null) displayNetworkIntercepts(network_data);
-
-        if (optimizations_data != null) displayOptimizationsData(optimizations_data);
-
-        if(phase_stats_data != null) displayComparisonMetrics(phase_stats_data)
-
-        if (localStorage.getItem('fetch_time_series') === 'true') getTimeSeries(url_params);
-
-        // after all charts instances have been placed
-        // the flexboxes might have rearranged. We need to trigger resize
-        setTimeout(function(){console.log("Resize"); window.dispatchEvent(new Event('resize'))}, 500);
+        if (localStorage.getItem('fetch_time_series') === 'true') {
+            const [timeline_data, timeline_notes] = await Promise.all([
+                fetchTimelineData(url_params),
+                fetchTimelineNotes(url_params)
+            ]);
+            const timeline_chart_data = await buildTimelineChartData(timeline_data);
+            displayTimelineCharts(timeline_chart_data, timeline_notes);
+        } else {
+            document.querySelector('#fetch-time-series').addEventListener('click', async () => {
+                const [timeline_data, timeline_notes] = await Promise.all([
+                    fetchTimelineData(url_params),
+                    fetchTimelineNotes(url_params)
+                ]);
+                const timeline_chart_data = await buildTimelineChartData(timeline_data);
+                displayTimelineCharts(timeline_chart_data, timeline_notes);
+            });
+        }
     })();
 });
 

@@ -24,29 +24,28 @@ class CI_Measurement(BaseModel):
     duration: int
 
 
-def test_rescale_energy_value():
-    assert api_helpers.rescale_energy_value(100, 'uJ') == [100, 'uJ']
+def test_rescale_metric_value():
+    assert api_helpers.rescale_metric_value(100, 'uJ') == [100, 'uJ']
 
-    assert api_helpers.rescale_energy_value(10000, 'uJ') == [10, 'mJ']
+    assert api_helpers.rescale_metric_value(10000, 'uJ') == [10, 'mJ']
 
-    assert api_helpers.rescale_energy_value(10000, 'mJ') == [10, 'J']
+    assert api_helpers.rescale_metric_value(324_000_000_000, 'uJ') == [324, 'kJ']
 
-    assert api_helpers.rescale_energy_value(324_000_000_000, 'uJ') == [324, 'kJ']
+    assert api_helpers.rescale_metric_value(324_000_000_000, 'ugCO2e/Page Request') == [324, 'kgCO2e/Page Request']
 
-    assert api_helpers.rescale_energy_value(324_000_000_000, 'ugCO2e/Page Request') == [324, 'kgCO2e/Page Request']
+    assert api_helpers.rescale_metric_value(222_000_000_000_000, 'ugCO2e/Kill') == [222, 'MgCO2e/Kill']
 
-    assert api_helpers.rescale_energy_value(222_000_000_000_000, 'ugCO2e/Kill') == [222, 'MgCO2e/Kill']
-
-    assert api_helpers.rescale_energy_value(0.0003, 'ugCO2e/Kill') == [0.3, 'ngCO2e/Kill']
+    assert api_helpers.rescale_metric_value(0.0003, 'ugCO2e/Kill') == [0.3, 'ngCO2e/Kill']
 
 
     with pytest.raises(ValueError):
-        api_helpers.rescale_energy_value(100, 'xJ') # expecting only mJ and uJ
+        api_helpers.rescale_metric_value(100, 'xJ')
 
     with pytest.raises(ValueError):
-        api_helpers.rescale_energy_value(100, 'uj') # expecting only mJ and uJ
+        api_helpers.rescale_metric_value(100, 'uj')
 
-
+    with pytest.raises(ValueError):
+        assert api_helpers.rescale_metric_value(10000, 'mJ') == [10, 'J']
 
 def test_escape_dict():
     messy_dict = {"link": '<a href="http://www.github.com">Click me</a>'}

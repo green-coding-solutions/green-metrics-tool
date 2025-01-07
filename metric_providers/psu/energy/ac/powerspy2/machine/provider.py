@@ -7,12 +7,12 @@ class PsuEnergyAcPowerspy2MachineProvider(BaseMetricProvider):
             metric_name="psu_energy_ac_powerspy2_machine",
             metrics={"time": int, "value": int},
             resolution=resolution,
-            unit="mJ",
+            unit="uJ",
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable="metric-provider.py",
             skip_check=skip_check,
         )
-        self._extra_switches = ['-u','mJ']
+        self._extra_switches = ['-u','uJ']
 
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
         super().check_system(check_command=None)

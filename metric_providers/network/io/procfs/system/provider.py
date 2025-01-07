@@ -15,11 +15,8 @@ class NetworkIoProcfsSystemProvider(BaseMetricProvider):
         )
         self._remove_virtual_interfaces = remove_virtual_interfaces
 
-    def read_metrics(self, run_id, containers=None):
-        df = super().read_metrics(run_id, containers)
-
-        if df.empty:
-            return df
+    def _parse_metrics(self, df):
+        df['detail_name'] = df['interface']
 
         if self._remove_virtual_interfaces:
             non_virtual_interfaces = utils.get_network_interfaces(mode='physical')
@@ -46,8 +43,6 @@ class NetworkIoProcfsSystemProvider(BaseMetricProvider):
 
         df['value'] = df['received_bytes_intervals'] + df['transmitted_bytes_intervals']
         df['value'] = df.value.astype(int)
-
-        df['detail_name'] = df['interface']
 
         df = df.drop(columns=['received_bytes','transmitted_bytes', 'transmitted_bytes_intervals', 'received_bytes_intervals', 'interface'])  # clean up
 

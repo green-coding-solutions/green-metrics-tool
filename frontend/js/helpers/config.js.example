@@ -14,28 +14,18 @@ ACTIVATE_POWER_HOG = __ACTIVATE_POWER_HOG__;
 METRIC_MAPPINGS = {
 
 
-    'memory_used_cgroup_system': {
-        'clean_name': 'Memory Used',
-        'source': 'cgroup',
-        'explanation': 'Memory used in system cgroup',
-    },
 
-    'disk_total_cgroup_system': {
-        'clean_name': 'Disk Data',
-        'source': 'cgroup',
-        'explanation': 'Disk I/O totals accumulated via system cgroup',
-    },
 
-    'disk_io_cgroup_system': {
-        'clean_name': 'Disk I/O',
-        'source': 'cgroup',
-        'explanation': 'Disk I/O per system cgroup',
-    },
 
-    'cpu_utilization_cgroup_system': {
-        'clean_name': 'CPU %',
-        'source': 'cgroup',
-        'explanation': 'CPU Utilization per system cgroup',
+    'disk_total_bytesread_powermetrics_vm': {
+        'clean_name': 'Disk Total (Read)',
+        'source': 'powermetrics',
+        'explanation': 'Disk Total bytes read',
+    },
+    'disk_total_byteswritten_powermetrics_vm': {
+        'clean_name': 'Disk Total (Write)',
+        'source': 'powermetrics',
+        'explanation': 'Disk total bytes written',
     },
 
     'disk_used_statvfs_system': {
@@ -47,25 +37,36 @@ METRIC_MAPPINGS = {
     'disk_io_procfs_system': {
         'clean_name': 'Disk I/O',
         'source': 'procfs',
-        'explanation': 'Disk I/O via procfs',
+        'explanation': 'Disk I/O for whole system via procfs',
     },
 
     'disk_io_cgroup_container': {
         'clean_name': 'Disk I/O',
         'source': 'cgroup',
-        'explanation': 'Disk I/O per container',
+        'explanation': 'Disk I/O per container via cgroup',
     },
 
+    'disk_io_cgroup_system': {
+        'clean_name': 'Disk I/O',
+        'source': 'cgroup',
+        'explanation': 'Disk I/O for system cgroup',
+    },
+
+    'disk_total_cgroup_system': {
+        'clean_name': 'Disk I/O',
+        'source': 'cgroup',
+        'explanation': 'Disk I/O Totals accumulated for system cgroup',
+    },
     'disk_total_cgroup_container': {
         'clean_name': 'Disk Data',
         'source': 'formula',
-        'explanation': 'Disk I/O totals accumulated via cgroup per container',
+        'explanation': 'Disk I/O Totals accumulated per container via cgroup',
     },
 
     'disk_total_procfs_system': {
         'clean_name': 'Disk Data',
         'source': 'formula',
-        'explanation': 'Disk I/O Total accumulated via procfs',
+        'explanation': 'Disk I/O Totals for whole system accumulated via procfs',
     },
 
     'psu_energy_cgroup_container': {
@@ -272,14 +273,14 @@ METRIC_MAPPINGS = {
         'explanation': 'Effective execution time of the CPU for all cores combined',
     },
     'disk_io_bytesread_powermetrics_vm': {
-        'clean_name': 'Bytes read (HDD/SDD)',
+        'clean_name': 'Disk I/O (Read)',
         'source': 'powermetrics',
-        'explanation': 'Effective execution time of the CPU for all cores combined',
+        'explanation': 'Disk I/O - Bytes read per second for SDD/HDD',
     },
     'disk_io_byteswritten_powermetrics_vm': {
-        'clean_name': 'Bytes written (HDD/SDD)',
+        'clean_name': 'Disk I/O (Write)',
         'source': 'powermetrics',
-        'explanation': 'Effective execution time of the CPU for all cores combined',
+        'explanation': 'Disk I/O - Bytes written per second for SDD/HDD',
     },
     'energy_impact_powermetrics_vm': {
         'clean_name': 'Energy impact',
@@ -289,12 +290,23 @@ METRIC_MAPPINGS = {
     'cpu_utilization_cgroup_container': {
         'clean_name': 'CPU %',
         'source': 'cgroup',
-        'explanation': 'CPU Utilization per container',
+        'explanation': 'CPU Utilization per container via cgroup',
+    },
+    'cpu_utilization_cgroup_system': {
+        'clean_name': 'CPU %',
+        'source': 'procfs',
+        'explanation': 'CPU Utilization for whole system via procfs',
     },
     'memory_used_cgroup_container': {
         'clean_name': 'Memory Usage',
         'source': 'cgroup',
-        'explanation': 'Memory Usage per container',
+        'explanation': 'Memory Usage per container via cgroup',
+    },
+
+    'memory_used_cgroup_system': {
+        'clean_name': 'Memory Usage',
+        'source': 'cgroup',
+        'explanation': 'Memory Usage per system cgroup',
     },
 
     'memory_used_procfs_system': {
@@ -402,7 +414,6 @@ const DEFAULT_ENERGY_TIMELINE_BADGE_METRICS = [
 // title and filter function for the top left most chart in the Detailed Metrics / Compare view
 const TOTAL_CHART_BOTTOM_TITLE = 'Total energy consumption';
 const TOTAL_CHART_BOTTOM_LABEL = 'Machine Energy';
-const TOTAL_CHART_UNIT = 'mJ';
 // function must return boolean
 const total_chart_bottom_condition = (metric) => {
     if(metric.match(/^.*_energy.*_machine$/) !== null) return true;
@@ -411,7 +422,6 @@ const total_chart_bottom_condition = (metric) => {
 
 // title and filter function for the top left most chart in the Detailed Metrics / Compare view
 const TOP_BAR_CHART_TITLE = 'Energy metrics'
-const TOP_BAR_CHART_UNIT = 'mJ'
 const top_bar_chart_condition = (metric) => {
     if(metric.indexOf('_energy_') !== -1) return true;
     return false;

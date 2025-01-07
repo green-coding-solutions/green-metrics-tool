@@ -1,8 +1,9 @@
 $(document).ready(function () {
 
     (async () => {
+        let measurements = null;
         try {
-            var measurements = await makeAPICall('/v1/timeline-projects');
+            measurements = await makeAPICall('/v1/timeline-projects');
         } catch (err) {
             showNotification('Could not get data from API', err);
             return;
@@ -48,7 +49,7 @@ $(document).ready(function () {
                                 </i>
                             </div>
                             <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}" alt="Image Failed to Load" onerror="this.closest('.field').style.display='none'"></a></span>
-                            <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                            <a class="copy-badge"><i class="copy icon"></i></a>
                         </div>
                         </div>
                         <p></p><hr>`
@@ -118,7 +119,7 @@ $(document).ready(function () {
                                 </i>
                             </div>
                             <span class="energy-badge-container"><a href="/timeline.html?uri=${row[1]}&branch=${row[3] == null ? '': row[3]}&filename=${row[4] == null ? '': row[4]}&machine_id=${row[5]}"><img src="${API_URL}/v1/badge/timeline?uri=${row[1]}&branch=${row[3] == null ? '': row[3]}&filename=${row[4] == null ? '': row[4]}&machine_id=${row[5]}&metrics=${`cores_energy_powermetrics_component`}&detail_name=${`[COMPONENT]`}"></a></span>
-                            <a href="#" class="copy-badge"><i class="copy icon"></i></a>
+                            <a class="copy-badge"><i class="copy icon"></i></a>
                         </div>
                         <p></p>`
 

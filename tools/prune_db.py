@@ -31,20 +31,3 @@ if __name__ == '__main__':
         if answer.strip().lower() == 'y':
             DB().query('DELETE FROM runs WHERE end_measurement IS NULL')
             print("Done")
-    elif args.mode == 'retention-expired':
-        print("Getting all users on the system ...")
-        users = DB().fetch_all('SELECT * FROM users', fetch_mode='dict')
-        for user in users:
-            print('User:', user['name'])
-            print('Retention periods:')
-            for table, retention in user['capabilities']['data'].items():
-                print("\t-", table, retention['retention'])
-                join_condition = 'WHERE'
-                if table == 'measurements':
-                    join_condition = 'USING runs WHERE measurements.run_id = runs.id AND'
-                elif table in 'hog_coalitions':
-                    join_condition = 'USING hog_measurements WHERE hog_coalitions.measurement = hog_measurements.id AND'
-                elif table in 'hog_tasks':
-                    join_condition = 'USING hog_measurements, hog_tasks WHERE hog_coalitions.measurement = hog_measurements.id AND hog_tasks.coalition = hog_coalitions.id AND'
-                DB().query(f"DELETE FROM {table} {join_condition} user_id = {user['id']} AND {table}.created_at < NOW() - INTERVAL '{retention['retention']} SECONDS'")
-        print("Done")

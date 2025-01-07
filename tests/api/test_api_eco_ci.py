@@ -172,6 +172,69 @@ def test_ci_measurement_add_filters():
     data = fetch_data_from_db(measurement_model['run_id'])
     compare_carbondb_data(measurement_model, data)
 
+def test_ci_badge_duration_error():
+    response = requests.get(f"{API_URL}/v1/ci/badge/get?repo=green-coding-solutions/ci-carbon-testing&branch=main&workflow=48163287&mode=avg&duration_days=900", timeout=15)
+    assert response.status_code == 422
+    assert response.text == '{"success":false,"err":"Duration days must be between 1 and 365 days","body":null}'
+
+
+def test_ci_badge_get_last():
+    Tests.import_demo_data()
+
+    response = requests.get(f"{API_URL}/v1/ci/badge/get?repo=green-coding-solutions/ci-carbon-testing&branch=main&workflow=48163287&mode=last", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert 'Last run energy used' in response.text, Tests.assertion_info('success', response.text)
+    assert '28.95 J' in response.text, Tests.assertion_info('success', response.text)
+
+    response = requests.get(f"{API_URL}/v1/ci/badge/get?repo=green-coding-solutions/ci-carbon-testing&branch=main&workflow=48163287&mode=last&metric=carbon", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert 'Last run carbon emitted' in response.text, Tests.assertion_info('success', response.text)
+    assert '17.32 mg' in response.text, Tests.assertion_info('success', response.text)
+
+
+def test_ci_badge_get_totals():
+    Tests.import_demo_data()
+
+    response = requests.get(f"{API_URL}/v1/ci/badge/get?repo=green-coding-solutions/ci-carbon-testing&branch=main&workflow=48163287&mode=totals", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert 'All runs total energy used' in response.text, Tests.assertion_info('success', response.text)
+    assert '49.02 kJ' in response.text, Tests.assertion_info('success', response.text)
+
+    response = requests.get(f"{API_URL}/v1/ci/badge/get?repo=green-coding-solutions/ci-carbon-testing&branch=main&workflow=48163287&mode=totals&metric=carbon", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert 'All runs total carbon emitted' in response.text, Tests.assertion_info('success', response.text)
+    assert '15.56 g' in response.text, Tests.assertion_info('success', response.text)
+
+def test_ci_badge_get_average():
+
+    for i in range(1,3):
+        measurement_model = MEASUREMENT_MODEL_NEW.copy()
+        measurement_model['carbon_ug'] = 1000
+        response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement_model, timeout=15)
+        assert response.status_code == 204, Tests.assertion_info('success', response.text)
+
+    for i in range(1,6):
+        measurement_model = MEASUREMENT_MODEL_NEW.copy()
+        measurement_model['energy_uj'] *= 1000
+        measurement_model['carbon_ug'] = i*100000
+        measurement_model['run_id'] = 'Other run'
+        response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement_model, timeout=15)
+        assert response.status_code == 204, Tests.assertion_info('success', response.text)
+
+
+
+    response = requests.get(f"{API_URL}/v1/ci/badge/get?repo={MEASUREMENT_MODEL_NEW['repo']}&branch={MEASUREMENT_MODEL_NEW['branch']}&workflow={MEASUREMENT_MODEL_NEW['workflow']}&mode=avg&duration_days=5", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert 'Per run moving average (5 days) energy used' in response.text, Tests.assertion_info('success', response.text)
+    assert '307.62 J' in response.text, Tests.assertion_info('success', response.text)
+
+    response = requests.get(f"{API_URL}/v1/ci/badge/get?repo={MEASUREMENT_MODEL_NEW['repo']}&branch={MEASUREMENT_MODEL_NEW['branch']}&workflow={MEASUREMENT_MODEL_NEW['workflow']}&mode=avg&duration_days=5&metric=carbon", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+
+    assert 'Per run moving average (5 days) carbon emitted' in response.text, Tests.assertion_info('success', response.text)
+    assert '751.00 mg' in response.text, Tests.assertion_info('success', response.text)
+
+
 ## helpers
 
 def fetch_data_from_db(run_id):

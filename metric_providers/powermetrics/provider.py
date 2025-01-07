@@ -7,7 +7,6 @@ import xml
 import pandas
 import signal
 
-from lib.db import DB
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 
 class PowermetricsProvider(BaseMetricProvider):
@@ -19,7 +18,7 @@ class PowermetricsProvider(BaseMetricProvider):
             metric_name='powermetrics',
             metrics={'time': int, 'value': int},
             resolution=resolution,
-            unit='mJ',
+            unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='/usr/bin/powermetrics',
             sudo=True,
@@ -107,7 +106,16 @@ class PowermetricsProvider(BaseMetricProvider):
 
         self._ps = None
 
-    def read_metrics(self, run_id, containers=None):
+    def _parse_metrics(self, df):
+        return df # noop, as we have already set detail_name individually in _read_metrics
+
+    def _add_unit_and_metric(self, df):
+        return df # noop, as we have already set detail_name individually in _read_metrics
+
+    def _check_resolution_underflow(self, df):
+        pass # noop, as values with powermetrics exhibit sparse data very often and are 0
+
+    def _read_metrics(self):
 
         with open(self._filename, 'rb') as metrics_file:
             datas = metrics_file.read()
@@ -115,7 +123,8 @@ class PowermetricsProvider(BaseMetricProvider):
         # Sometimes the container stops so fast that there will be no data in the file as powermetrics takes some time
         # to start. In this case we can't really do anything
         if datas == b'':
-            return 0
+            return pandas.DataFrame()
+
 
         datas = datas.split(b'\x00')
 
@@ -140,8 +149,8 @@ class PowermetricsProvider(BaseMetricProvider):
 
             cum_time = cum_time + data['elapsed_ns']
 
-            # we want microjoule. Therefore / 10**9 to get seconds and the values are already in mW
-            conversion_factor = data['elapsed_ns'] / 1_000_000_000
+            # we want microjoule. Therefore / 10**6 to get milli-seconds and the values are already in mW => ms * mW = uJ
+            power_to_uJ = data['elapsed_ns'] / 1_000_000
             cum_time_ms = int(cum_time / 1_000)
 
             # coalitions gives us a list so we need to find the named entry
@@ -177,46 +186,43 @@ class PowermetricsProvider(BaseMetricProvider):
 
             if 'cpu_power' in data['processor']:
                 dfs.append([cum_time_ms,
-                            int(float(data['processor']['cpu_power']) * conversion_factor),
+                            int(float(data['processor']['cpu_power']) * power_to_uJ),
                            'cores_energy_powermetrics_component',
                            '[COMPONENT]',
-                           'mJ'])
+                           'uJ'])
 
             if 'package_joules' in data['processor']:
                 dfs.append([cum_time_ms,
-                            int(float(data['processor']['package_joules']) * 1000),
+                            int(float(data['processor']['package_joules']) * 1_000_000),
                            'cpu_energy_powermetrics_component',
                            '[COMPONENT]',
-                           'mJ'])
+                           'uJ'])
 
             if 'gpu_power' in data['processor']:
                 dfs.append([cum_time_ms,
-                            int(float(data['processor']['gpu_power']) * conversion_factor),
+                            int(float(data['processor']['gpu_power']) * power_to_uJ),
                             'gpu_energy_powermetrics_component',
                             '[COMPONENT]',
-                            'mJ'])
+                            'uJ'])
 
             #if 'combined_power' in data['processor']:
             #    dfs.append([cum_time_ms,
-            #                int(float(data['processor']['combined_power']) * conversion_factor),
+            #                int(float(data['processor']['combined_power']) * power_to_uJ),
             #                'system_combined_power',
             #                '[COMPONENT]',
-            #                'mJ'])
+            #                'uJ'])
 
             if 'ane_power' in data['processor']:
                 dfs.append([cum_time_ms,
-                            int(float(data['processor']['ane_power']) * conversion_factor),
+                            int(float(data['processor']['ane_power']) * power_to_uJ),
                             'ane_energy_powermetrics_component',
                             '[COMPONENT]',
-                            'mJ'])
+                            'uJ'])
 
         df = pandas.DataFrame.from_records(dfs, columns=['time', 'value', 'metric', 'detail_name', 'unit'])
 
-        df['run_id'] = run_id
-
-        # Set the invalid run string to indicate, that it was mac and we can't rely on the data
-        invalid_message = 'Measurements are not reliable as they are done on a Mac. See our blog for details.'
-        DB().query('UPDATE runs SET invalid_run=%s WHERE id = %s', params=(invalid_message, run_id))
+        if df.empty:
+            raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")
 
         return df
 

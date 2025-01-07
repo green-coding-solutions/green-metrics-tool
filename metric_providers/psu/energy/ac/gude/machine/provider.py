@@ -10,7 +10,7 @@ class PsuEnergyAcGudeMachineProvider(BaseMetricProvider):
             metric_name='psu_energy_ac_gude_machine',
             metrics={'time': int, 'value': int},
             resolution=resolution,
-            unit='mJ',
+            unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )

@@ -1,22 +1,27 @@
 import os
-from io import StringIO
-import pandas
 
 from metric_providers.base import BaseMetricProvider, MetricProviderConfigurationError
 from lib.global_config import GlobalConfig
 
 class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
-    def __init__(self, *, resolution, CPUChips, TDP, skip_check=False):
+    def __init__(self, *, resolution, CPUChips, TDP, skip_check=False, filename=None):
         super().__init__(
             metric_name='psu_energy_ac_sdia_machine',
             metrics={'time': int, 'value': int},
             resolution=resolution,
-            unit='mJ',
+            unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
         self.cpu_chips = CPUChips
         self.tdp = TDP
+        self._filename = filename
+
+        if not self.cpu_chips:
+            raise MetricProviderConfigurationError(
+                'Please set the CPUChips config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
+        if not self.tdp:
+            raise MetricProviderConfigurationError('Please set the TDP config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
 
 
     # Since no process is ever started we just return None
@@ -47,58 +52,40 @@ class PsuEnergyAcSdiaMachineProvider(BaseMetricProvider):
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nPlease activate the CpuUtilizationProcfsSystemProvider in the config.yml\n \
                 This is required to run PsuEnergyAcSdiaMachineProvider")
 
-    def read_metrics(self, run_id, containers=None):
+    def _read_metrics(self):
 
-        filename = None
+        if not self._filename:
+            if os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'):
+                self._filename = '/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'
+            elif os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_mach_system.log'):
+                self._filename = '/tmp/green-metrics-tool/cpu_utilization_mach_system.log'
+            else:
+                raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log or /tmp/green-metrics-tool/cpu_utilization_mach_system.log file. \
+                    Did you activate the CpuUtilizationProcfsSystemProvider or CpuUtilizationMacSystemProvider in the config.yml too? \
+                    This is required to run PsuEnergyAcSdiaMachineProvider')
 
-        if os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'):
-            filename = '/tmp/green-metrics-tool/cpu_utilization_procfs_system.log'
-        elif os.path.isfile('/tmp/green-metrics-tool/cpu_utilization_mach_system.log'):
-            filename = '/tmp/green-metrics-tool/cpu_utilization_mach_system.log'
-        else:
-            raise RuntimeError('could not find the /tmp/green-metrics-tool/cpu_utilization_procfs_system.log or /tmp/green-metrics-tool/cpu_utilization_mach_system.log file. \
-                Did you activate the CpuUtilizationProcfsSystemProvider or CpuUtilizationMacSystemProvider in the config.yml too? \
-                This is required to run PsuEnergyAcXgboostMachineProvider')
+        return super()._read_metrics()
 
-        with open(filename, 'r', encoding='utf-8') as file:            csv_data = file.read()
+    # SDIA Provider does only use CPU utilization as an input metric and thus cannot actually suffer from an underflow
+    def _check_resolution_underflow(self, df):
+        pass
 
-        # remove the last line from the string, as it may be broken due to the output buffering of the metrics reporter
-        csv_data = csv_data[:csv_data.rfind('\n')]
-        # pylint: disable=invalid-name
-        df = pandas.read_csv(StringIO(csv_data),
-                             sep=' ',
-                             names={'time': int, 'value': int}.keys(),
-                             dtype={'time': int, 'value': int}
-                             )
-
-        if df.empty:
-            return df
-
-        df['detail_name'] = '[DEFAULT]'  # standard container name when no further granularity was measured
-        df['metric'] = self._metric_name
-        df['run_id'] = run_id
-
-        #Z = df.loc[:, ['value']]
-
-
-        if not self.cpu_chips:
-            raise MetricProviderConfigurationError(
-                'Please set the CPUChips config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
-        if not self.tdp:
-            raise MetricProviderConfigurationError('Please set the TDP config option for PsuEnergyAcSdiaMachineProvider in the config.yml')
+    def _parse_metrics(self, df):
+        df = super()._parse_metrics(df)
 
         # since the CPU-Utilization is a ratio, we technically have to divide by 10,000 to get a 0...1 range.
         # And then again at the end multiply with 1000 to get mW. We take the
         # shortcut and just mutiply the 0.65 ratio from the SDIA by 10 -> 6.5
         df.value = ((df.value * self.tdp) / 6.5) * self.cpu_chips # will result in mW
-        df.value = (df.value * df.time.diff()) / 1_000_000 # mW * us / 1_000_000 will result in mJ
+        df.value = (df.value * df.time.diff()) / 1_000 # mW * us / 1_000 will result in uJ
 
         # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
         # Since one value is useless for us we drop the row
         df.dropna(inplace=True)
 
-        df['unit'] = self._unit
-
         df.value = df.value.astype(int)
+
+        if df.empty:
+            raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")
 
         return df

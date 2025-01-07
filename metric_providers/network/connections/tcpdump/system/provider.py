@@ -5,10 +5,9 @@ import ipaddress
 # import netifaces # netifaces has been abandoned. Find new implementation TODO
 
 from metric_providers.base import BaseMetricProvider
-from lib.db import DB
 
 class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
-    def __init__(self, *, split_ports=True, skip_check=False):
+    def __init__(self, *_, split_ports=True, skip_check=False):
         super().__init__(
             metric_name='network_connections_tcpdump_system',
             metrics={},
@@ -21,21 +20,30 @@ class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
         self.split_ports = split_ports
 
 
-    def read_metrics(self, run_id, containers=None):
+    def _read_metrics(self):
         with open(self._filename, 'r', encoding='utf-8') as file:
             lines = file.readlines()
+            if not lines: # a bit of a hack, because we are expecting a dict later and it will get returned prematurely as list if empty
+                return {}
+            return lines
 
-        stats = parse_tcpdump(lines, split_ports=self.split_ports)
+    def _parse_metrics(self, df):
+        return parse_tcpdump(df, split_ports=self.split_ports)
 
-        if rows := len(stats):
-            DB().query("""
-                UPDATE runs
-                SET logs= COALESCE(logs, '') || %s -- append
-                WHERE id = %s
-                """, params=(generate_stats_string(stats), run_id))
-            return rows
+    def _check_empty(self, df):
+        pass # noop. Just for overwriting. Empty data is ok for this reporter
 
-        return 0
+    def _add_unit_and_metric(self, df):
+        return df # noop. Just for overwriting
+
+    def _check_monotonic(self, df):
+        pass  # noop. Just for overwriting
+
+    def _check_resolution_underflow(self, df):
+        pass  # noop. Just for overwriting
+
+    def _add_and_validate_resolution_and_jitter(self, df):
+        return df  # noop. Just for overwriting
 
     def get_stderr(self):
         stderr = super().get_stderr()
@@ -83,66 +91,83 @@ def get_ip_addresses(interface):
 
     return addresses
 
+def add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, packet_length, split_ports):
+    if split_ports:
+        stats[src_ip]['ports'][f"{src_port}/{protocol}"]['packets'] += 1
+        stats[src_ip]['ports'][f"{src_port}/{protocol}"]['bytes'] += packet_length
+    else:
+        stats[src_ip]['ports'][f"{protocol}"]['packets'] += 1 # alternative without splitting by port
+        stats[src_ip]['ports'][f"{protocol}"]['bytes'] += packet_length  # alternative without splitting by port
+
+    stats[src_ip]['total_bytes'] += packet_length
+
+    # Update destination IP stats
+    if split_ports:
+        stats[dst_ip]['ports'][f"{dst_port}/{protocol}"]['packets'] += 1
+        stats[dst_ip]['ports'][f"{dst_port}/{protocol}"]['bytes'] += packet_length
+    else:
+        stats[dst_ip]['ports'][f"{protocol}"]['packets'] += 1 # alternative without splitting by port
+        stats[dst_ip]['ports'][f"{protocol}"]['bytes'] += packet_length  # alternative without splitting by port
+
+    stats[dst_ip]['total_bytes'] += packet_length
+
+    return stats
+
 def parse_tcpdump(lines, split_ports=False):
     stats = defaultdict(lambda: {'ports': defaultdict(lambda: {'packets': 0, 'bytes': 0}), 'total_bytes': 0})
-    ip_pattern = r'(\S+) > (\S+):'
-    #tcp_pattern = r'Flags \[(.+?)\]'
+    ethertype_unknown = r'(\S+) > (\S+), ethertype Unknown \(0x\w+\), length (\d+):\s*$'
+    time_ip_and_payload_length_pattern = r'\d{10,15}\.\d{6}.*next-header (\w+) \(\d+\) payload length: (\d+)\) (\S+) > (\S+):'
+    time_and_protocol_pattern = r'\d{10,15}\.\d{6}.* proto (\w+).* length (\d+)\)$'
+    only_ip_pattern = r'(\S+) > (\S+):'
+
+    packet_length = None # running variable
+    protocol = None # running variable
 
     for line in lines:
-        ip_match = re.search(ip_pattern, line)
-        #tcp_match = re.search(tcp_pattern, line)
+        if ethertype_unknown_match := re.search(ethertype_unknown, line):
+            print('Ethermatch', ethertype_unknown_match.groups())
+            src, dst, packet_length = ethertype_unknown_match.groups()
+            packet_length = int(packet_length)
+            src_ip, src_port, dst_ip, dst_port, protocol = 'Unknown Port', 'Unknown Port', 'Unknown Port', 'Unknown Port', 'Unknown Etherframe'
+            add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, packet_length, split_ports)
+        elif data_stream_match := re.search(time_ip_and_payload_length_pattern, line):
+            print('data_stream_match', data_stream_match.groups())
+            protocol, packet_length, src, dst = data_stream_match.groups()
+            packet_length = int(packet_length)
+            src_ip, src_port = parse_ip_port(src)
+            dst_ip, dst_port = parse_ip_port(dst)
+            add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, packet_length, split_ports)
+        elif protocol_match := re.search(time_and_protocol_pattern, line):
+            print('protocol match', protocol_match.groups())
+            protocol, packet_length = protocol_match.groups()
+            packet_length = int(packet_length)
+            continue # we fetch data only in the next line, thus we skip variable reset here
 
-        if ip_match:
+        elif ip_match := re.search(only_ip_pattern, line):
+            print('ip match', ip_match.groups())
             src, dst = ip_match.groups()
             src_ip, src_port = parse_ip_port(src)
             dst_ip, dst_port = parse_ip_port(dst)
+            add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, packet_length, split_ports)
+            continue # no reset, as we can have multiple packets following here
 
-            if src_ip and dst_ip:
-                protocol = "UDP" if "UDP" in line else "TCP"
+        elif 'tcpdump: listening on' in line:
+            continue
+        elif 'tcpdump: data link type' in line:
+            continue
+        elif not line.strip(): # ignore empty lines
+            continue
+        elif re.search(r'\s+IP \(tos 0x0', line) or re.search(r'\s+hop limit', line) or re.search(r'\s+0x', line) or re.search(r'(\s{6}|\t\t)', line): # these are all detail infos for specific control packets. 6 indents indicate deep detail infos
+            continue
+        elif 'ARP, Ethernet' in line: # we ignore ARP for now
+            continue
+        else:
+            raise ValueError('Unmatched tcpdump line: ', line)
 
-                if protocol == "UDP":
-                    # For UDP, use the reported length
-                    length_pattern = r'length:? (\d+)'
-                    length_match = re.search(length_pattern, line)
-                    if not length_match or not length_match.group(1):
-                        raise RuntimeError(f"Could not find UDP packet length for line: {line}")
-                    packet_length = int(length_match.group(1))
+        # reset
+        packet_length = None
+        protocol = None
 
-                else:
-                    # For TCP, estimate packet length (this is a simplification)
-                    length_pattern = r'length (\d+)'
-                    length_match = re.search(length_pattern, line)
-
-                    if not length_match or not length_match.group(1):
-                        if '.53 ' in line or '.53:' in line or '.5353 ' in line or '.5353:' in line: # try DNS / MDNS match
-                            dns_packet_length = re.match(r'.*\((\d+)\)$', line)
-                            if not dns_packet_length:
-                                raise RuntimeError(f"Could not find TCP packet length for line: {line}")
-                            packet_length = int(dns_packet_length[1])
-                        else:
-                            raise RuntimeError(f"No packet length was detected for line {line}")
-                    else:
-                        packet_length = 40 + int(length_match.group(1))  # Assuming 40 bytes for IP + TCP headers
-
-                # Update source IP stats
-                if split_ports:
-                    stats[src_ip]['ports'][f"{src_port}/{protocol}"]['packets'] += 1
-                    stats[src_ip]['ports'][f"{src_port}/{protocol}"]['bytes'] += packet_length
-                else:
-                    stats[src_ip]['ports'][f"{protocol}"]['packets'] += 1 # alternative without splitting by port
-                    stats[src_ip]['ports'][f"{protocol}"]['bytes'] += packet_length  # alternative without splitting by port
-
-                stats[src_ip]['total_bytes'] += packet_length
-
-                # Update destination IP stats
-                if split_ports:
-                    stats[dst_ip]['ports'][f"{dst_port}/{protocol}"]['packets'] += 1
-                    stats[dst_ip]['ports'][f"{dst_port}/{protocol}"]['bytes'] += packet_length
-                else:
-                    stats[dst_ip]['ports'][f"{protocol}"]['packets'] += 1 # alternative without splitting by port
-                    stats[dst_ip]['ports'][f"{protocol}"]['bytes'] += packet_length  # alternative without splitting by port
-
-                stats[dst_ip]['total_bytes'] += packet_length
 
     return stats
 
@@ -161,7 +186,6 @@ def parse_ip_port(address):
         return None, None
 
 def generate_stats_string(stats, filter_host=False):
-
     if filter_host:
         raise NotImplementedError('netifaces has been abandoned. A new implementation to enable filter_host is not done yet')
     #primary_interface = get_primary_interface()

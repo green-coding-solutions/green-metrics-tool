@@ -11,6 +11,11 @@ const updateCompareCount = () => {
     const countButton = document.getElementById('compare-button');
     const checkedCount = document.querySelectorAll('input[type=checkbox]:checked').length;
     countButton.textContent = `Compare: ${checkedCount} Run(s)`;
+    if (checkedCount === 0) {
+        document.querySelector('#unselect-button').style.display = 'none';
+    } else {
+        document.querySelector('#unselect-button').style.display = 'block';
+    }
 }
 
 let lastChecked = null;
@@ -60,30 +65,30 @@ const showActiveFilters = (key, value) => {
 }
 
 const getFilterQueryStringFromURI = () => {
-    const url_params = (new URLSearchParams(window.location.search))
+    const url_params = getURLParams();
     let query_string = '';
-    if (url_params.get('uri') != null && url_params.get('uri').trim() != '') {
-        const uri = url_params.get('uri').trim()
+    if (url_params['uri'] != null && url_params['uri'].trim() != '') {
+        const uri = url_params['uri'].trim()
         query_string = `${query_string}&uri=${uri}`
         showActiveFilters('uri', uri)
     }
-    if (url_params.get('filename') != null && url_params.get('filename').trim() != '') {
-        const filename = url_params.get('filename').trim()
+    if (url_params['filename'] != null && url_params['filename'].trim() != '') {
+        const filename = url_params['filename'].trim()
         query_string = `${query_string}&filename=${filename}`
         showActiveFilters('filename', filename)
     }
-    if (url_params.get('branch') != null && url_params.get('branch').trim() != '') {
-        const branch = url_params.get('branch').trim()
+    if (url_params['branch'] != null && url_params['branch'].trim() != '') {
+        const branch = url_params['branch'].trim()
         query_string = `${query_string}&branch=${branch}`
         showActiveFilters('branch', branch)
     }
-    if (url_params.get('machine_id') != null && url_params.get('machine_id').trim() != '') {
-        const machine_id = url_params.get('machine_id').trim()
+    if (url_params['machine_id'] != null && url_params['machine_id'].trim() != '') {
+        const machine_id = url_params['machine_id'].trim()
         query_string = `${query_string}&machine_id=${machine_id}`
         showActiveFilters('machine_id', machine_id)
     }
-    if (url_params.get('machine') != null && url_params.get('machine').trim() != '') {
-        const machine = url_params.get('machine').trim()
+    if (url_params['machine'] != null && url_params['machine'].trim() != '') {
+        const machine = url_params['machine'].trim()
         query_string = `${query_string}&machine=${machine}`
         showActiveFilters('machine', machine)
     }
@@ -92,7 +97,16 @@ const getFilterQueryStringFromURI = () => {
     return query_string
 }
 
-const getRunsTable = (el, url, include_uri=true, include_button=true, searching=false) => {
+const getRunsTable = async (el, url, include_uri=true, include_button=true, searching=false) => {
+
+    let runs = null;
+
+    try {
+        runs = await makeAPICall(url)
+    } catch (err) {
+        showNotification('Could not get run data from API', err);
+        return
+    }
 
     const columns = [
         {
@@ -141,7 +155,7 @@ const getRunsTable = (el, url, include_uri=true, include_button=true, searching=
     columns.push({ data: 7, title: '<i class="icon laptop code"></i>Machine</th>' });
     columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>', render: (el, type, row) => el == null ? '-' : `${dateToYMD(new Date(el))}<br><a href="/timeline.html?uri=${row[2]}&branch=${row[3]}&machine_id=${row[11]}&filename=${row[6]}&metrics=key" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>` });
 
-    const button_title = include_button ? '<button id="compare-button" onclick="compareButton()" class="ui small button blue right">Compare: 0 Run(s)</button>' : '';
+    const button_title = include_button ? '<button id="compare-button" onclick="compareButton()" class="ui small button blue">Compare: 0 Run(s)</button><br><button id="unselect-button" class="ui mini button red">Unselect all</button>' : '';
 
     columns.push({
         data: 0,
@@ -157,13 +171,18 @@ const getRunsTable = (el, url, include_uri=true, include_button=true, searching=
         //     initCollapsed: true,
         // },
         searching: searching,
-        ajax: url,
+        data: runs.data,
         columns: columns,
         deferRender: true,
         drawCallback: function(settings) {
             document.querySelectorAll('input[type="checkbox"]').forEach((e) =>{
                 e.removeEventListener('change', updateCompareCount);
                 e.addEventListener('change', updateCompareCount);
+            })
+            document.querySelector('#unselect-button').addEventListener('click', e => {
+                document.querySelectorAll('input[type="checkbox"]').forEach(el => {
+                    el.checked = '';
+                })
             })
             allow_group_select_checkboxes();
             updateCompareCount();

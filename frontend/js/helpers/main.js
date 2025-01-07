@@ -71,6 +71,28 @@ class GMTMenu extends HTMLElement {
 }
 customElements.define('gmt-menu', GMTMenu);
 
+const dateTimePicker = (days_before=30, url_params=null) => {
+
+    $('#rangestart').calendar({
+        type: 'date',
+        endCalendar: $('#rangeend'),
+        initialDate: (url_params['start_date'] != null) ? url_params['start_date'] : new Date((new Date()).setDate((new Date).getDate() - days_before)),
+    });
+
+    $('#rangeend').calendar({
+        type: 'date',
+        startCalendar: $('#rangestart'),
+        initialDate: (url_params['end_date'] != null) ? url_params['end_date'] : new Date(),
+    });
+
+}
+
+const getURLParams = () => {
+    const url_params = new URLSearchParams(window.location.search);
+    if (!url_params.size) return {};
+    return Object.fromEntries(url_params.entries())
+}
+
 const getPretty = (metric_name, key)  => {
     if (METRIC_MAPPINGS[metric_name] == null || METRIC_MAPPINGS[metric_name][key] == null) {
         console.log(metric_name, ' is undefined in METRIC_MAPPINGS or has no key');
@@ -194,7 +216,6 @@ const escapeString = (string) =>{
 
 async function makeAPICall(path, values=null, force_authentication_token=null) {
 
-
     if(values != null ) {
         var options = {
             method: "POST",
@@ -222,7 +243,7 @@ async function makeAPICall(path, values=null, force_authentication_token=null) {
     .then(response => {
         if (response.status == 204) {
             // 204 responses use no body, so json() call would fail
-            return {success: false, err: "Data is empty"}
+            return {success: false, err: "No data to display. API returned empty response (HTTP 204)"}
         }
         return response.json()
     })
@@ -268,6 +289,18 @@ async function sortName() {
     button.innerHTML = '<i class="clock icon"></i>Sort date';
     await getRepositories('name');
 }
+
+const numberFormatter = new Intl.NumberFormat('en-US', {
+  style: 'decimal', // You can also use 'currency', 'percent', or 'unit'
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+const numberFormatterLong = new Intl.NumberFormat('en-US', {
+  style: 'decimal',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 4,
+});
 
 $(document).ready(function () {
     $(document).on('click','#menu-toggle.closed', openMenu);
