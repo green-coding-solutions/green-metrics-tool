@@ -52,11 +52,20 @@ const getAndShowPhase = () => {
         phase_to_display = phase_to_display.split('__');
         if (allowed_phases.includes(phase_to_display[0])) {
             document.querySelector(`a.step[data-tab="[${phase_to_display[0]}]"`).dispatchEvent(new Event('click'));
-            shown_phase = phase_to_display[0];
+            shown_phase = `[${phase_to_display[0]}]`;
+        } else {
+            document.querySelector('a.step[data-tab="[RUNTIME]"]').dispatchEvent(new Event('click'));
         }
         const sub_phase_regex = /^[\.\s0-9a-zA-Z_\(\)-]+$/; // Matches strings containing only letters and digits
         if (phase_to_display[1] != null && sub_phase_regex.test(phase_to_display[1])) {
-            document.querySelector(`a.runtime-step[data-tab="${phase_to_display[1]}"`).dispatchEvent(new Event('click'));
+            try {
+                setTimeout(function(){
+                    document.querySelector(`a.runtime-step[data-tab="${phase_to_display[1]}"`).dispatchEvent(new Event('click'));
+                }, 1000); // hacky ... this needs better solution ... but unclear WHY it is not sync ...
+            } catch(err) {
+                console.log('Could not match phase to show', err);
+            }
+
         }
     } else {
         // although there are multiple .step.runtime-step containers the first one
@@ -165,7 +174,6 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_
     // otherwise we just display the value
 
     // unsure atm what to do in a Diff scenario ... filling with 0 can be misleading
-
     if (window.__rendered_phases == null) {
         window.__rendered_phases = {};
     } else if (window.__rendered_phases[phase] != null) return; // we have already rendered this phase!
