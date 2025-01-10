@@ -186,7 +186,7 @@ class Runner:
         if platform.system() == 'Darwin':
             return
         # 3 instructs kernel to drops page caches AND inode caches
-        subprocess.check_output(['/usr/sbin/sysctl', '-w', 'vm.drop_caches=3'])
+        subprocess.check_output(['sudo', '/usr/sbin/sysctl', '-w', 'vm.drop_caches=3'])
 
     def check_system(self, mode='start'):
         if self._skip_system_checks:
