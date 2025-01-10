@@ -100,7 +100,7 @@ def test_phase_stats_multi():
 
     assert data[3]['metric'] == 'cpu_utilization_cgroup_container'
     assert data[3]['phase'] == '004_[RUNTIME]'
-    assert data[3]['value'] == 1985
+    assert data[3]['value'] == 1983
     assert data[3]['type'] == 'MEAN'
     assert data[3]['unit'] == 'Ratio'
     assert data[3]['detail_name'] == 'Arne'
@@ -110,7 +110,7 @@ def test_phase_stats_multi():
 
     assert data[4]['metric'] == 'cpu_utilization_cgroup_container'
     assert data[4]['phase'] == '004_[RUNTIME]'
-    assert data[4]['value'] == 3959
+    assert data[4]['value'] == 3954
     assert data[4]['type'] == 'MEAN'
     assert data[4]['unit'] == 'Ratio'
     assert data[4]['detail_name'] == 'Not-Arne'

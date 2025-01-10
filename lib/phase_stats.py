@@ -68,8 +68,13 @@ def build_and_store_phase_stats(run_id, sci=None):
                 SELECT time, value, (time - LAG(time) OVER (ORDER BY time ASC)) AS diff
                 FROM measurement_values
                 WHERE measurement_metric_id = %s AND time > %s and time < %s
+                ORDER BY time ASC
             )
-            SELECT SUM(value), MAX(value), MIN(value), AVG(value), COUNT(value),
+            SELECT
+                SUM(value), MAX(value), MIN(value),
+                AVG(value), -- This would be the normal average. we only use that when there is less than three values available and we cannot build a weighted average
+                (SUM(value*diff))::DOUBLE PRECISION/(SUM(diff)), -- weighted average -- we are missing the first row, which is NULL by concept. We could estimate it with an AVG, but this would increase complexity of this query for diminishing results the longer the measurement runs. we thus skip that
+                COUNT(value),
                 COALESCE(AVG(diff), 0)::int as sampling_rate_avg,
                 COALESCE(MAX(diff), 0)::int as sampling_rate_max,
                 COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY diff), 0)::int AS sampling_rate_95p
@@ -99,14 +104,22 @@ def build_and_store_phase_stats(run_id, sci=None):
             avg_value = 0
             value_count = 0
 
-            value_sum, max_value, min_value, avg_value, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p = results
+            value_sum, max_value, min_value, classic_avg_value, weighted_avg_value, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p = results
 
             # no need to calculate if we have no results to work on
             # This can happen if the phase is too short
             if value_count == 0: continue
 
+            # Since we need to LAG the table the first value will be NULL. So it means we need at least 3 rows to make a useful weighted average.
+            # In case we cannot do that we use the classic average
+            if value_count <= 2:
+                avg_value = classic_avg_value
+            else:
+                avg_value = weighted_avg_value
+
             # we make everything Decimal so in subsequent divisions these values stay Decimal
             value_sum = Decimal(value_sum)
+            avg_value = Decimal(avg_value)
             max_value = Decimal(max_value)
             min_value = Decimal(min_value)
             value_count = Decimal(value_count)
