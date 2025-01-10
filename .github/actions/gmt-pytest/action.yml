@@ -98,6 +98,11 @@ runs:
     # - name: Setup upterm session
     #   uses: lhotari/action-upterm@v1
 
+    - name: Disable swap
+      shell: bash
+      run: |
+        sudo swapoff -a
+
     - name: Run Tests
       shell: bash
       working-directory: ${{ inputs.gmt-directory }}/tests

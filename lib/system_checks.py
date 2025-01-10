@@ -12,6 +12,7 @@ import os
 import subprocess
 import psutil
 import locale
+import platform
 
 from psycopg import OperationalError as psycopg_OperationalError
 
@@ -73,6 +74,22 @@ def check_docker_daemon():
 def check_utf_encoding():
     return locale.getpreferredencoding().lower() == sys.getdefaultencoding().lower() == 'utf-8'
 
+# This text we compare with indicates that no swap is used
+#pylint: disable=no-else-return
+def check_swap_disabled():
+    if platform.system() == 'Darwin':
+        result = subprocess.check_output(['sysctl', 'vm.swapusage'], encoding='utf-8')
+        return result == 'vm.swapusage: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)'
+    else:
+        result = subprocess.check_output(['free'], encoding='utf-8')
+        for line in result.splitlines():
+            # we want this output: Swap:              0           0           0
+            # and condense it to Swap:000
+            if line.startswith('Swap') and line.replace(' ', '') != 'Swap:000':
+                return False
+        return True
+
+
 ######## END CHECK FUNCTIONS ########
 
 start_checks = [
@@ -85,6 +102,8 @@ start_checks = [
     (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.io/docs/installation/]'),
     (check_containers_running, Status.WARN, 'running containers', 'You have other containers running on the system. This is usually what you want in local development, but for undisturbed measurements consider going for a measurement cluster [See https://docs.green-coding.io/docs/installation/installation-cluster/].'),
     (check_utf_encoding, Status.ERROR, 'utf file encoding', 'Your system encoding is not set to utf-8. This is needed as we need to parse console output.'),
+    (check_swap_disabled, Status.ERROR, 'swap disabled', 'Your system uses a swap filesystem. This can lead to very instable measurements. Please disable swap.'),
+
 ]
 
 def check_start():
