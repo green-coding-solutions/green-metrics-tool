@@ -127,33 +127,33 @@ def parse_tcpdump(lines, split_ports=False):
 
     for line in lines:
         if ethertype_unknown_match := re.search(ethertype_unknown, line):
-            print('Ethermatch', ethertype_unknown_match.groups())
+            #print('Ethermatch', ethertype_unknown_match.groups())
             src, dst, packet_length = ethertype_unknown_match.groups()
             packet_length = int(packet_length)
             src_ip, src_port, dst_ip, dst_port, protocol = 'Unknown Port', 'Unknown Port', 'Unknown Port', 'Unknown Port', 'Unknown Etherframe'
             add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, packet_length, split_ports)
         elif data_stream_match := re.search(time_ip_and_payload_length_pattern, line):
-            print('data_stream_match', data_stream_match.groups())
+            #print('data_stream_match', data_stream_match.groups())
             protocol, packet_length, src, dst = data_stream_match.groups()
             packet_length = int(packet_length)
             src_ip, src_port = parse_ip_port(src)
             dst_ip, dst_port = parse_ip_port(dst)
             add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, packet_length, split_ports)
         elif protocol_match := re.search(time_and_protocol_pattern, line):
-            print('protocol match', protocol_match.groups())
+            #print('protocol match', protocol_match.groups())
             protocol, packet_length = protocol_match.groups()
             packet_length = int(packet_length)
             continue # we fetch data only in the next line, thus we skip variable reset here
 
         elif ip_match := re.search(only_ip_pattern, line):
-            print('ip match', ip_match.groups())
+            #print('ip match', ip_match.groups())
             src, dst = ip_match.groups()
             src_ip, src_port = parse_ip_port(src)
             dst_ip, dst_port = parse_ip_port(dst)
             add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, packet_length, split_ports)
             continue # no reset, as we can have multiple packets following here
         elif lldp_match := re.search(lldp_pattern, line):
-            print('lldp match', lldp_match.groups())
+            #print('lldp match', lldp_match.groups())
             protocol, packet_length = lldp_match.groups()
             packet_length = int(packet_length)
             src = dst = '-'
