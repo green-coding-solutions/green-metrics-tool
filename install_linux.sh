@@ -40,7 +40,7 @@ if [[ $build_sgx == true ]] ; then
 fi
 
 print_message "Enabling cache cleanup without sudo via sudoers entry"
-echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/sysctl -w vm.drop_caches=3" | sudo tee /etc/sudoers.d/green-coding-drop-caches
+echo "${USER} ALL=(ALL) NOPASSWD:/usr/sbin/sysctl -w vm.drop_caches=3" | sudo tee /etc/sudoers.d/green-coding-drop-caches
 sudo chmod 500 /etc/sudoers.d/green-coding-drop-caches
 
 print_message "Setting the cluster cleanup.sh file to be owned by root"
@@ -72,7 +72,7 @@ if [[ $install_ipmi == true ]] ; then
     fi
     print_message "Adding IPMI to sudoers file"
     check_file_permissions "/usr/sbin/ipmi-dcmi"
-    echo "ALL ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+    echo "${USER} ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
     sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
     # remove old file name
     sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
