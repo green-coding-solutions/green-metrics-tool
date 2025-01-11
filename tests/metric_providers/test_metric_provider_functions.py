@@ -46,9 +46,65 @@ def test_tcpdump_linux():
 
     stats = generate_stats_string(data)
 
+    # ipv6 match
+    assert '''IP: 2003:fb:7f37:2900:25cf:2275:1b6a:5818 (as sender or receiver. aggregated)
+  Total transmitted data: 1107261 bytes
+  Ports:
+    49871/TCP: 1 packets, 20 bytes
+    49872/TCP: 225 packets, 1107241 bytes''' in stats
+
+    # ipv4 match
+    assert '''IP: 5.75.242.14 (as sender or receiver. aggregated)
+  Total transmitted data: 2552885 bytes
+  Ports:
+    22/TCP: 784 packets, 355463 bytes
+    0/ICMP: 1 packets, 80 bytes
+    9573/ICMP: 1 packets, 80 bytes
+    8568/TCP: 2 packets, 80 bytes
+    5855/TCP: 2 packets, 84 bytes
+    46899/UDP: 2 packets, 164 bytes
+    9573/TCP: 1476 packets, 2196934 bytes''' in stats
+
+    # many packet correct aggregation
     assert '59979/TCP: 556 packets, 326552 bytes' in stats
-    assert 'None/ICMP: 2 packets, 160 bytes' in stats # Note: ICMP can have NONE as src/dst port as it sends discovery packets that might not be routable
-    assert 'IP: 2003:fb:7f37:2900:25cf:2275:1b6a:5818 (as sender or receiver. aggregated)' in stats
+
+    # LLDP match
+    assert '''IP: - (as sender or receiver. aggregated)
+  Total transmitted data: 2640 bytes
+  Ports:
+    -/LLDP: 20 packets, 2640 bytes''' in stats
+
+    # etherframe match
+    assert '''IP: Unknown Port (as sender or receiver. aggregated)
+  Total transmitted data: 51120 bytes
+  Ports:
+    Unknown Port/Unknown Etherframe: 852 packets, 51120 bytes''' in stats
+
+    # ICMPv6 match
+    assert '''IP: fe80::921b:eff:feff:55b4 (as sender or receiver. aggregated)
+  Total transmitted data: 336 bytes
+  Ports:
+    0/ICMPv6: 12 packets, 336 bytes''' in stats
+
+    # options match
+    assert '''IP: fe80::921b:eff:fed8:2619 (as sender or receiver. aggregated)
+  Total transmitted data: 72 bytes
+  Ports:
+    0/Options: 2 packets, 72 bytes''' in stats
+
+    # IGMP match
+    assert '''IP: 192.168.178.1 (as sender or receiver. aggregated)
+  Total transmitted data: 260 bytes
+  Ports:
+    0/IGMP: 4 packets, 216 bytes
+    53805/UDP: 1 packets, 44 bytes''' in stats
+
+    # UDP broadcast match
+    assert '''IP: ff0e::c (as sender or receiver. aggregated)
+  Total transmitted data: 2759 bytes
+  Ports:
+    1900/UDP: 8 packets, 2759 bytes''' in stats
+
 
 def test_tcpdump_macos():
     obj = NetworkConnectionsTcpdumpSystemProvider(1000, skip_check=True)
@@ -58,9 +114,41 @@ def test_tcpdump_macos():
 
     stats = generate_stats_string(data)
 
-    assert 'IP: 172.217.19.74 (as sender or receiver. aggregated)' in stats
-    assert 'Unknown Port/Unknown Etherframe: 40 packets, 2400 bytes' in stats
-    assert '50417/TCP: 16 packets, 3318 bytes' in stats
+    # IP match
+    assert '''IP: 192.168.178.40 (as sender or receiver. aggregated)
+  Total transmitted data: 336382 bytes
+  Ports:
+    50417/TCP: 16 packets, 3318 bytes
+    50352/TCP: 6 packets, 356 bytes
+    50421/TCP: 9 packets, 492 bytes
+    50080/TCP: 5 packets, 2428 bytes
+    50422/TCP: 25 packets, 7309 bytes
+    50423/TCP: 25 packets, 6982 bytes
+    50124/TCP: 2 packets, 191 bytes
+    60933/UDP: 2 packets, 130 bytes
+    54453/UDP: 2 packets, 120 bytes
+    62504/UDP: 2 packets, 229 bytes
+    60482/UDP: 2 packets, 249 bytes
+    50416/TCP: 282 packets, 314258 bytes
+    59713/UDP: 4 packets, 320 bytes''' in stats
+
+    # Etherframe match
+    assert '''IP: Unknown Port (as sender or receiver. aggregated)
+  Total transmitted data: 2400 bytes
+  Ports:
+    Unknown Port/Unknown Etherframe: 40 packets, 2400 bytes''' in stats
+
+    # ICMPv6 match
+    assert '''IP: fe80::b0de:28ff:fe27:c164 (as sender or receiver. aggregated)
+  Total transmitted data: 88 bytes
+  Ports:
+    0/ICMPv6: 1 packets, 88 bytes''' in stats
+
+    # UDP only match (QUIC)
+    assert '''IP: 172.217.19.74 (as sender or receiver. aggregated)
+  Total transmitted data: 320 bytes
+  Ports:
+    443/UDP: 4 packets, 320 bytes''' in stats
 
 def test_powermetrics():
     obj = PowermetricsProvider(499, skip_check=True)
