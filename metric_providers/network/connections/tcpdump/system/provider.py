@@ -117,11 +117,13 @@ def parse_tcpdump(lines, split_ports=False):
     stats = defaultdict(lambda: {'ports': defaultdict(lambda: {'packets': 0, 'bytes': 0}), 'total_bytes': 0})
     ethertype_unknown = r'(\S+) > (\S+), ethertype Unknown \(0x\w+\), length (\d+):\s*$'
     time_ip_and_payload_length_pattern = r'\d{10,15}\.\d{6}.*next-header (\w+) \(\d+\) payload length: (\d+)\) (\S+) > (\S+):'
-    time_and_protocol_pattern = r'\d{10,15}\.\d{6}.* proto (\w+).* length (\d+)\)$'
+    time_and_protocol_pattern = r'^\d{10,15}\.\d{6}.* proto (\w+).* length (\d+)'
     only_ip_pattern = r'(\S+) > (\S+):'
+    lldp_pattern = r'^\d{10,15}\.\d{6} (LLDP), length (\d+)\s*$'
 
     packet_length = None # running variable
     protocol = None # running variable
+
 
     for line in lines:
         if ethertype_unknown_match := re.search(ethertype_unknown, line):
@@ -150,16 +152,23 @@ def parse_tcpdump(lines, split_ports=False):
             dst_ip, dst_port = parse_ip_port(dst)
             add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, packet_length, split_ports)
             continue # no reset, as we can have multiple packets following here
-
+        elif lldp_match := re.search(lldp_pattern, line):
+            print('lldp match', lldp_match.groups())
+            protocol, packet_length = lldp_match.groups()
+            packet_length = int(packet_length)
+            src = dst = '-'
+            src_ip = src_port = '-'
+            dst_ip = dst_port = '-'
+            add_packet_to_stats(stats, src_ip, dst_ip, src_port, dst_port, protocol, packet_length, split_ports)
         elif 'tcpdump: listening on' in line:
             continue
         elif 'tcpdump: data link type' in line:
             continue
         elif not line.strip(): # ignore empty lines
             continue
-        elif re.search(r'\s+IP \(tos 0x0', line) or re.search(r'\s+hop limit', line) or re.search(r'\s+0x', line) or re.search(r'(\s{6}|\t\t)', line): # these are all detail infos for specific control packets. 6 indents indicate deep detail infos
-            continue
         elif 'ARP, Ethernet' in line: # we ignore ARP for now
+            continue
+        elif line.startswith('    ') or line.startswith('\t'): # these are all detail infos for specific control packets. 4-6 indents indicate deep detail infos
             continue
         else:
             raise ValueError('Unmatched tcpdump line: ', line)
@@ -172,18 +181,28 @@ def parse_tcpdump(lines, split_ports=False):
     return stats
 
 def parse_ip_port(address):
-    try:
-        if ']' in address:  # IPv6
+    if ':' in address:  # IPv6
+        if address.count('.') < 1: ## no port, which is fine
+            port = 0
+            ip = address
+        elif address.count('.') == 1:
             ip, port = address.rsplit('.', 1)
             ip = ip.strip('[]')
-        else:  # IPv4
-            ip, port = address.rsplit('.', 1)
+        else:
+            raise ValueError(f"Too many ports in address: {address}")
 
-        # Validate IP address
-        ipaddress.ip_address(ip)
-        return ip, int(port)
-    except ValueError:
-        return None, None
+    else:  # IPv4
+        if address.count('.') == 3: ## no port, which is fine
+            port = 0
+            ip = address
+        elif address.count('.') == 4:
+            ip, port = address.rsplit('.', 1)
+        else:
+            raise ValueError(f"Unbalanced dots address: {address}")
+
+    # Validate IP address
+    ipaddress.ip_address(ip)
+    return ip, int(port)
 
 def generate_stats_string(stats, filter_host=False):
     if filter_host:

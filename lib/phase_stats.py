@@ -134,7 +134,9 @@ def build_and_store_phase_stats(run_id, sci=None):
                 'cpu_utilization_procfs_system',
                 'cpu_utilization_mach_system',
                 'cpu_utilization_cgroup_container',
+                'cpu_utilization_cgroup_system',
                 'memory_used_cgroup_container',
+                'memory_used_cgroup_system',
                 'memory_used_procfs_system',
                 'energy_impact_powermetrics_vm',
                 'disk_used_statvfs_system',
@@ -144,10 +146,10 @@ def build_and_store_phase_stats(run_id, sci=None):
 
                 if metric in ('cpu_utilization_procfs_system', 'cpu_utilization_mach_system'):
                     cpu_utilization_machine = avg_value
-                if metric in ('cpu_utilization_cgroup_container', ):
+                if metric in ('cpu_utilization_cgroup_container', 'cpu_utilization_cgroup_system', ):
                     cpu_utilization_containers[detail_name] = avg_value
 
-            elif metric in ['network_io_cgroup_container', 'network_io_procfs_system', 'disk_io_procfs_system', 'disk_io_cgroup_container', 'disk_io_bytesread_powermetrics_vm', 'disk_io_byteswritten_powermetrics_vm']:
+            elif metric in ['network_io_cgroup_system', 'disk_io_cgroup_system', 'network_io_cgroup_container', 'network_io_procfs_system', 'disk_io_procfs_system', 'disk_io_cgroup_container', 'disk_io_bytesread_powermetrics_vm', 'disk_io_byteswritten_powermetrics_vm']:
                 # I/O values should be per second. However we have very different timing intervals.
                 # So we do not directly use the average here, as this would be the average per sampling frequency. We go through the duration
                 if sampling_rate_avg == 0:
@@ -216,7 +218,7 @@ def build_and_store_phase_stats(run_id, sci=None):
         if phase['name'] == '[RUNTIME]' and machine_carbon_in_ug is not None and sci is not None and sci.get('R', 0) != 0:
             csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_carbon_in_ug + embodied_carbon_share_ug + network_io_carbon_in_ug) / Decimal(sci['R']), 'TOTAL', None, None, 0, 0, 0, f"ugCO2e/{sci['R_d']}"))
 
-        if machine_power_baseline and cpu_utilization_machine and cpu_utilization_containers:
+        if machine_power_phase and machine_power_baseline and cpu_utilization_machine and cpu_utilization_containers:
             surplus_power_runtime = machine_power_phase - machine_power_baseline
             surplus_energy_runtime = machine_energy_phase - (machine_power_baseline * (Decimal(duration) / 1_000_000)) # we do not subtract phase energy here but calculate, becuase phases have different length
 

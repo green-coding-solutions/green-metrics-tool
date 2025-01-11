@@ -14,6 +14,9 @@ ACTIVATE_POWER_HOG = __ACTIVATE_POWER_HOG__;
 METRIC_MAPPINGS = {
 
 
+
+
+
     'disk_total_bytesread_powermetrics_vm': {
         'clean_name': 'Disk Total (Read)',
         'source': 'powermetrics',
@@ -54,7 +57,6 @@ METRIC_MAPPINGS = {
         'source': 'cgroup',
         'explanation': 'Disk I/O Totals accumulated for system cgroup',
     },
-
     'disk_total_cgroup_container': {
         'clean_name': 'Disk Data',
         'source': 'formula',

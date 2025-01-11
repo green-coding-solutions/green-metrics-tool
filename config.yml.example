@@ -154,6 +154,13 @@ measurement:
 #        resolution: 99
 #      memory.used.procfs.system.provider.MemoryUsedProcfsSystemProvider:
 #        resolution: 99
+#      cpu.utilization.cgroup.system.provider.CpuUtilizationCgroupSystemProvider:
+#        resolution: 99
+#        cgroups:
+#            "org.gnome.Shell@wayland.service":
+#                name: "Window Manager incl. X11"
+#            "session-2.scope":
+#                name: "GNOME Desktop"
 
     #--- Architecture - MacOS
     macos:

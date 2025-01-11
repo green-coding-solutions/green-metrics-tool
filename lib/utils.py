@@ -5,6 +5,7 @@ import os
 import requests
 from urllib.parse import urlparse
 from fastapi.exceptions import RequestValidationError
+from functools import cache
 
 from lib import error_helpers
 from lib.db import DB
@@ -179,3 +180,13 @@ def is_rapl_energy_filtering_deactivated():
                             cwd=os.path.abspath(os.path.join(CURRENT_DIR, '..')),
                             check=True, encoding='UTF-8')
     return '1' != result.stdout.strip()
+
+@cache
+def find_own_cgroup_name():
+    current_pid = os.getpid()
+    with open(f"/proc/{current_pid}/cgroup", 'r', encoding='utf-8') as file:
+        lines = file.readlines()
+        found_cgroups = len(lines)
+        if found_cgroups != 1:
+            raise RuntimeError(f"Could not find GMT\'s own cgroup or found too many. Amount: {found_cgroups}")
+        return lines[0].split('/')[-1].strip()

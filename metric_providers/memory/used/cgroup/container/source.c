@@ -23,8 +23,15 @@ typedef struct container_t { // struct is a specification and this static makes 
 static int user_id = -1;
 static unsigned int msleep_time=1000;
 
-static unsigned long long int get_memory_cgroup(char* filename) {
-    unsigned long long int memory = 0;
+static long long int get_memory_cgroup(char* filename) {
+    long long int active_file = -1;
+    long long int active_anon = -1;
+    long long int slab_unreclaimable = -1;
+    long long int percpu = -1;
+    long long int unevictable = -1;
+    long long int totals = 0;
+    unsigned long long int value = 0;
+    char key[128];
 
     FILE * fd = fopen(filename, "r");
     if ( fd == NULL) {
@@ -32,20 +39,62 @@ static unsigned long long int get_memory_cgroup(char* filename) {
         exit(1);
     }
 
-    int match_result = fscanf(fd, "%llu", &memory);
-    if (match_result != 1) {
-        fprintf(stderr, "Error - Memory could not be matched in memory.current cgroup\n");
-        exit(1);
+    while (fscanf(fd, "%127s %llu", key, &value) == 2) {
+        if (strcmp(key, "active_anon") == 0) {
+            active_anon = value;
+            totals += value;
+        } else if (strcmp(key, "active_file") == 0) {
+            active_file = value;
+            totals += value;
+        } else if (strcmp(key, "slab_unreclaimable") == 0) {
+            slab_unreclaimable = value;
+            totals += value;
+        } else if (strcmp(key, "percpu") == 0) {
+            percpu = value;
+            totals += value;
+        } else if (strcmp(key, "unevictable") == 0) {
+            unevictable = value;
+            totals += value;
+        }
+
+        if (totals < 0) {
+            fprintf(stderr, "Integer overflow in adding memory\n");
+            exit(1);
+        }
+
+        // finally we do NOT subtract file_mapped as this actually used memory if not
+        // deductible via inactive_file
+        // in case file_mapped is a shared file it will also show up in shmem
+        // sock: this is already part of slab_unreclaimable
     }
 
     fclose(fd);
 
-    if (memory <= 0) {
-        fprintf(stderr, "Error - memory.current was <= 0. Value: %llu\n", memory);
+    if (active_anon == -1) {
+        fprintf(stderr, "Could not match active_anon\n");
         exit(1);
     }
 
-    return memory;
+    if (active_file == -1) {
+        fprintf(stderr, "Could not match active_file\n");
+        exit(1);
+    }
+
+    if (slab_unreclaimable == -1) {
+        fprintf(stderr, "Could not match slab_unreclaimable\n");
+        exit(1);
+    }
+    if (percpu == -1) {
+        fprintf(stderr, "Could not match percpu\n");
+        exit(1);
+    }
+    if (unevictable == -1) {
+        fprintf(stderr, "Could not match unevictable\n");
+        exit(1);
+    }
+
+
+    return totals;
 }
 
 static void output_stats(container_t *containers, int length) {
@@ -55,7 +104,7 @@ static void output_stats(container_t *containers, int length) {
 
     gettimeofday(&now, NULL);
     for(i=0; i<length; i++) {
-        printf("%ld%06ld %llu %s\n", now.tv_sec, now.tv_usec, get_memory_cgroup(containers[i].path), containers[i].id);
+        printf("%ld%06ld %lld %s\n", now.tv_sec, now.tv_usec, get_memory_cgroup(containers[i].path), containers[i].id);
     }
     usleep(msleep_time*1000);
 }
@@ -87,7 +136,7 @@ static int parse_containers(container_t** containers, char* containers_string) {
         strncpy((*containers)[length-1].id, id, DOCKER_CONTAINER_ID_BUFFER - 1);
         (*containers)[length-1].id[DOCKER_CONTAINER_ID_BUFFER - 1] = '\0';
 
-        (*containers)[length-1].path = detect_cgroup_path("memory.current", user_id, id);
+        (*containers)[length-1].path = detect_cgroup_path("memory.stat", user_id, id);
     }
 
     if(length == 0) {

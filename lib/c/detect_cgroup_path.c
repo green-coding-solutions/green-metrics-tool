@@ -55,6 +55,26 @@ char* detect_cgroup_path(const char* controller, int user_id, const char* id) {
         return path;
     }
 
+    // Try cgroups v2 with session slices (typically for Window Managers)
+    snprintf(path, PATH_MAX,
+             "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/session.slice/%s/%s",
+             user_id, user_id, id, controller);
+    fd = fopen(path, "r");
+    if (fd != NULL) {
+        fclose(fd);
+        return path;
+    }
+
+    // Try cgroups v2 with user slices (typically for Session applications like gdm)
+    snprintf(path, PATH_MAX,
+             "/sys/fs/cgroup/user.slice/user-%d.slice/%s/%s",
+             user_id, id, controller);
+    fd = fopen(path, "r");
+    if (fd != NULL) {
+        fclose(fd);
+        return path;
+    }
+
     // If no valid path is found, free the allocated memory and error
     free(path);
     fprintf(stderr, "Error - Could not open container for reading: %s. Maybe the container is not running anymore? Errno: %d\n", id, errno);
