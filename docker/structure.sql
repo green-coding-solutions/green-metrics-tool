@@ -93,7 +93,7 @@ CREATE TABLE runs (
     filename text NOT NULL,
     machine_specs jsonb,
     runner_arguments json,
-    machine_id int REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    machine_id int NOT NULL REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     gmt_hash text,
     measurement_config jsonb,
     start_measurement bigint,
