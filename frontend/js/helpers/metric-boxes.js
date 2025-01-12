@@ -185,23 +185,23 @@ customElements.define('phase-metrics', PhaseMetrics);
     TODO: Include one sided T-test?
 */
 const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, detail_data, comparison_case)  => {
-    let max_value = ''
+    let max_value = '-'
     if (detail_data.max != null) {
         const [max,max_unit] = convertValue(detail_data.max, metric_data.unit);
         max_value = `${max?.toFixed(2)} ${max_unit}`;
     }
-    let min_value = ''
+    let min_value = '-'
     if (detail_data.min != null) {
         const [min,min_unit] = convertValue(detail_data.min, metric_data.unit);
         min_value = `${min?.toFixed(2)} ${min_unit}`;
     }
 
-    let max_mean_value = ''
+    let max_mean_value = '-'
     if (detail_data.max_mean != null) {
         const [max_mean,max_unit] = convertValue(detail_data.max_mean, metric_data.unit);
         max_mean_value = `${max_mean?.toFixed(2)} ${max_unit}`;
     }
-    let min_mean_value = ''
+    let min_mean_value = '-'
     if (detail_data.min_mean != null) {
         const [min_mean,min_unit] = convertValue(detail_data.min_mean, metric_data.unit);
         min_mean_value = `${min_mean?.toFixed(2)} ${min_unit}`;
@@ -237,9 +237,9 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
             <td>${max_mean_value}</td>
             <td>${min_mean_value}</td>
             <td>
-                <span title="${detail_data.sr_avg_avg} us">${(detail_data.sr_avg_avg/1000).toFixed(0)}</span> /
-                <span title="${detail_data.sr_95p_max} us">${(detail_data.sr_95p_max/1000).toFixed(0)}</span> /
-                <span title="${detail_data.sr_max_max} us">${(detail_data.sr_max_max/1000).toFixed(0)}</span> ms
+                <span title="${detail_data.sr_avg_avg} us">${(detail_data.sr_avg_avg == null) ? '-' : (detail_data.sr_avg_avg/1000).toFixed(0)}</span> /
+                <span title="${detail_data.sr_95p_max} us">${(detail_data.sr_95p_max == null) ? '-' : (detail_data.sr_95p_max/1000).toFixed(0)}</span> /
+                <span title="${detail_data.sr_max_max} us">${(detail_data.sr_max_max == null) ? '-' : (detail_data.sr_max_max/1000).toFixed(0)}</span> ms
             </td>`;
 
     } else {
@@ -254,9 +254,9 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
             <td>${max_value}</td>
             <td>${min_value}</td>
             <td>
-                <span title="${detail_data.sr_avg_avg} us">${(detail_data.sr_avg_avg/1000).toFixed(0)}</span> /
-                <span title="${detail_data.sr_95p_max} us">${(detail_data.sr_95p_max/1000).toFixed(0)}</span> /
-                <span title="${detail_data.sr_max_max} us">${(detail_data.sr_max_max/1000).toFixed(0)}</span> ms
+                <span title="${detail_data.sr_avg_avg} us">${(detail_data.sr_avg_avg == null) ? '-' : (detail_data.sr_avg_avg/1000).toFixed(0)}</span> /
+                <span title="${detail_data.sr_95p_max} us">${(detail_data.sr_95p_max == null) ? '-' : (detail_data.sr_95p_max/1000).toFixed(0)}</span> /
+                <span title="${detail_data.sr_max_max} us">${(detail_data.sr_max_max == null) ? '-' : (detail_data.sr_max_max/1000).toFixed(0)}</span> ms
             </td>`;
     }
 
