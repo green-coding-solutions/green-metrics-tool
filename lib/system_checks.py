@@ -79,7 +79,7 @@ def check_utf_encoding():
 def check_swap_disabled():
     if platform.system() == 'Darwin':
         result = subprocess.check_output(['sysctl', 'vm.swapusage'], encoding='utf-8')
-        return result == 'vm.swapusage: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)'
+        return result.strip() == 'vm.swapusage: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)'
     else:
         result = subprocess.check_output(['free'], encoding='utf-8')
         for line in result.splitlines():
