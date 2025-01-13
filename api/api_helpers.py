@@ -558,15 +558,15 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
         detail_data = phase_stats_object['data'][phase][metric_name]['data'][detail_name]['data']
         if key not in detail_data:
             detail_data[key] = {
-                'mean': None, # this is the mean over all repetitions of the detail_name for the key
+                'mean': value, # this is the mean over all repetitions of the detail_name for the key
                 'max': max_value,
                 'min': min_value,
-                'max_mean': None,
-                'min_mean': None,
+                'max_mean': max_value,
+                'min_mean': min_value,
                 'stddev': None,
-                'sr_avg_avg': None,
-                'sr_max_max': None,
-                'sr_95p_max': None,
+                'sr_avg_avg': sampling_rate_avg,
+                'sr_max_max': sampling_rate_max,
+                'sr_95p_max': sampling_rate_95p,
                 'sr_avg_values': [sampling_rate_avg], # temporary, we will delete this later
                 'sr_max_values': [sampling_rate_max], # temporary, we will delete this later
                 'sr_95p_values': [sampling_rate_95p], # temporary, we will delete this later
@@ -590,8 +590,8 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
 
         # since we do not save the min/max values we need to to the comparison here in every loop again
         # all other statistics are derived later in add_phase_stats_statistics()
-        detail_data[key]['max'] = max((x for x in [max_value, detail_data[key]['max']] if x is not None), default=None)
-        detail_data[key]['min'] = min((x for x in [min_value, detail_data[key]['min']] if x is not None), default=None)
+        detail_data[key]['max'] = max((x for x in [max_value, detail_data[key]['max']] if x is not None), default=max_value)
+        detail_data[key]['min'] = min((x for x in [min_value, detail_data[key]['min']] if x is not None), default=min_value)
 
     return phase_stats_object
 
@@ -621,20 +621,12 @@ def add_phase_stats_statistics(phase_stats_object):
                     sr_max_values_none_filtered = [item for item in key_obj['sr_max_values'] if item is not None]
                     sr_95p_values_none_filtered = [item for item in key_obj['sr_95p_values'] if item is not None]
 
-                    key_obj['mean'] = values_none_filtered[0] # default. might be overridden
-                    key_obj['max_mean'] = values_none_filtered[0] # default. might be overridden
-                    key_obj['min_mean'] = values_none_filtered[0] # default. might be overridden
-                    key_obj['sr_avg_avg'] = sr_avg_values_none_filtered[0] # default. might be overridden
-                    key_obj['sr_max_max'] = sr_max_values_none_filtered[0] # default. might be overridden
-                    key_obj['sr_95p_max'] = sr_95p_values_none_filtered[0] # default. might be overridden
-
                     if len(values_none_filtered) > 1:
 
                         t_stat = get_t_stat(len(values_none_filtered))
 
                         # JSON does not recognize the numpy data types. Sometimes int64 is returned
                         key_obj['mean'] = np.mean(values_none_filtered).item()
-                        key_obj['sr_avg_avg'] = np.mean(sr_avg_values_none_filtered).item()
 
                         key_obj['stddev'] = np.std(values_none_filtered, correction=1).item()
                         # We are using now the STDDEV of the sample for two reasons:
@@ -644,11 +636,15 @@ def add_phase_stats_statistics(phase_stats_object):
                         # Still one could argue that one does not want to characterize the measured software but rather the measurement setup
                         # it is safer to use the sample STDDEV as it is always higher
 
-                        key_obj['max_mean'] = np.max(values_none_filtered).item() # overwrite with max of list
-                        key_obj['sr_max_max'] = np.max(sr_max_values_none_filtered).item() # overwrite with max of list
-                        key_obj['sr_95p_max'] = np.max(sr_95p_values_none_filtered).item() # overwrite with max of list
+                        key_obj['max_mean'] = np.max(values_none_filtered).item()
+                        key_obj['min_mean'] = np.min(values_none_filtered).item()
 
-                        key_obj['min_mean'] = np.min(values_none_filtered).item() # overwrite with min of list
+                        if sr_avg_values_none_filtered:
+                            key_obj['sr_avg_avg'] = np.mean(sr_avg_values_none_filtered).item()
+                        if sr_max_values_none_filtered:
+                            key_obj['sr_max_max'] = np.max(sr_max_values_none_filtered).item()
+                        if sr_95p_values_none_filtered:
+                            key_obj['sr_95p_max'] = np.max(sr_95p_values_none_filtered).item()
 
                         key_obj['ci'] = (key_obj['stddev']*t_stat).item()
 

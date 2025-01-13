@@ -22,9 +22,9 @@ def test_phase_stats_single_energy():
     assert data[0]['unit'] == 'us'
     assert data[0]['value'] == Tests.TEST_MEASUREMENT_END_TIME - Tests.TEST_MEASUREMENT_START_TIME
     assert data[0]['type'] == 'TOTAL'
-    assert data[0]['sampling_rate_avg'] == 0, 'AVG sampling rate not in expected range'
-    assert data[0]['sampling_rate_max'] == 0, 'MAX sampling rate not in expected range'
-    assert data[0]['sampling_rate_95p'] == 0, '95p sampling rate not in expected range'
+    assert data[0]['sampling_rate_avg'] is None, 'AVG sampling rate not in expected range'
+    assert data[0]['sampling_rate_max'] is None, 'MAX sampling rate not in expected range'
+    assert data[0]['sampling_rate_95p'] is None, '95p sampling rate not in expected range'
 
 
     assert data[1]['metric'] == 'psu_energy_ac_mcp_machine'
@@ -152,10 +152,9 @@ def test_phase_embodied_and_operational_carbon():
     assert embodied_carbon_share_machine['value'] == embodied_carbon_expected
     assert embodied_carbon_share_machine['type'] == 'TOTAL'
 
-    assert embodied_carbon_share_machine['sampling_rate_avg'] == 0, 'AVG sampling rate not in expected range'
-    assert embodied_carbon_share_machine['sampling_rate_max'] == 0, 'MAX sampling rate not in expected range'
-    assert embodied_carbon_share_machine['sampling_rate_95p'] == 0, '95p sampling rate not in expected range'
-    assert isinstance(embodied_carbon_share_machine['sampling_rate_avg'], int)
+    assert embodied_carbon_share_machine['sampling_rate_avg'] is None, 'AVG sampling rate not in expected range'
+    assert embodied_carbon_share_machine['sampling_rate_max'] is None, 'MAX sampling rate not in expected range'
+    assert embodied_carbon_share_machine['sampling_rate_95p'] is None, '95p sampling rate not in expected range'
 
 def wip_test_phase_stats_single_network_procfs():
     run_id = Tests.insert_run()

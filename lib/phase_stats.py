@@ -13,7 +13,8 @@ from lib.db import DB
 from lib import error_helpers
 
 def generate_csv_line(run_id, metric, detail_name, phase_name, value, value_type, max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit):
-    return f"{run_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{round(min_value) if min_value is not None else ''},{sampling_rate_avg},{sampling_rate_max},{sampling_rate_95p},{unit},NOW()\n"
+    # else '' resolves to NULL
+    return f"{run_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{round(min_value) if min_value is not None else ''},{round(sampling_rate_avg) if sampling_rate_avg is not None else ''},{round(sampling_rate_max) if sampling_rate_max is not None else ''},{round(sampling_rate_95p) if sampling_rate_95p is not None else ''},{unit},NOW()\n"
 
 def build_and_store_phase_stats(run_id, sci=None):
     config = GlobalConfig().config
@@ -75,15 +76,15 @@ def build_and_store_phase_stats(run_id, sci=None):
                 AVG(value), -- This would be the normal average. we only use that when there is less than three values available and we cannot build a weighted average
                 (SUM(value*diff))::DOUBLE PRECISION/(SUM(diff)), -- weighted average -- we are missing the first row, which is NULL by concept. We could estimate it with an AVG, but this would increase complexity of this query for diminishing results the longer the measurement runs. we thus skip that
                 COUNT(value),
-                COALESCE(AVG(diff), 0)::int as sampling_rate_avg,
-                COALESCE(MAX(diff), 0)::int as sampling_rate_max,
-                COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY diff), 0)::int AS sampling_rate_95p
+                AVG(diff) as sampling_rate_avg,
+                MAX(diff) as sampling_rate_max,
+                percentile_cont(0.95) WITHIN GROUP (ORDER BY diff) AS sampling_rate_95p
             FROM lag_table
         """
 
         duration = Decimal(phase['end']-phase['start'])
         duration_in_s = duration / 1_000_000
-        csv_buffer.write(generate_csv_line(run_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", duration, 'TOTAL', None, None, 0, 0, 0, 'us'))
+        csv_buffer.write(generate_csv_line(run_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", duration, 'TOTAL', None, None, None, None, None, 'us'))
 
         # now we go through all metrics in the run and aggregate them
         for measurement_metric_id, metric, unit, detail_name in metrics: # unpack
@@ -97,12 +98,6 @@ def build_and_store_phase_stats(run_id, sci=None):
 
             params = (measurement_metric_id, phase['start'], phase['end'])
             results = DB().fetch_one(select_query, params=params)
-
-            value_sum = 0
-            max_value = 0
-            min_value = 0
-            avg_value = 0
-            value_count = 0
 
             value_sum, max_value, min_value, classic_avg_value, weighted_avg_value, value_count, sampling_rate_avg, sampling_rate_max, sampling_rate_95p = results
 
@@ -123,9 +118,6 @@ def build_and_store_phase_stats(run_id, sci=None):
             max_value = Decimal(max_value)
             min_value = Decimal(min_value)
             value_count = Decimal(value_count)
-            sampling_rate_avg = Decimal(sampling_rate_avg)
-            sampling_rate_max = Decimal(sampling_rate_max)
-            sampling_rate_95p = Decimal(sampling_rate_95p)
 
 
             if metric in (
@@ -152,15 +144,12 @@ def build_and_store_phase_stats(run_id, sci=None):
             elif metric in ['network_io_cgroup_system', 'disk_io_cgroup_system', 'network_io_cgroup_container', 'network_io_procfs_system', 'disk_io_procfs_system', 'disk_io_cgroup_container', 'disk_io_bytesread_powermetrics_vm', 'disk_io_byteswritten_powermetrics_vm']:
                 # I/O values should be per second. However we have very different timing intervals.
                 # So we do not directly use the average here, as this would be the average per sampling frequency. We go through the duration
-                if sampling_rate_avg == 0:
-                    max_value_per_s = 0
-                    min_value_per_s = 0
-                    avg_value_per_s = 0
-                else:
-                    provider_conversion_factor_to_s = Decimal(sampling_rate_avg)/1_000_000
-                    max_value_per_s = max_value/provider_conversion_factor_to_s
-                    min_value_per_s = min_value/provider_conversion_factor_to_s
-                    avg_value_per_s = avg_value/provider_conversion_factor_to_s
+                if not sampling_rate_avg:
+                    raise RuntimeError(f"Sampling rate (AVG) was missing and avg_value_per_s could not be derived for metric provider: {metric}")
+                provider_conversion_factor_to_s = Decimal(round(sampling_rate_avg)/1_000_000)
+                max_value_per_s = max_value/provider_conversion_factor_to_s
+                min_value_per_s = min_value/provider_conversion_factor_to_s
+                avg_value_per_s = avg_value/provider_conversion_factor_to_s
 
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", avg_value_per_s, 'MEAN', max_value_per_s, min_value_per_s, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, f"{unit}/s"))
 
@@ -202,10 +191,10 @@ def build_and_store_phase_stats(run_id, sci=None):
             # pylint: disable=invalid-name
             network_io_in_kWh = Decimal(sum(network_bytes_total)) / 1_000_000_000 * Decimal(0.002651650429449553)
             network_io_in_uJ = network_io_in_kWh * 3_600_000_000_000
-            csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_uJ, 'TOTAL', None, None, 0, 0, 0, 'uJ'))
+            csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_uJ, 'TOTAL', None, None, None, None, None, 'uJ'))
             # co2 calculations
             network_io_carbon_in_ug = network_io_in_kWh * Decimal(config['sci']['I']) * 1_000_000
-            csv_buffer.write(generate_csv_line(run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, 0, 0, 0, 'ug'))
+            csv_buffer.write(generate_csv_line(run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
         else:
             network_io_carbon_in_ug = 0
 
@@ -213,10 +202,10 @@ def build_and_store_phase_stats(run_id, sci=None):
             duration_in_years = duration_in_s / (60 * 60 * 24 * 365)
             embodied_carbon_share_g = (duration_in_years / Decimal(sci['EL']) ) * Decimal(sci['TE']) * Decimal(sci['RS'])
             embodied_carbon_share_ug = Decimal(embodied_carbon_share_g * 1_000_000)
-            csv_buffer.write(generate_csv_line(run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, 0, 0, 0, 'ug'))
+            csv_buffer.write(generate_csv_line(run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, None, None, None, 'ug'))
 
         if phase['name'] == '[RUNTIME]' and machine_carbon_in_ug is not None and sci is not None and sci.get('R', 0) != 0:
-            csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_carbon_in_ug + embodied_carbon_share_ug + network_io_carbon_in_ug) / Decimal(sci['R']), 'TOTAL', None, None, 0, 0, 0, f"ugCO2e/{sci['R_d']}"))
+            csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_carbon_in_ug + embodied_carbon_share_ug + network_io_carbon_in_ug) / Decimal(sci['R']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{sci['R_d']}"))
 
         if machine_power_phase and machine_power_baseline and cpu_utilization_machine and cpu_utilization_containers:
             surplus_power_runtime = machine_power_phase - machine_power_baseline
@@ -230,10 +219,10 @@ def build_and_store_phase_stats(run_id, sci=None):
                 else:
                     splitting_ratio = container_utilization / total_container_utilization
 
-                csv_buffer.write(generate_csv_line(run_id, 'psu_energy_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_energy_phase * splitting_ratio, 'TOTAL', None, None, 0, 0, 0, 'uJ'))
-                csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_power_phase * splitting_ratio, 'TOTAL', None, None, 0, 0, 0, 'mW'))
-                csv_buffer.write(generate_csv_line(run_id, 'psu_energy_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_energy_runtime * splitting_ratio, 'TOTAL', None, None, 0, 0, 0, 'uJ'))
-                csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * splitting_ratio, 'TOTAL', None, None, 0, 0, 0, 'mW'))
+                csv_buffer.write(generate_csv_line(run_id, 'psu_energy_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_energy_phase * splitting_ratio, 'TOTAL', None, None, None, None, None, 'uJ'))
+                csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_power_phase * splitting_ratio, 'TOTAL', None, None, None, None, None, 'mW'))
+                csv_buffer.write(generate_csv_line(run_id, 'psu_energy_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_energy_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'uJ'))
+                csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'mW'))
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning
     DB().copy_from(
