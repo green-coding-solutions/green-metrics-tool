@@ -30,7 +30,7 @@ def get_diffable_rows(user, uuids):
             AND id = ANY(%s::uuid[])
     """
 
-    params = (user.is_super_admin(), user.visible_users(), uuids)
+    params = (user.is_super_user(), user.visible_users(), uuids)
     return DB().fetch_all(query, params, fetch_mode='dict')
 
 def diff_rows(rows):
