@@ -144,15 +144,12 @@ def build_and_store_phase_stats(run_id, sci=None):
             elif metric in ['network_io_cgroup_system', 'disk_io_cgroup_system', 'network_io_cgroup_container', 'network_io_procfs_system', 'disk_io_procfs_system', 'disk_io_cgroup_container', 'disk_io_bytesread_powermetrics_vm', 'disk_io_byteswritten_powermetrics_vm']:
                 # I/O values should be per second. However we have very different timing intervals.
                 # So we do not directly use the average here, as this would be the average per sampling frequency. We go through the duration
-                if sampling_rate_avg:
-                    provider_conversion_factor_to_s = Decimal(round(sampling_rate_avg)/1_000_000)
-                    max_value_per_s = max_value/provider_conversion_factor_to_s
-                    min_value_per_s = min_value/provider_conversion_factor_to_s
-                    avg_value_per_s = avg_value/provider_conversion_factor_to_s
-                else:
-                    max_value_per_s = 0
-                    min_value_per_s = 0
-                    avg_value_per_s = 0
+                if not sampling_rate_avg:
+                    raise RuntimeError(f"Sampling rate (AVG) was missing and avg_value_per_s could not be derived for metric provider: {metric}")
+                provider_conversion_factor_to_s = Decimal(round(sampling_rate_avg)/1_000_000)
+                max_value_per_s = max_value/provider_conversion_factor_to_s
+                min_value_per_s = min_value/provider_conversion_factor_to_s
+                avg_value_per_s = avg_value/provider_conversion_factor_to_s
 
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", avg_value_per_s, 'MEAN', max_value_per_s, min_value_per_s, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, f"{unit}/s"))
 
