@@ -145,7 +145,7 @@ def build_and_store_phase_stats(run_id, sci=None):
                 # I/O values should be per second. However we have very different timing intervals.
                 # So we do not directly use the average here, as this would be the average per sampling frequency. We go through the duration
                 if sampling_rate_avg:
-                    provider_conversion_factor_to_s = round(sampling_rate_avg)/1_000_000
+                    provider_conversion_factor_to_s = Decimal(round(sampling_rate_avg)/1_000_000)
                     max_value_per_s = max_value/provider_conversion_factor_to_s
                     min_value_per_s = min_value/provider_conversion_factor_to_s
                     avg_value_per_s = avg_value/provider_conversion_factor_to_s
