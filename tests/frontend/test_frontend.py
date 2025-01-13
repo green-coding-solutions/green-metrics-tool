@@ -215,7 +215,7 @@ def test_stats():
     assert first_unit.strip() == 's'
 
     first_sr = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(10)").text_content().replace(" ","")
-    assert first_sr.strip() == '0/\n0/\n0ms'
+    assert first_sr.strip() == '-/\n-/\n-ms'
 
     machine_power_metric = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(10) > td:nth-child(1)").text_content()
     assert machine_power_metric.strip() == 'Machine Power'
