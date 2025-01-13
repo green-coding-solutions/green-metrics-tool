@@ -25,3 +25,4 @@ static-binary
 /tests/structure.sql
 tools/sgx_enable
 /tests/test-config.yml
+/tests/.testmondata
