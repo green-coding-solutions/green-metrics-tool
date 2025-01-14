@@ -26,3 +26,4 @@ static-binary
 tools/sgx_enable
 /tests/test-config.yml
 /tests/.testmondata
+/tests/.coverage
