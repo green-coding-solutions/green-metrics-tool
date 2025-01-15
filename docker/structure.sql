@@ -24,14 +24,17 @@ CREATE TRIGGER users_moddatetime
     EXECUTE PROCEDURE moddatetime (updated_at);
 
 -- Default password for authentication is DEFAULT
-INSERT INTO "public"."users"("name","token","capabilities","created_at","updated_at")
+INSERT INTO "public"."users"("id","name","token","capabilities","created_at","updated_at")
 VALUES
-(E'DEFAULT',E'89dbf71048801678ca4abfbaa3ea8f7c651aae193357a3e23d68e21512cd07f5',E'{"user":{"visible_users":[0,1],"is_super_user": true},"api":{"quotas":{},"routes":["/v1/machines","/v1/jobs","/v1/notes/{run_id}","/v1/network/{run_id}","/v1/repositories","/v1/runs","/v1/compare","/v1/phase_stats/single/{run_id}","/v1/measurements/single/{run_id}","/v1/diff","/v1/run/{run_id}","/v1/optimizations/{run_id}","/v1/timeline-projects","/v1/badge/single/{run_id}","/v1/badge/timeline","/v1/timeline","/v1/ci/measurement/add","/v1/ci/measurements","/v1/ci/badge/get","/v1/ci/runs","/v1/ci/repositories","/v1/ci/stats","/v2/ci/measurement/add","/v1/software/add","/v1/authentication/data"]},"data":{"runs":{"retention":2678400},"measurements":{"retention":2678400},"ci_measurements":{"retention":2678400}},"jobs":{"schedule_modes":["one-off","daily","weekly","commit","variance","tag","commit-variance","tag-variance"]},"machines":[1],"measurement":{"quotas":{},"settings":{"total-duration":86400,"flow-process-duration":86400}},"optimizations":["container_memory_utilization","container_cpu_utilization","message_optimization","container_build_time","container_boot_time","container_image_size"]}',E'2024-08-22 11:28:24.937262+00',NULL);
+(1, E'DEFAULT',E'89dbf71048801678ca4abfbaa3ea8f7c651aae193357a3e23d68e21512cd07f5',E'{"user":{"visible_users":[0,1],"is_super_user": true},"api":{"quotas":{},"routes":["/v1/machines","/v1/jobs","/v1/notes/{run_id}","/v1/network/{run_id}","/v1/repositories","/v1/runs","/v1/compare","/v1/phase_stats/single/{run_id}","/v1/measurements/single/{run_id}","/v1/diff","/v1/run/{run_id}","/v1/optimizations/{run_id}","/v1/timeline-projects","/v1/badge/single/{run_id}","/v1/badge/timeline","/v1/timeline","/v1/ci/measurement/add","/v1/ci/measurements","/v1/ci/badge/get","/v1/ci/runs","/v1/ci/repositories","/v1/ci/stats","/v2/ci/measurement/add","/v1/software/add","/v1/authentication/data"]},"data":{"runs":{"retention":2678400},"measurements":{"retention":2678400},"ci_measurements":{"retention":2678400}},"jobs":{"schedule_modes":["one-off","daily","weekly","commit","variance","tag","commit-variance","tag-variance"]},"machines":[1],"measurement":{"quotas":{},"settings":{"total-duration":86400,"flow-process-duration":86400}},"optimizations":["container_memory_utilization","container_cpu_utilization","message_optimization","container_build_time","container_boot_time","container_image_size"]}',E'2024-08-22 11:28:24.937262+00',NULL);
 
 -- Default password for user 0 is empty
 INSERT INTO "public"."users"("id", "name","token","capabilities","created_at","updated_at")
 VALUES
 (0, E'[GMT-SYSTEM]',E'',E'{"user":{"is_super_user": false},"api":{"quotas":{},"routes":[]},"data":{"runs":{"retention":2678400},"hog_tasks":{"retention":2678400},"measurements":{"retention":2678400},"hog_coalitions":{"retention":2678400},"ci_measurements":{"retention":2678400},"hog_measurements":{"retention":2678400}},"jobs":{"schedule_modes":[]},"machines":[],"measurement":{"quotas":{},"settings":{"total-duration":86400,"flow-process-duration":86400}},"optimizations":[]}',E'2024-11-06 11:28:24.937262+00',NULL);
+
+SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
+
 
 CREATE TABLE machines (
     id SERIAL PRIMARY KEY,
