@@ -2,6 +2,8 @@ import os
 
 GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))+'/../../'
 
+import pytest
+
 from tests import test_functions as Tests
 from lib.db import DB
 from lib.phase_stats import build_and_store_phase_stats
@@ -155,6 +157,53 @@ def test_phase_embodied_and_operational_carbon():
     assert embodied_carbon_share_machine['sampling_rate_avg'] is None, 'AVG sampling rate not in expected range'
     assert embodied_carbon_share_machine['sampling_rate_max'] is None, 'MAX sampling rate not in expected range'
     assert embodied_carbon_share_machine['sampling_rate_95p'] is None, '95p sampling rate not in expected range'
+
+def test_phase_stats_energy_one_measurement():
+    run_id = Tests.insert_run()
+    Tests.import_single_cpu_energy_measurement(run_id)
+
+    build_and_store_phase_stats(run_id)
+
+    data = DB().fetch_all('SELECT metric, detail_name, unit, value, type, sampling_rate_avg, sampling_rate_max, sampling_rate_95p FROM phase_stats WHERE phase = %s ', params=('004_[RUNTIME]', ), fetch_mode='dict')
+
+    assert len(data) == 3
+    assert data[0]['metric'] == 'phase_time_syscall_system'
+    assert data[0]['detail_name'] == '[SYSTEM]'
+    assert data[0]['value'] == 470000000
+    assert data[0]['sampling_rate_95p'] is None
+
+    assert data[1]['metric'] == 'cpu_energy_rapl_msr_component'
+    assert data[1]['detail_name'] == 'Package_0'
+    assert data[1]['value'] == 412000
+    assert data[1]['sampling_rate_95p'] is None
+
+
+def test_phase_stats_network_io_one_measurement():
+    run_id = Tests.insert_run()
+
+    with pytest.raises(RuntimeError) as e:
+        Tests.import_single_network_io_procfs_measurement(run_id)
+    assert str(e.value) == 'Metrics provider network_io_procfs_system seems to have not produced any measurements. Metrics log file was empty. Either consider having a higher sample rate or turn off provider.'
+
+
+def test_phase_stats_network_io_two_measurements():
+    run_id = Tests.insert_run()
+    Tests.import_two_network_io_procfs_measurements(run_id)
+
+    build_and_store_phase_stats(run_id)
+
+    data = DB().fetch_all('SELECT metric, detail_name, unit, value, type, sampling_rate_avg, sampling_rate_max, sampling_rate_95p FROM phase_stats WHERE phase = %s ', params=('004_[RUNTIME]', ), fetch_mode='dict')
+
+    assert len(data) == 5
+    assert data[0]['metric'] == 'phase_time_syscall_system'
+    assert data[0]['detail_name'] == '[SYSTEM]'
+    assert data[0]['value'] == 470000000
+    assert data[0]['sampling_rate_95p'] is None
+
+    assert data[1]['metric'] == 'network_io_procfs_system'
+    assert data[1]['detail_name'] == 'CURRENT_ACTUAL_NETWORK_INTERFACE'
+    assert data[1]['value'] == 13679
+    assert data[1]['sampling_rate_95p'] == 1000486
 
 def wip_test_phase_stats_single_network_procfs():
     run_id = Tests.insert_run()

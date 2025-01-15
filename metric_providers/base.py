@@ -128,7 +128,7 @@ class BaseMetricProvider:
 
     def _check_empty(self, df):
         if df.empty:
-            raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")
+            raise RuntimeError(f"Metrics provider {self._metric_name} seems to have not produced any measurements. Metrics log file was empty. Either consider having a higher sample rate or turn off provider.")
 
 
     def _parse_metrics(self, df): # can be overriden in child
@@ -172,6 +172,8 @@ class BaseMetricProvider:
         df = self._add_unit_and_metric(df)
 
         df = self._add_and_validate_resolution_and_jitter(df)
+
+        self._check_empty(df) # we do another check after transformations, as this could have resulted in zero rows
 
         return df
 

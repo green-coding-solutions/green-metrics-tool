@@ -37,6 +37,36 @@ def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename'
         (%s, %s, %s, %s, %s, %s) RETURNING id;
     ''', params=(uri, branch, filename, json.dumps(phases), user_id, machine_id))[0]
 
+def import_single_cpu_energy_measurement(run_id):
+
+    obj = CpuEnergyRaplMsrComponentProvider(1000, skip_check=True)
+    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_energy_rapl_msr_component_single_measurement.log')
+    df = obj.read_metrics()
+
+    metric_importer.import_measurements(df, 'cpu_energy_rapl_msr_component', run_id, containers=TEST_MEASUREMENT_CONTAINERS)
+
+    return df
+
+def import_single_network_io_procfs_measurement(run_id):
+
+    obj = NetworkIoProcfsSystemProvider(1000, skip_check=True, remove_virtual_interfaces=False)
+    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_procfs_system_single_measurement.log')
+    df = obj.read_metrics()
+
+    metric_importer.import_measurements(df, 'network_io_procfs_system', run_id, containers=TEST_MEASUREMENT_CONTAINERS)
+
+    return df
+
+def import_two_network_io_procfs_measurements(run_id):
+
+    obj = NetworkIoProcfsSystemProvider(1000, skip_check=True, remove_virtual_interfaces=False)
+    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_procfs_system_two_measurements.log')
+    df = obj.read_metrics()
+
+    metric_importer.import_measurements(df, 'network_io_procfs_system', run_id, containers=TEST_MEASUREMENT_CONTAINERS)
+
+    return df
+
 def import_cpu_utilization(run_id):
 
     obj = CpuUtilizationCgroupContainerProvider(99, skip_check=True)
