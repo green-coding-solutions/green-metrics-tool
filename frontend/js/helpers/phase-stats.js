@@ -59,9 +59,7 @@ const getAndShowPhase = () => {
         const sub_phase_regex = /^[\.\s0-9a-zA-Z_\(\)-]+$/; // Matches strings containing only letters and digits
         if (phase_to_display[1] != null && sub_phase_regex.test(phase_to_display[1])) {
             try {
-                setTimeout(function(){
-                    document.querySelector(`a.runtime-step[data-tab="${phase_to_display[1]}"`).dispatchEvent(new Event('click'));
-                }, 1000); // hacky ... this needs better solution ... but unclear WHY it is not sync ...
+                document.querySelector(`a.runtime-step[data-tab="${phase_to_display[1]}"`).dispatchEvent(new Event('click'));
             } catch(err) {
                 console.log('Could not match phase to show', err);
             }

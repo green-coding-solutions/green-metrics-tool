@@ -330,13 +330,15 @@ const fetchAndFillPhaseStatsData = async (url_params) => {
 
 
     buildPhaseTabs(phase_stats.data)
-    renderCompareChartsForPhase(phase_stats.data, getAndShowPhase());
-    displayTotalChart(...buildTotalChartData(phase_stats.data));
 
     document.querySelectorAll('.ui.steps.phases .step, .runtime-step').forEach(node => node.addEventListener('click', el => {
-        const phase = el.currentTarget.getAttribute('data-tab');
-        renderCompareChartsForPhase(phase_stats.data, phase);
-    }));
+            const phase = el.currentTarget.getAttribute('data-tab');
+            renderCompareChartsForPhase(phase_stats.data, phase);
+        })
+    );
+
+    renderCompareChartsForPhase(phase_stats.data, getAndShowPhase());
+    displayTotalChart(...buildTotalChartData(phase_stats.data));
 
 }
 
