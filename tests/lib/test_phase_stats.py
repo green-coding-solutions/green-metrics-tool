@@ -205,7 +205,7 @@ def test_phase_stats_network_io_two_measurements():
     assert data[1]['value'] == 13679
     assert data[1]['sampling_rate_95p'] == 1000486
 
-def wip_test_phase_stats_single_network_procfs():
+def test_phase_stats_single_network_procfs():
     run_id = Tests.insert_run()
     Tests.import_network_io_procfs(run_id)
 
@@ -216,26 +216,26 @@ def wip_test_phase_stats_single_network_procfs():
     assert len(data) == 23
     assert data[1]['metric'] == 'network_io_procfs_system'
     assert data[1]['detail_name'] == 'br-3d6ff3fb0904'
-    assert data[1]['value'] == 649004
+    assert data[1]['value'] == 649037
     assert data[1]['sampling_rate_avg'] == 99482, 'AVG sampling rate not in expected range'
-    assert data[1]['sampling_rate_max'] == 105929, 'MAX sampling rate not in expected range'
+    assert data[1]['sampling_rate_max'] == 105930, 'MAX sampling rate not in expected range'
     assert data[1]['sampling_rate_95p'] == 100488, '95p sampling rate not in expected range'
     assert isinstance(data[1]['sampling_rate_95p'], int)
 
     assert data[3]['metric'] == 'network_io_procfs_system'
     assert data[3]['detail_name'] == 'br-6062a8cb12d5'
-    assert data[3]['value'] == 403
+    assert data[3]['value'] == 284
 
-    assert data[3]['sampling_rate_avg'] == 99476, 'AVG sampling rate not in expected range'
-    assert data[3]['sampling_rate_max'] == 105929, 'MAX sampling rate not in expected range'
-    assert data[3]['sampling_rate_95p'] == 100465, '95p sampling rate not in expected range'
+    assert data[3]['sampling_rate_avg'] == 99479, 'AVG sampling rate not in expected range'
+    assert data[3]['sampling_rate_max'] == 105930, 'MAX sampling rate not in expected range'
+    assert data[3]['sampling_rate_95p'] == 100477, '95p sampling rate not in expected range'
     assert isinstance(data[3]['sampling_rate_95p'], int)
 
     assert data[5]['metric'] == 'network_io_procfs_system'
     assert data[5]['detail_name'] == 'docker0'
     assert data[5]['value'] == 0
 
-    assert data[5]['sampling_rate_avg'] == 99476, 'AVG sampling rate not in expected range'
-    assert data[5]['sampling_rate_max'] == 105929, 'MAX sampling rate not in expected range'
-    assert data[5]['sampling_rate_95p'] == 100465, '95p sampling rate not in expected range'
+    assert data[5]['sampling_rate_avg'] == 99479, 'AVG sampling rate not in expected range'
+    assert data[5]['sampling_rate_max'] == 105930, 'MAX sampling rate not in expected range'
+    assert data[5]['sampling_rate_95p'] == 100477, '95p sampling rate not in expected range'
     assert isinstance(data[5]['sampling_rate_95p'], int)
