@@ -1,10 +1,10 @@
 import os
 
 from lib import utils
-from metric_providers.base import BaseMetricProvider
+from metric_providers.container import ContainerMetricProvider
 
-class NetworkIoCgroupContainerProvider(BaseMetricProvider):
-    def __init__(self, resolution, skip_check=False):
+class NetworkIoCgroupContainerProvider(ContainerMetricProvider):
+    def __init__(self, resolution, skip_check=False, containers: dict = None):
         super().__init__(
             metric_name='network_io_cgroup_container',
             metrics={'time': int, 'received_bytes': int, 'transmitted_bytes': int, 'container_id': str},
@@ -12,6 +12,7 @@ class NetworkIoCgroupContainerProvider(BaseMetricProvider):
             unit='Bytes',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            containers=containers,
         )
 
     def _parse_metrics(self, df):

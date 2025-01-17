@@ -1083,6 +1083,10 @@ class Runner:
             self.__stdout_logs[log_entry_name] = ''
         self.__stdout_logs[log_entry_name] = '\n'.join((self.__stdout_logs[log_entry_name], message))
 
+    def add_containers_to_metric_providers(self):
+        for metric_provider in self.__metric_providers:
+            if metric_provider._metric_name.endswith('_container'):
+                metric_provider.add_containers(self.__containers)
 
     def start_metric_providers(self, allow_container=True, allow_other=True):
         if self._dev_no_metrics:
@@ -1104,7 +1108,8 @@ class Runner:
                 raise RuntimeError(f"Metric provider {metric_provider.__class__.__name__} was already started!")
 
             message = f"Booting {metric_provider.__class__.__name__}"
-            metric_provider.start_profiling(self.__containers)
+            metric_provider.start_profiling()
+
             if self._verbose_provider_boot:
                 self.__notes_helper.add_note({'note': message, 'detail_name': '[NOTES]', 'timestamp': int(time.time_ns() / 1_000)})
                 self.custom_sleep(10)
@@ -1349,7 +1354,7 @@ class Runner:
                 errors.append(f"{metric_provider.__class__.__name__} returned error message: {str(exc)}")
                 continue
 
-            metric_importer.import_measurements(df, metric_provider._metric_name, self._run_id, self.__containers)
+            metric_importer.import_measurements(df, metric_provider._metric_name, self._run_id)
 
             print('Imported', TerminalColors.HEADER, len(df), TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
 
@@ -1633,7 +1638,9 @@ class Runner:
             if self._debugger.active:
                 self._debugger.pause('Container setup complete. Waiting to start container providers')
 
+            self.add_containers_to_metric_providers()
             self.start_metric_providers(allow_container=True, allow_other=False)
+
 
             if self._debugger.active:
                 self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')

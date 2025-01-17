@@ -4,11 +4,17 @@ import pytest
 
 GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))+'/../../'
 
+from tests import test_functions as Tests
+
 from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
 from metric_providers.cpu.energy.rapl.msr.component.provider import CpuEnergyRaplMsrComponentProvider
 from metric_providers.network.connections.tcpdump.system.provider import NetworkConnectionsTcpdumpSystemProvider, generate_stats_string
 from metric_providers.powermetrics.provider import PowermetricsProvider
 from metric_providers.psu.energy.ac.xgboost.machine.provider import PsuEnergyAcXgboostMachineProvider
+from metric_providers.cpu.utilization.cgroup.system.provider import CpuUtilizationCgroupSystemProvider
+from metric_providers.cpu.utilization.cgroup.container.provider import CpuUtilizationCgroupContainerProvider
+
+from unittest.mock import patch
 
 def test_time_monotonic():
     obj = NetworkIoProcfsSystemProvider(1000, remove_virtual_interfaces=False, skip_check=True)
@@ -170,3 +176,33 @@ def test_cloud_energy():
     assert df.metric.unique() == ['psu_energy_ac_xgboost_machine']
 
     assert df[df.metric == 'psu_energy_ac_xgboost_machine'].value.mean() == 10055978
+
+def test_cgroup_system():
+    filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_cgroup_system.log')
+
+    with patch('lib.utils.find_own_cgroup_name') as find_own_cgroup_name:
+        find_own_cgroup_name.return_value = "session-2.scope"
+        obj = CpuUtilizationCgroupSystemProvider(100, skip_check=True)
+
+    obj._filename = os.path.join(filename)
+
+    df = obj.read_metrics()
+
+    assert df.metric.unique() == ['cpu_utilization_cgroup_system']
+    assert df.detail_name.unique() == 'GMT Overhead'
+    assert math.isclose(df.value.mean(), 1985.447, rel_tol=1e-5)
+
+def test_cgroup_container():
+    filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_cgroup_container.log')
+
+    obj = CpuUtilizationCgroupContainerProvider(100, skip_check=True)
+
+    obj._filename = os.path.join(filename)
+
+    obj.add_containers(Tests.TEST_MEASUREMENT_CONTAINERS)
+    df = obj.read_metrics()
+
+    assert df.metric.unique() == ['cpu_utilization_cgroup_container']
+    assert list(df.detail_name.unique()) == ['Arne', 'Not-Arne']
+
+    assert math.isclose(df.value.mean(), 2972.021, rel_tol=1e-5)

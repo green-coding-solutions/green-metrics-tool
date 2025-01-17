@@ -4,7 +4,7 @@ from lib.db import DB
 from metric_providers.network.connections.tcpdump.system.provider import generate_stats_string
 
 
-def import_measurements(df, metric_name, run_id, containers=None):
+def import_measurements(df, metric_name, run_id):
 
     if metric_name == 'network_connections_proxy_container_dockerproxy':
 
@@ -21,9 +21,6 @@ def import_measurements(df, metric_name, run_id, containers=None):
             """, params=(generate_stats_string(df), run_id))
 
     else:
-
-        if 'container_id' in df.columns:
-            df = map_container_id_to_detail_name(df, containers)
 
         df['run_id'] = run_id
 
@@ -45,11 +42,3 @@ def import_measurements(df, metric_name, run_id, containers=None):
         DB().copy_from(file=f, table='measurement_values', columns=['measurement_metric_id', 'value', 'time'], sep=',')
 
         f.close()
-
-def map_container_id_to_detail_name(df, containers):
-    df['detail_name'] = df.container_id
-    for container_id in containers:
-        df.loc[df.detail_name == container_id, 'detail_name'] = containers[container_id]['name']
-    df = df.drop('container_id', axis=1)
-
-    return df

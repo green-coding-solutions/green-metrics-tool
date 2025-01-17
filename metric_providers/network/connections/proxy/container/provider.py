@@ -28,7 +28,6 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
         )
 
         self._conf_file = f"{CURRENT_DIR}/proxy_conf.conf"
-        self._extra_switches = ['-d', '-c', self._conf_file]
         self._host_ip = host_ip
 
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
@@ -64,6 +63,9 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
                 '--env', f"https_proxy=http://{proxy_addr}:8889",
                 '--env', f"NO_PROXY={no_proxy_list}",
                 '--env', f"no_proxy={no_proxy_list}"]
+
+    def _add_extra_switches(self, call_string):
+        return f"{call_string} -d -c {self._conf_file}"
 
     def _read_metrics(self):
         with open(self._filename, 'r', encoding='utf-8') as file:

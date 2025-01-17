@@ -1,10 +1,10 @@
 import os
 
 from lib import utils
-from metric_providers.base import BaseMetricProvider
+from metric_providers.container import ContainerMetricProvider
 
-class DiskIoCgroupContainerProvider(BaseMetricProvider):
-    def __init__(self, resolution, skip_check=False):
+class DiskIoCgroupContainerProvider(ContainerMetricProvider):
+    def __init__(self, resolution, skip_check=False, containers: dict = None):
         super().__init__(
             metric_name='disk_io_cgroup_container',
             metrics={'time': int, 'read_bytes': int, 'written_bytes': int, 'container_id': str},
@@ -12,10 +12,11 @@ class DiskIoCgroupContainerProvider(BaseMetricProvider):
             unit='Bytes',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
+            containers=containers,
         )
 
     def _parse_metrics(self, df):
-        df = super()._parse_metrics(df) # sets detail_name
+        df = super()._parse_metrics(df)
 
         df = df.sort_values(by=['container_id', 'time'], ascending=True)
 

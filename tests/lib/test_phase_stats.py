@@ -49,9 +49,9 @@ def test_phase_stats_single_energy():
     assert data[2]['sampling_rate_95p'] == 104671, '95p sampling rate not in expected range'
     assert isinstance(data[2]['sampling_rate_95p'], int)
 
-def test_phase_stats_single_cgroup():
+def test_phase_stats_single_container():
     run_id = Tests.insert_run()
-    Tests.import_cpu_utilization(run_id)
+    Tests.import_cpu_utilization_container(run_id)
 
     build_and_store_phase_stats(run_id)
 
@@ -72,7 +72,7 @@ def test_phase_stats_single_cgroup():
 def test_phase_stats_multi():
     run_id = Tests.insert_run()
     Tests.import_machine_energy(run_id)
-    Tests.import_cpu_utilization(run_id)
+    Tests.import_cpu_utilization_container(run_id)
     Tests.import_cpu_energy(run_id)
 
     build_and_store_phase_stats(run_id)
