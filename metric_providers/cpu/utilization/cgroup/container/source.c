@@ -251,7 +251,7 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "Could not allocate memory for containers string\n");
                 exit(1);
             }
-            strncpy(containers_string, optarg, optarg_len);
+            memcpy(containers_string, optarg, optarg_len);
             containers_string[optarg_len] = '\0'; // Ensure NUL termination if max length
             break;
         case 'c':
