@@ -89,7 +89,7 @@ def import_cpu_utilization_system(run_id):
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_utilization_cgroup_system.log')
     df = obj.read_metrics()
 
-    metric_importer.import_measurements(df, 'cpu_utilization_cgroup_syste,', run_id)
+    metric_importer.import_measurements(df, 'cpu_utilization_cgroup_system,', run_id)
 
     return df
 

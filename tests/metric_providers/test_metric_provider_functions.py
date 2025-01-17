@@ -178,13 +178,11 @@ def test_cloud_energy():
     assert df[df.metric == 'psu_energy_ac_xgboost_machine'].value.mean() == 10055978
 
 def test_cgroup_system():
-    filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_cgroup_system.log')
-
     with patch('lib.utils.find_own_cgroup_name') as find_own_cgroup_name:
         find_own_cgroup_name.return_value = "session-2.scope"
         obj = CpuUtilizationCgroupSystemProvider(100, skip_check=True)
 
-    obj._filename = os.path.join(filename)
+    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_cgroup_system.log')
 
     df = obj.read_metrics()
 
@@ -193,11 +191,9 @@ def test_cgroup_system():
     assert math.isclose(df.value.mean(), 1985.447, rel_tol=1e-5)
 
 def test_cgroup_container():
-    filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_cgroup_container.log')
-
     obj = CpuUtilizationCgroupContainerProvider(100, skip_check=True)
 
-    obj._filename = os.path.join(filename)
+    obj._filename = os.path.join(GMT_ROOT_DIR, './tests/data/metrics/cpu_utilization_cgroup_container.log')
 
     obj.add_containers(Tests.TEST_MEASUREMENT_CONTAINERS)
     df = obj.read_metrics()
