@@ -38,7 +38,6 @@ class LmsensorsProvider(BaseMetricProvider):
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
-        self._extra_switches = self._create_options()
 
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
         super().check_system(check_command=None)
@@ -62,6 +61,8 @@ class LmsensorsProvider(BaseMetricProvider):
                     if feature not in chip_section:
                         raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot find feature '{feature}' in the output section for chip starting with '{config_chip}' of the 'sensors' command.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
 
+    def _add_extra_switches(self, call_string):
+        return f"{call_string} {' '.join(self._create_options())}"
 
     def _parse_metrics(self, df):
 

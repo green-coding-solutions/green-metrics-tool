@@ -12,7 +12,6 @@ class PsuEnergyAcPowerspy2MachineProvider(BaseMetricProvider):
             metric_provider_executable="metric-provider.py",
             skip_check=skip_check,
         )
-        self._extra_switches = ['-u','uJ']
 
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
         super().check_system(check_command=None)
@@ -26,3 +25,6 @@ class PsuEnergyAcPowerspy2MachineProvider(BaseMetricProvider):
                 raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot read device at {file_path}.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml") from exc
         else:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCould not find device at {file_path}.\n\nAre you running in a VM / cloud / shared hosting? \nIf so please disable the {self._metric_name} provider in the config.yml")
+
+    def _add_extra_switches(self, call_string):
+        return f"{call_string} -u uJ"

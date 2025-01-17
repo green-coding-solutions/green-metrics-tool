@@ -14,8 +14,7 @@ class MetricProviderConfigurationError(ConfigurationCheckError):
 
 class BaseMetricProvider:
 
-    def __init__(
-        self,
+    def __init__(self, *,
         metric_name,
         metrics,
         resolution,
@@ -39,7 +38,6 @@ class BaseMetricProvider:
 
         self._tmp_folder = '/tmp/green-metrics-tool'
         self._ps = None
-        self._extra_switches = []
 
         Path(self._tmp_folder).mkdir(exist_ok=True)
 
@@ -128,7 +126,7 @@ class BaseMetricProvider:
 
     def _check_empty(self, df):
         if df.empty:
-            raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")
+            raise RuntimeError(f"Metrics provider {self._metric_name} seems to have not produced any measurements. Metrics log file was empty. Either consider having a higher sample rate or turn off provider.")
 
 
     def _parse_metrics(self, df): # can be overriden in child
@@ -173,9 +171,14 @@ class BaseMetricProvider:
 
         df = self._add_and_validate_resolution_and_jitter(df)
 
+        self._check_empty(df) # we do another check after transformations, as this could have resulted in zero rows
+
         return df
 
-    def start_profiling(self, containers=None):
+    def _add_extra_switches(self, call_string): # will be adapted in child if needed
+        return call_string
+
+    def start_profiling(self):
 
         if self._resolution is None:
             call_string = self._metric_provider_executable
@@ -189,14 +192,7 @@ class BaseMetricProvider:
         if self._sudo:
             call_string = f"sudo {call_string} "
 
-        if hasattr(self, '_extra_switches'):
-            call_string += ' '  # space at start
-            call_string += ' '.join(self._extra_switches)
-
-        # This needs refactoring see https://github.com/green-coding-solutions/green-metrics-tool/issues/45
-        if (self._metrics.get('container_id') is not None) and (containers is not None):
-            call_string += ' -s '
-            call_string += ','.join(containers.keys())
+        call_string = self._add_extra_switches(call_string)
 
         call_string += f" > {self._filename}"
 

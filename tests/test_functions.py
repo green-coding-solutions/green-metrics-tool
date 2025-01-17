@@ -7,6 +7,7 @@ from lib.db import DB
 from lib.global_config import GlobalConfig
 from lib import metric_importer
 from metric_providers.cpu.utilization.cgroup.container.provider import CpuUtilizationCgroupContainerProvider
+from metric_providers.cpu.utilization.cgroup.system.provider import CpuUtilizationCgroupSystemProvider
 from metric_providers.psu.energy.ac.mcp.machine.provider import PsuEnergyAcMcpMachineProvider
 from metric_providers.cpu.energy.rapl.msr.component.provider import CpuEnergyRaplMsrComponentProvider
 from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
@@ -37,16 +38,61 @@ def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename'
         (%s, %s, %s, %s, %s, %s) RETURNING id;
     ''', params=(uri, branch, filename, json.dumps(phases), user_id, machine_id))[0]
 
-def import_cpu_utilization(run_id):
+def import_single_cpu_energy_measurement(run_id):
+
+    obj = CpuEnergyRaplMsrComponentProvider(1000, skip_check=True)
+    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_energy_rapl_msr_component_single_measurement.log')
+    df = obj.read_metrics()
+
+    metric_importer.import_measurements(df, 'cpu_energy_rapl_msr_component', run_id)
+
+    return df
+
+def import_single_network_io_procfs_measurement(run_id):
+
+    obj = NetworkIoProcfsSystemProvider(1000, skip_check=True, remove_virtual_interfaces=False)
+    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_procfs_system_single_measurement.log')
+    df = obj.read_metrics()
+
+    metric_importer.import_measurements(df, 'network_io_procfs_system', run_id)
+
+    return df
+
+def import_two_network_io_procfs_measurements(run_id):
+
+    obj = NetworkIoProcfsSystemProvider(1000, skip_check=True, remove_virtual_interfaces=False)
+    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_procfs_system_two_measurements.log')
+    df = obj.read_metrics()
+
+    metric_importer.import_measurements(df, 'network_io_procfs_system', run_id)
+
+    return df
+
+def import_cpu_utilization_container(run_id):
 
     obj = CpuUtilizationCgroupContainerProvider(99, skip_check=True)
 
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_utilization_cgroup_container.log')
+
+    obj.add_containers(TEST_MEASUREMENT_CONTAINERS)
+
     df = obj.read_metrics()
 
-    metric_importer.import_measurements(df, 'cpu_utilization_cgroup_container', run_id, containers=TEST_MEASUREMENT_CONTAINERS)
+    metric_importer.import_measurements(df, 'cpu_utilization_cgroup_container', run_id)
 
     return df
+
+def import_cpu_utilization_system(run_id):
+
+    obj = CpuUtilizationCgroupSystemProvider(99, skip_check=True)
+
+    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/cpu_utilization_cgroup_system.log')
+    df = obj.read_metrics()
+
+    metric_importer.import_measurements(df, 'cpu_utilization_cgroup_syste,', run_id)
+
+    return df
+
 
 def import_machine_energy(run_id):
 
@@ -199,6 +245,7 @@ class RunUntilManager:
                 return
             self.__runner.end_phase('[BOOT]')
 
+            self.__runner.add_containers_to_metric_providers()
             self.__runner.start_metric_providers(allow_container=True, allow_other=False)
 
             self.__runner.start_phase('[IDLE]')

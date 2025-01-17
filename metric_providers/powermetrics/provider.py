@@ -26,19 +26,6 @@ class PowermetricsProvider(BaseMetricProvider):
         )
 
         self._skip_check =  skip_check
-        # We can't use --show-all here as this sometimes triggers output on stderr
-        self._extra_switches = [
-            '--show-process-io',
-            '--show-process-gpu',
-            '--show-process-netstats',
-            '--show-process-energy',
-            '--show-process-coalition',
-            '-f',
-            'plist',
-            '-b',
-            '0',
-            ]
-
 
     def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
         # no call to super().check_system() as we have different logic of finding the process
@@ -105,6 +92,10 @@ class PowermetricsProvider(BaseMetricProvider):
                 raise RuntimeError('powermetrics had to be killed with kill -9. Values can not be trusted!')
 
         self._ps = None
+
+    def _add_extra_switches(self, call_string):
+        # We can't use --show-all here as this sometimes triggers output on stderr
+        return f"{call_string} --show-process-io --show-process-gpu --show-process-netstats --show-process-energy --show-process-coalition -f plist -b 0"
 
     def _parse_metrics(self, df):
         return df # noop, as we have already set detail_name individually in _read_metrics
