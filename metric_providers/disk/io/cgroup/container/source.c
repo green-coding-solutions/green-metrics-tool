@@ -127,6 +127,7 @@ int main(int argc, char **argv) {
 
     int c;
     int check_system_flag = 0;
+    int optarg_len;
     char *containers_string = NULL;  // Dynamic buffer to store optarg
     container_t *containers = NULL;
 
@@ -155,13 +156,14 @@ int main(int argc, char **argv) {
             msleep_time = parse_int(optarg);
             break;
         case 's':
-            containers_string = (char *)malloc(strlen(optarg) + 1);  // Allocate memory
+            optarg_len = strlen(optarg);
+            containers_string = (char *)malloc(optarg_len + 1);  // Allocate memory
             if (!containers_string) {
                 fprintf(stderr, "Could not allocate memory for containers string\n");
                 exit(1);
             }
-            strncpy(containers_string, optarg, strlen(optarg));
-            containers_string[strlen(optarg)] = '\0'; // Ensure NUL termination if max length
+            memcpy(containers_string, optarg, optarg_len);
+            containers_string[optarg_len] = '\0'; // Ensure NUL termination if max length
             break;
         case 'c':
             check_system_flag = 1;
