@@ -18,13 +18,13 @@ class NetworkIoCgroupContainerProvider(ContainerMetricProvider):
     def _parse_metrics(self, df):
         df = super()._parse_metrics(df) # sets detail_name
 
-        df = df.sort_values(by=['container_id', 'time'], ascending=True)
+        df = df.sort_values(by=['detail_name', 'time'], ascending=True)
 
-        df['transmitted_bytes_intervals'] = df.groupby(['container_id'])['transmitted_bytes'].diff()
-        df['transmitted_bytes_intervals'] = df.groupby('container_id')['transmitted_bytes_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
+        df['transmitted_bytes_intervals'] = df.groupby(['detail_name'])['transmitted_bytes'].diff()
+        df['transmitted_bytes_intervals'] = df.groupby('detail_name')['transmitted_bytes_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
 
-        df['received_bytes_intervals'] = df.groupby(['container_id'])['received_bytes'].diff()
-        df['received_bytes_intervals'] = df.groupby('container_id')['received_bytes_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
+        df['received_bytes_intervals'] = df.groupby(['detail_name'])['received_bytes'].diff()
+        df['received_bytes_intervals'] = df.groupby('detail_name')['received_bytes_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
 
         # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
         # Since one value is useless for us we drop the row

@@ -168,11 +168,11 @@ static int do_the_real_work(const sensors_chip_name *match, int *err) {
     return cnt;
 }
 
-static void output_value(int value, char *container_id) {
+static void output_value(int value, char *detail_name) {
     struct timeval now;
 
     gettimeofday(&now, NULL);
-    printf("%ld%06ld %i %s\n", now.tv_sec, now.tv_usec, value, container_id);
+    printf("%ld%06ld %i %s\n", now.tv_sec, now.tv_usec, value, detail_name);
 }
 
 int main(int argc, char *argv[]) {

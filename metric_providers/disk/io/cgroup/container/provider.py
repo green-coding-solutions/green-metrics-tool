@@ -18,13 +18,13 @@ class DiskIoCgroupContainerProvider(ContainerMetricProvider):
     def _parse_metrics(self, df):
         df = super()._parse_metrics(df)
 
-        df = df.sort_values(by=['container_id', 'time'], ascending=True)
+        df = df.sort_values(by=['detail_name', 'time'], ascending=True)
 
-        df['written_bytes_intervals'] = df.groupby(['container_id'])['written_bytes'].diff()
-        df['written_bytes_intervals'] = df.groupby('container_id')['written_bytes_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
+        df['written_bytes_intervals'] = df.groupby(['detail_name'])['written_bytes'].diff()
+        df['written_bytes_intervals'] = df.groupby('detail_name')['written_bytes_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
 
-        df['read_bytes_intervals'] = df.groupby(['container_id'])['read_bytes'].diff()
-        df['read_bytes_intervals'] = df.groupby('container_id')['read_bytes_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
+        df['read_bytes_intervals'] = df.groupby(['detail_name'])['read_bytes'].diff()
+        df['read_bytes_intervals'] = df.groupby('detail_name')['read_bytes_intervals'].transform(utils.df_fill_mean) # fill first NaN value resulted from diff()
 
         # we checked at ingest if it contains NA values. So NA can only occur if group diff resulted in only one value.
         # Since one value is useless for us we drop the row
