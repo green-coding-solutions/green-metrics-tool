@@ -74,7 +74,7 @@ static disk_io_t get_disk_cgroup(char* filename) {
             continue;
         }
         if (minor_number % 16 != 0) {
-            fprintf(stderr, "Partion inside a docker container found. This should not happen: %s:%s rbytes=%lld wbytes=%lld\n", major_number, minor_number, rbytes, wbytes);
+            fprintf(stderr, "Partion inside a docker container found. This should not happen: %u:%u rbytes=%lld wbytes=%lld\n", major_number, minor_number, rbytes, wbytes);
             exit(1);
         }
         disk_io.rbytes += rbytes;
