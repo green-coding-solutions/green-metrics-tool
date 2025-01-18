@@ -1520,6 +1520,18 @@ class Runner:
                 """, params=(logs_as_str, self._run_id))
 
 
+    # This function will be extended in the future to have more conditions
+    # Possible could be:
+    #    - Temperature has gotten too high
+    #    - Turbo Boost became active during run
+    #    - etc.
+    def identify_invalid_run(self):
+        # on macOS we run our tests inside the VM. Thus measurements are not reliable as they contain the overhead and reproducability is quite bad.
+        if platform.system() == 'Darwin':
+            invalid_message = 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability'
+            DB().query('UPDATE runs SET invalid_run=%s WHERE id=%s', params=(invalid_message, self._run_id))
+
+
     def cleanup(self, continue_measurement=False):
         #https://github.com/green-coding-solutions/green-metrics-tool/issues/97
         print(TerminalColors.OKCYAN, '\nStarting cleanup routine', TerminalColors.ENDC)
@@ -1669,6 +1681,7 @@ class Runner:
             self.end_measurement()
             self.check_process_returncodes()
             self.custom_sleep(config['measurement']['post-test-sleep'])
+            self.identify_invalid_run()
 
         except BaseException as exc:
             self.add_to_log(exc.__class__.__name__, str(exc))

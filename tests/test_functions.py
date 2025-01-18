@@ -262,6 +262,7 @@ class RunUntilManager:
 
             self.__runner.end_measurement()
             self.__runner.check_process_returncodes()
+            self.__runner.identify_invalid_run()
             self.__runner.custom_sleep(config['measurement']['post-test-sleep'])
             self.__runner.update_start_and_end_times()
             self.__runner.store_phases()
