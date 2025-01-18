@@ -21,7 +21,7 @@ TEST_MEASUREMENT_DURATION = TEST_MEASUREMENT_END_TIME - TEST_MEASUREMENT_START_T
 TEST_MEASUREMENT_DURATION_S = TEST_MEASUREMENT_DURATION / 1_000_000
 TEST_MEASUREMENT_DURATION_H = TEST_MEASUREMENT_DURATION_S/60/60
 
-def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename', user_id=1, machine_id=1):
+def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename', user_id=1, machine_id=1, measurement_config='{}'):
     # spoof time from the beginning of UNIX time until now.
     phases = [
         {"start": TEST_MEASUREMENT_START_TIME-8, "name": "[BASELINE]", "end": TEST_MEASUREMENT_START_TIME-7},
@@ -33,10 +33,10 @@ def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename'
     ]
 
     return DB().fetch_one('''
-        INSERT INTO runs (uri, branch, filename, phases, user_id, machine_id)
+        INSERT INTO runs (uri, branch, filename, phases, user_id, machine_id, measurement_config)
         VALUES
-        (%s, %s, %s, %s, %s, %s) RETURNING id;
-    ''', params=(uri, branch, filename, json.dumps(phases), user_id, machine_id))[0]
+        (%s, %s, %s, %s, %s, %s, %s) RETURNING id;
+    ''', params=(uri, branch, filename, json.dumps(phases), user_id, machine_id, measurement_config))[0]
 
 def import_single_cpu_energy_measurement(run_id):
 
@@ -62,6 +62,16 @@ def import_two_network_io_procfs_measurements(run_id):
 
     obj = NetworkIoProcfsSystemProvider(1000, skip_check=True, remove_virtual_interfaces=False)
     obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_procfs_system_two_measurements.log')
+    df = obj.read_metrics()
+
+    metric_importer.import_measurements(df, 'network_io_procfs_system', run_id)
+
+    return df
+
+def import_two_network_io_procfs_measurements_at_phase_border(run_id):
+
+    obj = NetworkIoProcfsSystemProvider(1000, skip_check=True, remove_virtual_interfaces=False)
+    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_procfs_system_two_measurements_at_phase_border.log')
     df = obj.read_metrics()
 
     metric_importer.import_measurements(df, 'network_io_procfs_system', run_id)
