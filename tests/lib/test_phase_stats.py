@@ -205,6 +205,42 @@ def test_phase_stats_network_io_two_measurements():
     assert data[1]['value'] == 13679
     assert data[1]['sampling_rate_95p'] == 1000486
 
+def test_phase_stats_network_io_two_measurements_at_phase_border():
+    run_id = Tests.insert_run(measurement_config='{"providers": {"network.io.procfs.system.provider.NetworkIoProcfsSystemProvider": {"resolution": 99}}}')
+    Tests.import_two_network_io_procfs_measurements_at_phase_border(run_id)
+
+    build_and_store_phase_stats(run_id)
+
+    data = DB().fetch_all('SELECT metric, detail_name, unit, value, type, sampling_rate_avg, sampling_rate_max, sampling_rate_95p FROM phase_stats WHERE phase = %s ', params=('004_[RUNTIME]', ), fetch_mode='dict')
+
+    assert len(data) == 5
+    assert data[0]['metric'] == 'phase_time_syscall_system'
+    assert data[0]['detail_name'] == '[SYSTEM]'
+    assert data[0]['value'] == 470000000
+    assert data[0]['sampling_rate_95p'] is None
+
+    assert data[1]['metric'] == 'network_io_procfs_system'
+    assert data[1]['detail_name'] == 'CURRENT_ACTUAL_NETWORK_INTERFACE'
+    assert data[1]['value'] == 138242
+    assert data[1]['sampling_rate_95p'] == 99000
+    assert data[1]['sampling_rate_avg'] == 99000
+    assert data[1]['sampling_rate_max'] == 99000
+
+    assert data[2]['metric'] == 'network_total_procfs_system'
+    assert data[2]['detail_name'] == 'CURRENT_ACTUAL_NETWORK_INTERFACE'
+    assert data[2]['value'] == 13686
+    assert data[2]['sampling_rate_95p'] == 99000
+    assert data[2]['sampling_rate_avg'] == 99000
+    assert data[2]['sampling_rate_max'] == 99000
+
+    assert data[3]['metric'] == 'network_io_procfs_system'
+    assert data[3]['detail_name'] == 'lo'
+    assert data[3]['value'] == 0
+    assert data[3]['sampling_rate_95p'] == 99000
+    assert data[3]['sampling_rate_avg'] == 99000
+    assert data[3]['sampling_rate_max'] == 99000
+
+
 def test_phase_stats_single_network_procfs():
     run_id = Tests.insert_run()
     Tests.import_network_io_procfs(run_id)

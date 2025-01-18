@@ -11,6 +11,7 @@ from io import StringIO
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import error_helpers
+from lib import utils
 
 def generate_csv_line(run_id, metric, detail_name, phase_name, value, value_type, max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit):
     # else '' resolves to NULL
@@ -37,17 +38,15 @@ def build_and_store_phase_stats(run_id, sci=None):
 
 
     query = """
-        SELECT phases
+        SELECT phases, measurement_config
         FROM runs
         WHERE id = %s
         """
-    phases = DB().fetch_one(query, (run_id, ))
+    phases, measurement_config = DB().fetch_one(query, (run_id, ))
 
     if not phases or not phases[0]:
         error_helpers.log_error('Phases object was empty and no phase_stats could be created. This can happen for failed runs, but should be very rare ...', run_id=run_id)
         return
-
-    phases = phases[0]
 
     csv_buffer = StringIO()
 
@@ -142,6 +141,13 @@ def build_and_store_phase_stats(run_id, sci=None):
                     cpu_utilization_containers[detail_name] = avg_value
 
             elif metric in ['network_io_cgroup_system', 'disk_io_cgroup_system', 'network_io_cgroup_container', 'network_io_procfs_system', 'disk_io_procfs_system', 'disk_io_cgroup_container', 'disk_io_bytesread_powermetrics_vm', 'disk_io_byteswritten_powermetrics_vm']:
+
+                # if we only have one value, we cannot determine the effective sampling resolution.
+                # Thus we have to use the target resolution from the settings
+                if value_count == 1:
+                    provider_name = metric.replace('_', '.') + '.provider.' + utils.get_pascal_case(metric) + 'Provider'
+                    sampling_rate_avg = sampling_rate_max = sampling_rate_95p = Decimal(measurement_config['providers'][provider_name]['resolution'])*1000
+
                 # I/O values should be per second. However we have very different timing intervals.
                 # So we do not directly use the average here, as this would be the average per sampling frequency. We go through the duration
                 if not sampling_rate_avg:
