@@ -31,8 +31,10 @@ static int user_id = -1;
 static unsigned int msleep_time=1000;
 
 static disk_io_t get_disk_cgroup(char* filename) {
-    long long int rbytes = -1;
-    long long int wbytes = -1;
+    unsigned long long int rbytes = 0;
+    unsigned long long int wbytes = 0;
+    unsigned int major_number;
+    unsigned int minor_number;
     disk_io_t disk_io = {0};
 
     FILE * fd = fopen(filename, "r");
@@ -41,7 +43,40 @@ static disk_io_t get_disk_cgroup(char* filename) {
         exit(1);
     }
 
-    while (fscanf(fd, "%*u:%*u rbytes=%lld wbytes=%lld rios=%*u wios=%*u dbytes=%*u dios=%*u", &rbytes, &wbytes) == 2) {
+    while (fscanf(fd, "%u:%u rbytes=%llu wbytes=%llu rios=%*u wios=%*u dbytes=%*u dios=%*u", &major_number, &minor_number, &rbytes, &wbytes) == 4) {
+
+        // 1    Memory devices (e.g., /dev/mem, /dev/null)
+        // 2    Floppy disk controller
+        // 3    IDE hard disks (primary controller)
+        // 7    Loopback devices (e.g., /dev/loop0)
+        // 8    SCSI disks (including SATA and NVMe drives)
+        // 9    Metadisk (RAID systems)
+        // 11    SCSI CD-ROM (e.g., /dev/sr0)
+        // 13    Input devices (e.g., /dev/input/event*)
+        // 21    SCSI tape drives
+        // 22    ESDI hard disks
+        // 29    Network block devices (e.g., /dev/nbd)
+        // 36    Accelerated Graphics Port (AGP)
+        // 89    iSCSI devices
+        // 116    ALSA (Advanced Linux Sound Architecture)
+        // 180    USB devices
+        // 202    Xen virtual block devices
+        // 254    Device-mapper (e.g., LVM, cryptsetup)
+
+        if (
+            major_number == 1 || // 1    Memory devices (e.g., /dev/mem, /dev/null)
+            major_number == 2 || // 2    Floppy disk controller
+            major_number == 7 || // 7    Loopback devices (e.g., /dev/loop0)
+            major_number == 11 || // 11    SCSI CD-ROM (e.g., /dev/sr0)
+            major_number == 116 || // 116    ALSA (Advanced Linux Sound Architecture)
+            major_number == 202 // 202    Xen virtual block devices
+        ) {
+            continue;
+        }
+        if (minor_number % 16 != 0) {
+            fprintf(stderr, "Partion inside a docker container found. This should not happen: %u:%u rbytes=%llu wbytes=%llu\n", major_number, minor_number, rbytes, wbytes);
+            exit(1);
+        }
         disk_io.rbytes += rbytes;
         disk_io.wbytes += wbytes;
     }
