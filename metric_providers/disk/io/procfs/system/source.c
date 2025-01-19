@@ -19,7 +19,8 @@ static unsigned int msleep_time=1000;
 static void output_get_disk_procfs() {
     unsigned long long int sectors_read = 0;
     unsigned long long int sectors_written = 0;
-    int minor_number = -1;
+    int minor_number;
+    int major_number;
     char device_name[16];
     int match_result = 0;
     char buf[1024];
@@ -37,7 +38,7 @@ static void output_get_disk_procfs() {
         // We are not counting dropped packets, as we believe they will at least show up in the
         // sender side as not dropped.
         // Since we are iterating over all relevant docker containers we should catch these packets at least in one /proc/net/dev file
-        match_result = sscanf(buf, "%*u %d %15s %*u %*u %llu %*u %*u %*u %llu", &minor_number, device_name, &sectors_read, &sectors_written);
+        match_result = sscanf(buf, "%u %u %15s %*u %*u %llu %*u %*u %*u %llu", &major_number, &minor_number, device_name, &sectors_read, &sectors_written);
         if (match_result != 4) {
             fprintf(stderr, "Could not match /proc/diskstats pattern\n");
             exit(1);
