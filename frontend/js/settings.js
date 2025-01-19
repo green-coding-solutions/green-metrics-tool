@@ -30,6 +30,10 @@ const toggleTimeSeriesAVG = () => {
     window.location.reload();
 }
 
+const resetHelpTexts = () => {
+    localStorage.setItem('closed_descriptions', '');
+    document.querySelector('#reset-help-texts-button').innerText = 'OK!';
+}
 
 (() => {
 
