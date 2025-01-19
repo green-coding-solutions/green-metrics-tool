@@ -9,19 +9,23 @@ class GMTMenu extends HTMLElement {
             <div class="item-container">
                 <a class="item" href="/index.html">
                     <b><i class="home icon"></i>Home</b>
-                </a>
-                <a class="item" href="/repositories.html">
-                    <b><i class="code branch icon"></i>Repositories</b>
+                </a>`
+
+        if (ACTIVATE_ENERGY_ID == true) {
+            html_content = `${html_content}
+                <a class="item" href="/energy-id.html">
+                    <b><i class="code branch icon"></i>Energy-ID</b>
                 </a>
                 <a class="item" href="/energy-timeline.html">
-                    <b><i class="history icon"></i>Energy Timeline</b>
+                    <b><i class="history icon"></i>Energy-ID Timeline</b>
                 </a>
                 <a class="item" href="/request.html">
-                    <b><i class="bullseye icon"></i>Measure software</b>
+                    <b><i class="bullseye icon"></i>Energy-ID (Submit)</b>
                 </a>
-                <a class="item" href="/data-analysis.html">
-                    <b><i class="chartline icon"></i>Data Analysis</b>
+                <a class="item" href="/status.html">
+                    <b><i class="database icon"></i>Energy-ID Status</b>
                 </a>`;
+        };
 
         if (ACTIVATE_ECO_CI == true) {
             html_content = `${html_content}
@@ -45,8 +49,8 @@ class GMTMenu extends HTMLElement {
         };
 
         html_content = `${html_content}
-                <a class="item" href="/status.html">
-                    <b><i class="database icon"></i>Status</b>
+                <a class="item" href="/data-analysis.html">
+                    <b><i class="chartline icon"></i>Data Analysis</b>
                 </a>
                 <a class="item" href="/authentication.html">
                     <b><i class="users icon"></i>Authentication</b>

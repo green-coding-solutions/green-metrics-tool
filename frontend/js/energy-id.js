@@ -45,5 +45,26 @@ async function getRepositories(sort_by = 'date') {
 }
 
 (async () => {
-    await sortDate();
+    document.querySelector('#home-toggle-button').addEventListener('click', el => {
+        if (el.currentTarget.innerText == 'Switch to repository view') {
+            el.currentTarget.innerText = 'Switch to last runs view';
+            localStorage.setItem('energy_id_data_shown', 'repositories');
+            window.location.reload();
+        } else {
+            el.currentTarget.innerText = 'Switch to repository view';
+            localStorage.setItem('energy_id_data_shown', 'last_runs');
+            window.location.reload();
+        }
+    });
+
+    if (localStorage.getItem('energy_id_data_shown') == 'repositories') {
+        document.querySelector('#home-toggle-button').innerText = 'Switch to last runs view';
+        document.querySelectorAll('.energy-id-repositories').forEach(el => el.style.visibility = 'visible');
+        document.querySelector('#energy-id-runs-description')?.remove();
+        sortDate();
+    } else {
+        document.querySelectorAll('.energy-id-runs').forEach(el => el.style.visibility = 'visible');
+        document.querySelector('#energy-id-repositories-description')?.remove();
+        getRunsTable($('#runs-table'), `/v1/runs?${getFilterQueryStringFromURI()}&limit=50`)
+    }
 })();

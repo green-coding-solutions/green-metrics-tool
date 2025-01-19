@@ -10,7 +10,7 @@
     <link rel="icon" href="/images/favicon-16x16.png" sizes="16x16">
     <link rel="icon" href="/images/favicon-32x32.png" sizes="32x32">
     <!-- Site Properties -->
-    <title>Green Metrics Tool</title>
+    <title>Green Metrics Tool - Home</title>
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <meta name="description" content="Measuring the energy of your software" />
     <script src="/dist/js/jquery.min.js" defer></script>
@@ -39,22 +39,20 @@
                 <div class="header">Welcome to the home page</div>
                 <div class="description">
                     <i class="close icon"></i>
-                    <p>The home page of the Green Metrics Tool shows you the last 50 runs
+                    <p>The Green Metrics Tool is a modular suite of different tools that capture energy and carbon data for different stages of the software lifecycle.
                     </p>
-                    <p>From here you can go into the details for a specific measurement, or compare them.</p>
-                    <p>Comparing is possible for different repos, different branches and different runs as long as they are on the same machine. Also different machines are supported if you compare the same repo.
+                    <p>The home page shows you all available and connected tools.</p>
+                    <p>Click on any of them to get to a detailed view of the energy and carbon data.</p>
+                    <p>Through settings you can also adjust the default sorting, default fetching of detailed metrics etc..
                 </p>
-                <p>Currently we do not support comparing different machines AND different repos at the same time. The tool will notifiy you if you attempt to do so :)</p>
                 </div>
             </div>
         </div>
-        <div class="ui warning message hidden">
-            <div class="header">
-                <i class="notched warning icon"></i> Filters are active
-            </div>
-            <ul></ul>
-        </div>
-        <table id="runs-table" class="ui celled striped table"></table>
+        <div class="energy-id index-connected-tools"><a href="/energy-id.html">Energy-ID</a><br>Currently 200 measurements<br>dating back to 2021</div>
+        <div class="eco-ci index-connected-tools">Eco-CI - Currently 400 pipeline runs - dating back to 2022</div>
+        <div class="power-hog index-connected-tools">PowerHOG - Currently 600 app measurements - dating back to 2023</div>
+        <div class="carbon-db index-connected-tools">CarbonDB - Currently 600 datapoints dating back to 2024</div>
+        <div><a href="/settings.html">Settings</a></div>
     </div>
 </body>
 </html>

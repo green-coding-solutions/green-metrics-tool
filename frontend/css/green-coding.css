@@ -13,6 +13,14 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
   -o-transition: none !important;
 }
 
+.index-connected-tools {
+    display: none;
+}
+
+#runs-table, #repositories-table, .energy-id-runs, .energy-id-repositories {
+    visibility: hidden;
+}
+
 .full-width-card {
     width: 100% !important;
     margin-bottom: 26px !important;

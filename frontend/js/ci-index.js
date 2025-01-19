@@ -107,5 +107,5 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
 }
 
 (async () => {
-    await sortDate();
+    sortDate();
 })();
