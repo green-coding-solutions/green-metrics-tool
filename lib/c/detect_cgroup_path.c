@@ -75,6 +75,17 @@ char* detect_cgroup_path(const char* controller, int user_id, const char* id) {
         return path;
     }
 
+    // Try cgroups v2 with app slices (typically for user controlled systemd units)
+    snprintf(path, PATH_MAX,
+             "/sys/fs/cgroup/user.slice/user-%d.slice/user@%d.service/app.slice/%s/%s",
+             user_id, user_id, id, controller);
+    fd = fopen(path, "r");
+    if (fd != NULL) {
+        fclose(fd);
+        return path;
+    }
+
+
     // If no valid path is found, free the allocated memory and error
     free(path);
     fprintf(stderr, "Error - Could not open container for reading: %s. Maybe the container is not running anymore? Errno: %d\n", id, errno);
