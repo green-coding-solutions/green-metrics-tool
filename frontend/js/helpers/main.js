@@ -313,15 +313,20 @@ $(document).ready(function () {
     }
 });
 
+if (localStorage.getItem('closed_descriptions') == null) {
+    localStorage.setItem('closed_descriptions', '');
+}
+
 $(window).on('load', function() {
     $("body").removeClass("preload"); // activate tranisition CSS properties again
-    $('.close')
-      .on('click', function() {
-        $(this)
-          .closest('.ui')
-          .transition('fade')
-        ;
-      })
-    ;
+    const closed_descriptions = localStorage.getItem('closed_descriptions');
+    $('.close').on('click', function() {
+        $(this).closest('.ui').transition('fade');
+        localStorage.setItem('closed_descriptions', `${closed_descriptions},${window.location.pathname}`)
+    });
+    if (closed_descriptions.indexOf(window.location.pathname) !== -1) {
+        document.querySelectorAll('i.close.icon').forEach(el => { el.closest('.ui').remove()}
+        )
+    }
 });
 
