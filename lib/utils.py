@@ -12,10 +12,15 @@ from lib.db import DB
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+def remove_git_suffix(url):
+    if url.endswith('.git'):
+        return url[:-4]
+    return url
+
 def get_git_api(parsed_url):
 
     if parsed_url.netloc in ['github.com', 'www.github.com']:
-        return [f"https://api.github.com/repos/{parsed_url.path.strip(' /')}", 'github']
+        return [f"https://api.github.com/repos/{remove_git_suffix(parsed_url.path.strip(' /'))}", 'github']
 
     if parsed_url.netloc in ['gitlab.com', 'www.gitlab.com']:
         return [f"https://gitlab.com/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab']
