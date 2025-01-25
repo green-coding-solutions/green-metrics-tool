@@ -270,7 +270,6 @@ async def get_ci_repositories(repo: str | None = None, sort_by: str = 'name', us
 
     return ORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
 
-
 @router.get('/v1/ci/runs')
 async def get_ci_runs(repo: str, user: User = Depends(authenticate)):
 
@@ -302,6 +301,7 @@ async def get_ci_runs(repo: str, user: User = Depends(authenticate)):
 # Route to display a badge for a CI run
 ## A complex case to allow public visibility of the badge but restricting everything else would be to have
 ## User 1 restricted to only this route but a fully populated 'visible_users' array
+@router.head('/v1/ci/badge/get')
 @router.get('/v1/ci/badge/get')
 async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'last', metric: str = 'energy', duration_days: int | None = None, user: User = Depends(authenticate)):
     if metric == 'energy':
