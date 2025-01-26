@@ -5,7 +5,7 @@ from fastapi import Request, Response, Depends
 from fastapi.responses import ORJSONResponse
 from fastapi.exceptions import RequestValidationError
 
-from api.api_helpers import authenticate, html_escape_multi, get_connecting_ip, rescale_metric_value
+from api.api_helpers import authenticate, html_escape_multi, get_connecting_ip, convert_value
 from api.object_specifications import CI_Measurement_Old, CI_Measurement
 
 import anybadge
@@ -368,8 +368,8 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
 
     metric_value = data[0]
 
-    [metric_value, metric_unit] = rescale_metric_value(metric_value, metric_unit)
-    badge_value= f"{metric_value:.2f} {metric_unit}"
+    [transformed_value, transformed_unit] = convert_value(metric_value, metric_unit)
+    badge_value= f"{transformed_value:.2f} {transformed_unit}"
 
     badge = anybadge.Badge(
         label=label,
