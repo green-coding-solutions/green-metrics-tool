@@ -8,7 +8,7 @@ import platform
 import pprint
 import psutil
 import sys
-from lib.hardware_info_root_original import rdr, rpwr, rfwr, cf, get_values
+from lib.hardware_info_root import rdr, rpwr, rfwr, cf, get_values
 
 REGEX_PARAMS = re.MULTILINE | re.IGNORECASE
 
@@ -36,7 +36,7 @@ linux_info_list = [
     [rpwr, 'Docker Info', 'docker info', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Version', 'docker version', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Docker Containers', 'docker ps -a', r'(?P<o>.*)'],
-    [rpwr, 'Installed System Packages', 'if [ -f /etc/lsb-release ]; then dpkg -l ; elif [ -f /etc/redhat-release ]; then dnf list installed ; fi', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
+    #[rpwr, 'Installed System Packages', 'if [ -f /etc/lsb-release ]; then dpkg -l ; elif [ -f /etc/redhat-release ]; then dnf list installed ; fi', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Installed Python Packages', f"{sys.executable} -m pip freeze", r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [rpwr, 'Processes', '/usr/bin/ps -aux', r'(?P<o>.*)', re.IGNORECASE | re.DOTALL],
     [
