@@ -66,7 +66,7 @@ if [[ $install_ipmi == true ]] ; then
     print_message "Important: If this step fails it means ipmitool is not available on you system"
     print_message "If you do not plan to use IPMI you can skip the installation by appending '-i'"
     if lsb_release -is | grep -q "Fedora"; then
-        sudo dnf -y install ipmitool
+        sudo dnf -y install freeipmi ipmitool
     else
         sudo apt-get install -y freeipmi-tools ipmitool
     fi
