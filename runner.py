@@ -1883,3 +1883,6 @@ if __name__ == '__main__':
                 print(f"Container logs of '{container_id_outer}':")
                 print(std_out)
                 print('\n-----------------------------\n')
+
+        # Last thing before we exit is to shutdown the DB Pool
+        DB().shutdown()
