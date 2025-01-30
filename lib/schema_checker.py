@@ -126,6 +126,8 @@ class SchemaChecker():
                     Optional("log-stderr"): bool,
                     Optional("read-notes-stdout"): bool,
                     Optional("read-sci-stdout"): bool,
+                    Optional("docker-args"): [And(str, Use(self.not_empty))],
+
                 }
             },
 

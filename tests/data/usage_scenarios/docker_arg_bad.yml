@@ -1,0 +1,20 @@
+---
+name: Container name invalid test
+author: Arne Tarara
+description: Container name invalid test
+
+services:
+  test:
+    image: alpine
+    container_name: test
+    docker-args:
+      - -P
+
+flow:
+  - name: Small-Stress
+    container: test
+    commands:
+      - type: console
+        command: echo "asd"
+        shell: bash
+        note: Starting a little stress

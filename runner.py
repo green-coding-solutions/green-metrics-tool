@@ -40,6 +40,7 @@ from lib.notes import Notes
 from lib import system_checks
 from lib.machine import Machine
 from lib import metric_importer
+from lib.user import User
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -853,6 +854,17 @@ class Runner:
                     print(TerminalColors.WARNING, arrows('Found ports entry but not running in unsafe mode. Skipping'), TerminalColors.ENDC)
                 else:
                     raise RuntimeError('Found "ports" but neither --skip-unsafe nor --allow-unsafe is set')
+
+            if 'docker-args' in service:
+                for arg in service['docker-args']:
+                    user = User(self._user_id)
+                    allow_items = user._capabilities.get('measurement', {}).get('orchestrators', {}).get('docker', {}).get('allow-args', [])
+
+                    if any(re.match(allow_item, arg) for allow_item in allow_items):
+                        docker_run_string.extend(arg.split(' '))
+                    else:
+                        raise RuntimeError(f"Argument '{arg}' is not allowed in the docker-args list. Please check the capabilities of the user.")
+
 
             if 'environment' in service:
                 env_var_check_errors = []
