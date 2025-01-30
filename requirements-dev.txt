@@ -1,5 +1,5 @@
 -r requirements.txt
-pydantic==2.10.5
+pydantic==2.10.6
 pylint==3.3.4
 pytest-randomly==3.16.0
 pytest-playwright==0.6.2
