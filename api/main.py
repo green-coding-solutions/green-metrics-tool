@@ -1,3 +1,4 @@
+# pylint: disable=too-many-positional-arguments
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic?
 import sys
@@ -805,7 +806,7 @@ async def hello(data: HelloData):
         VALUES (%s, %s)
     '''
     params = (data.hash, data.os)
-    DB().execute(query, params)
+    DB().fetch_one(query, params)
     return ORJSONResponse({'success': True})
 
 app.include_router(eco_ci.router)
