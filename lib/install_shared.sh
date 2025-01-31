@@ -24,6 +24,7 @@ ask_ssl=true
 cert_key=''
 cert_file=''
 enterprise=false
+send_ping=true
 
 function print_message {
     echo ""
@@ -282,9 +283,31 @@ function finalize() {
     fi
 }
 
+function generate_unique_hash() {
+    if [[ $(uname) == "Darwin" ]]; then
+        system_profiler SPHardwareDataType | awk '/Serial Number/ {print $4}'
+    else
+        cat /etc/machine-id
+    fi
+}
 
+function send_ping() {
+    local unique_hash=$(generate_unique_hash)
+    local os_type=$(uname -a)
+    curl --silent -X POST https://api.green-coding.io/v1/hello \
+         -H 'Content-Type: application/json' \
+         --data "{\"hash\":\"${unique_hash}\",\"os\":\"${os_type}\"}" > /dev/null
+}
 
-while getopts "p:a:m:nhtbisyrlc:k:e:" o; do
+function ask_for_ping() {
+    echo ""
+    read -p "Developing software can be a lonely business. Want to let us know you are installing the GMT? No personal data will be shared! (y/N) : " send_ping_input
+    if [[ "$send_ping_input" == "Y" || "$send_ping_input" == "y" ]] ; then
+        send_ping
+    fi
+}
+
+while getopts "p:a:m:nhtbisyrlc:k:e:z" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -336,7 +359,9 @@ while getopts "p:a:m:nhtbisyrlc:k:e:" o; do
             ee_token=${OPTARG}
             enterprise=true
             ;;
-
+        z)
+            send_ping=false
+            ;;
     esac
 done
 
@@ -395,4 +420,8 @@ if [[ -z "$db_pw" ]] ; then
     read -sp "Please enter the new password to be set for the PostgreSQL DB (default: $default_password): " db_pw
     echo "" # force a newline, because read -sp will consume it
     db_pw=${db_pw:-"$default_password"}
+fi
+
+if [[ $send_ping == true ]]; then
+    ask_for_ping
 fi
