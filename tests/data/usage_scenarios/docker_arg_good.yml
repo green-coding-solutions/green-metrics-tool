@@ -7,7 +7,7 @@ services:
   test:
     image: alpine
     container_name: test
-    docker-args:
+    docker-run-args:
       - --label test=true
 
 flow:

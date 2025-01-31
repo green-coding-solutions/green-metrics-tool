@@ -940,7 +940,7 @@ def test_bad_arg():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(RuntimeError) as e:
         runner.run()
 
-    assert "is not allowed in the docker-args list. Please check the capabilities of the user." in str(e.value)
+    assert "is not allowed in the docker-run-args list. Please check the capabilities of the user." in str(e.value)
 
 def test_good_arg():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_arg_good.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
