@@ -1,20 +1,18 @@
 ---
-name: Container name invalid test
-author: Arne Tarara
-description: Container name invalid test
+name: Docker arg invalid test
+author: Mr Burns
+description: Docker arg invalid test
 
 services:
   test:
     image: alpine
-    container_name: test
     docker-run-args:
       - -P
 
 flow:
-  - name: Small-Stress
+  - name: Small-Test
     container: test
     commands:
       - type: console
-        command: echo "asd"
-        shell: bash
-        note: Starting a little stress
+        command: echo "This is a bad test. You should never see this"
+        shell: /bin/sh

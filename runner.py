@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import shlex
 import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
@@ -856,12 +857,12 @@ class Runner:
                     raise RuntimeError('Found "ports" but neither --skip-unsafe nor --allow-unsafe is set')
 
             if 'docker-run-args' in service:
-                for arg in service['docker-run-args']:
-                    user = User(self._user_id)
-                    allow_items = user._capabilities.get('measurement', {}).get('orchestrators', {}).get('docker', {}).get('allow-args', [])
+                user = User(self._user_id)
+                allow_items = user._capabilities.get('measurement', {}).get('orchestrators', {}).get('docker', {}).get('allow-args', [])
 
+                for arg in service['docker-run-args']:
                     if any(re.fullmatch(allow_item, arg) for allow_item in allow_items):
-                        docker_run_string.extend(arg.split(' '))
+                        docker_run_string.extend(shlex.split(arg))
                     else:
                         raise RuntimeError(f"Argument '{arg}' is not allowed in the docker-run-args list. Please check the capabilities of the user.")
 
@@ -1023,8 +1024,7 @@ class Runner:
                         raise RuntimeError(f"Health check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
 
             if 'command' in service:  # must come last
-                for cmd in service['command'].split():
-                    docker_run_string.append(cmd)
+                docker_run_string.extend(shlex.split(service['command']))
 
             print(f"Running docker run with: {' '.join(docker_run_string)}")
 
@@ -1061,7 +1061,7 @@ class Runner:
                 if shell := service.get('shell', False):
                     d_command = ['docker', 'exec', container_name, shell, '-c', cmd] # This must be a list!
                 else:
-                    d_command = ['docker', 'exec', container_name, *cmd.split()] # This must be a list!
+                    d_command = ['docker', 'exec', container_name, *shlex.split(cmd)] # This must be a list!
 
                 print('Running command: ', ' '.join(d_command))
 
@@ -1219,8 +1219,7 @@ class Runner:
                             docker_exec_command.append('-c')
                             docker_exec_command.append(cmd_obj['command'])
                         else:
-                            for cmd in cmd_obj['command'].split():
-                                docker_exec_command.append(cmd)
+                            docker_exec_command.extend(shlex.split(cmd_obj['command']))
 
                         # Note: In case of a detach wish in the usage_scenario.yml:
                         # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.

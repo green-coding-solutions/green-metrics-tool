@@ -1,19 +1,18 @@
 ---
-name: Container name invalid test
-author: Arne Tarara
-description: Container name invalid test
+name: Docker args valid test
+author: Mr Burns
+description: Docker args valid test
 
 services:
   test:
     image: alpine
-    container_name: test
     docker-run-args:
       - --label test=true
 
 flow:
-  - name: Small-Stress
+  - name: Small-Test
     container: test
     commands:
       - type: console
-        command: echo "asd"
+        command: echo "This is nice that it works, isn't it 🥺"
         shell: /bin/sh
