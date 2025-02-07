@@ -19,6 +19,7 @@ from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
 from runner import Runner
 from lib.schema_checker import SchemaError
+from lib.user import User
 
 ## Note:
 # Always do asserts after try:finally: blocks
@@ -943,7 +944,11 @@ def test_bad_arg():
     assert "is not allowed in the docker-run-args list. Please check the capabilities of the user." in str(e.value)
 
 def test_good_arg():
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_arg_good.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+    user = User(1)
+    user._capabilities['measurement']['orchestrators']['docker']['allowed-run-args'] = [r'--label\s+([\w.-]+)=([\w.-]+)']
+    user.update()
+
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_arg_good.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, user_id=1)
 
     out = io.StringIO()
     err = io.StringIO()

@@ -97,9 +97,7 @@ VALUES (
             },
             "orchestrators": {
                 "docker": {
-                    "allow-args": [
-                        "--label\\\\s+([\\\\w.-]+)=([\\\\w.-]+)"
-                    ]
+                    "allowed-run-args": []
                 }
             }
         },

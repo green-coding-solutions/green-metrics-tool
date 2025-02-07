@@ -858,8 +858,7 @@ class Runner:
 
             if 'docker-run-args' in service:
                 user = User(self._user_id)
-                allow_items = user._capabilities.get('measurement', {}).get('orchestrators', {}).get('docker', {}).get('allow-args', [])
-
+                allow_items = user._capabilities.get('measurement', {}).get('orchestrators', {}).get('docker', {}).get('allowed-run-args', [])
                 for arg in service['docker-run-args']:
                     if any(re.fullmatch(allow_item, arg) for allow_item in allow_items):
                         docker_run_string.extend(shlex.split(arg))
