@@ -39,8 +39,8 @@ static void output_get_disk_procfs() {
         // sender side as not dropped.
         // Since we are iterating over all relevant docker containers we should catch these packets at least in one /proc/net/dev file
         match_result = sscanf(buf, "%u %u %15s %*u %*u %llu %*u %*u %*u %llu", &major_number, &minor_number, device_name, &sectors_read, &sectors_written);
-        if (match_result != 4) {
-            fprintf(stderr, "Could not match /proc/diskstats pattern\n");
+        if (match_result != 5) {
+            fprintf(stderr, "Could not match /proc/diskstats pattern in %s. Amount was %d\n", buf, match_result);
             exit(1);
         }
 
