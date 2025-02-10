@@ -60,7 +60,7 @@ def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
 # Function furthemore uses .substr instead of just replacing the unit, as some units have demominators like Bytes/s or
 # ugCO2e/ page request which we want to retain
 #
-def convert_value(value, unit, display_in_watthours=False):
+def convert_value(value, unit, display_in_watthours=True):
     compare_unit = unit.split('/', 1)[0]
 
     if compare_unit == 'ugCO2e':
