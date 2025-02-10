@@ -628,7 +628,8 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated', user: User
 
     badge_str = str(badge)
 
-    store_artifact(ArtifactType.BADGE, f"{user._id}_{run_id}_{metric}", badge_str)
+    if badge_value != 'No metric data yet':
+        store_artifact(ArtifactType.BADGE, f"{user._id}_{run_id}_{metric}", badge_str)
 
     return Response(content=badge_str, media_type="image/svg+xml")
 
