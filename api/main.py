@@ -551,7 +551,7 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
         return Response(status_code=204) # No-Content
 
     cost = data[1]/data[0]
-    [rescaled_cost, rescaled_unit] = convert_value(cost, data[3])
+    [rescaled_cost, rescaled_unit] = convert_value(cost, data[3], False)
     rescaled_cost = f"+{rescaled_cost:.2f}" if abs(cost) == cost else f"{rescaled_cost:.2f}"
 
     badge = anybadge.Badge(
