@@ -303,7 +303,7 @@ async def get_ci_runs(repo: str, user: User = Depends(authenticate)):
 ## User 1 restricted to only this route but a fully populated 'visible_users' array
 @router.head('/v1/ci/badge/get')
 @router.get('/v1/ci/badge/get')
-async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'last', metric: str = 'energy', duration_days: int | None = None, user: User = Depends(authenticate)):
+async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'last', metric: str = 'energy', duration_days: int | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
     if metric == 'energy':
         metric = 'energy_uj'
         metric_unit = 'uJ'
@@ -318,11 +318,11 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
     else:
         raise RequestValidationError('Unsupported metric requested')
 
+    if unit not in ('watt-hours', 'joules'):
+        raise RequestValidationError('Requested unit is not in allow list: watt-hours, joules')
 
     if duration_days and (duration_days < 1 or duration_days > 365):
         raise RequestValidationError('Duration days must be between 1 and 365 days')
-
-
 
     query = f"""
         SELECT SUM({metric})
@@ -367,8 +367,8 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
         return Response(status_code=204) # No-Content
 
     metric_value = data[0]
-
-    [transformed_value, transformed_unit] = convert_value(metric_value, metric_unit)
+    display_in_watthours = True if unit == 'watt-hours' else False
+    [transformed_value, transformed_unit] = convert_value(metric_value, metric_unit, display_in_watthours)
     badge_value= f"{transformed_value:.2f} {transformed_unit}"
 
     badge = anybadge.Badge(
