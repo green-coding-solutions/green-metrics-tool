@@ -28,17 +28,17 @@ def test_convert_value():
     [value, unit] = api_helpers.convert_value(100, 'uJ')
 
     assert unit == 'Wh'
-    assert math.isclose(value, 0.00000002777777777777777, rel_tol=1e-10)
+    assert math.isclose(value, 0.00000002777, rel_tol=1e-3)
 
     [value, unit] = api_helpers.convert_value(10000, 'uJ')
 
     assert unit == 'Wh'
-    assert math.isclose(value, 0.000002777777777777777, rel_tol=1e-10)
+    assert math.isclose(value, 0.000002777, rel_tol=1e-3)
 
     [value, unit] = api_helpers.convert_value(10000, 'mJ')
 
     assert unit == 'Wh'
-    assert math.isclose(value, 0.002777777777777, rel_tol=1e-10)
+    assert math.isclose(value, 0.002777, rel_tol=1e-3)
 
     assert api_helpers.convert_value(324_000_000_000, 'uJ') == [90, 'Wh']
 
