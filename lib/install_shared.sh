@@ -65,9 +65,9 @@ function check_file_permissions() {
     # Check if the file permissions are read-only for group and others using regex
 
     if [[ $(uname) == "Darwin" ]]; then
-        permissions=$(stat -f %Sp "$file")
+        local permissions=$(stat -f %Sp "$file")
     else
-        permissions=$(stat -c %A "$file") # Linux
+        local permissions=$(stat -c %A "$file") # Linux
     fi
 
     if [ -L "$file" ]; then
@@ -111,15 +111,15 @@ function prepare_config() {
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" config.yml"
 
     cp docker/nginx/api.conf.example docker/nginx/api.conf
-    host_api_url=`echo $api_url | sed -E 's/^\s*.*:\/\///g'`
-    host_api_url=${host_api_url%:*}
+    local host_api_url=`echo $api_url | sed -E 's/^\s*.*:\/\///g'`
+    local host_api_url=${host_api_url%:*}
     eval "${sed_command} -e \"s|__API_URL__|$host_api_url|\" docker/nginx/api.conf"
 
     cp docker/nginx/block.conf.example docker/nginx/block.conf
 
     cp docker/nginx/frontend.conf.example docker/nginx/frontend.conf
-    host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
-    host_metrics_url=${host_metrics_url%:*}
+    local host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
+    local host_metrics_url=${host_metrics_url%:*}
     eval "${sed_command} -e \"s|__METRICS_URL__|$host_metrics_url|\" docker/nginx/frontend.conf"
 
     cp frontend/js/helpers/config.js.example frontend/js/helpers/config.js
