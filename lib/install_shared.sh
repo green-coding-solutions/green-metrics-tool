@@ -307,10 +307,14 @@ function send_ping() {
 }
 
 function ask_for_ping() {
-    echo ""
-    read -p "Developing software can be a lonely business. Want to let us know you are installing the GMT? No personal data will be shared! (y/N) : " send_ping_input
-    if [[ "$send_ping_input" == "Y" || "$send_ping_input" == "y" ]] ; then
+    if [[ $send_ping_override == true ]]; then
         send_ping
+    else
+        echo ""
+        read -p "Developing software can be a lonely business. Want to let us know you are installing the GMT? No personal data will be shared! (y/N) : " send_ping_input
+        if [[ "$send_ping_input" == "Y" || "$send_ping_input" == "y" ]] ; then
+            send_ping
+        fi
     fi
 }
 
@@ -432,6 +436,6 @@ if [[ -z "$db_pw" ]] ; then
     db_pw=${db_pw:-"$default_password"}
 fi
 
-if [[ $send_ping == true || $send_ping_override == true ]]; then
+if [[ $send_ping == true ]]; then
     ask_for_ping
 fi
