@@ -1,3 +1,4 @@
+import math
 from pydantic import BaseModel
 
 from api import api_helpers
@@ -24,11 +25,31 @@ class CI_Measurement(BaseModel):
 
 
 def test_convert_value():
-    assert api_helpers.convert_value(100, 'uJ') == [0.0001, 'J']
+    [value, unit] = api_helpers.convert_value(100, 'uJ')
 
-    assert api_helpers.convert_value(10000, 'uJ') == [0.01, 'J']
+    assert unit == 'Wh'
+    assert math.isclose(value, 0.00000002777777777777777, rel_tol=1e-10)
 
-    assert api_helpers.convert_value(324_000_000_000, 'uJ') == [324000, 'J']
+    [value, unit] = api_helpers.convert_value(10000, 'uJ')
+
+    assert unit == 'Wh'
+    assert math.isclose(value, 0.000002777777777777777, rel_tol=1e-10)
+
+    [value, unit] = api_helpers.convert_value(10000, 'mJ')
+
+    assert unit == 'Wh'
+    assert math.isclose(value, 0.002777777777777, rel_tol=1e-10)
+
+    assert api_helpers.convert_value(324_000_000_000, 'uJ') == [90, 'Wh']
+
+    assert api_helpers.convert_value(100, 'uJ', False) == [0.0001, 'J']
+
+    assert api_helpers.convert_value(10000, 'uJ', False) == [0.01, 'J']
+
+    assert api_helpers.convert_value(324_000_000_000, 'uJ', False) == [324000, 'J']
+
+    assert api_helpers.convert_value(10000, 'mJ', False) == [10, 'J']
+
 
     assert api_helpers.convert_value(324_000_000_000, 'ugCO2e/Page Request') == [324000, 'gCO2e/Page Request']
 
@@ -41,7 +62,6 @@ def test_convert_value():
 
     assert api_helpers.convert_value(100, 'uj') == [100, 'uj']
 
-    assert api_helpers.convert_value(10000, 'mJ') == [10, 'J']
 
 def test_escape_dict():
     messy_dict = {"link": '<a href="http://www.github.com">Click me</a>'}
