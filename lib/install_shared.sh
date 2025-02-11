@@ -372,7 +372,6 @@ while getopts "p:a:m:nhtbisyrlc:k:e:zZ" o; do
         Z)
             send_ping_override=true
             ;;
-
     esac
 done
 
@@ -433,6 +432,6 @@ if [[ -z "$db_pw" ]] ; then
     db_pw=${db_pw:-"$default_password"}
 fi
 
-if [[ $send_ping == true || $send_ping_override == true]]; then
+if [[ $send_ping == true || $send_ping_override == true ]]; then
     ask_for_ping
 fi
