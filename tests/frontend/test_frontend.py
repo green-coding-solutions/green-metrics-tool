@@ -190,7 +190,7 @@ def test_stats():
     phase_duration = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.four.cards.stackable > div.ui.card.phase-duration > div > div.description > div.ui.fluid.mini.statistic > div > span").text_content()
 
 
-    assert energy_value.strip() == '76.10'
+    assert energy_value.strip() == '0.02'
     assert phase_duration.strip() == '5.20'
 
     # fetch time series
@@ -312,10 +312,10 @@ def test_repositories_and_compare():
     assert first_metric.strip() == 'CPU Energy (Package)'
 
     first_value = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(6)").text_content()
-    assert first_value.strip() == '8.91'
+    assert first_value.strip() == '0.00'
 
     first_unit = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(7)").text_content()
-    assert first_unit.strip() == 'J'
+    assert first_unit.strip() == 'Wh'
 
     first_stddev = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(8)").text_content()
     assert first_stddev.strip() == '± 13.68%'
@@ -373,7 +373,7 @@ def test_settings():
     page.wait_for_load_state("load") # ALL JS should be done
 
     energy_display = page.locator('#energy-display').text_content()
-    assert energy_display.strip() == 'Currently showing Joules'
+    assert energy_display.strip() == 'Currently showing Watt-Hours'
 
 
     units_display = page.locator('#units-display').text_content()
