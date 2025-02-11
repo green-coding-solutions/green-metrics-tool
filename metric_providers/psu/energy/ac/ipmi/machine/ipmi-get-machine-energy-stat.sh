@@ -34,6 +34,6 @@ fi
 
 
 while true; do
-    echo -en $(date +"%s%6N") $(sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics | head -1 |  awk '{print $4}')"000\n"
+    echo -en $(date +"%s%6N") $(sudo /usr/sbin/ipmi-dcmi --get-system-power-statistics | head -1 |  awk '{print $4}')"\n"
     sleep $i
 done

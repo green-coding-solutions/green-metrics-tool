@@ -184,6 +184,11 @@ def test_ci_badge_get_last():
     response = requests.get(f"{API_URL}/v1/ci/badge/get?repo=green-coding-solutions/ci-carbon-testing&branch=main&workflow=48163287&mode=last", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert 'Last run energy used' in response.text, Tests.assertion_info('success', response.text)
+    assert '0.01 Wh' in response.text, Tests.assertion_info('success', response.text)
+
+    response = requests.get(f"{API_URL}/v1/ci/badge/get?repo=green-coding-solutions/ci-carbon-testing&branch=main&workflow=48163287&mode=last&unit=joules", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert 'Last run energy used' in response.text, Tests.assertion_info('success', response.text)
     assert '28.95 J' in response.text, Tests.assertion_info('success', response.text)
 
     response = requests.get(f"{API_URL}/v1/ci/badge/get?repo=green-coding-solutions/ci-carbon-testing&branch=main&workflow=48163287&mode=last&metric=carbon", timeout=15)
@@ -198,12 +203,18 @@ def test_ci_badge_get_totals():
     response = requests.get(f"{API_URL}/v1/ci/badge/get?repo=green-coding-solutions/ci-carbon-testing&branch=main&workflow=48163287&mode=totals", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert 'All runs total energy used' in response.text, Tests.assertion_info('success', response.text)
+    assert '13.62 Wh' in response.text, Tests.assertion_info('success', response.text)
+
+    response = requests.get(f"{API_URL}/v1/ci/badge/get?repo=green-coding-solutions/ci-carbon-testing&branch=main&workflow=48163287&mode=totals&unit=joules", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert 'All runs total energy used' in response.text, Tests.assertion_info('success', response.text)
     assert '49022.55 J' in response.text, Tests.assertion_info('success', response.text)
 
     response = requests.get(f"{API_URL}/v1/ci/badge/get?repo=green-coding-solutions/ci-carbon-testing&branch=main&workflow=48163287&mode=totals&metric=carbon", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert 'All runs total carbon emitted' in response.text, Tests.assertion_info('success', response.text)
     assert '15.56 g' in response.text, Tests.assertion_info('success', response.text)
+
 
 def test_ci_badge_get_average():
 
@@ -221,12 +232,15 @@ def test_ci_badge_get_average():
         response = requests.post(f"{API_URL}/v2/ci/measurement/add", json=measurement_model, timeout=15)
         assert response.status_code == 204, Tests.assertion_info('success', response.text)
 
-
+    response = requests.get(f"{API_URL}/v1/ci/badge/get?repo={MEASUREMENT_MODEL_NEW['repo']}&branch={MEASUREMENT_MODEL_NEW['branch']}&workflow={MEASUREMENT_MODEL_NEW['workflow']}&mode=avg&duration_days=5&unit=joules", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert 'Per run moving average (5 days) energy used' in response.text, Tests.assertion_info('success', response.text)
+    assert '307.62 J' in response.text, Tests.assertion_info('success', response.text)
 
     response = requests.get(f"{API_URL}/v1/ci/badge/get?repo={MEASUREMENT_MODEL_NEW['repo']}&branch={MEASUREMENT_MODEL_NEW['branch']}&workflow={MEASUREMENT_MODEL_NEW['workflow']}&mode=avg&duration_days=5", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert 'Per run moving average (5 days) energy used' in response.text, Tests.assertion_info('success', response.text)
-    assert '307.62 J' in response.text, Tests.assertion_info('success', response.text)
+    assert '0.09 Wh' in response.text, Tests.assertion_info('success', response.text)
 
     response = requests.get(f"{API_URL}/v1/ci/badge/get?repo={MEASUREMENT_MODEL_NEW['repo']}&branch={MEASUREMENT_MODEL_NEW['branch']}&workflow={MEASUREMENT_MODEL_NEW['workflow']}&mode=avg&duration_days=5&metric=carbon", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)

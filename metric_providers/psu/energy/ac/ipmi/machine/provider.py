@@ -8,7 +8,7 @@ class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
             metric_name='psu_energy_ac_ipmi_machine',
             metrics={'time': int, 'value': int},
             resolution=resolution,
-            unit='mJ',
+            unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='ipmi-get-machine-energy-stat.sh',
             skip_check=skip_check,
@@ -42,7 +42,7 @@ class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
         df.dropna(inplace=True)
 
         df['interval'] = intervals  # in microseconds
-        df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_000_000, axis=1)
+        df['value'] = df.apply(lambda x: x['value'] * x['interval'], axis=1) # will result in uJ
         df['value'] = df.value.astype(int)
 
         df = df.drop(columns='interval')  # clean up
