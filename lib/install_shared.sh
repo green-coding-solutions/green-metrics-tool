@@ -24,9 +24,8 @@ ask_ssl=true
 cert_key=''
 cert_file=''
 enterprise=false
-send_ping=true
-send_ping_override=false
-
+ask_ping=true
+force_send_ping=false
 
 function print_message {
     echo ""
@@ -306,18 +305,6 @@ function send_ping() {
         --data "{\"name\":\"install\",\"url\":\"http://hello.green-coding.io/install\",\"domain\":\"hello.green-coding.io\",\"props\":{\"unique_hash\":\"${unique_hash}\",\"arch\":\"${arch}\",\"arch\":\"${os}\",\"os\":\"${os}\",\"os_version\":\"${os_version}\"}}" > /dev/null
 }
 
-function ask_for_ping() {
-    if [[ $send_ping_override == true ]]; then
-        send_ping
-    else
-        echo ""
-        read -p "Developing software can be a lonely business. Want to let us know you are installing the GMT? No personal data will be shared! (y/N) : " send_ping_input
-        if [[ "$send_ping_input" == "Y" || "$send_ping_input" == "y" ]] ; then
-            send_ping
-        fi
-    fi
-}
-
 while getopts "p:a:m:nhtbisyrlc:k:e:zZ" o; do
     case "$o" in
         p)
@@ -371,10 +358,10 @@ while getopts "p:a:m:nhtbisyrlc:k:e:zZ" o; do
             enterprise=true
             ;;
         z)
-            send_ping=false
+            ask_ping=false
             ;;
         Z)
-            send_ping_override=true
+            force_send_ping=true
             ;;
     esac
 done
@@ -436,6 +423,12 @@ if [[ -z "$db_pw" ]] ; then
     db_pw=${db_pw:-"$default_password"}
 fi
 
-if [[ $send_ping == true ]]; then
-    ask_for_ping
+send_ping_input=false
+if [[ $ask_ping == true ]]; then
+    echo ""
+    read -p "Developing software can be a lonely business. Want to let us know you are installing the GMT? No personal data will be shared! (y/N) : " send_ping_input
+fi
+
+if [[ $force_send_ping == true || "$send_ping_input" == "Y" || "$send_ping_input" == "y" ]] ; then
+    send_ping
 fi
