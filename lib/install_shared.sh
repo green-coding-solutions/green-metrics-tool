@@ -25,6 +25,8 @@ cert_key=''
 cert_file=''
 enterprise=false
 send_ping=true
+send_ping_override=false
+
 
 function print_message {
     echo ""
@@ -312,7 +314,7 @@ function ask_for_ping() {
     fi
 }
 
-while getopts "p:a:m:nhtbisyrlc:k:e:z" o; do
+while getopts "p:a:m:nhtbisyrlc:k:e:zZ" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -367,6 +369,10 @@ while getopts "p:a:m:nhtbisyrlc:k:e:z" o; do
         z)
             send_ping=false
             ;;
+        Z)
+            send_ping_override=true
+            ;;
+
     esac
 done
 
@@ -427,6 +433,6 @@ if [[ -z "$db_pw" ]] ; then
     db_pw=${db_pw:-"$default_password"}
 fi
 
-if [[ $send_ping == true ]]; then
+if [[ $send_ping == true || $send_ping_override == true]]; then
     ask_for_ping
 fi
