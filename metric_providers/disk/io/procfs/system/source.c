@@ -19,7 +19,8 @@ static unsigned int msleep_time=1000;
 static void output_get_disk_procfs() {
     unsigned long long int sectors_read = 0;
     unsigned long long int sectors_written = 0;
-    int minor_number = -1;
+    int minor_number;
+    int major_number;
     char device_name[16];
     int match_result = 0;
     char buf[1024];
@@ -37,16 +38,44 @@ static void output_get_disk_procfs() {
         // We are not counting dropped packets, as we believe they will at least show up in the
         // sender side as not dropped.
         // Since we are iterating over all relevant docker containers we should catch these packets at least in one /proc/net/dev file
-        match_result = sscanf(buf, "%*u %d %15s %*u %*u %llu %*u %*u %*u %llu", &minor_number, device_name, &sectors_read, &sectors_written);
-        if (match_result != 4) {
-            fprintf(stderr, "Could not match /proc/diskstats pattern\n");
+        match_result = sscanf(buf, "%u %u %15s %*u %*u %llu %*u %*u %*u %llu", &major_number, &minor_number, device_name, &sectors_read, &sectors_written);
+        if (match_result != 5) {
+            fprintf(stderr, "Could not match /proc/diskstats pattern in %s. Amount was %d\n", buf, match_result);
             exit(1);
         }
-        if (minor_number != 0) {
-            continue; // we skip when we have found a non root level device (aka partition)
+
+
+        // 1    Memory devices (e.g., /dev/mem, /dev/null)
+        // 2    Floppy disk controller
+        // 3    IDE hard disks (primary controller)
+        // 7    Loopback devices (e.g., /dev/loop0)
+        // 8    SCSI disks (including SATA and NVMe drives)
+        // 9    Metadisk (RAID systems)
+        // 11    SCSI CD-ROM (e.g., /dev/sr0)
+        // 13    Input devices (e.g., /dev/input/event*)
+        // 21    SCSI tape drives
+        // 22    ESDI hard disks
+        // 29    Network block devices (e.g., /dev/nbd)
+        // 36    Accelerated Graphics Port (AGP)
+        // 89    iSCSI devices
+        // 116    ALSA (Advanced Linux Sound Architecture)
+        // 180    USB devices
+        // 202    Xen virtual block devices
+        // 254    Device-mapper (e.g., LVM, cryptsetup)
+
+        if (
+            major_number == 1 || // 1    Memory devices (e.g., /dev/mem, /dev/null)
+            major_number == 2 || // 2    Floppy disk controller
+            major_number == 7 || // 7    Loopback devices (e.g., /dev/loop0)
+            major_number == 11 || // 11    SCSI CD-ROM (e.g., /dev/sr0)
+            major_number == 116 || // 116    ALSA (Advanced Linux Sound Architecture)
+            major_number == 202 // 202    Xen virtual block devices
+        ) {
+            continue;
         }
-        if(!strncmp(device_name,"loop",4)) {
-            continue; // we skip loop devices
+
+        if (minor_number % 16 != 0) {
+            continue; // we skip when we have found a non root level device (aka partition)
         }
 
         printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, sectors_read, sectors_written, device_name);

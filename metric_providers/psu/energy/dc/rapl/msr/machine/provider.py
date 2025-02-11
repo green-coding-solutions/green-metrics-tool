@@ -9,7 +9,7 @@ class PsuEnergyDcRaplMsrMachineProvider(BaseMetricProvider):
             metric_name='psu_energy_dc_rapl_msr_machine',
             metrics={'time': int, 'value': int, 'psys_id': str},
             resolution=resolution,
-            unit='mJ',
+            unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
