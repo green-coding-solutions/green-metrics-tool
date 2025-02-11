@@ -1,4 +1,4 @@
-# pylint: disable=too-many-positional-arguments
+#pylint: disable=too-many-positional-arguments
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic?
 import sys
@@ -40,8 +40,6 @@ from lib.timeline_project import TimelineProject
 from lib import utils
 
 from enum import Enum
-from pydantic import BaseModel
-
 ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
 
 
@@ -794,20 +792,6 @@ async def diff(ids: str, user: User = Depends(authenticate)):
     store_artifact(ArtifactType.DIFF, f"{user._id}_{str(ids)}", diff_runs)
 
     return ORJSONResponse({'success': True, 'data': diff_runs})
-
-class HelloData(BaseModel):
-    hash: str
-    os: str
-
-@app.post('/v1/hello')
-async def hello(data: HelloData):
-    query = '''
-        INSERT INTO hello_data (hash, os)
-        VALUES (%s, %s)
-    '''
-    params = (data.hash, data.os)
-    DB().fetch_one(query, params)
-    return ORJSONResponse({'success': True})
 
 app.include_router(eco_ci.router)
 

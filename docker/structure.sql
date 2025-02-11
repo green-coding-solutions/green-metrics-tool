@@ -310,10 +310,3 @@ CREATE TABLE carbon_intensity (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (latitude, longitude, created_at)
 );
-
-CREATE TABLE hello_data (
-    id SERIAL PRIMARY KEY,
-    hash text,
-    os text,
-    created_at timestamp with time zone DEFAULT now(),
-);

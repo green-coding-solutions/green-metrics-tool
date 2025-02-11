@@ -293,10 +293,15 @@ function generate_unique_hash() {
 
 function send_ping() {
     local unique_hash=$(generate_unique_hash)
-    local os_type=$(uname -a)
-    curl --silent -X POST https://api.green-coding.io/v1/hello \
-         -H 'Content-Type: application/json' \
-         --data "{\"hash\":\"${unique_hash}\",\"os\":\"${os_type}\"}" > /dev/null
+    local random_hash=$(openssl rand -hex 8)
+    local arch=$(uname -m)
+    local os=$(uname -s)
+    local os_version=$(uname -r)
+
+    curl -i -X POST https://plausible.io/api/event \
+        -H 'User-Agent: ${random_hash}' \
+        -H 'Content-Type: application/json' \
+        --data "{\"name\":\"install\",\"url\":\"http://hello.green-coding.io/install\",\"domain\":\"hello.green-coding.io\",\"props\":{\"unique_hash\":\"${unique_hash}\",\"arch\":\"${arch}\",\"arch\":\"${os}\",\"os\":\"${os}\",\"os_version\":\"${os_version}\"}}" > /dev/null
 }
 
 function ask_for_ping() {
