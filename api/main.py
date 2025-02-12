@@ -1,3 +1,4 @@
+#pylint: disable=too-many-positional-arguments
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic?
 import sys
