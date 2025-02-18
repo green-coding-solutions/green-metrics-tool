@@ -8,7 +8,7 @@ pandas==2.2.3
 PyYAML==6.0.2
 anybadge==1.16.0
 orjson==3.10.15
-scipy==1.15.1
+scipy==1.15.2
 schema==0.7.7
 deepdiff==8.2.0
 redis==5.2.1
