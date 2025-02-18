@@ -300,9 +300,9 @@ function send_ping() {
     local os_version=$(uname -r)
 
     curl -i -X POST https://plausible.io/api/event \
-        -H 'User-Agent: ${random_hash}' \
+        -H "User-Agent: ${random_hash}" \
         -H 'Content-Type: application/json' \
-        --data "{\"name\":\"install\",\"url\":\"http://hello.green-coding.io/install\",\"domain\":\"hello.green-coding.io\",\"props\":{\"unique_hash\":\"${unique_hash}\",\"arch\":\"${arch}\",\"arch\":\"${os}\",\"os\":\"${os}\",\"os_version\":\"${os_version}\"}}" > /dev/null
+        --data "{\"name\":\"install\",\"url\":\"http://hello.green-coding.io/install\",\"domain\":\"hello.green-coding.io\",\"props\":{\"unique_hash\":\"${unique_hash}\",\"arch\":\"${arch}\",\"os\":\"${os}\",\"os_version\":\"${os_version}\"}}" > /dev/null
 }
 
 while getopts "p:a:m:nhtbisyrlc:k:e:zZ" o; do
