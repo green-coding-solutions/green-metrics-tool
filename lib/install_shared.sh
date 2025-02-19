@@ -427,6 +427,7 @@ send_ping_input=false
 if [[ $ask_ping == true ]]; then
     echo ""
     read -p "Developing software can be a lonely business. Want to let us know you are installing the GMT? No personal data will be shared! (y/N) : " send_ping_input
+    force_send_ping=false # if by a misconfiguration or future change the user will ever be asked and says no, we never want to force send a ping - this is just an extra guard clause
 fi
 
 if [[ $force_send_ping == true || "$send_ping_input" == "Y" || "$send_ping_input" == "y" ]] ; then

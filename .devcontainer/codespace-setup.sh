@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euxo pipefail
 
-/workspaces/green-metrics-tool/install_linux.sh -p testpw -a "https://${CODESPACE_NAME}-9142.app.github.dev" -m "https://${CODESPACE_NAME}-9143.app.github.dev" -t -i -s -l -Z
+/workspaces/green-metrics-tool/install_linux.sh -p testpw -a "https://${CODESPACE_NAME}-9142.app.github.dev" -m "https://${CODESPACE_NAME}-9143.app.github.dev" -t -i -s -l -z -Z
 source venv/bin/activate
 
 # Also add XGBoost, as we need it
