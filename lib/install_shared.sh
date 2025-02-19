@@ -24,6 +24,8 @@ ask_ssl=true
 cert_key=''
 cert_file=''
 enterprise=false
+ask_ping=true
+force_send_ping=false
 
 function print_message {
     echo ""
@@ -63,9 +65,9 @@ function check_file_permissions() {
     # Check if the file permissions are read-only for group and others using regex
 
     if [[ $(uname) == "Darwin" ]]; then
-        permissions=$(stat -f %Sp "$file")
+        local permissions=$(stat -f %Sp "$file")
     else
-        permissions=$(stat -c %A "$file") # Linux
+        local permissions=$(stat -c %A "$file") # Linux
     fi
 
     if [ -L "$file" ]; then
@@ -109,15 +111,15 @@ function prepare_config() {
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" config.yml"
 
     cp docker/nginx/api.conf.example docker/nginx/api.conf
-    host_api_url=`echo $api_url | sed -E 's/^\s*.*:\/\///g'`
-    host_api_url=${host_api_url%:*}
+    local host_api_url=`echo $api_url | sed -E 's/^\s*.*:\/\///g'`
+    local host_api_url=${host_api_url%:*}
     eval "${sed_command} -e \"s|__API_URL__|$host_api_url|\" docker/nginx/api.conf"
 
     cp docker/nginx/block.conf.example docker/nginx/block.conf
 
     cp docker/nginx/frontend.conf.example docker/nginx/frontend.conf
-    host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
-    host_metrics_url=${host_metrics_url%:*}
+    local host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
+    local host_metrics_url=${host_metrics_url%:*}
     eval "${sed_command} -e \"s|__METRICS_URL__|$host_metrics_url|\" docker/nginx/frontend.conf"
 
     cp frontend/js/helpers/config.js.example frontend/js/helpers/config.js
@@ -282,9 +284,28 @@ function finalize() {
     fi
 }
 
+function generate_unique_hash() {
+    if [[ $(uname) == "Darwin" ]]; then
+        system_profiler SPHardwareDataType | awk '/Serial Number/ {print $4}'
+    else
+        cat /etc/machine-id
+    fi
+}
 
+function send_ping() {
+    local unique_hash=$(generate_unique_hash)
+    local random_hash=$(openssl rand -hex 8)
+    local arch=$(uname -m)
+    local os=$(uname -s)
+    local os_version=$(uname -r)
 
-while getopts "p:a:m:nhtbisyrlc:k:e:" o; do
+    curl -i -X POST https://plausible.io/api/event \
+        -H "User-Agent: ${random_hash}" \
+        -H 'Content-Type: application/json' \
+        --data "{\"name\":\"install\",\"url\":\"http://hello.green-coding.io/install\",\"domain\":\"hello.green-coding.io\",\"props\":{\"unique_hash\":\"${unique_hash}\",\"arch\":\"${arch}\",\"os\":\"${os}\",\"os_version\":\"${os_version}\"}}" > /dev/null
+}
+
+while getopts "p:a:m:nhtbisyrlc:k:e:zZ" o; do
     case "$o" in
         p)
             db_pw=${OPTARG}
@@ -336,7 +357,12 @@ while getopts "p:a:m:nhtbisyrlc:k:e:" o; do
             ee_token=${OPTARG}
             enterprise=true
             ;;
-
+        z)
+            ask_ping=false
+            ;;
+        Z)
+            force_send_ping=true
+            ;;
     esac
 done
 
@@ -395,4 +421,14 @@ if [[ -z "$db_pw" ]] ; then
     read -sp "Please enter the new password to be set for the PostgreSQL DB (default: $default_password): " db_pw
     echo "" # force a newline, because read -sp will consume it
     db_pw=${db_pw:-"$default_password"}
+fi
+
+send_ping_input=false
+if [[ $ask_ping == true ]]; then
+    echo ""
+    read -p "Developing software can be a lonely business. Want to let us know you are installing the GMT? No personal data will be shared! (y/N) : " send_ping_input
+fi
+
+if [[ $force_send_ping == true || "$send_ping_input" == "Y" || "$send_ping_input" == "y" ]] ; then
+    send_ping
 fi
