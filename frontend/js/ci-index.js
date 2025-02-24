@@ -86,13 +86,19 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
             }
         },
         {data : 1, title: 'Branch'},
-        {data: 2, title: 'Workflow-ID'},
         {data: 3, title: 'Source'},
+
         {
             data: 4, title: 'Last Run', render: function(el, type, row) {
                 return `<span title=${el}}>${dateToYMD(new Date(el), short=true)}</span>`;
             }
-        }
+        },
+        {
+            title: 'Carbon', render: function(el,type,row) {
+                return `<img src="${API_URL}/v1/ci/badge/get?repo=${row[0]}&branch=${row[1]}&workflow=${row[2]}&mode=totals&metric=carbon&duration_days=30">`;
+            }
+        },
+
     ]
     el.DataTable({
         // searchPanes: {
