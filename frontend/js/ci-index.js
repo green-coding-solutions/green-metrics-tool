@@ -90,7 +90,7 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
 
         {
             data: 4, title: 'Last Run', render: function(el, type, row) {
-                return `<span title=${el}}>${dateToYMD(new Date(el), short=true)}</span>`;
+                return `<span title=${el}>${dateToYMD(new Date(el), short=true)}</span>`;
             }
         },
         {
