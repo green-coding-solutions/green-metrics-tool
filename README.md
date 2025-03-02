@@ -1,9 +1,9 @@
 [![Tests Status - Main](https://github.com/green-coding-solutions/green-metrics-tool/actions/workflows/tests-vm-main.yml/badge.svg)](https://github.com/green-coding-solutions/green-metrics-tool/actions/workflows/tests-vm-main.yml)
 
 
-[![Energy Used](https://api.green-coding.io/v1/ci/badge/get/?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393&mode=totals&metric=carbon&duration_days=30)](https://metrics.green-coding.io/ci.html?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393) (This is the carbon emitted for running our CI-Pipelines to test GMT on Github. [Find out more about Eco-CI](https://www.green-coding.io/projects/eco-ci/))
+[![Energy Used](https://api.green-coding.io/v1/ci/badge/get/?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393&mode=totals&metric=carbon&duration_days=30)](https://metrics.green-coding.io/ci.html?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393) (This is the carbon emitted for running our CI-Pipelines to test GMT on Github. [Find out more about Eco-CI](https://www.green-coding.io/products/eco-ci/))
 
-[![Try in Github Codespaces!](https://github.com/codespaces/badge.svg)](https://codespaces.new/green-coding-berlin/green-metrics-tool)
+[![Try in Github Codespaces!](https://github.com/codespaces/badge.svg)](https://codespaces.new/green-coding-solutions/green-metrics-tool)
 
 # Introduction
 
@@ -18,7 +18,7 @@ Key features are:
 - [Cluster setup](https://docs.green-coding.io/docs/installation/installation-cluster/)
 - [Free Hosted service for more precise measurements](https://docs.green-coding.io/docs/measuring/measurement-cluster/)
 - Timeline-View: Monitor software projects over time - [DEMO for Wagtail](https://metrics.green-coding.io/timeline.html?uri=https://github.com/green-coding-solutions/bakerydemo-gold-benchmark&filename=usage_scenario_warm.yml&branch=&machine_id=7) / [DEMO Overview](https://metrics.green-coding.io/energy-timeline.html)
-- [Energy-ID Score-Cards](https://www.green-coding.io/projects/energy-id/) for software (Also see below)
+- [Energy-ID Score-Cards](https://www.green-coding.io/products/energy-id/) for software (Also see below)
 
 It is designed to re-use existing infrastructure and testing files as much as possible to be easily integrateable into every software repository and create transparency around software energy consumption.
 
@@ -64,25 +64,25 @@ And so much more! [See the documentation!](https://docs.green-coding.io)
 # Energy-ID Scorecards
 <img width="1034" alt="Screenshot 2023-10-24 at 10 43 28 AM" src="https://github.com/green-coding-solutions/green-metrics-tool/assets/250671/7e3e3faa-5452-4722-af70-a65114f930ac">
 
-Details: [Energy-ID project page](https://www.green-coding.io/projects/energy-id/
+Details: [Energy-ID project page](https://www.green-coding.io/products/energy-id/
 )
 
 # Screenshots of Single Run View
 
-![](https://www.green-coding.io/img/projects/gmt-screenshot-1.webp)
-![](https://www.green-coding.io/img/projects/gmt-screenshot-2.webp)
-![](https://www.green-coding.io/img/projects/gmt-screenshot-3.webp)
-![](https://www.green-coding.io/img/projects/gmt-screenshot-4.webp)
+![](https://www.green-coding.io/img/products/gmt-screenshot-1.webp)
+![](https://www.green-coding.io/img/products/gmt-screenshot-2.webp)
+![](https://www.green-coding.io/img/products/gmt-screenshot-3.webp)
+![](https://www.green-coding.io/img/products/gmt-screenshot-4.webp)
  
 
 # Screenshots of Comparison View
-![](https://www.green-coding.io/img/projects/gmt-screenshot-5.webp)
-![](https://www.green-coding.io/img/projects/gmt-screenshot-6.webp)
+![](https://www.green-coding.io/img/products/gmt-screenshot-5.webp)
+![](https://www.green-coding.io/img/products/gmt-screenshot-6.webp)
 
 
 
 
 ## License and Copyright
-The Green Metrics Tool is available under open-source AGPL and commercial license agreements. If you determine you cannot meet the requirements of the AGPL, please contact [Green Coding Solutions](https://www.green-coding.io/projects/green-metrics-tool) for more information regarding a commercial license.
+The Green Metrics Tool is available under open-source AGPL and commercial license agreements. If you determine you cannot meet the requirements of the AGPL, please contact [Green Coding Solutions](https://www.green-coding.io/products/green-metrics-tool) for more information regarding a commercial license.
 
 
