@@ -1,7 +1,7 @@
 [![Tests Status - Main](https://github.com/green-coding-solutions/green-metrics-tool/actions/workflows/tests-vm-main.yml/badge.svg)](https://github.com/green-coding-solutions/green-metrics-tool/actions/workflows/tests-vm-main.yml)
 
 
-[![Energy Used](https://api.green-coding.io/v1/ci/badge/get/?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393)](https://metrics.green-coding.io/ci.html?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393) (This is the energy cost of running our CI-Pipelines on Github. [Find out more about Eco-CI](https://www.green-coding.io/projects/eco-ci/))
+[![Energy Used](https://api.green-coding.io/v1/ci/badge/get/?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393&mode=totals&metric=carbon&duration_days=30)](https://metrics.green-coding.io/ci.html?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393) (This is the carbon emitted for running our CI-Pipelines to test GMT on Github. [Find out more about Eco-CI](https://www.green-coding.io/projects/eco-ci/))
 
 [![Try in Github Codespaces!](https://github.com/codespaces/badge.svg)](https://codespaces.new/green-coding-berlin/green-metrics-tool)
 
@@ -37,6 +37,36 @@ To see the frontend in action and get an idea of what kind of metrics the tool c
 
 To see the the documentation and how to install and use the tool please go to [Green Metrics Tool Documentation](https://docs.green-coding.io)
 
+# Comparison with other tools
+
+## What GMT is not
+- GMT is not a real time monitoring system -> Use [CodeCarbon](https://codecarbon.io/) for this
+- GMT is not a LoC optimization system -> Use classic debuggers for this
+
+## What GMT is great at
+- Comparing software implementations
+  - How much does algorithm A save in carbon vs. Algorithm B
+  - How much dies Inferencing with LLama 2 cost in carbon vs. LLama 3.1
+  - ...
+- Comparing architectures of whole software systems against each other on service/container level
+  - How much do I save with a micoservice approach vs. a monolith architecture?
+  - How much does MySQL consume in carbon vs. PostgreSQL
+  - ...
+- Understanding the life-cycle of an application
+  - Are my emissions rather in CI/CD testing or in development or in running our VM fleet? (See also [CarbonDB](https://www.green-coding.io/products/carbondb/) for this)
+  - How much do my Docker builds cost vs. running the application?
+  - How much does the training of my AI model cost vs. Inferencing?
+- Tracking and evaluating code sustainability targets
+  - How do my carbon emissions for a given software feature develop over time? Are we getting better or worse?
+  - Which commit has led to an energy / carbon regression
+And so much more! [See the documentation!](https://docs.green-coding.io)
+
+# Energy-ID Scorecards
+<img width="1034" alt="Screenshot 2023-10-24 at 10 43 28 AM" src="https://github.com/green-coding-solutions/green-metrics-tool/assets/250671/7e3e3faa-5452-4722-af70-a65114f930ac">
+
+Details: [Energy-ID project page](https://www.green-coding.io/projects/energy-id/
+)
+
 # Screenshots of Single Run View
 
 ![](https://www.green-coding.io/img/projects/gmt-screenshot-1.webp)
@@ -49,11 +79,7 @@ To see the the documentation and how to install and use the tool please go to [G
 ![](https://www.green-coding.io/img/projects/gmt-screenshot-5.webp)
 ![](https://www.green-coding.io/img/projects/gmt-screenshot-6.webp)
 
-# Energy-ID Scorecards
-<img width="1034" alt="Screenshot 2023-10-24 at 10 43 28 AM" src="https://github.com/green-coding-solutions/green-metrics-tool/assets/250671/7e3e3faa-5452-4722-af70-a65114f930ac">
 
-Details: [Energy-ID project page](https://www.green-coding.io/projects/energy-id/
-)
 
 
 ## License and Copyright
