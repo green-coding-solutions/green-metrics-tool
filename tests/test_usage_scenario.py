@@ -511,7 +511,7 @@ def test_entrypoint_ran():
             encoding='UTF-8'
         )
         docker_ps_out = ps.stdout
-    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('entrypoint `tail -f /dev/null` in ps output', docker_ps_out)
+    assert 'yes' in docker_ps_out, Tests.assertion_info('entrypoint `yes` in ps output', docker_ps_out)
 
 # command: [str] (optional)
 #    Command to be executed when container is started.

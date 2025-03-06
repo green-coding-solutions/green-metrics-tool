@@ -9,7 +9,7 @@ services:
     image: gcb_stress
     build:
       context: ../stress-application
-    entrypoint: tail -f /dev/null
+    entrypoint: 'yes' # prints "y" forever
 
 flow:
   - name: Stress

@@ -961,6 +961,11 @@ class Runner:
                         docker_run_string.append(service['healthcheck']['start_interval'])
 
 
+            if 'entrypoint' in service:
+                docker_run_string.append('--entrypoint')
+                docker_run_string.append(service['entrypoint'])
+
+
             docker_run_string.append(self.clean_image_name(service['image']))
 
             # Before finally starting the container for the current service, check if the dependent services are ready.
@@ -1021,9 +1026,6 @@ class Runner:
                         raise RuntimeError(f"State check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not running but '{state}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
                     if health != 'healthy':
                         raise RuntimeError(f"Health check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
-
-            if 'entrypoint' in service:
-                docker_run_string.extend(shlex.split(service['entrypoint']))
 
             if 'command' in service:  # must come last
                 docker_run_string.extend(shlex.split(service['command']))
