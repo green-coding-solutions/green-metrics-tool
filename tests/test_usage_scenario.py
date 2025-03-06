@@ -496,6 +496,23 @@ def test_container_is_in_network():
         inspect = ps.stdout
     assert 'test-container' in inspect, Tests.assertion_info('test-container', inspect)
 
+# entrypoint: [str] (optional)
+#    entrypoint declares the default entrypoint for the service container.
+#    This overrides the ENTRYPOINT instruction from the service's Dockerfile.
+def test_entrypoint_ran():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        ps = subprocess.run(
+            ['docker', 'exec', 'test-container', 'ps', '-a'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+        docker_ps_out = ps.stdout
+    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('entrypoint `tail -f /dev/null` in ps output', docker_ps_out)
+
 # command: [str] (optional)
 #    Command to be executed when container is started.
 #    When container does not have a daemon running typically a shell

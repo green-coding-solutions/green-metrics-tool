@@ -1022,6 +1022,9 @@ class Runner:
                     if health != 'healthy':
                         raise RuntimeError(f"Health check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
 
+            if 'entrypoint' in service:
+                docker_run_string.extend(shlex.split(service['entrypoint']))
+
             if 'command' in service:  # must come last
                 docker_run_string.extend(shlex.split(service['command']))
 
