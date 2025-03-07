@@ -1,4 +1,3 @@
-#pylint: disable=too-many-positional-arguments
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic?
 import sys
@@ -556,7 +555,7 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
         return Response(status_code=204) # No-Content
 
     cost = data[1]/data[0]
-    display_in_watthours = True if unit == 'watt-hours' else False
+    display_in_watthours = True if unit == 'watt-hours' else False # pylint: disable=simplifiable-if-expression
     [rescaled_cost, rescaled_unit] = convert_value(cost, data[3], display_in_watthours)
     rescaled_cost = f"+{rescaled_cost:.2f}" if abs(cost) == cost else f"{rescaled_cost:.2f}"
 
@@ -627,7 +626,7 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated', unit: str 
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         badge_value = 'No metric data yet'
     else:
-        display_in_watthours = True if unit == 'watt-hours' else False
+        display_in_watthours = True if unit == 'watt-hours' else False # pylint: disable=simplifiable-if-expression
         [metric_value, energy_unit] = convert_value(data[0], data[1], display_in_watthours)
         badge_value= f"{metric_value:.2f} {energy_unit} {via}"
 
@@ -698,8 +697,8 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if software.name is None or software.name.strip() == '':
         raise RequestValidationError('Name is empty')
 
-    if software.email is None or software.email.strip() == '':
-        raise RequestValidationError('E-mail is empty')
+    if software.email is not None and software.email.strip() == '':
+        software.email = None
 
     if software.branch is None or software.branch.strip() == '':
         software.branch = 'main'
