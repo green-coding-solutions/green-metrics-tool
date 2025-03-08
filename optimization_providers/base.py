@@ -8,6 +8,8 @@ import orjson
 
 from lib.global_config import GlobalConfig
 from lib import utils
+from lib.user import User
+from api.main import get_run, get_measurements_single, get_network, get_notes, get_phase_stats_single
 
 class Criticality(Enum):
     CRITICAL = 'red'
@@ -82,13 +84,43 @@ async def fetch_all_data(run_id):
         tasks = [fetch_url(session, url) for url in urls]
         run, measurements, network, notes, phase_stats = await asyncio.gather(*tasks)
 
+
     #pylint: disable=no-member
     return orjson.loads(run)['data'], orjson.loads(measurements)['data'], orjson.loads(network)['data'], orjson.loads(notes)['data'], orjson.loads(phase_stats)['data']
 
-#pylint: disable=dangerous-default-value
-def run_reporters(run_id, repo_path, optimizations_ignore=[]):
+async def query_all_data(user_id, run_id):
+    # This call is used for shared environments, which however cannot access API endpoints.
+    # We capture the data via the API functions, but never transmit it via HTTP
+    # - All logic stays in one place
+    # - We can query async which is quite a speed increase as most things are sql queries
+    # - Detaches the code more so we can split this into a separate module in the future. In theory we could do this over
+    #   http as we are looking at the same return data.
 
-    run_data, measurements_data, network_data, notes_data, phase_stats_data = asyncio.run(fetch_all_data(run_id))
+    user = User(user_id)
+    function_calls = [
+        get_run(run_id, user),
+        get_measurements_single(run_id, user),
+        get_network(run_id, user),
+        get_notes(run_id, user),
+        get_phase_stats_single(run_id, user)
+    ]
+
+    run, measurements, network, notes, phase_stats = await asyncio.gather(*function_calls)
+
+    #pylint: disable=no-member
+    return (
+        orjson.loads(run.body)['data'],
+        orjson.loads(measurements.body)['data'],
+        orjson.loads(network.body)['data'],
+        orjson.loads(notes.body)['data'],
+        orjson.loads(phase_stats.body)['data']
+    )
+
+
+#pylint: disable=dangerous-default-value
+def run_reporters(user_id, run_id, repo_path, optimizations_ignore=[]):
+
+    run_data, measurements_data, network_data, notes_data, phase_stats_data = asyncio.run(query_all_data(user_id, run_id))
 
     for r in reporters:
         if r.tag not in optimizations_ignore:
