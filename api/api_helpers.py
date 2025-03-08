@@ -12,6 +12,7 @@ from starlette.background import BackgroundTask
 from fastapi.responses import ORJSONResponse
 from fastapi import Depends, Request, HTTPException
 from fastapi.security import APIKeyHeader
+from fastapi.exceptions import RequestValidationError
 import numpy as np
 import scipy.stats
 from pydantic import BaseModel
@@ -191,6 +192,8 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, 
 
     if branch is None or branch.strip() == '':
         branch = 'main'
+
+    check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
 
     params = [user.is_super_user(), user.visible_users(), uri, filename, branch, machine_id, f"%{phase}"]
 
@@ -776,3 +779,15 @@ def get_connecting_ip(request):
         return connecting_ip.split(",")[0]
 
     return request.client.host
+
+def check_int_field_api(field, name, max_value):
+    if not isinstance(field, int):
+        raise RequestValidationError(f'{name} must be integer')
+
+    if field <= 0:
+        raise RequestValidationError(f'{name} must be > 0')
+
+    if field > max_value:
+        raise RequestValidationError(f'{name} must be <= {max_value}')
+
+    return True

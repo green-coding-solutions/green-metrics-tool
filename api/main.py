@@ -1,4 +1,3 @@
-#pylint: disable=too-many-positional-arguments
 # It seems like FastAPI already enables faulthandler as it shows stacktrace on SEGFAULT
 # Is the redundant call problematic?
 import sys
@@ -28,7 +27,7 @@ from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
                          is_valid_uuid, convert_value, get_timeline_query,
                          get_run_info, get_machine_list, get_artifact, store_artifact,
-                         authenticate)
+                         authenticate, check_int_field_api)
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -180,7 +179,7 @@ async def get_jobs(
     machine_id_condition = ''
     state_condition = ''
 
-    if machine_id is not None:
+    if machine_id and check_int_field_api(machine_id, 'machine_id', 1024):
         machine_id_condition = 'AND j.machine_id = %s'
         params.append(machine_id)
 
@@ -277,7 +276,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
         query = f"{query} AND r.filename LIKE %s  \n"
         params.append(f"%{filename}%")
 
-    if machine_id:
+    if machine_id and check_int_field_api(machine_id, 'machine_id', 1024):
         query = f"{query} AND m.id = %s \n"
         params.append(machine_id)
 
@@ -303,7 +302,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/runs')
-async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None, uri_mode = 'none', user: User = Depends(authenticate)):
+async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int = 5, uri_mode = 'none', user: User = Depends(authenticate)):
 
     query = '''
             SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
@@ -330,7 +329,7 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
         query = f"{query} AND r.filename LIKE %s  \n"
         params.append(f"%{filename}%")
 
-    if machine_id:
+    if machine_id and check_int_field_api(machine_id, 'machine_id', 1024):
         query = f"{query} AND m.id = %s \n"
         params.append(machine_id)
 
@@ -340,9 +339,9 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
 
     query = f"{query} ORDER BY r.created_at DESC"
 
-    if limit:
-        query = f"{query} LIMIT %s"
-        params.append(limit)
+    check_int_field_api(limit, 'limit', 50)
+    query = f"{query} LIMIT %s"
+    params.append(limit)
 
 
     data = DB().fetch_all(query, params=params)
@@ -556,7 +555,7 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
         return Response(status_code=204) # No-Content
 
     cost = data[1]/data[0]
-    display_in_watthours = True if unit == 'watt-hours' else False
+    display_in_watthours = True if unit == 'watt-hours' else False # pylint: disable=simplifiable-if-expression
     [rescaled_cost, rescaled_unit] = convert_value(cost, data[3], display_in_watthours)
     rescaled_cost = f"+{rescaled_cost:.2f}" if abs(cost) == cost else f"{rescaled_cost:.2f}"
 
@@ -627,7 +626,7 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated', unit: str 
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         badge_value = 'No metric data yet'
     else:
-        display_in_watthours = True if unit == 'watt-hours' else False
+        display_in_watthours = True if unit == 'watt-hours' else False # pylint: disable=simplifiable-if-expression
         [metric_value, energy_unit] = convert_value(data[0], data[1], display_in_watthours)
         badge_value= f"{metric_value:.2f} {energy_unit} {via}"
 
@@ -698,8 +697,8 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if software.name is None or software.name.strip() == '':
         raise RequestValidationError('Name is empty')
 
-    if software.email is None or software.email.strip() == '':
-        raise RequestValidationError('E-mail is empty')
+    if software.email is not None and software.email.strip() == '':
+        software.email = None
 
     if software.branch is None or software.branch.strip() == '':
         software.branch = 'main'
