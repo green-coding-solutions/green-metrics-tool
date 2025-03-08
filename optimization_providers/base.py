@@ -118,7 +118,10 @@ async def query_all_data(user_id, run_id):
 
 
 #pylint: disable=dangerous-default-value
-def run_reporters(user_id, run_id, repo_path, optimizations_ignore=[]):
+def run_reporters(user_id, run_id, repo_path, optimizations_ignore=None):
+
+    if not optimizations_ignore:
+        optimizations_ignore = []
 
     run_data, measurements_data, network_data, notes_data, phase_stats_data = asyncio.run(query_all_data(user_id, run_id))
 
