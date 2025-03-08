@@ -6,7 +6,7 @@ description: test
 services:
   test-container:
     type: container
-    image: gcb_stress_entrypoint
+    image: gcb_stress_entrypoint # image with an endpoint
     build:
       context: ../entrypoint-application
     entrypoint: 'yes' # overwrite entrypoint; yes prints "y" forever

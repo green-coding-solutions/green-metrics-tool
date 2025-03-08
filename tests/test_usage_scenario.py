@@ -500,7 +500,7 @@ def test_container_is_in_network():
 #    entrypoint declares the default entrypoint for the service container.
 #    This overrides the ENTRYPOINT instruction from the service's Dockerfile.
 def test_entrypoint_ran():
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_single_command.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         ps = subprocess.run(
@@ -512,6 +512,21 @@ def test_entrypoint_ran():
         )
         docker_ps_out = ps.stdout
     assert 'yes' in docker_ps_out, Tests.assertion_info('entrypoint `yes` in ps output', docker_ps_out)
+
+def test_entrypoint_ran_with_script():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_script.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        ps = subprocess.run(
+            ['docker', 'exec', 'test-container', 'ps', '-a'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+        docker_ps_out = ps.stdout
+    assert 'entrypoint-overwrite.sh' in docker_ps_out, Tests.assertion_info('entrypoint `entrypoint-overwrite.sh` in ps output', docker_ps_out)
+    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('entrypoint `tail -f /dev/null` in ps output', docker_ps_out)
 
 # command: [str] (optional)
 #    Command to be executed when container is started.
