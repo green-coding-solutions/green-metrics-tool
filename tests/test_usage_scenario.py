@@ -496,6 +496,24 @@ def test_container_is_in_network():
         inspect = ps.stdout
     assert 'test-container' in inspect, Tests.assertion_info('test-container', inspect)
 
+# command: [str] (optional)
+#    Command to be executed when container is started.
+#    When container does not have a daemon running typically a shell
+#    is started here to have the container running like bash or sh
+def test_cmd_ran():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/cmd_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        ps = subprocess.run(
+            ['docker', 'exec', 'test-container', 'ps', '-a'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+        docker_ps_out = ps.stdout
+    assert '1 root      0:00 sh' in docker_ps_out, Tests.assertion_info('1 root      0:00 sh', docker_ps_out)
+
 # entrypoint: [str] (optional)
 #    entrypoint declares the default entrypoint for the service container.
 #    This overrides the ENTRYPOINT instruction from the service's Dockerfile.
@@ -528,12 +546,8 @@ def test_entrypoint_ran_with_script():
     assert 'entrypoint-overwrite.sh' in docker_ps_out, Tests.assertion_info('entrypoint `entrypoint-overwrite.sh` in ps output', docker_ps_out)
     assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('entrypoint `tail -f /dev/null` in ps output', docker_ps_out)
 
-# command: [str] (optional)
-#    Command to be executed when container is started.
-#    When container does not have a daemon running typically a shell
-#    is started here to have the container running like bash or sh
-def test_cmd_ran():
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/cmd_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+def test_entrypoint_ran_in_conjunction_with_command():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_with_command.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         ps = subprocess.run(
@@ -544,7 +558,7 @@ def test_cmd_ran():
             encoding='UTF-8'
         )
         docker_ps_out = ps.stdout
-    assert '1 root      0:00 sh' in docker_ps_out, Tests.assertion_info('1 root      0:00 sh', docker_ps_out)
+    assert 'yes Running forever...' in docker_ps_out, Tests.assertion_info('`yes Running forever...` in ps output', docker_ps_out)
 
 ### The Tests for the runner options/flags
 ## --uri URI
