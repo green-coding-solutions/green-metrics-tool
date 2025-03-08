@@ -13,6 +13,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('run_id', help='Please supply a run_id')
+    parser.add_argument('user_id', help='Please supply a user_id')
 
     args = parser.parse_args()  # script will exit if arguments not present
 
@@ -21,4 +22,4 @@ if __name__ == '__main__':
 
     print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
 
-    optimization_providers.base.run_reporters(args.run_id, '/tmp/green-metrics-tool')
+    optimization_providers.base.run_reporters(args.user_id, args.run_id, '/tmp/green-metrics-tool')
