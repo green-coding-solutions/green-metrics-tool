@@ -6,7 +6,7 @@ class PhaseMetrics extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
         <h3 class="ui dividing header print-page-break">Key metrics</h3>
-        <div class="ui four cards stackable">
+        <div class="ui six cards stackable">
             <div class="ui card phase-duration">
                 <div class="ui content">
                     <div class="ui top attached purple label overflow-ellipsis">Phase Duration <span class="si-unit"></span></div>
@@ -44,16 +44,73 @@ class PhaseMetrics extends HTMLElement {
                     </div>
                 </div>
             </div>
-            <div class="ui card machine-energy">
+            <div class="ui card machine-power">
                 <div class="ui content">
-                    <div class="ui top attached blue label overflow-ellipsis">Machine Energy <span class="si-unit"></span></div>
+                    <div class="ui top attached orange label overflow-ellipsis">CPU Power <span class="si-unit"></span></div>
                     <div class="description">
                         <div class="ui fluid mini statistic">
                             <div class="value">
-                                <i class="battery three quarters icon"></i> <span>N/A</span>
+                                <i class="power off icon"></i> <span>N/A</span>
                             </div>
                         </div>
-                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Power of all hardware components during current usage phase.">
+                            <span class="source"></span>
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ui card machine-power">
+                <div class="ui content">
+                    <div class="ui top attached orange label overflow-ellipsis">DRAM Power <span class="si-unit"></span></div>
+                    <div class="description">
+                        <div class="ui fluid mini statistic">
+                            <div class="value">
+                                <i class="power off icon"></i> <span>N/A</span>
+                            </div>
+                        </div>
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Power of all hardware components during current usage phase.">
+                            <span class="source"></span>
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ui card machine-power">
+                <div class="ui content">
+                    <div class="ui top attached orange label overflow-ellipsis">SDD/HDD Power <span class="si-unit"></span></div>
+                    <div class="description">
+                        <div class="ui fluid mini statistic">
+                            <div class="value">
+                                <i class="power off icon"></i> <span>N/A</span>
+                            </div>
+                        </div>
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Power of all hardware components during current usage phase.">
+                            <span class="source"></span>
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ui card machine-power">
+                <div class="ui content">
+                    <div class="ui top attached orange label overflow-ellipsis">GPU Power <span class="si-unit"></span></div>
+                    <div class="description">
+                        <div class="ui fluid mini statistic">
+                            <div class="value">
+                                <i class="power off icon"></i> <span>N/A</span>
+                            </div>
+                        </div>
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Power of all hardware components during current usage phase.">
                             <span class="source"></span>
                             <i class="question circle icon"></i>
                         </div>
@@ -74,6 +131,101 @@ class PhaseMetrics extends HTMLElement {
                         </div>
                         <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Estimated external energy cost for network infrastructure. See details under formula.">
                             <u><a href="https://www.green-coding.io/co2-formulas/">via Formula</a></u>
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ui card machine-energy">
+                <div class="ui content">
+                    <div class="ui top attached blue label overflow-ellipsis">Machine Energy <span class="si-unit"></span></div>
+                    <div class="description">
+                        <div class="ui fluid mini statistic">
+                            <div class="value">
+                                <i class="battery three quarters icon"></i> <span>N/A</span>
+                            </div>
+                        </div>
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
+                            <span class="source"></span>
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ui card machine-energy">
+                <div class="ui content">
+                    <div class="ui top attached blue label overflow-ellipsis">Machine Energy <span class="si-unit"></span></div>
+                    <div class="description">
+                        <div class="ui fluid mini statistic">
+                            <div class="value">
+                                <i class="battery three quarters icon"></i> <span>N/A</span>
+                            </div>
+                        </div>
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
+                            <span class="source"></span>
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ui card machine-energy">
+                <div class="ui content">
+                    <div class="ui top attached blue label overflow-ellipsis">Machine Energy <span class="si-unit"></span></div>
+                    <div class="description">
+                        <div class="ui fluid mini statistic">
+                            <div class="value">
+                                <i class="battery three quarters icon"></i> <span>N/A</span>
+                            </div>
+                        </div>
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
+                            <span class="source"></span>
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ui card machine-energy">
+                <div class="ui content">
+                    <div class="ui top attached blue label overflow-ellipsis">Machine Energy <span class="si-unit"></span></div>
+                    <div class="description">
+                        <div class="ui fluid mini statistic">
+                            <div class="value">
+                                <i class="battery three quarters icon"></i> <span>N/A</span>
+                            </div>
+                        </div>
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
+                            <span class="source"></span>
+                            <i class="question circle icon"></i>
+                        </div>
+                        <div class="ui bottom left attached label">
+                            <span class="metric-type"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ui card machine-energy">
+                <div class="ui content">
+                    <div class="ui top attached blue label overflow-ellipsis">Machine Energy <span class="si-unit"></span></div>
+                    <div class="description">
+                        <div class="ui fluid mini statistic">
+                            <div class="value">
+                                <i class="battery three quarters icon"></i> <span>N/A</span>
+                            </div>
+                        </div>
+                        <div class="ui bottom right attached label icon" data-position="bottom right" data-inverted="" data-tooltip="Energy of all hardware components during current usage phase.">
+                            <span class="source"></span>
                             <i class="question circle icon"></i>
                         </div>
                         <div class="ui bottom left attached label">
