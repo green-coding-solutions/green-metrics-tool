@@ -6,10 +6,10 @@ description: test
 services:
   test-container:
     type: container
-    image: gcb_stress
+    image: gcb_stress_entrypoint
     build:
-      context: ../stress-application
-    entrypoint: 'yes' # prints "y" forever
+      context: ../entrypoint-application
+    entrypoint: 'yes' # overwrite entrypoint; yes prints "y" forever
 
 flow:
   - name: Stress

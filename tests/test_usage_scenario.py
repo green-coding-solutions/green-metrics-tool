@@ -500,7 +500,7 @@ def test_container_is_in_network():
 #    entrypoint declares the default entrypoint for the service container.
 #    This overrides the ENTRYPOINT instruction from the service's Dockerfile.
 def test_entrypoint_ran():
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
         ps = subprocess.run(
