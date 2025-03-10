@@ -27,11 +27,23 @@ make -C "lib/c"
 
 build_binaries
 
-print_message "Adding powermetrics to sudoers file"
+print_message "Setting up powermetrics in sudoers files"
 check_file_permissions "/usr/bin/powermetrics"
 check_file_permissions "/usr/bin/killall"
-echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/powermetrics" | sudo tee /etc/sudoers.d/green_coding_powermetrics
-echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics
-echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/killall -9 powermetrics" | sudo tee /etc/sudoers.d/green_coding_kill_powermetrics_sigkill
+
+check_and_write() {
+  local file="$1"
+  local content="$2"
+
+  if !grep -Fxq "$content" "$file" 2>/dev/null; then
+    echo "$content" | sudo tee "$file" > /dev/null
+    echo "Updated $file."
+  fi
+}
+
+check_and_write "/etc/sudoers.d/green_coding_powermetrics" "${USER} ALL=(ALL) NOPASSWD:/usr/bin/powermetrics"
+check_and_write "/etc/sudoers.d/green_coding_kill_powermetrics" "${USER} ALL=(ALL) NOPASSWD:/usr/bin/killall powermetrics"
+check_and_write "/etc/sudoers.d/green_coding_kill_powermetrics_sigkill" "${USER} ALL=(ALL) NOPASSWD:/usr/bin/killall -9 powermetrics"
+
 
 finalize

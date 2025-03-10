@@ -153,28 +153,41 @@ function prepare_config() {
 
     if [[ $modify_hosts == true ]] ; then
 
-        local etc_hosts_line_1="127.0.0.1 green-coding-postgres-container green-coding-redis-container"
-        local etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
+        local localhost_ip="127.0.0.1"
+        local etc_hosts_line_1="green-coding-postgres-container"
+        local etc_hosts_line_2="${host_api_url} ${host_metrics_url}"
+        local etc_hosts_line_3="green-coding-redis-container"
 
-        print_message "Writing to /etc/hosts file..."
+        print_message "Checking /etc/hosts file..."
 
         # Entry 1 is needed for the local resolution of the containers through the jobs.py and runner.py
-        if ! sudo grep -Fxq "$etc_hosts_line_1" /etc/hosts; then
-            echo -e "\n$etc_hosts_line_1" | sudo tee -a /etc/hosts
-        else
-            echo "Entry was already present..."
+        if ! grep -Fq "$etc_hosts_line_1" /etc/hosts; then
+            print_message "Writing $etc_hosts_line_1 to /etc/hosts file..."
+            echo -e "\n$localhost_ip $etc_hosts_line_1" | sudo tee -a /etc/hosts
         fi
 
-        # Entry 2 can be external URLs. These should not resolve to localhost if not explcitely wanted
+        if ! grep -Fq "$etc_hosts_line_3" /etc/hosts; then
+            print_message "Writing $etc_hosts_line_3 to /etc/hosts file..."
+            echo -e "\n$localhost_ip $etc_hosts_line_1" | sudo tee -a /etc/hosts
+        fi
+
+
+        # Entry 2 can be external URLs. These should not resolve to localhost if not explicitly wanted
         if [[ ${host_metrics_url} == *".green-coding.internal"* ]];then
-            if ! sudo grep -Fxq "$etc_hosts_line_2" /etc/hosts; then
-                echo "$etc_hosts_line_2" | sudo tee -a /etc/hosts
-            else
-                echo "Entry was already present..."
+            if ! grep -Fq "$etc_hosts_line_2" /etc/hosts; then
+                print_message "Writing $etc_hosts_line_2 to /etc/hosts file..."
+                echo "$localhost_ip $etc_hosts_line_2" | sudo tee -a /etc/hosts
             fi
         fi
     fi
 
+}
+function get_perms() {
+    if [ "$(uname)" = "Darwin" ]; then
+        stat -f "%A" "$1"
+    else
+        stat -c "%a" "$1"
+    fi
 }
 
 function setup_python() {
@@ -189,20 +202,36 @@ function setup_python() {
     print_message "Setting GMT in include path for python via .pth file"
     find venv -type d -name "site-packages" -exec sh -c 'echo $PWD > "$0/gmt-lib.pth"' {} \;
 
-    print_message "Adding python3 lib.hardware_info_root to sudoers file"
     check_file_permissions "/usr/bin/python3"
+
+    print_message "Adding python3 lib.hardware_info_root to sudoers file"
     # Please note the -m as here we will later call python3 without venv. It must understand the .lib imports
     # and not depend on venv installed packages
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root" | sudo tee /etc/sudoers.d/green-coding-hardware-info
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root --read-rapl-energy-filtering" | sudo tee -a /etc/sudoers.d/green-coding-hardware-info
-    sudo chmod 500 /etc/sudoers.d/green-coding-hardware-info
-    # remove old file name
-    sudo rm -f /etc/sudoers.d/green_coding_hardware_info
+    local sudo_file="/etc/sudoers.d/green-coding-hardware-info"
+    [ ! -f "$sudo_file" ] && sudo touch "$sudo_file"
 
-    print_message "Setting the hardare hardware_info to be owned by root"
-    sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
-    sudo chown root:$(id -gn root) $PWD/lib/hardware_info_root.py
-    sudo chmod 755 $PWD/lib/hardware_info_root.py
+    LINE1="${USER} ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root"
+    LINE2="${USER} ALL=(ALL) NOPASSWD:/usr/bin/python3 -m lib.hardware_info_root --read-rapl-energy-filtering"
+
+    grep -xF "$LINE1" "$sudo_file" || sudo echo "$LINE1" >> "$sudo_file"
+    grep -xF "$LINE2" "$sudo_file" || sudo echo "$LINE2" >> "$sudo_file"
+
+    current_perms=$(get_perms /etc/sudoers.d/green-coding-hardware-info 2>/dev/null || echo "000")
+    if [ "$current_perms" != "544" ]; then
+        sudo chmod 544 /etc/sudoers.d/green-coding-hardware-info
+    fi
+
+
+
+    # remove old file name
+    [ -f /etc/sudoers.d/green_coding_hardware_info ] && sudo rm -f /etc/sudoers.d/green_coding_hardware_info
+
+    if ! cmp -s "$PWD/lib/hardware_info_root_original.py" "$PWD/lib/hardware_info_root.py"; then
+        print_message "Copying the hardware_info and setting it to be owned by root"
+        sudo cp -f $PWD/lib/hardware_info_root_original.py $PWD/lib/hardware_info_root.py
+        sudo chown root:$(id -gn root) $PWD/lib/hardware_info_root.py
+        sudo chmod 755 $PWD/lib/hardware_info_root.py
+    fi
 
 
     if [[ $install_python_packages == true ]] ; then
