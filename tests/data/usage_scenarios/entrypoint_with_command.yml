@@ -1,0 +1,21 @@
+---
+name: Test Stress
+author: David Kopp
+description: test
+
+services:
+  test-container:
+    type: container
+    image: gcb_stress_entrypoint # image with an endpoint
+    build:
+      context: ../entrypoint-application
+    entrypoint: 'yes' # overwrite entrypoint
+    command: 'Running forever...' # value of command is used as an argument for the entrypoint -> `yes Running forever...`
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1 -q
+        note: Starting Stress
