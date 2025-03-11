@@ -3,7 +3,7 @@ postgresql:
   user: postgres
   dbname: test-green-coding
   password: testpw
-  port: 9573
+  port: 9574
 
 redis:
   host: test-green-coding-redis-container

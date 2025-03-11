@@ -10,6 +10,12 @@ from lib import utils
 
 BASE_COMPOSE_NAME = 'compose.yml.example'
 TEST_COMPOSE_NAME = 'test-compose.yml'
+BASE_NGINX_PORT = 9142
+TEST_NGINX_PORT = 9143
+TEST_NGINX_PORT_MAPPING = [f"{TEST_NGINX_PORT}:{BASE_NGINX_PORT}"] # only change public port
+BASE_DATABASE_PORT = 9573
+TEST_DATABASE_PORT = 9574
+TEST_DATABASE_PORT_MAPPING = [f"{TEST_DATABASE_PORT}:{TEST_DATABASE_PORT}"] # change external and internal port
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
 base_compose_path = os.path.join(current_dir, f"../docker/{BASE_COMPOSE_NAME}")
@@ -68,14 +74,23 @@ def edit_compose_file():
                 new_depends_on_list.append(f'test-{dep}')
             compose['services'][service]['depends_on'] = new_depends_on_list
 
+        # for nginx, change port mapping
+        if 'nginx' in service:
+            compose['services'][service]['ports'] = TEST_NGINX_PORT_MAPPING
+
         # for nginx and gunicorn services, add test config mapping
         if 'nginx' in service or 'gunicorn' in service:
             new_vol_list.append(
                 f'{current_dir}/test-config.yml:/var/www/green-metrics-tool/config.yml')
         compose['services'][service]['volumes'] = new_vol_list
 
-        # For postgresql, change password
+        # For postgresql, change port mapping and password
         if 'postgres' in service:
+            command = compose['services'][service]['command']
+            new_command = command.replace(str(BASE_DATABASE_PORT), str(TEST_DATABASE_PORT))
+            compose['services'][service]['command'] = new_command
+            compose['services'][service]['ports'] = TEST_DATABASE_PORT_MAPPING
+
             new_env = []
             for env in compose['services'][service]['environment']:
                 env = env.replace('PLEASE_CHANGE_THIS', DB_PW)

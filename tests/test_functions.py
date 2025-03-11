@@ -191,15 +191,18 @@ def build_image_fixture():
 # should be preceded by a yield statement and on autouse
 def reset_db():
     # DB().query('DROP schema "public" CASCADE') # we do not want to call DB commands. Reason being is that because of a misconfiguration we could be sending this to the live DB
+    config = GlobalConfig().config
+    port = config['postgresql']['port']
+    dbname = config['postgresql']['dbname']
     subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', 'psql -d test-green-coding --port 9573 -c \'DROP schema "public" CASCADE\' '],
+        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {dbname} --port {port} -c \'DROP schema "public" CASCADE\' '],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
         encoding='UTF-8'
     )
     subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', 'psql --port 9573 < ./docker-entrypoint-initdb.d/01-structure.sql'],
+        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql --port {port} < ./docker-entrypoint-initdb.d/01-structure.sql'],
         check=True,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
