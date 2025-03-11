@@ -64,7 +64,8 @@ measurement:
   post-test-sleep: 0
   phase-transition-time: 0
   boot:
-    wait_time_dependencies: 10
+    wait_time_container_started: 30
+    wait_time_container_healthy: 300
   metric-providers:
     linux:
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:

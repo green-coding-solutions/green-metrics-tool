@@ -760,6 +760,38 @@ class Runner:
         print("Startup order: ", names_ordered)
         return OrderedDict((key, services[key]) for key in names_ordered)
 
+    def get_container_state(self, container_name):
+        return subprocess.check_output(
+            ["docker", "container", "inspect", "-f", "{{.State.Status}}", container_name],
+            stderr=subprocess.STDOUT,
+            encoding='UTF-8',
+        ).strip()
+
+    def get_container_health(self, container_name):
+        ps = subprocess.run(
+            ["docker", "container", "inspect", "-f", "{{.State.Health.Status}}", container_name],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding='UTF-8'
+        )
+        return_code = ps.returncode
+        health = ps.stdout.strip()
+        if return_code != 0 or health == '<nil>':
+            raise RuntimeError(f"Health check of container '{container_name}' failed! Check your healthcheck condition. Return code: {return_code}. Health output: {health}.")
+        if health == 'unhealthy':
+            raise RuntimeError(f'Health check of container "{container_name}" failed terminally with status "unhealthy"!')
+        return health
+
+    def wait_for_container_condition(self, condition_check, max_waiting_time, error_message):
+        time_waited = 0
+        while time_waited < max_waiting_time:
+            if condition_check():
+                return
+            time.sleep(1)
+            time_waited += 1
+        raise RuntimeError(error_message)
+
     def setup_services(self):
         config = GlobalConfig().config
         print(TerminalColors.HEADER, '\nSetting up services', TerminalColors.ENDC)
@@ -969,58 +1001,35 @@ class Runner:
             # If no healthcheck is defined, the container state "running" is sufficient.
             if 'depends_on' in service:
                 for dependent_service in service['depends_on']:
-                    dependent_container_name = dependent_service
-                    if 'container_name' in services[dependent_service]:
-                        dependent_container_name = services[dependent_service]["container_name"]
+                    dependent_container_name = services[dependent_service].get("container_name", dependent_service)
+                    
+                    # first check container state
+                    def state_check():
+                        state = self.get_container_state(dependent_container_name)
+                        print(f"Container state of dependent service '{dependent_service}': {state}")
+                        return state == 'running'
+                    
+                    max_waiting_time = config['measurement']['boot']['wait_time_container_started']
+                    self.wait_for_container_condition(state_check, max_waiting_time,
+                        f"State check of container '{dependent_container_name}' failed! Container is not running after {max_waiting_time} sec!"
+                    )
+                    
+                    # if health condition is defined, check container health as well
+                    if isinstance(service['depends_on'], dict) and 'condition' in service['depends_on'][dependent_service]:
+                        condition = service['depends_on'][dependent_service]['condition']
+                        if condition == 'service_healthy':
 
-                    time_waited = 0
-                    state = ''
-                    health = 'healthy' # default because some containers have no health
-                    max_waiting_time = config['measurement']['boot']['wait_time_dependencies']
-                    while time_waited < max_waiting_time:
-                        status_output = subprocess.check_output(
-                            ["docker", "container", "inspect", "-f", "{{.State.Status}}", dependent_container_name],
-                            stderr=subprocess.STDOUT,
-                            encoding='UTF-8',
-                        )
-                        state = status_output.strip()
-                        if time_waited == 0 or state != "running":
-                            print(f"Container state of dependent service '{dependent_service}': {state}")
-
-                        if isinstance(service['depends_on'], dict) \
-                            and 'condition' in service['depends_on'][dependent_service]:
-
-                            condition = service['depends_on'][dependent_service]['condition']
-                            if condition == 'service_healthy':
-                                ps = subprocess.run(
-                                    ["docker", "container", "inspect", "-f", "{{.State.Health.Status}}", dependent_container_name],
-                                    check=False,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT, # put both in one stream
-                                    encoding='UTF-8'
-                                )
-                                health = ps.stdout.strip()
+                            def health_check():
+                                health = self.get_container_health(dependent_container_name)
                                 print(f"Container health of dependent service '{dependent_service}': {health}")
-
-                                if ps.returncode != 0 or health == '<nil>':
-                                    raise RuntimeError(f"Health check for service '{dependent_service}' was requested by '{service_name}', but service has no healthcheck implemented! (Output was: {health})")
-                                if health == 'unhealthy':
-                                    raise RuntimeError(f'Health check of container "{dependent_container_name}" failed terminally with status "unhealthy" after {time_waited}s')
-                            elif condition == 'service_started':
-                                pass
-                            else:
-                                raise RuntimeError(f"Unsupported condition in healthcheck for service '{service_name}': {condition}")
-
-                        if state == 'running' and health == 'healthy':
-                            break
-
-                        time.sleep(1)
-                        time_waited += 1
-
-                    if state != 'running':
-                        raise RuntimeError(f"State check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not running but '{state}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
-                    if health != 'healthy':
-                        raise RuntimeError(f"Health check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                                return health == 'healthy'                            
+          
+                            max_waiting_time = config['measurement']['boot']['wait_time_container_healthy']
+                            self.wait_for_container_condition(health_check, max_waiting_time,
+                                f"Health check of container '{dependent_container_name}' failed! Container is not healthy after waiting for {max_waiting_time} sec!"
+                            )
+                        elif condition != 'service_started':
+                            raise RuntimeError(f"Unsupported condition in healthcheck for service '{service_name}': {condition}")
 
             if 'command' in service:  # must come last
                 docker_run_string.extend(shlex.split(service['command']))
@@ -1080,6 +1089,36 @@ class Runner:
                     self.add_to_log(container_name, f"stdout {ps.stdout}", d_command)
                 if ps.stderr:
                     self.add_to_log(container_name, f"stderr {ps.stderr}", d_command)
+
+        # Wait until all container are started
+        # If the service has a healthcheck implemented wait until the container is healthy
+        print(TerminalColors.HEADER, 'Wait until all container are started / healthy', TerminalColors.ENDC)
+        for service_name, service in services_ordered.items():
+            container_name = service.get("container_name", service_name)
+
+            # first check the state of the container
+            def state_check():
+                state = self.get_container_state(container_name)
+                print(f"Container state of service '{service_name}': {state}")
+                return state == 'running'
+            
+            max_waiting_time = config['measurement']['boot']['wait_time_container_started']
+            self.wait_for_container_condition(state_check, max_waiting_time,
+                f"State check of container '{container_name}' failed! Container is not running after {max_waiting_time} sec!"
+            )
+            
+            # then check the health of the container
+            if 'healthcheck' in service:
+            
+                def health_check():
+                    health = self.get_container_health(container_name)
+                    print(f"Container health of service '{service_name}': {health}")
+                    return health == 'healthy'
+                    
+                max_waiting_time = config['measurement']['boot']['wait_time_container_healthy']
+                self.wait_for_container_condition(health_check, max_waiting_time,
+                    f"Health check of container '{container_name}' failed! Container is not healthy after {max_waiting_time} sec!"
+                )
 
         print(TerminalColors.HEADER, '\nCurrent known containers: ', self.__containers, TerminalColors.ENDC)
 

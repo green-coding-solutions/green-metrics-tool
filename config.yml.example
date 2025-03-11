@@ -83,7 +83,8 @@ measurement:
   post-test-sleep: 5
   phase-transition-time: 1
   boot:
-    wait_time_dependencies: 60
+    wait_time_container_started: 30
+    wait_time_container_healthy: 300
   metric-providers:
 
   # Please select the needed providers according to the working ones on your system

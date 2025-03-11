@@ -1,0 +1,28 @@
+---
+name: Test healthcheck
+author: David Kopp
+description: test
+
+services:
+  test-container-1:
+    build:
+      context: ../slow-start-application
+    healthcheck:
+      test: pgrep 'tail'
+      interval: 1s
+      retries: 10
+
+  test-container-2:
+    build:
+      context: ../slow-start-application
+    healthcheck:
+      test: pgrep 'tail'
+      interval: 1s
+      retries: 10
+
+flow:
+  - name: dummy
+    container: test-container-1
+    commands:
+      - type: console
+        command: pwd
