@@ -91,6 +91,9 @@ def edit_compose_file():
         compose['services'][f"test-{service}"] = deepcopy(compose['services'][service])
         del compose['services'][service]
 
+        # Edit stack name
+        compose['name'] = 'green-metrics-tool-test'
+
     with open(test_compose_path, 'w', encoding='utf8') as test_compose_file:
         yaml.dump(compose, test_compose_file)
 
