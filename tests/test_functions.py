@@ -160,8 +160,11 @@ def insert_user(user_id, token):
     """, params=(user_id, token, sha256_hash.hexdigest()))
 
 def import_demo_data():
+    config = GlobalConfig().config
+    port = config['postgresql']['port']
+    dbname = config['postgresql']['dbname']
     subprocess.run(
-        f"docker exec -i --user postgres test-green-coding-postgres-container psql -dtest-green-coding -p9573 < {CURRENT_DIR}/../data/demo_data.sql",
+        f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{dbname} -p{port} < {CURRENT_DIR}/../data/demo_data.sql",
         check=True,
         shell=True,
         stderr=subprocess.PIPE,
