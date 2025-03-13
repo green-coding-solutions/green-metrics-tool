@@ -18,6 +18,8 @@ TEST_NGINX_PORT_MAPPING = [f"{TEST_NGINX_PORT}:{BASE_NGINX_PORT}"] # only change
 BASE_DATABASE_PORT = 9573
 TEST_DATABASE_PORT = 9574
 TEST_DATABASE_PORT_MAPPING = [f"{TEST_DATABASE_PORT}:{TEST_DATABASE_PORT}"] # change external and internal port
+TEST_REDIS_PORT = 6380 # original port: 6379
+TEST_REDIS_PORT_MAPPING = [f"127.0.0.1:{TEST_REDIS_PORT}:{TEST_REDIS_PORT}"] # change external and internal port
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
 base_compose_path = os.path.join(current_dir, f"../docker/{BASE_COMPOSE_NAME}")
@@ -105,6 +107,13 @@ def edit_compose_file():
                 env = env.replace('PLEASE_CHANGE_THIS', DB_PW)
                 new_env.append(env)
             compose['services'][service]['environment'] = new_env
+
+        # For redis, change port mapping
+        if 'redis' in service:
+            command = compose['services'][service]['command']
+            new_command = f'{command} --port {TEST_REDIS_PORT}'
+            compose['services'][service]['command'] = new_command
+            compose['services'][service]['ports'] = TEST_REDIS_PORT_MAPPING
 
         # Edit service container name
         old_container_name = compose['services'][service]['container_name']
