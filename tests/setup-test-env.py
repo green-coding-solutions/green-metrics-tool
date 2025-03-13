@@ -50,6 +50,9 @@ def edit_compose_file():
     with open(base_compose_path, encoding='utf8') as base_compose_file:
         compose = yaml.load(base_compose_file, Loader=yaml.FullLoader)
 
+    # Edit stack name
+    compose['name'] = 'green-metrics-tool-test'
+
     # Save old volume names, as we will have to look for them under services/volumes soon
     vol_keys = compose['volumes'].copy().keys()
 
@@ -111,9 +114,6 @@ def edit_compose_file():
         # Do this last so the changes done before are copied into new name
         compose['services'][f"test-{service}"] = deepcopy(compose['services'][service])
         del compose['services'][service]
-
-        # Edit stack name
-        compose['name'] = 'green-metrics-tool-test'
 
     with open(test_compose_path, 'w', encoding='utf8') as test_compose_file:
         yaml.dump(compose, test_compose_file)
