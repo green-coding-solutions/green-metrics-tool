@@ -16,6 +16,14 @@ done
 # we temporarily change the port in the fronted config.
 sed -i 's/9142/9143/' ../frontend/js/helpers/config.js
 
+revert_config_change() {
+    # Revert the change in the frontend config again.
+    sed -i 's/9143/9142/' ../frontend/js/helpers/config.js
+}
+
+# Revert the change in the function on exit
+trap revert_config_change EXIT
+
 # docker compose with -f flag if force is true
 echo $detach
 
@@ -24,6 +32,3 @@ if [ "$detach" = true ] ; then
 else
     docker compose -f ../docker/test-compose.yml up --remove-orphans
 fi
-
-# Revert the change in the frontend config again.
-sed -i 's/9143/9142/' ../frontend/js/helpers/config.js
