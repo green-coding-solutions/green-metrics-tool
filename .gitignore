@@ -27,3 +27,4 @@ tools/sgx_enable
 /tests/test-config.yml
 /tests/.testmondata
 /tests/.coverage
+/tests/frontend-config.js

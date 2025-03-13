@@ -10,6 +10,8 @@ from lib import utils
 
 BASE_COMPOSE_NAME = 'compose.yml.example'
 TEST_COMPOSE_NAME = 'test-compose.yml'
+BASE_FRONTEND_CONFIG_NAME = 'frontend/js/helpers/config.js'
+TEST_FRONTEND_CONFIG_NAME = 'frontend-config.js'
 BASE_NGINX_PORT = 9142
 TEST_NGINX_PORT = 9143
 TEST_NGINX_PORT_MAPPING = [f"{TEST_NGINX_PORT}:{BASE_NGINX_PORT}"] # only change public port
@@ -20,6 +22,8 @@ TEST_DATABASE_PORT_MAPPING = [f"{TEST_DATABASE_PORT}:{TEST_DATABASE_PORT}"] # ch
 current_dir = os.path.abspath(os.path.dirname(__file__))
 base_compose_path = os.path.join(current_dir, f"../docker/{BASE_COMPOSE_NAME}")
 test_compose_path = os.path.join(current_dir, f"../docker/{TEST_COMPOSE_NAME}")
+base_frontend_config_path = os.path.join(current_dir, f'../{BASE_FRONTEND_CONFIG_NAME}')
+test_frontend_config_path = os.path.join(current_dir, TEST_FRONTEND_CONFIG_NAME)
 
 DB_PW = 'testpw'
 
@@ -78,10 +82,12 @@ def edit_compose_file():
         if 'nginx' in service:
             compose['services'][service]['ports'] = TEST_NGINX_PORT_MAPPING
 
-        # for nginx and gunicorn services, add test config mapping
+        # for nginx and gunicorn services, add test config and frontend config mapping
         if 'nginx' in service or 'gunicorn' in service:
             new_vol_list.append(
                 f'{current_dir}/test-config.yml:/var/www/green-metrics-tool/config.yml')
+            new_vol_list.append(
+                f'{current_dir}/{TEST_FRONTEND_CONFIG_NAME}:/var/www/green-metrics-tool/{BASE_FRONTEND_CONFIG_NAME}')
         compose['services'][service]['volumes'] = new_vol_list
 
         # For postgresql, change port mapping and password
@@ -125,6 +131,17 @@ def create_test_config_file(ee=False):
     with open('test-config.yml', 'w', encoding='utf-8') as file:
         file.write(content)
 
+def create_frontend_config_file():
+    print('Creating frontend config file...')
+
+    with open(base_frontend_config_path, 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    content = content.replace(str(BASE_NGINX_PORT), str(TEST_NGINX_PORT))
+
+    with open(test_frontend_config_path, 'w', encoding='utf-8') as file:
+        file.write(content)
+
 def edit_etc_hosts():
     subprocess.run(['./edit-etc-hosts.sh'], check=True)
 
@@ -144,6 +161,7 @@ if __name__ == '__main__':
 
     copy_sql_structure(args.ee)
     create_test_config_file(args.ee)
+    create_frontend_config_file()
     edit_compose_file()
     edit_etc_hosts()
     if not args.no_docker_build:

@@ -11,19 +11,6 @@ while getopts "d" opts; do
     esac
 done
 
-# The test nginx container is running on port 9143 instead of 9142.
-# So the frontend is able to access the correct nginx container, 
-# we temporarily change the port in the fronted config.
-sed -i 's/9142/9143/' ../frontend/js/helpers/config.js
-
-revert_config_change() {
-    # Revert the change in the frontend config again.
-    sed -i 's/9143/9142/' ../frontend/js/helpers/config.js
-}
-
-# Revert the change in the function on exit
-trap revert_config_change EXIT
-
 # docker compose with -f flag if force is true
 echo $detach
 
