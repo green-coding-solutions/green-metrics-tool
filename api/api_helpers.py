@@ -29,12 +29,14 @@ import redis
 from enum import Enum
 
 def get_artifact(artifact_type: Enum, key: str, decode_responses=True):
-    if not GlobalConfig().config['redis']['host']:
+    host = GlobalConfig().config['redis']['host']
+    port = GlobalConfig().config['redis']['port']
+    if not host:
         return None
 
     data = None
     try:
-        r = redis.Redis(host=GlobalConfig().config['redis']['host'], port=6379, db=artifact_type.value, protocol=3, decode_responses=decode_responses)
+        r = redis.Redis(host=host, port=port, db=artifact_type.value, protocol=3, decode_responses=decode_responses)
 
         data = r.get(key)
     except redis.RedisError as e:
@@ -43,11 +45,13 @@ def get_artifact(artifact_type: Enum, key: str, decode_responses=True):
     return None if data is None or data == [] else data
 
 def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
-    if not GlobalConfig().config['redis']['host']:
+    host = GlobalConfig().config['redis']['host']
+    port = GlobalConfig().config['redis']['port']
+    if not host:
         return
 
     try:
-        r = redis.Redis(host=GlobalConfig().config['redis']['host'], port=6379, db=artifact_type.value, protocol=3)
+        r = redis.Redis(host=host, port=port, db=artifact_type.value, protocol=3)
         r.set(key, data, ex=ex) # Expiration => 2592000 = 30 days
     except redis.RedisError as e:
         error_helpers.log_error('Redis store_artifact failed', exception=e)

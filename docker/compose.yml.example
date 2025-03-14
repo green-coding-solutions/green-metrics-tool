@@ -1,3 +1,5 @@
+name: green-metrics-tool
+
 services:
   green-coding-postgres:
     # No need to fix version anymore than major version here
