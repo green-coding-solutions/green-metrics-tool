@@ -1,7 +1,7 @@
+import math
 from pydantic import BaseModel
 
 from api import api_helpers
-import pytest
 
 class Run(BaseModel):
     name: str
@@ -24,28 +24,44 @@ class CI_Measurement(BaseModel):
     duration: int
 
 
-def test_rescale_metric_value():
-    assert api_helpers.rescale_metric_value(100, 'uJ') == [100, 'uJ']
+def test_convert_value():
+    [value, unit] = api_helpers.convert_value(100, 'uJ')
 
-    assert api_helpers.rescale_metric_value(10000, 'uJ') == [10, 'mJ']
+    assert unit == 'Wh'
+    assert math.isclose(value, 0.00000002777, rel_tol=1e-3)
 
-    assert api_helpers.rescale_metric_value(324_000_000_000, 'uJ') == [324, 'kJ']
+    [value, unit] = api_helpers.convert_value(10000, 'uJ')
 
-    assert api_helpers.rescale_metric_value(324_000_000_000, 'ugCO2e/Page Request') == [324, 'kgCO2e/Page Request']
+    assert unit == 'Wh'
+    assert math.isclose(value, 0.000002777, rel_tol=1e-3)
 
-    assert api_helpers.rescale_metric_value(222_000_000_000_000, 'ugCO2e/Kill') == [222, 'MgCO2e/Kill']
+    [value, unit] = api_helpers.convert_value(10000, 'mJ')
 
-    assert api_helpers.rescale_metric_value(0.0003, 'ugCO2e/Kill') == [0.3, 'ngCO2e/Kill']
+    assert unit == 'Wh'
+    assert math.isclose(value, 0.002777, rel_tol=1e-3)
+
+    assert api_helpers.convert_value(324_000_000_000, 'uJ') == [90, 'Wh']
+
+    assert api_helpers.convert_value(100, 'uJ', False) == [0.0001, 'J']
+
+    assert api_helpers.convert_value(10000, 'uJ', False) == [0.01, 'J']
+
+    assert api_helpers.convert_value(324_000_000_000, 'uJ', False) == [324000, 'J']
+
+    assert api_helpers.convert_value(10000, 'mJ', False) == [10, 'J']
 
 
-    with pytest.raises(ValueError):
-        api_helpers.rescale_metric_value(100, 'xJ')
+    assert api_helpers.convert_value(324_000_000_000, 'ugCO2e/Page Request') == [324000, 'gCO2e/Page Request']
 
-    with pytest.raises(ValueError):
-        api_helpers.rescale_metric_value(100, 'uj')
+    assert api_helpers.convert_value(222_000_000_000_000, 'ugCO2e/Kill') == [222000000, 'gCO2e/Kill']
 
-    with pytest.raises(ValueError):
-        assert api_helpers.rescale_metric_value(10000, 'mJ') == [10, 'J']
+    assert api_helpers.convert_value(0.0003, 'ugCO2e/Kill') == [0.0000000003, 'gCO2e/Kill']
+
+
+    assert api_helpers.convert_value(100, 'xJ') == [100, 'xJ']
+
+    assert api_helpers.convert_value(100, 'uj') == [100, 'uj']
+
 
 def test_escape_dict():
     messy_dict = {"link": '<a href="http://www.github.com">Click me</a>'}

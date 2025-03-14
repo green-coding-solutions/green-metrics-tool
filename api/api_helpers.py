@@ -12,6 +12,7 @@ from starlette.background import BackgroundTask
 from fastapi.responses import ORJSONResponse
 from fastapi import Depends, Request, HTTPException
 from fastapi.security import APIKeyHeader
+from fastapi.exceptions import RequestValidationError
 import numpy as np
 import scipy.stats
 from pydantic import BaseModel
@@ -54,23 +55,45 @@ def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
 
 # Note
 # ---------------
-# Use this function never in the phase_stats. The metrics must always be on
-# The same unit for proper comparison!
+# we do not allow a dynamic rescaling here, as we need all the units we feed into
+# to be on the same order of magnitude for comparisons and calcuations
 #
-def rescale_metric_value(value, unit):
-    if unit not in ('uJ', 'ug') and not unit.startswith('ugCO2e/'):
-        raise ValueError('Unexpected unit occured for metric rescaling: ', unit)
+# Function furthemore uses .substr instead of just replacing the unit, as some units have demominators like Bytes/s or
+# ugCO2e/ page request which we want to retain
+#
+def convert_value(value, unit, display_in_watthours=True):
+    compare_unit = unit.split('/', 1)[0]
 
-    unit_type = unit[1:]
-
-    if value > 1_000_000_000_000_000: return [value/(10**15), f"G{unit_type}"]
-    if value > 1_000_000_000_000: return [value/(10**12), f"M{unit_type}"]
-    if value > 1_000_000_000: return [value/(10**9), f"k{unit_type}"]
-    if value > 1_000_000: return [value/(10**6), f"{unit_type}"]
-    if value > 1_000: return [value/(10**3), f"m{unit_type}"]
-    if value < 0.001: return [value*(10**3), f"n{unit_type}"]
-
-    return [value, unit] # default, no change
+    if compare_unit == 'ugCO2e':
+        return [value / 1_000_000, unit[1:]]
+    elif compare_unit == 'mJ':
+        if display_in_watthours:
+            return [value / (1_000 * 3_600) , f"Wh{unit[2:]}"]
+        else:
+            return [value / 1_000, unit[1:]]
+    elif compare_unit == 'uJ':
+        if display_in_watthours:
+            return [value / (1_000_000 * 3_600), f"Wh{unit[2:]}"]
+        else:
+            return [value / 1_000_000, unit[1:]]
+    elif compare_unit == 'mW':
+        return [value / 1_000, unit[1:]]
+    elif compare_unit == 'Ratio':
+        return [value / 100, f"%{unit[5:]}"]
+    elif compare_unit == 'centi°C':
+        return [value / 100, unit[5:]]
+    elif compare_unit == 'Hz':
+        return [value / 1_000_000_000, f"G{unit}"]
+    elif compare_unit == 'ns':
+        return [value / 1_000_000_000, unit[1:]]
+    elif compare_unit == 'us':
+        return [value / 1_000_000, unit[1:]]
+    elif compare_unit == 'ug':
+        return [value / 1_000_000, unit[1:]]
+    elif compare_unit == 'Bytes':
+        return [value / 1_000_000, f"MB{unit[5:]}"]
+    else:
+        return [value, unit]
 
 def is_valid_uuid(val):
     try:
@@ -169,6 +192,8 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, 
 
     if branch is None or branch.strip() == '':
         branch = 'main'
+
+    check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
 
     params = [user.is_super_user(), user.visible_users(), uri, filename, branch, machine_id, f"%{phase}"]
 
@@ -754,3 +779,15 @@ def get_connecting_ip(request):
         return connecting_ip.split(",")[0]
 
     return request.client.host
+
+def check_int_field_api(field, name, max_value):
+    if not isinstance(field, int):
+        raise RequestValidationError(f'{name} must be integer')
+
+    if field <= 0:
+        raise RequestValidationError(f'{name} must be > 0')
+
+    if field > max_value:
+        raise RequestValidationError(f'{name} must be <= {max_value}')
+
+    return True

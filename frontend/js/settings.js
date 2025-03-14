@@ -1,5 +1,5 @@
 
-const display_in_watthours = localStorage.getItem('display_in_watthours') == 'true' ? true : false;
+const display_in_watthours = localStorage.getItem('display_in_watthours') == 'false' ? false : true;
 const transform_timelines_energy_to_power = localStorage.getItem('transform_timelines_energy_to_power') == 'true' ? true : false;
 const display_in_metric_units = localStorage.getItem('display_in_metric_units') == 'true' ? true : false;
 const fetch_time_series = localStorage.getItem('fetch_time_series') == 'true' ? true : false;
@@ -30,6 +30,10 @@ const toggleTimeSeriesAVG = () => {
     window.location.reload();
 }
 
+const resetHelpTexts = () => {
+    localStorage.setItem('closed_descriptions', '');
+    document.querySelector('#reset-help-texts-button').innerText = 'OK!';
+}
 
 (() => {
 

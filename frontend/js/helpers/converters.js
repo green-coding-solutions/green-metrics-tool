@@ -1,6 +1,6 @@
 let display_in_watthours = localStorage.getItem('display_in_watthours');
-if(display_in_watthours == 'true') display_in_watthours = true;
-else display_in_watthours = false;
+if(display_in_watthours == 'false') display_in_watthours = false;
+else display_in_watthours = true;
 
 const transformIfNotNull = (value, divide_by) => {
     if (value == null) return null;

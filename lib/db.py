@@ -43,6 +43,12 @@ class DB:
                 open=True,
             )
 
+    def shutdown(self):
+        if hasattr(self, '_pool'):
+            self._pool.close()
+            del self._pool
+
+
     def __query(self, query, params=None, return_type=None, fetch_mode=None):
         ret = False
         row_factory = psycopg.rows.dict_row if fetch_mode == 'dict' else None

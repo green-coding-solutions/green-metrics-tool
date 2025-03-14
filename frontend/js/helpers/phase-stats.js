@@ -358,9 +358,9 @@ const buildTotalChartData = (phase_stats_object) => {
                 // we loop over all keys that exist, not over the one that are present in detail_data['data']
                 phase_stats_object.comparison_identifiers.forEach((key,key_index) => {
                     const [transformed_total_chart_bottom_mean, transformed_unit] = convertValue(detail_data['data'][key]?.mean, metric_data.unit)
-                    transformed_total_chart_bottom_unit = transformed_unit;
 
                     if (total_chart_bottom_condition(metric_name) && `${metric_name} ${detail_name}` == found_bottom_chart_metric) {
+                        transformed_total_chart_bottom_unit = transformed_unit;
                         if(total_chart_bottom_data?.[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] == null) {
                             total_chart_bottom_data[`${TOTAL_CHART_BOTTOM_LABEL} - ${key}`] = []
                         }

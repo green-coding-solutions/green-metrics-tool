@@ -5,7 +5,7 @@ from fastapi import Request, Response, Depends
 from fastapi.responses import ORJSONResponse
 from fastapi.exceptions import RequestValidationError
 
-from api.api_helpers import authenticate, html_escape_multi, get_connecting_ip, rescale_metric_value
+from api.api_helpers import authenticate, html_escape_multi, get_connecting_ip, convert_value
 from api.object_specifications import CI_Measurement_Old, CI_Measurement
 
 import anybadge
@@ -270,7 +270,6 @@ async def get_ci_repositories(repo: str | None = None, sort_by: str = 'name', us
 
     return ORJSONResponse({'success': True, 'data': data}) # no escaping needed, as it happend on ingest
 
-
 @router.get('/v1/ci/runs')
 async def get_ci_runs(repo: str, user: User = Depends(authenticate)):
 
@@ -302,8 +301,9 @@ async def get_ci_runs(repo: str, user: User = Depends(authenticate)):
 # Route to display a badge for a CI run
 ## A complex case to allow public visibility of the badge but restricting everything else would be to have
 ## User 1 restricted to only this route but a fully populated 'visible_users' array
+@router.head('/v1/ci/badge/get')
 @router.get('/v1/ci/badge/get')
-async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'last', metric: str = 'energy', duration_days: int | None = None, user: User = Depends(authenticate)):
+async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'last', metric: str = 'energy', duration_days: int | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
     if metric == 'energy':
         metric = 'energy_uj'
         metric_unit = 'uJ'
@@ -318,11 +318,11 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
     else:
         raise RequestValidationError('Unsupported metric requested')
 
+    if unit not in ('watt-hours', 'joules'):
+        raise RequestValidationError('Requested unit is not in allow list: watt-hours, joules')
 
     if duration_days and (duration_days < 1 or duration_days > 365):
         raise RequestValidationError('Duration days must be between 1 and 365 days')
-
-
 
     query = f"""
         SELECT SUM({metric})
@@ -367,9 +367,9 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
         return Response(status_code=204) # No-Content
 
     metric_value = data[0]
-
-    [metric_value, metric_unit] = rescale_metric_value(metric_value, metric_unit)
-    badge_value= f"{metric_value:.2f} {metric_unit}"
+    display_in_watthours = True if unit == 'watt-hours' else False
+    [transformed_value, transformed_unit] = convert_value(metric_value, metric_unit, display_in_watthours)
+    badge_value= f"{transformed_value:.2f} {transformed_unit}"
 
     badge = anybadge.Badge(
         label=label,

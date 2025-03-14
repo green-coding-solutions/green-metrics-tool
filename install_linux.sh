@@ -19,11 +19,23 @@ build_containers
 
 print_message "Installing needed binaries for building ..."
 if lsb_release -is | grep -q "Fedora"; then
-    sudo dnf -y install lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy stress-ng lshw
+    sudo dnf -y install glib2 glib2-devel tinyproxy stress-ng lshw
 else
     sudo apt-get update
-    sudo apt-get install -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw
+    sudo apt-get install -y  libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw
 fi
+
+if lsb_release -is | grep -q "Fedora"; then
+    if ! sudo dnf -y install lm_sensors lm_sensors-devel; then
+        print_message "Failed to install lm_sensors lm_sensors-devel; continuing without Sensors."
+    fi
+else
+    if ! sudo apt-get install -y lm-sensors libsensors-dev; then
+       print_message "Failed to install lm-sensors libsensors-dev; continuing without Sensors."
+    fi
+fi
+
+
 sudo systemctl stop tinyproxy
 sudo systemctl disable tinyproxy
 
@@ -55,9 +67,13 @@ if [[ $install_msr_tools == true ]] ; then
     print_message "Important: If this step fails it means msr-tools is not available on you system"
     print_message "If you do not plan to use RAPL you can skip the installation by appending '-r'"
     if lsb_release -is | grep -q "Fedora"; then
-        sudo dnf -y install msr-tools
+        if ! sudo dnf -y install msr-tools; then
+            print_message "Failed to install msr-tools; continuing without RAPL."
+        fi
     else
-        sudo apt-get install -y msr-tools
+        if ! sudo apt-get install -y msr-tools; then
+            print_message "Failed to install msr-tools; continuing without RAPL."
+        fi
     fi
 fi
 
@@ -65,17 +81,22 @@ if [[ $install_ipmi == true ]] ; then
     print_message "Installing IPMI tools"
     print_message "Important: If this step fails it means ipmitool is not available on you system"
     print_message "If you do not plan to use IPMI you can skip the installation by appending '-i'"
-    if lsb_release -is | grep -q "Fedora"; then
-        sudo dnf -y install ipmitool
-    else
-        sudo apt-get install -y freeipmi-tools ipmitool
-    fi
-    print_message "Adding IPMI to sudoers file"
-    check_file_permissions "/usr/sbin/ipmi-dcmi"
-    echo "${USER} ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
-    sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
-    # remove old file name
-    sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
+    {
+        if lsb_release -is | grep -q "Fedora"; then
+            sudo dnf -y install freeipmi ipmitool
+        else
+            sudo apt-get install -y freeipmi-tools ipmitool
+        fi
+        print_message "Adding IPMI to sudoers file"
+        check_file_permissions "/usr/sbin/ipmi-dcmi"
+        echo "${USER} ALL=(ALL) NOPASSWD:/usr/sbin/ipmi-dcmi --get-system-power-statistics" | sudo tee /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+        sudo chmod 500 /etc/sudoers.d/green-coding-ipmi-get-machine-energy-stat
+        # remove old file name
+        sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
+    } || {
+        print_message "Failed to install and configure IPMI tools. Continuing without IPMI support..."
+    }
+
 fi
 
 if ! mount | grep -E '\s/tmp\s' | grep -Eq '\stmpfs\s' && [[ $ask_tmpfs == true ]]; then

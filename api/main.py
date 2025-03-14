@@ -25,9 +25,9 @@ from api.object_specifications import Software
 from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics,
                          determine_comparison_case,get_comparison_details,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
-                         is_valid_uuid, rescale_metric_value, get_timeline_query,
+                         is_valid_uuid, convert_value, get_timeline_query,
                          get_run_info, get_machine_list, get_artifact, store_artifact,
-                         authenticate)
+                         authenticate, check_int_field_api)
 
 from lib.global_config import GlobalConfig
 from lib.db import DB
@@ -179,7 +179,7 @@ async def get_jobs(
     machine_id_condition = ''
     state_condition = ''
 
-    if machine_id is not None:
+    if machine_id and check_int_field_api(machine_id, 'machine_id', 1024):
         machine_id_condition = 'AND j.machine_id = %s'
         params.append(machine_id)
 
@@ -276,7 +276,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
         query = f"{query} AND r.filename LIKE %s  \n"
         params.append(f"%{filename}%")
 
-    if machine_id:
+    if machine_id and check_int_field_api(machine_id, 'machine_id', 1024):
         query = f"{query} AND m.id = %s \n"
         params.append(machine_id)
 
@@ -302,7 +302,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
 
 # A route to return all of the available entries in our catalog.
 @app.get('/v1/runs')
-async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = None, uri_mode = 'none', user: User = Depends(authenticate)):
+async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int = 5, uri_mode = 'none', user: User = Depends(authenticate)):
 
     query = '''
             SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
@@ -329,7 +329,7 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
         query = f"{query} AND r.filename LIKE %s  \n"
         params.append(f"%{filename}%")
 
-    if machine_id:
+    if machine_id and check_int_field_api(machine_id, 'machine_id', 1024):
         query = f"{query} AND m.id = %s \n"
         params.append(machine_id)
 
@@ -339,9 +339,9 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
 
     query = f"{query} ORDER BY r.created_at DESC"
 
-    if limit:
-        query = f"{query} LIMIT %s"
-        params.append(limit)
+    check_int_field_api(limit, 'limit', 50)
+    query = f"{query} LIMIT %s"
+    params.append(limit)
 
 
     data = DB().fetch_all(query, params=params)
@@ -521,14 +521,18 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
 ## A complex case to allow public visibility of the badge but restricting everything else would be to have
 ## User 1 restricted to only this route but a fully populated 'visible_users' array
 @app.get('/v1/badge/timeline')
-async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, metrics: str | None = None, user: User = Depends(authenticate)):
+async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, metrics: str | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
     if uri is None or uri.strip() == '':
         raise RequestValidationError('URI is empty')
 
     if detail_name is None or detail_name.strip() == '':
         raise RequestValidationError('Detail Name is mandatory')
 
-    if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{uri}_{filename}_{machine_id}_{branch}_{metrics}_{detail_name}"):
+    if unit not in ('watt-hours', 'joules'):
+        raise RequestValidationError('Requested unit is not in allow list: watt-hours, joules')
+
+    # we believe that there is no injection possible to the artifact store and any string can be constructured here ...
+    if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{uri}_{filename}_{machine_id}_{branch}_{metrics}_{detail_name}_{unit}"):
         return Response(content=str(artifact), media_type="image/svg+xml")
 
     query, params = get_timeline_query(user, uri,filename,machine_id, branch, metrics, '[RUNTIME]', detail_name=detail_name, limit_365=True)
@@ -551,17 +555,19 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
         return Response(status_code=204) # No-Content
 
     cost = data[1]/data[0]
-    cost = f"+{round(float(cost), 2)}" if abs(cost) == cost else f"{round(float(cost), 2)}"
+    display_in_watthours = True if unit == 'watt-hours' else False # pylint: disable=simplifiable-if-expression
+    [rescaled_cost, rescaled_unit] = convert_value(cost, data[3], display_in_watthours)
+    rescaled_cost = f"+{rescaled_cost:.2f}" if abs(cost) == cost else f"{rescaled_cost:.2f}"
 
     badge = anybadge.Badge(
         label=xml_escape('Run Trend'),
-        value=xml_escape(f"{cost} {data[3]} per day"),
+        value=xml_escape(f"{rescaled_cost} {rescaled_unit} per day"),
         num_value_padding_chars=1,
         default_color='orange')
 
     badge_str = str(badge)
 
-    store_artifact(ArtifactType.BADGE, f"{user._id}_{uri}_{filename}_{machine_id}_{branch}_{metrics}_{detail_name}", badge_str, ex=60*60*12) # 12 hour storage
+    store_artifact(ArtifactType.BADGE, f"{user._id}_{uri}_{filename}_{machine_id}_{branch}_{metrics}_{detail_name}_{unit}", badge_str, ex=60*60*12) # 12 hour storage
 
     return Response(content=badge_str, media_type="image/svg+xml")
 
@@ -570,12 +576,16 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
 ## A complex case to allow public visibility of the badge but restricting everything else would be to have
 ## User 1 restricted to only this route but a fully populated 'visible_users' array
 @app.get('/v1/badge/single/{run_id}')
-async def get_badge_single(run_id: str, metric: str = 'ml-estimated', user: User = Depends(authenticate)):
+async def get_badge_single(run_id: str, metric: str = 'ml-estimated', unit: str = 'watt-hours', user: User = Depends(authenticate)):
 
     if run_id is None or not is_valid_uuid(run_id):
         raise RequestValidationError('Run ID is not a valid UUID or empty')
 
-    if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{run_id}_{metric}"):
+    if unit not in ('watt-hours', 'joules'):
+        raise RequestValidationError('Requested unit is not in allow list: watt-hours, joules')
+
+    # we believe that there is no injection possible to the artifact store and any string can be constructured here ...
+    if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{run_id}_{metric}_{unit}"):
         return Response(content=str(artifact), media_type="image/svg+xml")
 
     query = '''
@@ -616,7 +626,8 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated', user: User
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         badge_value = 'No metric data yet'
     else:
-        [metric_value, energy_unit] = rescale_metric_value(data[0], data[1])
+        display_in_watthours = True if unit == 'watt-hours' else False # pylint: disable=simplifiable-if-expression
+        [metric_value, energy_unit] = convert_value(data[0], data[1], display_in_watthours)
         badge_value= f"{metric_value:.2f} {energy_unit} {via}"
 
     badge = anybadge.Badge(
@@ -627,7 +638,8 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated', user: User
 
     badge_str = str(badge)
 
-    store_artifact(ArtifactType.BADGE, f"{user._id}_{run_id}_{metric}", badge_str)
+    if badge_value != 'No metric data yet':
+        store_artifact(ArtifactType.BADGE, f"{user._id}_{run_id}_{metric}_{unit}", badge_str)
 
     return Response(content=badge_str, media_type="image/svg+xml")
 
@@ -685,8 +697,8 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if software.name is None or software.name.strip() == '':
         raise RequestValidationError('Name is empty')
 
-    if software.email is None or software.email.strip() == '':
-        raise RequestValidationError('E-mail is empty')
+    if software.email is not None and software.email.strip() == '':
+        software.email = None
 
     if software.branch is None or software.branch.strip() == '':
         software.branch = 'main'
