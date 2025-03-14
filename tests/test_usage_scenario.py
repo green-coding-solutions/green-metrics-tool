@@ -529,6 +529,7 @@ def test_entrypoint_ran():
             encoding='UTF-8'
         )
         docker_ps_out = ps.stdout
+    assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
     assert 'yes' in docker_ps_out, Tests.assertion_info('entrypoint `yes` in ps output', docker_ps_out)
 
 def test_entrypoint_ran_with_script():
@@ -543,6 +544,7 @@ def test_entrypoint_ran_with_script():
             encoding='UTF-8'
         )
         docker_ps_out = ps.stdout
+    assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
     assert 'entrypoint-overwrite.sh' in docker_ps_out, Tests.assertion_info('entrypoint `entrypoint-overwrite.sh` in ps output', docker_ps_out)
     assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('entrypoint `tail -f /dev/null` in ps output', docker_ps_out)
 
@@ -558,6 +560,7 @@ def test_entrypoint_ran_in_conjunction_with_command():
             encoding='UTF-8'
         )
         docker_ps_out = ps.stdout
+    assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
     assert 'yes Running forever...' in docker_ps_out, Tests.assertion_info('`yes Running forever...` in ps output', docker_ps_out)
 
 def test_entrypoint_empty():
@@ -577,7 +580,9 @@ def test_entrypoint_empty():
         docker_ps_out = ps.stdout
     docker_run_command = re.search(r"docker run with: (.*)", str(out.getvalue())).group(1)
     assert '--entrypoint= ' in docker_run_command, f"--entrypoint= not found in docker run command: {docker_run_command}"
-    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('command `tail -f /dev/null` in ps output, because entrypoint should have been ignored', docker_ps_out)
+    assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been ignored', docker_ps_out)
+    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('command `tail -f /dev/null` in ps output', docker_ps_out)
+
 
 ### The Tests for the runner options/flags
 ## --uri URI
