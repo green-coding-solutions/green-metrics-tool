@@ -583,6 +583,20 @@ def test_entrypoint_empty():
     assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been ignored', docker_ps_out)
     assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('command `tail -f /dev/null` in ps output', docker_ps_out)
 
+def test_clear_entrypoint():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/clear_entrypoint.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        ps = subprocess.run(
+            ['docker', 'exec', 'test-container', 'ps', '-a'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+    )
+    docker_ps_out = ps.stdout
+    assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been ignored', docker_ps_out)
+    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('command `tail -f /dev/null` in ps output', docker_ps_out)
 
 ### The Tests for the runner options/flags
 ## --uri URI
