@@ -47,11 +47,11 @@ async function getRepositories(sort_by = 'date') {
 (async () => {
     document.querySelector('#home-toggle-button').addEventListener('click', el => {
         if (el.currentTarget.innerText == 'Switch to repository view') {
-            el.currentTarget.innerText = 'Switch to last runs view';
+            document.querySelector('h1.ui.header span').innerText = 'Energy-ID - Repositories';
             localStorage.setItem('energy_id_data_shown', 'repositories');
             window.location.reload();
         } else {
-            el.currentTarget.innerText = 'Switch to repository view';
+            document.querySelector('h1.ui.header span').innerText = 'Energy-ID - Last 50 Runs';
             localStorage.setItem('energy_id_data_shown', 'last_runs');
             window.location.reload();
         }
@@ -59,6 +59,7 @@ async function getRepositories(sort_by = 'date') {
 
     if (localStorage.getItem('energy_id_data_shown') == 'repositories') {
         document.querySelector('#home-toggle-button').innerText = 'Switch to last runs view';
+        document.querySelector('h1.ui.header span').innerText = 'Energy-ID - Repositories';
         document.querySelectorAll('.energy-id-repositories').forEach(el => el.style.visibility = 'visible');
         document.querySelector('#energy-id-runs-description')?.remove();
         sortDate();
