@@ -962,9 +962,12 @@ class Runner:
 
 
             if 'entrypoint' in service:
-                docker_run_string.append('--entrypoint')
-                docker_run_string.append(service['entrypoint'])
-
+                if service['entrypoint']:
+                    docker_run_string.append('--entrypoint')
+                    docker_run_string.append(service['entrypoint'])
+                else:
+                    # empty entrypoint -> default entrypoint will be ignored
+                    docker_run_string.append('--entrypoint=')
 
             docker_run_string.append(self.clean_image_name(service['image']))
 

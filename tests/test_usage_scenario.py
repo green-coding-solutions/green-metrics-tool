@@ -560,6 +560,25 @@ def test_entrypoint_ran_in_conjunction_with_command():
         docker_ps_out = ps.stdout
     assert 'yes Running forever...' in docker_ps_out, Tests.assertion_info('`yes Running forever...` in ps output', docker_ps_out)
 
+def test_entrypoint_empty():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_empty.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+            ps = subprocess.run(
+                ['docker', 'exec', 'test-container', 'ps', '-a'],
+                check=True,
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                encoding='UTF-8'
+        )
+        docker_ps_out = ps.stdout
+    docker_run_command = re.search(r"docker run with: (.*)", str(out.getvalue())).group(1)
+    assert '--entrypoint= ' in docker_run_command, f"--entrypoint= not found in docker run command: {docker_run_command}"
+    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('command `tail -f /dev/null` in ps output, because entrypoint should have been ignored', docker_ps_out)
+
 ### The Tests for the runner options/flags
 ## --uri URI
 #   The URI to get the usage_scenario.yml from. Can be either a local directory starting with
