@@ -644,7 +644,7 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated', unit: str 
     return Response(content=badge_str, media_type="image/svg+xml")
 
 
-@app.get('/v1/timeline-projects')
+@app.get('/v1/projects')
 async def get_timeline_projects(user: User = Depends(authenticate)):
     # Do not get the email jobs as they do not need to be display in the frontend atm
     # Also do not get the email field for privacy
@@ -802,6 +802,24 @@ async def diff(ids: str, user: User = Depends(authenticate)):
     store_artifact(ArtifactType.DIFF, f"{user._id}_{str(ids)}", diff_runs)
 
     return ORJSONResponse({'success': True, 'data': diff_runs})
+
+
+@app.get('/v1/insights')
+async def get_insights(user: User = Depends(authenticate)):
+
+    query = '''
+            SELECT COUNT(id), DATE(MIN(created_at))
+            FROM runs
+            WHERE (TRUE = %s OR user_id = ANY(%s::int[]))
+    '''
+
+    params = (user.is_super_user(), user.visible_users())
+    data = DB().fetch_one(query, params=params)
+
+    if data is None:
+        return Response(status_code=204) # No-Content
+
+    return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 app.include_router(eco_ci.router)
 

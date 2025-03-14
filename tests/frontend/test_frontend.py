@@ -65,7 +65,7 @@ def test_home():
 def test_eco_ci_demo_data():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Eco-CI").click()
+    page.get_by_role("link", name="Eco CI").click()
 
     page.wait_for_load_state("load") # ALL JS should be done
 
@@ -149,7 +149,7 @@ def test_eco_ci_adding_data():
 
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-        page.get_by_role("link", name="Eco-CI").click()
+        page.get_by_role("link", name="Eco CI").click()
 
         page.locator("#repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
         page.locator('#DataTables_Table_0 > tbody > tr  > td:first-child > a').click()

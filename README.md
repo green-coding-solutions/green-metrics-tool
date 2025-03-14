@@ -18,7 +18,7 @@ Key features are:
 - [Cluster setup](https://docs.green-coding.io/docs/installation/installation-cluster/)
 - [Free Hosted service for more precise measurements](https://docs.green-coding.io/docs/measuring/measurement-cluster/)
 - Timeline-View: Monitor software projects over time - [DEMO for Wagtail](https://metrics.green-coding.io/timeline.html?uri=https://github.com/green-coding-solutions/bakerydemo-gold-benchmark&filename=usage_scenario_warm.yml&branch=&machine_id=7) / [DEMO Overview](https://metrics.green-coding.io/energy-timeline.html)
-- [Energy-ID Score-Cards](https://www.green-coding.io/products/energy-id/) for software (Also see below)
+- [Energy ID Score-Cards](https://www.green-coding.io/products/energy-id/) for software (Also see below)
 
 It is designed to re-use existing infrastructure and testing files as much as possible to be easily integrateable into every software repository and create transparency around software energy consumption.
 
@@ -61,10 +61,10 @@ To see the the documentation and how to install and use the tool please go to [G
   - Which commit has led to an energy / carbon regression
 And so much more! [See the documentation!](https://docs.green-coding.io)
 
-# Energy-ID Scorecards
+# Energy ID Scorecards
 <img width="1034" alt="Screenshot 2023-10-24 at 10 43 28 AM" src="https://github.com/green-coding-solutions/green-metrics-tool/assets/250671/7e3e3faa-5452-4722-af70-a65114f930ac">
 
-Details: [Energy-ID project page](https://www.green-coding.io/products/energy-id/
+Details: [Energy ID project page](https://www.green-coding.io/products/energy-id/
 )
 
 # Screenshots of Single Run View

@@ -14,7 +14,7 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
 }
 
 .index-connected-tools {
-    display: none;
+    display: none !important;
 }
 
 

@@ -75,7 +75,7 @@ async def post_ci_measurement_add_deprecated(
 
     if measurement.energy_value <= 1 or (measurement.co2eq and co2eq_transformed <= 1):
         error_helpers.log_error(
-            'Extremely small energy budget was submitted to old Eco-CI API',
+            'Extremely small energy budget was submitted to old Eco CI API',
             measurement=measurement
         )
 
@@ -146,7 +146,7 @@ async def post_ci_measurement_add(
 
     if measurement.energy_uj <= 1 or (measurement.carbon_ug and measurement.carbon_ug <= 1):
         error_helpers.log_error(
-            'Extremely small energy budget was submitted to Eco-CI API',
+            'Extremely small energy budget was submitted to Eco CI API',
             measurement=measurement
         )
 
@@ -378,3 +378,21 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
         default_color=default_color)
 
     return Response(content=str(badge), media_type="image/svg+xml")
+
+
+@router.get('/v1/ci/insights')
+async def get_insights(user: User = Depends(authenticate)):
+
+    query = '''
+            SELECT COUNT(id), DATE(MIN(created_at))
+            FROM ci_measurements
+            WHERE (TRUE = %s OR user_id = ANY(%s::int[]))
+    '''
+
+    params = (user.is_super_user(), user.visible_users())
+    data = DB().fetch_one(query, params=params)
+
+    if data is None:
+        return Response(status_code=204) # No-Content
+
+    return ORJSONResponse({'success': True, 'data': data})

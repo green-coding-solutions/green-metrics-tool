@@ -13,24 +13,24 @@ class GMTMenu extends HTMLElement {
 
         if (ACTIVATE_ENERGY_ID == true) {
             html_content = `${html_content}
-                <a class="item" href="/energy-id.html">
-                    <b><i class="code branch icon"></i>Energy-ID</b>
+                <a class="item" href="/energy-id-runs.html">
+                    <b><i class="code branch icon"></i>Energy ID Runs</b>
                 </a>
-                <a class="item" href="/energy-timeline.html">
-                    <b><i class="history icon"></i>Energy-ID Timeline</b>
+                <a class="item" href="/energy-id-projects.html">
+                    <b><i class="history icon"></i>Energy ID Projects</b>
                 </a>
                 <a class="item" href="/request.html">
-                    <b><i class="bullseye icon"></i>Energy-ID (Submit)</b>
+                    <b><i class="bullseye icon"></i>Energy ID (Submit)</b>
                 </a>
-                <a class="item" href="/status.html">
-                    <b><i class="database icon"></i>Energy-ID Status</b>
+                <a class="item" href="/cluster-status.html">
+                    <b><i class="database icon"></i>Energy ID Cluster</b>
                 </a>`;
         };
 
         if (ACTIVATE_ECO_CI == true) {
             html_content = `${html_content}
                 <a class="item" href="/ci-index.html">
-                    <b><i class="seedling icon"></i>Eco-CI</b>
+                    <b><i class="seedling icon"></i>Eco CI</b>
                 </a>`;
         };
 
