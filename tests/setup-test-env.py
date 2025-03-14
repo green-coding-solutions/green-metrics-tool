@@ -10,10 +10,22 @@ from lib import utils
 
 BASE_COMPOSE_NAME = 'compose.yml.example'
 TEST_COMPOSE_NAME = 'test-compose.yml'
+BASE_FRONTEND_CONFIG_NAME = 'frontend/js/helpers/config.js'
+TEST_FRONTEND_CONFIG_NAME = 'frontend-config.js'
+BASE_NGINX_PORT = 9142
+TEST_NGINX_PORT = 9143
+TEST_NGINX_PORT_MAPPING = [f"{TEST_NGINX_PORT}:{BASE_NGINX_PORT}"] # only change public port
+BASE_DATABASE_PORT = 9573
+TEST_DATABASE_PORT = 9574
+TEST_DATABASE_PORT_MAPPING = [f"{TEST_DATABASE_PORT}:{TEST_DATABASE_PORT}"] # change external and internal port
+TEST_REDIS_PORT = 6380 # original port: 6379
+TEST_REDIS_PORT_MAPPING = [f"127.0.0.1:{TEST_REDIS_PORT}:{TEST_REDIS_PORT}"] # change external and internal port
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
 base_compose_path = os.path.join(current_dir, f"../docker/{BASE_COMPOSE_NAME}")
 test_compose_path = os.path.join(current_dir, f"../docker/{TEST_COMPOSE_NAME}")
+base_frontend_config_path = os.path.join(current_dir, f'../{BASE_FRONTEND_CONFIG_NAME}')
+test_frontend_config_path = os.path.join(current_dir, TEST_FRONTEND_CONFIG_NAME)
 
 DB_PW = 'testpw'
 
@@ -39,6 +51,9 @@ def edit_compose_file():
     compose = None
     with open(base_compose_path, encoding='utf8') as base_compose_file:
         compose = yaml.load(base_compose_file, Loader=yaml.FullLoader)
+
+    # Edit stack name
+    compose['name'] = 'green-metrics-tool-test'
 
     # Save old volume names, as we will have to look for them under services/volumes soon
     vol_keys = compose['volumes'].copy().keys()
@@ -68,19 +83,37 @@ def edit_compose_file():
                 new_depends_on_list.append(f'test-{dep}')
             compose['services'][service]['depends_on'] = new_depends_on_list
 
-        # for nginx and gunicorn services, add test config mapping
+        # for nginx, change port mapping
+        if 'nginx' in service:
+            compose['services'][service]['ports'] = TEST_NGINX_PORT_MAPPING
+
+        # for nginx and gunicorn services, add test config and frontend config mapping
         if 'nginx' in service or 'gunicorn' in service:
             new_vol_list.append(
                 f'{current_dir}/test-config.yml:/var/www/green-metrics-tool/config.yml')
+            new_vol_list.append(
+                f'{current_dir}/{TEST_FRONTEND_CONFIG_NAME}:/var/www/green-metrics-tool/{BASE_FRONTEND_CONFIG_NAME}')
         compose['services'][service]['volumes'] = new_vol_list
 
-        # For postgresql, change password
+        # For postgresql, change port mapping and password
         if 'postgres' in service:
+            command = compose['services'][service]['command']
+            new_command = command.replace(str(BASE_DATABASE_PORT), str(TEST_DATABASE_PORT))
+            compose['services'][service]['command'] = new_command
+            compose['services'][service]['ports'] = TEST_DATABASE_PORT_MAPPING
+
             new_env = []
             for env in compose['services'][service]['environment']:
                 env = env.replace('PLEASE_CHANGE_THIS', DB_PW)
                 new_env.append(env)
             compose['services'][service]['environment'] = new_env
+
+        # For redis, change port mapping
+        if 'redis' in service:
+            command = compose['services'][service]['command']
+            new_command = f'{command} --port {TEST_REDIS_PORT}'
+            compose['services'][service]['command'] = new_command
+            compose['services'][service]['ports'] = TEST_REDIS_PORT_MAPPING
 
         # Edit service container name
         old_container_name = compose['services'][service]['container_name']
@@ -107,6 +140,17 @@ def create_test_config_file(ee=False):
     with open('test-config.yml', 'w', encoding='utf-8') as file:
         file.write(content)
 
+def create_frontend_config_file():
+    print('Creating frontend config file...')
+
+    with open(base_frontend_config_path, 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    content = content.replace(str(BASE_NGINX_PORT), str(TEST_NGINX_PORT))
+
+    with open(test_frontend_config_path, 'w', encoding='utf-8') as file:
+        file.write(content)
+
 def edit_etc_hosts():
     subprocess.run(['./edit-etc-hosts.sh'], check=True)
 
@@ -126,6 +170,7 @@ if __name__ == '__main__':
 
     copy_sql_structure(args.ee)
     create_test_config_file(args.ee)
+    create_frontend_config_file()
     edit_compose_file()
     edit_etc_hosts()
     if not args.no_docker_build:
