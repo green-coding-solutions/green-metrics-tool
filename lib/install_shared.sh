@@ -153,7 +153,7 @@ function prepare_config() {
 
     if [[ $modify_hosts == true ]] ; then
 
-        local etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
+        local etc_hosts_line_1="127.0.0.1 green-coding-postgres-container green-coding-redis-container"
         local etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
 
         print_message "Writing to /etc/hosts file..."

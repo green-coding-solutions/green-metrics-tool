@@ -1882,7 +1882,7 @@ if __name__ == '__main__':
 
             print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
 
-            optimization_providers.base.run_reporters(runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
+            optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
         if args.file_cleanup:
             shutil.rmtree(runner._tmp_folder)
