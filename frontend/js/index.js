@@ -22,8 +22,8 @@
         document.querySelectorAll('.carbondb').forEach(el => el.style.setProperty("display", "block", "important"))
         try {
             const api_data = await makeAPICall(`/v1/carbondb/insights`)
-            document.querySelector('#carbondb-id-count').innerText = api_data.data[0];
-            document.querySelector('#carbondb-id-oldest').innerText = api_data.data[1];
+            document.querySelector('#carbondb-count').innerText = api_data.data[0];
+            document.querySelector('#carbondb-oldest').innerText = api_data.data[1];
         } catch (err) { showNotification(`Could not get CarbonDB stats from API`, err) }
 
     }

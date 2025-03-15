@@ -14,10 +14,10 @@ class GMTMenu extends HTMLElement {
         if (ACTIVATE_METRIC_RUNNER == true) {
             html_content = `${html_content}
                 <span class="item"><b><i class="tachometer alternate left icon"></i> MetricRunner</b></span>
-                <a class="item" href="/metric-runner-runs.html">
+                <a class="item" href="/runs.html">
                     ⮑&nbsp;&nbsp;<b><i class="code branch icon"></i> Runs / Repos</b>
                 </a>
-                <a class="item" href="/metric-runner-projects.html">
+                <a class="item" href="/projects.html">
                     ⮑&nbsp;&nbsp<b><i class="list icon"></i> Projects</b>
                 </a>
                 <a class="item" href="/request.html">
