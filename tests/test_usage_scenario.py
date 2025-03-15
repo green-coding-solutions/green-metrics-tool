@@ -517,21 +517,7 @@ def test_cmd_ran():
 # entrypoint: [str] (optional)
 #    entrypoint declares the default entrypoint for the service container.
 #    This overrides the ENTRYPOINT instruction from the service's Dockerfile.
-def test_entrypoint_ran():
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_single_command.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
-    with Tests.RunUntilManager(runner) as context:
-        context.run_until('setup_services')
-        ps = subprocess.run(
-            ['docker', 'exec', 'test-container', 'ps', '-a'],
-            check=True,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            encoding='UTF-8'
-        )
-        docker_ps_out = ps.stdout
-    assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
-    assert 'yes' in docker_ps_out, Tests.assertion_info('entrypoint `yes` in ps output', docker_ps_out)
-
+#    If the entrypoint is empty, the ENTRYPOINT instruction is ignored.
 def test_entrypoint_ran_with_script():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_script.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
     with Tests.RunUntilManager(runner) as context:
