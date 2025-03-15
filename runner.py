@@ -961,17 +961,13 @@ class Runner:
                         docker_run_string.append(service['healthcheck']['start_interval'])
 
 
-            clear_endpoint = service.get('clear-entrypoint', False)
             if 'entrypoint' in service:
                 if service['entrypoint']:
                     docker_run_string.append('--entrypoint')
                     docker_run_string.append(service['entrypoint'])
-                    clear_endpoint = False
                 else:
-                    clear_endpoint = True
-            if clear_endpoint:
-                docker_run_string.append('--entrypoint=') # empty entrypoint -> default entrypoint will be ignored
-
+                    # empty entrypoint -> default entrypoint will be ignored
+                    docker_run_string.append('--entrypoint=')
 
             docker_run_string.append(self.clean_image_name(service['image']))
 
