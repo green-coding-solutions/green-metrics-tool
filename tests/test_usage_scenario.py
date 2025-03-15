@@ -547,7 +547,7 @@ def test_entrypoint_ran_in_conjunction_with_command():
         )
         docker_ps_out = ps.stdout
     assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
-    assert 'yes Running forever...' in docker_ps_out, Tests.assertion_info('`yes Running forever...` in ps output', docker_ps_out)
+    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('`tail -f /dev/null` in ps output', docker_ps_out)
 
 def test_entrypoint_empty():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_empty.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)

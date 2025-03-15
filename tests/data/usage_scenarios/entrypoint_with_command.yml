@@ -9,8 +9,8 @@ services:
     image: gcb_stress_entrypoint # image with an endpoint
     build:
       context: ../entrypoint-application
-    entrypoint: 'yes' # overwrite entrypoint
-    command: 'Running forever...' # value of command is used as an argument for the entrypoint -> `yes Running forever...`
+    entrypoint: 'tail' # overwrite entrypoint
+    command: '-f /dev/null' # value of command is used as an argument for the entrypoint -> `tail -f /dev/null`
 
 flow:
   - name: Stress
