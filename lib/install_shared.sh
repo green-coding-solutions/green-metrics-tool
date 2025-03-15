@@ -7,6 +7,14 @@ NC='\033[0m' # No Color
 db_pw=''
 api_url=''
 metrics_url=''
+ask_metric_runner=true
+activate_metric_runner=true
+ask_eco_ci=true
+activate_eco_ci=false
+ask_power_hog=true
+activate_power_hog=false
+ask_carbon_db=true
+activate_carbon_db=false
 build_docker_containers=true
 install_python_packages=true
 modify_hosts=true
@@ -126,15 +134,37 @@ function prepare_config() {
     eval "${sed_command} -e \"s|__API_URL__|$api_url|\" frontend/js/helpers/config.js"
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" frontend/js/helpers/config.js"
 
-    if [[ $enterprise == true ]]; then
-        eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|true|\" frontend/js/helpers/config.js"
-        eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|true|\" frontend/js/helpers/config.js"
-        eval "${sed_command} -e \"s|#EE-ONLY#||\" docker/compose.yml"
-
-        eval "${sed_command} -e \"s|ee_token:.*$|ee_token: ${ee_token}|\" config.yml"
+    if [[ $activate_metric_runner == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_METRIC_RUNNER__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_metric_runner:.*$|activate_metric_runner: True|\" config.yml"
     else
-        eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
-        eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|false|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|__ACTIVATE_METRIC_RUNNER__|false|\" frontend/js/helpers/config.js"
+    fi
+
+    if [[ $activate_eco_ci == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_ECO_CI__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_eco_ci:.*$|activate_eco_ci: True|\" config.yml"
+    else
+        eval "${sed_command} -e \"s|__ACTIVATE_ECO_CI__|false|\" frontend/js/helpers/config.js"
+    fi
+
+
+    if [[ $enterprise == true ]]; then
+        eval "${sed_command} -e \"s|#EE-ONLY#||\" docker/compose.yml"
+        eval "${sed_command} -e \"s|ee_token:.*$|ee_token: ${ee_token}|\" config.yml"
+        # Activating CarbonDB and PowerHOG makes only sense in enterprise mode
+        if [[ $activate_power_hog == true ]]; then
+            eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|true|\" frontend/js/helpers/config.js"
+            eval "${sed_command} -e \"s|activate_power_hog:.*$|activate_power_hog: True|\" config.yml"
+        else
+            eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|false|\" frontend/js/helpers/config.js"
+        fi
+        if [[ $activate_carbon_db == true ]]; then
+            eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|true|\" frontend/js/helpers/config.js"
+            eval "${sed_command} -e \"s|activate_carbon_db:.*$|activate_carbon_db: True|\" config.yml"
+        else
+            eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
+        fi
     fi
 
     if [[ $enable_ssl == true ]] ; then
@@ -216,6 +246,11 @@ function setup_python() {
 }
 
 function checkout_submodules() {
+    if [[ $activate_metric_runner == false ]]; then
+        print_message 'Skipping checkout submodules ...'
+        return
+    fi
+
     print_message "Checking out further git submodules ..."
 
     if [[ $(uname) != "Darwin" ]]; then
@@ -228,6 +263,10 @@ function checkout_submodules() {
 }
 
 function build_binaries() {
+    if [[ $activate_metric_runner == false ]]; then
+        print_message 'Skipping build binaries ...'
+        return
+    fi
 
     print_message "Building binaries ..."
     local metrics_subdir="metric_providers"
@@ -305,21 +344,34 @@ function send_ping() {
         --data "{\"name\":\"install\",\"url\":\"http://hello.green-coding.io/install\",\"domain\":\"hello.green-coding.io\",\"props\":{\"unique_hash\":\"${unique_hash}\",\"arch\":\"${arch}\",\"os\":\"${os}\",\"os_version\":\"${os_version}\"}}" > /dev/null
 }
 
-while getopts "p:a:m:nhtbisyrlc:k:e:zZ" o; do
+function check_optarg() {
+    local option=$1
+    local optarg=$2
+    if [[ "$optarg" == -* ]]; then
+        echo "Error: Option -$option received broken argument: $optarg" >&2; exit 1;
+    fi
+}
+
+while getopts ":p:a:m:nhtbisurlc:k:e:zZdDgGfFjJ" o; do
     case "$o" in
+        \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
+        :)  echo "Error: Option -$OPTARG requires an argument" >&2; exit 1 ;;
         p)
+            check_optarg 'p' $OPTARG
             db_pw=${OPTARG}
             ;;
         a)
+            check_optarg 'a' $OPTARG
             api_url=${OPTARG}
             ;;
         m)
+            check_optarg 'm' $OPTARG
             metrics_url=${OPTARG}
             ;;
         b)
             build_docker_containers=false
             ;;
-        h)
+        w)
             modify_hosts=false
             ;;
         n)
@@ -337,7 +389,7 @@ while getopts "p:a:m:nhtbisyrlc:k:e:zZ" o; do
         r)
             install_msr_tools=false
             ;;
-        y)
+        u)
             use_system_site_packages=true
             ;;
         l)
@@ -348,12 +400,15 @@ while getopts "p:a:m:nhtbisyrlc:k:e:zZ" o; do
             build_sgx=false
             ;;
         c)
+            check_optarg 'c' $OPTARG
             cert_file=${OPTARG}
             ;;
         k)
+            check_optarg 'k' $OPTARG
             cert_key=${OPTARG}
             ;;
         e)
+            check_optarg 'e' $OPTARG
             ee_token=${OPTARG}
             enterprise=true
             ;;
@@ -363,6 +418,79 @@ while getopts "p:a:m:nhtbisyrlc:k:e:zZ" o; do
         Z)
             force_send_ping=true
             ;;
+
+        ## Still free  w)
+
+        d)
+            activate_carbon_db=true
+            ask_carbon_db=false
+            ;;
+        D)
+            activate_carbon_db=false
+            ask_carbon_db=false
+            ;;
+        g)
+            activate_power_hog=true
+            ask_power_hog=false
+            ;;
+        G)
+            activate_power_hog=false
+            ask_power_hog=false
+            ;;
+
+        f)
+            activate_metric_runner=true
+            ask_metric_runner=false
+            ;;
+        F)
+            activate_metric_runner=false
+            ask_metric_runner=false
+            ;;
+        j)
+            activate_eco_ci=true
+            ask_eco_ci=false
+            ;;
+        J)
+            activate_eco_ci=false
+            ask_eco_ci=false
+            ;;
+
+        h)
+            echo 'usage: ./install_XXX [p:] [a:] [m:] [n] [h] [t] [b] [i] [s] [u] [r] [l] [c:] [k:] [e:] [z] [Z] [d] [D] [g] [G] [f] [F] [j] [J]'
+            echo ''
+            echo 'options:'
+            echo -e '  -p DB_PW:\t\tSupply DB password'
+            echo -e '  -a API_URL:\t\tSupply API URL'
+            echo -e '  -m METRICS_URL:\tSupply Dashboard URL'
+            echo -e '  -b:\t\t\tBuild docker containers'
+            echo -e '  -w:\t\t\tModify hosts'
+            echo -e '  -n:\t\t\tInstall Python packages'
+            echo -e '  -t:\t\t\tAsk for tmpfs remounting'
+            echo -e '  -i:\t\t\tInstall IPMI drivers'
+            echo -e '  -s:\t\t\tInstall lm-sensors package'
+            echo -e '  -r:\t\t\tInstall MSR tools'
+            echo -e '  -u:\t\t\tUse Python system packages'
+            echo -e '  -l:\t\t\tEnable SSL'
+            echo -e '  -x:\t\t\tBuild SGX checking binaries'
+            echo -e '  -c:\t\t\tSupply SSL .crt file'
+            echo -e '  -k:\t\t\tSupply SSL .key file'
+            echo -e '  -e: EE_TOKEN\t\tActivate enterprise features and store token'
+            echo -e '  -z:\t\t\tDo not ask to send install telemetry ping'
+            echo -e '  -Z:\t\t\tForce to send install telemetry ping'
+            echo -e '  -d:\t\t\tActivate CarbonDB'
+            echo -e '  -D:\t\t\tDe-activate CarbonDB'
+            echo -e '  -g:\t\t\tActivate PowerHOG'
+            echo -e '  -G:\t\t\tDe-activate PowerHOG'
+            echo -e '  -f:\t\t\tActivate MetricRunner'
+            echo -e '  -F:\t\t\tDe-activate MetricRunner'
+            echo -e '  -j:\t\t\tActivate Eco CI'
+            echo -e '  -J:\t\t\tDe-activate Eco CI'
+
+            exit 0
+            ;;
+        ## v) y) q) # reserved, as they typically have other meaning!
+
+
     esac
 done
 
@@ -422,6 +550,48 @@ if [[ -z "$db_pw" ]] ; then
     echo "" # force a newline, because read -sp will consume it
     db_pw=${db_pw:-"$default_password"}
 fi
+
+if [[ $ask_metric_runner == true ]]; then
+    echo ""
+    read -p "Do you want to activate MetricRunner (For benchmarking container software)? (Y/n) : " activate_metric_runner
+    if [[  "$activate_metric_runner" == "N" || "$activate_metric_runner" == "n" ]] ; then
+        activate_metric_runner=false
+    else
+        activate_metric_runner=true
+    fi
+fi
+
+
+if [[ $ask_eco_ci == true ]]; then
+    echo ""
+    read -p "Do you want to activate Eco CI (For tracking CI/CD carbon emissions)? (y/N) : " activate_eco_ci
+    if [[  "$activate_eco_ci" == "Y" || "$activate_eco_ci" == "y" ]] ; then
+        activate_eco_ci=true
+    else
+        activate_eco_ci=false
+    fi
+fi
+
+if [[ $enterprise == true && $ask_carbon_db == true ]]; then
+    echo ""
+    read -p "Do you want to activate CarbonDB? (y/N) : " activate_carbon_db
+    if [[  "$activate_carbon_db" == "Y" || "$activate_carbon_db" == "y" ]] ; then
+        activate_carbon_db=true
+    else
+        activate_carbon_db=false
+    fi
+fi
+
+if [[ $enterprise == true && $ask_power_hog == true ]]; then
+    echo ""
+    read -p "Do you want to activate PowerHOG? (y/N) : " activate_power_hog
+    if [[  "$activate_power_hog" == "Y" || "$activate_power_hog" == "y" ]] ; then
+        activate_power_hog=true
+    else
+        activate_power_hog=false
+    fi
+fi
+
 
 send_ping_input=false
 if [[ $ask_ping == true ]]; then
