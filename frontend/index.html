@@ -44,85 +44,60 @@
                     <p>The home page shows you all available and connected tools.</p>
                     <p>Click on any of them to get to a detailed view of the energy and carbon data.</p>
                     <p>Through settings you can also adjust the default sorting, default fetching of detailed metrics etc..
-                </p>
+                    </p>
                 </div>
             </div>
         </div>
-        <div class="ui four column stackable grid">
-          <div class="column metric-runner index-connected-tools">
-            <div class="ui fluid card">
-              <div class="image" style="background: #3d936f">
-                <a href="/runs.html" class="project-item" style="
-    /* margin: auto; */
-    /* margin-left: 50%; */
-    /* width: 131px !important; */!i;!;
-    /* display: block; */
-"><i class="tachometer alternate icon project-item-white" style="
-    margin: 50px auto;
-"></i></a>
-              </div>
-              <div class="content">
-                <a class="header">MetricRunner</a>
-                <br>Currently <b><span id="metric-runner-count">N/A</span></b> runs<br>dating back to <b><span id="metric-runner-oldest">N/A</span></b>
-                <br>
-                <br> Additional Info ... etc.
-              </div>
+        <div class="ui cards link">
+            <div class="ui card metric-runner index-connected-tools">
+                <div class="image" style="background: #3d936f; padding: 30px 0;">
+                    <a href="/runs.html" class="project-item"><i class="tachometer alternate icon project-item-white" style="margin: 0px auto;"></i></a>
+                </div>
+                <div class="content">
+                    <a class="header">MetricRunner</a>
+                    <div class="meta">
+                        <span class="date">Measure software for energy and CO₂</span>
+                    </div>
+                    <div class="description">
+                        <p>Current Runs in DB: <b><span id="metric-runner-count">N/A</span></b></p>
+                        <p>Oldest Run in DB: <b><span id="metric-runner-oldest">N/A</span></b></p>
+                    </div>
+                    <br> &raquo; Additional Info ... etc. ???
+                </div>
             </div>
-          </div>
-          <div class="column eco-ci index-connected-tools">
-            <div class="ui fluid card">
-              <div class="image" style="background: #3d936f">
-                <a href="/ci-index.html" class="project-item" style="
-    /* margin: auto; */
-    /* margin-left: 50%; */
-    /* width: 131px !important; */!i;!;
-    /* display: block; */
-"><i class="leaf huge icon project-item-white" style="
-    margin: 50px auto;
-"></i></a>
-              </div>
-              <div class="content">
-                <a class="header">Eco CI</a>
-                <br>Currently <b><span id="eco-ci-count">N/A</span></b> CI/CD runs<br>dating back to <b><span id="eco-ci-oldest">N/A</span></b>
-              </div>
+            <div class="ui card eco-ci index-connected-tools">
+                <div class="image" style="background: #3d936f; padding: 30px 0;">
+                    <a href="/ci-index.html" class="project-item"><i class="leaf huge icon project-item-white" style="margin: 0px auto;"></i></a>
+                </div>
+                <div class="content">
+                    <a class="header">Eco CI</a>
+                    <div class="meta">
+                        <span class="date">Measure software for energy and CO₂</span>
+                    </div>
+                    <div class="description">
+                        <p>Current CI/CD runs in DB: <b><span id="eco-ci-count">N/A</span></b></p>
+                        <p>Oldest Run in DB: <b><span id="eco-ci-oldest">N/A</span></b></p>
+                    </div>
+                </div>
             </div>
-          </div>
-          <div class="column carbondb index-connected-tools">
-            <div class="ui fluid card">
-              <div class="image" style="background: #3d936f">
-                <a href="/hog.html" class="project-item" style="
-    /* margin: auto; */
-    /* margin-left: 50%; */
-    /* width: 131px !important; */!i;!;
-    /* display: block; */
-"><i class="balance scale huge icon project-item-white" style="
-    margin: 50px auto;
-"></i></a>
-              </div>
-              <div class="content">
-                <a class="header">CarbonDB</a>
-                <br>Currently <b><span id="carbondb-count">N/A</span></b> datapoints<br>dating back to <b><span id="carbondb-oldest">N/A</span></b>
-              </div>
+            <div class="ui card carbondb index-connected-tools">
+                <div class="image" style="background: #3d936f; padding: 30px 0;">
+                    <a href="/hog.html" class="project-item"><i class="balance scale huge icon project-item-white" style="margin: 0px auto;"></i></a>
+                </div>
+                <div class="content">
+                    <a class="header">CarbonDB</a>
+                    <br>Currently <b><span id="carbondb-count">N/A</span></b> datapoints<br>dating back to <b><span id="carbondb-oldest">N/A</span></b>
+                </div>
             </div>
-          </div>
-          <div class="column power-hog index-connected-tools">
-            <div class="ui fluid card">
-              <div class="image" style="background: #3d936f">
-                <a href="/carbondb.html" class="project-item" style="
-    /* margin: auto; */
-    /* margin-left: 50%; */
-    /* width: 131px !important; */!i;!;
-    /* display: block; */
-"><i class="piggy bank huge icon project-item-white" style="
-    margin: 50px auto;
-"></i></a>
-              </div>
-              <div class="content">
-                <a class="header">PowerHOG</a>
-                <br>Currently <b><span id="hog-count">N/A</span></b> datapoints<br>dating back to <b><span id="hog-oldest">N/A</span></b>
-              </div>
+            <div class="ui card power-hog index-connected-tools">
+                <div class="image" style="background: #3d936f; padding: 30px 0;">
+                    <a href="/carbondb.html" class="project-item"><i class="piggy bank huge icon project-item-white" style="margin: 0px auto;"></i></a>
+                </div>
+                <div class="content">
+                    <a class="header">PowerHOG</a>
+                    <br>Currently <b><span id="hog-count">N/A</span></b> datapoints<br>dating back to <b><span id="hog-oldest">N/A</span></b>
+                </div>
             </div>
-          </div>
         </div>
     </div>
 </body>
