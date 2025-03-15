@@ -40,7 +40,7 @@ a.project-item>i.icon {
     margin: 0
 }
 
-#runs-table, #repositories-table, .energy-id-runs, .energy-id-repositories {
+#runs-table, #repositories-table, .metric-runner-runs, .metric-runner-repositories {
     visibility: hidden;
 }
 

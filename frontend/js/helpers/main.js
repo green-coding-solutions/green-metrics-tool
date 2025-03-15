@@ -8,55 +8,56 @@ class GMTMenu extends HTMLElement {
         <div id="menu" class="ui inverted vertical menu">
             <div class="item-container">
                 <a class="item" href="/index.html">
-                    <b><i class="home icon"></i>Home</b>
+                    <b><i class="home icon"></i> Home</b>
                 </a>`
 
-        if (ACTIVATE_ENERGY_ID == true) {
+        if (ACTIVATE_METRIC_RUNNER == true) {
             html_content = `${html_content}
-                <a class="item" href="/energy-id-runs.html">
-                    <b><i class="code branch icon"></i>Energy ID Runs</b>
+                <span class="item"><b><i class="tachometer alternate left icon"></i> MetricRunner</b></span>
+                <a class="item" href="/metric-runner-runs.html">
+                    ⮑&nbsp;&nbsp;<b><i class="code branch icon"></i> Runs / Repos</b>
                 </a>
-                <a class="item" href="/energy-id-projects.html">
-                    <b><i class="history icon"></i>Energy ID Projects</b>
+                <a class="item" href="/metric-runner-projects.html">
+                    ⮑&nbsp;&nbsp<b><i class="list icon"></i> Projects</b>
                 </a>
                 <a class="item" href="/request.html">
-                    <b><i class="bullseye icon"></i>Energy ID (Submit)</b>
+                    ⮑&nbsp;&nbsp<b><i class="bullseye icon"></i> Submit Software</b>
                 </a>
                 <a class="item" href="/cluster-status.html">
-                    <b><i class="database icon"></i>Energy ID Cluster</b>
+                    ⮑&nbsp;&nbsp<b><i class="database icon"></i> Cluster Status</b>
                 </a>`;
         };
 
         if (ACTIVATE_ECO_CI == true) {
             html_content = `${html_content}
                 <a class="item" href="/ci-index.html">
-                    <b><i class="seedling icon"></i>Eco CI</b>
+                    <b><i class="seedling icon"></i> Eco CI</b>
                 </a>`;
         };
 
         if (ACTIVATE_POWER_HOG == true) {
             html_content = `${html_content}
                 <a class="item" href="/hog.html">
-                    <b><i class="piggy bank icon"></i>Power Hog</b>
+                    <b><i class="piggy bank icon"></i> Power Hog</b>
                 </a>`;
         };
 
         if (ACTIVATE_CARBON_DB == true) {
             html_content = `${html_content}
                 <a class="item" href="/carbondb.html">
-                    <b><i class="journal whills icon"></i>CarbonDB</b>
+                    <b><i class="journal whills icon"></i> CarbonDB</b>
                 </a>`;
         };
 
         html_content = `${html_content}
                 <a class="item" href="/data-analysis.html">
-                    <b><i class="chartline icon"></i>Data Analysis</b>
+                    <b><i class="chartline icon"></i> Data Analysis</b>
                 </a>
                 <a class="item" href="/authentication.html">
-                    <b><i class="users icon"></i>Authentication</b>
+                    <b><i class="users icon"></i> Authentication</b>
                 </a>
                 <a class="item" href="/settings.html">
-                    <b><i class="cogs icon"></i>Settings</b>
+                    <b><i class="cogs icon"></i> Settings</b>
                 </a>
             </div>
             <div class="sticky-container">

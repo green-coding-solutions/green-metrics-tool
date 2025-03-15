@@ -1,11 +1,11 @@
 (async () => {
-    if (ACTIVATE_ENERGY_ID == true) {
-        document.querySelectorAll('.energy-id').forEach(el => el.style.setProperty("display", "block", "important"))
+    if (ACTIVATE_METRIC_RUNNER == true) {
+        document.querySelectorAll('.metric-runner').forEach(el => el.style.setProperty("display", "block", "important"))
         try {
             const api_data = await makeAPICall(`/v1/insights`)
-            document.querySelector('#energy-id-count').innerText = api_data.data[0];
-            document.querySelector('#energy-id-oldest').innerText = api_data.data[1];
-        } catch (err) { showNotification(`Could not get Energy ID stats from API`, err) }
+            document.querySelector('#metric-runner-count').innerText = api_data.data[0];
+            document.querySelector('#metric-runner-oldest').innerText = api_data.data[1];
+        } catch (err) { showNotification(`Could not get MetricRunner stats from API`, err) }
     }
 
     if (ACTIVATE_ECO_CI == true) {
@@ -19,7 +19,7 @@
     }
 
     if (ACTIVATE_CARBON_DB == true) {
-        document.querySelectorAll('.carbon-db').forEach(el => el.style.setProperty("display", "block", "important"))
+        document.querySelectorAll('.carbondb').forEach(el => el.style.setProperty("display", "block", "important"))
         try {
             const api_data = await makeAPICall(`/v1/carbondb/insights`)
             document.querySelector('#carbondb-id-count').innerText = api_data.data[0];

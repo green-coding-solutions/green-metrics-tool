@@ -2,7 +2,7 @@
 API_URL = "__API_URL__"
 METRICS_URL = "__METRICS_URL__"
 
-ACTIVATE_ENERGY_ID = true; // Energy ID is always active bc open source. But can be deactivated if not needed
+ACTIVATE_METRIC_RUNNER = true; // MetricRunner is always active bc open source. But can be deactivated if not needed
 ACTIVATE_CARBON_DB = __ACTIVATE_CARBON_DB__;
 ACTIVATE_ECO_CI = true; // Eco CI is always active bc open source. But can be deactivated if not needed
 ACTIVATE_POWER_HOG = __ACTIVATE_POWER_HOG__;

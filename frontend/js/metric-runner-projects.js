@@ -58,15 +58,15 @@ $(document).ready(function () {
             chart_node.innerHTML = `${chart_node.innerHTML}
                 </div>
 		<hr>
-                <a class="ui button blue" href="/energy-id-timeline.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}" target="_blank">
+                <a class="ui button blue" href="/metric-runner-timeline.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}" target="_blank">
                     Show Timeline <i class="external alternate icon"></i>
                 </a>
                 <hr>
-                <a class="ui button grey" href="/energy-id-runs.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}" target="_blank">
+                <a class="ui button grey" href="/metric-runner-runs.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}" target="_blank">
                     Show All Measurements <i class="external alternate icon"></i>
                 </a>`
 
-            document.querySelector('#energy-id-projects').appendChild(chart_node)
+            document.querySelector('#metric-runner-projects').appendChild(chart_node)
         });
         document.querySelectorAll(".copy-badge").forEach(el => {
             el.addEventListener('click', copyToClipboard)
