@@ -514,6 +514,62 @@ def test_cmd_ran():
         docker_ps_out = ps.stdout
     assert '1 root      0:00 sh' in docker_ps_out, Tests.assertion_info('1 root      0:00 sh', docker_ps_out)
 
+# entrypoint: [str] (optional)
+#    entrypoint declares the default entrypoint for the service container.
+#    This overrides the ENTRYPOINT instruction from the service's Dockerfile.
+#    If the entrypoint is empty, the ENTRYPOINT instruction is ignored.
+def test_entrypoint_ran_with_script():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_script.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        ps = subprocess.run(
+            ['docker', 'exec', 'test-container', 'ps', '-a'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+        docker_ps_out = ps.stdout
+    assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
+    assert 'entrypoint-overwrite.sh' in docker_ps_out, Tests.assertion_info('entrypoint `entrypoint-overwrite.sh` in ps output', docker_ps_out)
+    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('entrypoint `tail -f /dev/null` in ps output', docker_ps_out)
+
+def test_entrypoint_ran_in_conjunction_with_command():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_with_command.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        ps = subprocess.run(
+            ['docker', 'exec', 'test-container', 'ps', '-a'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+        docker_ps_out = ps.stdout
+    assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
+    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('`tail -f /dev/null` in ps output', docker_ps_out)
+
+def test_entrypoint_empty():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_empty.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+            ps = subprocess.run(
+                ['docker', 'exec', 'test-container', 'ps', '-a'],
+                check=True,
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                encoding='UTF-8'
+        )
+        docker_ps_out = ps.stdout
+    docker_run_command = re.search(r"docker run with: (.*)", str(out.getvalue())).group(1)
+    assert '--entrypoint= ' in docker_run_command, f"--entrypoint= not found in docker run command: {docker_run_command}"
+    assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been ignored', docker_ps_out)
+    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('command `tail -f /dev/null` in ps output', docker_ps_out)
+
+
 ### The Tests for the runner options/flags
 ## --uri URI
 #   The URI to get the usage_scenario.yml from. Can be either a local directory starting with
