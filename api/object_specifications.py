@@ -17,7 +17,7 @@ class Software(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
 
-### Eco-CI
+### Eco CI
 # pylint: disable=invalid-name
 class CI_Measurement_Old(BaseModel):
     energy_value: int
