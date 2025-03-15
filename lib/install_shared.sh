@@ -152,20 +152,23 @@ function prepare_config() {
     if [[ $enterprise == true ]]; then
         eval "${sed_command} -e \"s|#EE-ONLY#||\" docker/compose.yml"
         eval "${sed_command} -e \"s|ee_token:.*$|ee_token: ${ee_token}|\" config.yml"
-        # Activating CarbonDB and PowerHOG makes only sense in enterprise mode
-        if [[ $activate_power_hog == true ]]; then
-            eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|true|\" frontend/js/helpers/config.js"
-            eval "${sed_command} -e \"s|activate_power_hog:.*$|activate_power_hog: True|\" config.yml"
-        else
-            eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|false|\" frontend/js/helpers/config.js"
-        fi
-        if [[ $activate_carbon_db == true ]]; then
-            eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|true|\" frontend/js/helpers/config.js"
-            eval "${sed_command} -e \"s|activate_carbon_db:.*$|activate_carbon_db: True|\" config.yml"
-        else
-            eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
-        fi
     fi
+
+    # Activating CarbonDB and PowerHOG makes actually only sense in enterprise mode
+    # but must run still, as we need to set the variables and replacements
+    if [[ $activate_power_hog == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_power_hog:.*$|activate_power_hog: True|\" config.yml"
+    else
+        eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|false|\" frontend/js/helpers/config.js"
+    fi
+    if [[ $activate_carbon_db == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_carbon_db:.*$|activate_carbon_db: True|\" config.yml"
+    else
+        eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
+    fi
+
 
     if [[ $enable_ssl == true ]] ; then
         eval "${sed_command} -e \"s|9142:9142|443:443|\" docker/compose.yml"
