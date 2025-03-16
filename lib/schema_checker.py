@@ -121,6 +121,7 @@ class SchemaChecker():
                     Optional("setup-commands"): [And(str, Use(self.not_empty))],
                     Optional("volumes"): self.single_or_list(str),
                     Optional("folder-destination"):And(str, Use(self.not_empty)),
+                    Optional("entrypoint"): str,
                     Optional("command"): And(str, Use(self.not_empty)),
                     Optional("log-stdout"): bool,
                     Optional("log-stderr"): bool,
