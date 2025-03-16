@@ -13,7 +13,7 @@ from tests import test_functions as Tests
 
 API_URL = GlobalConfig().config['cluster']['api_url']
 
-from api.main import Software
+from api.metric_runner import Software
 
 def test_post_run_add_github_one_off():
     run_name = 'test_' + utils.randomword(12)
