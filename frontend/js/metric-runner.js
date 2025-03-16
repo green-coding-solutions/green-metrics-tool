@@ -46,7 +46,7 @@ async function getRepositories(sort_by = 'date') {
 
 (async () => {
     document.querySelector('#home-toggle-button').addEventListener('click', el => {
-        if (el.currentTarget.innerText == 'Switch to repository view') {
+        if (el.currentTarget.innerText === 'Switch to repository view') {
             document.querySelector('h1.ui.header span').innerText = 'MetricRunner - Repositories';
             localStorage.setItem('metric_runner_data_shown', 'repositories');
             window.location.reload();
@@ -57,7 +57,7 @@ async function getRepositories(sort_by = 'date') {
         }
     });
 
-    if (localStorage.getItem('metric_runner_data_shown') == 'repositories') {
+    if (localStorage.getItem('metric_runner_data_shown') === 'repositories') {
         document.querySelector('#home-toggle-button').innerText = 'Switch to last runs view';
         document.querySelector('h1.ui.header span').innerText = 'MetricRunner - Repositories';
         document.querySelectorAll('.metric-runner-repositories').forEach(el => el.style.visibility = 'visible');

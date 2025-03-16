@@ -1,5 +1,5 @@
 (async () => {
-    if (ACTIVATE_METRIC_RUNNER == true) {
+    if (ACTIVATE_METRIC_RUNNER === true) {
         document.querySelectorAll('.metric-runner').forEach(el => el.style.setProperty("display", "block", "important"))
         try {
             const api_data = await makeAPICall(`/v1/insights`)
@@ -8,7 +8,7 @@
         } catch (err) { showNotification(`Could not get MetricRunner stats from API`, err) }
     }
 
-    if (ACTIVATE_ECO_CI == true) {
+    if (ACTIVATE_ECO_CI === true) {
         document.querySelectorAll('.eco-ci').forEach(el => el.style.setProperty("display", "block", "important"))
         try {
             const api_data = await makeAPICall(`/v1/ci/insights`)
@@ -18,7 +18,7 @@
 
     }
 
-    if (ACTIVATE_CARBON_DB == true) {
+    if (ACTIVATE_CARBON_DB === true) {
         document.querySelectorAll('.carbondb').forEach(el => el.style.setProperty("display", "block", "important"))
         try {
             const api_data = await makeAPICall(`/v1/carbondb/insights`)
@@ -28,7 +28,7 @@
 
     }
 
-    if (ACTIVATE_POWER_HOG == true) {
+    if (ACTIVATE_POWER_HOG === true) {
         document.querySelectorAll('.power-hog').forEach(el => el.style.setProperty("display", "block", "important"))
         try {
             const api_data = await makeAPICall(`/v1/hog/insights`)

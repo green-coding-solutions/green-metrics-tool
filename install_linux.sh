@@ -76,7 +76,7 @@ if [[ $activate_metric_runner == true ]] ; then
         fi
     fi
 
-    if [[ $install_ipmi == true && $activate_metric_runner == true ]] ; then
+    if [[ $install_ipmi == true ]] ; then
         print_message "Installing IPMI tools"
         print_message "Important: If this step fails it means ipmitool is not available on you system"
         print_message "If you do not plan to use IPMI you can skip the installation by appending '-i'"

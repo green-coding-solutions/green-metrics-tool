@@ -422,8 +422,6 @@ while getopts ":p:a:m:nhtbisurlc:k:e:zZdDgGfFjJ" o; do
             force_send_ping=true
             ;;
 
-        ## Still free  w)
-
         d)
             activate_carbon_db=true
             ask_carbon_db=false

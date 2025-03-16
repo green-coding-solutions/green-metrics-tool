@@ -18,13 +18,13 @@ class GMTMenu extends HTMLElement {
                     ⮑&nbsp;&nbsp;<b><i class="code branch icon"></i> Runs / Repos</b>
                 </a>
                 <a class="item" href="/projects.html">
-                    ⮑&nbsp;&nbsp<b><i class="list icon"></i> Projects</b>
+                    ⮑&nbsp;&nbsp;<b><i class="list icon"></i> Projects</b>
                 </a>
                 <a class="item" href="/request.html">
-                    ⮑&nbsp;&nbsp<b><i class="bullseye icon"></i> Submit Software</b>
+                    ⮑&nbsp;&nbsp;<b><i class="bullseye icon"></i> Submit Software</b>
                 </a>
                 <a class="item" href="/cluster-status.html">
-                    ⮑&nbsp;&nbsp<b><i class="database icon"></i> Cluster Status</b>
+                    ⮑&nbsp;&nbsp;<b><i class="database icon"></i> Cluster Status</b>
                 </a>`;
         };
 
