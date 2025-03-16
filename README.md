@@ -64,8 +64,7 @@ And so much more! [See the documentation!](https://docs.green-coding.io)
 # Energy ID Scorecards
 <img width="1034" alt="Screenshot 2023-10-24 at 10 43 28 AM" src="https://github.com/green-coding-solutions/green-metrics-tool/assets/250671/7e3e3faa-5452-4722-af70-a65114f930ac">
 
-Details: [Energy ID project page](https://www.green-coding.io/products/energy-id/
-)
+Details: [Energy ID project page](https://www.green-coding.io/products/energy-id/)
 
 # Screenshots of Single Run View
 
