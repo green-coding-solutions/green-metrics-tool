@@ -184,7 +184,7 @@ if __name__ == '__main__':
                     error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, stdout=exc.stdout, stderr=exc.stderr, run_id=job._run_id, machine=config_main['machine']['description'], name=job._name, url=job._url)
                 except Exception as exc: # pylint: disable=broad-except
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
-                    error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, run_id=job._run_id, machine=config_main['machine']['description'], name=job._name, url=job._url)
+                    error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, previous_exception=exc.__context__, run_id=job._run_id, machine=config_main['machine']['description'], name=job._name, url=job._url)
                 finally:
                     if not args.testing:
                         do_cleanup(current_temperature, last_cooldown_time)
@@ -201,4 +201,4 @@ if __name__ == '__main__':
                 break
 
     except Exception as exc: # pylint: disable=broad-except
-        error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, machine=config_main['machine']['description'])
+        error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, previous_exception=exc.__context__, machine=config_main['machine']['description'])
