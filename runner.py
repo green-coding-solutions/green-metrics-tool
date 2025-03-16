@@ -961,6 +961,14 @@ class Runner:
                         docker_run_string.append(service['healthcheck']['start_interval'])
 
 
+            if 'entrypoint' in service:
+                if service['entrypoint']:
+                    docker_run_string.append('--entrypoint')
+                    docker_run_string.append(service['entrypoint'])
+                else:
+                    # empty entrypoint -> default entrypoint will be ignored
+                    docker_run_string.append('--entrypoint=')
+
             docker_run_string.append(self.clean_image_name(service['image']))
 
             # Before finally starting the container for the current service, check if the dependent services are ready.
