@@ -54,7 +54,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         headers=obfuscate_authentication_token(request.headers),
         body=exc.body,
         details=exc.errors(),
-        exception=exc
+        exception=exc,
+        previous_exception=exc.__context__
     )
     return ORJSONResponse(
         status_code=422, # HTTP_422_UNPROCESSABLE_ENTITY
@@ -72,7 +73,8 @@ async def http_exception_handler(request, exc):
         headers=obfuscate_authentication_token(request.headers),
         body=body,
         details=exc.detail,
-        exception=exc
+        exception=exc,
+        previous_exception=exc.__context__
     )
     return ORJSONResponse(
         status_code=exc.status_code,
@@ -94,7 +96,8 @@ async def catch_exceptions_middleware(request: Request, call_next):
             client=request.client,
             headers=obfuscate_authentication_token(request.headers),
             body=body,
-            exception=exc
+            exception=exc,
+            previous_exception=exc.__context__
         )
         return ORJSONResponse(
             content={

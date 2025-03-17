@@ -1888,13 +1888,13 @@ if __name__ == '__main__':
         print('####################################################################################\n\n', TerminalColors.ENDC)
 
     except FileNotFoundError as e:
-        error_helpers.log_error('File or executable not found', exception=e, run_id=runner._run_id)
+        error_helpers.log_error('File or executable not found', exception=e, previous_exception=e.__context__, run_id=runner._run_id)
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error('Command failed', stdout=e.stdout, stderr=e.stderr, run_id=runner._run_id)
+        error_helpers.log_error('Command failed', stdout=e.stdout, stderr=e.stderr, previous_exception=e.__context__, run_id=runner._run_id)
     except RuntimeError as e:
-        error_helpers.log_error('RuntimeError occured in runner.py', exception=e, run_id=runner._run_id)
+        error_helpers.log_error('RuntimeError occured in runner.py', exception=e, previous_exception=e.__context__, run_id=runner._run_id)
     except BaseException as e:
-        error_helpers.log_error('Base exception occured in runner.py', exception=e, run_id=runner._run_id)
+        error_helpers.log_error('Base exception occured in runner.py', exception=e, previous_exception=e.__context__, run_id=runner._run_id)
     finally:
         if args.print_logs:
             for container_id_outer, std_out in runner.get_logs().items():
