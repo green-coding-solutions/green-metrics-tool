@@ -45,32 +45,52 @@ class User():
         return bool(self._capabilities['user']['is_super_user'])
 
     def can_use_machine(self, machine_id: int):
+        if self.is_super_user():
+            return True
+
         return machine_id in self._capabilities['machines']
 
     def can_use_route(self, route: str):
+        if self.is_super_user():
+            return True
+
         return route in self._capabilities['api']['routes']
 
     def can_schedule_job(self, schedule_mode: str):
+        if self.is_super_user():
+            return True
+
         return schedule_mode in self._capabilities['jobs']['schedule_modes']
 
-
     def has_api_quota(self, route: str):
+        if self.is_super_user():
+            return True
         if route in self._capabilities['api']['quotas']:
             return self._capabilities['api']['quotas'][route] > 0
         return True # None means infinite amounts
 
     def deduct_api_quota(self, route: str, amount: int):
+        if self.is_super_user():
+            return
+
         if route in self._capabilities['api']['quotas']:
             self._capabilities['api']['quotas'][route] -= amount
             self.update()
 
     def has_measurement_quota(self, machine_id: int):
+        if self.is_super_user():
+            return True
+
         machine_id = str(machine_id) # json does not support integer keys
         if machine_id in self._capabilities['measurement']['quotas']:
             return self._capabilities['measurement']['quotas'][machine_id] > 0
+
         return True # None means infinite amounts
 
     def deduct_measurement_quota(self, machine_id: int, amount: int):
+        if self.is_super_user():
+            return
+
         machine_id = str(machine_id)  # json does not support integer keys
         if machine_id in self._capabilities['measurement']['quotas']:
             self._capabilities['measurement']['quotas'][machine_id] -= amount
