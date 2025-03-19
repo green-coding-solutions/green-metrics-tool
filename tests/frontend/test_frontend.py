@@ -170,7 +170,6 @@ def test_eco_ci_adding_data():
         Tests.reset_db()
         Tests.import_demo_data()
 
-
 def test_stats():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
