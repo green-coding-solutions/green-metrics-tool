@@ -1013,7 +1013,8 @@ class Runner:
                                 if ps.returncode != 0 or health == '<nil>':
                                     raise RuntimeError(f"Health check for service '{dependent_service}' was requested by '{service_name}', but service has no healthcheck implemented! (Output was: {health})")
                                 if health == 'unhealthy':
-                                    raise RuntimeError(f'Health check of container "{dependent_container_name}" failed terminally with status "unhealthy" after {time_waited}s')
+                                    healthcheck_errors = subprocess.check_output(['docker', 'inspect', "--format='{{json .State.Health}}'", dependent_container_name], encoding='UTF-8')
+                                    raise RuntimeError(f'Health check of container "{dependent_container_name}" failed terminally with status "unhealthy" after {time_waited}s. Health check errors: {healthcheck_errors}')
                             elif condition == 'service_started':
                                 pass
                             else:
@@ -1028,7 +1029,8 @@ class Runner:
                     if state != 'running':
                         raise RuntimeError(f"State check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not running but '{state}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
                     if health != 'healthy':
-                        raise RuntimeError(f"Health check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                        healthcheck_errors = subprocess.check_output(['docker', 'inspect', "--format='{{json .State.Health}}'", dependent_container_name], encoding='UTF-8')
+                        raise RuntimeError(f"Health check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not healthy but '{health}' after waiting for {time_waited} sec!\nHealth check errors: {healthcheck_errors}")
 
             if 'command' in service:  # must come last
                 docker_run_string.extend(shlex.split(service['command']))
