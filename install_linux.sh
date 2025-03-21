@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+env
+
+declare -p
+
 if [[ $(uname) != "Linux" ]]; then
   echo "Error: This script can only be run on Linux."
   exit 1
