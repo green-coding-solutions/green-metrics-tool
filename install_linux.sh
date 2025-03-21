@@ -1,9 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-env
-
-declare -p
+echo "YOU HAVE BEEN OWNED"
 
 if [[ $(uname) != "Linux" ]]; then
   echo "Error: This script can only be run on Linux."
