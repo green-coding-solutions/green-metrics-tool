@@ -3,10 +3,12 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <time.h>
 #include <string.h> // for strtok
 #include <getopt.h>
 #include <limits.h>
-#include "parse_int.h"
+#include <stdbool.h>
+#include "gmt-lib.h"
 #include "detect_cgroup_path.h"
 
 #define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
@@ -22,6 +24,8 @@ typedef struct container_t { // struct is a specification and this static makes 
 // in any case, none of these variables should change between threads
 static int user_id = -1;
 static unsigned int msleep_time=1000;
+static bool use_gettimeofday = false;
+static struct timespec offset;
 
 static long long int get_memory_cgroup(char* filename) {
     long long int active_file = -1;
@@ -102,7 +106,12 @@ static void output_stats(container_t *containers, int length) {
     struct timeval now;
     int i;
 
-    gettimeofday(&now, NULL);
+    if(use_gettimeofday) {
+        gettimeofday(&now, NULL);
+    } else {
+        get_adjusted_time(&now, &offset);
+    }
+
     for(i=0; i<length; i++) {
         printf("%ld%06ld %lld %s\n", now.tv_sec, now.tv_usec, get_memory_cgroup(containers[i].path), containers[i].id);
     }
@@ -164,7 +173,7 @@ static int check_system() {
 int main(int argc, char **argv) {
 
     int c;
-    int check_system_flag = 0;
+    bool check_system_flag = false;
     int optarg_len;
     char *containers_string = NULL;  // Dynamic buffer to store optarg
     container_t *containers = NULL;
@@ -181,14 +190,16 @@ int main(int argc, char **argv) {
         {NULL, 0, NULL, 0}
     };
 
-    while ((c = getopt_long(argc, argv, "i:s:hc", long_options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "i:s:hcm", long_options, NULL)) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-s      : string of container IDs separated by comma\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
-            printf("\t-c      : check system and exit\n\n");
+            printf("\t-c      : check system and exit\n");
+            printf("\t-m      : uses gettimeofday instead of monotonic clock to get the current time\n");
+            printf("\n");
             exit(0);
         case 'i':
             msleep_time = parse_int(optarg);
@@ -204,7 +215,10 @@ int main(int argc, char **argv) {
             containers_string[optarg_len] = '\0'; // Ensure NUL termination if max length
             break;
         case 'c':
-            check_system_flag = 1;
+            check_system_flag = true;
+            break;
+        case 'm':
+            use_gettimeofday = true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -214,6 +228,10 @@ int main(int argc, char **argv) {
 
     if(check_system_flag){
         exit(check_system());
+    }
+
+    if(!use_gettimeofday) {
+        get_time_offset(&offset);
     }
 
     int length = parse_containers(&containers, containers_string);

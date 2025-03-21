@@ -4,7 +4,8 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
-#include "parse_int.h"
+#include <stdbool.h>
+#include "gmt-lib.h"
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
@@ -15,6 +16,8 @@
 
 static long int user_hz;
 static unsigned int msleep_time=1000;
+static bool use_gettimeofday = false;
+static struct timespec offset;
 
 static long int read_cpu_proc() {
     long int user_time, nice_time, system_time, idle_time, iowait_time, irq_time, softirq_time, steal_time;
@@ -37,17 +40,20 @@ static long int read_cpu_proc() {
 }
 
 static void output_stats() {
-
     struct timeval now;
+    if(use_gettimeofday) {
+        gettimeofday(&now, NULL);
+    } else {
+        get_adjusted_time(&now, &offset);
+    }
 
-    gettimeofday(&now, NULL);
     printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, read_cpu_proc());
     usleep(msleep_time*1000);
 }
 
 static int check_system() {
     const char check_path[] = "/proc/stat";
-    
+
     FILE* fd = fopen(check_path, "r");
 
     if (fd == NULL) {
@@ -61,19 +67,21 @@ static int check_system() {
 int main(int argc, char **argv) {
 
     int c;
-    int check_system_flag = 0;
+    bool check_system_flag = false;
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
     user_hz = sysconf(_SC_CLK_TCK);
 
-    while ((c = getopt (argc, argv, "i:hc")) != -1) {
+    while ((c = getopt (argc, argv, "i:hcm")) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
-            printf("\t-c      : check system and exit\n\n");
+            printf("\t-c      : check system and exit\n");
+            printf("\t-m      : uses gettimeofday instead of monotonic clock to get the current time\n");
+            printf("\n");
 
             struct timespec res;
             double resolution;
@@ -89,7 +97,10 @@ int main(int argc, char **argv) {
             msleep_time = parse_int(optarg);
             break;
         case 'c':
-            check_system_flag = 1;
+            check_system_flag = true;
+            break;
+        case 'm':
+            use_gettimeofday = true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -98,7 +109,11 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system()); 
+        exit(check_system());
+    }
+
+    if(!use_gettimeofday) {
+        get_time_offset(&offset);
     }
 
     while(1) {

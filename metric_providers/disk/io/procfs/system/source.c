@@ -3,18 +3,22 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <time.h>
 #include <string.h> // for strtok
 #include <getopt.h>
 #include <limits.h>
 #include <sys/ioctl.h>
 #include <linux/fs.h>
-#include "parse_int.h"
+#include <stdbool.h>
+#include "gmt-lib.h"
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
 // between Threads.
 // in any case, none of these variables should change between threads
 static unsigned int msleep_time=1000;
+static bool use_gettimeofday = false;
+static struct timespec offset;
 
 static void output_get_disk_procfs() {
     unsigned long long int sectors_read = 0;
@@ -32,7 +36,12 @@ static void output_get_disk_procfs() {
         exit(1);
     }
 
-    gettimeofday(&now, NULL); // one call for get time of day for all interfaces is fine. The overhead would be more than the gain in granularity
+    // one call for get time of day for all interfaces is fine. The overhead would be more than the gain in granularity
+    if(use_gettimeofday) {
+        gettimeofday(&now, NULL);
+    } else {
+        get_adjusted_time(&now, &offset);
+    }
 
     while (fgets(buf, 1024, fd)) {
         // We are not counting dropped packets, as we believe they will at least show up in the
@@ -102,7 +111,7 @@ static int check_system() {
 int main(int argc, char **argv) {
 
     int c;
-    int check_system_flag = 0;
+    bool check_system_flag = false;
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -114,19 +123,24 @@ int main(int argc, char **argv) {
         {NULL, 0, NULL, 0}
     };
 
-    while ((c = getopt_long(argc, argv, "i:hc", long_options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "i:hcm", long_options, NULL)) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
-            printf("\t-c      : check system and exit\n\n");
+            printf("\t-c      : check system and exit\n");
+            printf("\t-m      : uses gettimeofday instead of monotonic clock to get the current time\n");
+            printf("\n");
             exit(0);
         case 'i':
             msleep_time = parse_int(optarg);
             break;
         case 'c':
-            check_system_flag = 1;
+            check_system_flag = true;
+            break;
+        case 'm':
+            use_gettimeofday = true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -136,6 +150,10 @@ int main(int argc, char **argv) {
 
     if(check_system_flag){
         exit(check_system());
+    }
+
+    if(!use_gettimeofday) {
+        get_time_offset(&offset);
     }
 
     while(1) {
