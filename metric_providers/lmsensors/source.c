@@ -34,7 +34,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #ifndef __UCLIBC__
 #include <iconv.h>
@@ -45,13 +47,15 @@
 #include "sensors/error.h"
 #include "sensors/sensors.h"
 #include "source.h"
-#include "parse_int.h"
+#include "gmt-lib.h"
 
 int fahrenheit;
 char degstr[5]; /* store the correct string to print degrees */
 
 static unsigned int msleep_time = 1000;
 static volatile sig_atomic_t keep_running = 1;
+static bool use_gettimeofday = false;
+static struct timespec offset;
 
 /* As we need to do some cleanup when we get SIGINT we need a signal handler*/
 static void sig_handler(int _) {
@@ -68,6 +72,7 @@ static void print_long_help(char *program) {
         "  -h, --help             Display this help text\n"
         "  -t, --fahrenheit       Show temperatures in degrees fahrenheit\n"
         "  -i, --sleep            Milliseconds to sleep between measurements\n"
+        "  -m, --monotonic        Use monotonic clock instead of gettimeofday\n"
         "\n"
         "Parameters for -c and and -f basically search strings. Like a regex '*' appended, "
         "the parameters are seen to be coretemp* and such will match anything that starts"
@@ -171,7 +176,11 @@ static int do_the_real_work(const sensors_chip_name *match, int *err) {
 static void output_value(int value, char *detail_name) {
     struct timeval now;
 
-    gettimeofday(&now, NULL);
+    if(use_gettimeofday) {
+        gettimeofday(&now, NULL);
+    } else {
+        get_adjusted_time(&now, &offset);
+    }
     printf("%ld%06ld %i %s\n", now.tv_sec, now.tv_usec, value, detail_name);
 }
 
@@ -195,6 +204,7 @@ int main(int argc, char *argv[]) {
                                  {"fahrenheit", no_argument, NULL, 't'},
                                  {"config-file", required_argument, NULL, 's'},
                                  {"sleep", required_argument, NULL, 'i'},
+                                 {"monotonic", no_argument, NULL, 'm'},
                                  {0, 0, 0, 0}};
 
     /* Catch both signals and exit gracefully */
@@ -204,7 +214,7 @@ int main(int argc, char *argv[]) {
     setlocale(LC_CTYPE, "");
 
     while (1) {
-        c = getopt_long(argc, argv, "c:f:hts:i:n:", long_opts, NULL);
+        c = getopt_long(argc, argv, "c:f:hts:i:n:m", long_opts, NULL);
         if (c == EOF) break;
         switch (c) {
             case ':':
@@ -240,6 +250,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'n':
                 measurement_amount = parse_int(optarg);
+                break;
+            case 'm':
+                use_gettimeofday = true;
                 break;
             default:
                 exit(1);
@@ -321,6 +334,10 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Feature '%s' specified but can not be found!\n", ((char *) feature_iterator->data));
             }
             exit(1);
+        }
+
+        if(!use_gettimeofday) {
+            get_time_offset(&offset);
         }
 
         /* The main loop */

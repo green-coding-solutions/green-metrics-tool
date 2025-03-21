@@ -4,7 +4,8 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
-#include "parse_int.h"
+#include <stdbool.h>
+#include "gmt-lib.h"
 
 typedef struct procfs_time_t { // struct is a specification and this static makes no sense here
     unsigned long user_time;
@@ -32,6 +33,8 @@ typedef struct procfs_time_t { // struct is a specification and this static make
 // TODO: If this code ever gets multi-threaded please review this assumption to
 // not pollute another threads state
 static unsigned int msleep_time=1000;
+static bool use_gettimeofday = false;
+static struct timespec offset;
 
 static void read_cpu_proc(procfs_time_t* procfs_time_struct) {
 
@@ -66,7 +69,12 @@ static void output_stats() {
     procfs_time_t main_cpu_reading_after;
     struct timeval now;
 
-    gettimeofday(&now, NULL); // will set now
+    if(use_gettimeofday) {
+        gettimeofday(&now, NULL);
+    } else {
+        get_adjusted_time(&now, &offset);
+    }
+
     read_cpu_proc(&main_cpu_reading_before); // will set main_cpu_reading_before
 
     usleep(msleep_time*1000);
@@ -86,7 +94,7 @@ static void output_stats() {
 
 static int check_system() {
     const char check_path[] = "/proc/stat";
-    
+
     FILE* fd = fopen(check_path, "r");
 
     if (fd == NULL) {
@@ -100,18 +108,19 @@ static int check_system() {
 int main(int argc, char **argv) {
 
     int c;
-    int check_system_flag = 0;
+    bool check_system_flag = false;
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    while ((c = getopt (argc, argv, "i:hc")) != -1) {
+    while ((c = getopt (argc, argv, "i:hcm")) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
-            printf("\t-c      : check system and exit\n\n");
-
+            printf("\t-c      : check system and exit\n");
+            printf("\t-m      : uses gettimeofday instead of monotonic clock to get the current time\n");
+            printf("\n");
 
             struct timespec res;
             double resolution;
@@ -126,7 +135,10 @@ int main(int argc, char **argv) {
             msleep_time = parse_int(optarg);
             break;
         case 'c':
-            check_system_flag = 1;
+            check_system_flag = true;
+            break;
+        case 'm':
+            use_gettimeofday = true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -135,7 +147,11 @@ int main(int argc, char **argv) {
     }
 
     if(check_system_flag){
-        exit(check_system()); 
+        exit(check_system());
+    }
+
+    if(!use_gettimeofday) {
+        get_time_offset(&offset);
     }
 
     while(1) {
