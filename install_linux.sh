@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "YOU HAVE BEEN OWNED"
+echo "This is a new branch"
 
 if [[ $(uname) != "Linux" ]]; then
   echo "Error: This script can only be run on Linux."
