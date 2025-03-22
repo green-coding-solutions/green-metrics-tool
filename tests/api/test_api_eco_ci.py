@@ -140,7 +140,7 @@ def test_ci_measurement_add_small_with_warning():
     compare_carbondb_data(measurement_model, data)
 
 
-    assert 'Extremely small energy budget was submitted to Eco-CI API' in logs
+    assert 'Extremely small energy budget was submitted to Eco CI API' in logs
     assert 'Measurement (CI_Measurement): energy_uj=1' in logs
 
 def test_ci_measurement_add_force_ip():
@@ -248,6 +248,15 @@ def test_ci_badge_get_average():
     assert 'Per run moving average (5 days) carbon emitted' in response.text, Tests.assertion_info('success', response.text)
     assert '0.75 g' in response.text, Tests.assertion_info('success', response.text)
 
+
+def test_get_insights():
+    Tests.import_demo_data()
+
+    response = requests.get(f"{API_URL}/v1/ci/insights", timeout=15)
+    res_json = response.json()
+    assert response.status_code == 200
+    assert res_json['data'][0] == 453
+    assert res_json['data'][1] == '2023-08-01'
 
 ## helpers
 

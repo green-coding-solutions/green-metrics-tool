@@ -3,6 +3,7 @@ from copy import deepcopy
 import subprocess
 import yaml
 import shutil
+import re
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -10,8 +11,8 @@ from lib import utils
 
 BASE_COMPOSE_NAME = 'compose.yml.example'
 TEST_COMPOSE_NAME = 'test-compose.yml'
-BASE_FRONTEND_CONFIG_NAME = 'frontend/js/helpers/config.js'
-TEST_FRONTEND_CONFIG_NAME = 'frontend-config.js'
+BASE_FRONTEND_CONFIG_NAME = 'frontend/js/helpers/config.js.example'
+TEST_FRONTEND_CONFIG_NAME = 'test-config.js'
 BASE_NGINX_PORT = 9142
 TEST_NGINX_PORT = 9143
 TEST_NGINX_PORT_MAPPING = [f"{TEST_NGINX_PORT}:{BASE_NGINX_PORT}"] # only change public port
@@ -134,19 +135,33 @@ def create_test_config_file(ee=False):
         content = file.read()
 
     if ee:
-        print('Activating enterprise ...')
+        print('Activating enterprise in config.yml ...')
         content = content.replace('#ee_token:', 'ee_token:')
+        content = content.replace('activate_power_hog: False', 'activate_power_hog: True')
+        content = content.replace('activate_carbon_db: False', 'activate_carbon_db: True')
 
     with open('test-config.yml', 'w', encoding='utf-8') as file:
         file.write(content)
 
-def create_frontend_config_file():
-    print('Creating frontend config file...')
+def create_frontend_config_file(ee=False):
+    print('Creating frontend test-config.js file...')
 
     with open(base_frontend_config_path, 'r', encoding='utf-8') as file:
         content = file.read()
 
-    content = content.replace(str(BASE_NGINX_PORT), str(TEST_NGINX_PORT))
+    content = content.replace('__API_URL__', 'http://api.green-coding.internal:9143')
+    content = content.replace('__METRICS_URL__', 'http://metrics.green-coding.internal:9143')
+
+    content = re.sub(r'ACTIVATE_SCENARIO_RUNNER.*$', 'ACTIVATE_SCENARIO_RUNNER = true;', content, flags=re.MULTILINE)
+    content = re.sub(r'ACTIVATE_ECO_CI.*$', 'ACTIVATE_ECO_CI = true;', content, flags=re.MULTILINE)
+
+    if ee:
+        print(f'Activating enterprise in {TEST_FRONTEND_CONFIG_NAME} ...')
+        content = re.sub(r'ACTIVATE_CARBON_DB.*$', 'ACTIVATE_CARBON_DB = true;', content, flags=re.MULTILINE)
+        content = re.sub(r'ACTIVATE_POWER_HOG.*$', 'ACTIVATE_POWER_HOG = true;', content, flags=re.MULTILINE)
+    else:
+        content = re.sub(r'ACTIVATE_CARBON_DB.*$', 'ACTIVATE_CARBON_DB = false;', content, flags=re.MULTILINE)
+        content = re.sub(r'ACTIVATE_POWER_HOG.*$', 'ACTIVATE_POWER_HOG = false;', content, flags=re.MULTILINE)
 
     with open(test_frontend_config_path, 'w', encoding='utf-8') as file:
         file.write(content)
@@ -170,7 +185,7 @@ if __name__ == '__main__':
 
     copy_sql_structure(args.ee)
     create_test_config_file(args.ee)
-    create_frontend_config_file()
+    create_frontend_config_file(args.ee)
     edit_compose_file()
     edit_etc_hosts()
     if not args.no_docker_build:

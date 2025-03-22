@@ -45,5 +45,27 @@ async function getRepositories(sort_by = 'date') {
 }
 
 (async () => {
-    await sortDate();
+    document.querySelector('#home-toggle-button').addEventListener('click', el => {
+        if (el.currentTarget.innerText === 'Switch to repository view') {
+            document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Repositories';
+            localStorage.setItem('scenario_runner_data_shown', 'repositories');
+            window.location.reload();
+        } else {
+            document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Last 50 Runs';
+            localStorage.setItem('scenario_runner_data_shown', 'last_runs');
+            window.location.reload();
+        }
+    });
+
+    if (localStorage.getItem('scenario_runner_data_shown') === 'repositories') {
+        document.querySelector('#home-toggle-button').innerText = 'Switch to last runs view';
+        document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Repositories';
+        document.querySelectorAll('.scenario-runner-repositories').forEach(el => el.style.visibility = 'visible');
+        document.querySelector('#scenario-runner-runs-description')?.remove();
+        sortDate();
+    } else {
+        document.querySelectorAll('.scenario-runner-runs').forEach(el => el.style.visibility = 'visible');
+        document.querySelector('#scenario-runner-repositories-description')?.remove();
+        getRunsTable($('#runs-table'), `/v1/runs?${getFilterQueryStringFromURI()}&limit=50`)
+    }
 })();

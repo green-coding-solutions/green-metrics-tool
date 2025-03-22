@@ -9,7 +9,7 @@ import orjson
 from lib.global_config import GlobalConfig
 from lib import utils
 from lib.user import User
-from api.main import get_run, get_measurements_single, get_network, get_notes, get_phase_stats_single
+from api.scenario_runner import get_run, get_measurements_single, get_network, get_notes, get_phase_stats_single
 
 class Criticality(Enum):
     CRITICAL = 'red'

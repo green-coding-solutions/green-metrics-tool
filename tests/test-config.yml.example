@@ -111,3 +111,8 @@ optimization:
 
 electricity_maps_token: 'testing'
 #ee_token: 'testing'
+
+activate_scenario_runner: True
+activate_eco_ci: True
+activate_power_hog: False
+activate_carbon_db: False

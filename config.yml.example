@@ -236,6 +236,14 @@ sci:
 # This is a free service please note that you need to pay if you want to use this commercially!
 #electricity_maps_token: '123'
 
+# Modules API / Frontend
+# GMT can selectively activate some API and frontend components. This is asked in the install process and should NOT
+# only be changed here as files in different locations are changed too. Please re-run the install process.
+activate_scenario_runner: False
+activate_eco_ci: False
+activate_power_hog: False
+activate_carbon_db: False
+
 # GMT can activate additional enterprise only functionality
 # If you have a subscription insert your token here
 ee_token: False

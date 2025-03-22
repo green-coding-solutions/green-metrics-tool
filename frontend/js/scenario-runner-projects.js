@@ -3,7 +3,7 @@ $(document).ready(function () {
     (async () => {
         let measurements = null;
         try {
-            measurements = await makeAPICall('/v1/timeline-projects');
+            measurements = await makeAPICall('/v1/projects');
         } catch (err) {
             showNotification('Could not get data from API', err);
             return;
@@ -62,11 +62,11 @@ $(document).ready(function () {
                     Show Timeline <i class="external alternate icon"></i>
                 </a>
                 <hr>
-                <a class="ui button grey" href="/index.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}" target="_blank">
+                <a class="ui button grey" href="/runs.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}" target="_blank">
                     Show All Measurements <i class="external alternate icon"></i>
                 </a>`
 
-            document.querySelector('#timeline-cards').appendChild(chart_node)
+            document.querySelector('#scenario-runner-projects').appendChild(chart_node)
         });
         document.querySelectorAll(".copy-badge").forEach(el => {
             el.addEventListener('click', copyToClipboard)

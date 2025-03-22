@@ -6,14 +6,13 @@ async function getRepositories(sort_by = 'date') {
         return;
     }
 
-    const table_body = document.querySelector('#repositories-table tbody');
+    const table_body = document.querySelector('#ci-repositories-table tbody');
     table_body.innerHTML = '';
 
     api_data.data.forEach(el => {
         const repo = el[0]; // escaping not needed, as done in API ingest
         const source = el[1]; // escaping not needed, as done in API ingest
         const last_run = el[2]; // escaping not needed, as done in API ingest
-
 
         let row = table_body.insertRow()
         row.innerHTML = `
@@ -113,5 +112,5 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
 }
 
 (async () => {
-    await sortDate();
+    sortDate();
 })();

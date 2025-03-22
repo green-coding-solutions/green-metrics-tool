@@ -13,6 +13,37 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
   -o-transition: none !important;
 }
 
+.index-connected-tools {
+    display: none !important;
+}
+
+
+a.project-item.wrapped {
+    border: 10px solid #3d936f;
+    border-radius: 50%
+}
+
+a.project-item>i.icon {
+    display: block;
+    color: #f9f9f5;
+    width: 140px;
+    height: 140px;
+    border: 15px solid #f9f9f5;
+    border-radius: 50%;
+    font-size: 3.5em!important;
+    text-align: center;
+    overflow: hidden;
+    font-weight: 700;
+    background: #67a98b;
+    line-height: 108px;
+    font-size: 80px;
+    margin: 0
+}
+
+#runs-table, #repositories-table, .scenario-runner-runs, .scenario-runner-repositories {
+    visibility: hidden;
+}
+
 .full-width-card {
     width: 100% !important;
     margin-bottom: 26px !important;

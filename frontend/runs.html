@@ -10,9 +10,9 @@
     <link rel="icon" href="/images/favicon-16x16.png" sizes="16x16">
     <link rel="icon" href="/images/favicon-32x32.png" sizes="32x32">
     <!-- Site Properties -->
-    <title>Green Metrics Tool</title>
+    <title>Green Metrics Tool - ScenarioRunner Runs</title>
     <meta name="referrer" content="no-referrer-when-downgrade" />
-    <meta name="description" content="Measuring the energy of your software" />
+    <meta name="description" content="Measuring the energy and carbon footprint of your software" />
     <script src="/dist/js/jquery.min.js" defer></script>
     <script src="/dist/js/datatables.min.js" defer></script>
     <script src="/dist/js/accordion.min.js" defer></script>
@@ -21,7 +21,7 @@
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
     <script src="/js/helpers/runs.js" defer></script>
-    <script src="/js/repositories.js" defer></script>
+    <script src="/js/scenario-runner.js" defer></script>
 
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
@@ -31,21 +31,34 @@
     <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
         <h1 class="ui header float left">
-            <a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a>
-            Green Metrics Tool - All Repositories
+            <a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon opened"></i></a>
+            <span>ScenarioRunner - Last 50 Runs</span>
+            <button id="home-toggle-button" class="ui button green float-right">Switch to repository view</button>
+
         </h1>
-        <div class="ui full-width-card segment card">
+        <div id="scenario-runner-repositories-description" class="ui full-width-card segment card">
             <div class="content">
                 <div class="header">Repository overview</div>
                 <div class="description">
                     <i class="close icon"></i>
-                    <p>The repository page of the Green Metrics Tool shows you all known repositories
-                    </p>
-                    <p>By clicking on a repository name a drawer will open with all the runs known for that repository.</p>
-                    <p>From there you can go into the details for a specific measurement, or compare them with other runs or even repositories.</p>
-                    <p>Comparing is possible for different repos, different branches and different runs as long as they are on the same machine. Also different machines are supported if you compare the same repo.
-                </p>
-                <p>Currently we do not support comparing different machines AND different repos at the same time. The tool will notifiy you if you attempt to do so :)</p>
+                    <p>The repositories page of ScenarioRunner shows you all known repos</p>
+                    <p>The view can be sorted by URI or by date of the last run</p>
+                    <p>From here you can go into the details for a specific measurement, or compare them.</p>
+                    <p>Comparing is possible for different repos, different branches and different runs as long as they are on the same machine. Also different machines are supported if you compare the same repo.</p>
+                    <p>Currently we do not support comparing different machines AND different repos at the same time. The tool will notify you if you attempt to do so :)</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="scenario-runner-runs-description" class="ui full-width-card segment card">
+            <div class="content">
+                <div class="header">Last runs</div>
+                <div class="description">
+                    <i class="close icon"></i>
+                    <p>The runs page of ScenarioRunner shows you the last 50 runs</p>
+                    <p>From here you can go into the details for a specific measurement, or compare them.</p>
+                    <p>Comparing is possible for different repos, different branches and different runs as long as they are on the same machine. Also different machines are supported if you compare the same repo.</p>
+                    <p>Currently we do not support comparing different machines AND different repos at the same time. The tool will notifiy you if you attempt to do so :)</p>
                 </div>
             </div>
         </div>
@@ -57,7 +70,9 @@
             <ul></ul>
         </div>
 
-        <table id="repositories-table" class="ui celled striped table">
+        <table id="runs-table" class="ui celled striped table scenario-runner-runs"></table>
+
+        <table id="repositories-table" class="ui celled striped table scenario-runner-repositories">
             <thead>
                 <tr>
                     <th>

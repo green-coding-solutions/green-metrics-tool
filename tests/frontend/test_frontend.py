@@ -58,18 +58,37 @@ def setup_and_cleanup_test():
 def test_home():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+    value = page.locator("div.ui.cards.link > div.ui.card:nth-child(1) a.header").text_content()
+
+    assert value== 'ScenarioRunner'
+
+    value = page.locator("#scenario-runner-count").text_content()
+    assert value== '100'
+
+    page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+    value = page.locator("div.ui.cards.link > div.ui.card:nth-child(2) a.header").text_content()
+
+    assert value== 'Eco CI'
+
+
+def test_runs():
+
+    page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/runs.html')
+    page.get_by_role("link", name="Runs / Repos").click()
+
     value = page.locator("#runs-table > tbody > tr:nth-child(2) > td:nth-child(1) > a").text_content()
 
     assert value== 'Stress Test #2'
 
+
 def test_eco_ci_demo_data():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Eco-CI").click()
+    page.get_by_role("link", name="Eco CI").click()
 
     page.wait_for_load_state("load") # ALL JS should be done
 
-    page.locator("#repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
+    page.locator("#ci-repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
     page.locator('#DataTables_Table_0 > tbody > tr  > td:first-child > a').click()
 
     page.wait_for_load_state("load") # ALL JS should be done
@@ -149,9 +168,9 @@ def test_eco_ci_adding_data():
 
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-        page.get_by_role("link", name="Eco-CI").click()
+        page.get_by_role("link", name="Eco CI").click()
 
-        page.locator("#repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
+        page.locator("#ci-repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
         page.locator('#DataTables_Table_0 > tbody > tr  > td:first-child > a').click()
 
         page.wait_for_load_state("load") # ALL JS should be done
@@ -174,6 +193,8 @@ def test_eco_ci_adding_data():
 def test_stats():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+
+    page.get_by_role("link", name="Runs / Repos").click()
 
     with context.expect_page() as new_page_info:
         page.get_by_role("link", name="Stress Test #1").click()
@@ -267,7 +288,9 @@ def test_stats():
 def test_repositories_and_compare():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Repositories").click()
+    page.get_by_role("link", name="Runs / Repos").click()
+    page.get_by_role("button", name="Switch to repository view").click()
+
     page.locator('.ui.accordion div.title').click()
     page.locator('.dataTables_info').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
 
@@ -326,7 +349,7 @@ def test_repositories_and_compare():
 def test_timeline():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Energy Timeline").click()
+    page.get_by_role("link", name="Projects").click()
     with context.expect_page() as new_page_info:
         page.get_by_role("link", name=" Show Timeline").click()
 
