@@ -6,6 +6,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 from lib.db import DB
 from lib import utils
 from lib.global_config import GlobalConfig
+from tests import test_functions as Tests
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
 
@@ -34,3 +35,12 @@ def test_get_runs():
     res_json = response.json()
     assert response.status_code == 200
     assert res_json['data'][0][0] == str(pid)
+
+def test_get_insights():
+    Tests.import_demo_data()
+
+    response = requests.get(f"{API_URL}/v1/insights", timeout=15)
+    res_json = response.json()
+    assert response.status_code == 200
+    assert res_json['data'][0] == 5
+    assert res_json['data'][1] == '2024-09-11'

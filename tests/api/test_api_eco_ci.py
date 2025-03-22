@@ -249,6 +249,15 @@ def test_ci_badge_get_average():
     assert '0.75 g' in response.text, Tests.assertion_info('success', response.text)
 
 
+def test_get_insights():
+    Tests.import_demo_data()
+
+    response = requests.get(f"{API_URL}/v1/ci/insights", timeout=15)
+    res_json = response.json()
+    assert response.status_code == 200
+    assert res_json['data'][0] == 453
+    assert res_json['data'][1] == '2023-08-01'
+
 ## helpers
 
 def fetch_data_from_db(run_id):
