@@ -425,12 +425,12 @@ METRIC_MAPPINGS = {
 
     'gpu_energy_nvidia_smi_component': {
         'clean_name': 'GPU Energy',
-        'source': 'NVIDA SMI',
+        'source': 'NVIDIA SMI',
         'explanation': 'Derived NVIDIA SMI based GPU energy',
     },
     'gpu_power_nvidia_smi_component': {
         'clean_name': 'GPU Power',
-        'source': 'NVIDA SMI',
+        'source': 'NVIDIA SMI',
         'explanation': 'NVIDIA SMI based GPU power',
     },
     'cpu_energy_rapl_msr_component': {
