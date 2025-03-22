@@ -66,7 +66,7 @@ $(document).ready(function () {
                     Show All Measurements <i class="external alternate icon"></i>
                 </a>`
 
-            document.querySelector('#metric-runner-projects').appendChild(chart_node)
+            document.querySelector('#scenario-runner-projects').appendChild(chart_node)
         });
         document.querySelectorAll(".copy-badge").forEach(el => {
             el.addEventListener('click', copyToClipboard)

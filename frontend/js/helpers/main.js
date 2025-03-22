@@ -11,9 +11,9 @@ class GMTMenu extends HTMLElement {
                     <b><i class="home icon"></i> Home</b>
                 </a>`
 
-        if (ACTIVATE_METRIC_RUNNER == true) {
+        if (ACTIVATE_SCENARIO_RUNNER == true) {
             html_content = `${html_content}
-                <a class="item" href="/runs.html"><b><i class="tachometer alternate left icon"></i> MetricRunner</b></a>
+                <a class="item" href="/runs.html"><b><i class="tachometer alternate left icon"></i> ScenarioRunner</b></a>
                 <a class="item" href="/runs.html">
                     ⮑&nbsp;&nbsp;<b><i class="code branch icon"></i> Runs / Repos</b>
                 </a>

@@ -16,7 +16,7 @@ setup_python
 
 build_containers
 
-if [[ $activate_metric_runner == true ]] ; then
+if [[ $activate_scenario_runner == true ]] ; then
 
     print_message "Installing needed binaries for building ..."
     if ! command -v stdbuf &> /dev/null; then

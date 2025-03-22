@@ -239,7 +239,7 @@ sci:
 # Modules API / Frontend
 # GMT can selectively activate some API and frontend components. This is asked in the install process and should NOT
 # only be changed here as files in different locations are changed too. Please re-run the install process.
-activate_metric_runner: False
+activate_scenario_runner: False
 activate_eco_ci: False
 activate_power_hog: False
 activate_carbon_db: False

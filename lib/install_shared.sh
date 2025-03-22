@@ -7,8 +7,8 @@ NC='\033[0m' # No Color
 db_pw=''
 api_url=''
 metrics_url=''
-ask_metric_runner=true
-activate_metric_runner=true
+ask_scenario_runner=true
+activate_scenario_runner=true
 ask_eco_ci=true
 activate_eco_ci=false
 ask_power_hog=true
@@ -134,11 +134,11 @@ function prepare_config() {
     eval "${sed_command} -e \"s|__API_URL__|$api_url|\" frontend/js/helpers/config.js"
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" frontend/js/helpers/config.js"
 
-    if [[ $activate_metric_runner == true ]]; then
-        eval "${sed_command} -e \"s|__ACTIVATE_METRIC_RUNNER__|true|\" frontend/js/helpers/config.js"
-        eval "${sed_command} -e \"s|activate_metric_runner:.*$|activate_metric_runner: True|\" config.yml"
+    if [[ $activate_scenario_runner == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_SCENARIO_RUNNER__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_scenario_runner:.*$|activate_scenario_runner: True|\" config.yml"
     else
-        eval "${sed_command} -e \"s|__ACTIVATE_METRIC_RUNNER__|false|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|__ACTIVATE_SCENARIO_RUNNER__|false|\" frontend/js/helpers/config.js"
     fi
 
     if [[ $activate_eco_ci == true ]]; then
@@ -249,7 +249,7 @@ function setup_python() {
 }
 
 function checkout_submodules() {
-    if [[ $activate_metric_runner == false ]]; then
+    if [[ $activate_scenario_runner == false ]]; then
         print_message 'Skipping checkout submodules ...'
         return
     fi
@@ -266,7 +266,7 @@ function checkout_submodules() {
 }
 
 function build_binaries() {
-    if [[ $activate_metric_runner == false ]]; then
+    if [[ $activate_scenario_runner == false ]]; then
         print_message 'Skipping build binaries ...'
         return
     fi
@@ -440,12 +440,12 @@ while getopts ":p:a:m:nhtbisurlc:k:e:zZdDgGfFjJ" o; do
             ;;
 
         f)
-            activate_metric_runner=true
-            ask_metric_runner=false
+            activate_scenario_runner=true
+            ask_scenario_runner=false
             ;;
         F)
-            activate_metric_runner=false
-            ask_metric_runner=false
+            activate_scenario_runner=false
+            ask_scenario_runner=false
             ;;
         j)
             activate_eco_ci=true
@@ -482,8 +482,8 @@ while getopts ":p:a:m:nhtbisurlc:k:e:zZdDgGfFjJ" o; do
             echo -e '  -D:\t\t\tDe-activate CarbonDB'
             echo -e '  -g:\t\t\tActivate PowerHOG'
             echo -e '  -G:\t\t\tDe-activate PowerHOG'
-            echo -e '  -f:\t\t\tActivate MetricRunner'
-            echo -e '  -F:\t\t\tDe-activate MetricRunner'
+            echo -e '  -f:\t\t\tActivate ScenarioRunner'
+            echo -e '  -F:\t\t\tDe-activate ScenarioRunner'
             echo -e '  -j:\t\t\tActivate Eco CI'
             echo -e '  -J:\t\t\tDe-activate Eco CI'
 
@@ -552,13 +552,13 @@ if [[ -z "$db_pw" ]] ; then
     db_pw=${db_pw:-"$default_password"}
 fi
 
-if [[ $ask_metric_runner == true ]]; then
+if [[ $ask_scenario_runner == true ]]; then
     echo ""
-    read -p "Do you want to activate MetricRunner (For benchmarking container software)? (Y/n) : " activate_metric_runner
-    if [[  "$activate_metric_runner" == "N" || "$activate_metric_runner" == "n" ]] ; then
-        activate_metric_runner=false
+    read -p "Do you want to activate ScenarioRunner (For benchmarking container software)? (Y/n) : " activate_scenario_runner
+    if [[  "$activate_scenario_runner" == "N" || "$activate_scenario_runner" == "n" ]] ; then
+        activate_scenario_runner=false
     else
-        activate_metric_runner=true
+        activate_scenario_runner=true
     fi
 fi
 

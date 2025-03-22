@@ -16,7 +16,7 @@ setup_python
 
 build_containers
 
-if [[ $activate_metric_runner == true ]] ; then
+if [[ $activate_scenario_runner == true ]] ; then
     print_message "Installing needed binaries for building ..."
     if lsb_release -is | grep -q "Fedora"; then
         sudo dnf -y install glib2 glib2-devel tinyproxy stress-ng lshw

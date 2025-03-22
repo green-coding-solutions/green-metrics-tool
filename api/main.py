@@ -137,9 +137,9 @@ async def robots_txt():
 async def read_authentication_token(user: User = Depends(authenticate)):
     return ORJSONResponse({'success': True, 'data': user.to_dict()})
 
-if GlobalConfig().config.get('activate_metric_runner', False):
-    from api import metric_runner
-    app.include_router(metric_runner.router)
+if GlobalConfig().config.get('activate_scenario_runner', False):
+    from api import scenario_runner
+    app.include_router(scenario_runner.router)
 
 if GlobalConfig().config.get('activate_eco_ci', False):
     from api import eco_ci
