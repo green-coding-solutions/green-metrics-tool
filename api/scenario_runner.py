@@ -51,7 +51,7 @@ async def get_jobs(
     user: User = Depends(authenticate), # pylint: disable=unused-argument
     ):
 
-    params = []
+    params = [user.is_super_user(), user.visible_users()]
     machine_id_condition = ''
     state_condition = ''
 
@@ -69,7 +69,8 @@ async def get_jobs(
         LEFT JOIN machines as m on m.id = j.machine_id
         LEFT JOIN runs as r on r.job_id = j.id
         WHERE
-            j.type = 'run'
+            (TRUE = %s OR r.user_id = ANY(%s::int[]))
+            AND j.type = 'run'
             {machine_id_condition}
             {state_condition}
         ORDER BY j.updated_at DESC, j.created_at ASC
