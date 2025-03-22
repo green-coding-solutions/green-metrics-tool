@@ -765,10 +765,10 @@ def authenticate(authentication_token=Depends(header_scheme), request: Request =
         user = User.authenticate(SecureVariable(authentication_token))
 
         if not user.can_use_route(request.scope["route"].path):
-            raise HTTPException(status_code=401, detail="Route not allowed") from UserAuthenticationError
+            raise HTTPException(status_code=401, detail=f"Route not allowed for user {user._name}") from UserAuthenticationError
 
         if not user.has_api_quota(request.scope["route"].path):
-            raise HTTPException(status_code=401, detail="Quota exceeded") from UserAuthenticationError
+            raise HTTPException(status_code=401, detail=f"Quota exceeded for user {user._name}") from UserAuthenticationError
 
         user.deduct_api_quota(request.scope["route"].path, 1)
 
