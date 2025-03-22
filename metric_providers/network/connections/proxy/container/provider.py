@@ -55,6 +55,11 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
         else:
             proxy_addr = 'host.docker.internal'
 
+        if no_proxy_list == '':
+            no_proxy_list = '127.0.0.1,localhost'
+        else:
+            no_proxy_list = f"{no_proxy_list},127.0.0.1,localhost"
+
         # See https://about.gitlab.com/blog/2021/01/27/we-need-to-talk-no-proxy/ for a discussion on the env vars
         # To be sure we include all variants
         return ['--env', f"HTTP_PROXY=http://{proxy_addr}:8889",
