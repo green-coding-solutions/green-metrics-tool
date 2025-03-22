@@ -58,7 +58,7 @@ VALUES (
                 "/v1/diff",
                 "/v1/run/{run_id}",
                 "/v1/optimizations/{run_id}",
-                "/v1/timeline-projects",
+                "/v1/projects",
                 "/v1/badge/single/{run_id}",
                 "/v1/badge/timeline",
                 "/v1/timeline",

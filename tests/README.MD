@@ -15,8 +15,9 @@ python3 -m pip install -r ../requirements-dev.txt
 playwright install --with-deps firefox
 ```
 
-We assume that your green-metrics-tool is already set up to work on your machine, as it will use your local config.yml
-file to determine which metric providers can be utilized in the tests.
+We assume that your green-metrics-tool is already set up to work on your machine.
+
+Tests will always run for *ScenarioRunner* and *Eco CI* even if you have this deactivated in your GMT installation.
 
 ## First time setup
 
