@@ -66,7 +66,7 @@ def test_run_schedule_daily_repeated():
     schedule_watchlist_item()
 
     jobs = get_jobs()
-    assert len(jobs) == 1 # we still expect only one project
+    assert len(jobs) == 1 # we still expect only one item
 
 
 def test_run_schedule_watchlist_item_update_commit():
@@ -87,7 +87,7 @@ def test_run_schedule_watchlist_item_update_commit():
     watchlist_item_db = utils.get_watchlist_item(watchlist_item_modified['url'])
     assert watchlist_item_db['last_marker'] == GMT_LAST_COMMIT_HASH
 
-    # And another schedule will NOT create a new project
+    # And another schedule will NOT create a new item
     schedule_watchlist_item()
 
     jobs = get_jobs()

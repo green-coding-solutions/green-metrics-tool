@@ -63,7 +63,7 @@ def test_home():
     assert value== 'ScenarioRunner'
 
     value = page.locator("#scenario-runner-count").text_content()
-    assert value== '100'
+    assert value== '5'
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     value = page.locator("div.ui.cards.link > div.ui.card:nth-child(2) a.header").text_content()
@@ -346,10 +346,10 @@ def test_repositories_and_compare():
     new_page.close()
 
 
-def test_timeline():
+def test_watchlist():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Projects").click()
+    page.get_by_role("link", name="Watchlist").click()
     with context.expect_page() as new_page_info:
         page.get_by_role("link", name=" Show Timeline").click()
 
