@@ -13,7 +13,7 @@ WATCHLIST_ITEM = {
         'url':'https://github.com/green-coding-solutions/green-metrics-tool',
         'branch':'main',
         'filename':'usage_scenario.yml',
-        'machine_id':'1',
+        'machine_id':1,
         'user_id':1,
         'schedule_mode':'daily',
         'last_marker':None
