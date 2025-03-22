@@ -203,7 +203,7 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, 
 
     metrics_condition = ''
     if metrics is None or metrics.strip() == '' or metrics.strip() == 'key':
-        metrics_condition =  "AND (p.metric LIKE '%%_energy_%%' OR metric = 'software_carbon_intensity_global' OR metric = 'phase_time_syscall_system')"
+        metrics_condition =  "AND (p.metric LIKE '%%_energy_%%' OR metric = 'software_carbon_intensity_global' OR metric = 'phase_time_syscall_system') AND p.metric NOT LIKE '%%_container' AND p.metric NOT LIKE '%%_slice' "
     elif metrics.strip() != 'all':
         metrics_condition =  "AND p.metric = %s"
         params.append(metrics)
