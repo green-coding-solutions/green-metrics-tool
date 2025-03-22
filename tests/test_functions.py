@@ -172,6 +172,19 @@ def import_demo_data():
         encoding='UTF-8'
     )
 
+def import_demo_data_ee():
+    config = GlobalConfig().config
+    port = config['postgresql']['port']
+    dbname = config['postgresql']['dbname']
+    subprocess.run(
+        f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{dbname} -p{port} < {CURRENT_DIR}/../ee/data/demo_data_ee.sql",
+        check=True,
+        shell=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
 
 def assertion_info(expected, actual):
     return f"Expected: {expected}, Actual: {actual}"

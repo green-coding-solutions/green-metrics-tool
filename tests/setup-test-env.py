@@ -12,6 +12,7 @@ from lib import utils
 BASE_COMPOSE_NAME = 'compose.yml.example'
 TEST_COMPOSE_NAME = 'test-compose.yml'
 BASE_FRONTEND_CONFIG_NAME = 'frontend/js/helpers/config.js.example'
+OVERLAY_FRONTEND_CONFIG_NAME = 'frontend/js/helpers/config.js'
 TEST_FRONTEND_CONFIG_NAME = 'test-config.js'
 BASE_NGINX_PORT = 9142
 TEST_NGINX_PORT = 9143
@@ -87,13 +88,14 @@ def edit_compose_file():
         # for nginx, change port mapping
         if 'nginx' in service:
             compose['services'][service]['ports'] = TEST_NGINX_PORT_MAPPING
+            new_vol_list.append(
+                f'{current_dir}/{TEST_FRONTEND_CONFIG_NAME}:/var/www/green-metrics-tool/{OVERLAY_FRONTEND_CONFIG_NAME}')
 
         # for nginx and gunicorn services, add test config and frontend config mapping
         if 'nginx' in service or 'gunicorn' in service:
             new_vol_list.append(
                 f'{current_dir}/test-config.yml:/var/www/green-metrics-tool/config.yml')
-            new_vol_list.append(
-                f'{current_dir}/{TEST_FRONTEND_CONFIG_NAME}:/var/www/green-metrics-tool/{BASE_FRONTEND_CONFIG_NAME}')
+
         compose['services'][service]['volumes'] = new_vol_list
 
         # For postgresql, change port mapping and password

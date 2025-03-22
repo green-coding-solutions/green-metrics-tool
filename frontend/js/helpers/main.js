@@ -17,8 +17,8 @@ class GMTMenu extends HTMLElement {
                 <a class="item" href="/runs.html">
                     ⮑&nbsp;&nbsp;<b><i class="code branch icon"></i> Runs / Repos</b>
                 </a>
-                <a class="item" href="/projects.html">
-                    ⮑&nbsp;&nbsp;<b><i class="list icon"></i> Projects</b>
+                <a class="item" href="/watchlist.html">
+                    ⮑&nbsp;&nbsp;<b><i class="list icon"></i> Watchlist</b>
                 </a>
                 <a class="item" href="/request.html">
                     ⮑&nbsp;&nbsp;<b><i class="bullseye icon"></i> Submit Software</b>

@@ -33,7 +33,7 @@ def test_post_run_add_github_tags():
     job_id = get_job_id(run_name)
     assert job_id is not None
 
-    timeline_project = utils.get_timeline_project('https://github.com/green-coding-solutions/green-metrics-tool')
+    timeline_project = utils.get_watchlist_item('https://github.com/green-coding-solutions/green-metrics-tool')
 
     assert re.match(r'v\d+\.\d+\.?\d*',timeline_project['last_marker'])
     assert timeline_project['schedule_mode'] == 'tag'
@@ -47,7 +47,7 @@ def test_post_run_add_github_commit():
     job_id = get_job_id(run_name)
     assert job_id is not None
 
-    timeline_project = utils.get_timeline_project('https://github.com/green-coding-solutions/green-metrics-tool')
+    timeline_project = utils.get_watchlist_item('https://github.com/green-coding-solutions/green-metrics-tool')
     assert re.match(r'^[a-fA-F0-9]{40}$',timeline_project['last_marker'])
     assert timeline_project['schedule_mode'] == 'commit-variance'
 
@@ -58,7 +58,7 @@ def test_post_run_add_gitlab_commit():
     response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-    timeline_project = utils.get_timeline_project('https://gitlab.com/green-coding-solutions/ci-carbon-testing')
+    timeline_project = utils.get_watchlist_item('https://gitlab.com/green-coding-solutions/ci-carbon-testing')
     assert re.match(r'^[a-fA-F0-9]{40}$',timeline_project['last_marker'])
     assert timeline_project['schedule_mode'] == 'commit'
 
@@ -68,7 +68,7 @@ def test_post_run_add_gitlab_tag_none_tag():
     response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-    timeline_project = utils.get_timeline_project('https://gitlab.com/green-coding-solutions/ci-carbon-testing')
+    timeline_project = utils.get_watchlist_item('https://gitlab.com/green-coding-solutions/ci-carbon-testing')
     assert timeline_project['last_marker'] is None
     assert timeline_project['schedule_mode'] == 'tag'
 
@@ -78,7 +78,7 @@ def test_post_run_add_gitlab_tag():
     response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-    timeline_project = utils.get_timeline_project('https://gitlab.com/green-coding-solutions/green-metrics-tool')
+    timeline_project = utils.get_watchlist_item('https://gitlab.com/green-coding-solutions/green-metrics-tool')
     assert re.match(r'v\d+\.\d+\.?\d*',timeline_project['last_marker'])
     assert timeline_project['schedule_mode'] == 'tag'
 
@@ -88,7 +88,7 @@ def test_post_run_add_gitlab_custom_api_base():
     response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
     assert response.status_code == 202, Tests.assertion_info('success', response.text)
 
-    timeline_project = utils.get_timeline_project('https://gitlab.rlp.net/green-software-engineering/oscar')
+    timeline_project = utils.get_watchlist_item('https://gitlab.rlp.net/green-software-engineering/oscar')
     assert re.match(r'^[a-fA-F0-9]{40}$',timeline_project['last_marker'])
     assert timeline_project['schedule_mode'] == 'commit'
 

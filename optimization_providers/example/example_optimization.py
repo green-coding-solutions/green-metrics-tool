@@ -34,7 +34,7 @@ def message_optimization(self, run, measurements, repo_path, network, notes, pha
                           out to us - We have special free and reduced priced options. If you don't want to see this
                           message and you are running your own cluster just add the message_optimization to the ignore
                           list into your config file.
-                          ''', 'https://www.green-coding.io/projects/green-metrics-tool/')
+                          ''', 'https://www.green-coding.io/products/green-metrics-tool/')
 
 # @register_reporter('example_optimization_test', Criticality.CRITICAL, REPORTER_NAME, REPORTER_ICON, need_files=True)
 # def example_optimization_test(self, run, measurements, repo_path, network, notes, phase_stats):
