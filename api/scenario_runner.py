@@ -22,7 +22,7 @@ from lib.db import DB
 from lib.diff import get_diffable_rows, diff_rows
 from lib.job.base import Job
 from lib.user import User
-from lib.timeline_project import TimelineProject
+from lib.watchlist import Watchlist
 from lib import utils
 
 from enum import Enum
@@ -520,8 +520,8 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated', unit: str 
     return Response(content=badge_str, media_type="image/svg+xml")
 
 
-@router.get('/v1/projects')
-async def get_timeline_projects(user: User = Depends(authenticate)):
+@router.get('/v1/watchlist')
+async def get_watchlist(user: User = Depends(authenticate)):
     # Do not get the email jobs as they do not need to be display in the frontend atm
     # Also do not get the email field for privacy
     query = '''
@@ -544,7 +544,7 @@ async def get_timeline_projects(user: User = Depends(authenticate)):
                 ORDER BY r.created_at DESC
                 LIMIT 1
             ) as "last_run"
-        FROM timeline_projects as tp
+        FROM watchlist as tp
         LEFT JOIN machines as m ON m.id = tp.machine_id
         WHERE
             (TRUE = %s OR tp.user_id = ANY(%s::int[]))
@@ -602,9 +602,9 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         if 'commit' in software.schedule_mode:
             last_marker = utils.get_repo_last_marker(software.url, 'commits')
 
-        TimelineProject.insert(name=software.name, url=software.url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
+        Watchlist.insert(name=software.name, url=software.url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 
-    # even for timeline projects we do at least one run directly
+    # even for Watchlist items we do at least one run directly
     amount = 3 if 'variance' in software.schedule_mode else 1
     for _ in range(0,amount):
         Job.insert('run', user_id=user._id, name=software.name, url=software.url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id)

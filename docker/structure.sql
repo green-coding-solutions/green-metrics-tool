@@ -58,7 +58,7 @@ VALUES (
                 "/v1/diff",
                 "/v1/run/{run_id}",
                 "/v1/optimizations/{run_id}",
-                "/v1/projects",
+                "/v1/watchlist",
                 "/v1/badge/single/{run_id}",
                 "/v1/badge/timeline",
                 "/v1/timeline",
@@ -342,7 +342,7 @@ CREATE TRIGGER client_status_moddatetime
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
 
-CREATE TABLE timeline_projects (
+CREATE TABLE watchlist (
     id SERIAL PRIMARY KEY,
     name text,
     url text,
@@ -357,8 +357,8 @@ CREATE TABLE timeline_projects (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
-CREATE TRIGGER timeline_projects_moddatetime
-    BEFORE UPDATE ON timeline_projects
+CREATE TRIGGER watchlist_moddatetime
+    BEFORE UPDATE ON watchlist
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
 

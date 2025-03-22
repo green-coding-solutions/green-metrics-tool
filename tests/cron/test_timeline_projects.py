@@ -5,10 +5,10 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.db import DB
 from lib import utils
-from lib.timeline_project import TimelineProject
-from cron.timeline_projects import schedule_timeline_projects
+from lib.watchlist import Watchlist
+from cron.watchlist import schedule_watchlist_item
 
-TIMELINE_PROJECT = {
+WATCHLIST_ITEM = {
         'name':'My Name',
         'url':'https://github.com/green-coding-solutions/green-metrics-tool',
         'branch':'main',
@@ -19,24 +19,24 @@ TIMELINE_PROJECT = {
         'last_marker':None
 }
 
-GMT_LAST_COMMIT_HASH = utils.get_repo_last_marker(TIMELINE_PROJECT['url'], 'commits')
+GMT_LAST_COMMIT_HASH = utils.get_repo_last_marker(WATCHLIST_ITEM['url'], 'commits')
 
 def test_run_schedule_one_off_broken():
-    timeline_project_modified = TIMELINE_PROJECT.copy()
-    timeline_project_modified['schedule_mode'] = 'one-off'
+    watchlist_item_modified = WATCHLIST_ITEM.copy()
+    watchlist_item_modified['schedule_mode'] = 'one-off'
 
-    TimelineProject.insert(**timeline_project_modified)
+    Watchlist.insert(**watchlist_item_modified)
     with pytest.raises(ValueError):
-        schedule_timeline_projects()
+        schedule_watchlist_item()
 
 def test_run_schedule_daily_multiple():
     jobs = get_jobs()
     assert len(jobs) == 0
 
-    TimelineProject.insert(**TIMELINE_PROJECT)
-    TimelineProject.insert(**TIMELINE_PROJECT)
+    Watchlist.insert(**WATCHLIST_ITEM)
+    Watchlist.insert(**WATCHLIST_ITEM)
 
-    schedule_timeline_projects()
+    schedule_watchlist_item()
 
     jobs = get_jobs()
     assert len(jobs) == 2
@@ -46,55 +46,55 @@ def test_run_schedule_daily():
     jobs = get_jobs()
     assert len(jobs) == 0
 
-    TimelineProject.insert(**TIMELINE_PROJECT)
+    Watchlist.insert(**WATCHLIST_ITEM)
 
-    schedule_timeline_projects()
+    schedule_watchlist_item()
 
     jobs = get_jobs()
     assert len(jobs) == 1
-    assert jobs[0]['url'] == TIMELINE_PROJECT['url']
-    assert jobs[0]['branch'] == TIMELINE_PROJECT['branch']
-    assert jobs[0]['name'] == TIMELINE_PROJECT['name']
+    assert jobs[0]['url'] == WATCHLIST_ITEM['url']
+    assert jobs[0]['branch'] == WATCHLIST_ITEM['branch']
+    assert jobs[0]['name'] == WATCHLIST_ITEM['name']
     assert jobs[0]['state'] == 'WAITING'
 
 def test_run_schedule_daily_repeated():
     jobs = get_jobs()
     assert len(jobs) == 0
 
-    TimelineProject.insert(**TIMELINE_PROJECT)
-    schedule_timeline_projects()
-    schedule_timeline_projects()
+    Watchlist.insert(**WATCHLIST_ITEM)
+    schedule_watchlist_item()
+    schedule_watchlist_item()
 
     jobs = get_jobs()
     assert len(jobs) == 1 # we still expect only one project
 
 
-def test_run_schedule_timeline_projects_update_commit():
+def test_run_schedule_watchlist_item_update_commit():
     jobs = get_jobs()
     assert len(jobs) == 0
 
-    timeline_project_modified = TIMELINE_PROJECT.copy()
-    timeline_project_modified['last_marker'] = '23rfq'
-    timeline_project_modified['schedule_mode'] = 'commit'
+    watchlist_item_modified = WATCHLIST_ITEM.copy()
+    watchlist_item_modified['last_marker'] = '23rfq'
+    watchlist_item_modified['schedule_mode'] = 'commit'
 
-    TimelineProject.insert(**timeline_project_modified)
+    Watchlist.insert(**watchlist_item_modified)
 
-    schedule_timeline_projects()
+    schedule_watchlist_item()
 
     jobs = get_jobs()
     assert len(jobs) == 1
 
-    timeline_project_db = utils.get_timeline_project(timeline_project_modified['url'])
-    assert timeline_project_db['last_marker'] == GMT_LAST_COMMIT_HASH
+    watchlist_item_db = utils.get_watchlist_item(watchlist_item_modified['url'])
+    assert watchlist_item_db['last_marker'] == GMT_LAST_COMMIT_HASH
 
     # And another schedule will NOT create a new project
-    schedule_timeline_projects()
+    schedule_watchlist_item()
 
     jobs = get_jobs()
     assert len(jobs) == 1
 
-    timeline_project_db = utils.get_timeline_project(timeline_project_modified['url'])
-    assert timeline_project_db['last_marker'] == GMT_LAST_COMMIT_HASH
+    watchlist_item_db = utils.get_watchlist_item(watchlist_item_modified['url'])
+    assert watchlist_item_db['last_marker'] == GMT_LAST_COMMIT_HASH
 
 
 ## helpers

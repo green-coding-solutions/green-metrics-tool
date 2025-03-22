@@ -75,12 +75,12 @@ def get_repo_last_marker(repo_url, marker):
         return None
     return data[0][access_key] # We assume it is sorted DESC
 
-def get_timeline_project(repo_url):
+def get_watchlist_item(repo_url):
     query = """
             SELECT
                 *
             FROM
-                timeline_projects
+                watchlist
             WHERE url = %s
             """
     data = DB().fetch_one(query, (repo_url, ), fetch_mode='dict')
