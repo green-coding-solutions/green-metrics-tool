@@ -1,11 +1,11 @@
 // Please do not change these constants. They should set by the install script
-API_URL = "__API_URL__"
-METRICS_URL = "__METRICS_URL__"
+API_URL = "http://api.green-coding.internal:9143"
+METRICS_URL = "http://metrics.green-coding.internal:9143"
 
-ACTIVATE_SCENARIO_RUNNER = __ACTIVATE_SCENARIO_RUNNER__;
-ACTIVATE_ECO_CI = __ACTIVATE_ECO_CI__;
-ACTIVATE_CARBON_DB = __ACTIVATE_CARBON_DB__;
-ACTIVATE_POWER_HOG = __ACTIVATE_POWER_HOG__;
+ACTIVATE_SCENARIO_RUNNER = true;
+ACTIVATE_ECO_CI = true;
+ACTIVATE_CARBON_DB = true;
+ACTIVATE_POWER_HOG = true;
 
 
 /*
