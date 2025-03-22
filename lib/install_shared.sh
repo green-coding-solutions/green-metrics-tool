@@ -555,7 +555,7 @@ fi
 if [[ $ask_scenario_runner == true ]]; then
     echo ""
     read -p "Do you want to activate ScenarioRunner (For benchmarking container software)? (Y/n) : " activate_scenario_runner
-    if [[  "$activate_scenario_runner" == "N" || "$activate_scenario_runner" == "n" ]] ; then
+    if [[  "$activate_scenario_runner" == "Y" || "$activate_scenario_runner" == "y" || "$activate_scenario_runner" == "" ]] ; then
         activate_scenario_runner=false
     else
         activate_scenario_runner=true
