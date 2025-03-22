@@ -69,7 +69,7 @@ async def get_jobs(
         LEFT JOIN machines as m on m.id = j.machine_id
         LEFT JOIN runs as r on r.job_id = j.id
         WHERE
-            (TRUE = %s OR r.user_id = ANY(%s::int[]))
+            (TRUE = %s OR j.user_id = ANY(%s::int[]))
             AND j.type = 'run'
             {machine_id_condition}
             {state_condition}
