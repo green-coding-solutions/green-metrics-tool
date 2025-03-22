@@ -1,7 +1,25 @@
 $(document).ready(function () {
     (async () => {
+
+        let machines_data = null;
+        let jobs_data = null;
+
+        try {
+            machines_data = await makeAPICall('/v1/machines')
+        } catch (err) {
+            showNotification('Could not get machines data from API', err);
+            return;
+        }
+
+        try {
+            jobs_data = await makeAPICall('/v1/jobs')
+        } catch (err) {
+            showNotification('Could not get jobs data from API', err);
+            return;
+        }
+
         $('#machines-table').DataTable({
-            ajax: `${API_URL}/v1/machines`,
+            data: machines_data.data,
             searching: false,
             columns: [
                 { data: 0, title: 'ID'},
@@ -63,7 +81,7 @@ $(document).ready(function () {
         });
 
         $('#jobs-table').DataTable({
-            ajax: `${API_URL}/v1/jobs`,
+            data: jobs_data.data,
             columns: [
                 { data: 0, title: 'ID'},
                 { data: 2, title: 'Name', render: (name, type, row) => row[1] == null ? name : `<a href="/stats.html?id=${row[1]}">${name}</a>`  },
