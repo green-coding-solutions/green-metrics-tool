@@ -14,12 +14,14 @@
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <meta name="description" content="Configure the display settings for the Green Metrics Tool" />
     <script src="/dist/js/jquery.min.js" defer></script>
-    <script src="/js/helpers/config.js" defer></script>
-    <script src="/js/helpers/main.js" defer></script>
-    <script src="/js/settings.js" defer></script>
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/dist/js/transition.min.js" defer></script>
     <script src="/dist/js/tab.min.js" defer></script>
+    <script src="/dist/js/checkbox.min.js" defer></script>
+    <script src="/dist/js/dropdown.min.js" defer></script>
+    <script src="/js/helpers/config.js" defer></script>
+    <script src="/js/helpers/main.js" defer></script>
+    <script src="/js/settings.js" defer></script>
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
 </head>
@@ -30,53 +32,56 @@
         <div class="ui full-width-card card">
             <div class="content">
                 <div class="description">
-                    <table class="ui very basic table">
-                      <thead>
-                        <tr>
-                          <th>Feature</th>
-                          <th>Status</th>
-                          <th>Toggle</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>Energy units</td>
-                          <td><span id="energy-display"></span></td>
-                          <td><button class="ui positive small button" onclick="toggleWattHours();">Toggle</button></td>
-                        </tr>
-                        <tr>
-                          <td>Distance / volume units</td>
-                          <td><span id="units-display"></span></td>
-                          <td><button class="ui positive small button" onclick="toggleMetricUnits();">Toggle</button></td>
-                        </tr>
-                        <tr>
-                          <td>Fetch time series</td>
-                          <td><span id="fetch-time-series-display"></span></td>
-                          <td><button class="ui positive small button" onclick="toggleTimeSeries();">Toggle</button></td>
-                        </tr>
-                        <tr>
-                          <td>Transform energy time series to power</td>
-                          <td><span id="timeline-energy-or-power"></span></td>
-                          <td><button class="ui positive small button" onclick="toggleTimelinesEnergyPower();">Toggle</button></td>
-                        </tr>
-                        <tr>
-                          <td>Show AVG in time series<br><span><small><i class="question circle icon"></i>Note: AVG line is dynamic to current view of the chart<br> and counts ALL datapoints and not only the phase you are looking at</small></span></td>
-                          <td><span id="time-series-avg-display"></span></td>
-                          <td><button class="ui positive small button" onclick="toggleTimeSeriesAVG();">Toggle</button></td>
-                        </tr>
-                        <tr>
-                          <td>Reset hidden help texts</td>
-                          <td><span id="reset-help-texts"></span></td>
-                          <td><button id="reset-help-texts-button" class="ui positive small button" onclick="resetHelpTexts();">Reset</button></td>
-                        </tr>
-                      </tbody>
-                    </table>
-
-                    <!--
-                    <div class="ui active tab segment" data-tab="two">
-                        <table class="table-hover" id="measurement-config"></table>
+                    <div class="ui secondary menu">
+                        <a class="item active" data-tab="one">Display</a>
+                        <a class="item" data-tab="two">Measurement</a>
+                        <a class="item" data-tab="three">Notifications</a>
                     </div>
-                    -->
+                    <div class="ui active tab" data-tab="one">
+                        <table class="ui table">
+                            <thead>
+                                <tr>
+                                    <th>Feature</th>
+                                    <th>Value</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Energy units</td>
+                                    <td><span id="energy-display"></span></td>
+                                    <td><button class="ui positive small button" onclick="toggleJoules();">Toggle</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Distance / volume units</td>
+                                    <td><span id="units-display"></span></td>
+                                    <td><button class="ui positive small button" onclick="toggleMetricUnits();">Toggle</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Fetch time series</td>
+                                    <td><span id="fetch-time-series-display"></span></td>
+                                    <td><button class="ui positive small button" onclick="toggleTimeSeries();">Toggle</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Transform energy time series to power</td>
+                                    <td><span id="timeline-energy-or-power"></span></td>
+                                    <td><button class="ui positive small button" onclick="toggleTimelinesEnergyPower();">Toggle</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Show AVG in time series<br><span><small><i class="question circle icon"></i>AVG line is dynamic to current view of the chart and counts ALL datapoints and not only the phase you are looking at</small></span></td>
+                                    <td><span id="time-series-avg-display"></span></td>
+                                    <td><button class="ui positive small button" onclick="toggleTimeSeriesAVG();">Toggle</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Reset hidden help texts</td>
+                                    <td><span id="reset-help-texts"></span></td>
+                                    <td><button id="reset-help-texts-button" class="ui positive small button" onclick="resetHelpTexts();">Reset</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+
                 </div>
             </div>
         </div><!-- end ui full-width-card card -->

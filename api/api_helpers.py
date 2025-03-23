@@ -65,21 +65,21 @@ def store_artifact(artifact_type: Enum, key:str, data, ex=2592000):
 # Function furthemore uses .substr instead of just replacing the unit, as some units have demominators like Bytes/s or
 # ugCO2e/ page request which we want to retain
 #
-def convert_value(value, unit, display_in_watthours=True):
+def convert_value(value, unit, display_in_joules=False):
     compare_unit = unit.split('/', 1)[0]
 
     if compare_unit == 'ugCO2e':
         return [value / 1_000_000, unit[1:]]
     elif compare_unit == 'mJ':
-        if display_in_watthours:
-            return [value / (1_000 * 3_600) , f"Wh{unit[2:]}"]
-        else:
+        if display_in_joules:
             return [value / 1_000, unit[1:]]
-    elif compare_unit == 'uJ':
-        if display_in_watthours:
-            return [value / (1_000_000 * 3_600), f"Wh{unit[2:]}"]
         else:
+            return [value / (1_000 * 3_600) , f"Wh{unit[2:]}"]
+    elif compare_unit == 'uJ':
+        if display_in_joules:
             return [value / 1_000_000, unit[1:]]
+        else:
+            return [value / (1_000_000 * 3_600), f"Wh{unit[2:]}"]
     elif compare_unit == 'mW':
         return [value / 1_000, unit[1:]]
     elif compare_unit == 'Ratio':

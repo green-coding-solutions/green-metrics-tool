@@ -42,13 +42,13 @@ def test_convert_value():
 
     assert api_helpers.convert_value(324_000_000_000, 'uJ') == [90, 'Wh']
 
-    assert api_helpers.convert_value(100, 'uJ', False) == [0.0001, 'J']
+    assert api_helpers.convert_value(100, 'uJ', True) == [0.0001, 'J']
 
-    assert api_helpers.convert_value(10000, 'uJ', False) == [0.01, 'J']
+    assert api_helpers.convert_value(10000, 'uJ', True) == [0.01, 'J']
 
-    assert api_helpers.convert_value(324_000_000_000, 'uJ', False) == [324000, 'J']
+    assert api_helpers.convert_value(324_000_000_000, 'uJ', True) == [324000, 'J']
 
-    assert api_helpers.convert_value(10000, 'mJ', False) == [10, 'J']
+    assert api_helpers.convert_value(10000, 'mJ', True) == [10, 'J']
 
 
     assert api_helpers.convert_value(324_000_000_000, 'ugCO2e/Page Request') == [324000, 'gCO2e/Page Request']

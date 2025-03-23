@@ -432,8 +432,8 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
         return Response(status_code=204) # No-Content
 
     cost = data[1]/data[0]
-    display_in_watthours = True if unit == 'watt-hours' else False # pylint: disable=simplifiable-if-expression
-    [rescaled_cost, rescaled_unit] = convert_value(cost, data[3], display_in_watthours)
+    display_in_joules = (unit == 'joules') #pylint: disable=superfluous-parens
+    [rescaled_cost, rescaled_unit] = convert_value(cost, data[3], display_in_joules)
     rescaled_cost = f"+{rescaled_cost:.2f}" if abs(cost) == cost else f"{rescaled_cost:.2f}"
 
     badge = anybadge.Badge(
@@ -503,8 +503,8 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated', unit: str 
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         badge_value = 'No metric data yet'
     else:
-        display_in_watthours = True if unit == 'watt-hours' else False # pylint: disable=simplifiable-if-expression
-        [metric_value, energy_unit] = convert_value(data[0], data[1], display_in_watthours)
+        display_in_joules = (unit == 'joules') #pylint: disable=superfluous-parens
+        [metric_value, energy_unit] = convert_value(data[0], data[1], display_in_joules)
         badge_value= f"{metric_value:.2f} {energy_unit} {via}"
 
     badge = anybadge.Badge(

@@ -367,8 +367,8 @@ async def get_ci_badge_get(repo: str, branch: str, workflow:str, mode: str = 'la
         return Response(status_code=204) # No-Content
 
     metric_value = data[0]
-    display_in_watthours = True if unit == 'watt-hours' else False
-    [transformed_value, transformed_unit] = convert_value(metric_value, metric_unit, display_in_watthours)
+    display_in_joules = (unit == 'joules') # pylint: disable=superfluous-parens
+    [transformed_value, transformed_unit] = convert_value(metric_value, metric_unit, display_in_joules)
     badge_value= f"{transformed_value:.2f} {transformed_unit}"
 
     badge = anybadge.Badge(
