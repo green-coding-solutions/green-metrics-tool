@@ -219,7 +219,7 @@ const escapeString = (string) =>{
     return my_string.replace(reg, (match) => map[match]);
   }
 
-async function makeAPICall(path, values=null, force_authentication_token=null) {
+async function makeAPICall(path, values=null, force_authentication_token=null, force_put=false) {
 
     if(values != null ) {
         var options = {
@@ -228,6 +228,9 @@ async function makeAPICall(path, values=null, force_authentication_token=null) {
             headers: {
                 'Content-Type': 'application/json'
             }
+        }
+        if (force_put == true) {
+            options.method = 'PUT';
         }
     }  else {
         var options = { method: 'GET', headers: {} }

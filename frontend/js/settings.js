@@ -1,3 +1,40 @@
+const updateSetting = async (el) => {
+    const left_el = el.parentElement.previousElementSibling.querySelector('input, select');
+    const name = left_el.getAttribute('data-setting');
+    try {
+        if (left_el.tagName.toLowerCase() === 'select') {
+            const value = $(left_el).dropdown('get values');
+            await makeAPICall('/v1/user/setting', {name: name, value: value}, null, true)
+            showNotification('Save success!', `${name} = ${value}`)
+        } else {
+            await makeAPICall('/v1/user/setting', {name: name, value: left_el.value}, null, true)
+            showNotification('Save success!', `${name} = ${left_el.value}`)
+        }
+    } catch (err) {
+        showNotification('Could not get run data from API', err);
+        return
+    }
+}
+
+const getSettings = async () => {
+    data = await makeAPICall('/v1/user/settings')
+    document.querySelector('#measurement-settings-flow-process-duration').value = data?.data?._capabilities?.measurement?.settings?.flow_process_duration
+    document.querySelector('#measurement-settings-total-duration').value = data?.data?._capabilities?.measurement?.settings?.total_duration
+    console.log(data?.data?._capabilities?.measurement?.disabled_metric_providers);
+    $('#measurement-disabled-metric-providers').dropdown('set exactly', data?.data?._capabilities?.measurement?.disabled_metric_providers);
+
+}
+
+const toggleExportCompareMode = () => {
+    const expert_compare_mode = localStorage.getItem('expert_compare_mode') == 'true';
+    localStorage.setItem('expert_compare_mode', !expert_compare_mode);
+    showDisplayExpertCompareMode(!expert_compare_mode)
+}
+const showDisplayExpertCompareMode = (expert_compare_mode) => {
+    if(expert_compare_mode) $("#expert-compare-mode").html("Expert compare mode is <b>on</b>");
+    else $("#expert-compare-mode").html("Expert compare mode is <b>off</b>");
+}
+
 const toggleJoules = () => {
     const display_in_joules = localStorage.getItem('display_in_joules') == 'true';
     localStorage.setItem('display_in_joules', !display_in_joules);

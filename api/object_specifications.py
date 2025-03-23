@@ -16,6 +16,13 @@ class Software(BaseModel):
 
     model_config = ConfigDict(extra='forbid')
 
+### User Settings Update
+
+class UserSetting(BaseModel):
+    name: str
+    value: str | list
+
+    model_config = ConfigDict(extra='forbid')
 
 ### Eco CI
 # pylint: disable=invalid-name

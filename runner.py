@@ -516,6 +516,10 @@ class Runner:
             module_path = f"metric_providers.{module_path}"
             conf = metric_providers[metric_provider] or {}
 
+            if class_name in User(self._user_id)._capabilities['measurement'].get('disabled_metric_providers', []):
+                print(TerminalColors.WARNING, arrows(f"Not importing {class_name} as disabled per user settings"), TerminalColors.ENDC)
+                continue
+
             print(f"Importing {class_name} from {module_path}")
             module = importlib.import_module(module_path)
 
@@ -858,7 +862,7 @@ class Runner:
 
             if 'docker-run-args' in service:
                 user = User(self._user_id)
-                allow_items = user._capabilities.get('measurement', {}).get('orchestrators', {}).get('docker', {}).get('allowed-run-args', [])
+                allow_items = user._capabilities.get('measurement', {}).get('orchestrators', {}).get('docker', {}).get('allowed_run_args', [])
                 for arg in service['docker-run-args']:
                     if any(re.fullmatch(allow_item, arg) for allow_item in allow_items):
                         docker_run_string.extend(shlex.split(arg))

@@ -1001,7 +1001,7 @@ def test_bad_arg():
 
 def test_good_arg():
     user = User(1)
-    user._capabilities['measurement']['orchestrators']['docker']['allowed-run-args'] = [r'--label\s+([\w.-]+)=([\w.-]+)']
+    user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'] = [r'--label\s+([\w.-]+)=([\w.-]+)']
     user.update()
 
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_arg_good.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, user_id=1)

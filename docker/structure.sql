@@ -99,7 +99,7 @@ VALUES (
             },
             "orchestrators": {
                 "docker": {
-                    "allowed-run-args": []
+                    "allowed_run_args": []
                 }
             }
         },

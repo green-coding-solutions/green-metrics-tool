@@ -5,6 +5,13 @@ import uuid
 from lib.secure_variable import SecureVariable
 from lib.db import DB
 
+def get_nested_value(dictionary, path):
+    keys = path.split('.', 1)
+    key = keys[0]
+    if len(keys) == 1:
+        return (dictionary, key, dictionary.get(key))
+    return get_nested_value(dictionary.get(key, {}), keys[1])
+
 class User():
 
     def __init__(self, user_id: int):
@@ -53,6 +60,30 @@ class User():
     def can_schedule_job(self, schedule_mode: str):
         return schedule_mode in self._capabilities['jobs']['schedule_modes']
 
+    def change_setting(self, name, value):
+        if not self.can_change_setting(name):
+            raise ValueError(f"You cannot change this setting: {name}")
+
+        match name:
+            case 'measurement.settings.flow_process_duration' | 'measurement.settings.total_duration':
+                if not (isinstance(value, int) or value.isdigit()) or int(value) <= 0 or int(value) > 86400:
+                    raise ValueError(f'The setting {name} must be between 1 and 86400')
+                value = int(value)
+            case 'measurement.disabled_metric_providers':
+                value = set(value)
+                allowed_values = {'NetworkConnectionsTcpdumpSystemProvider', 'NetworkConnectionsProxyContainerProvider'} # set
+                if not value.issubset(allowed_values):
+                    raise ValueError(f'The setting {name} must be in {allowed_values} but is {value}')
+                value = list(value) # transform back, as it is not json serializable. But we need the unique transform of set beforehand
+            case _:
+                raise ValueError(f'The setting {name} is unknown')
+
+        (element, last_key, _) = get_nested_value(self._capabilities, name)
+        element[last_key] = value
+        self.update()
+
+    def can_change_setting(self, name):
+        return name in self._capabilities['user']['updateable_settings']
 
     def has_api_quota(self, route: str):
         if route in self._capabilities['api']['quotas']:
@@ -121,8 +152,8 @@ class User():
             },
             "measurement": {
                 "settings": {
-                    "flow-process-duration": 3600,
-                    "total-duration": 3600,
+                    "flow_process_duration": 3600,
+                    "total_duration": 3600,
                 },
                 "quotas": { # An empty dictionary here means that no quotas apply
                     "default": 10_000
