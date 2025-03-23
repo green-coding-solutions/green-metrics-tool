@@ -78,8 +78,6 @@ const resetHelpTexts = () => {
         showDisplayTextMetricUnits(localStorage.getItem('display_in_metric_units') == 'true')
         showDisplayTextTimeSeries(localStorage.getItem('fetch_time_series') == 'true')
         showDisplayTextTimeSeriesAVG(localStorage.getItem('time_series_avg') == 'true')
-
-        getSettings();
     });
 
 })();
