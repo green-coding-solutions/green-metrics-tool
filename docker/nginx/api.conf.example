@@ -12,7 +12,7 @@ server {
     server_name __API_URL__ ;
 
     location = /favicon.ico {
-        alias /var/www/green-metrics-tool/frontend/favicon.ico;  # Replace with the actual path to your favicon.ico file
+         root /var/www/green-metrics-tool/frontend;
     }
 
     location / {
