@@ -367,7 +367,6 @@
                 <p>You can change the default behaviour under <a href="/settings.html" style="text-decoration: underline; font-weight: bold;">Settings</a></p>
                 <button id="fetch-time-series" class="blue ui button">Fetch time series</button>
             </div>
-            <ul></ul>
         </div>
 
         <div class="ui two cards" id="api-loader" style="display:none;">
@@ -382,6 +381,15 @@
                     <div class="ui indeterminate text loader">Waiting for API data</div>
                 </div>
                 <p></p>
+            </div>
+        </div>
+        <div id="message-chart-load-failure"class="ui icon message red" style="display: none;">
+            <i class="info circle icon"></i>
+            <div class="content">
+                <div class="header">
+                    Failed loading charts
+                </div>
+                <div class="content">Charts could not be loaded. Maybe the run failed and no measurement data exists? Otherwise please try again later ...</div>
             </div>
         </div>
         <div id="chart-container"></div>

@@ -467,6 +467,11 @@ $(document).ready( (e) => {
                 fetchTimelineData(url_params),
                 fetchTimelineNotes(url_params)
             ]);
+            if (timeline_data == null) {
+                document.querySelector('#api-loader').remove()
+                document.querySelector('#message-chart-load-failure').style.display = '';
+                return
+            }
             const timeline_chart_data = await buildTimelineChartData(timeline_data);
             displayTimelineCharts(timeline_chart_data, timeline_notes);
         } else {
@@ -475,8 +480,16 @@ $(document).ready( (e) => {
                     fetchTimelineData(url_params),
                     fetchTimelineNotes(url_params)
                 ]);
+
+                if (timeline_data == null) {
+                    document.querySelector('#api-loader').remove()
+                    document.querySelector('#message-chart-load-failure').style.display = '';
+                    return
+                }
                 const timeline_chart_data = await buildTimelineChartData(timeline_data);
                 displayTimelineCharts(timeline_chart_data, timeline_notes);
+
+
             });
         }
     })();
