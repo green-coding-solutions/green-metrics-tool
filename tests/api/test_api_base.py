@@ -17,7 +17,7 @@ def test_route_forbidden():
 
     response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15)
     assert response.status_code == 401
-    assert response.text == '{"success":false,"err":"Route not allowed"}'
+    assert response.text == '{"success":false,"err":"Route not allowed for user DEFAULT"}'
 
 # This method is just a safe-guard in case FastAPI ever changes the mechanic that an authentication parameter
 # can be overriden through a simple query string
@@ -47,7 +47,7 @@ def test_api_quota_exhausted():
 
     response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15)
     assert response.status_code == 401
-    assert response.text == '{"success":false,"err":"Quota exceeded"}'
+    assert response.text == '{"success":false,"err":"Quota exceeded for user DEFAULT"}'
 
 
 def test_wrong_authentication():
@@ -79,3 +79,16 @@ def test_even_if_token_set_for_user_zero_api_will_still_fail():
     json_data = json.loads(response.text)
 
     assert json_data['err'] == 'User 0 is system user and cannot log in'
+
+def test_machines():
+    response = requests.get(f"{API_URL}/v1/machines", timeout=15, headers={'X-Authentication': 'DEFAULT'})
+    assert response.status_code == 200
+
+    json_data = json.loads(response.text)
+
+    assert json_data['data'][0][0] == 1
+    assert json_data['data'][0][1] == 'Local machine'
+
+def test_jobs():
+    response = requests.get(f"{API_URL}/v1/jobs", timeout=15, headers={'X-Authentication': 'DEFAULT'})
+    assert response.status_code == 204

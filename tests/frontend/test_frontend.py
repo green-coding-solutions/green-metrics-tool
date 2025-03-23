@@ -376,7 +376,7 @@ def test_watchlist():
 def test_status():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Status").click()
+    page.get_by_role("link", name="Cluster Status").click()
 
     machine_name = page.locator('#machines-table > tbody > tr:nth-child(1) > td:nth-child(2)').text_content()
     assert machine_name.strip() == 'Local machine'
