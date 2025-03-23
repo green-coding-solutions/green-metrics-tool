@@ -184,9 +184,9 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                 <option value="machine_ids">Machines</option>
                 <option value="usage_scenarios">Usage Scenarios</option>
                 <option value="repos">Repos</option>
-            </select><br>`
+            </select>`
         }
-        button_title = `${button_title}<button class="ui mini button red unselect-button">Unselect all</button>`;
+        button_title = `${button_title}<br><button class="ui mini button red unselect-button">Unselect all</button>`;
     }
 
 
