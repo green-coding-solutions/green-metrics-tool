@@ -1,20 +1,34 @@
 const compareButton = () => {
-    let checkedBoxes = document.querySelectorAll('input[type=checkbox]:checked');
+    const checkedBoxes = document.querySelectorAll('input[type=checkbox]:checked');
 
-    let link = '/compare.html?ids=';
+    let link = '/compare.html?ids='
+
     checkedBoxes.forEach(checkbox => {
         link = `${link}${checkbox.value},`;
     });
-    window.open(link.substr(0,link.length-1), '_blank');
+    link = link.substr(0,link.length-1);
+
+    if (localStorage.getItem('expert_compare_mode') == 'true'){
+        const value = document.querySelector('.compare-force-mode').value;
+        link = `${link}&force_mode=${value}`
+        localStorage.setItem('expert_compare_mode_last_value', value);
+    }
+
+    window.open(link, '_blank');
 }
 const updateCompareCount = () => {
-    const countButton = document.getElementById('compare-button');
+    const countButton = document.querySelector('.compare-button');
     const checkedCount = document.querySelectorAll('input[type=checkbox]:checked').length;
     countButton.textContent = `Compare: ${checkedCount} Run(s)`;
+    console.log(checkedCount);
     if (checkedCount === 0) {
-        document.querySelector('#unselect-button').style.display = 'none';
+        document.querySelector('.unselect-button').style.display = 'none';
+        document.querySelector('.compare-force-mode').style.display = 'none';
+
     } else {
-        document.querySelector('#unselect-button').style.display = 'block';
+        document.querySelector('.unselect-button').style.display = 'block';
+        document.querySelector('.compare-force-mode').style.display = 'block';
+
     }
 }
 
@@ -155,7 +169,17 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
     columns.push({ data: 7, title: '<i class="icon laptop code"></i>Machine</th>' });
     columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>', render: (el, type, row) => el == null ? '-' : `${dateToYMD(new Date(el))}<br><a href="/timeline.html?uri=${row[2]}&branch=${row[3]}&machine_id=${row[11]}&filename=${row[6]}&metrics=key" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>` });
 
-    const button_title = include_button ? '<button id="compare-button" onclick="compareButton()" class="ui small button blue">Compare: 0 Run(s)</button><br><button id="unselect-button" class="ui mini button red">Unselect all</button>' : '';
+    const button_title = include_button ? `<button onclick="compareButton()" class="ui small button blue compare-button">Compare: 0 Run(s)</button>
+    <br>
+    <select class="compare-force-mode" style="width: 160px; height: 40px; margin-top: 5px;">
+        <option value="">--</option>
+        <option value="branches">Branches</option>
+        <option value="commit_hashes">Commits</option>
+        <option value="machine_ids">Machines</option>
+        <option value="usage_scenarios">Usage Scenarios</option>
+        <option value="repos">Repos</option>
+    </select><br>
+    <button class="ui mini button red unselect-button">Unselect all</button>`  : '';
 
     columns.push({
         data: 0,
@@ -179,14 +203,23 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                 e.removeEventListener('change', updateCompareCount);
                 e.addEventListener('change', updateCompareCount);
             })
-            document.querySelector('#unselect-button').addEventListener('click', e => {
+            document.querySelector('.unselect-button').addEventListener('click', e => {
                 document.querySelectorAll('input[type="checkbox"]').forEach(el => {
                     el.checked = '';
                 })
+                updateCompareCount();
             })
             allow_group_select_checkboxes();
             updateCompareCount();
         },
         order: [[columns.length-2, 'desc']] // API also orders, but we need to indicate order for the user
     });
+
+    const value = localStorage.getItem('expert_compare_mode_last_value');
+    if (value != null) {
+        document.querySelectorAll('.compare-force-mode').forEach((e) =>{
+            e.value = value;
+        })
+    }
+
 }

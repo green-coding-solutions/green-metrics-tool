@@ -309,7 +309,7 @@ a,
     overflow: scroll;
 }
 
-#unselect-button {
+.unselect-button, .compare-force-mode {
     display: none;
     margin-top: 10px;
 }

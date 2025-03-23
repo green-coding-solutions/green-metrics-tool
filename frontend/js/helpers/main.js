@@ -141,6 +141,7 @@ const calculateStatistics = (data, object_access=false) => {
 
 const replaceRepoIcon = (uri) => {
 
+  uri = String(uri)
   if(!uri.startsWith('http')) return uri; // ignore filesystem paths
 
   const url = new URL(uri);

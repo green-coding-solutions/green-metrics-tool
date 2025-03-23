@@ -304,7 +304,7 @@ def get_comparison_details(user, ids, comparison_db_key):
 
     return comparison_details
 
-def determine_comparison_case(user, ids):
+def determine_comparison_case(user, ids, force_mode=None):
 
     query = '''
             WITH uniques as (
@@ -339,6 +339,30 @@ def determine_comparison_case(user, ids):
     # case = 'Commit' # Case B: DevOps Case
     # case = 'Repeated Run' # Case A: Blue Angel
     # case = 'Multi-Commit' # Case D: Evolution of repo over time
+
+
+    if force_mode:
+        match force_mode:
+            case 'repos':
+                return_case = ('Repository', 'uri') # Case D
+            case 'usage_scenarios':
+                return_case = ('Usage Scenario', 'filename') # Case C_2
+            case 'machine_ids':
+                return_case =  ('Machine', 'machine_id') # Case C_1
+            case 'branches':
+                return_case = ('Branch', 'branch') # Case C_3
+            case 'commit_hashes':
+                return_case = ('Commit', 'commit_hash') # Case B
+            case _:
+                raise ValueError('Forcing a comparison mode for unknown mode')
+
+        comparison_identifiers_amount = locals()[force_mode]
+        if comparison_identifiers_amount not in (1,2):
+            raise RuntimeError(f"You are trying to force {force_mode} mode, but you have {comparison_identifiers_amount} comparison options. Must be 1 or 2.")
+
+        return return_case
+
+    ### AUTO MODE ####
 
     #pylint: disable=no-else-raise,no-else-return
     if repos == 2: # diff repos
@@ -411,7 +435,7 @@ def get_phase_stats(user, ids):
             SELECT
                 a.phase, a.metric, a.detail_name, a.value, a.type, a.max_value, a.min_value,
                 a.sampling_rate_avg, a.sampling_rate_max, a.sampling_rate_95p, a.unit,
-                b.uri, c.description, b.filename, b.commit_hash, b.branch,
+                b.uri, c.id, b.filename, b.commit_hash, b.branch,
                 b.id
             FROM phase_stats as a
             LEFT JOIN runs as b on b.id = a.run_id
@@ -533,7 +557,7 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
         [
             phase, metric_name, detail_name, value, metric_type, max_value, min_value,
             sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit,
-            repo, machine_description, filename, commit_hash, branch,
+            repo, machine_id, filename, commit_hash, branch,
             run_id
         ] = phase_stat
 
@@ -548,7 +572,7 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
         elif case == 'Usage Scenario':
             key = filename # Case C_2 : SoftwareDeveloper Case
         elif case == 'Machine':
-            key = machine_description # Case C_1 : DataCenter Case
+            key = machine_id # Case C_1 : DataCenter Case
         elif case in ('Commit', 'Repeated Run'):
             key = commit_hash # Repeated Run
         else:
@@ -604,7 +628,7 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
                 'is_significant': None, # only for the last key the list compare to the rest. one-sided t-test
                 'values': [value],
             }
-            if comparison_details: # create None filled lists in comparision casese so that we can later understand which values are missing when parsing in JS for example
+            if comparison_details: # create None filled lists in comparison casese so that we can later understand which values are missing when parsing in JS for example
                 detail_data[key]['values'] = [None for _ in comparison_details[key]]
                 detail_data[key]['sr_avg_values'] = [None for _ in comparison_details[key]]
                 detail_data[key]['sr_max_values'] = [None for _ in comparison_details[key]]

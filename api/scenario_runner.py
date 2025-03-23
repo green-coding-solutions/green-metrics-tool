@@ -235,7 +235,7 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
 # later if supplied. Also deprecation shall be used once we move to v2 for all v1 routesthrough
 
 @router.get('/v1/compare')
-async def compare_in_repo(ids: str, user: User = Depends(authenticate)):
+async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = Depends(authenticate)):
     if ids is None or not ids.strip():
         raise RequestValidationError('run_id is empty')
     ids = ids.split(',')
@@ -243,12 +243,13 @@ async def compare_in_repo(ids: str, user: User = Depends(authenticate)):
         raise RequestValidationError('One of Run IDs is not a valid UUID or empty')
 
 
-    if artifact := get_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}"):
-        return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
+    if not force_mode: # force_mode must always get fresh data
+        if artifact := get_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}"):
+            return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
 
     try:
-        case, comparison_db_key = determine_comparison_case(user, ids)
-    except RuntimeError as exc:
+        case, comparison_db_key = determine_comparison_case(user, ids, force_mode=force_mode)
+    except (RuntimeError, ValueError) as exc:
         raise RequestValidationError(str(exc)) from exc
 
     comparison_details = get_comparison_details(user, ids, comparison_db_key)
@@ -319,7 +320,8 @@ async def compare_in_repo(ids: str, user: User = Depends(authenticate)):
     except RuntimeError as err:
         raise RequestValidationError(str(err)) from err
 
-    store_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}", orjson.dumps(phase_stats_object)) # pylint: disable=no-member
+    if not force_mode: # force_mode must never store data
+        store_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}", orjson.dumps(phase_stats_object)) # pylint: disable=no-member
 
 
     return ORJSONResponse({'success': True, 'data': phase_stats_object})

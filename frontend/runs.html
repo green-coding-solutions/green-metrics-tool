@@ -78,8 +78,16 @@
                     <th>
                         Repositories (<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.)+
                         <div class="float-right">
-                            <button id="compare-button" onclick="compareButton()" class="ui small button blue">Compare: 0 Run(s)</button>
-                            <button id="unselect-button" class="ui mini button red right">Unselect all</button>
+                            <button onclick="compareButton()" class="ui small button blue compare-button">Compare: 0 Run(s)</button><br>
+                            <select class="compare-force-mode" style="width: 160px; height: 40px; margin-top: 5px;">
+                                <option value="">--</option>
+                                <option value="branches">Branches</option>
+                                <option value="commit_hashes" selected>Commits</option>
+                                <option value="machine_ids">Machines</option>
+                                <option value="usage_scenarios">Usage Scenarios</option>
+                                <option value="repos">Repos</option>
+                            </select><br>
+                            <button class="ui mini button red right unselect-button" style="display:none">Unselect all</button>
                         </div>
                         <button id="sort-button" class="ui small button purple float-right"><i class="text icon"></i><span>Sort name</span></button>
                     </th>
