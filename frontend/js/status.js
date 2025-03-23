@@ -7,19 +7,17 @@ $(document).ready(function () {
         try {
             machines_data = await makeAPICall('/v1/machines')
         } catch (err) {
-            showNotification('Could not get machines data from API', err);
-            return;
+            showNotification('Could not get machines data from API', err); // we do not return here, as empty data is an OK response
         }
 
         try {
             jobs_data = await makeAPICall('/v1/jobs')
         } catch (err) {
-            showNotification('Could not get jobs data from API', err);
-            return;
+            showNotification('Could not get jobs data from API', err); // we do not return here, as empty data is an OK response
         }
 
         $('#machines-table').DataTable({
-            data: machines_data.data,
+            data: machines_data?.data,
             searching: false,
             columns: [
                 { data: 0, title: 'ID'},
@@ -81,7 +79,7 @@ $(document).ready(function () {
         });
 
         $('#jobs-table').DataTable({
-            data: jobs_data.data,
+            data: jobs_data?.data,
             columns: [
                 { data: 0, title: 'ID'},
                 { data: 2, title: 'Name', render: (name, type, row) => row[1] == null ? name : `<a href="/stats.html?id=${row[1]}">${name}</a>`  },
