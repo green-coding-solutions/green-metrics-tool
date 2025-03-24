@@ -1,4 +1,4 @@
-const toggleExportCompareMode = () => {
+const toggleExpertCompareMode = () => {
     const expert_compare_mode = localStorage.getItem('expert_compare_mode') === 'true';
     localStorage.setItem('expert_compare_mode', !expert_compare_mode);
     showDisplayExpertCompareMode(!expert_compare_mode)
