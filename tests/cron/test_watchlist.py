@@ -53,7 +53,7 @@ def test_run_schedule_daily():
 
     jobs = get_jobs()
     assert len(jobs) == 1
-    assert jobs[0]['repo_url'] == WATCHLIST_ITEM['repo_url']
+    assert jobs[0]['url'] == WATCHLIST_ITEM['repo_url']
     assert jobs[0]['branch'] == WATCHLIST_ITEM['branch']
     assert jobs[0]['name'] == WATCHLIST_ITEM['name']
     assert jobs[0]['state'] == 'WAITING'
