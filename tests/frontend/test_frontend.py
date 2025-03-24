@@ -292,7 +292,7 @@ def test_repositories_and_compare():
     page.get_by_role("button", name="Switch to repository view").click()
 
     page.locator('.ui.accordion div.title').click()
-    page.locator('.dataTables_info').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
+    page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
 
     elements = page.query_selector_all("input[type=checkbox]")  # Replace with your selector
     for element in elements:
