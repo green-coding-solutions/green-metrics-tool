@@ -572,6 +572,9 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if software.repo_url is None or software.repo_url.strip() == '':
         raise RequestValidationError('URL is empty')
 
+    if software.image_url is None:
+        software.image_url = ''
+
     if software.email is not None and software.email.strip() == '':
         software.email = None
 
