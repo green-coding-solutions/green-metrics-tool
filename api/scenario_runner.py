@@ -530,7 +530,7 @@ async def get_watchlist(user: User = Depends(authenticate)):
     # Also do not get the email field for privacy
     query = '''
         SELECT
-            tp.id, tp.name, tp.url,
+            tp.id, tp.name, tp.image_url, tp.repo_url,
             (
                 SELECT STRING_AGG(t.name, ', ' )
                 FROM unnest(tp.categories) as elements
@@ -541,7 +541,7 @@ async def get_watchlist(user: User = Depends(authenticate)):
                 SELECT created_at
                 FROM runs as r
                 WHERE
-                    tp.url = r.uri
+                    tp.repo_url = r.uri
                     AND tp.branch = r.branch
                     AND tp.filename = r.filename
                     AND tp.machine_id = r.machine_id
@@ -552,7 +552,7 @@ async def get_watchlist(user: User = Depends(authenticate)):
         LEFT JOIN machines as m ON m.id = tp.machine_id
         WHERE
             (TRUE = %s OR tp.user_id = ANY(%s::int[]))
-        ORDER BY tp.url ASC;
+        ORDER BY tp.repo_url ASC;
     '''
     params = (user.is_super_user(), user.visible_users(),)
     data = DB().fetch_all(query, params=params)
@@ -571,8 +571,11 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         raise RequestValidationError('Name is empty')
 
     # Note that we use uri as the general identifier, however when adding through web interface we only allow urls
-    if software.url is None or software.url.strip() == '':
+    if software.repo_url is None or software.repo_url.strip() == '':
         raise RequestValidationError('URL is empty')
+
+    if software.image_url is None:
+        software.image_url = ''
 
     if software.email is not None and software.email.strip() == '':
         software.email = None
@@ -595,23 +598,23 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if not user.can_schedule_job(software.schedule_mode):
         raise RequestValidationError('Your user does not have the permissions to use that schedule mode.')
 
-    utils.check_repo(software.url, software.branch) # if it exists through the git api
+    utils.check_repo(software.repo_url, software.branch) # if it exists through the git api
 
     if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
 
         last_marker = None
         if 'tag' in software.schedule_mode:
-            last_marker = utils.get_repo_last_marker(software.url, 'tags')
+            last_marker = utils.get_repo_last_marker(software.repo_url, 'tags')
 
         if 'commit' in software.schedule_mode:
-            last_marker = utils.get_repo_last_marker(software.url, 'commits')
+            last_marker = utils.get_repo_last_marker(software.repo_url, 'commits')
 
-        Watchlist.insert(name=software.name, url=software.url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
+        Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 
     # even for Watchlist items we do at least one run directly
     amount = 3 if 'variance' in software.schedule_mode else 1
     for _ in range(0,amount):
-        Job.insert('run', user_id=user._id, name=software.name, url=software.url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id)
+        Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id)
 
     # notify admin of new add
     if notification_email := GlobalConfig().config['admin']['notification_email']:

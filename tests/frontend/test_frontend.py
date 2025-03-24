@@ -84,7 +84,7 @@ def test_runs():
 def test_eco_ci_demo_data():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Eco CI").click()
+    page.get_by_role("link", name="Eco CI", exact=True).click()
 
     page.wait_for_load_state("load") # ALL JS should be done
 
@@ -168,7 +168,7 @@ def test_eco_ci_adding_data():
 
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-        page.get_by_role("link", name="Eco CI").click()
+        page.get_by_role("link", name="Eco CI", exact=True).click()
 
         page.locator("#ci-repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
         page.locator('#DataTables_Table_0 > tbody > tr  > td:first-child > a').click()
@@ -351,7 +351,7 @@ def test_watchlist():
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     page.get_by_role("link", name="Watchlist").click()
     with context.expect_page() as new_page_info:
-        page.get_by_role("link", name=" Show Timeline").click()
+        page.get_by_role("link", name="Show Timeline").click()
 
     new_page = new_page_info.value
     new_page.set_default_timeout(3_000)
