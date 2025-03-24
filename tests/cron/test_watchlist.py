@@ -20,7 +20,7 @@ WATCHLIST_ITEM = {
         'last_marker':None
 }
 
-GMT_LAST_COMMIT_HASH = utils.get_repo_last_marker(WATCHLIST_ITEM['url'], 'commits')
+GMT_LAST_COMMIT_HASH = utils.get_repo_last_marker(WATCHLIST_ITEM['repo_url'], 'commits')
 
 def test_run_schedule_one_off_broken():
     watchlist_item_modified = WATCHLIST_ITEM.copy()
@@ -53,7 +53,7 @@ def test_run_schedule_daily():
 
     jobs = get_jobs()
     assert len(jobs) == 1
-    assert jobs[0]['url'] == WATCHLIST_ITEM['url']
+    assert jobs[0]['repo_url'] == WATCHLIST_ITEM['repo_url']
     assert jobs[0]['branch'] == WATCHLIST_ITEM['branch']
     assert jobs[0]['name'] == WATCHLIST_ITEM['name']
     assert jobs[0]['state'] == 'WAITING'
@@ -85,7 +85,7 @@ def test_run_schedule_watchlist_item_update_commit():
     jobs = get_jobs()
     assert len(jobs) == 1
 
-    watchlist_item_db = utils.get_watchlist_item(watchlist_item_modified['url'])
+    watchlist_item_db = utils.get_watchlist_item(watchlist_item_modified['repo_url'])
     assert watchlist_item_db['last_marker'] == GMT_LAST_COMMIT_HASH
 
     # And another schedule will NOT create a new item
@@ -94,7 +94,7 @@ def test_run_schedule_watchlist_item_update_commit():
     jobs = get_jobs()
     assert len(jobs) == 1
 
-    watchlist_item_db = utils.get_watchlist_item(watchlist_item_modified['url'])
+    watchlist_item_db = utils.get_watchlist_item(watchlist_item_modified['repo_url'])
     assert watchlist_item_db['last_marker'] == GMT_LAST_COMMIT_HASH
 
 
