@@ -10,7 +10,10 @@
             document.querySelector('input[name="email"]').value = escapeString(urlParams.get('email'));
         }
         if (urlParams.has('url')) {
-            document.querySelector('input[name="url"]').value = escapeString(urlParams.get('url'));
+            document.querySelector('input[name="repo_url"]').value = escapeString(urlParams.get('url'));
+        }
+        if (urlParams.has('repo_url')) { // precedence
+            document.querySelector('input[name="repo_url"]').value = escapeString(urlParams.get('repo_url'));
         }
         if (urlParams.has('filename')) {
             document.querySelector('input[name="filename"]').value = escapeString(urlParams.get('filename'));

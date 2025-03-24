@@ -330,6 +330,16 @@ a,
     white-space: nowrap;
 }
 
+#scenario-runner-watchlist p {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#scenario-runner-watchlist .field {
+    margin-top: 5px;
+}
+
 /* Since we have a without href we need to force pointer */
 a {
     cursor: pointer;

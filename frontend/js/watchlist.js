@@ -9,17 +9,19 @@ $(document).ready(function () {
             return;
         }
         measurements.data.forEach(measurement => {
-            let [id, name, url, categories, branch, filename, machine_id, machine_description, schedule_mode, last_scheduled, created_at, updated_at, last_run, metrics] = measurement
+            let [id, name, image_url, repo_url, categories, branch, filename, machine_id, machine_description, schedule_mode, last_scheduled, created_at, updated_at, last_run, metrics] = measurement
             filename = filename == null ? '': filename
             branch = branch == null ? '': branch
 
             const chart_node = document.createElement("div")
-            chart_node.classList.add("card");
             chart_node.classList.add('ui')
-            chart_node.classList.add('wide')
+            chart_node.classList.add("card");
 
-            const url_link = `${replaceRepoIcon(url)} <a href="${url}" target="_blank"><i class="icon external alternate"></i></a>`;
-            chart_node.innerHTML = `
+            const url_link = `${replaceRepoIcon(repo_url)} <a href="${repo_url}" target="_blank"><i class="icon external alternate"></i></a>`;
+            let chart_node_html = `
+                <div class="image">
+                    <img src="${escapeString(image_url)}" onerror="this.src='/images/placeholder.webp'">
+                </div>
                 <div class="content">
                     <div class="header">${name}</div>
                     <div class="meta">
@@ -27,45 +29,37 @@ $(document).ready(function () {
                     </div>
                 </div>
                 <div class="content">
-                    <p><b>Monitoring since: </b>${dateToYMD(new Date(created_at), true)}</p>
-                    <p><b>Branch: </b> ${branch == '' ? '-': branch}</p>
-                    <p><b>Filename: </b> ${filename == '' ? '-': filename}</p>
-                    <p><b>Machine: </b>${machine_description}</p>
-                    <p><b>Schedule Mode: </b>${schedule_mode}</p>
-                    <p><b>Last Run: </b>${last_run == '' ? '-' : dateToYMD(new Date(last_run))}</p>
+                    <p title="${created_at}"><b>Monitoring since: </b>${dateToYMD(new Date(created_at), true)}</p>
+                    <p title="${branch}"><b>Branch: </b> ${branch == '' ? '-': branch}</p>
+                    <p title="${filename}"><b>Filename: </b> ${filename == '' ? '-': filename}</p>
+                    <p title="${machine_description}"><b>Machine: </b>${machine_description}</p>
+                    <p title="${schedule_mode}"><b>Schedule Mode: </b>${schedule_mode}</p>
+                    <p title="${last_run}"><b>Last Run: </b>${last_run == '' ? '-' : dateToYMD(new Date(last_run), false, true)}</p>
+
                     `
 
             DEFAULT_ENERGY_TIMELINE_BADGE_METRICS.forEach(metric => {
                 const [metric_name, detail_name] = metric
-                chart_node.innerHTML = `${chart_node.innerHTML}
-                <fieldset style="border:none;">
+                chart_node_html = `${chart_node_html}
                         <div class="field">
-                            <div class="header title">
-                                <strong>${getPretty(metric_name, 'clean_name')}</strong> via
-                                <strong>${getPretty(metric_name, 'source')}</strong>
-                                 - ${detail_name}
-                                <i data-tooltip="${getPretty(metric_name, 'explanation')}" data-position="bottom center" data-inverted>
-                                    <i class="question circle icon link"></i>
-                                </i>
-                            </div>
-                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}&unit=joules" alt="Image Failed to Load" onerror="this.closest('.field').style.display='none'"></a></span>
-                            <a class="copy-badge"><i class="copy icon"></i></a>
-                        </div>
-                        </div>
-                        <p></p><hr>`
+                            <strong>${getPretty(metric_name, 'clean_name')}</strong>
+                            <i data-tooltip="${getPretty(metric_name, 'explanation')}" data-position="bottom center" data-inverted>
+                                <i class="question circle icon link"></i>
+                            </i><br>
+                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${repo_url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${repo_url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}&unit=joules" alt="Image Failed to Load" onerror="this.closest('.field').style.display='none'"></a></span>
+                        </div>`
             })
 
-            chart_node.innerHTML = `${chart_node.innerHTML}
+            chart_node_html = `${chart_node_html}
                 </div>
-		<hr>
-                <a class="ui button blue" href="/timeline.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}" target="_blank">
+                <a class="ui button blue" href="/timeline.html?uri=${repo_url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}" target="_blank">
                     Show Timeline <i class="external alternate icon"></i>
                 </a>
                 <hr>
-                <a class="ui button grey" href="/runs.html?uri=${url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}" target="_blank">
+                <a class="ui button grey" href="/runs.html?uri=${repo_url}&filename=${filename}&branch=${branch}&machine_id=${machine_id}" target="_blank">
                     Show All Measurements <i class="external alternate icon"></i>
                 </a>`
-
+            chart_node.innerHTML = chart_node_html;
             document.querySelector('#scenario-runner-watchlist').appendChild(chart_node)
         });
         document.querySelectorAll(".copy-badge").forEach(el => {

@@ -10,7 +10,8 @@ from cron.watchlist import schedule_watchlist_item
 
 WATCHLIST_ITEM = {
         'name':'My Name',
-        'url':'https://github.com/green-coding-solutions/green-metrics-tool',
+        'image_url': 'not-set',
+        'repo_url':'https://github.com/green-coding-solutions/green-metrics-tool',
         'branch':'main',
         'filename':'usage_scenario.yml',
         'machine_id':1,

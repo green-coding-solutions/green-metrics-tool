@@ -7,7 +7,8 @@ from fastapi.exceptions import RequestValidationError
 
 class Software(BaseModel):
     name: str
-    url: str
+    image_url: str
+    repo_url: str
     email: str
     filename: str
     branch: str
