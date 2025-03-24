@@ -9,13 +9,13 @@
 #include <sys/time.h>
 
 unsigned int parse_int(char *argument) {
-    unsigned long int number = 0;
+    unsigned int number = 0;
     char *endptr;
 
     errno = 0;  // Reset errno before the call
     number = strtoul(argument, &endptr, 10);
 
-    if (errno == ERANGE && (number == LONG_MAX || number == LONG_MIN)) {
+    if (errno == ERANGE && (number == UINT_MAX || number == 0)) {
         fprintf(stderr, "Error: Could not parse -i argument - Number out of range\n");
         exit(1);
     } else if (errno != 0 && number == 0) {
