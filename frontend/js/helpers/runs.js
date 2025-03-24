@@ -8,7 +8,7 @@ const compareButton = () => {
     });
     link = link.substr(0,link.length-1);
 
-    if (localStorage.getItem('expert_compare_mode') == 'true'){
+    if (localStorage.getItem('expert_compare_mode') === 'true'){
         const value = document.querySelector('.compare-force-mode').value;
         link = `${link}&force_mode=${value}`
         localStorage.setItem('expert_compare_mode_last_value', value);
@@ -22,13 +22,13 @@ const updateCompareCount = () => {
     countButton.textContent = `Compare: ${checkedCount} Run(s)`;
     if (checkedCount === 0) {
         document.querySelector('.unselect-button').style.display = 'none';
-        if (localStorage.getItem('expert_compare_mode') == 'true') {
+        if (localStorage.getItem('expert_compare_mode') === 'true') {
             document.querySelector('.compare-force-mode').style.display = 'none';
         }
 
     } else {
         document.querySelector('.unselect-button').style.display = 'block';
-        if (localStorage.getItem('expert_compare_mode') == 'true') {
+        if (localStorage.getItem('expert_compare_mode') === 'true') {
             document.querySelector('.compare-force-mode').style.display = 'block';
         }
 
@@ -175,7 +175,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
     let button_title = ''
     if (include_button) {
         button_title = `<button onclick="compareButton()" class="ui small button blue compare-button">Compare: 0 Run(s)</button>`
-        if (localStorage.getItem('expert_compare_mode') == 'true') {
+        if (localStorage.getItem('expert_compare_mode') === 'true') {
             button_title = `${button_title}<br>
             <select class="compare-force-mode" style="width: 160px; height: 40px; margin-top: 5px;">
                 <option value="">--</option>
@@ -225,7 +225,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
     });
 
 
-    if (localStorage.getItem('expert_compare_mode') == 'true') {
+    if (localStorage.getItem('expert_compare_mode') === 'true') {
         const value = localStorage.getItem('expert_compare_mode_last_value');
         if (value != null) {
             document.querySelectorAll('.compare-force-mode').forEach((e) =>{

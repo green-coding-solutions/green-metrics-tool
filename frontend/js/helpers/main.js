@@ -244,7 +244,7 @@ async function makeAPICall(path, values=null, force_authentication_token=null) {
     }
 
     let json_response = null;
-    if(localStorage.getItem('remove_idle') == 'true') path += "?remove_idle=true"
+    if(localStorage.getItem('remove_idle') === 'true') path += "?remove_idle=true"
     await fetch(API_URL + path, options)
     .then(response => {
         if (response.status == 204) {
@@ -312,7 +312,7 @@ $(document).ready(function () {
     $(document).on('click','#menu-toggle.closed', openMenu);
     $(document).on('click','#menu-toggle.opened', closeMenu);
 
-    if ($(window).width() < 960 || localStorage.getItem('menu_closed') == 'true') {
+    if ($(window).width() < 960 || localStorage.getItem('menu_closed') === 'true') {
         $('#menu-toggle').removeClass('opened').addClass('closed');
         $('#menu').removeClass('opened').addClass('closed');
         $('#main').removeClass('opened').addClass('closed');
