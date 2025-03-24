@@ -65,19 +65,28 @@
                 <form action="/" method="POST" class="ui form">
                     <div class="description" id="new-software-description">
                         <div class="ui fluid icon input" id="new-software-name-div">
-                            <input type="text" placeholder="Name" id="text-field-hero-input1" name="name" required>
+                            <input type="text" placeholder="Name" name="name" required>
+                        </div>
+                        <div class="two fields">
+                            <div class="field">
+                                <div class="ui fluid icon input">
+                                    <input type="email" placeholder="E-Mail (optional - get ping on measurement complete)" name="email">
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui fluid icon input">
+                                    <input type="text" placeholder="Image URL (optional - used in Watchlist for repeated measurements)"  name="image_url">
+                                </div>
+                            </div>
                         </div>
                         <div class="ui fluid icon input">
-                            <input type="text" placeholder="E-Mail" id="text-field-hero-input2" name="email" required>
+                            <input type="text" placeholder="Github-/Gitlab-/Bitbucket-URL" name="repo_url" required>
                         </div>
                         <div class="ui fluid icon input">
-                            <input type="text" placeholder="Github-/Gitlab-/Bitbucket-URL" id="text-field-hero-input3" name="url" required>
+                            <input type="text" placeholder="Filename (optional - default: usage_scenario.yml)" name="filename">
                         </div>
                         <div class="ui fluid icon input">
-                            <input type="text" placeholder="Filename (optional - default: usage_scenario.yml)" id="text-field-hero-input4" name="filename">
-                        </div>
-                        <div class="ui fluid icon input">
-                            <input type="text" placeholder="Branch (optional - default: main)" id="text-field-hero-input5" name="branch">
+                            <input type="text" placeholder="Branch (optional - default: main)" name="branch">
                         </div>
                         <div class="ui fluid icon input">
                             <select name="machine_id" class="ui fluid dropdown" required>
