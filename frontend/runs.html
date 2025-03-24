@@ -21,7 +21,6 @@
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
     <script src="/js/helpers/runs.js" defer></script>
-    <script src="/js/scenario-runner.js" defer></script>
 
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
     <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
@@ -70,30 +69,32 @@
             <ul></ul>
         </div>
 
-        <table id="runs-table" class="ui celled striped table scenario-runner-runs"></table>
-
-        <table id="repositories-table" class="ui celled striped table scenario-runner-repositories">
+        <table id="runs-and-repos-table" class="ui table">
             <thead>
                 <tr>
                     <th>
-                        Repositories (<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.)+
+                        <span id="runs-and-repos-table-title">Runs</span> (<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.)+
                         <div class="float-right">
-                            <button onclick="compareButton()" class="ui small button blue compare-button">Compare: 0 Run(s)</button><br>
-                            <select class="compare-force-mode" style="width: 160px; height: 40px; margin-top: 5px; display:none;">
+                            <button id="compare-button" onclick="compareButton()" class="ui small button blue">Compare: 0 Run(s)</button>
+                            <select id="compare-force-mode" style="width: 160px; height: 40px; margin-top: 5px; display:none;">
                                 <option value="">--</option>
                                 <option value="branches">Branches</option>
                                 <option value="commit_hashes">Commits</option>
                                 <option value="machine_ids">Machines</option>
                                 <option value="usage_scenarios">Usage Scenarios</option>
                                 <option value="repos">Repos</option>
-                            </select><br>
-                            <button class="ui mini button red right unselect-button" style="display:none">Unselect all</button>
+                            </select>
+                            <button id="unselect-button" class="ui mini button red right " style="display:none">Unselect all</button>
                         </div>
                         <button id="sort-button" class="ui small button purple float-right"><i class="text icon"></i><span>Sort name</span></button>
                     </th>
                 </tr>
             </thead>
-            <tbody></tbody>
+            <tbody>
+                <tr>
+                    <td><table class="ui celled striped table"></table></td>
+                </tr>
+            </tbody>
         </table>
         <div class="clearing" style="display:block; height: 10px;"></div>
     </div>
