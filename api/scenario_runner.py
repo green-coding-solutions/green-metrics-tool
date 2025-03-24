@@ -216,9 +216,9 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
 
     query = f"{query} ORDER BY r.created_at DESC"
 
-    check_int_field_api(limit, 'limit', 50)
-    query = f"{query} LIMIT %s"
-    params.append(limit)
+    #check_int_field_api(limit, 'limit', 50)
+    #query = f"{query} LIMIT %s"
+    #params.append(limit)
 
 
     data = DB().fetch_all(query, params=params)
