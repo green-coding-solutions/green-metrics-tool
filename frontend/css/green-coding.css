@@ -40,6 +40,10 @@ a.project-item>i.icon {
     margin: 0
 }
 
+.ui.card.scenario-runner .content {
+    cursor: default;
+}
+
 #runs-table, #repositories-table, .scenario-runner-runs, .scenario-runner-repositories {
     visibility: hidden;
 }
