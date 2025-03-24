@@ -16,7 +16,6 @@
 // between Threads.
 // in any case, none of these variables should change between threads
 static unsigned int msleep_time=1000;
-static bool use_gettimeofday = false;
 static struct timespec offset;
 
 static char *trimwhitespace(char *str) {
@@ -61,11 +60,7 @@ static void output_network_procfs() {
     int match_result = 0;
 
     // we only make this one time as we believe the overhead of the systemcall is more harmful than the mini time delay for every loop iteration
-    if(use_gettimeofday) {
-        gettimeofday(&now, NULL);
-    } else {
-        get_adjusted_time(&now, &offset);
-    }
+    get_adjusted_time(&now, &offset);
 
     while (fgets(buf, 200, fd)) {
         // We are not counting dropped packets, as we believe they will at least show up in the
@@ -115,14 +110,13 @@ int main(int argc, char **argv) {
         {NULL, 0, NULL, 0}
     };
 
-    while ((c = getopt_long(argc, argv, "i:hcm", long_options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "i:hc", long_options, NULL)) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
             printf("\t-c      : check system and exit\n");
-            printf("\t-m      : uses gettimeofday instead of monotonic clock to get the current time\n");
             printf("\n");
             exit(0);
         case 'i':
@@ -130,9 +124,6 @@ int main(int argc, char **argv) {
             break;
         case 'c':
             check_system_flag = true;
-            break;
-        case 'm':
-            use_gettimeofday = true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -144,9 +135,7 @@ int main(int argc, char **argv) {
         exit(check_system());
     }
 
-    if(!use_gettimeofday) {
-        get_time_offset(&offset);
-    }
+    get_time_offset(&offset);
 
     while(1) {
         output_network_procfs();

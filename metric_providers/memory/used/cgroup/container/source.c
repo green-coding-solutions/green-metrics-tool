@@ -24,7 +24,6 @@ typedef struct container_t { // struct is a specification and this static makes 
 // in any case, none of these variables should change between threads
 static int user_id = -1;
 static unsigned int msleep_time=1000;
-static bool use_gettimeofday = false;
 static struct timespec offset;
 
 static long long int get_memory_cgroup(char* filename) {
@@ -106,11 +105,7 @@ static void output_stats(container_t *containers, int length) {
     struct timeval now;
     int i;
 
-    if(use_gettimeofday) {
-        gettimeofday(&now, NULL);
-    } else {
-        get_adjusted_time(&now, &offset);
-    }
+    get_adjusted_time(&now, &offset);
 
     for(i=0; i<length; i++) {
         printf("%ld%06ld %lld %s\n", now.tv_sec, now.tv_usec, get_memory_cgroup(containers[i].path), containers[i].id);
@@ -190,7 +185,7 @@ int main(int argc, char **argv) {
         {NULL, 0, NULL, 0}
     };
 
-    while ((c = getopt_long(argc, argv, "i:s:hcm", long_options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "i:s:hc", long_options, NULL)) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
@@ -198,7 +193,6 @@ int main(int argc, char **argv) {
             printf("\t-s      : string of container IDs separated by comma\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
             printf("\t-c      : check system and exit\n");
-            printf("\t-m      : uses gettimeofday instead of monotonic clock to get the current time\n");
             printf("\n");
             exit(0);
         case 'i':
@@ -217,9 +211,6 @@ int main(int argc, char **argv) {
         case 'c':
             check_system_flag = true;
             break;
-        case 'm':
-            use_gettimeofday = true;
-            break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
             exit(-1);
@@ -230,9 +221,7 @@ int main(int argc, char **argv) {
         exit(check_system());
     }
 
-    if(!use_gettimeofday) {
-        get_time_offset(&offset);
-    }
+    get_time_offset(&offset);
 
     int length = parse_containers(&containers, containers_string);
 

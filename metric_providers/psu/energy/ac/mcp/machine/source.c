@@ -39,7 +39,6 @@ const unsigned char f511_set_accumulation_interval[] = { 0x41, 0x00, 0xA8, 0x4D,
 
 /* This variable ist just global for consitency with our other metric_provider source files */
 static unsigned int msleep_time=1000;
-static bool use_gettimeofday = false;
 static struct timespec offset;
 
 enum mcp_states { init, wait_ack, get_len, get_data, validate_checksum };
@@ -231,7 +230,6 @@ int main(int argc, char **argv) {
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
             printf("\t-c      : check system and exit\n");
-            printf("\t-m      : uses gettimeofday instead of monotonic clock to get the current time\n");
             printf("\n");
             exit(0);
         case 'i':
@@ -240,9 +238,7 @@ int main(int argc, char **argv) {
         case 'c':
             check_system_flag = true;
             break;
-        case 'm':
-            use_gettimeofday = true;
-            break;
+
         default:
             fprintf(stderr,"Unknown option %c\n",c);
             exit(-1);
@@ -261,10 +257,7 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
-    if(!use_gettimeofday) {
-        get_time_offset(&offset);
-    }
-
+    get_time_offset(&offset);
     while (1) {
         result = f511_get_power(&data[0], &data[1], fd);
         if(result != 0) {
@@ -272,11 +265,8 @@ int main(int argc, char **argv) {
             break;
         }
         // The MCP returns the current power consumption in 10mW steps.
-        if(use_gettimeofday) {
-            gettimeofday(&now, NULL);
-        } else {
-            get_adjusted_time(&now, &offset);
-        }
+        get_adjusted_time(&now, &offset);
+
         printf("%ld%06ld %d\n", now.tv_sec, now.tv_usec, data[0]);
         usleep(msleep_time*1000);
     }

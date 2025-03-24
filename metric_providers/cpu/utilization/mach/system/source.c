@@ -10,7 +10,6 @@
 #include <stdbool.h>
 #include "gmt-lib.h"
 
-static bool use_gettimeofday = false;
 static struct timespec offset;
 
 
@@ -100,7 +99,6 @@ int main(int argc, char **argv) {
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
             printf("\t-c      : check system and exit\n");
-            printf("\t-m      : uses gettimeofday instead of monotonic clock to get the current time\n");
             printf("\n");
             exit(0);
         case 'i':
@@ -111,19 +109,14 @@ int main(int argc, char **argv) {
             break;
         case 'c':
             exit(check_system());
-        case 'm':
-            use_gettimeofday = true;
-            break;
+
         default:
             fprintf(stderr,"Unknown option %c\n",c);
             exit(-1);
         }
     }
 
-    if(!use_gettimeofday) {
-        get_time_offset(&offset);
-    }
-
+    get_time_offset(&offset);
     loop_utilization(msleep_time);
 
     return 0;

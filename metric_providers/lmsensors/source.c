@@ -54,7 +54,6 @@ char degstr[5]; /* store the correct string to print degrees */
 
 static unsigned int msleep_time = 1000;
 static volatile sig_atomic_t keep_running = 1;
-static bool use_gettimeofday = false;
 static struct timespec offset;
 
 /* As we need to do some cleanup when we get SIGINT we need a signal handler*/
@@ -176,11 +175,7 @@ static int do_the_real_work(const sensors_chip_name *match, int *err) {
 static void output_value(int value, char *detail_name) {
     struct timeval now;
 
-    if(use_gettimeofday) {
-        gettimeofday(&now, NULL);
-    } else {
-        get_adjusted_time(&now, &offset);
-    }
+    get_adjusted_time(&now, &offset);
     printf("%ld%06ld %i %s\n", now.tv_sec, now.tv_usec, value, detail_name);
 }
 
@@ -214,7 +209,7 @@ int main(int argc, char *argv[]) {
     setlocale(LC_CTYPE, "");
 
     while (1) {
-        c = getopt_long(argc, argv, "c:f:hts:i:n:m", long_opts, NULL);
+        c = getopt_long(argc, argv, "c:f:hts:i:n:", long_opts, NULL);
         if (c == EOF) break;
         switch (c) {
             case ':':
@@ -250,9 +245,6 @@ int main(int argc, char *argv[]) {
                 break;
             case 'n':
                 measurement_amount = parse_int(optarg);
-                break;
-            case 'm':
-                use_gettimeofday = true;
                 break;
             default:
                 exit(1);
@@ -336,9 +328,8 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
-        if(!use_gettimeofday) {
-            get_time_offset(&offset);
-        }
+        get_time_offset(&offset);
+
 
         /* The main loop */
         while (keep_running) {

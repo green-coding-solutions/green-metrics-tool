@@ -170,7 +170,6 @@ static long long read_msr(int fd, unsigned int which) {
 // not pollute another threads state
 static unsigned int msr_rapl_units,msr_pkg_energy_status,msr_pp0_energy_status;
 static unsigned int msleep_time=1000;
-static bool use_gettimeofday = false;
 static struct timespec offset;
 
 static int detect_cpu(void) {
@@ -478,11 +477,7 @@ static void rapl_msr(int measurement_mode) {
             // For now, skip reporting this value. in the future, we can use a branchless alternative
             if(energy_output>=0) {
 
-                if(use_gettimeofday) {
-                    gettimeofday(&now, NULL);
-                } else {
-                    get_adjusted_time(&now, &offset);
-                }
+                get_adjusted_time(&now, &offset);
 
                 if (measurement_mode == MEASURE_ENERGY_PKG) {
                     printf("%ld%06ld %lld Package_%d\n", now.tv_sec, now.tv_usec, (long long)(energy_output*1000000), k);
@@ -525,7 +520,6 @@ int main(int argc, char **argv) {
             printf("\t-d      : measure the dram energy instead of the CPU package\n");
             printf("\t-p      : measure the psys energy instead of the CPU package\n");
             printf("\t-c      : check system and exit\n");
-            printf("\t-m      : uses gettimeofday instead of monotonic clock to get the current time\n");
             printf("\n");
             exit(0);
         case 'i':
@@ -539,9 +533,6 @@ int main(int argc, char **argv) {
             break;
         case 'c':
             check_system_flag = true;
-            break;
-        case 'm':
-            use_gettimeofday = true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -561,9 +552,7 @@ int main(int argc, char **argv) {
         exit(check_system());
     }
 
-    if(!use_gettimeofday) {
-        get_time_offset(&offset);
-    }
+    get_time_offset(&offset);
 
     rapl_msr(measurement_mode);
 

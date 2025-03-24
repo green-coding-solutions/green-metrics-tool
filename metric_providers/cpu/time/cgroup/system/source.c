@@ -16,7 +16,6 @@
 
 static long int user_hz;
 static unsigned int msleep_time=1000;
-static bool use_gettimeofday = false;
 static struct timespec offset;
 
 static long int read_cpu_cgroup() {
@@ -35,11 +34,7 @@ static long int read_cpu_cgroup() {
 
 static void output_stats() {
     struct timeval now;
-    if(use_gettimeofday) {
-        gettimeofday(&now, NULL);
-    } else {
-        get_adjusted_time(&now, &offset);
-    }
+    get_adjusted_time(&now, &offset);
 
     printf("%ld%06ld %ld\n", now.tv_sec, now.tv_usec, read_cpu_cgroup());
     usleep(msleep_time*1000);
@@ -72,7 +67,6 @@ int main(int argc, char **argv) {
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
             printf("\t-c      : check system and exit\n");
-            printf("\t-m      : uses gettimeofday instead of monotonic clock to get the current time\n");
             printf("\n");
 
             struct timespec res;
@@ -91,9 +85,7 @@ int main(int argc, char **argv) {
         case 'c':
             check_system_flag = true;
             break;
-        case 'm':
-            use_gettimeofday = true;
-            break;
+
         default:
             fprintf(stderr,"Unknown option %c\n",c);
             exit(-1);
@@ -104,10 +96,7 @@ int main(int argc, char **argv) {
         exit(check_system());
     }
 
-    if(!use_gettimeofday) {
-        get_time_offset(&offset);
-    }
-
+    get_time_offset(&offset);
     while(1) {
         output_stats();
     }
