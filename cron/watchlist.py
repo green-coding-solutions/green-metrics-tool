@@ -88,7 +88,7 @@ if __name__ == '__main__':
                     w.created_at, w.updated_at
                 FROM watchlist as w
                 LEFT JOIN machines as m on m.id = w.machine_id
-                ORDER BY w.url ASC
+                ORDER BY w.repo_url ASC
             """
             show_data = DB().fetch_all(show_query, fetch_mode='dict')
             pp = pprint.PrettyPrinter(indent=4)
