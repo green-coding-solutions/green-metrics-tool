@@ -15,8 +15,14 @@ Thanks to https://css-tricks.com/transitions-only-after-page-load/ */
 
 .index-connected-tools {
     display: none !important;
+    cursor: default !important;
 }
 
+.index-connected-tools > a.project-item {
+    display: block;
+    background: #3d936f;
+    padding: 30px 0;
+}
 
 a.project-item.wrapped {
     border: 10px solid #3d936f;
@@ -40,9 +46,6 @@ a.project-item>i.icon {
     margin: 0
 }
 
-.ui.card.scenario-runner .content {
-    cursor: default;
-}
 
 #runs-table, #repositories-table, .scenario-runner-runs, .scenario-runner-repositories {
     visibility: hidden;
