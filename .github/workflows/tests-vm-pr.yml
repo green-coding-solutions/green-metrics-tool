@@ -1,13 +1,14 @@
 name: Pull Request Tests
 run-name: PR check
 on:
-  pull_request:
+  pull_request_target:
 
 jobs:
   run-tests:
     runs-on: ubuntu-24.04
     permissions:
       pull-requests: write
+    environment: testing
     steps:
       - name: Eco CI Energy Estimation - Initialize
         uses: green-coding-solutions/eco-ci-energy-estimation@main
@@ -24,6 +25,9 @@ jobs:
         with:
           ref: ${{ github.ref }}
           submodules: 'false'
+
+      - name: Fetch PR’s HEAD for testing
+        run: git fetch origin +refs/pull/${{ github.event.pull_request.number }}/merge
 
 
       - name: 'Setup, Run, and Teardown Tests'
