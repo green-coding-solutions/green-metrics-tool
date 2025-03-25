@@ -244,8 +244,10 @@ function setup_python() {
         python3 -m pip install --timeout 100 --retries 10 -r requirements.txt
         python3 -m pip install --timeout 100 --retries 10 -r docker/requirements.txt
         python3 -m pip install --timeout 100 --retries 10 -r metric_providers/psu/energy/ac/xgboost/machine/model/requirements.txt
+        if [[ $enterprise == true ]] ; then
+            python3 -m pip install --timeout 100 --retries 10 -r ee/requirements.txt
+        fi
     fi
-
 }
 
 function checkout_submodules() {
@@ -260,8 +262,13 @@ function checkout_submodules() {
         git submodule update --init lib/sgx-software-enable
     fi
     git submodule update --init metric_providers/psu/energy/ac/xgboost/machine/model
+
     if [[ $enterprise == true ]] ; then
-        git submodule update --init ee
+        if [ ! -d "ee/.git" ]; then
+            git submodule update --init ee
+        else
+            echo "Submodule 'ee' already initialized. Skipping update."
+        fi
     fi
 }
 
