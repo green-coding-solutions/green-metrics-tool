@@ -1,7 +1,7 @@
 
 import orjson
 from xml.sax.saxutils import escape as xml_escape
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Response, Depends
 from fastapi.responses import ORJSONResponse
@@ -415,7 +415,9 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
     if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{uri}_{filename}_{machine_id}_{branch}_{metrics}_{detail_name}_{unit}"):
         return Response(content=str(artifact), media_type="image/svg+xml")
 
-    query, params = get_timeline_query(user, uri,filename,machine_id, branch, metrics, '[RUNTIME]', detail_name=detail_name, limit_365=True)
+    date_30_days_ago = datetime.now() - timedelta(days=30)
+
+    query, params = get_timeline_query(user, uri,filename,machine_id, branch, metrics, '[RUNTIME]', detail_name=detail_name, start_date=date_30_days_ago.strftime('%Y-%m-%d'), end_date=datetime.now())
 
     # query already contains user access check. No need to have it in aggregate query too
     query = f"""
@@ -434,14 +436,14 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         return Response(status_code=204) # No-Content
 
-    cost = data[1]/data[0]
+    cost = data[1]
     display_in_joules = (unit == 'joules') #pylint: disable=superfluous-parens
     [rescaled_cost, rescaled_unit] = convert_value(cost, data[3], display_in_joules)
     rescaled_cost = f"+{rescaled_cost:.2f}" if abs(cost) == cost else f"{rescaled_cost:.2f}"
 
     badge = anybadge.Badge(
         label=xml_escape('Run Trend'),
-        value=xml_escape(f"{rescaled_cost} {rescaled_unit} per day"),
+        value=xml_escape(f"{rescaled_cost} {rescaled_unit} per run"),
         num_value_padding_chars=1,
         default_color='orange')
 

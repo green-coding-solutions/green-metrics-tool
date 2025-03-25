@@ -189,7 +189,7 @@ def get_run_info(user, run_id):
     params = (user.is_super_user(), user.visible_users(), run_id)
     return DB().fetch_one(query, params=params, fetch_mode='dict')
 
-def get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, limit_365=False, sorting='run'):
+def get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, start_date=None, end_date=None, detail_name=None, sorting='run'):
 
     if filename is None or filename.strip() == '':
         filename =  'usage_scenario.yml'
@@ -223,10 +223,6 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, 
         detail_name_condition =  "AND p.detail_name = %s"
         params.append(detail_name)
 
-    limit_365_condition = ''
-    if limit_365:
-        limit_365_condition = "AND r.created_at >= CURRENT_DATE - INTERVAL '365 days'"
-
     sorting_condition = 'r.commit_timestamp ASC, r.created_at ASC'
     if sorting is not None and sorting.strip() == 'run':
         sorting_condition = 'r.created_at ASC, r.commit_timestamp ASC'
@@ -252,7 +248,6 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, 
                 {start_date_condition}
                 {end_date_condition}
                 {detail_name_condition}
-                {limit_365_condition}
                 AND r.commit_timestamp IS NOT NULL
                 AND r.failed IS FALSE
             ORDER BY
