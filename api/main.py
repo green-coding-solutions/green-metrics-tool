@@ -148,10 +148,10 @@ async def update_user_setting(setting: UserSetting, user: User = Depends(authent
 
     try:
         user.change_setting(setting.name, setting.value)
-    except BaseException as exc:
+    except ValueError as exc:
         raise RequestValidationError(str(exc)) from exc
 
-    return ORJSONResponse({'success': True, 'data': [setting.name, setting.value]})
+    return Response(status_code=204) # No-Content
 
 if GlobalConfig().config.get('activate_scenario_runner', False):
     from api import scenario_runner

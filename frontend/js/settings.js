@@ -11,13 +11,13 @@ const updateSetting = async (el) => {
             showNotification('Save success!', `${name} = ${left_el.value}`)
         }
     } catch (err) {
-        showNotification('Could not get run data from API', err);
+        showNotification('Could save setting', err);
         return
     }
 }
 
 const getSettings = async () => {
-    data = await makeAPICall('/v1/user/settings')
+    const data = await makeAPICall('/v1/user/settings')
     document.querySelector('#measurement-settings-flow-process-duration').value = data?.data?._capabilities?.measurement?.settings?.flow_process_duration
     document.querySelector('#measurement-settings-total-duration').value = data?.data?._capabilities?.measurement?.settings?.total_duration
     $('#measurement-disabled-metric-providers').dropdown('set exactly', data?.data?._capabilities?.measurement?.disabled_metric_providers);
