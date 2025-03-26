@@ -355,7 +355,7 @@ function check_optarg() {
     fi
 }
 
-while getopts ":p:a:m:nhtbisurlc:k:e:zZdDgGfFjJ" o; do
+while getopts ":p:a:m:NhTBISuRLc:k:e:zZdDgGfFjJ" o; do
     case "$o" in
         \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
         :)  echo "Error: Option -$OPTARG requires an argument" >&2; exit 1 ;;
@@ -371,35 +371,35 @@ while getopts ":p:a:m:nhtbisurlc:k:e:zZdDgGfFjJ" o; do
             check_optarg 'm' $OPTARG
             metrics_url=${OPTARG}
             ;;
-        b)
+        B)
             build_docker_containers=false
             ;;
-        w)
+        W)
             modify_hosts=false
             ;;
-        n)
+        N)
             install_python_packages=false
             ;;
-        t)
+        T)
             ask_tmpfs=false
             ;;
-        i)
+        I)
             install_ipmi=false
             ;;
-        s)
+        S)
             install_sensors=false
             ;;
-        r)
+        R)
             install_msr_tools=false
             ;;
         u)
             use_system_site_packages=true
             ;;
-        l)
+        L)
             enable_ssl=false
             ask_ssl=false
             ;;
-        x)
+        X)
             build_sgx=false
             ;;
         c)
@@ -457,22 +457,22 @@ while getopts ":p:a:m:nhtbisurlc:k:e:zZdDgGfFjJ" o; do
             ;;
 
         h)
-            echo 'usage: ./install_XXX [p:] [a:] [m:] [n] [h] [t] [b] [i] [s] [u] [r] [l] [c:] [k:] [e:] [z] [Z] [d] [D] [g] [G] [f] [F] [j] [J]'
+            echo 'usage: ./install_XXX [p:] [a:] [m:] [N] [h] [T] [B] [I] [S] [u] [R] [L] [c:] [k:] [e:] [z] [Z] [d] [D] [g] [G] [f] [F] [j] [J]'
             echo ''
             echo 'options:'
             echo -e '  -p DB_PW:\t\tSupply DB password'
             echo -e '  -a API_URL:\t\tSupply API URL'
             echo -e '  -m METRICS_URL:\tSupply Dashboard URL'
-            echo -e '  -b:\t\t\tBuild docker containers'
-            echo -e '  -w:\t\t\tModify hosts'
-            echo -e '  -n:\t\t\tInstall Python packages'
-            echo -e '  -t:\t\t\tAsk for tmpfs remounting'
-            echo -e '  -i:\t\t\tInstall IPMI drivers'
-            echo -e '  -s:\t\t\tInstall lm-sensors package'
-            echo -e '  -r:\t\t\tInstall MSR tools'
+            echo -e '  -B:\t\t\tDo not build docker containers'
+            echo -e '  -W:\t\t\tDo not Modify hosts'
+            echo -e '  -N:\t\t\tDo not install Python packages'
+            echo -e '  -T:\t\t\t Do not ask for tmpfs remounting'
+            echo -e '  -I:\t\t\tDo not install IPMI drivers'
+            echo -e '  -S:\t\t\tDo not install lm-sensors package'
+            echo -e '  -R:\t\t\tDo not install MSR tools'
             echo -e '  -u:\t\t\tUse Python system packages'
-            echo -e '  -l:\t\t\tEnable SSL'
-            echo -e '  -x:\t\t\tBuild SGX checking binaries'
+            echo -e '  -L:\t\t\tDisable SSL'
+            echo -e '  -X:\t\t\tDo not build SGX checking binaries'
             echo -e '  -c:\t\t\tSupply SSL .crt file'
             echo -e '  -k:\t\t\tSupply SSL .key file'
             echo -e '  -e: EE_TOKEN\t\tActivate enterprise features and store token'
