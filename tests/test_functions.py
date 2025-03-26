@@ -161,10 +161,10 @@ def insert_user(user_id, token):
 
 def import_demo_data():
     config = GlobalConfig().config
-    port = config['postgresql']['port']
-    dbname = config['postgresql']['dbname']
+    pg_port = config['postgresql']['port']
+    pg_dbname = config['postgresql']['dbname']
     subprocess.run(
-        f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{dbname} -p{port} < {CURRENT_DIR}/../data/demo_data.sql",
+        f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{pg_dbname} -p{pg_port} < {CURRENT_DIR}/../data/demo_data.sql",
         check=True,
         shell=True,
         stderr=subprocess.PIPE,
@@ -174,10 +174,10 @@ def import_demo_data():
 
 def import_demo_data_ee():
     config = GlobalConfig().config
-    port = config['postgresql']['port']
-    dbname = config['postgresql']['dbname']
+    pg_port = config['postgresql']['port']
+    pg_dbname = config['postgresql']['dbname']
     subprocess.run(
-        f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{dbname} -p{port} < {CURRENT_DIR}/../ee/data/demo_data_ee.sql",
+        f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{pg_dbname} -p{pg_port} < {CURRENT_DIR}/../ee/data/demo_data_ee.sql",
         check=True,
         shell=True,
         stderr=subprocess.PIPE,
@@ -208,21 +208,27 @@ def build_image_fixture():
 def reset_db():
     # DB().query('DROP schema "public" CASCADE') # we do not want to call DB commands. Reason being is that because of a misconfiguration we could be sending this to the live DB
     config = GlobalConfig().config
-    port = config['postgresql']['port']
-    dbname = config['postgresql']['dbname']
+    pg_port = config['postgresql']['port']
+    pg_dbname = config['postgresql']['dbname']
+    redis_port = config['redis']['port']
     subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {dbname} --port {port} -c \'DROP schema "public" CASCADE\' '],
+        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} -c \'DROP schema "public" CASCADE\' '],
         check=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
     subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql --port {port} < ./docker-entrypoint-initdb.d/01-structure.sql'],
+        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} < ./docker-entrypoint-initdb.d/01-structure.sql'],
         check=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    subprocess.run(
+        ['docker', 'exec', 'test-green-coding-redis-container', 'redis-cli', '-p', f"{redis_port}", 'FLUSHALL'],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
 
 class RunUntilManager:

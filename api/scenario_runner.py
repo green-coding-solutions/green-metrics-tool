@@ -1,7 +1,7 @@
 
 import orjson
 from xml.sax.saxutils import escape as xml_escape
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Response, Depends
 from fastapi.responses import ORJSONResponse
@@ -179,7 +179,7 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v1/runs')
-async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int = 5, uri_mode = 'none', user: User = Depends(authenticate)):
+async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
 
     query = '''
             SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
@@ -216,9 +216,10 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
 
     query = f"{query} ORDER BY r.created_at DESC"
 
-    check_int_field_api(limit, 'limit', 50)
-    query = f"{query} LIMIT %s"
-    params.append(limit)
+    if limit:
+        check_int_field_api(limit, 'limit', 50)
+        query = f"{query} LIMIT %s"
+        params.append(limit)
 
 
     data = DB().fetch_all(query, params=params)
@@ -235,7 +236,7 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
 # later if supplied. Also deprecation shall be used once we move to v2 for all v1 routesthrough
 
 @router.get('/v1/compare')
-async def compare_in_repo(ids: str, user: User = Depends(authenticate)):
+async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = Depends(authenticate)):
     if ids is None or not ids.strip():
         raise RequestValidationError('run_id is empty')
     ids = ids.split(',')
@@ -243,12 +244,13 @@ async def compare_in_repo(ids: str, user: User = Depends(authenticate)):
         raise RequestValidationError('One of Run IDs is not a valid UUID or empty')
 
 
-    if artifact := get_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}"):
-        return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
+    if not force_mode: # force_mode must always get fresh data
+        if artifact := get_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}"):
+            return ORJSONResponse({'success': True, 'data': orjson.loads(artifact)}) # pylint: disable=no-member
 
     try:
-        case, comparison_db_key = determine_comparison_case(user, ids)
-    except RuntimeError as exc:
+        case, comparison_db_key = determine_comparison_case(user, ids, force_mode=force_mode)
+    except (RuntimeError, ValueError) as exc:
         raise RequestValidationError(str(exc)) from exc
 
     comparison_details = get_comparison_details(user, ids, comparison_db_key)
@@ -319,7 +321,8 @@ async def compare_in_repo(ids: str, user: User = Depends(authenticate)):
     except RuntimeError as err:
         raise RequestValidationError(str(err)) from err
 
-    store_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}", orjson.dumps(phase_stats_object)) # pylint: disable=no-member
+    if not force_mode: # force_mode must never store data
+        store_artifact(ArtifactType.COMPARE, f"{user._id}_{str(ids)}", orjson.dumps(phase_stats_object)) # pylint: disable=no-member
 
 
     return ORJSONResponse({'success': True, 'data': phase_stats_object})
@@ -412,7 +415,9 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
     if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{uri}_{filename}_{machine_id}_{branch}_{metrics}_{detail_name}_{unit}"):
         return Response(content=str(artifact), media_type="image/svg+xml")
 
-    query, params = get_timeline_query(user, uri,filename,machine_id, branch, metrics, '[RUNTIME]', detail_name=detail_name, limit_365=True)
+    date_30_days_ago = datetime.now() - timedelta(days=30)
+
+    query, params = get_timeline_query(user, uri,filename,machine_id, branch, metrics, '[RUNTIME]', detail_name=detail_name, start_date=date_30_days_ago.strftime('%Y-%m-%d'), end_date=datetime.now())
 
     # query already contains user access check. No need to have it in aggregate query too
     query = f"""
@@ -431,14 +436,14 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         return Response(status_code=204) # No-Content
 
-    cost = data[1]/data[0]
+    cost = data[1]
     display_in_joules = (unit == 'joules') #pylint: disable=superfluous-parens
     [rescaled_cost, rescaled_unit] = convert_value(cost, data[3], display_in_joules)
     rescaled_cost = f"+{rescaled_cost:.2f}" if abs(cost) == cost else f"{rescaled_cost:.2f}"
 
     badge = anybadge.Badge(
         label=xml_escape('Run Trend'),
-        value=xml_escape(f"{rescaled_cost} {rescaled_unit} per day"),
+        value=xml_escape(f"{rescaled_cost} {rescaled_unit} per run"),
         num_value_padding_chars=1,
         default_color='orange')
 
@@ -527,7 +532,7 @@ async def get_watchlist(user: User = Depends(authenticate)):
     # Also do not get the email field for privacy
     query = '''
         SELECT
-            tp.id, tp.name, tp.url,
+            tp.id, tp.name, tp.image_url, tp.repo_url,
             (
                 SELECT STRING_AGG(t.name, ', ' )
                 FROM unnest(tp.categories) as elements
@@ -538,7 +543,7 @@ async def get_watchlist(user: User = Depends(authenticate)):
                 SELECT created_at
                 FROM runs as r
                 WHERE
-                    tp.url = r.uri
+                    tp.repo_url = r.uri
                     AND tp.branch = r.branch
                     AND tp.filename = r.filename
                     AND tp.machine_id = r.machine_id
@@ -549,7 +554,7 @@ async def get_watchlist(user: User = Depends(authenticate)):
         LEFT JOIN machines as m ON m.id = tp.machine_id
         WHERE
             (TRUE = %s OR tp.user_id = ANY(%s::int[]))
-        ORDER BY tp.url ASC;
+        ORDER BY tp.repo_url ASC;
     '''
     params = (user.is_super_user(), user.visible_users(),)
     data = DB().fetch_all(query, params=params)
@@ -568,8 +573,11 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         raise RequestValidationError('Name is empty')
 
     # Note that we use uri as the general identifier, however when adding through web interface we only allow urls
-    if software.url is None or software.url.strip() == '':
+    if software.repo_url is None or software.repo_url.strip() == '':
         raise RequestValidationError('URL is empty')
+
+    if software.image_url is None:
+        software.image_url = ''
 
     if software.email is not None and software.email.strip() == '':
         software.email = None
@@ -592,23 +600,23 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if not user.can_schedule_job(software.schedule_mode):
         raise RequestValidationError('Your user does not have the permissions to use that schedule mode.')
 
-    utils.check_repo(software.url, software.branch) # if it exists through the git api
+    utils.check_repo(software.repo_url, software.branch) # if it exists through the git api
 
     if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
 
         last_marker = None
         if 'tag' in software.schedule_mode:
-            last_marker = utils.get_repo_last_marker(software.url, 'tags')
+            last_marker = utils.get_repo_last_marker(software.repo_url, 'tags')
 
         if 'commit' in software.schedule_mode:
-            last_marker = utils.get_repo_last_marker(software.url, 'commits')
+            last_marker = utils.get_repo_last_marker(software.repo_url, 'commits')
 
-        Watchlist.insert(name=software.name, url=software.url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
+        Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 
     # even for Watchlist items we do at least one run directly
     amount = 3 if 'variance' in software.schedule_mode else 1
     for _ in range(0,amount):
-        Job.insert('run', user_id=user._id, name=software.name, url=software.url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id)
+        Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id)
 
     # notify admin of new add
     if notification_email := GlobalConfig().config['admin']['notification_email']:

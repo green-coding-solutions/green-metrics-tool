@@ -157,7 +157,7 @@ const buildTimelineChartData = async (measurements_data) => {
     const metrics = {}
     const t0 = performance.now();
 
-    const transform_timelines_energy_to_power = localStorage.getItem('transform_timelines_energy_to_power') == 'true' ? true : false;
+    const transform_timelines_energy_to_power = localStorage.getItem('transform_timelines_energy_to_power') === 'true' ? true : false;
 
     try {
          // define here as var (not let!), so we can alert it later in error case.
@@ -232,7 +232,7 @@ const displayTimelineCharts = async (metrics, notes) => {
     const t0 = performance.now();
 
     let markline = {};
-    if(localStorage.getItem('time_series_avg') == 'true') {
+    if(localStorage.getItem('time_series_avg') === 'true') {
         markline = {
                     precision: 4, // generally annoying that precision is by default 2. Wrong AVG if values are smaller than 0.001 and no autoscaling!
                     data: [ {type: "average",label: {formatter: "AVG\n(selection):\n{c}"}}]
@@ -467,6 +467,11 @@ $(document).ready( (e) => {
                 fetchTimelineData(url_params),
                 fetchTimelineNotes(url_params)
             ]);
+            if (timeline_data == null) {
+                document.querySelector('#api-loader').remove()
+                document.querySelector('#message-chart-load-failure').style.display = '';
+                return
+            }
             const timeline_chart_data = await buildTimelineChartData(timeline_data);
             displayTimelineCharts(timeline_chart_data, timeline_notes);
         } else {
@@ -475,8 +480,16 @@ $(document).ready( (e) => {
                     fetchTimelineData(url_params),
                     fetchTimelineNotes(url_params)
                 ]);
+
+                if (timeline_data == null) {
+                    document.querySelector('#api-loader').remove()
+                    document.querySelector('#message-chart-load-failure').style.display = '';
+                    return
+                }
                 const timeline_chart_data = await buildTimelineChartData(timeline_data);
                 displayTimelineCharts(timeline_chart_data, timeline_notes);
+
+
             });
         }
     })();

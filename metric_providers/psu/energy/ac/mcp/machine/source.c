@@ -7,8 +7,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/time.h>
-
-#include "parse_int.h"
+#include <time.h>
+#include <stdbool.h>
+#include "gmt-lib.h"
 #include "mcp_com.h"
 
 /*
@@ -38,6 +39,7 @@ const unsigned char f511_set_accumulation_interval[] = { 0x41, 0x00, 0xA8, 0x4D,
 
 /* This variable ist just global for consitency with our other metric_provider source files */
 static unsigned int msleep_time=1000;
+static struct timespec offset;
 
 enum mcp_states { init, wait_ack, get_len, get_data, validate_checksum };
 
@@ -214,7 +216,7 @@ int f511_init(const char *port)
 int main(int argc, char **argv) {
 
     int c;
-    int check_system_flag = 0;
+    bool check_system_flag = false;
     struct timeval now;
     int fd;
     int result;
@@ -227,13 +229,14 @@ int main(int argc, char **argv) {
             printf("Usage: %s [-h] [-m]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
-            printf("\t-c      : check system and exit\n\n");
+            printf("\t-c      : check system and exit\n");
+            printf("\n");
             exit(0);
         case 'i':
             msleep_time = parse_int(optarg);
             break;
         case 'c':
-            check_system_flag = 1;
+            check_system_flag = true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -253,6 +256,8 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
+    get_time_offset(&offset);
+
     while (1) {
         result = f511_get_power(&data[0], &data[1], fd);
         if(result != 0) {
@@ -260,7 +265,8 @@ int main(int argc, char **argv) {
             break;
         }
         // The MCP returns the current power consumption in 10mW steps.
-        gettimeofday(&now, NULL);
+        get_adjusted_time(&now, &offset);
+
         printf("%ld%06ld %d\n", now.tv_sec, now.tv_usec, data[0]);
         usleep(msleep_time*1000);
     }

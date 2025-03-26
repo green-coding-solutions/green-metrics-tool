@@ -33,7 +33,11 @@ $(document).ready( (e) => {
         const run_count = url_params['ids'].split(",").length
         let phase_stats_data = null
         try {
-            phase_stats_data = (await makeAPICall(`/v1/compare?ids=${url_params['ids']}`)).data
+            let url = `/v1/compare?ids=${url_params['ids']}`
+            if (url_params['force_mode']?.length) {
+                url = `${url}&force_mode=${url_params['force_mode']}`
+            }
+            phase_stats_data = (await makeAPICall(url)).data
         } catch (err) {
             showNotification('Could not get compare in-repo data from API', err);
             return

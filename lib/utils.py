@@ -81,7 +81,7 @@ def get_watchlist_item(repo_url):
                 *
             FROM
                 watchlist
-            WHERE url = %s
+            WHERE repo_url = %s
             """
     data = DB().fetch_one(query, (repo_url, ), fetch_mode='dict')
     if data is None or data == []:

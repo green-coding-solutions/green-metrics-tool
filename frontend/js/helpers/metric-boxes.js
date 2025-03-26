@@ -326,7 +326,7 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
 }
 
 const calculateCO2 = (phase, total_CO2_in_ug) => {
-    const display_in_metric_units = localStorage.getItem('display_in_metric_units') == 'true' ? true : false;
+    const display_in_metric_units = localStorage.getItem('display_in_metric_units') === 'true' ? true : false;
 
     // network via formula: https://www.green-coding.io/co2-formulas/
     let total_CO2_in_kg = total_CO2_in_ug / 1_000_000_000;

@@ -345,7 +345,8 @@ CREATE TRIGGER client_status_moddatetime
 CREATE TABLE watchlist (
     id SERIAL PRIMARY KEY,
     name text,
-    url text,
+    image_url text,
+    repo_url text,
     categories integer[],
     branch text NOT NULL,
     filename text NOT NULL,
