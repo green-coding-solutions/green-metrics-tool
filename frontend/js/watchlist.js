@@ -20,7 +20,7 @@ $(document).ready(function () {
             const url_link = `${replaceRepoIcon(repo_url)} <a href="${repo_url}" target="_blank"><i class="icon external alternate"></i></a>`;
             let chart_node_html = `
                 <div class="image">
-                    <img src="${escapeString(image_url)}" onerror="this.src='/images/placeholder.webp'">
+                    <img src="${escapeString(image_url)}" onerror="this.src='/images/placeholder.webp'" loading="lazy">
                 </div>
                 <div class="content">
                     <div class="header">${name}</div>
@@ -46,7 +46,7 @@ $(document).ready(function () {
                             <i data-tooltip="${getPretty(metric_name, 'explanation')}" data-position="bottom center" data-inverted>
                                 <i class="question circle icon link"></i>
                             </i><br>
-                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${repo_url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${repo_url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}&unit=joules" alt="Image Failed to Load" onerror="this.closest('.field').style.display='none'"></a></span>
+                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${repo_url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${repo_url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}&unit=joules" alt="${metric_name} badge" onerror="this.closest('.field').style.display='none'" loading="lazy"></a></span>
                         </div>`
             })
 
