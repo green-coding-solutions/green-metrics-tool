@@ -7,7 +7,8 @@
 #include <string.h> // for strtok
 #include <getopt.h>
 #include <limits.h>
-#include "parse_int.h"
+#include <stdbool.h>
+#include "gmt-lib.h"
 #include "detect_cgroup_path.h"
 
 #define DOCKER_CONTAINER_ID_BUFFER 65 // Docker container ID size is 64 + 1 byte for NUL termination
@@ -24,6 +25,7 @@ typedef struct container_t { // struct is a specification and this static makes 
 static int user_id = -1;
 static long int user_hz;
 static unsigned int msleep_time=1000;
+static struct timespec offset;
 
 static long int read_cpu_cgroup(char* filename) {
     long int cpu_usage = -1;
@@ -44,7 +46,7 @@ static long int read_cpu_cgroup(char* filename) {
 
 static void output_stats(container_t *containers, int length) {
     struct timeval now;
-    gettimeofday(&now, NULL);
+    get_adjusted_time(&now, &offset);
 
     for(int i=0; i<length; i++) {
         printf("%ld%06ld %ld %s\n", now.tv_sec, now.tv_usec, read_cpu_cgroup(containers[i].path), containers[i].id);
@@ -107,7 +109,7 @@ int main(int argc, char **argv) {
     int optarg_len;
     char *containers_string = NULL;  // Dynamic buffer to store optarg
     container_t *containers = NULL;
-    int check_system_flag = 0;
+    bool check_system_flag = false;
 
     setvbuf(stdout, NULL, _IONBF, 0);
     user_hz = sysconf(_SC_CLK_TCK);
@@ -129,7 +131,8 @@ int main(int argc, char **argv) {
             printf("\t-h      : displays this help\n");
             printf("\t-s      : string of container IDs separated by comma\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
-            printf("\t-c      : check system and exit\n\n");
+            printf("\t-c      : check system and exit\n");
+            printf("\n");
 
             struct timespec res;
             double resolution;
@@ -155,7 +158,7 @@ int main(int argc, char **argv) {
             containers_string[optarg_len] = '\0'; // Ensure NUL termination if max length
             break;
         case 'c':
-            check_system_flag = 1;
+            check_system_flag = true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -166,6 +169,8 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_system());
     }
+
+    get_time_offset(&offset);
 
     int length = parse_containers(&containers, containers_string);
 
