@@ -511,10 +511,10 @@ int main(int argc, char **argv) {
     int measurement_mode = MEASURE_ENERGY_PKG;
     bool check_system_flag = false;
 
-    while ((c = getopt (argc, argv, "hi:dcpm")) != -1) {
+    while ((c = getopt (argc, argv, "hi:dcp")) != -1) {
         switch (c) {
         case 'h':
-            printf("Usage: %s [-h] [-m]\n\n",argv[0]);
+            printf("Usage: %s [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
             printf("\t-d      : measure the dram energy instead of the CPU package\n");

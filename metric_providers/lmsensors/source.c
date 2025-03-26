@@ -71,7 +71,6 @@ static void print_long_help(char *program) {
         "  -h, --help             Display this help text\n"
         "  -t, --fahrenheit       Show temperatures in degrees fahrenheit\n"
         "  -i, --sleep            Milliseconds to sleep between measurements\n"
-        "  -m, --monotonic        Use monotonic clock instead of gettimeofday\n"
         "\n"
         "Parameters for -c and and -f basically search strings. Like a regex '*' appended, "
         "the parameters are seen to be coretemp* and such will match anything that starts"
@@ -199,7 +198,6 @@ int main(int argc, char *argv[]) {
                                  {"fahrenheit", no_argument, NULL, 't'},
                                  {"config-file", required_argument, NULL, 's'},
                                  {"sleep", required_argument, NULL, 'i'},
-                                 {"monotonic", no_argument, NULL, 'm'},
                                  {0, 0, 0, 0}};
 
     /* Catch both signals and exit gracefully */
@@ -329,7 +327,6 @@ int main(int argc, char *argv[]) {
         }
 
         get_time_offset(&offset);
-
 
         /* The main loop */
         while (keep_running) {

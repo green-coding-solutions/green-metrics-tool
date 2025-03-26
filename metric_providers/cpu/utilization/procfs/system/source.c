@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    while ((c = getopt (argc, argv, "i:hcm")) != -1) {
+    while ((c = getopt (argc, argv, "i:hc")) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
@@ -131,7 +131,6 @@ int main(int argc, char **argv) {
         case 'c':
             check_system_flag = true;
             break;
-
         default:
             fprintf(stderr,"Unknown option %c\n",c);
             exit(-1);
@@ -143,6 +142,7 @@ int main(int argc, char **argv) {
     }
 
     get_time_offset(&offset);
+
     while(1) {
         output_stats();
     }

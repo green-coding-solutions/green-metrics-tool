@@ -38,11 +38,8 @@ void loop_utilization(unsigned int msleep_time) {
                 ut_total = ut_total + (inUse / total);
             }
 
-            if(use_gettimeofday) {
-                gettimeofday(&now, NULL);
-            } else {
-                get_adjusted_time(&now, &offset);
-            }
+            get_adjusted_time(&now, &offset);
+
 
             printf("%ld%06i %i\n", now.tv_sec, now.tv_usec, (int)( (ut_total / (float)numCPUsU)*100*100) );
 
@@ -92,7 +89,7 @@ int main(int argc, char **argv) {
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    while ((c = getopt (argc, argv, "i:hcm")) != -1) {
+    while ((c = getopt (argc, argv, "i:hc")) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
@@ -109,7 +106,6 @@ int main(int argc, char **argv) {
             break;
         case 'c':
             exit(check_system());
-
         default:
             fprintf(stderr,"Unknown option %c\n",c);
             exit(-1);
@@ -117,6 +113,7 @@ int main(int argc, char **argv) {
     }
 
     get_time_offset(&offset);
+
     loop_utilization(msleep_time);
 
     return 0;

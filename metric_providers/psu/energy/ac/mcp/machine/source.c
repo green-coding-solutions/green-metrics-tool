@@ -223,7 +223,7 @@ int main(int argc, char **argv) {
     int data[2]; // The MCP has two outlets where you can measure.
 
 
-    while ((c = getopt (argc, argv, "hi:dcm")) != -1) {
+    while ((c = getopt (argc, argv, "hi:dc")) != -1) {
         switch (c) {
         case 'h':
             printf("Usage: %s [-h] [-m]\n\n",argv[0]);
@@ -238,7 +238,6 @@ int main(int argc, char **argv) {
         case 'c':
             check_system_flag = true;
             break;
-
         default:
             fprintf(stderr,"Unknown option %c\n",c);
             exit(-1);
@@ -258,6 +257,7 @@ int main(int argc, char **argv) {
     }
 
     get_time_offset(&offset);
+
     while (1) {
         result = f511_get_power(&data[0], &data[1], fd);
         if(result != 0) {
