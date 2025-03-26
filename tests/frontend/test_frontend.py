@@ -74,9 +74,9 @@ def test_home():
 def test_runs():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/runs.html')
-    page.get_by_role("link", name="Runs / Repos").click()
+    page.locator("#menu").get_by_role("link", name="Runs / Repos").click()
 
-    value = page.locator("#runs-table > tbody > tr:nth-child(2) > td:nth-child(1) > a").text_content()
+    value = page.locator("#runs-and-repos-table > tbody tr:nth-child(2) > td:nth-child(1) > a").text_content()
 
     assert value== 'Stress Test #2'
 
@@ -84,7 +84,7 @@ def test_runs():
 def test_eco_ci_demo_data():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Eco CI", exact=True).click()
+    page.locator("#menu").get_by_role("link", name="Eco CI", exact=True).click()
 
     page.wait_for_load_state("load") # ALL JS should be done
 
@@ -168,7 +168,7 @@ def test_eco_ci_adding_data():
 
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-        page.get_by_role("link", name="Eco CI", exact=True).click()
+        page.locator("#menu").get_by_role("link", name="Eco CI", exact=True).click()
 
         page.locator("#ci-repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
         page.locator('#DataTables_Table_0 > tbody > tr  > td:first-child > a').click()
@@ -194,7 +194,7 @@ def test_stats():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
 
-    page.get_by_role("link", name="Runs / Repos").click()
+    page.locator("#menu").get_by_role("link", name="Runs / Repos").click()
 
     with context.expect_page() as new_page_info:
         page.get_by_role("link", name="Stress Test #1").click()
@@ -288,15 +288,17 @@ def test_stats():
 def test_repositories_and_compare():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Runs / Repos").click()
+    page.locator("#menu").get_by_role("link", name="Runs / Repos").click()
     page.get_by_role("button", name="Switch to repository view").click()
 
     page.locator('.ui.accordion div.title').click()
-    page.locator('.dataTables_info').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
+    page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
 
-    elements = page.query_selector_all("input[type=checkbox]")  # Replace with your selector
+    elements = page.query_selector_all("input[type=checkbox]")
     for element in elements:
         element.click()
+
+    page.locator("#DataTables_Table_0 tr:last-child input[type=checkbox]").click() # uncheck last box with different scenario
 
     with context.expect_page() as new_page_info:
         page.locator('#compare-button').click()
@@ -308,7 +310,7 @@ def test_repositories_and_compare():
     assert comparison_type == 'Repeated Run'
 
     runs_compared = new_page.locator('#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)').text_content()
-    assert runs_compared == '5'
+    assert runs_compared == '4'
 
     # open details
     new_page.locator('a.step[data-tab="[RUNTIME]"]').click()
@@ -318,13 +320,13 @@ def test_repositories_and_compare():
     assert first_metric.strip() == 'CPU Power (Package)'
 
     first_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(6)").text_content()
-    assert first_value.strip() == '8.58'
+    assert first_value.strip() == '8.56'
 
     first_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(7)").text_content()
     assert first_unit.strip() == 'W'
 
     first_stddev = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(8)").text_content()
-    assert first_stddev.strip() == '± 2.21%'
+    assert first_stddev.strip() == '± 2.62%'
 
 
     # click on baseline
@@ -341,15 +343,72 @@ def test_repositories_and_compare():
     assert first_unit.strip() == 'Wh'
 
     first_stddev = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(8)").text_content()
-    assert first_stddev.strip() == '± 13.68%'
+    assert first_stddev.strip() == '± 15.63%'
 
     new_page.close()
+
+def test_expert_compare_mode():
+
+    page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+    page.locator("#menu").get_by_role("link", name="Settings").click()
+    page.wait_for_load_state("load")  # wait JS
+    assert page.locator("#expert-compare-mode").text_content() == 'Expert compare mode is off'
+
+    page.locator('#toggle-expert-compare-mode').click()
+
+    page.wait_for_load_state("load") # wait JS
+    assert page.locator("#expert-compare-mode").text_content() == 'Expert compare mode is on'
+
+    page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
+
+    page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
+
+    elements = page.query_selector_all("input[type=checkbox]")
+    for element in elements:
+        element.click()
+
+    with context.expect_page() as new_page_info:
+        page.locator('#compare-button').click()
+
+    new_page = new_page_info.value
+    new_page.set_default_timeout(3_000)
+
+    assert new_page.locator("#run-data-top > tbody:first-child > tr:first-child > td:nth-child(2)").text_content() == 'Usage Scenario'
+
+    new_page.close()
+
+
+    page.locator('#unselect-button').click()
+    elements = page.query_selector_all("input[type=checkbox]")
+    for element in elements:
+        element.click()
+    page.locator('#compare-force-mode').select_option("Machines")
+
+    with context.expect_page() as new_page_info:
+        page.locator('#compare-button').click()
+
+    new_page = new_page_info.value
+    new_page.set_default_timeout(3_000)
+
+    assert new_page.locator("#run-data-top > tbody:first-child > tr > td:nth-child(2)").text_content() == 'Machine'
+
+    assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:first-child").text_content() == 'Number of runs compared'
+
+    assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)").text_content() == '5'
+
+    assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(1)").text_content() == 'Machine'
+
+    assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(2)").text_content() == '1'
+
+
+    new_page.close()
+
 
 
 def test_watchlist():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Watchlist").click()
+    page.locator("#menu").get_by_role("link", name="Watchlist").click()
     with context.expect_page() as new_page_info:
         page.get_by_role("link", name="Show Timeline").click()
 
@@ -376,7 +435,7 @@ def test_watchlist():
 def test_status():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Cluster Status").click()
+    page.locator("#menu").get_by_role("link", name="Cluster Status").click()
 
     machine_name = page.locator('#machines-table > tbody > tr:nth-child(1) > td:nth-child(2)').text_content()
     assert machine_name.strip() == 'Local machine'
@@ -391,7 +450,7 @@ def test_status():
 def test_settings():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Settings").click()
+    page.locator("#menu").get_by_role("link", name="Settings").click()
 
     page.wait_for_load_state("load") # ALL JS should be done
 

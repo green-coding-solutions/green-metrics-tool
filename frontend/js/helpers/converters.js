@@ -1,4 +1,4 @@
-const display_in_joules = localStorage.getItem('display_in_joules') == 'true';
+const display_in_joules = localStorage.getItem('display_in_joules') === 'true';
 
 const transformIfNotNull = (value, divide_by) => {
     if (value == null) return null;

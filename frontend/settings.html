@@ -34,8 +34,6 @@
                 <div class="description">
                     <div class="ui secondary menu">
                         <a class="item active" data-tab="one">Display</a>
-                        <a class="item" data-tab="two">Measurement</a>
-                        <a class="item" data-tab="three">Notifications</a>
                     </div>
                     <div class="ui active tab" data-tab="one">
                         <table class="ui table">
@@ -47,6 +45,11 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                <tr>
+                                    <td>Expert compare mode<br><span><small><i class="question circle icon"></i>In expert compare mode you can compare even non-matching usage scenarios on different machines etc.</small></span></td>
+                                    <td><span id="expert-compare-mode"></span></td>
+                                    <td><button id="toggle-expert-compare-mode" class="ui positive small button" onclick="toggleExpertCompareMode();">Toggle</button></td>
+                                </tr>
                                 <tr>
                                     <td>Energy units</td>
                                     <td><span id="energy-display"></span></td>

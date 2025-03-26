@@ -47,9 +47,6 @@ a.project-item>i.icon {
 }
 
 
-#runs-table, #repositories-table, .scenario-runner-runs, .scenario-runner-repositories {
-    visibility: hidden;
-}
 
 .full-width-card {
     width: 100% !important;
@@ -316,7 +313,7 @@ a,
     overflow: scroll;
 }
 
-#unselect-button {
+#unselect-button, #compare-force-mode {
     display: none;
     margin-top: 10px;
 }

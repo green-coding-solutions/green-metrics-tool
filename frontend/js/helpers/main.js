@@ -7,56 +7,56 @@ class GMTMenu extends HTMLElement {
         let html_content = `
         <div id="menu" class="ui inverted vertical menu">
             <div class="item-container">
-                <a class="item" href="/index.html">
+                <a class="item" href="/index.html" aria-label="Home">
                     <b><i class="home icon"></i> Home</b>
                 </a>`
 
         if (ACTIVATE_SCENARIO_RUNNER == true) {
             html_content = `${html_content}
-                <a class="item" href="/runs.html"><b><i class="tachometer alternate left icon"></i> ScenarioRunner</b></a>
-                <a class="item" href="/runs.html">
+                <a class="item" href="/runs.html" aria-label="ScenarioRunner"><b><i class="tachometer alternate left icon"></i> ScenarioRunner</b></a>
+                <a class="item" href="/runs.html" aria-label="Runs / Repos">
                     ⮑&nbsp;&nbsp;<b><i class="code branch icon"></i> Runs / Repos</b>
                 </a>
-                <a class="item" href="/watchlist.html">
+                <a class="item" href="/watchlist.html" aria-label="Watchlist">
                     ⮑&nbsp;&nbsp;<b><i class="list icon"></i> Watchlist</b>
                 </a>
-                <a class="item" href="/request.html">
+                <a class="item" href="/request.html" aria-label="Submit Software">
                     ⮑&nbsp;&nbsp;<b><i class="bullseye icon"></i> Submit Software</b>
                 </a>
-                <a class="item" href="/cluster-status.html">
+                <a class="item" href="/cluster-status.html" aria-label="Cluster Status">
                     ⮑&nbsp;&nbsp;<b><i class="database icon"></i> Cluster Status</b>
                 </a>`;
         };
 
         if (ACTIVATE_ECO_CI == true) {
             html_content = `${html_content}
-                <a class="item" href="/ci-index.html">
+                <a class="item" href="/ci-index.html" aria-label="Eco CI">
                     <b><i class="seedling icon"></i> Eco CI</b>
                 </a>`;
         };
 
         if (ACTIVATE_POWER_HOG == true) {
             html_content = `${html_content}
-                <a class="item" href="/hog.html">
-                    <b><i class="piggy bank icon"></i> Power Hog</b>
+                <a class="item" href="/hog.html" aria-label="Power HOG">
+                    <b><i class="piggy bank icon"></i> Power HOG</b>
                 </a>`;
         };
 
         if (ACTIVATE_CARBON_DB == true) {
             html_content = `${html_content}
-                <a class="item" href="/carbondb.html">
-                    <b><i class="journal whills icon"></i> CarbonDB</b>
+                <a class="item" href="/carbondb.html" aria-label="CarbonDB">
+                    <b><i class="balance scale icon"></i> CarbonDB</b>
                 </a>`;
         };
 
         html_content = `${html_content}
-                <a class="item" href="/data-analysis.html">
+                <a class="item" href="/data-analysis.html" aria-label="Data Analysis">
                     <b><i class="chartline icon"></i> Data Analysis</b>
                 </a>
-                <a class="item" href="/authentication.html">
-                    <b><i class="users icon"></i> Authentication</b>
+                <a class="item" href="/authentication.html" aria-label="Authentication">
+                    <b><i class="users icon"></i>Authentication</b>
                 </a>
-                <a class="item" href="/settings.html">
+                <a class="item" href="/settings.html" aria-label="Settings">
                     <b><i class="cogs icon"></i> Settings</b>
                 </a>
             </div>
@@ -141,6 +141,7 @@ const calculateStatistics = (data, object_access=false) => {
 
 const replaceRepoIcon = (uri) => {
 
+  uri = String(uri)
   if(!uri.startsWith('http')) return uri; // ignore filesystem paths
 
   const url = new URL(uri);
@@ -244,7 +245,8 @@ async function makeAPICall(path, values=null, force_authentication_token=null) {
     }
 
     let json_response = null;
-    if(localStorage.getItem('remove_idle') == 'true') path += "?remove_idle=true"
+    if(localStorage.getItem('remove_idle') === 'true') path += (path.includes('?') ? '&' : '?') + 'remove_idle=true'
+
     await fetch(API_URL + path, options)
     .then(response => {
         if (response.status == 204) {
@@ -315,7 +317,7 @@ $(document).ready(function () {
     $(document).on('click','#menu-toggle.closed', openMenu);
     $(document).on('click','#menu-toggle.opened', closeMenu);
 
-    if ($(window).width() < 960 || localStorage.getItem('menu_closed') == 'true') {
+    if ($(window).width() < 960 || localStorage.getItem('menu_closed') === 'true') {
         $('#menu-toggle').removeClass('opened').addClass('closed');
         $('#menu').removeClass('opened').addClass('closed');
         $('#main').removeClass('opened').addClass('closed');

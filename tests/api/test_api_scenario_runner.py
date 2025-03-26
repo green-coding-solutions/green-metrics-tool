@@ -1,5 +1,6 @@
 import os
 import requests
+import json
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -9,6 +10,10 @@ from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
+
+RUN_1 = 'a416057b-235f-41d8-9fb8-9bcc70a308e7'
+RUN_3 = 'f4ed967e-7c27-4055-815f-ea437fc11d25'
+RUN_2 = 'f6167993-260e-41db-ab72-d9c3832f211d'
 
 def get_job_id(run_name):
     query = """
@@ -35,6 +40,103 @@ def test_get_runs():
     res_json = response.json()
     assert response.status_code == 200
     assert res_json['data'][0][0] == str(pid)
+
+def test_compare_valid():
+    Tests.import_demo_data()
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1}", timeout=15)
+    res_json = response.json()
+    assert response.status_code == 200
+
+    with open(f"{CURRENT_DIR}/../data/json/compare-{RUN_3},{RUN_1}.json", 'r', encoding='utf-8') as file:
+        data = json.load(file)
+
+    assert res_json['data'] == data
+
+def test_compare_fails():
+    Tests.import_demo_data()
+
+    DB().query(f"UPDATE runs SET commit_hash = 'test' WHERE id = '{RUN_1}' ")
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1}", timeout=15)
+    res_json = response.json()
+    assert response.status_code == 422
+    assert res_json['err'] == 'Different usage scenarios & commits not supported'
+
+# Will force same style by comparing A vs B. No repeated run style
+def test_compare_force_mode_same_style():
+    Tests.import_demo_data()
+
+    DB().query(f"UPDATE runs SET commit_hash = 'test' WHERE id = '{RUN_1}' ")
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1}&force_mode=usage_scenarios", timeout=15)
+    res_json = response.json()
+    assert response.status_code == 200
+
+    with open(f"{CURRENT_DIR}/../data/json/compare-{RUN_3},{RUN_1}.json", 'r', encoding='utf-8') as file:
+        data = json.load(file)
+
+    # only the hash hash changed, but it will still force the same mode
+    data['comparison_details'][0][0]['commit_hash'] = 'test'
+
+    assert res_json['data'] == data
+
+# Will force machine_id comparison, which is repeated_run style
+def test_compare_force_mode_different_style():
+    Tests.import_demo_data()
+
+    DB().query(f"UPDATE runs SET commit_hash = 'test' WHERE id = '{RUN_1}' ")
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1}&force_mode=machine_ids", timeout=15)
+    res_json = response.json()
+    assert response.status_code == 200
+
+    with open(f"{CURRENT_DIR}/../data/json/compare-{RUN_3},{RUN_1}-machines.json", 'r', encoding='utf-8') as file:
+        data = json.load(file)
+
+    # only the hash hash changed, but it will still force the same mode
+    data['comparison_details'][0][0]['commit_hash'] = 'test'
+
+    assert res_json['data'] == data
+
+    # test if original call still fails, although result could have been cached in Redis
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1}", timeout=15)
+    res_json = response.json()
+    assert response.status_code == 422
+
+def test_compare_force_mode_not_writing_to_cache():
+    Tests.import_demo_data()
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_2}", timeout=15)
+    res_json = response.json()
+    assert response.status_code == 200
+
+    with open(f"{CURRENT_DIR}/../data/json/compare-{RUN_3},{RUN_2}.json", 'r', encoding='utf-8') as file:
+        data = json.load(file)
+
+    assert res_json['data'] == data
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_2}&force_mode=machine_ids", timeout=15)
+    res_json = response.json()
+    assert response.status_code == 200
+    assert res_json['data'] != data
+
+    # test inital call again
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_2}", timeout=15)
+    res_json = response.json()
+    assert response.status_code == 200
+    assert res_json['data'] == data
+
+
+def test_compare_force_unknown_mode():
+    Tests.import_demo_data()
+
+    DB().query(f"UPDATE runs SET commit_hash = 'test' WHERE id = '{RUN_1}' ")
+
+    response = requests.get(f"{API_URL}/v1/compare?ids={RUN_3},{RUN_1}&force_mode=machines", timeout=15)
+    res_json = response.json()
+    assert response.status_code == 422
+    assert res_json['err'] == 'Forcing a comparison mode for unknown mode'
 
 def test_get_insights():
     Tests.import_demo_data()
