@@ -355,7 +355,7 @@ function check_optarg() {
     fi
 }
 
-while getopts ":p:a:m:NhTBISuRLc:k:e:zZdDgGfFjJ" o; do
+while getopts ":p:a:m:NhTBWISuRLc:k:e:zZdDgGfFjJ" o; do
     case "$o" in
         \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
         :)  echo "Error: Option -$OPTARG requires an argument" >&2; exit 1 ;;
@@ -466,7 +466,7 @@ while getopts ":p:a:m:NhTBISuRLc:k:e:zZdDgGfFjJ" o; do
             echo -e '  -B:\t\t\tDo not build docker containers'
             echo -e '  -W:\t\t\tDo not Modify hosts'
             echo -e '  -N:\t\t\tDo not install Python packages'
-            echo -e '  -T:\t\t\t Do not ask for tmpfs remounting'
+            echo -e '  -T:\t\t\tDo not ask for tmpfs remounting'
             echo -e '  -I:\t\t\tDo not install IPMI drivers'
             echo -e '  -S:\t\t\tDo not install lm-sensors package'
             echo -e '  -R:\t\t\tDo not install MSR tools'
