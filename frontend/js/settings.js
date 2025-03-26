@@ -20,7 +20,6 @@ const getSettings = async () => {
     data = await makeAPICall('/v1/user/settings')
     document.querySelector('#measurement-settings-flow-process-duration').value = data?.data?._capabilities?.measurement?.settings?.flow_process_duration
     document.querySelector('#measurement-settings-total-duration').value = data?.data?._capabilities?.measurement?.settings?.total_duration
-    console.log(data?.data?._capabilities?.measurement?.disabled_metric_providers);
     $('#measurement-disabled-metric-providers').dropdown('set exactly', data?.data?._capabilities?.measurement?.disabled_metric_providers);
 
 }
@@ -105,6 +104,7 @@ const resetHelpTexts = () => {
         showDisplayTextMetricUnits(localStorage.getItem('display_in_metric_units') === 'true')
         showDisplayTextTimeSeries(localStorage.getItem('fetch_time_series') === 'true')
         showDisplayTextTimeSeriesAVG(localStorage.getItem('time_series_avg') === 'true')
+        getSettings();
     });
 
 })();
