@@ -245,7 +245,8 @@ async function makeAPICall(path, values=null, force_authentication_token=null) {
     }
 
     let json_response = null;
-    if(localStorage.getItem('remove_idle') === 'true') path += "?remove_idle=true"
+    if(localStorage.getItem('remove_idle') === 'true') path += (path.includes('?') ? '&' : '?') + 'remove_idle=true'
+
     await fetch(API_URL + path, options)
     .then(response => {
         if (response.status == 204) {
