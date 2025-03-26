@@ -74,9 +74,9 @@ def test_home():
 def test_runs():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/runs.html')
-    page.get_by_role("link", name="Runs / Repos").click()
+    page.locator("#menu").get_by_role("link", name="Runs / Repos").click()
 
-    value = page.locator("#runs-table > tbody > tr:nth-child(2) > td:nth-child(1) > a").text_content()
+    value = page.locator("#runs-and-repos-table > tbody tr:nth-child(2) > td:nth-child(1) > a").text_content()
 
     assert value== 'Stress Test #2'
 
@@ -84,7 +84,7 @@ def test_runs():
 def test_eco_ci_demo_data():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Eco CI", exact=True).click()
+    page.locator("#menu").get_by_role("link", name="Eco CI", exact=True).click()
 
     page.wait_for_load_state("load") # ALL JS should be done
 
@@ -168,7 +168,7 @@ def test_eco_ci_adding_data():
 
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-        page.get_by_role("link", name="Eco CI", exact=True).click()
+        page.locator("#menu").get_by_role("link", name="Eco CI", exact=True).click()
 
         page.locator("#ci-repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
         page.locator('#DataTables_Table_0 > tbody > tr  > td:first-child > a').click()
@@ -194,7 +194,7 @@ def test_stats():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
 
-    page.get_by_role("link", name="Runs / Repos").click()
+    page.locator("#menu").get_by_role("link", name="Runs / Repos").click()
 
     with context.expect_page() as new_page_info:
         page.get_by_role("link", name="Stress Test #1").click()
@@ -288,7 +288,7 @@ def test_stats():
 def test_repositories_and_compare():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Runs / Repos").click()
+    page.locator("#menu").get_by_role("link", name="Runs / Repos").click()
     page.get_by_role("button", name="Switch to repository view").click()
 
     page.locator('.ui.accordion div.title').click()
@@ -349,7 +349,7 @@ def test_repositories_and_compare():
 def test_watchlist():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Watchlist").click()
+    page.locator("#menu").get_by_role("link", name="Watchlist").click()
     with context.expect_page() as new_page_info:
         page.get_by_role("link", name="Show Timeline").click()
 
@@ -376,7 +376,7 @@ def test_watchlist():
 def test_status():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Cluster Status").click()
+    page.locator("#menu").get_by_role("link", name="Cluster Status").click()
 
     machine_name = page.locator('#machines-table > tbody > tr:nth-child(1) > td:nth-child(2)').text_content()
     assert machine_name.strip() == 'Local machine'
@@ -391,7 +391,7 @@ def test_status():
 def test_settings():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Settings").click()
+    page.locator("#menu").get_by_role("link", name="Settings").click()
 
     page.wait_for_load_state("load") # ALL JS should be done
 
