@@ -264,7 +264,7 @@ async function makeAPICall(path, values=null, force_authentication_token=null, f
     })
     .then(my_json => {
         if (my_json != null && my_json.success != true) {
-            if (Array.isArray(my_json.err) && my_json.length !== 0)
+            if (Array.isArray(my_json.err) && my_json.err.length !== 0)
                 throw my_json.err[0]?.msg
             else
                 throw my_json.err

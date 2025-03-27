@@ -85,8 +85,10 @@ measurement:
     common:
       network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
 
-      psu.energy.ac.bar.machine.provider.SomeOtherProvider':
+      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
         resolution: 99
+        CPUChips: 1
+        TDP: 60
       psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
         resolution: 99
         CPUChips: 1

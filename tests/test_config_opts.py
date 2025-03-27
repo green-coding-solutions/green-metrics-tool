@@ -54,7 +54,7 @@ def test_provider_disabling_not_active_by_default():
     out = io.StringIO()
     err = io.StringIO()
 
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
@@ -71,7 +71,7 @@ def test_provider_disabling_working():
     out = io.StringIO()
     err = io.StringIO()
 
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:

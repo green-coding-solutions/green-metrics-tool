@@ -17,11 +17,15 @@ const updateSetting = async (el) => {
 }
 
 const getSettings = async () => {
-    const data = await makeAPICall('/v1/user/settings')
-    document.querySelector('#measurement-settings-flow-process-duration').value = data?.data?._capabilities?.measurement?.settings?.flow_process_duration
-    document.querySelector('#measurement-settings-total-duration').value = data?.data?._capabilities?.measurement?.settings?.total_duration
-    $('#measurement-disabled-metric-providers').dropdown('set exactly', data?.data?._capabilities?.measurement?.disabled_metric_providers);
+    try {
+        const data = await makeAPICall('/v1/user/settings');
 
+        document.querySelector('#measurement-settings-flow-process-duration').value = data?.data?._capabilities?.measurement?.settings?.flow_process_duration
+        document.querySelector('#measurement-settings-total-duration').value = data?.data?._capabilities?.measurement?.settings?.total_duration
+        $('#measurement-disabled-metric-providers').dropdown('set exactly', data?.data?._capabilities?.measurement?.disabled_metric_providers);
+    } catch (err) {
+        showNotification('Could not load settings', err);
+    }
 }
 
 const toggleExpertCompareMode = () => {

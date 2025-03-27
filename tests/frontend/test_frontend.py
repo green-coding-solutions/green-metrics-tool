@@ -411,7 +411,7 @@ def test_watchlist():
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
     page.locator("#menu").get_by_role("link", name="Watchlist", exact=True).click()
     with context.expect_page() as new_page_info:
-        page.get_by_role("link", name="Show Timeline", exact=True).click()
+        page.get_by_role("link", name="Show Timeline").click()
 
     new_page = new_page_info.value
     new_page.set_default_timeout(3_000)
