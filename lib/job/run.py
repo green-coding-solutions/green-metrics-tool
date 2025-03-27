@@ -51,6 +51,8 @@ class RunJob(Job):
             user_id=self._user_id,
             measurement_flow_process_duration=user._capabilities['measurement']['settings']['flow_process_duration'],
             measurement_total_duration=user._capabilities['measurement']['settings']['total_duration'],
+            disabled_metric_providers=user._capabilities['measurement']['disabled_metric_providers'],
+            allowed_run_args=user._capabilities['measurement']['allowed_run_args'],
         )
         try:
             # Start main code. Only URL is allowed for cron jobs

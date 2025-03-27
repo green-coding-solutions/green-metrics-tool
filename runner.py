@@ -41,7 +41,6 @@ from lib.notes import Notes
 from lib import system_checks
 from lib.machine import Machine
 from lib import metric_importer
-from lib.user import User
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -53,7 +52,7 @@ class Runner:
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
         dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
-        user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, dev_no_phase_stats=False,
+        user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, disabled_metric_providers=None, allowed_run_args=None, dev_no_phase_stats=False,
         skip_volume_inspect=False):
 
         if skip_unsafe is True and allow_unsafe is True:
@@ -96,9 +95,10 @@ class Runner:
         self._commit_hash = None
         self._commit_timestamp = None
         self._user_id = user_id
-        self._user = User(user_id)
         self._measurement_flow_process_duration = measurement_flow_process_duration
         self._measurement_total_duration = measurement_total_duration
+        self._disabled_metric_providers = [] if disabled_metric_providers is None else disabled_metric_providers
+        self._allowed_run_args = [] if allowed_run_args is None else allowed_run_args
         self._last_measurement_duration = 0
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
@@ -466,7 +466,8 @@ class Runner:
 
         measurement_config['settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric_providers'} # filter out static metric providers which might not be relevant for platform we are running on
         measurement_config['providers'] = utils.get_metric_providers(config) # get only the providers relevant to our platform
-        measurement_config['user_settings'] = self._user._capabilities.get('measurement', {})
+        measurement_config['allowed_run_args'] = self._allowed_run_args
+        measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
         measurement_config['sci'] = self._sci
 
 
@@ -518,7 +519,7 @@ class Runner:
             module_path = f"metric_providers.{module_path}"
             conf = metric_providers[metric_provider] or {}
 
-            if class_name in self._user._capabilities['measurement'].get('disabled_metric_providers', []):
+            if class_name in self._disabled_metric_providers:
                 print(TerminalColors.WARNING, arrows(f"Not importing {class_name} as disabled per user settings"), TerminalColors.ENDC)
                 continue
 
@@ -863,9 +864,8 @@ class Runner:
                     raise RuntimeError('Found "ports" but neither --skip-unsafe nor --allow-unsafe is set')
 
             if 'docker-run-args' in service:
-                allow_items = self._user._capabilities.get('measurement', {}).get('orchestrators', {}).get('docker', {}).get('allowed_run_args', [])
                 for arg in service['docker-run-args']:
-                    if any(re.fullmatch(allow_item, arg) for allow_item in allow_items):
+                    if any(re.fullmatch(allow_item, arg) for allow_item in self._allowed_run_args):
                         docker_run_string.extend(shlex.split(arg))
                     else:
                         raise RuntimeError(f"Argument '{arg}' is not allowed in the docker-run-args list. Please check the capabilities of the user.")

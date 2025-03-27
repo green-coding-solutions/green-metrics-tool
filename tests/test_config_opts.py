@@ -7,7 +7,6 @@ import subprocess
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
 from lib.db import DB
-from lib.user import User
 from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
 from runner import Runner
@@ -65,13 +64,10 @@ def test_provider_disabling_not_active_by_default():
 def test_provider_disabling_working():
     GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config-extra-network-and-duplicate-psu-providers.yml")
 
-    user = User(1)
-    user.change_setting('measurement.disabled_metric_providers', ['NetworkConnectionsProxyContainerProvider'])
-
     out = io.StringIO()
     err = io.StringIO()
 
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=True)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=True, disabled_metric_providers=['NetworkConnectionsProxyContainerProvider'])
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
