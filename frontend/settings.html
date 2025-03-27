@@ -33,8 +33,8 @@
             <div class="content">
                 <div class="description">
                     <div class="ui secondary menu">
-                        <a class="item active" data-tab="one">Display</a>
-                        <a class="item" data-tab="two">Measurement</a>
+                        <a id="settings-tab-display" class="item active" data-tab="one">Display</a>
+                        <a id="settings-tab-measurement" class="item" data-tab="two">Measurement</a>
                     </div>
                     <div class="ui active tab" data-tab="one">
                         <table class="ui table">
@@ -104,17 +104,17 @@
                                             <option value="NetworkConnectionsTcpdumpSystemProvider">NetworkConnectionsTcpdumpSystemProvider</option>
                                         </select>
                                     </td>
-                                    <td><button class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                    <td><button id="save-measurement-disabled-metric-providers" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
                                 </tr>
                                 <tr>
                                     <td>Maximum flow process duration</td>
                                     <td><input type="text" placeholder="Input a value" id="measurement-settings-flow-process-duration" name="measurement-settings-flow-process-duration" data-setting="measurement.settings.flow_process_duration" required=""></td>
-                                    <td><button class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                    <td><button id="save-measurement-settings-flow-process-duration" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
                                 </tr>
                                 <tr>
                                     <td>Maximum total duration</td>
                                     <td><input type="text" placeholder="Input a value" id="measurement-settings-total-duration" name="measurement-settings-total-duration" data-setting="measurement.settings.total_duration" required="" ></td>
-                                    <td><button class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                    <td><button id="save-measurement-settings-total-duration" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
                                 </tr>
                                 <!--
                                 <tr>

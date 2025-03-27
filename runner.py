@@ -463,7 +463,7 @@ class Runner:
 
         measurement_config = {}
 
-        measurement_config['settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric-providers'}
+        measurement_config['settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric_providers'}
         measurement_config['providers'] = utils.get_metric_providers(config)
         measurement_config['sci'] = self._sci
 
@@ -1158,7 +1158,7 @@ class Runner:
 
     def check_total_runtime_exceeded(self):
         if self._measurement_total_duration and (time.time() - self.__start_measurement_seconds) > self._measurement_total_duration:
-            raise TimeoutError(f"Timeout of {self._measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total-duration'.")
+            raise TimeoutError(f"Timeout of {self._measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total_duration'.")
 
     def start_phase(self, phase, transition = True):
         config = GlobalConfig().config
@@ -1168,8 +1168,8 @@ class Runner:
 
         if transition:
             # The force-sleep must go and we must actually check for the temperature baseline
-            print(f"\nForce-sleeping for {config['measurement']['phase-transition-time']}s")
-            self.custom_sleep(config['measurement']['phase-transition-time'])
+            print(f"\nForce-sleeping for {config['measurement']['phase_transition_time']}s")
+            self.custom_sleep(config['measurement']['phase_transition_time'])
             #print(TerminalColors.HEADER, '\nChecking if temperature is back to baseline ...', TerminalColors.ENDC)
 
         phase_time = int(time.time_ns() / 1_000)
@@ -1648,10 +1648,10 @@ class Runner:
             if self._debugger.active:
                 self._debugger.pause('metric-providers (non-container) start complete. Waiting to start measurement')
 
-            self.custom_sleep(config['measurement']['pre-test-sleep'])
+            self.custom_sleep(config['measurement']['pre_test_sleep'])
 
             self.start_phase('[BASELINE]')
-            self.custom_sleep(config['measurement']['baseline-duration'])
+            self.custom_sleep(config['measurement']['baseline_duration'])
             self.end_phase('[BASELINE]')
 
             if self._debugger.active:
@@ -1682,7 +1682,7 @@ class Runner:
                 self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')
 
             self.start_phase('[IDLE]')
-            self.custom_sleep(config['measurement']['idle-duration'])
+            self.custom_sleep(config['measurement']['idle_duration'])
             self.end_phase('[IDLE]')
 
             if self._debugger.active:
@@ -1704,7 +1704,7 @@ class Runner:
 
             self.end_measurement()
             self.check_process_returncodes()
-            self.custom_sleep(config['measurement']['post-test-sleep'])
+            self.custom_sleep(config['measurement']['post_test_sleep'])
             self.identify_invalid_run()
 
         except BaseException as exc:

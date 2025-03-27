@@ -78,14 +78,14 @@ machine:
 
 measurement:
   system_check_threshold: 3 # Can be 1=INFO, 2=WARN or 3=ERROR
-  pre-test-sleep: 5
-  idle-duration: 10
-  baseline-duration: 5
-  post-test-sleep: 5
-  phase-transition-time: 1
+  pre_test_sleep: 5
+  idle_duration: 10
+  baseline_duration: 5
+  post_test_sleep: 5
+  phase_transition_time: 1
   boot:
     wait_time_dependencies: 60
-  metric-providers:
+  metric_providers:
 
   # Please select the needed providers according to the working ones on your system
   # More info https://docs.green-coding.io/docs/measuring/metric-providers

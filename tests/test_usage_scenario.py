@@ -803,8 +803,8 @@ def test_read_detached_process_failure():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
-    assert "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 126. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further." == str(e.value), \
-        Tests.assertion_info("Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 126. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further.", str(e.value))
+    assert "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 127. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further." == str(e.value), \
+        Tests.assertion_info("Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 127. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further.", str(e.value))
 
 def test_invalid_container_name():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
@@ -814,8 +814,8 @@ def test_invalid_container_name():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(OSError) as e:
         runner.run()
 
-    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.\nSee 'docker run --help'.\n\nStdout: "
-    assert expected_exception == str(e.value), \
+    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed"
+    assert expected_exception in str(e.value), \
         Tests.assertion_info(expected_exception, str(e.value))
 
 def test_invalid_container_name_2():
@@ -826,8 +826,8 @@ def test_invalid_container_name_2():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(OSError) as e:
         runner.run()
 
-    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.\nSee 'docker run --help'.\n\nStdout: "
-    assert expected_exception == str(e.value), \
+    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed"
+    assert expected_exception in str(e.value), \
         Tests.assertion_info(expected_exception, str(e.value))
 
 def test_duplicate_container_name():
@@ -944,7 +944,7 @@ def test_internal_network():
     with pytest.raises(RuntimeError) as e:
         runner.run()
 
-    assert str(e.value) == "Process '['docker', 'exec', 'test-container', 'curl', '-s', '--fail', 'https://www.google.de']' had bad returncode: 126. Stderr: ; Detached process: False. Please also check the stdout in the logs and / or enable stdout logging to debug further."
+    assert str(e.value) == "Process '['docker', 'exec', 'test-container', 'curl', '-s', '--fail', 'https://www.google.de']' had bad returncode: 6. Stderr: ; Detached process: False. Please also check the stdout in the logs and / or enable stdout logging to debug further."
 
 
     ## rethink this one

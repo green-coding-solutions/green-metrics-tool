@@ -39,7 +39,8 @@ VALUES (
     E'{
         "user": {
             "visible_users": [0,1],
-            "is_super_user": true
+            "is_super_user": true,
+            "updateable_settings": ["measurement.disabled_metric_providers","measurement.settings.flow_process_duration","measurement.settings.total_duration"]
         },
         "api": {
             "quotas": {},
@@ -95,14 +96,15 @@ VALUES (
         "measurement": {
             "quotas": {},
             "settings": {
-                "total-duration": 86400,
-                "flow-process-duration": 86400
+                "total_duration": 86400,
+                "flow_process_duration": 86400
             },
             "orchestrators": {
                 "docker": {
                     "allowed_run_args": []
                 }
-            }
+            },
+            "disabled_metric_providers": []
         },
         "optimizations": [
             "container_memory_utilization",
@@ -121,7 +123,7 @@ VALUES (
 -- Default password for user 0 is empty
 INSERT INTO "public"."users"("id", "name","token","capabilities","created_at","updated_at")
 VALUES
-(0, E'[GMT-SYSTEM]',E'',E'{"user":{"is_super_user": false},"api":{"quotas":{},"routes":[]},"data":{"runs":{"retention":2678400},"hog_tasks":{"retention":2678400},"measurements":{"retention":2678400},"hog_coalitions":{"retention":2678400},"ci_measurements":{"retention":2678400},"hog_measurements":{"retention":2678400}},"jobs":{"schedule_modes":[]},"machines":[],"measurement":{"quotas":{},"settings":{"total-duration":86400,"flow-process-duration":86400}},"optimizations":[]}',E'2024-11-06 11:28:24.937262+00',NULL);
+(0, E'[GMT-SYSTEM]',E'',E'{"user":{"is_super_user": false},"api":{"quotas":{},"routes":[]},"data":{"runs":{"retention":2678400},"hog_tasks":{"retention":2678400},"measurements":{"retention":2678400},"hog_coalitions":{"retention":2678400},"ci_measurements":{"retention":2678400},"hog_measurements":{"retention":2678400}},"jobs":{"schedule_modes":[]},"machines":[],"measurement":{"quotas":{},"settings":{"total_duration":86400,"flow_process_duration":86400}},"optimizations":[]}',E'2024-11-06 11:28:24.937262+00',NULL);
 
 SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
 

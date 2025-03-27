@@ -9,8 +9,8 @@ def get_nested_value(dictionary, path):
     keys = path.split('.', 1)
     key = keys[0]
     if len(keys) == 1:
-        return (dictionary, key, dictionary.get(key))
-    return get_nested_value(dictionary.get(key, {}), keys[1])
+        return (dictionary, key, dictionary[key])
+    return get_nested_value(dictionary[key], keys[1])
 
 class User():
 

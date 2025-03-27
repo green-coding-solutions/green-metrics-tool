@@ -7,6 +7,7 @@ postgresql:
 
 redis:
   host: test-green-coding-redis-container
+  port: 6380
 
 smtp:
   server: null
@@ -56,16 +57,16 @@ machine:
 
 measurement:
   system_check_threshold: 3
-  pre-test-sleep: 0
-  idle-duration: 0
-  baseline-duration: 0
-  flow-process-duration: 1800 # half hour
-  total-duration: 3600 # one hour
-  post-test-sleep: 0
-  phase-transition-time: 0
+  pre_test_sleep: 0
+  idle_duration: 0
+  baseline_duration: 0
+  flow_process_duration: 1800 # half hour
+  total_duration: 3600 # one hour
+  post_test_sleep: 0
+  phase_transition_time: 0
   boot:
     wait_time_dependencies: 10
-  metric-providers:
+  metric_providers:
     linux:
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
         resolution: 99
@@ -82,6 +83,8 @@ measurement:
       cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
         resolution: 99
     common:
+      network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
+
       psu.energy.ac.bar.machine.provider.SomeOtherProvider':
         resolution: 99
       psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
