@@ -33,7 +33,8 @@
             <div class="content">
                 <div class="description">
                     <div class="ui secondary menu">
-                        <a class="item active" data-tab="one">Display</a>
+                        <a id="settings-tab-display" class="item active" data-tab="one">Display</a>
+                        <a id="settings-tab-measurement" class="item" data-tab="two">Measurement</a>
                     </div>
                     <div class="ui active tab" data-tab="one">
                         <table class="ui table">
@@ -84,7 +85,51 @@
                         </table>
                     </div>
 
-
+                    <div class="ui tab" data-tab="two">
+                        <table class="ui form table">
+                            <thead>
+                                <tr>
+                                    <th>Feature</th>
+                                    <th>Value</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Disable providers</td>
+                                    <td>
+                                        <select id="measurement-disabled-metric-providers" multiple="" class="ui multiple search selection dropdown" data-setting="measurement.disabled_metric_providers">
+                                            <option value="">Select Metrics Provider</option>
+                                            <option value="NetworkConnectionsProxyContainerProvider">NetworkConnectionsProxyContainerProvider</option>
+                                            <option value="NetworkConnectionsTcpdumpSystemProvider">NetworkConnectionsTcpdumpSystemProvider</option>
+                                        </select>
+                                    </td>
+                                    <td><button id="save-measurement-disabled-metric-providers" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Maximum flow process duration</td>
+                                    <td><input type="text" placeholder="Input a value" id="measurement-settings-flow-process-duration" name="measurement-settings-flow-process-duration" data-setting="measurement.settings.flow_process_duration" required=""></td>
+                                    <td><button id="save-measurement-settings-flow-process-duration" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Maximum total duration</td>
+                                    <td><input type="text" placeholder="Input a value" id="measurement-settings-total-duration" name="measurement-settings-total-duration" data-setting="measurement.settings.total_duration" required="" ></td>
+                                    <td><button id="save-measurement-settings-total-duration" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <!--
+                                <tr>
+                                    <td>Kill running measurements</td>
+                                    <td><select class="ui selection dropdown">
+                                            <option value="">Select Machine #</option>
+                                            <option value="1">CO2-Profiling</option>
+                                            <option value="2">CO2-Benchmarking</option>
+                                        </select>
+                                    </td>
+                                    <td><button class="ui red small button" onclick="killMeasurement();">Kill</button></td>
+                                </tr>-->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div><!-- end ui full-width-card card -->
