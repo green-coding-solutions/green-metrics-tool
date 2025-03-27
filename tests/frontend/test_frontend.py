@@ -6,6 +6,7 @@ import requests
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
 
 from lib.global_config import GlobalConfig
+from lib.user import User
 
 from tests import test_functions as Tests
 from playwright.sync_api import sync_playwright
@@ -74,7 +75,7 @@ def test_home():
 def test_runs():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/runs.html')
-    page.locator("#menu").get_by_role("link", name="Runs / Repos").click()
+    page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
     value = page.locator("#runs-and-repos-table > tbody tr:nth-child(2) > td:nth-child(1) > a").text_content()
 
@@ -194,7 +195,7 @@ def test_stats():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
 
-    page.locator("#menu").get_by_role("link", name="Runs / Repos").click()
+    page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
 
     with context.expect_page() as new_page_info:
         page.get_by_role("link", name="Stress Test #1").click()
@@ -288,7 +289,7 @@ def test_stats():
 def test_repositories_and_compare():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.locator("#menu").get_by_role("link", name="Runs / Repos").click()
+    page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
     page.get_by_role("button", name="Switch to repository view").click()
 
     page.locator('.ui.accordion div.title').click()
@@ -350,7 +351,7 @@ def test_repositories_and_compare():
 def test_expert_compare_mode():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.locator("#menu").get_by_role("link", name="Settings").click()
+    page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
     page.wait_for_load_state("load")  # wait JS
     assert page.locator("#expert-compare-mode").text_content() == 'Expert compare mode is off'
 
@@ -408,7 +409,7 @@ def test_expert_compare_mode():
 def test_watchlist():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.locator("#menu").get_by_role("link", name="Watchlist").click()
+    page.locator("#menu").get_by_role("link", name="Watchlist", exact=True).click()
     with context.expect_page() as new_page_info:
         page.get_by_role("link", name="Show Timeline").click()
 
@@ -435,7 +436,7 @@ def test_watchlist():
 def test_status():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.locator("#menu").get_by_role("link", name="Cluster Status").click()
+    page.locator("#menu").get_by_role("link", name="Cluster Status", exact=True).click()
 
     machine_name = page.locator('#machines-table > tbody > tr:nth-child(1) > td:nth-child(2)').text_content()
     assert machine_name.strip() == 'Local machine'
@@ -447,10 +448,10 @@ def test_status():
 
 
 
-def test_settings():
+def test_settings_display():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.locator("#menu").get_by_role("link", name="Settings").click()
+    page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
 
     page.wait_for_load_state("load") # ALL JS should be done
 
@@ -468,3 +469,41 @@ def test_settings():
 
     time_series_avg_display = page.locator('#time-series-avg-display').text_content()
     assert time_series_avg_display.strip() == 'Currently not showing AVG in time series'
+
+def test_settings_measurement():
+
+    page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+    page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
+
+    page.wait_for_load_state("load") # ALL JS should be done
+
+    page.locator("a#settings-tab-measurement").click()
+    page.wait_for_load_state("load") # ALL JS should be done
+
+    user = User(1)
+
+    value = page.locator('#measurement-settings-total-duration').input_value()
+    assert int(value.strip()) == user._capabilities['measurement']['settings']['total_duration']
+
+
+    value = page.locator('#measurement-settings-flow-process-duration').input_value()
+    assert int(value.strip()) == user._capabilities['measurement']['settings']['flow_process_duration']
+
+    value = page.locator('#measurement-disabled-metric-providers').input_value()
+    providers = [] if value.strip() == '' else [value.strip()]
+    assert providers == user._capabilities['measurement']['disabled_metric_providers']
+
+    page.locator('#measurement-settings-total-duration').fill('123')
+    page.locator('#measurement-settings-flow-process-duration').fill('456')
+    page.evaluate('$("#measurement-disabled-metric-providers").dropdown("set exactly", "NetworkConnectionsProxyContainerProvider");')
+
+    page.locator('#save-measurement-settings-total-duration').click()
+    page.locator('#save-measurement-settings-flow-process-duration').click()
+    page.locator('#save-measurement-disabled-metric-providers').click()
+
+    page.wait_for_load_state("networkidle") # ALL AJAX should be done
+
+    user = User(1)
+    assert user._capabilities['measurement']['settings']['total_duration'] == 123
+    assert user._capabilities['measurement']['settings']['flow_process_duration'] == 456
+    assert user._capabilities['measurement']['disabled_metric_providers'] == ['NetworkConnectionsProxyContainerProvider']

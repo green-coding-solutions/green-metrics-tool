@@ -221,7 +221,7 @@ const escapeString = (string) =>{
     return my_string.replace(reg, (match) => map[match]);
   }
 
-async function makeAPICall(path, values=null, force_authentication_token=null) {
+async function makeAPICall(path, values=null, force_authentication_token=null, force_put=false) {
 
     if(values != null ) {
         var options = {
@@ -230,6 +230,9 @@ async function makeAPICall(path, values=null, force_authentication_token=null) {
             headers: {
                 'Content-Type': 'application/json'
             }
+        }
+        if (force_put == true) {
+            options.method = 'PUT';
         }
     }  else {
         var options = { method: 'GET', headers: {} }
@@ -253,11 +256,15 @@ async function makeAPICall(path, values=null, force_authentication_token=null) {
             // 204 responses use no body, so json() call would fail
             return {success: false, err: "No data to display. API returned empty response (HTTP 204)"}
         }
+        if (response.status == 202) {
+            return
+        }
+
         return response.json()
     })
     .then(my_json => {
-        if (my_json.success != true) {
-            if (Array.isArray(my_json.err) && my_json.length !== 0)
+        if (my_json != null && my_json.success != true) {
+            if (Array.isArray(my_json.err) && my_json.err.length !== 0)
                 throw my_json.err[0]?.msg
             else
                 throw my_json.err

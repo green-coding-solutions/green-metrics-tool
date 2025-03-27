@@ -1,3 +1,33 @@
+const updateSetting = async (el) => {
+    const left_el = el.parentElement.previousElementSibling.querySelector('input, select');
+    const name = left_el.getAttribute('data-setting');
+    try {
+        if (left_el.tagName.toLowerCase() === 'select') {
+            const value = $(left_el).dropdown('get values');
+            await makeAPICall('/v1/user/setting', {name: name, value: value}, null, true)
+            showNotification('Save success!', `${name} = ${value}`)
+        } else {
+            await makeAPICall('/v1/user/setting', {name: name, value: left_el.value}, null, true)
+            showNotification('Save success!', `${name} = ${left_el.value}`)
+        }
+    } catch (err) {
+        showNotification('Could not save setting', err);
+        return
+    }
+}
+
+const getSettings = async () => {
+    try {
+        const data = await makeAPICall('/v1/user/settings');
+
+        document.querySelector('#measurement-settings-flow-process-duration').value = data?.data?._capabilities?.measurement?.settings?.flow_process_duration
+        document.querySelector('#measurement-settings-total-duration').value = data?.data?._capabilities?.measurement?.settings?.total_duration
+        $('#measurement-disabled-metric-providers').dropdown('set exactly', data?.data?._capabilities?.measurement?.disabled_metric_providers);
+    } catch (err) {
+        showNotification('Could not load settings', err);
+    }
+}
+
 const toggleExpertCompareMode = () => {
     const expert_compare_mode = localStorage.getItem('expert_compare_mode') === 'true';
     localStorage.setItem('expert_compare_mode', !expert_compare_mode);
@@ -78,6 +108,7 @@ const resetHelpTexts = () => {
         showDisplayTextMetricUnits(localStorage.getItem('display_in_metric_units') === 'true')
         showDisplayTextTimeSeries(localStorage.getItem('fetch_time_series') === 'true')
         showDisplayTextTimeSeriesAVG(localStorage.getItem('time_series_avg') === 'true')
+        getSettings();
     });
 
 })();
