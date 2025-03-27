@@ -70,7 +70,8 @@ VALUES (
                 "/v1/ci/stats",
                 "/v2/ci/measurement/add",
                 "/v1/software/add",
-                "/v1/authentication/data"
+                "/v1/user/settings",
+                "/v1/user/setting"
             ]
         },
         "data": {

@@ -11,7 +11,7 @@ const updateSetting = async (el) => {
             showNotification('Save success!', `${name} = ${left_el.value}`)
         }
     } catch (err) {
-        showNotification('Could save setting', err);
+        showNotification('Could not save setting', err);
         return
     }
 }

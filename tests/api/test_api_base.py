@@ -15,14 +15,14 @@ def test_route_forbidden():
     user._capabilities['api']['routes'] = []
     user.update()
 
-    response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15)
+    response = requests.get(f"{API_URL}/v1/user/settings", timeout=15)
     assert response.status_code == 401
     assert response.text == '{"success":false,"err":"Route not allowed for user DEFAULT"}'
 
 # This method is just a safe-guard in case FastAPI ever changes the mechanic that an authentication parameter
 # can be overriden through a simple query string
 def test_no_user_query_string_override():
-    response = requests.get(f"{API_URL}/v1/authentication/data?user=2", timeout=15)
+    response = requests.get(f"{API_URL}/v1/user/settings?user=2", timeout=15)
 
     assert response.status_code == 200
     json_data = json.loads(response.text)
@@ -32,7 +32,7 @@ def test_no_user_query_string_override():
 
 
 def test_can_read_authentication_data():
-    response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15)
+    response = requests.get(f"{API_URL}/v1/user/settings", timeout=15)
     assert response.status_code == 200
     json_data = json.loads(response.text)
 
@@ -42,28 +42,28 @@ def test_can_read_authentication_data():
 
 def test_api_quota_exhausted():
     user = User(1)
-    user._capabilities['api']['quotas'] = {'/v1/authentication/data': 0}
+    user._capabilities['api']['quotas'] = {'/v1/user/settings': 0}
     user.update()
 
-    response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15)
+    response = requests.get(f"{API_URL}/v1/user/settings", timeout=15)
     assert response.status_code == 401
     assert response.text == '{"success":false,"err":"Quota exceeded for user DEFAULT"}'
 
 
 def test_wrong_authentication():
-    response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15, headers={'X-Authentication': 'Asd'})
+    response = requests.get(f"{API_URL}/v1/user/settings", timeout=15, headers={'X-Authentication': 'Asd'})
     assert response.status_code == 401
     assert response.text == '{"success":false,"err":"User with corresponding token not found"}'
 
 def test_alternative_user():
     Tests.insert_user(300, 'PYTEST')
 
-    response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15, headers={'X-Authentication': 'PYTEST'})
+    response = requests.get(f"{API_URL}/v1/user/settings", timeout=15, headers={'X-Authentication': 'PYTEST'})
     assert response.status_code == 200
     assert json.loads(response.text)['data']['_name'] == 'PYTEST'
 
 def test_authenticate_with_empty_token_will_return_default():
-    response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15, headers={'X-Authentication': ''})
+    response = requests.get(f"{API_URL}/v1/user/settings", timeout=15, headers={'X-Authentication': ''})
     assert response.status_code == 200
     json_data = json.loads(response.text)
 
@@ -73,7 +73,7 @@ def test_authenticate_with_empty_token_will_return_default():
 
 def test_even_if_token_set_for_user_zero_api_will_still_fail():
     Tests.update_user_token(0, 'asd')
-    response = requests.get(f"{API_URL}/v1/authentication/data", timeout=15, headers={'X-Authentication': 'asd'})
+    response = requests.get(f"{API_URL}/v1/user/settings", timeout=15, headers={'X-Authentication': 'asd'})
     assert response.status_code == 401
 
     json_data = json.loads(response.text)

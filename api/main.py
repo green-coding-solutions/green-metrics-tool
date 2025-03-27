@@ -151,7 +151,7 @@ async def update_user_setting(setting: UserSetting, user: User = Depends(authent
     except ValueError as exc:
         raise RequestValidationError(str(exc)) from exc
 
-    return Response(status_code=204) # No-Content
+    return Response(status_code=202) # No-Content
 
 if GlobalConfig().config.get('activate_scenario_runner', False):
     from api import scenario_runner
