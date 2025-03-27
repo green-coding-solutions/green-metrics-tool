@@ -96,6 +96,7 @@ class Runner:
         self._commit_hash = None
         self._commit_timestamp = None
         self._user_id = user_id
+        self._user = User(user_id)
         self._measurement_flow_process_duration = measurement_flow_process_duration
         self._measurement_total_duration = measurement_total_duration
         self._last_measurement_duration = 0
@@ -463,8 +464,9 @@ class Runner:
 
         measurement_config = {}
 
-        measurement_config['settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric_providers'}
-        measurement_config['providers'] = utils.get_metric_providers(config)
+        measurement_config['settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric_providers'} # filter out static metric providers which might not be relevant for platform we are running on
+        measurement_config['providers'] = utils.get_metric_providers(config) # get only the providers relevant to our platform
+        measurement_config['user_settings'] = self._user._capabilities.get('measurement', {})
         measurement_config['sci'] = self._sci
 
 
@@ -516,7 +518,7 @@ class Runner:
             module_path = f"metric_providers.{module_path}"
             conf = metric_providers[metric_provider] or {}
 
-            if class_name in User(self._user_id)._capabilities['measurement'].get('disabled_metric_providers', []):
+            if class_name in self._user._capabilities['measurement'].get('disabled_metric_providers', []):
                 print(TerminalColors.WARNING, arrows(f"Not importing {class_name} as disabled per user settings"), TerminalColors.ENDC)
                 continue
 
@@ -861,8 +863,7 @@ class Runner:
                     raise RuntimeError('Found "ports" but neither --skip-unsafe nor --allow-unsafe is set')
 
             if 'docker-run-args' in service:
-                user = User(self._user_id)
-                allow_items = user._capabilities.get('measurement', {}).get('orchestrators', {}).get('docker', {}).get('allowed_run_args', [])
+                allow_items = self._user._capabilities.get('measurement', {}).get('orchestrators', {}).get('docker', {}).get('allowed_run_args', [])
                 for arg in service['docker-run-args']:
                     if any(re.fullmatch(allow_item, arg) for allow_item in allow_items):
                         docker_run_string.extend(shlex.split(arg))
