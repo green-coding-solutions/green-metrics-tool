@@ -220,6 +220,7 @@ CREATE INDEX measurement_metrics_build_and_store_phase_stats ON measurement_metr
 CREATE INDEX measurement_metrics_build_phases ON measurement_metrics(metric,detail_name,unit);
 
 CREATE TABLE measurement_values (
+    id SERIAL PRIMARY KEY, -- although not strictly needed PostgreSQL seems to perform way better with it and can vacuum more efficiently
     measurement_metric_id int NOT NULL REFERENCES measurement_metrics(id) ON DELETE CASCADE ON UPDATE CASCADE,
     value bigint NOT NULL,
     time bigint NOT NULL
