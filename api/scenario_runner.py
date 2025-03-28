@@ -1,4 +1,5 @@
-
+import os
+import re
 import orjson
 from xml.sax.saxutils import escape as xml_escape
 from datetime import date, datetime, timedelta
@@ -28,6 +29,7 @@ from lib import utils
 from enum import Enum
 ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
 
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 router = APIRouter()
 
@@ -458,7 +460,7 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
 ## A complex case to allow public visibility of the badge but restricting everything else would be to have
 ## User 1 restricted to only this route but a fully populated 'visible_users' array
 @router.get('/v1/badge/single/{run_id}')
-async def get_badge_single(run_id: str, metric: str = 'ml-estimated', unit: str = 'watt-hours', user: User = Depends(authenticate)):
+async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_component', unit: str = 'watt-hours', user: User = Depends(authenticate)):
 
     if run_id is None or not is_valid_uuid(run_id):
         raise RequestValidationError('Run ID is not a valid UUID or empty')
@@ -484,24 +486,7 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated', unit: str 
             AND ps.phase LIKE '%%_[RUNTIME]'
     '''
 
-    params = [user.is_super_user(), user.visible_users(), run_id]
-
-    label = 'Energy Cost'
-    via = ''
-    if metric == 'ml-estimated':
-        params.append('psu_energy_ac_xgboost_machine')
-        via = 'via XGBoost ML'
-    elif metric == 'RAPL':
-        params.append('%_energy_rapl_%')
-        via = 'via RAPL'
-    elif metric == 'AC':
-        params.append('psu_energy_ac_%')
-        via = 'via PSU (AC)'
-    elif metric == 'SCI':
-        label = 'SCI'
-        params.append('software_carbon_intensity_global')
-    else:
-        raise RequestValidationError(f"Unknown metric '{metric}' submitted")
+    params = [user.is_super_user(), user.visible_users(), run_id, metric]
 
     data = DB().fetch_one(query, params=params)
 
@@ -510,13 +495,35 @@ async def get_badge_single(run_id: str, metric: str = 'ml-estimated', unit: str 
     else:
         display_in_joules = (unit == 'joules') #pylint: disable=superfluous-parens
         [metric_value, energy_unit] = convert_value(data[0], data[1], display_in_joules)
-        badge_value= f"{metric_value:.2f} {energy_unit} {via}"
+        badge_value= f"{metric_value:.2f} {energy_unit}"
+
+    # now we capture the nice name from a javascript file!!
+
+    with open(f"{CURRENT_DIR}/../frontend/js/helpers/config.js", 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    matches = re.findall(r"METRIC_MAPPINGS\s*=\s*(\{.*\}) \/\/ PLEASE DO NOT REMOVE THIS COMMENT -- END METRIC_MAPPINGS", content, re.DOTALL)
+
+    nice_name_dict = orjson.loads(matches[0]).get(metric, None) # pylint: disable=no-member
+    if nice_name_dict:
+        nice_name = nice_name_dict.get('clean_name', metric)
+    else:
+        nice_name = metric
+
+    if '_energy_' in metric:
+        color = 'cornflowerblue'
+    elif '_carbon_' in metric:
+        color = 'black'
+    elif '_power_' in metric:
+        color = 'orange'
+    else:
+        color = 'teal'
 
     badge = anybadge.Badge(
-        label=xml_escape(label),
+        label=xml_escape(nice_name),
         value=xml_escape(badge_value),
         num_value_padding_chars=1,
-        default_color='cornflowerblue')
+        default_color=color)
 
     badge_str = str(badge)
 

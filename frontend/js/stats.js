@@ -303,15 +303,26 @@ const displayTimelineCharts = async (metrics, notes) => {
 
 }
 
-const renderBadges = async (url_params) => {
+const renderBadges = async (url_params, phase_stats) => {
+    if (phase_stats == null) return;
 
-    document.querySelectorAll("#badges span.energy-badge-container").forEach(el => {
-        const link_node = document.createElement("a")
-        const img_node = document.createElement("img")
-        link_node.href = `${METRICS_URL}/stats.html?id=${url_params['id']}`
-        img_node.src = `${API_URL}/v1/badge/single/${url_params['id']}?metric=${el.attributes['data-metric'].value}`
-        link_node.appendChild(img_node)
-        el.appendChild(link_node)
+    const phase_stats_keys = Object.keys(phase_stats);
+
+    const badge_container = document.querySelector('#run-badges')
+
+    phase_stats_keys.forEach(metric_name => {
+        badge_container.innerHTML += `
+            <div class="inline field">
+                <a href="${METRICS_URL}/stats.html?id=${url_params['id']}">
+                    <img src="${API_URL}/v1/badge/single/${url_params['id']}?metric=${metric_name}">
+                </a>
+                <a class="copy-badge"><i class="copy icon"></i></a>
+                <div class="ui left pointing blue basic label">
+                    ${METRIC_MAPPINGS[metric_name]['explanation']}
+                </div>
+            </div>
+            <hr class="ui divider"></hr>`;
+
     })
     document.querySelectorAll(".copy-badge").forEach(el => {
         el.addEventListener('click', copyToClipboard)
@@ -340,6 +351,7 @@ const fetchAndFillPhaseStatsData = async (url_params) => {
     renderCompareChartsForPhase(phase_stats.data, getAndShowPhase());
     displayTotalChart(...buildTotalChartData(phase_stats.data));
 
+    return phase_stats;
 }
 
 const fetchAndFillNetworkIntercepts = async (url_params) => {
@@ -455,11 +467,14 @@ $(document).ready( (e) => {
             return;
         }
 
-        renderBadges(url_params);
         fetchAndFillRunData(url_params);
         fetchAndFillNetworkIntercepts(url_params);
         fetchAndFillOptimizationsData(url_params);
-        fetchAndFillPhaseStatsData(url_params);
+
+        (async () => { // since we need to wait for fetchAndFillPhaseStatsData we wrap in async so later calls cann already proceed
+            const phase_stats = await fetchAndFillPhaseStatsData(url_params);
+            renderBadges(url_params, phase_stats?.data?.data['[RUNTIME]']);
+        })();
 
 
         if (localStorage.getItem('fetch_time_series') === 'true') {

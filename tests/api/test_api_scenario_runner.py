@@ -146,3 +146,16 @@ def test_get_insights():
     assert response.status_code == 200
     assert res_json['data'][0] == 5
     assert res_json['data'][1] == '2024-09-11'
+
+def test_get_badge():
+    Tests.import_demo_data()
+
+    response = requests.get(f"{API_URL}/v1/badge/single/a416057b-235f-41d8-9fb8-9bcc70a308e7?metric=cpu_energy_rapl_msr_component", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert 'CPU Energy (Package)' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
+    assert '0.01 Wh' in response.text, Tests.assertion_info('success', response.text)
+
+    response = requests.get(f"{API_URL}/v1/badge/single/a416057b-235f-41d8-9fb8-9bcc70a308e7?metric=cpu_energy_rapl_msr_component&unit=joules", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert 'CPU Energy (Package)' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
+    assert '45.05 J' in response.text, Tests.assertion_info('success', response.text)
