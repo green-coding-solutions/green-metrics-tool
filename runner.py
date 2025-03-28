@@ -41,7 +41,6 @@ from lib.notes import Notes
 from lib import system_checks
 from lib.machine import Machine
 from lib import metric_importer
-from lib.user import User
 
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
@@ -53,7 +52,7 @@ class Runner:
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
         dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
-        user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, dev_no_phase_stats=False,
+        user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, disabled_metric_providers=None, allowed_run_args=None, dev_no_phase_stats=False,
         skip_volume_inspect=False):
 
         if skip_unsafe is True and allow_unsafe is True:
@@ -98,6 +97,8 @@ class Runner:
         self._user_id = user_id
         self._measurement_flow_process_duration = measurement_flow_process_duration
         self._measurement_total_duration = measurement_total_duration
+        self._disabled_metric_providers = [] if disabled_metric_providers is None else disabled_metric_providers
+        self._allowed_run_args = [] if allowed_run_args is None else allowed_run_args # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
         self._last_measurement_duration = 0
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
@@ -463,8 +464,10 @@ class Runner:
 
         measurement_config = {}
 
-        measurement_config['settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric-providers'}
-        measurement_config['providers'] = utils.get_metric_providers(config)
+        measurement_config['settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric_providers'} # filter out static metric providers which might not be relevant for platform we are running on
+        measurement_config['providers'] = utils.get_metric_providers(config) # get only the providers relevant to our platform
+        measurement_config['allowed_run_args'] = self._allowed_run_args
+        measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
         measurement_config['sci'] = self._sci
 
 
@@ -515,6 +518,10 @@ class Runner:
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
             conf = metric_providers[metric_provider] or {}
+
+            if class_name in self._disabled_metric_providers:
+                print(TerminalColors.WARNING, arrows(f"Not importing {class_name} as disabled per user settings"), TerminalColors.ENDC)
+                continue
 
             print(f"Importing {class_name} from {module_path}")
             module = importlib.import_module(module_path)
@@ -857,10 +864,8 @@ class Runner:
                     raise RuntimeError('Found "ports" but neither --skip-unsafe nor --allow-unsafe is set')
 
             if 'docker-run-args' in service:
-                user = User(self._user_id)
-                allow_items = user._capabilities.get('measurement', {}).get('orchestrators', {}).get('docker', {}).get('allowed-run-args', [])
                 for arg in service['docker-run-args']:
-                    if any(re.fullmatch(allow_item, arg) for allow_item in allow_items):
+                    if any(re.fullmatch(allow_item, arg) for allow_item in self._allowed_run_args):
                         docker_run_string.extend(shlex.split(arg))
                     else:
                         raise RuntimeError(f"Argument '{arg}' is not allowed in the docker-run-args list. Please check the capabilities of the user.")
@@ -979,7 +984,7 @@ class Runner:
                         command_prepend = entrypoint_list[1:]
 
                     else:
-                        raise RuntimeError(f"Command in service '{service_name}' must be a string or a list but is: {type(service['command'])}")
+                        raise RuntimeError(f"Entrypoint in service '{service_name}' must be a string or a list but is: {type(service['entrypoint'])}")
                 else:
                     # empty entrypoint -> default entrypoint will be ignored
                     docker_run_string.append('--entrypoint=')
@@ -1180,7 +1185,7 @@ class Runner:
 
     def check_total_runtime_exceeded(self):
         if self._measurement_total_duration and (time.time() - self.__start_measurement_seconds) > self._measurement_total_duration:
-            raise TimeoutError(f"Timeout of {self._measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total-duration'.")
+            raise TimeoutError(f"Timeout of {self._measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total_duration'.")
 
     def start_phase(self, phase, transition = True):
         config = GlobalConfig().config
@@ -1190,8 +1195,8 @@ class Runner:
 
         if transition:
             # The force-sleep must go and we must actually check for the temperature baseline
-            print(f"\nForce-sleeping for {config['measurement']['phase-transition-time']}s")
-            self.custom_sleep(config['measurement']['phase-transition-time'])
+            print(f"\nForce-sleeping for {config['measurement']['phase_transition_time']}s")
+            self.custom_sleep(config['measurement']['phase_transition_time'])
             #print(TerminalColors.HEADER, '\nChecking if temperature is back to baseline ...', TerminalColors.ENDC)
 
         phase_time = int(time.time_ns() / 1_000)
@@ -1670,10 +1675,10 @@ class Runner:
             if self._debugger.active:
                 self._debugger.pause('metric-providers (non-container) start complete. Waiting to start measurement')
 
-            self.custom_sleep(config['measurement']['pre-test-sleep'])
+            self.custom_sleep(config['measurement']['pre_test_sleep'])
 
             self.start_phase('[BASELINE]')
-            self.custom_sleep(config['measurement']['baseline-duration'])
+            self.custom_sleep(config['measurement']['baseline_duration'])
             self.end_phase('[BASELINE]')
 
             if self._debugger.active:
@@ -1704,7 +1709,7 @@ class Runner:
                 self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')
 
             self.start_phase('[IDLE]')
-            self.custom_sleep(config['measurement']['idle-duration'])
+            self.custom_sleep(config['measurement']['idle_duration'])
             self.end_phase('[IDLE]')
 
             if self._debugger.active:
@@ -1726,7 +1731,7 @@ class Runner:
 
             self.end_measurement()
             self.check_process_returncodes()
-            self.custom_sleep(config['measurement']['post-test-sleep'])
+            self.custom_sleep(config['measurement']['post_test_sleep'])
             self.identify_invalid_run()
 
         except BaseException as exc:

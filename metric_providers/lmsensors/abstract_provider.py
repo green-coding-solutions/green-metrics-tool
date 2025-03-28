@@ -10,7 +10,7 @@ from metric_providers.base import BaseMetricProvider, MetricProviderConfiguratio
 class LmsensorsProvider(BaseMetricProvider):
 
     def _create_options(self):
-        provider_config = GlobalConfig().config['measurement']['metric-providers']['linux']\
+        provider_config = GlobalConfig().config['measurement']['metric_providers']['linux']\
             [self._provider_config_path]
 
         if 'chips' not in provider_config:
@@ -47,7 +47,7 @@ class LmsensorsProvider(BaseMetricProvider):
         if ps.returncode != 0:
             raise MetricProviderConfigurationError(f"{self._metric_name} provider could not be started.\nCannot run the 'sensors' command. Did you install lm-sensors?.\n\nAre you running in a VM / cloud / shared hosting?\nIf so please disable the {self._metric_name} provider in the config.yml")
 
-        provider_config = GlobalConfig().config['measurement']['metric-providers']['linux']\
+        provider_config = GlobalConfig().config['measurement']['metric_providers']['linux']\
             [self._provider_config_path]
 
         for config_chip in provider_config['chips']:
