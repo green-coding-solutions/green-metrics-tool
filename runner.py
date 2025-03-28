@@ -1897,7 +1897,7 @@ if __name__ == '__main__':
 
 
         if args.print_phase_stats:
-            data = DB().fetch_all('SELECT metric,detail_name, value type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
+            data = DB().fetch_all('SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
             print(f"Data for phase {args.print_phase_stats}")
             for el in data:
                 print(el)
