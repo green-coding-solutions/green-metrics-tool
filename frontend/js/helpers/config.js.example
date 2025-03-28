@@ -100,384 +100,359 @@ const DEFAULT_ENERGY_TIMELINE_BADGE_METRICS = [
 */
 
 METRIC_MAPPINGS = {
-
-    'disk_total_bytesread_powermetrics_vm': {
-        'clean_name': 'Disk Total (Read)',
-        'source': 'powermetrics',
-        'explanation': 'Disk Total bytes read',
-    },
-    'disk_total_byteswritten_powermetrics_vm': {
-        'clean_name': 'Disk Total (Write)',
-        'source': 'powermetrics',
-        'explanation': 'Disk total bytes written',
-    },
-
-    'disk_used_statvfs_system': {
-        'clean_name': 'Disk Usage',
-        'source': 'statvfs syscall',
-        'explanation': 'Disk used space of the root filesystem via statvfs syscall',
-    },
-
-    'disk_io_procfs_system': {
-        'clean_name': 'Disk I/O',
-        'source': 'procfs',
-        'explanation': 'Disk I/O for whole system via procfs',
-    },
-
-    'disk_io_cgroup_container': {
-        'clean_name': 'Disk I/O',
-        'source': 'cgroup',
-        'explanation': 'Disk I/O per container via cgroup',
-    },
-
-    'disk_io_cgroup_system': {
-        'clean_name': 'Disk I/O',
-        'source': 'cgroup',
-        'explanation': 'Disk I/O for system cgroup',
-    },
-
-    'disk_total_cgroup_system': {
-        'clean_name': 'Disk I/O',
-        'source': 'cgroup',
-        'explanation': 'Disk I/O Totals accumulated for system cgroup',
-    },
-    'disk_total_cgroup_container': {
-        'clean_name': 'Disk Data',
-        'source': 'formula',
-        'explanation': 'Disk I/O Totals accumulated per container via cgroup',
-    },
-
-    'disk_total_procfs_system': {
-        'clean_name': 'Disk Data',
-        'source': 'formula',
-        'explanation': 'Disk I/O Totals for whole system accumulated via procfs',
-    },
-
-    'psu_energy_cgroup_container': {
-        'clean_name': 'Container Energy',
-        'source': 'estimation',
-        'explanation': 'Container energy estimated via CPU-% share',
-    },
-
-    'psu_energy_cgroup_slice': {
-        'clean_name': 'Container Energy (+Baseline-Share)',
-        'source': 'estimation',
-        'explanation': 'Container energy estimated via CPU-% share (incl. idle)',
-    },
-
-    'psu_power_cgroup_container': {
-        'clean_name': 'Container Power',
-        'source': 'estimation',
-        'explanation': 'Container power estimated via CPU-% share',
-    },
-
-    'psu_power_cgroup_slice': {
-        'clean_name': 'Container Power (+Baseline-Share)',
-        'source': 'estimation',
-        'explanation': 'Container power estimated via CPU-% share incl. Idle',
-    },
-
-    'psu_carbon_dc_rapl_msr_machine': {
-        'clean_name': 'Machine CO₂',
-        'source': 'RAPL',
-        'explanation': 'Machine CO₂ calculated by formula via RAPL PSYS Domain',
-    },
-
-    'psu_energy_dc_rapl_msr_machine': {
-        'clean_name': 'Machine Energy',
-        'source': 'RAPL',
-        'explanation': 'Full machine energy (DC) as reported by RAPL PSYS Domain',
-    },
-    'psu_power_dc_rapl_msr_machine': {
-        'clean_name': 'Machine Power',
-        'source': 'RAPL',
-        'explanation': 'Full machine power (DC) as reported by RAPL PSYS Domain',
-    },
-
-    'psu_carbon_ac_mcp_machine': {
-        'clean_name': 'Machine CO₂',
-        'source': 'mcp',
-        'explanation': 'Machine CO₂ calculated by formula via mcp',
-    },
-
-    'psu_energy_ac_mcp_machine': {
-        'clean_name': 'Machine Energy',
-        'source': 'mcp',
-        'explanation': 'Full machine energy (AC) as reported by mcp',
-    },
-    'psu_power_ac_mcp_machine': {
-        'clean_name': 'Machine Power',
-        'source': 'mcp',
-        'explanation': 'Full machine power (AC) as reported by mcp',
-    },
-
-    'embodied_carbon_share_machine': {
-        'clean_name': 'Embodied Carbon',
-        'source': 'formula',
-        'explanation': 'Embodied carbon attributed by time share of the life-span and total embodied carbon',
-    },
-    'software_carbon_intensity_global': {
-        'clean_name': 'SCI',
-        'source': 'formula',
-        'explanation': 'SCI metric by the Green Software Foundation',
-    },
-    'phase_time_syscall_system': {
-        'clean_name': 'Phase Duration',
-        'source': 'Syscall',
-        'explanation': 'Duration of the phase measured by GMT through a syscall',
-    },
-    'psu_carbon_ac_ipmi_machine': {
-        'clean_name': 'Machine CO₂',
-        'source': 'Formula (IPMI)',
-        'explanation': 'Machine CO₂ calculated by formula via IPMI measurement',
-    },
-    'psu_carbon_dc_picolog_mainboard': {
-        'clean_name': 'Machine CO₂',
-        'source': 'Formula (PicoLog)',
-        'explanation': 'Machine CO₂ calculated by formula via PicoLog HRDL ADC-24 measurement',
-    },
-    'psu_carbon_ac_powerspy2_machine': {
-        'clean_name': 'Machine CO₂',
-        'source': 'PowerSpy2',
-        'explanation': 'Machine CO₂ calculated by formula via PowerSpy2 measurement',
-    },
-    'psu_carbon_ac_xgboost_machine': {
-        'clean_name': 'Machine CO₂',
-        'source': 'Formula (XGBoost)',
-        'explanation': 'Machine CO₂ calculated by formula via XGBoost estimation',
-    },
-    'network_energy_formula_global': {
-        'clean_name': 'Network Transmission',
-        'source': 'Formula',
-        'explanation': 'Estimated external energy cost for network infrastructure.',
-    },
-    'network_carbon_formula_global': {
-        'clean_name': 'Network Transmission CO₂',
-        'source': 'Formula',
-        'explanation': 'Estimated external CO₂ cost for network infrastructure.',
-    },
-     'lmsensors_temperature_component': {
-        'clean_name': 'CPU Temperature',
-        'source': 'lm-sensors',
-        'explanation': 'CPU Temperature as reported by lm-sensors',
-    },
-    'lmsensors_fan_component': {
-        'clean_name': 'Fan Speed',
-        'source': 'lm-sensors',
-        'explanation': 'Fan speed as reported by lm-sensors',
-    },
-    'psu_energy_ac_powerspy2_machine': {
-        'clean_name': 'Machine Energy',
-        'source': 'PowerSpy2',
-        'explanation': 'Full machine energy (AC) as reported by PowerSpy2',
-    },
-    'psu_power_ac_powerspy2_machine': {
-        'clean_name': 'Machine Power',
-        'source': 'PowerSpy2',
-        'explanation': 'Full machine power (AC) as reported by PowerSpy2',
-    },
-    'psu_energy_ac_xgboost_machine': {
-        'clean_name': 'Machine Energy',
-        'source': 'XGBoost',
-        'explanation': 'Full machine energy (AC) as estimated by XGBoost model',
-    },
-    'psu_power_ac_xgboost_machine': {
-        'clean_name': 'Machine Power',
-        'source': 'XGBoost',
-        'explanation': 'Full machine power (AC) as estimated by XGBoost model',
-    },
-    'psu_energy_ac_ipmi_machine': {
-        'clean_name': 'Machine Energy',
-        'source': 'IPMI',
-        'explanation': 'Full machine energy (AC) as reported by IPMI',
-    },
-    'psu_power_ac_ipmi_machine': {
-        'clean_name': 'Machine Power',
-        'source': 'IPMI',
-        'explanation': 'Full machine power (AC) as reported by IPMI',
-    },
-    'psu_energy_dc_picolog_mainboard': {
-        'clean_name': 'Machine Energy',
-        'source': 'PicoLog',
-        'explanation': 'Full machine energy (DC) as reported by PicoLog HRDL ADC-24',
-    },
-    'psu_power_dc_picolog_mainboard': {
-        'clean_name': 'Machine Power',
-        'source': 'Picolog',
-        'explanation': 'Full machine power (DC) as reported by PicoLog HRDL ADC-24',
-    },
-    'cpu_frequency_sysfs_core': {
-        'clean_name': 'CPU Frequency',
-        'source': 'sysfs',
-        'explanation': 'CPU Frequency per core as reported by sysfs',
-    },
-    'ane_power_powermetrics_component': {
-        'clean_name': 'ANE Power',
-        'source': 'powermetrics',
-        'explanation': 'Apple Neural Engine',
-    },
-    'ane_energy_powermetrics_component': {
-        'clean_name': 'ANE Energy',
-        'source': 'powermetrics',
-        'explanation': 'Apple Neural Engine',
-    },
-    'gpu_power_powermetrics_component': {
-        'clean_name': 'GPU Power',
-        'source': 'powermetrics',
-        'explanation': 'Apple M1 GPU / Intel GPU',
-    },
-    'gpu_energy_powermetrics_component': {
-        'clean_name': 'GPU Energy',
-        'source': 'powermetrics',
-        'explanation': 'Apple M1 GPU / Intel GPU',
-    },
-    'cores_power_powermetrics_component': {
-        'clean_name': 'CPU Power (Cores)',
-        'source': 'powermetrics',
-        'explanation': 'Power of the cores (M1) only without GPU, ANE, GPU, DRAM etc.',
-    },
-    'cores_energy_powermetrics_component': {
-        'clean_name': 'CPU Energy (Cores)',
-        'source': 'powermetrics',
-        'explanation': 'Energy of the cores (M1) only without GPU, ANE, GPU, DRAM etc.',
-    },
-    'cpu_energy_powermetrics_component': {
-        'clean_name': 'CPU Energy (Package)',
-        'source': 'powermetrics',
-        'explanation': 'Energy of the Package (Intel) only without GPU, ANE, GPU, DRAM etc.',
-    },
-    'cpu_power_powermetrics_component': {
-        'clean_name': 'CPU Power (Package)',
-        'source': 'powermetrics',
-        'explanation': 'Power of the Package (Intel) only without GPU, ANE, GPU, DRAM etc.',
-    },
-    'cpu_time_powermetrics_vm': {
-        'clean_name': 'CPU time',
-        'source': 'powermetrics',
-        'explanation': 'Effective execution time of the CPU for all cores combined',
-    },
-    'disk_io_bytesread_powermetrics_vm': {
-        'clean_name': 'Disk I/O (Read)',
-        'source': 'powermetrics',
-        'explanation': 'Disk I/O - Bytes read per second for SDD/HDD',
-    },
-    'disk_io_byteswritten_powermetrics_vm': {
-        'clean_name': 'Disk I/O (Write)',
-        'source': 'powermetrics',
-        'explanation': 'Disk I/O - Bytes written per second for SDD/HDD',
-    },
-    'energy_impact_powermetrics_vm': {
-        'clean_name': 'Energy impact',
-        'source': 'powermetrics',
-        'explanation': 'macOS proprietary value for relative energy impact on device',
-    },
-    'cpu_utilization_cgroup_container': {
-        'clean_name': 'CPU %',
-        'source': 'cgroup',
-        'explanation': 'CPU Utilization per container via cgroup',
-    },
-    'cpu_utilization_cgroup_system': {
-        'clean_name': 'CPU %',
-        'source': 'procfs',
-        'explanation': 'CPU Utilization for whole system via procfs',
-    },
-    'memory_used_cgroup_container': {
-        'clean_name': 'Memory Usage',
-        'source': 'cgroup',
-        'explanation': 'Memory Usage per container via cgroup',
-    },
-
-    'memory_used_cgroup_system': {
-        'clean_name': 'Memory Usage',
-        'source': 'cgroup',
-        'explanation': 'Memory Usage per system cgroup',
-    },
-
-    'memory_used_procfs_system': {
-        'clean_name': 'Memory Usage',
-        'source': 'procfs',
-        'explanation': 'Memory Usage for whole system via procfs',
-    },
-
-    'network_total_cgroup_container': {
-        'clean_name': 'Network Traffic',
-        'source': 'cgroup',
-        'explanation': 'Network total data traffic for the container via cgroup reporting.',
-    },
-
-    'network_io_cgroup_container': {
-        'clean_name': 'Network I/O',
-        'source': 'cgroup',
-        'explanation': 'Network I/O. Details on https://docs.green-coding.io/docs/measuring/metric-providers/network-io-cgroup-container',
-    },
-
-    'network_io_procfs_system': {
-        'clean_name': 'Network I/O',
-        'source': 'procfs',
-        'explanation': 'Network I/O for the whole system via procfs',
-    },
-
-    'network_total_procfs_system': {
-        'clean_name': 'Network Traffic',
-        'source': 'formula',
-        'explanation': 'Network total data traffic for the whole accumulated from procfs data',
-    },
-
-    'gpu_energy_nvidia_smi_component': {
-        'clean_name': 'GPU Energy',
-        'source': 'NVIDIA SMI',
-        'explanation': 'Derived NVIDIA SMI based GPU energy',
-    },
-    'gpu_power_nvidia_smi_component': {
-        'clean_name': 'GPU Power',
-        'source': 'NVIDIA SMI',
-        'explanation': 'NVIDIA SMI based GPU power',
-    },
-    'cpu_energy_rapl_msr_component': {
-        'clean_name': 'CPU Energy (Package)',
-        'source': 'RAPL',
-        'explanation': 'RAPL based CPU energy of package domain',
-    },
-    'cpu_power_rapl_msr_component': {
-        'clean_name': 'CPU Power (Package)',
-        'source': 'RAPL',
-        'explanation': 'Derived RAPL based CPU energy of package domain',
-    },
-    'cpu_utilization_procfs_system': {
-        'clean_name': 'CPU %',
-        'source': 'procfs',
-        'explanation': 'CPU Utilization of total system',
-    },
-    'cpu_utilization_mach_system': {
-        'clean_name': 'CPU %',
-        'source': 'mach',
-        'explanation': 'CPU Utilization of total system',
-    },
-    'memory_energy_rapl_msr_component': {
-        'clean_name': 'Memory Energy (DRAM)',
-        'source': 'RAPL',
-        'explanation': 'RAPL based memory energy of DRAM domain',
-    },
-    'memory_power_rapl_msr_component': {
-        'clean_name': 'Memory Power (DRAM)',
-        'source': 'RAPL',
-        'explanation': 'Derived RAPL based memory energy of DRAM domain',
-    },
-    'psu_carbon_ac_sdia_machine': {
-        'clean_name': 'Machine CO₂',
-        'source': 'Formula (SDIA)',
-        'explanation': 'Machine CO₂ calculated by formula via SDIA estimation',
-    },
-
-    'psu_energy_ac_sdia_machine': {
-        'clean_name': 'Machine Energy',
-        'source': 'SDIA',
-        'explanation': 'Full machine energy (AC) as estimated by SDIA model',
-    },
-
-    'psu_power_ac_sdia_machine': {
-        'clean_name': 'Machine Power',
-        'source': 'SDIA',
-        'explanation': 'Full machine power (AC) as estimated by SDIA model',
-    },
+    "disk_total_bytesread_powermetrics_vm": {
+        "clean_name": "Disk Total (Read)",
+        "source": "powermetrics",
+        "explanation": "Disk Total bytes read"
+    },
+    "disk_total_byteswritten_powermetrics_vm": {
+        "clean_name": "Disk Total (Write)",
+        "source": "powermetrics",
+        "explanation": "Disk total bytes written"
+    },
+    "disk_used_statvfs_system": {
+        "clean_name": "Disk Usage",
+        "source": "statvfs syscall",
+        "explanation": "Disk used space of the root filesystem via statvfs syscall"
+    },
+    "disk_io_procfs_system": {
+        "clean_name": "Disk I/O",
+        "source": "procfs",
+        "explanation": "Disk I/O for whole system via procfs"
+    },
+    "disk_io_cgroup_container": {
+        "clean_name": "Disk I/O",
+        "source": "cgroup",
+        "explanation": "Disk I/O per container via cgroup"
+    },
+    "disk_io_cgroup_system": {
+        "clean_name": "Disk I/O",
+        "source": "cgroup",
+        "explanation": "Disk I/O for system cgroup"
+    },
+    "disk_total_cgroup_system": {
+        "clean_name": "Disk I/O",
+        "source": "cgroup",
+        "explanation": "Disk I/O Totals accumulated for system cgroup"
+    },
+    "disk_total_cgroup_container": {
+        "clean_name": "Disk Data",
+        "source": "formula",
+        "explanation": "Disk I/O Totals accumulated per container via cgroup"
+    },
+    "disk_total_procfs_system": {
+        "clean_name": "Disk Data",
+        "source": "formula",
+        "explanation": "Disk I/O Totals for whole system accumulated via procfs"
+    },
+    "psu_energy_cgroup_container": {
+        "clean_name": "Container Energy",
+        "source": "estimation",
+        "explanation": "Container energy estimated via CPU-% share"
+    },
+    "psu_energy_cgroup_slice": {
+        "clean_name": "Container Energy (+Baseline-Share)",
+        "source": "estimation",
+        "explanation": "Container energy estimated via CPU-% share (incl. idle)"
+    },
+    "psu_power_cgroup_container": {
+        "clean_name": "Container Power",
+        "source": "estimation",
+        "explanation": "Container power estimated via CPU-% share"
+    },
+    "psu_power_cgroup_slice": {
+        "clean_name": "Container Power (+Baseline-Share)",
+        "source": "estimation",
+        "explanation": "Container power estimated via CPU-% share incl. Idle"
+    },
+    "psu_carbon_dc_rapl_msr_machine": {
+        "clean_name": "Machine CO₂",
+        "source": "RAPL",
+        "explanation": "Machine CO₂ calculated by formula via RAPL PSYS Domain"
+    },
+    "psu_energy_dc_rapl_msr_machine": {
+        "clean_name": "Machine Energy",
+        "source": "RAPL",
+        "explanation": "Full machine energy (DC) as reported by RAPL PSYS Domain"
+    },
+    "psu_power_dc_rapl_msr_machine": {
+        "clean_name": "Machine Power",
+        "source": "RAPL",
+        "explanation": "Full machine power (DC) as reported by RAPL PSYS Domain"
+    },
+    "psu_carbon_ac_mcp_machine": {
+        "clean_name": "Machine CO₂",
+        "source": "mcp",
+        "explanation": "Machine CO₂ calculated by formula via mcp"
+    },
+    "psu_energy_ac_mcp_machine": {
+        "clean_name": "Machine Energy",
+        "source": "mcp",
+        "explanation": "Full machine energy (AC) as reported by mcp"
+    },
+    "psu_power_ac_mcp_machine": {
+        "clean_name": "Machine Power",
+        "source": "mcp",
+        "explanation": "Full machine power (AC) as reported by mcp"
+    },
+    "embodied_carbon_share_machine": {
+        "clean_name": "Embodied Carbon",
+        "source": "formula",
+        "explanation": "Embodied carbon attributed by time share of the life-span and total embodied carbon"
+    },
+    "software_carbon_intensity_global": {
+        "clean_name": "SCI",
+        "source": "formula",
+        "explanation": "SCI metric by the Green Software Foundation"
+    },
+    "phase_time_syscall_system": {
+        "clean_name": "Phase Duration",
+        "source": "Syscall",
+        "explanation": "Duration of the phase measured by GMT through a syscall"
+    },
+    "psu_carbon_ac_ipmi_machine": {
+        "clean_name": "Machine CO₂",
+        "source": "Formula (IPMI)",
+        "explanation": "Machine CO₂ calculated by formula via IPMI measurement"
+    },
+    "psu_carbon_dc_picolog_mainboard": {
+        "clean_name": "Machine CO₂",
+        "source": "Formula (PicoLog)",
+        "explanation": "Machine CO₂ calculated by formula via PicoLog HRDL ADC-24 measurement"
+    },
+    "psu_carbon_ac_powerspy2_machine": {
+        "clean_name": "Machine CO₂",
+        "source": "PowerSpy2",
+        "explanation": "Machine CO₂ calculated by formula via PowerSpy2 measurement"
+    },
+    "psu_carbon_ac_xgboost_machine": {
+        "clean_name": "Machine CO₂",
+        "source": "Formula (XGBoost)",
+        "explanation": "Machine CO₂ calculated by formula via XGBoost estimation"
+    },
+    "network_energy_formula_global": {
+        "clean_name": "Network Transmission",
+        "source": "Formula",
+        "explanation": "Estimated external energy cost for network infrastructure."
+    },
+    "network_carbon_formula_global": {
+        "clean_name": "Network Transmission CO₂",
+        "source": "Formula",
+        "explanation": "Estimated external CO₂ cost for network infrastructure."
+    },
+     "lmsensors_temperature_component": {
+        "clean_name": "CPU Temperature",
+        "source": "lm-sensors",
+        "explanation": "CPU Temperature as reported by lm-sensors"
+    },
+    "lmsensors_fan_component": {
+        "clean_name": "Fan Speed",
+        "source": "lm-sensors",
+        "explanation": "Fan speed as reported by lm-sensors"
+    },
+    "psu_energy_ac_powerspy2_machine": {
+        "clean_name": "Machine Energy",
+        "source": "PowerSpy2",
+        "explanation": "Full machine energy (AC) as reported by PowerSpy2"
+    },
+    "psu_power_ac_powerspy2_machine": {
+        "clean_name": "Machine Power",
+        "source": "PowerSpy2",
+        "explanation": "Full machine power (AC) as reported by PowerSpy2"
+    },
+    "psu_energy_ac_xgboost_machine": {
+        "clean_name": "Machine Energy",
+        "source": "XGBoost",
+        "explanation": "Full machine energy (AC) as estimated by XGBoost model"
+    },
+    "psu_power_ac_xgboost_machine": {
+        "clean_name": "Machine Power",
+        "source": "XGBoost",
+        "explanation": "Full machine power (AC) as estimated by XGBoost model"
+    },
+    "psu_energy_ac_ipmi_machine": {
+        "clean_name": "Machine Energy",
+        "source": "IPMI",
+        "explanation": "Full machine energy (AC) as reported by IPMI"
+    },
+    "psu_power_ac_ipmi_machine": {
+        "clean_name": "Machine Power",
+        "source": "IPMI",
+        "explanation": "Full machine power (AC) as reported by IPMI"
+    },
+    "psu_energy_dc_picolog_mainboard": {
+        "clean_name": "Machine Energy",
+        "source": "PicoLog",
+        "explanation": "Full machine energy (DC) as reported by PicoLog HRDL ADC-24"
+    },
+    "psu_power_dc_picolog_mainboard": {
+        "clean_name": "Machine Power",
+        "source": "Picolog",
+        "explanation": "Full machine power (DC) as reported by PicoLog HRDL ADC-24"
+    },
+    "cpu_frequency_sysfs_core": {
+        "clean_name": "CPU Frequency",
+        "source": "sysfs",
+        "explanation": "CPU Frequency per core as reported by sysfs"
+    },
+    "ane_power_powermetrics_component": {
+        "clean_name": "ANE Power",
+        "source": "powermetrics",
+        "explanation": "Apple Neural Engine"
+    },
+    "ane_energy_powermetrics_component": {
+        "clean_name": "ANE Energy",
+        "source": "powermetrics",
+        "explanation": "Apple Neural Engine"
+    },
+    "gpu_power_powermetrics_component": {
+        "clean_name": "GPU Power",
+        "source": "powermetrics",
+        "explanation": "Apple M1 GPU / Intel GPU"
+    },
+    "gpu_energy_powermetrics_component": {
+        "clean_name": "GPU Energy",
+        "source": "powermetrics",
+        "explanation": "Apple M1 GPU / Intel GPU"
+    },
+    "cores_power_powermetrics_component": {
+        "clean_name": "CPU Power (Cores)",
+        "source": "powermetrics",
+        "explanation": "Power of the cores (M1) only without GPU, ANE, GPU, DRAM etc."
+    },
+    "cores_energy_powermetrics_component": {
+        "clean_name": "CPU Energy (Cores)",
+        "source": "powermetrics",
+        "explanation": "Energy of the cores (M1) only without GPU, ANE, GPU, DRAM etc."
+    },
+    "cpu_energy_powermetrics_component": {
+        "clean_name": "CPU Energy (Package)",
+        "source": "powermetrics",
+        "explanation": "Energy of the Package (Intel) only without GPU, ANE, GPU, DRAM etc."
+    },
+    "cpu_power_powermetrics_component": {
+        "clean_name": "CPU Power (Package)",
+        "source": "powermetrics",
+        "explanation": "Power of the Package (Intel) only without GPU, ANE, GPU, DRAM etc."
+    },
+    "cpu_time_powermetrics_vm": {
+        "clean_name": "CPU time",
+        "source": "powermetrics",
+        "explanation": "Effective execution time of the CPU for all cores combined"
+    },
+    "disk_io_bytesread_powermetrics_vm": {
+        "clean_name": "Disk I/O (Read)",
+        "source": "powermetrics",
+        "explanation": "Disk I/O - Bytes read per second for SDD/HDD"
+    },
+    "disk_io_byteswritten_powermetrics_vm": {
+        "clean_name": "Disk I/O (Write)",
+        "source": "powermetrics",
+        "explanation": "Disk I/O - Bytes written per second for SDD/HDD"
+    },
+    "energy_impact_powermetrics_vm": {
+        "clean_name": "Energy impact",
+        "source": "powermetrics",
+        "explanation": "macOS proprietary value for relative energy impact on device"
+    },
+    "cpu_utilization_cgroup_container": {
+        "clean_name": "CPU %",
+        "source": "cgroup",
+        "explanation": "CPU Utilization per container via cgroup"
+    },
+    "cpu_utilization_cgroup_system": {
+        "clean_name": "CPU %",
+        "source": "procfs",
+        "explanation": "CPU Utilization for whole system via procfs"
+    },
+    "memory_used_cgroup_container": {
+        "clean_name": "Memory Usage",
+        "source": "cgroup",
+        "explanation": "Memory Usage per container via cgroup"
+    },
+    "memory_used_cgroup_system": {
+        "clean_name": "Memory Usage",
+        "source": "cgroup",
+        "explanation": "Memory Usage per system cgroup"
+    },
+    "memory_used_procfs_system": {
+        "clean_name": "Memory Usage",
+        "source": "procfs",
+        "explanation": "Memory Usage for whole system via procfs"
+    },
+    "network_total_cgroup_container": {
+        "clean_name": "Network Traffic",
+        "source": "cgroup",
+        "explanation": "Network total data traffic for the container via cgroup reporting."
+    },
+    "network_io_cgroup_container": {
+        "clean_name": "Network I/O",
+        "source": "cgroup",
+        "explanation": "Network I/O. Details on https://docs.green-coding.io/docs/measuring/metric-providers/network-io-cgroup-container"
+    },
+    "network_io_procfs_system": {
+        "clean_name": "Network I/O",
+        "source": "procfs",
+        "explanation": "Network I/O for the whole system via procfs"
+    },
+    "network_total_procfs_system": {
+        "clean_name": "Network Traffic",
+        "source": "formula",
+        "explanation": "Network total data traffic for the whole accumulated from procfs data"
+    },
+    "gpu_energy_nvidia_smi_component": {
+        "clean_name": "GPU Energy",
+        "source": "NVIDIA SMI",
+        "explanation": "Derived NVIDIA SMI based GPU energy"
+    },
+    "gpu_power_nvidia_smi_component": {
+        "clean_name": "GPU Power",
+        "source": "NVIDIA SMI",
+        "explanation": "NVIDIA SMI based GPU power"
+    },
+    "cpu_energy_rapl_msr_component": {
+        "clean_name": "CPU Energy (Package)",
+        "source": "RAPL",
+        "explanation": "RAPL based CPU energy of package domain"
+    },
+    "cpu_power_rapl_msr_component": {
+        "clean_name": "CPU Power (Package)",
+        "source": "RAPL",
+        "explanation": "Derived RAPL based CPU energy of package domain"
+    },
+    "cpu_utilization_procfs_system": {
+        "clean_name": "CPU %",
+        "source": "procfs",
+        "explanation": "CPU Utilization of total system"
+    },
+    "cpu_utilization_mach_system": {
+        "clean_name": "CPU %",
+        "source": "mach",
+        "explanation": "CPU Utilization of total system"
+    },
+    "memory_energy_rapl_msr_component": {
+        "clean_name": "Memory Energy (DRAM)",
+        "source": "RAPL",
+        "explanation": "RAPL based memory energy of DRAM domain"
+    },
+    "memory_power_rapl_msr_component": {
+        "clean_name": "Memory Power (DRAM)",
+        "source": "RAPL",
+        "explanation": "Derived RAPL based memory energy of DRAM domain"
+    },
+    "psu_carbon_ac_sdia_machine": {
+        "clean_name": "Machine CO₂",
+        "source": "Formula (SDIA)",
+        "explanation": "Machine CO₂ calculated by formula via SDIA estimation"
+    },
+    "psu_energy_ac_sdia_machine": {
+        "clean_name": "Machine Energy",
+        "source": "SDIA",
+        "explanation": "Full machine energy (AC) as estimated by SDIA model"
+    },
+    "psu_power_ac_sdia_machine": {
+        "clean_name": "Machine Power",
+        "source": "SDIA",
+        "explanation": "Full machine power (AC) as estimated by SDIA model"
+    }
 } // PLEASE DO NOT REMOVE THIS COMMENT -- END METRIC_MAPPINGS
