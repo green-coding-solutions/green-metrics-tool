@@ -119,10 +119,6 @@ const fetchAndFillRunData = async (url_params) => {
     const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1000000
     document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td>${measurement_duration_in_s} s</td></tr>`)
 
-
-    $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data
-    $('.ui.accordion').accordion();
-
     if (run_data.invalid_run) {
         showNotification('Run measurement has been marked as invalid', run_data.invalid_run);
         document.body.classList.add("invalidated-measurement")
@@ -314,7 +310,7 @@ const renderBadges = async (url_params, phase_stats) => {
         badge_container.innerHTML += `
             <div class="inline field">
                 <a href="${METRICS_URL}/stats.html?id=${url_params['id']}">
-                    <img src="${API_URL}/v1/badge/single/${url_params['id']}?metric=${metric_name}">
+                    <img src="${API_URL}/v1/badge/single/${url_params['id']}?metric=${metric_name}" loading="lazy">
                 </a>
                 <a class="copy-badge"><i class="copy icon"></i></a>
                 <div class="ui left pointing blue basic label">
@@ -459,6 +455,9 @@ const fetchTimelineNotes = async (url_params) => {
 /* Chart starting code*/
 $(document).ready( (e) => {
     (async () => {
+
+        $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data
+        $('.ui.accordion').accordion();
 
         let url_params = getURLParams();
 
