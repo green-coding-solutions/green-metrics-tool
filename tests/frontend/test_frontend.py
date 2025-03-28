@@ -482,28 +482,28 @@ def test_settings_measurement():
 
     user = User(1)
 
-    value = page.locator('#measurement-settings-total-duration').input_value()
-    assert int(value.strip()) == user._capabilities['measurement']['settings']['total_duration']
+    value = page.locator('#measurement-total-duration').input_value()
+    assert int(value.strip()) == user._capabilities['measurement']['total_duration']
 
 
-    value = page.locator('#measurement-settings-flow-process-duration').input_value()
-    assert int(value.strip()) == user._capabilities['measurement']['settings']['flow_process_duration']
+    value = page.locator('#measurement-flow-process-duration').input_value()
+    assert int(value.strip()) == user._capabilities['measurement']['flow_process_duration']
 
     value = page.locator('#measurement-disabled-metric-providers').input_value()
     providers = [] if value.strip() == '' else [value.strip()]
     assert providers == user._capabilities['measurement']['disabled_metric_providers']
 
-    page.locator('#measurement-settings-total-duration').fill('123')
-    page.locator('#measurement-settings-flow-process-duration').fill('456')
+    page.locator('#measurement-total-duration').fill('123')
+    page.locator('#measurement-flow-process-duration').fill('456')
     page.evaluate('$("#measurement-disabled-metric-providers").dropdown("set exactly", "NetworkConnectionsProxyContainerProvider");')
 
-    page.locator('#save-measurement-settings-total-duration').click()
-    page.locator('#save-measurement-settings-flow-process-duration').click()
+    page.locator('#save-measurement-total-duration').click()
+    page.locator('#save-measurement-flow-process-duration').click()
     page.locator('#save-measurement-disabled-metric-providers').click()
 
     page.wait_for_load_state("networkidle") # ALL AJAX should be done
 
     user = User(1)
-    assert user._capabilities['measurement']['settings']['total_duration'] == 123
-    assert user._capabilities['measurement']['settings']['flow_process_duration'] == 456
+    assert user._capabilities['measurement']['total_duration'] == 123
+    assert user._capabilities['measurement']['flow_process_duration'] == 456
     assert user._capabilities['measurement']['disabled_metric_providers'] == ['NetworkConnectionsProxyContainerProvider']

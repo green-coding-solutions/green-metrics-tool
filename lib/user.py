@@ -65,7 +65,7 @@ class User():
             raise ValueError(f"You cannot change this setting: {name}")
 
         match name:
-            case 'measurement.settings.flow_process_duration' | 'measurement.settings.total_duration':
+            case 'measurement.flow_process_duration' | 'measurement.total_duration':
                 if not (isinstance(value, int) or value.isdigit()) or int(value) <= 0 or int(value) > 86400:
                     raise ValueError(f'The setting {name} must be between 1 and 86400')
                 value = int(value)
@@ -121,85 +121,6 @@ class User():
             raise UserAuthenticationError('User with corresponding token not found') # do never output token everywhere cause it might land in logs
 
         return cls(user[0])
-
-    @staticmethod
-    def get_new(name=None):
-
-        token = str(uuid.uuid4()).upper()
-        sha256_hash = hashlib.sha256()
-        sha256_hash.update(token.encode('UTF-8'))
-
-        default_capabilities = {
-            "api": {
-                "quotas": { # An empty dictionary here means that no quotas apply
-                },
-                "routes": [ # This will be dynamically loaded from the current main.py for all applicable routes
-                    "/v1/carbondb/add",
-                    "/v1/ci/measurement/add",
-                    "/v1/software/add",
-                    "/v1/hog/add",
-                    "/v1/authentication/data",
-                ]
-            },
-            "jobs": {
-                "schedule_modes": [
-                    "one-off",
-                    "daily",
-                    "weekly",
-                    "commit",
-                    "variance",
-                ],
-            },
-            "measurement": {
-                "settings": {
-                    "flow_process_duration": 3600,
-                    "total_duration": 3600,
-                },
-                "quotas": { # An empty dictionary here means that no quotas apply
-                    "default": 10_000
-                }
-            },
-            "data": {
-                "runs": {
-                    "retention": 3600,
-                },
-                "measurements": {
-                    "retention": 3600,
-                },
-                "ci_measurements": {
-                    "retention": 3600,
-                },
-                "hog_measurements": {
-                    "retention": 3600,
-                },
-                "hog_coalitions": {
-                    "retention": 3600,
-                },
-                "hog_tasks": {
-                    "retention": 3600,
-                },
-            },
-            "machines": [ # This will be dynamically loaded from the current database
-                1,
-            ],
-            "optimizations": [ # This will be dynamically loaded from the current filesystem
-                "container_memory_utilization",
-                "container_cpu_utilization",
-                "message_optimization",
-                "container_build_time",
-                "container_boot_time",
-                "container_image_size",
-            ],
-        }
-
-        user = DB().query("""
-                INSERT INTO users
-                (name, token, capabilities)
-                VALUES
-                (%s, %s, %s)
-                """, params=((name, sha256_hash.hexdigest(), json.dumps(default_capabilities), )))
-
-        return token
 
 class UserAuthenticationError(Exception):
     pass

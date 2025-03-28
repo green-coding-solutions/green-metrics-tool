@@ -10,6 +10,6 @@ UPDATE users
 SET capabilities = jsonb_set(
     capabilities,
     '{user,updateable_settings}',
-    '["measurement.disabled_metric_providers","measurement.settings.flow_process_duration","measurement.settings.total_duration"]'::jsonb,
+    '["measurement.disabled_metric_providers","measurement.flow_process_duration","measurement.total_duration"]'::jsonb,
     true -- Create the key if it doesn't exist
 );
