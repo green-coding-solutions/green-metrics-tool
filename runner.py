@@ -1811,6 +1811,7 @@ if __name__ == '__main__':
     parser.add_argument('--dev-no-phase-stats', action='store_true', help='Do not calculate phase stats.')
     parser.add_argument('--dev-cache-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
     parser.add_argument('--dev-no-optimizations', action='store_true', help='Disable analysis after run to find possible optimizations.')
+    parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
     args = parser.parse_args()
@@ -1893,6 +1894,14 @@ if __name__ == '__main__':
         print(TerminalColors.OKGREEN,'\n\n####################################################################################')
         print(f"Please access your report on the URL {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={runner._run_id}")
         print('####################################################################################\n\n', TerminalColors.ENDC)
+
+
+        if args.print_phase_stats:
+            data = DB().fetch_all('SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
+            print(f"Data for phase {args.print_phase_stats}")
+            for el in data:
+                print(el)
+            print('')
 
     except FileNotFoundError as e:
         error_helpers.log_error('File or executable not found', exception=e, previous_exception=e.__context__, run_id=runner._run_id)
