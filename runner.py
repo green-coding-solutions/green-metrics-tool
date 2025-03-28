@@ -984,7 +984,7 @@ class Runner:
                         command_prepend = entrypoint_list[1:]
 
                     else:
-                        raise RuntimeError(f"Command in service '{service_name}' must be a string or a list but is: {type(service['command'])}")
+                        raise RuntimeError(f"Entrypoint in service '{service_name}' must be a string or a list but is: {type(service['entrypoint'])}")
                 else:
                     # empty entrypoint -> default entrypoint will be ignored
                     docker_run_string.append('--entrypoint=')
