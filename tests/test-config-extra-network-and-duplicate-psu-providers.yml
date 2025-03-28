@@ -60,8 +60,6 @@ measurement:
   pre_test_sleep: 0
   idle_duration: 0
   baseline_duration: 0
-  flow_process_duration: 1800 # half hour
-  total_duration: 3600 # one hour
   post_test_sleep: 0
   phase_transition_time: 0
   boot:

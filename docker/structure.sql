@@ -40,7 +40,7 @@ VALUES (
         "user": {
             "visible_users": [0,1],
             "is_super_user": true,
-            "updateable_settings": ["measurement.disabled_metric_providers","measurement.settings.flow_process_duration","measurement.settings.total_duration"]
+            "updateable_settings": ["measurement.disabled_metric_providers","measurement.flow_process_duration","measurement.total_duration"]
         },
         "api": {
             "quotas": {},
@@ -95,10 +95,8 @@ VALUES (
         "machines": [1],
         "measurement": {
             "quotas": {},
-            "settings": {
-                "total_duration": 86400,
-                "flow_process_duration": 86400
-            },
+            "total_duration": 86400,
+            "flow_process_duration": 86400,
             "orchestrators": {
                 "docker": {
                     "allowed_run_args": []

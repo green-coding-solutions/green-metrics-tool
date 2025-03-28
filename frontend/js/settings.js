@@ -20,8 +20,8 @@ const getSettings = async () => {
     try {
         const data = await makeAPICall('/v1/user/settings');
 
-        document.querySelector('#measurement-settings-flow-process-duration').value = data?.data?._capabilities?.measurement?.settings?.flow_process_duration
-        document.querySelector('#measurement-settings-total-duration').value = data?.data?._capabilities?.measurement?.settings?.total_duration
+        document.querySelector('#measurement-flow-process-duration').value = data?.data?._capabilities?.measurement?.flow_process_duration
+        document.querySelector('#measurement-total-duration').value = data?.data?._capabilities?.measurement?.total_duration
         $('#measurement-disabled-metric-providers').dropdown('set exactly', data?.data?._capabilities?.measurement?.disabled_metric_providers);
     } catch (err) {
         showNotification('Could not load settings', err);
