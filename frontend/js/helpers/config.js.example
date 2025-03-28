@@ -480,4 +480,4 @@ METRIC_MAPPINGS = {
         'source': 'SDIA',
         'explanation': 'Full machine power (AC) as estimated by SDIA model',
     },
-}
+} // PLEASE DO NOT REMOVE THIS COMMENT -- END METRIC_MAPPINGS
