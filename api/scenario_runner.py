@@ -473,7 +473,7 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
         phase = f"%_{phase}"
     else:
         phase_label = None
-        phase = f"%_[RUNTIME]"
+        phase = '%_[RUNTIME]'
 
     # we believe that there is no injection possible to the artifact store and any string can be constructured here ...
     if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{run_id}_{metric}_{unit}_{phase}"):
