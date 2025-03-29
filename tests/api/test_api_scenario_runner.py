@@ -150,12 +150,37 @@ def test_get_insights():
 def test_get_badge():
     Tests.import_demo_data()
 
-    response = requests.get(f"{API_URL}/v1/badge/single/a416057b-235f-41d8-9fb8-9bcc70a308e7?metric=cpu_energy_rapl_msr_component", timeout=15)
+    response = requests.get(f"{API_URL}/v1/badge/single/{RUN_3}?metric=cpu_energy_rapl_msr_component", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert 'CPU Energy (Package)' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
     assert '0.01 Wh' in response.text, Tests.assertion_info('success', response.text)
 
-    response = requests.get(f"{API_URL}/v1/badge/single/a416057b-235f-41d8-9fb8-9bcc70a308e7?metric=cpu_energy_rapl_msr_component&unit=joules", timeout=15)
+    response = requests.get(f"{API_URL}/v1/badge/single/{RUN_3}?metric=cpu_energy_rapl_msr_component&unit=joules", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     assert 'CPU Energy (Package)' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
-    assert '45.05 J' in response.text, Tests.assertion_info('success', response.text)
+    assert '46.77 J' in response.text, Tests.assertion_info('success', response.text)
+
+    response = requests.get(f"{API_URL}/v1/badge/single/{RUN_3}?metric=phase_time_syscall_system", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert 'Phase Duration' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
+    assert '5.31 s' in response.text, Tests.assertion_info('success', response.text)
+
+    # will not react to Joules
+    response = requests.get(f"{API_URL}/v1/badge/single/{RUN_3}?metric=phase_time_syscall_system&unit=joules", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert 'Phase Duration' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
+    assert '5.31 s' in response.text, Tests.assertion_info('success', response.text)
+
+
+def test_get_badge_with_phase():
+    Tests.import_demo_data()
+
+    response = requests.get(f"{API_URL}/v1/badge/single/{RUN_3}?metric=psu_power_dc_rapl_msr_machine", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert 'Machine Power' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
+    assert '14.80 W' in response.text, Tests.assertion_info('success', response.text)
+
+    response = requests.get(f"{API_URL}/v1/badge/single/{RUN_3}?metric=psu_power_dc_rapl_msr_machine&phase=[BOOT]", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    assert 'Machine Power {[BOOT]}' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
+    assert '21.46 W' in response.text, Tests.assertion_info('success', response.text)
