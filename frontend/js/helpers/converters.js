@@ -21,12 +21,12 @@ const convertValue = (value, unit) => {
             if (display_in_joules)
                 return [transformIfNotNull(value, 1_000), unit.substr(1)];
             else
-                return [transformIfNotNull(value, 1_000 * 3_600), `Wh${unit.substr(2)}`];
+                return [transformIfNotNull(value, 3_600), `mWh${unit.substr(2)}`];
         case 'uJ':
             if (display_in_joules)
                 return [transformIfNotNull(value, 1_000_000), unit.substr(1)];
             else
-                return [transformIfNotNull(value, 1_000_000 * 3_600), `Wh${unit.substr(2)}`];
+                return [transformIfNotNull(value, 1_000 * 3_600), `mWh${unit.substr(2)}`];
         case 'mW':
             return [transformIfNotNull(value, 1_000), unit.substr(1)];
         case 'Ratio':
