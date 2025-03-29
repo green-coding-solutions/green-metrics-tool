@@ -1161,7 +1161,7 @@ class Runner:
         if self._measurement_total_duration and (time.time() - self.__start_measurement_seconds) > self._measurement_total_duration:
             raise TimeoutError(f"Timeout of {self._measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total_duration'.")
 
-    def start_phase(self, phase, transition = True):
+    def start_phase(self, phase, *, hidden=False, transition=True):
         config = GlobalConfig().config
         print(TerminalColors.HEADER, f"\nStarting phase {phase}.", TerminalColors.ENDC)
 
@@ -1176,7 +1176,7 @@ class Runner:
         phase_time = int(time.time_ns() / 1_000)
         self.__notes_helper.add_note({'note': f"Starting phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
-        self.__phases[phase] = {'start': phase_time, 'name': phase}
+        self.__phases[phase] = {'start': phase_time, 'name': phase, 'hidden': hidden}
 
     def end_phase(self, phase):
 
@@ -1214,7 +1214,7 @@ class Runner:
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
             try:
-                self.start_phase(flow['name'], transition=False)
+                self.start_phase(flow['name'], hidden=flow.get('hidden', False), transition=False)
 
                 for cmd_obj in flow['commands']:
                     self.check_total_runtime_exceeded()
