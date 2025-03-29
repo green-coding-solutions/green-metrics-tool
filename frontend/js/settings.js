@@ -45,7 +45,7 @@ const toggleJoules = () => {
 }
 const showDisplayTextJoules = (display_in_joules) => {
     if(display_in_joules) $("#energy-display").html("Currently showing <b>Joules</b>");
-    else $("#energy-display").html("Currently showing <b>Watt-Hours</b>");
+    else $("#energy-display").html("Currently showing <b>milli-Watt-Hours</b>");
 }
 
 const toggleTimelinesEnergyPower = () => {
