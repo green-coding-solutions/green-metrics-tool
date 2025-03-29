@@ -72,6 +72,16 @@ class CO2Tangible extends HTMLElement {
 
 customElements.define('co2-tangible', CO2Tangible);
 
+const showHiddenPhaseTab = (el) => {
+    if (el.currentTarget.classList.contains('hidden-phase-tab')) {
+        el.currentTarget.querySelector('.hidden-phase-name').style.display = 'block'
+    } else {
+        document.querySelectorAll('.hidden-phase-name').forEach(matched_el => {
+            matched_el.style.display = 'none'
+        })
+    }
+}
+
 const fetchAndFillRunData = async (url_params) => {
 
     let run = null;
@@ -94,8 +104,20 @@ const fetchAndFillRunData = async (url_params) => {
             document.querySelector("#logs").insertAdjacentHTML('beforeend', `<pre>${run_data?.[item]}</pre>`)
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
-        } else if(item == 'phases' || item == 'id') {
+        } else if(item == 'id') {
             // skip
+        } else if(item == 'phases') {
+            Object.keys(run_data[item]).forEach(key => {
+                    if (run_data[item][key]?.hidden == true) {
+                    const tab = document.querySelector(`.item.runtime-step[data-tab="${run_data[item][key].name}"]`)
+                    tab.innerHTML = `<i class="low vision icon"></i> <span class="hidden-phase-name">${tab.innerText}</span>`
+                    tab.classList.add("hidden-phase-tab")
+                }
+            });
+            document.querySelectorAll('#runtime-sub-phases .item').forEach(el => {
+                el.addEventListener('click', showHiddenPhaseTab)
+            })
+
         }  else if(item == 'commit_hash') {
             if (run_data?.[item] == null) continue; // some old runs did not save it
             let commit_link = buildCommitLink(run_data);
@@ -466,13 +488,14 @@ $(document).ready( (e) => {
             return;
         }
 
-        fetchAndFillRunData(url_params);
+
         fetchAndFillNetworkIntercepts(url_params);
         fetchAndFillOptimizationsData(url_params);
 
         (async () => { // since we need to wait for fetchAndFillPhaseStatsData we wrap in async so later calls cann already proceed
             const phase_stats = await fetchAndFillPhaseStatsData(url_params);
             renderBadges(url_params, phase_stats?.data?.data['[RUNTIME]']);
+            fetchAndFillRunData(url_params); // bc it will hide phases. TODO: Refactor this to have the data in the phase_stats_object. Is a bigger refactor though!
         })();
 
 

@@ -340,6 +340,12 @@ a,
     margin-top: 5px;
 }
 
+span.hidden-phase-name {
+    display: none;
+}
+
+
+
 /* Since we have a without href we need to force pointer */
 a {
     cursor: pointer;
