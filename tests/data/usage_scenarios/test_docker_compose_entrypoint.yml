@@ -1,0 +1,17 @@
+---
+name: Tests the execution of docker command and entrypoints
+author: Didi Hoffmann
+description: test
+
+compose-file: !include test_docker_entry_command.yml
+services:
+  test-container:
+    type: container
+    image: alpine
+
+flow:
+   - name: Stress
+     container: test-container
+     commands:
+       - type: console
+         command: echo 1
