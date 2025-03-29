@@ -460,7 +460,7 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
 ## A complex case to allow public visibility of the badge but restricting everything else would be to have
 ## User 1 restricted to only this route but a fully populated 'visible_users' array
 @router.get('/v1/badge/single/{run_id}')
-async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_component', unit: str = 'watt-hours', user: User = Depends(authenticate)):
+async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_component', unit: str = 'watt-hours', phase: str | None = None, user: User = Depends(authenticate)):
 
     if run_id is None or not is_valid_uuid(run_id):
         raise RequestValidationError('Run ID is not a valid UUID or empty')
@@ -468,8 +468,15 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
     if unit not in ('watt-hours', 'joules'):
         raise RequestValidationError('Requested unit is not in allow list: watt-hours, joules')
 
+    if phase:
+        phase_label = phase
+        phase = f"%_{phase}"
+    else:
+        phase_label = None
+        phase = f"%_[RUNTIME]"
+
     # we believe that there is no injection possible to the artifact store and any string can be constructured here ...
-    if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{run_id}_{metric}_{unit}"):
+    if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{run_id}_{metric}_{unit}_{phase}"):
         return Response(content=str(artifact), media_type="image/svg+xml")
 
     query = '''
@@ -482,11 +489,11 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
         WHERE
             (TRUE = %s OR r.user_id = ANY(%s::int[]))
             AND ps.run_id = %s
-            AND ps.metric LIKE %s
-            AND ps.phase LIKE '%%_[RUNTIME]'
+            AND ps.metric = %s
+            AND ps.phase LIKE %s
     '''
 
-    params = [user.is_super_user(), user.visible_users(), run_id, metric]
+    params = [user.is_super_user(), user.visible_users(), run_id, metric, phase]
 
     data = DB().fetch_one(query, params=params)
 
@@ -510,6 +517,9 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
     else:
         nice_name = metric
 
+    if phase_label:
+        nice_name = f"{nice_name} {{{phase_label}}}"
+
     if '_energy_' in metric:
         color = 'cornflowerblue'
     elif '_carbon_' in metric:
@@ -528,7 +538,7 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
     badge_str = str(badge)
 
     if badge_value != 'No metric data yet':
-        store_artifact(ArtifactType.BADGE, f"{user._id}_{run_id}_{metric}_{unit}", badge_str)
+        store_artifact(ArtifactType.BADGE, f"{user._id}_{run_id}_{metric}_{unit}_{phase}", badge_str)
 
     return Response(content=badge_str, media_type="image/svg+xml")
 
