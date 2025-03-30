@@ -71,6 +71,19 @@
                     <div class="ui active tab segment" data-tab="three">
                         <div id="run-badges">
                         </div>
+                        <div class="ui icon message warning">
+                            <i class="info circle icon"></i>
+                            <div class="content">
+                                <div class="header">
+                                    Badge missing or not showing data?
+                                </div>
+                                <ul>
+                                    <li>Badges are for Runtime phase only by default. Append <b>&amp;phase=ENTER_PHASE_NAME</b> to img src show specific phase</li>
+                                    <li>Badges are only visible for the default user. If you are logged in with a different account badges cannot show. Please use a HTTP proxy like Cloudflare workers to tunnel the page if needed or enable user visibility.</li>
+
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                     <div class="ui tab segment" data-tab="four" id="machine-specs-tab">
                         <table class="table-hover" id="machine-specs"></table>
