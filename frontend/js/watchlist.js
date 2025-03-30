@@ -12,6 +12,7 @@ $(document).ready(function () {
             let [id, name, image_url, repo_url, categories, branch, filename, machine_id, machine_description, schedule_mode, last_scheduled, created_at, updated_at, last_run, metrics] = measurement
             filename = filename == null ? '': filename
             branch = branch == null ? '': branch
+            image_url = image_url == null ? '' : image_url;
 
             const chart_node = document.createElement("div")
             chart_node.classList.add('ui')
