@@ -802,8 +802,10 @@ def test_read_detached_process_failure():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
-    assert "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 127. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further." == str(e.value), \
-        Tests.assertion_info("Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 127. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further.", str(e.value))
+
+    # TODO: Move this again to "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 127. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further." once GitHub Actions has updated docker. See https://github.com/green-coding-solutions/green-metrics-tool/issues/1128
+    assert "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 12" in str(e.value), \
+        Tests.assertion_info("Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 12", str(e.value))
 
 def test_invalid_container_name():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
