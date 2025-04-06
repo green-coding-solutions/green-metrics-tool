@@ -1,3 +1,11 @@
+server { # only to block also port 80 requests in pre-fetchers
+    listen 80;
+    server_name __METRICS_URL__;
+
+    # Redirect HTTP to HTTPS
+    return 301 https://$host$request_uri;
+}
+
 server {
 
 #__DEFAULT__    listen [::]:9142;
