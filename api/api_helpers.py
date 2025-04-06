@@ -74,12 +74,12 @@ def convert_value(value, unit, display_in_joules=False):
         if display_in_joules:
             return [value / 1_000, unit[1:]]
         else:
-            return [value / (1_000 * 3_600) , f"Wh{unit[2:]}"]
+            return [value / (3_600) , f"mWh{unit[2:]}"]
     elif compare_unit == 'uJ':
         if display_in_joules:
             return [value / 1_000_000, unit[1:]]
         else:
-            return [value / (1_000_000 * 3_600), f"Wh{unit[2:]}"]
+            return [value / (1_000 * 3_600), f"mWh{unit[2:]}"]
     elif compare_unit == 'mW':
         return [value / 1_000, unit[1:]]
     elif compare_unit == 'Ratio':
