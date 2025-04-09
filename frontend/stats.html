@@ -47,12 +47,14 @@
                     <div class="ui secondary menu">
                         <a class="item active" data-tab="one">General</a>
                         <a class="item" data-tab="two">Measurement</a>
-                        <a class="item" data-tab="three">Badges</a>
+                        <a class="item" data-tab="three">Switches</a>
                         <a class="item" data-tab="four">Machine</a>
                         <a class="item" data-tab="five">Usage Scenario</a>
                         <a class="item" data-tab="six">Logs</a>
                         <a class="item" data-tab="seven">Network</a>
                         <a class="item" data-tab="eight">Optimizations<div class="ui red label" id="optimization_count">0</div></a>
+                        <a class="item" data-tab="nine">Badges</a>
+
                     </div>
                     <div class="ui tab segment" data-tab="one">
                         <table class="table-hover" id="run-data-top"></table>
@@ -69,21 +71,7 @@
                         <table class="table-hover" id="measurement-config"></table>
                     </div>
                     <div class="ui active tab segment" data-tab="three">
-                        <div id="run-badges">
-                        </div>
-                        <div class="ui icon message warning">
-                            <i class="info circle icon"></i>
-                            <div class="content">
-                                <div class="header">
-                                    Badge missing or not showing data?
-                                </div>
-                                <ul>
-                                    <li>Badges are for Runtime phase only by default. Append <b>&amp;phase=ENTER_PHASE_NAME</b> to img src show specific phase</li>
-                                    <li>Badges are only visible for the default user. If you are logged in with a different account badges cannot show. Please use a HTTP proxy like Cloudflare workers to tunnel the page if needed or enable user visibility.</li>
-
-                                </ul>
-                            </div>
-                        </div>
+                        <table class="table-hover" id="runner-arguments"></table>
                     </div>
                     <div class="ui tab segment" data-tab="four" id="machine-specs-tab">
                         <table class="table-hover" id="machine-specs"></table>
@@ -105,7 +93,23 @@
                         <p>&NonBreakingSpace;</p>
                         <div id="optimizationsContainer" class="ui container"></div>
                     </div>
+                    <div class="ui active tab segment" data-tab="nine">
+                        <div id="run-badges">
+                        </div>
+                        <div class="ui icon message warning">
+                            <i class="info circle icon"></i>
+                            <div class="content">
+                                <div class="header">
+                                    Badge missing or not showing data?
+                                </div>
+                                <ul>
+                                    <li>Badges are for Runtime phase only by default. Append <b>&amp;phase=ENTER_PHASE_NAME</b> to img src show specific phase</li>
+                                    <li>Badges are only visible for the default user. If you are logged in with a different account badges cannot show. Please use a HTTP proxy like Cloudflare workers to tunnel the page if needed or enable user visibility.</li>
 
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
 
 
                 </div>

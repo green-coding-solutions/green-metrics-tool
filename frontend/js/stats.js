@@ -86,7 +86,9 @@ const fetchAndFillRunData = async (url_params) => {
     const run_data = run.data
 
     for (const item in run_data) {
-        if (item == 'machine_specs') {
+        if (item == 'runner_arguments') {
+            fillRunTab('#runner-arguments', run_data[item]); // recurse
+        } else if (item == 'machine_specs') {
             fillRunTab('#machine-specs', run_data[item]); // recurse
         } else if(item == 'usage_scenario') {
             document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<pre class="usage-scenario">${json2yaml(run_data?.[item])}</pre>`)
