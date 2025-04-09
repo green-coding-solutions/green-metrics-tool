@@ -47,7 +47,20 @@ $(document).ready( (e) => {
         comparison_identifiers = comparison_identifiers.join(' vs. ')
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${phase_stats_data.comparison_case}</td></tr>`)
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Number of runs compared</strong></td><td>${run_count}</td></tr>`)
-        document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${comparison_identifiers}</td></tr>`)
+        if (phase_stats_data.comparison_case == 'Machine') {
+            const regex = /(\d+)\s+vs\.\s+(\d+)/;
+            const match = comparison_identifiers.match(regex);
+
+            if (match) {
+                const num1 = parseInt(match[1], 10); // First number
+                const num2 = parseInt(match[2], 10); // Second number
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${num1} (${GMT_MACHINES[num1]}) vs. ${num2} (${GMT_MACHINES[num2]})</td></tr>`)
+            } else {
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${GMT_MACHINES[comparison_identifiers] || comparison_identifiers}</td></tr>`)
+            }
+        } else {
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${comparison_identifiers}</td></tr>`)
+        }
         Object.keys(phase_stats_data['common_info']).forEach(function(key) {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${key}</strong></td><td>${phase_stats_data['common_info'][key]}</td></tr>`)
           });
