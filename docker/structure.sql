@@ -315,6 +315,7 @@ CREATE TABLE ci_measurements (
     carbon_intensity_g int,
     carbon_ug bigint,
     ip_address INET,
+    note text CHECK (length(note) <= 1024),
     filter_type text NOT NULL,
     filter_project text NOT NULL,
     filter_machine text NOT NULL,
