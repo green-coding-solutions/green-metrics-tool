@@ -1,1 +1,1 @@
-ALTER TABLE "public"."ci_measurements" ADD COLUMN your_column_name TEXT CHECK (LENGTH("note") <= 1024);
+ALTER TABLE "public"."ci_measurements" ADD COLUMN "note" TEXT CHECK (LENGTH("note") <= 1024);
