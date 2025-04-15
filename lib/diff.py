@@ -34,8 +34,12 @@ def get_diffable_rows(user, uuids):
     return DB().fetch_all(query, params, fetch_mode='dict')
 
 def diff_rows(rows):
-    if len(rows) != 2:
-        raise ValueError(f"Diffing currently only supported for 2 groups or runs. Amount of groups supplied: {len(rows)}")
+    if len(rows) < 2:
+        raise ValueError(f"Diffing currently only supported for exaclty 2 runs. Please add at least one more run to the diff. This error might also happen if one of the runs supplied has no data yet and is still running or failed. Amount of groups supplied: {len(rows)}.")
+    if len(rows) > 2:
+        raise ValueError(f"Diffing currently only supported for exaclty 2 runs. Please try to reduce your amount of runs diffed to only two and drill down separately with others. Amount of groups supplied: {len(rows)}.")
+
+
 
     row_a = rows[0]
     row_b = rows[1]
