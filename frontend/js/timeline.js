@@ -241,7 +241,7 @@ const loadCharts = async () => {
             const [ mean, stddev ] = calculateStatistics(data.slice(startIndex, endIndex+1), true);
 
             let options = chart_instance.getOption()
-            options.series[2].markArea.data[0][0].name = `StdDev: ${(stddev/mean * 100).toFixed(2)} %`
+            options.series[2].markArea.data[0][0].name = `StdDev: ${stddev.toFixed(2)} (${(stddev/mean * 100).toFixed(2)} %)`
             options.series[2].markArea.data[0][0].yAxis = mean + stddev
             options.series[2].markArea.data[0][1].yAxis = mean - stddev;
             chart_instance.setOption(options)
