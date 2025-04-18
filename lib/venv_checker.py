@@ -4,7 +4,7 @@ from lib.terminal_colors import TerminalColors
 
 def check_venv():
     if (sys.version_info.major, sys.version_info.minor) < (3, 10):
-        print('Python version is NOT greater than 3.10. GMT requires Python 3.10 at least. Please upgrade your Python version.')
+        print('Python version is NOT greater than or equal to 3.10. GMT requires Python 3.10 at least. Please upgrade your Python version.')
         sys.exit(1)
 
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
