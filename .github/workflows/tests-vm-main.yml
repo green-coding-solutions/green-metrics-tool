@@ -49,12 +49,12 @@ jobs:
         with:
           task: get-measurement
 
-        name: Eco CI Energy Estimation - End Measurement
+      - name: Eco CI Energy Estimation - End Measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@undersampling-debugging
         with:
           task: display-results
 
-        name: Eco CI Debug
+      - name: Eco CI Debug
         shell: bash
         run: |
             journalctl -n 50000 | grep myprocess
