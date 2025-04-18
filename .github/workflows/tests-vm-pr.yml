@@ -41,3 +41,8 @@ jobs:
         with:
           task: display-results
           pr-comment: true
+
+        name: Eco CI Debug
+        shell: bash
+        run: |
+            journalctl -n 5000 | grep myprocess
