@@ -47,6 +47,16 @@ def check_one_energy_and_scope_machine_provider():
 def check_tmpfs_mount():
     return not any(partition.mountpoint == '/tmp' and partition.fstype != 'tmpfs' for partition in psutil.disk_partitions())
 
+def check_ntp():
+    if platform.system() == 'Darwin': # no NTP for darwin, as this is linux cluster only functionality
+        return True
+
+    ntp_status = subprocess.check_output(['timedatectl', '-a'])
+    if 'System clock synchronized: yes' not in ntp_status or 'NTP service: inactive' not in ntp_status:
+        return False
+
+    return True
+
 def check_cpu_utilization():
     return psutil.cpu_percent(0.1) < 5.0
 
@@ -95,7 +105,9 @@ def check_swap_disabled():
 start_checks = [
     (check_db, Status.ERROR, 'db online', 'This text will never be triggered, please look in the function itself'),
     (check_one_energy_and_scope_machine_provider, Status.ERROR, 'single energy scope machine provider', 'Please only select one provider with energy and scope machine'),
+    (check_largest_sampling_rate, Status.WARN, 'high sampling rate', 'You have chosen at least one provider with a sampling rate > 1000 ms. That is not recommended and might lead also to longer benchmarking times due to internal extra sleeps to adjust measurement frames.'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
+    (check_ntp, Status.WARN, 'ntp', 'You have NTP time syncing active. This can create noise in runs and should be deactivated.'),
     (check_cpu_utilization, Status.WARN, '< 5% CPU utilization', 'Your system seems to be busy. Utilization is above 5%. Consider terminating some processes for a more stable measurement.'),
     (check_free_disk, Status.ERROR, '1 GiB free hdd space', 'We recommend to free up some disk space (< 1GiB available)'),
     (check_free_memory, Status.ERROR, '1 GiB free memory', 'No free memory! Please kill some programs (< 1GiB available)'),
