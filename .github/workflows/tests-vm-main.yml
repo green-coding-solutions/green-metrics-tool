@@ -11,7 +11,7 @@ jobs:
     steps:
 
       - name: Eco CI Energy Estimation - Initialize
-        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        uses: green-coding-solutions/eco-ci-energy-estimation@undersampling-debugging
         with:
           task: start-measurement
           project: "Green Metrics Tool"
@@ -27,7 +27,7 @@ jobs:
           branch: 'main'
 
       - name: Eco CI Energy Estimation - After Check Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        uses: green-coding-solutions/eco-ci-energy-estimation@undersampling-debugging
         with:
           task: get-measurement
 
@@ -45,12 +45,12 @@ jobs:
          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Eco CI Energy Estimation - Get Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        uses: green-coding-solutions/eco-ci-energy-estimation@undersampling-debugging
         with:
           task: get-measurement
 
       - if: ${{ github.event_name == 'workflow_dispatch' || steps.check-date.outputs.should_run == 'true'}}
         name: Eco CI Energy Estimation - End Measurement
-        uses: green-coding-solutions/eco-ci-energy-estimation@main
+        uses: green-coding-solutions/eco-ci-energy-estimation@undersampling-debugging
         with:
           task: display-results
