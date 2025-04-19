@@ -1553,15 +1553,24 @@ class Runner:
     def identify_invalid_run(self):
         # on macOS we run our tests inside the VM. Thus measurements are not reliable as they contain the overhead and reproducability is quite bad.
         if platform.system() == 'Darwin':
-            invalid_message = 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability'
-            DB().query('UPDATE runs SET invalid_run=%s WHERE id=%s', params=(invalid_message, self._run_id))
-            return
+            invalid_message = 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\n'
+            DB().query('''
+                UPDATE runs
+                SET invalid_run = COALESCE(invalid_run, '') || %s
+                WHERE id=%s''',
+                params=(invalid_message, self._run_id)
+            )
 
         for argument in self._arguments:
-            if argument.startswith('dev_') and self._arguments:
-                invalid_message = 'Development switches were active for this run. This will produced skewed measurement data'
-                DB().query('UPDATE runs SET invalid_run=%s WHERE id=%s', params=(invalid_message, self._run_id))
-                return
+            if (argument.startswith('dev_') or argument == 'skip_system_checks')  and self._arguments[argument] not in (False, None):
+                invalid_message = 'Development switches or skip_system_checks were active for this run. This will likely produced skewed measurement data.\n'
+                DB().query('''
+                    UPDATE runs
+                    SET invalid_run = COALESCE(invalid_run, '') || %s
+                    WHERE id=%s''',
+                    params=(invalid_message, self._run_id)
+                )
+                break # one is enough
 
     def cleanup(self, continue_measurement=False):
         #https://github.com/green-coding-solutions/green-metrics-tool/issues/97
@@ -1635,6 +1644,8 @@ class Runner:
         try:
             config = GlobalConfig().config
             self.start_measurement() # we start as early as possible to include initialization overhead
+            self.identify_invalid_run()
+
             self.clear_caches()
             self.check_system('start')
             self.initialize_folder(self._tmp_folder)
