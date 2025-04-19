@@ -74,6 +74,6 @@ def test_runner_run_invalidated():
     assert data[0] == run_id
 
     if platform.system() == 'Darwin':
-        assert data[1] == 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\nDevelopment switches or skip_system_checks were active for this run. This will likely produced skewed measurement data.\n'
+        assert data[1] == 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\nDevelopment switches or skip_system_checks were active for this run. This will produce skewed skewed measurement data.\n'
     else:
-        assert data[1] == 'Development switches or skip_system_checks were active for this run. This will likely produced skewed measurement data.\n'
+        assert data[1] == 'Development switches or skip_system_checks were active for this run. This will produce skewed skewed measurement data.\n'

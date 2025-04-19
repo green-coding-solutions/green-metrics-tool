@@ -1563,7 +1563,7 @@ class Runner:
 
         for argument in self._arguments:
             if (argument.startswith('dev_') or argument == 'skip_system_checks')  and self._arguments[argument] not in (False, None):
-                invalid_message = 'Development switches or skip_system_checks were active for this run. This will likely produced skewed measurement data.\n'
+                invalid_message = 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n'
                 DB().query('''
                     UPDATE runs
                     SET invalid_run = COALESCE(invalid_run, '') || %s
@@ -1644,8 +1644,6 @@ class Runner:
         try:
             config = GlobalConfig().config
             self.start_measurement() # we start as early as possible to include initialization overhead
-            self.identify_invalid_run()
-
             self.clear_caches()
             self.check_system('start')
             self.initialize_folder(self._tmp_folder)
