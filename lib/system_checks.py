@@ -51,8 +51,8 @@ def check_ntp():
     if platform.system() == 'Darwin': # no NTP for darwin, as this is linux cluster only functionality
         return True
 
-    ntp_status = subprocess.check_output(['timedatectl', '-a'])
-    if 'System clock synchronized: yes' not in ntp_status or 'NTP service: inactive' not in ntp_status:
+    ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8')
+    if 'System clock synchronized: no' not in ntp_status or 'NTP service: inactive' not in ntp_status:
         return False
 
     return True
@@ -68,11 +68,8 @@ def check_free_memory():
     return psutil.virtual_memory().available >= GMT_Resources['free_memory']
 
 def check_containers_running():
-    result = subprocess.run(['docker', 'ps', '--format', '{{.Names}}'],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            check=True, encoding='UTF-8')
-    return not bool(result.stdout.strip())
+    result = subprocess.check_output(['docker', 'ps', '--format', '{{.Names}}'], encoding='UTF-8')
+    return not bool(result.strip())
 
 def check_docker_daemon():
     result = subprocess.run(['docker', 'version'],
@@ -105,7 +102,6 @@ def check_swap_disabled():
 start_checks = [
     (check_db, Status.ERROR, 'db online', 'This text will never be triggered, please look in the function itself'),
     (check_one_energy_and_scope_machine_provider, Status.ERROR, 'single energy scope machine provider', 'Please only select one provider with energy and scope machine'),
-    (check_largest_sampling_rate, Status.WARN, 'high sampling rate', 'You have chosen at least one provider with a sampling rate > 1000 ms. That is not recommended and might lead also to longer benchmarking times due to internal extra sleeps to adjust measurement frames.'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
     (check_ntp, Status.WARN, 'ntp', 'You have NTP time syncing active. This can create noise in runs and should be deactivated.'),
     (check_cpu_utilization, Status.WARN, '< 5% CPU utilization', 'Your system seems to be busy. Utilization is above 5%. Consider terminating some processes for a more stable measurement.'),
