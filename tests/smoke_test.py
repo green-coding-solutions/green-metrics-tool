@@ -2,6 +2,7 @@ import io
 import os
 import subprocess
 import re
+import platform
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -128,3 +129,17 @@ def test_db_rows_are_written_and_presented():
 
     if not 'PowermetricsProvider' in metric_providers:
         assert len(metric_providers) == 0
+
+def test_run_is_not_invalidated():
+    if platform.system() == 'Darwin':
+        return
+
+    run_id = utils.get_run_data(RUN_NAME)['id']
+    query = """
+            SELECT id, invalid_run
+            FROM runs
+            WHERE id = %s
+            """
+    data = DB().fetch_one(query, (run_id,))
+    assert data[0] == run_id
+    assert data[1] is None

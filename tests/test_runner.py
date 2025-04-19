@@ -3,9 +3,11 @@ from contextlib import nullcontext as does_not_raise
 import pytest
 import re
 import os
+import platform
 
 from runner import Runner
 from lib.global_config import GlobalConfig
+from lib.db import DB
 from lib.system_checks import ConfigurationCheckError
 from tests import test_functions as Tests
 
@@ -55,3 +57,23 @@ def test_runner_can_use_different_user():
         context.run_until('setup_services')
 
     assert runner._user_id == USER_ID
+
+def test_runner_run_invalidated():
+
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+
+    run_id = runner.run()
+
+    query = """
+            SELECT id, invalid_run
+            FROM runs
+            WHERE id = %s
+            """
+    data = DB().fetch_one(query, (run_id,))
+
+    assert data[0] == run_id
+
+    if platform.system() == 'Darwin':
+        assert data[1] == 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\nDevelopment switches or skip_system_checks were active for this run. This will likely produced skewed measurement data.\n'
+    else:
+        assert data[1] == 'Development switches or skip_system_checks were active for this run. This will likely produced skewed measurement data.\n'
