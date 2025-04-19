@@ -27,20 +27,19 @@ subprocess.check_output(['sudo', 'journalctl', '--flush'])
 # may throw exception, but we need to check if time sync calls work, as we do not know what the actual time is
 # Typically in cluster installations port 123 is blocked and a local time server is available. Thus the guard function here
 subprocess.check_output(['sudo', 'timedatectl', 'set-ntp', 'true']) # this will trigger immediate update
-ntp_status = subprocess.check_output(['timedatectl', '-a']).decode('utf-8')
+ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8')
 if 'System clock synchronized: yes' not in ntp_status or 'NTP service: active' not in ntp_status:
     raise RuntimeError('System clock could not be synchronized', ntp_status=ntp_status)
 
 result = subprocess.check_output(['sudo', 'timedatectl', 'set-ntp', 'false']) # we want NTP always off in clusters
-ntp_status = subprocess.check_output(['timedatectl', '-a'])
+ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8')
 if 'System clock synchronized: no' not in ntp_status or 'NTP service: inactive' not in ntp_status:
     raise RuntimeError('System clock synchronization could not be turned off', ntp_status=ntp_status)
 
 ## Do APT last, as we want to insert the Changelog
-mod_time = os.path.getmtime('/var/log/apt/history.log')
 apt_packages_upgrade = None
 now = time.time()
-if now - mod_time > 86400:
+if (not os.path.exists('/var/log/apt/history.log')) or ((now - os.path.getmtime('/var/log/apt/history.log')) > 86400):
 
     print("history.log is older than 24 hours")
     subprocess.check_output(['sudo', 'apt', 'update'])
