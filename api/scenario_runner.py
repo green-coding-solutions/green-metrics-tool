@@ -403,7 +403,7 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
 ## A complex case to allow public visibility of the badge but restricting everything else would be to have
 ## User 1 restricted to only this route but a fully populated 'visible_users' array
 @router.get('/v1/badge/timeline')
-async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, metrics: str | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
+async def get_timeline_badge(metric: str, detail_name: str, uri: str, machine_id: int | None, branch: str | None = None, filename: str | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
     if uri is None or uri.strip() == '':
         raise RequestValidationError('URI is empty')
 
@@ -414,12 +414,12 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
         raise RequestValidationError('Requested unit is not in allow list: watt-hours, joules')
 
     # we believe that there is no injection possible to the artifact store and any string can be constructured here ...
-    if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{uri}_{filename}_{machine_id}_{branch}_{metrics}_{detail_name}_{unit}"):
+    if artifact := get_artifact(ArtifactType.BADGE, f"{user._id}_{uri}_{filename}_{machine_id}_{branch}_{metric}_{detail_name}_{unit}"):
         return Response(content=str(artifact), media_type="image/svg+xml")
 
     date_30_days_ago = datetime.now() - timedelta(days=30)
 
-    query, params = get_timeline_query(user, uri,filename,machine_id, branch, metrics, '[RUNTIME]', detail_name=detail_name, start_date=date_30_days_ago.strftime('%Y-%m-%d'), end_date=datetime.now())
+    query, params = get_timeline_query(user, uri,filename,machine_id, branch, metric, '[RUNTIME]', detail_name=detail_name, start_date=date_30_days_ago.strftime('%Y-%m-%d'), end_date=datetime.now())
 
     # query already contains user access check. No need to have it in aggregate query too
     query = f"""
@@ -429,7 +429,7 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
           MAX(row_num::float),
           regr_slope(value, row_num::float) AS trend_slope,
           regr_intercept(value, row_num::float) AS trend_intercept,
-          MAX(unit)
+          MAX(unit) -- this is a hack to infert the unit from an unknown metric. We prevent mixing by requiring metric and detail_name
         FROM trend_data;
     """
 
@@ -451,7 +451,7 @@ async def get_timeline_badge(detail_name: str, uri: str, machine_id: int, branch
 
     badge_str = str(badge)
 
-    store_artifact(ArtifactType.BADGE, f"{user._id}_{uri}_{filename}_{machine_id}_{branch}_{metrics}_{detail_name}_{unit}", badge_str, ex=60*60*12) # 12 hour storage
+    store_artifact(ArtifactType.BADGE, f"{user._id}_{uri}_{filename}_{machine_id}_{branch}_{metric}_{detail_name}_{unit}", badge_str, ex=60*60*12) # 12 hour storage
 
     return Response(content=badge_str, media_type="image/svg+xml")
 
