@@ -402,8 +402,12 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
 # Show the timeline badges with regression trend
 ## A complex case to allow public visibility of the badge but restricting everything else would be to have
 ## User 1 restricted to only this route but a fully populated 'visible_users' array
+##
+## Technically we allow detail_name to not be mandatory. But a regression over two CPU cores where one is not used and one is increasing in use can lead to
+## an unexpected result because they occur at same timepoints but the trend assumes them to be at sequential timepoints.
+## You might get unexpected results, but generally it is desireable to have a regression of all CPU cores for instance forthe cpu energy reporter
 @router.get('/v1/badge/timeline')
-async def get_timeline_badge(metric: str, detail_name: str, uri: str, machine_id: int | None, branch: str | None = None, filename: str | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
+async def get_timeline_badge(metric: str, uri: str, detail_name: str | None, machine_id: int | None, branch: str | None = None, filename: str | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
     if uri is None or uri.strip() == '':
         raise RequestValidationError('URI is empty')
 
