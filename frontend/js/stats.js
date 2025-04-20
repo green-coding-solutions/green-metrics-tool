@@ -86,7 +86,9 @@ const fetchAndFillRunData = async (url_params) => {
     const run_data = run.data
 
     for (const item in run_data) {
-        if (item == 'runner_arguments') {
+        if (item == 'machine_id') {
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]} (${GMT_MACHINES[run_data?.[item]] || run_data?.[item]})</td></tr>`);
+        } else if (item == 'runner_arguments') {
             fillRunTab('#runner-arguments', run_data[item]); // recurse
         } else if (item == 'machine_specs') {
             fillRunTab('#machine-specs', run_data[item]); // recurse
@@ -102,11 +104,12 @@ const fetchAndFillRunData = async (url_params) => {
             if (run_data?.[item] == null) continue; // some old runs did not save it
             let commit_link = buildCommitLink(run_data);
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${commit_link}" target="_blank">${run_data?.[item]}</a></td></tr>`)
-        } else if(item == 'name' || item == 'filename') {
+        } else if(item == 'name' || item == 'filename' || item == 'branch') {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]}</td></tr>`)
         } else if(item == 'failed' && run_data?.[item] == true) {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Status</strong></td><td><span class="ui red horizontal label">This run has failed. Please see logs for details</span></td></tr>`)
-
+        } else if(item == 'start_measurement' || item == 'end_measurement' || item == 'created_at' ) {
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td title="${run_data?.[item]}">${new Date(run_data?.[item])}</td></tr>`)
         } else if(item == 'invalid_run' && run_data?.[item] != null) {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><span class="ui yellow horizontal label">${run_data?.[item]}</span></td></tr>`)
         } else if(item == 'gmt_hash') {
@@ -123,7 +126,9 @@ const fetchAndFillRunData = async (url_params) => {
     // create new custom field
     // timestamp is in microseconds, therefore divide by 10**6
     const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1000000
-    document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td>${measurement_duration_in_s} s</td></tr>`)
+    const measurement_duration_display = (measurement_duration_in_s > 60) ? `${numberFormatter.format(measurement_duration_in_s / 60)} min` : `${numberFormatter.format(measurement_duration_in_s)} s`
+
+    document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="${measurement_duration_in_s} seconds">${measurement_duration_display}</td></tr>`)
 
     if (run_data.invalid_run) {
         showNotification('Run measurement has been marked as invalid', run_data.invalid_run);

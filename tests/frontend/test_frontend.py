@@ -399,7 +399,7 @@ def test_expert_compare_mode():
 
     assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(1)").text_content() == 'Machine'
 
-    assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(2)").text_content() == '1'
+    assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(2)").text_content() == 'Local machine'
 
 
     new_page.close()
