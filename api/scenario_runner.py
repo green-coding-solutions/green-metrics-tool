@@ -451,8 +451,8 @@ async def get_timeline_badge(metric: str, uri: str, detail_name: str | None = No
         return Response(status_code=204) # No-Content
 
     if data[4] != 1:
-        error_helpers.log_error('Your request tried to compare metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', query=query, params=params)
-        return Response('Your request tried to compare metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', status_code=422) # manual RequestValidationError as we log error separately
+        error_helpers.log_error('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', query=query, params=params)
+        return Response('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', status_code=422) # manual RequestValidationError as we log error separately
 
     cost = data[1]
     display_in_joules = (unit == 'joules') #pylint: disable=superfluous-parens
@@ -497,7 +497,7 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
 
     query = '''
         SELECT
-            SUM(ps.value), MAX(ps.unit)
+            SUM(ps.value), MAX(ps.unit), COUNT (DISTINCT(ps.unit))
         FROM
             phase_stats as ps
         JOIN
@@ -516,6 +516,10 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         badge_value = 'No metric data yet'
     else:
+        if data[2] != 1:
+            error_helpers.log_error('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', query=query, params=params)
+            return Response('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', status_code=422) # manual RequestValidationError as we log error separately
+
         display_in_joules = (unit == 'joules') #pylint: disable=superfluous-parens
         [metric_value, energy_unit] = convert_value(data[0], data[1], display_in_joules)
         badge_value= f"{metric_value:.2f} {energy_unit}"
