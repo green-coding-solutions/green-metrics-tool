@@ -197,9 +197,7 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, 
     if branch is None or branch.strip() == '':
         branch = 'main'
 
-    check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
-
-    params = [user.is_super_user(), user.visible_users(), uri, filename, branch, machine_id, f"%{phase}"]
+    params = [user.is_super_user(), user.visible_users(), uri, filename, branch, f"%{phase}"]
 
     metrics_condition = ''
     if metrics is None or metrics.strip() == '' or metrics.strip() == 'key':
@@ -223,6 +221,12 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, 
         detail_name_condition =  "AND p.detail_name = %s"
         params.append(detail_name)
 
+    machine_id_condition = ''
+    if machine_id is not None:
+        check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
+        machine_id_condition =  "AND r.machine_id = %s"
+        params.append(machine_id)
+
     sorting_condition = 'r.commit_timestamp ASC, r.created_at ASC'
     if sorting is not None and sorting.strip() == 'run':
         sorting_condition = 'r.created_at ASC, r.commit_timestamp ASC'
@@ -242,12 +246,12 @@ def get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, 
                 AND r.branch = %s
                 AND r.end_measurement IS NOT NULL
                 AND r.failed != TRUE
-                AND r.machine_id = %s
                 AND p.phase LIKE %s
                 {metrics_condition}
                 {start_date_condition}
                 {end_date_condition}
                 {detail_name_condition}
+                {machine_id_condition}
                 AND r.commit_timestamp IS NOT NULL
                 AND r.failed IS FALSE
             ORDER BY

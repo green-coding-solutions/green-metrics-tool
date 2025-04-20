@@ -175,12 +175,12 @@ def test_get_badge():
 def test_get_badge_with_phase():
     Tests.import_demo_data()
 
-    response = requests.get(f"{API_URL}/v1/badge/single/{RUN_3}?metric=psu_power_dc_rapl_msr_machine", timeout=15)
+    response = requests.get(f"{API_URL}/v1/badge/single/{RUN_3}?metric=psu_energy_dc_rapl_msr_machine", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
-    assert 'Machine Power' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
-    assert '14.80 W' in response.text, Tests.assertion_info('success', response.text)
+    assert 'Machine Energy' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
+    assert '21.81 mWh' in response.text, Tests.assertion_info('success', response.text)
 
-    response = requests.get(f"{API_URL}/v1/badge/single/{RUN_3}?metric=psu_power_dc_rapl_msr_machine&phase=[BOOT]", timeout=15)
+    response = requests.get(f"{API_URL}/v1/badge/single/{RUN_3}?metric=psu_energy_dc_rapl_msr_machine&phase=[BOOT]", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
-    assert 'Machine Power {[BOOT]}' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
-    assert '21.46 W' in response.text, Tests.assertion_info('success', response.text)
+    assert 'Machine Energy {[BOOT]}' in response.text, Tests.assertion_info('success', response.text) # nice name - important if JS file was parsed correctly
+    assert '1.85 mWh' in response.text, Tests.assertion_info('success', response.text)
