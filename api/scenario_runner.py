@@ -25,6 +25,7 @@ from lib.job.base import Job
 from lib.user import User
 from lib.watchlist import Watchlist
 from lib import utils
+from lib import error_helpers
 
 from enum import Enum
 ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
@@ -390,6 +391,8 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
     if phase is None or phase.strip() == '':
         raise RequestValidationError('Phase is empty')
 
+    check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
+
     query, params = get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, start_date=start_date, end_date=end_date, sorting=sorting)
 
     data = DB().fetch_all(query, params=params)
@@ -407,12 +410,16 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
 ## an unexpected result because they occur at same timepoints but the trend assumes them to be at sequential timepoints.
 ## You might get unexpected results, but generally it is desireable to have a regression of all CPU cores for instance forthe cpu energy reporter
 @router.get('/v1/badge/timeline')
-async def get_timeline_badge(metric: str, uri: str, detail_name: str | None, machine_id: int | None, branch: str | None = None, filename: str | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
+async def get_timeline_badge(metric: str, uri: str, detail_name: str | None = None, machine_id: int | None = None, branch: str | None = None, filename: str | None = None, unit: str = 'watt-hours', user: User = Depends(authenticate)):
     if uri is None or uri.strip() == '':
         raise RequestValidationError('URI is empty')
 
-    if detail_name is None or detail_name.strip() == '':
-        raise RequestValidationError('Detail Name is mandatory')
+    if metric is None or metric.strip() == '':
+        raise RequestValidationError('Metric is mandatory')
+
+    if machine_id is not None:
+        check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
+
 
     if unit not in ('watt-hours', 'joules'):
         raise RequestValidationError('Requested unit is not in allow list: watt-hours, joules')
@@ -423,7 +430,7 @@ async def get_timeline_badge(metric: str, uri: str, detail_name: str | None, mac
 
     date_30_days_ago = datetime.now() - timedelta(days=30)
 
-    query, params = get_timeline_query(user, uri,filename,machine_id, branch, metric, '[RUNTIME]', detail_name=detail_name, start_date=date_30_days_ago.strftime('%Y-%m-%d'), end_date=datetime.now())
+    query, params = get_timeline_query(user, uri, filename, machine_id, branch, metric, '[RUNTIME]', detail_name=detail_name, start_date=date_30_days_ago.strftime('%Y-%m-%d'), end_date=datetime.now())
 
     # query already contains user access check. No need to have it in aggregate query too
     query = f"""
@@ -433,7 +440,8 @@ async def get_timeline_badge(metric: str, uri: str, detail_name: str | None, mac
           MAX(row_num::float),
           regr_slope(value, row_num::float) AS trend_slope,
           regr_intercept(value, row_num::float) AS trend_intercept,
-          MAX(unit) -- this is a hack to infert the unit from an unknown metric. We prevent mixing by requiring metric and detail_name
+          MAX(unit), -- this is a hack to infert the unit from an unknown metric. We prevent mixing by requiring metric and detail_name
+          COUNT (DISTINCT(unit)) -- our safeguard
         FROM trend_data;
     """
 
@@ -441,6 +449,10 @@ async def get_timeline_badge(metric: str, uri: str, detail_name: str | None, mac
 
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         return Response(status_code=204) # No-Content
+
+    if data[4] != 1:
+        error_helpers.log_error('Your request tried to compare metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', query=query, params=params)
+        return Response('Your request tried to compare metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', status_code=422) # manual RequestValidationError as we log error separately
 
     cost = data[1]
     display_in_joules = (unit == 'joules') #pylint: disable=superfluous-parens
