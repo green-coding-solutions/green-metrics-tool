@@ -47,6 +47,13 @@ function generate_random_password() {
     echo
 }
 
+function check_python_version() {
+    if ! python3 -c "import sys; exit(1) if (sys.version_info.major, sys.version_info.minor) < (3, 10) else exit(0)"; then
+        echo 'Python version is NOT greater than or equal to 3.10. GMT requires Python 3.10 at least. Please upgrade your Python version.'
+        exit 1
+    fi
+}
+
 function check_file_permissions() {
     local file=$1
 
@@ -368,6 +375,8 @@ function check_optarg() {
         exit 1
     fi
 }
+
+check_python_version
 
 while [[ $# -gt 0 ]]; do
     case "$1" in

@@ -19,7 +19,6 @@ from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
 from runner import Runner
 from lib.schema_checker import SchemaError
-from lib.user import User
 
 ## Note:
 # Always do asserts after try:finally: blocks
@@ -803,8 +802,10 @@ def test_read_detached_process_failure():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
-    assert "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 126. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further." == str(e.value), \
-        Tests.assertion_info("Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 126. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further.", str(e.value))
+
+    # TODO: Move this again to "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 127. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further." once GitHub Actions has updated docker. See https://github.com/green-coding-solutions/green-metrics-tool/issues/1128
+    assert "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 12" in str(e.value), \
+        Tests.assertion_info("Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 12", str(e.value))
 
 def test_invalid_container_name():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
@@ -814,8 +815,8 @@ def test_invalid_container_name():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(OSError) as e:
         runner.run()
 
-    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.\nSee 'docker run --help'.\n\nStdout: "
-    assert expected_exception == str(e.value), \
+    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed"
+    assert expected_exception in str(e.value), \
         Tests.assertion_info(expected_exception, str(e.value))
 
 def test_invalid_container_name_2():
@@ -826,8 +827,8 @@ def test_invalid_container_name_2():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(OSError) as e:
         runner.run()
 
-    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.\nSee 'docker run --help'.\n\nStdout: "
-    assert expected_exception == str(e.value), \
+    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed"
+    assert expected_exception in str(e.value), \
         Tests.assertion_info(expected_exception, str(e.value))
 
 def test_duplicate_container_name():
@@ -944,7 +945,7 @@ def test_internal_network():
     with pytest.raises(RuntimeError) as e:
         runner.run()
 
-    assert str(e.value) == "Process '['docker', 'exec', 'test-container', 'curl', '-s', '--fail', 'https://www.google.de']' had bad returncode: 126. Stderr: ; Detached process: False. Please also check the stdout in the logs and / or enable stdout logging to debug further."
+    assert str(e.value) == "Process '['docker', 'exec', 'test-container', 'curl', '-s', '--fail', 'https://www.google.de']' had bad returncode: 6. Stderr: ; Detached process: False. Please also check the stdout in the logs and / or enable stdout logging to debug further."
 
 
     ## rethink this one
@@ -1000,17 +1001,13 @@ def test_bad_arg():
     assert "is not allowed in the docker-run-args list. Please check the capabilities of the user." in str(e.value)
 
 def test_good_arg():
-    user = User(1)
-    user._capabilities['measurement']['orchestrators']['docker']['allowed-run-args'] = [r'--label\s+([\w.-]+)=([\w.-]+)']
-    user.update()
 
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_arg_good.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, user_id=1)
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_arg_good.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, user_id=1, allowed_run_args=[r'--label\s+([\w.-]+)=([\w.-]+)'])
 
     out = io.StringIO()
     err = io.StringIO()
 
     with redirect_stdout(out), redirect_stderr(err):
         runner.run()
-
 
     assert re.search(r"docker run -it -d .* --label test=true", str(out.getvalue())), f"--label test=true not found in docker run command: {out.getvalue()}"

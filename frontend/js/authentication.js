@@ -26,7 +26,7 @@
         }
         try {
             $('#token-details-message').hide();
-            const user_data = await makeAPICall('/v1/authentication/data', null, authentication_token);
+            const user_data = await makeAPICall('/v1/user/settings', null, authentication_token);
 
             localStorage.setItem('authentication_token', authentication_token);
 

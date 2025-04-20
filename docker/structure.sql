@@ -39,7 +39,8 @@ VALUES (
     E'{
         "user": {
             "visible_users": [0,1],
-            "is_super_user": true
+            "is_super_user": true,
+            "updateable_settings": ["measurement.disabled_metric_providers","measurement.flow_process_duration","measurement.total_duration"]
         },
         "api": {
             "quotas": {},
@@ -70,7 +71,8 @@ VALUES (
                 "/v1/ci/stats",
                 "/v2/ci/measurement/add",
                 "/v1/software/add",
-                "/v1/authentication/data"
+                "/v1/user/settings",
+                "/v1/user/setting"
             ]
         },
         "data": {
@@ -93,15 +95,14 @@ VALUES (
         "machines": [1],
         "measurement": {
             "quotas": {},
-            "settings": {
-                "total-duration": 86400,
-                "flow-process-duration": 86400
-            },
+            "total_duration": 86400,
+            "flow_process_duration": 86400,
             "orchestrators": {
                 "docker": {
-                    "allowed-run-args": []
+                    "allowed_run_args": []
                 }
-            }
+            },
+            "disabled_metric_providers": []
         },
         "optimizations": [
             "container_memory_utilization",
@@ -120,7 +121,7 @@ VALUES (
 -- Default password for user 0 is empty
 INSERT INTO "public"."users"("id", "name","token","capabilities","created_at","updated_at")
 VALUES
-(0, E'[GMT-SYSTEM]',E'',E'{"user":{"is_super_user": false},"api":{"quotas":{},"routes":[]},"data":{"runs":{"retention":2678400},"hog_tasks":{"retention":2678400},"measurements":{"retention":2678400},"hog_coalitions":{"retention":2678400},"ci_measurements":{"retention":2678400},"hog_measurements":{"retention":2678400}},"jobs":{"schedule_modes":[]},"machines":[],"measurement":{"quotas":{},"settings":{"total-duration":86400,"flow-process-duration":86400}},"optimizations":[]}',E'2024-11-06 11:28:24.937262+00',NULL);
+(0, E'[GMT-SYSTEM]',E'',E'{"user":{"is_super_user": false},"api":{"quotas":{},"routes":[]},"data":{"runs":{"retention":2678400},"hog_tasks":{"retention":2678400},"measurements":{"retention":2678400},"hog_coalitions":{"retention":2678400},"ci_measurements":{"retention":2678400},"hog_measurements":{"retention":2678400}},"jobs":{"schedule_modes":[]},"machines":[],"measurement":{"quotas":{},"settings":{"total_duration":86400,"flow_process_duration":86400}},"optimizations":[]}',E'2024-11-06 11:28:24.937262+00',NULL);
 
 SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
 
@@ -217,6 +218,7 @@ CREATE INDEX measurement_metrics_build_and_store_phase_stats ON measurement_metr
 CREATE INDEX measurement_metrics_build_phases ON measurement_metrics(metric,detail_name,unit);
 
 CREATE TABLE measurement_values (
+    id SERIAL PRIMARY KEY, -- although not strictly needed PostgreSQL seems to perform way better with it and can vacuum more efficiently
     measurement_metric_id int NOT NULL REFERENCES measurement_metrics(id) ON DELETE CASCADE ON UPDATE CASCADE,
     value bigint NOT NULL,
     time bigint NOT NULL
@@ -313,6 +315,7 @@ CREATE TABLE ci_measurements (
     carbon_intensity_g int,
     carbon_ug bigint,
     ip_address INET,
+    note text CHECK (length(note) <= 1024),
     filter_type text NOT NULL,
     filter_project text NOT NULL,
     filter_machine text NOT NULL,

@@ -13,7 +13,7 @@ GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
 test_data = [
    (True, f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml", does_not_raise()),
-   (False, f"{os.path.dirname(os.path.realpath(__file__))}/test-config-duplicate-psu-providers.yml", pytest.raises(ConfigurationCheckError)),
+   (False, f"{os.path.dirname(os.path.realpath(__file__))}/test-config-extra-network-and-duplicate-psu-providers.yml", pytest.raises(ConfigurationCheckError)),
 ]
 
 @pytest.mark.parametrize("skip_system_checks,config_file,expectation", test_data)

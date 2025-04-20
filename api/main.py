@@ -14,11 +14,13 @@ from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.datastructures import Headers as StarletteHeaders
 
-from api.api_helpers import authenticate
+from api.api_helpers import authenticate, html_escape_multi
 
 from lib.global_config import GlobalConfig
 from lib import error_helpers
 from lib.user import User
+
+from api.object_specifications import UserSetting
 
 from enum import Enum
 ArtifactType = Enum('ArtifactType', ['DIFF', 'COMPARE', 'STATS', 'BADGE'])
@@ -124,7 +126,7 @@ async def robots_txt():
 
 #####################################################################################################################
 ##### Authorized routes.                                                                                         ####
-##### These must have Authentication token set and will restrict to visible users (GET) or insert user_id (POST) ####
+##### These routes respect the authentication token and will restrict to visible users (GET) or insert user_id (POST) ####
 #####################################################################################################################
 
 # @app.get('/v1/authentication/new')
@@ -136,9 +138,20 @@ async def robots_txt():
 #     return ORJSONResponse({'success': True, 'data': User.get_new(name)})
 
 # Read your own authentication token. Used by AJAX requests to test if token is valid and save it in local storage
-@app.get('/v1/authentication/data')
-async def read_authentication_token(user: User = Depends(authenticate)):
+@app.get('/v1/user/settings')
+async def get_user_settings(user: User = Depends(authenticate)):
     return ORJSONResponse({'success': True, 'data': user.to_dict()})
+
+@app.put('/v1/user/setting')
+async def update_user_setting(setting: UserSetting, user: User = Depends(authenticate)):
+    setting = html_escape_multi(setting)
+
+    try:
+        user.change_setting(setting.name, setting.value)
+    except ValueError as exc:
+        raise RequestValidationError(str(exc)) from exc
+
+    return Response(status_code=202) # No-Content
 
 if GlobalConfig().config.get('activate_scenario_runner', False):
     from api import scenario_runner
