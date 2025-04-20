@@ -74,12 +74,12 @@ def convert_value(value, unit, display_in_joules=False):
         if display_in_joules:
             return [value / 1_000, unit[1:]]
         else:
-            return [value / (1_000 * 3_600) , f"Wh{unit[2:]}"]
+            return [value / (3_600) , f"mWh{unit[2:]}"]
     elif compare_unit == 'uJ':
         if display_in_joules:
             return [value / 1_000_000, unit[1:]]
         else:
-            return [value / (1_000_000 * 3_600), f"Wh{unit[2:]}"]
+            return [value / (1_000 * 3_600), f"mWh{unit[2:]}"]
     elif compare_unit == 'mW':
         return [value / 1_000, unit[1:]]
     elif compare_unit == 'Ratio':
@@ -180,7 +180,7 @@ def get_run_info(user, run_id):
                     LEFT JOIN categories as t on t.id = elements) as categories,
                 filename, start_measurement, end_measurement,
                 measurement_config, machine_specs, machine_id, usage_scenario,
-                created_at, invalid_run, phases, logs, failed
+                created_at, invalid_run, phases, logs, failed, gmt_hash, runner_arguments
             FROM runs
             WHERE
                 (TRUE = %s OR user_id = ANY(%s::int[]))

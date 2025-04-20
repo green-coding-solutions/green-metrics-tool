@@ -1555,7 +1555,13 @@ class Runner:
         if platform.system() == 'Darwin':
             invalid_message = 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability'
             DB().query('UPDATE runs SET invalid_run=%s WHERE id=%s', params=(invalid_message, self._run_id))
+            return
 
+        for argument in self._arguments:
+            if argument.startswith('dev_') and self._arguments:
+                invalid_message = 'Development switches were active for this run. This will produced skewed measurement data'
+                DB().query('UPDATE runs SET invalid_run=%s WHERE id=%s', params=(invalid_message, self._run_id))
+                return
 
     def cleanup(self, continue_measurement=False):
         #https://github.com/green-coding-solutions/green-metrics-tool/issues/97

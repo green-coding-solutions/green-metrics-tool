@@ -20,10 +20,10 @@ def get_diffable_rows(user, uuids):
         filename,
         gmt_hash,
         commit_timestamp,
-        machine_specs,
         usage_scenario,
         measurement_config,
-        runner_arguments
+        runner_arguments,
+        machine_specs -- most complex. Should come last
         FROM runs
         WHERE
             (TRUE = %s OR user_id = ANY(%s::int[]))
@@ -34,8 +34,12 @@ def get_diffable_rows(user, uuids):
     return DB().fetch_all(query, params, fetch_mode='dict')
 
 def diff_rows(rows):
-    if len(rows) != 2:
-        raise ValueError(f"Diffing currently only supported for 2 rows. Amount of valid IDs supplied: {len(rows)}")
+    if len(rows) < 2:
+        raise ValueError(f"Diffing currently only supported for exaclty 2 runs. Please add at least one more run to the diff. This error might also happen if one of the runs supplied has no data yet and is still running or failed. Amount of groups supplied: {len(rows)}.")
+    if len(rows) > 2:
+        raise ValueError(f"Diffing currently only supported for exaclty 2 runs. Please try to reduce your amount of runs diffed to only two and drill down separately with others. Amount of groups supplied: {len(rows)}.")
+
+
 
     row_a = rows[0]
     row_b = rows[1]
@@ -44,6 +48,8 @@ def diff_rows(rows):
     for field in row_a:
         field_a = json.dumps(row_a[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_a[field], (dict, list))  else str(row_a[field])
         field_b = json.dumps(row_b[field], indent=2, separators=(',', ': ')).replace('\\n', "\n") if isinstance(row_b[field], (dict, list)) else str(row_b[field])
+
+        # although not strictly needed we use DeepDiff as this is WAY faster than difflib suprisingly
         diff = DeepDiff(field_a, field_b,
             exclude_paths=[
                 "root['job_id']",

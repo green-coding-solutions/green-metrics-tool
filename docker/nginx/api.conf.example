@@ -1,11 +1,3 @@
-server { # only to block also port 80 requests in pre-fetchers
-    listen 80;
-    server_name __API_URL__;
-
-    # Redirect HTTP to HTTPS
-    return 301 https://$host$request_uri;
-}
-
 server {
 
 #__DEFAULT__    listen [::]:9142;
@@ -17,7 +9,7 @@ server {
 #__SSL__    ssl_certificate_key /etc/ssl/production.key;
 
 
-    server_name __API_URL__;
+    server_name __API_URL__ ;
 
     location = /favicon.ico {
          root /var/www/green-metrics-tool/frontend;

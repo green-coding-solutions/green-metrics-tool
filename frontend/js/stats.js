@@ -87,7 +87,9 @@ const fetchAndFillRunData = async (url_params) => {
 
     for (const item in run_data) {
         if (item == 'machine_id') {
-            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]} (${GMT_MACHINES[run_data?.[item]] || run_data?.[item]})</td></tr>`)
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]} (${GMT_MACHINES[run_data?.[item]] || run_data?.[item]})</td></tr>`);
+        } else if (item == 'runner_arguments') {
+            fillRunTab('#runner-arguments', run_data[item]); // recurse
         } else if (item == 'machine_specs') {
             fillRunTab('#machine-specs', run_data[item]); // recurse
         } else if(item == 'usage_scenario') {
@@ -108,6 +110,10 @@ const fetchAndFillRunData = async (url_params) => {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Status</strong></td><td><span class="ui red horizontal label">This run has failed. Please see logs for details</span></td></tr>`)
         } else if(item == 'start_measurement' || item == 'end_measurement' || item == 'created_at' ) {
             document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td title="${run_data?.[item]}">${new Date(run_data?.[item])}</td></tr>`)
+        } else if(item == 'invalid_run' && run_data?.[item] != null) {
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><span class="ui yellow horizontal label">${run_data?.[item]}</span></td></tr>`)
+        } else if(item == 'gmt_hash') {
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data?.[item]}">${run_data?.[item]}</a></td></tr>`);
         } else if(item == 'uri') {
             let entry = run_data?.[item];
             if(run_data?.[item].indexOf('http') === 0) entry = `<a href="${run_data?.[item]}">${run_data?.[item]}</a>`;
