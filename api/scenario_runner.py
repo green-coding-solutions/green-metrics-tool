@@ -497,7 +497,7 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
 
     query = '''
         SELECT
-            SUM(ps.value), MAX(ps.unit), COUNT (DISTINCT(ps.unit))
+            SUM(ps.value), MAX(ps.unit), MAX(ps.type), COUNT (DISTINCT(ps.unit))
         FROM
             phase_stats as ps
         JOIN
@@ -516,7 +516,11 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
         badge_value = 'No metric data yet'
     else:
-        if data[2] != 1:
+        if data[2] != 'TOTAL':
+            error_helpers.log_error('Your request tried to request a metric that is averaged. Only metrics that can be totaled (like energy, network, carbon etc.) can be requested. Please select a different metric.', query=query, params=params)
+            return Response('Your request tried to request a metric that is averaged. Only metrics that can be totaled (like energy, network, carbon etc.) can be requested. Please select a different metric.', status_code=422) # manual RequestValidationError as we log error separately
+
+        if data[3] != 1:
             error_helpers.log_error('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', query=query, params=params)
             return Response('Your request tried to request metrics over different units. This is not allowed. Please apply more metric and detail_name filters.', status_code=422) # manual RequestValidationError as we log error separately
 

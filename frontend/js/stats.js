@@ -315,9 +315,12 @@ const renderBadges = async (url_params, phase_stats) => {
 
     const phase_stats_keys = Object.keys(phase_stats);
 
+
     const badge_container = document.querySelector('#run-badges')
 
     phase_stats_keys.forEach(metric_name => {
+        if (phase_stats[metric_name].type != 'TOTAL') return; // skip averaged metrics
+
         badge_container.innerHTML += `
             <div class="inline field">
                 <a href="${METRICS_URL}/stats.html?id=${url_params['id']}">
