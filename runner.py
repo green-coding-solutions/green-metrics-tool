@@ -94,6 +94,7 @@ class Runner:
         self._run_id = None
         self._commit_hash = None
         self._commit_timestamp = None
+        self._sampling_interval_padding = 0
         self._user_id = user_id
         self._measurement_flow_process_duration = measurement_flow_process_duration
         self._measurement_total_duration = measurement_total_duration
@@ -469,7 +470,7 @@ class Runner:
         measurement_config['allowed_run_args'] = self._allowed_run_args
         measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
         measurement_config['sci'] = self._sci
-
+        self._sampling_interval_padding = measurement_config['sampling_interval_padding'] = max(measurement_config['providers'].values(), key=lambda x: x.get('resolution', 0)).get('resolution', 0)
 
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self._run_id = DB().fetch_one("""
@@ -1210,6 +1211,9 @@ class Runner:
 
         phase_time = int(time.time_ns() / 1_000)
 
+        phase_time += self._sampling_interval_padding
+        time.sleep(self._sampling_interval_padding/1000) # no custom sleep here as even with dev_no_sleeps we must ensure phases don't overlap
+
         if phase not in self.__phases:
             raise RuntimeError('Calling end_phase before start_phase. This is a developer error!')
 
@@ -1220,7 +1224,6 @@ class Runner:
                 self.__notes_helper.add_note({'note': info_text, 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
                 subprocess.run(['docker', 'pause', container_to_pause], check=True, stdout=subprocess.DEVNULL)
-
 
         self.__phases[phase]['end'] = phase_time
         self.__notes_helper.add_note({'note': f"Ending phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
