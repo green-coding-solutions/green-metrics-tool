@@ -12,6 +12,8 @@
 #include <getopt.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "gmt-lib.h"
 #include "detect_cgroup_path.h"
 
@@ -19,6 +21,7 @@
 
 typedef struct container_t { // struct is a specification and this static makes no sense here
     char* path;
+    char ns_path[PATH_MAX];
     char id[DOCKER_CONTAINER_ID_BUFFER];
     unsigned int pid;
 } container_t;
@@ -55,77 +58,77 @@ static char *trimwhitespace(char *str) {
   return str;
 }
 
-static net_io_t get_network_cgroup(unsigned int pid) {
+static void output_stats(container_t *containers, int length) {
+    struct timeval now;
+    static ino_t last_ns_ino = 0;
+    static int fd_ns = -1;
+    struct stat ns_stat;
+    FILE *fd = NULL;
     char buf[200], ifname[20];
     unsigned long long int r_bytes, t_bytes, r_packets, t_packets;
-    net_io_t net_io = {0};
-
-    char ns_path[PATH_MAX];
-    snprintf(ns_path, PATH_MAX, "/proc/%u/ns/net", pid);
-
-    int fd_ns = open(ns_path, O_RDONLY);   /* Get descriptor for namespace */
-    if (fd_ns == -1) {
-        fprintf(stderr, "open namespace failed for pid %u", pid);
-        exit(1);
-    }
-
-    // printf("Entering namespace /proc/%u/ns/net \n", pid);
-
-   if (setns(fd_ns, 0) == -1) { // argument 0 means that any type of NS (IPC, Network, UTS) is allowed
-        fprintf(stderr, "setns failed for pid %u", pid);
-        exit(1);
-    }
-
-    // instead we could also read from ip -s link, but this might not be as consistent: https://serverfault.com/questions/448768/cat-proc-net-dev-and-ip-s-link-show-different-statistics-which-one-is-lyi
-    // The web-link is very old though
-    // by testing on our machine though ip link also returned significantly smaller values (~50% less)
-    FILE * fd = fopen("/proc/net/dev", "r");
-    if ( fd == NULL) {
-        fprintf(stderr, "Error - file %s failed to open. Is the container still running? Errno: %d\n", "/proc/net/dev", errno);
-        exit(1);
-    }
-
-    if (fgets(buf, 200, fd) == NULL || fgets(buf, 200, fd) == NULL) {
-        fprintf(stderr, "Error or EOF encountered while reading input.\n");
-        exit(1);
-    }
-
-    int match_result = 0;
-
-    while (fgets(buf, 200, fd)) {
-        // We are not counting dropped packets, as we believe they will at least show up in the
-        // sender side as not dropped.
-        // Since we are iterating over all relevant docker containers we should catch these packets at least in one /proc/net/dev file
-        match_result = sscanf(buf, "%[^:]: %llu %llu %*u %*u %*u %*u %*u %*u %llu %llu", ifname, &r_bytes, &r_packets, &t_bytes, &t_packets);
-        if (match_result != 5) {
-            fprintf(stderr, "Could not match network interface pattern\n");
-            exit(1);
-        }
-        // printf("%s: rbytes: %llu rpackets: %llu tbytes: %llu tpackets: %llu\n", ifname, r_bytes, r_packets, t_bytes, t_packets);
-        if (strcmp(trimwhitespace(ifname), "lo") == 0) continue;
-        net_io.r_bytes += r_bytes;
-        net_io.t_bytes += t_bytes;
-    }
-
-    fclose(fd);
-    close(fd_ns);
-
-    return net_io;
-
-}
-
-static void output_stats(container_t *containers, int length) {
-
-    struct timeval now;
-    int i;
 
     get_adjusted_time(&now, &offset);
 
-    for(i=0; i<length; i++) {
-        net_io_t net_io = get_network_cgroup(containers[i].pid);
+    for (int i = 0; i < length; i++) {
+        if (stat(containers[i].ns_path, &ns_stat) == -1) {
+            fprintf(stderr, "Failed to stat namespace for pid %u\n", containers[i].pid);
+            exit(1);
+        }
+
+        // If namespace has changed, reopen and setns
+        if (last_ns_ino != ns_stat.st_ino) {
+
+            fd_ns = open(containers[i].ns_path, O_RDONLY);
+            if (fd_ns == -1) {
+                fprintf(stderr, "Failed to open namespace for pid %u\n", containers[i].pid);
+                exit(1);
+            }
+
+            if (setns(fd_ns, 0) == -1) {
+                fprintf(stderr, "setns failed for pid %u\n", containers[i].pid);
+                exit(1);
+            }
+
+            last_ns_ino = ns_stat.st_ino;
+            // Read network I/O from /proc/net/dev
+            fd = fopen("/proc/net/dev", "r"); // reopen different file
+
+             if (!fd) {
+                fprintf(stderr, "Failed to open /proc/net/dev. Is the container still running?\n");
+                exit(1);
+            }
+
+        }
+
+        fseek(fd, 0, SEEK_SET);
+
+        net_io_t net_io = {0};
+
+        if (fgets(buf, 200, fd) == NULL || fgets(buf, 200, fd) == NULL) {
+            fprintf(stderr, "Error or EOF encountered while reading input.\n");
+            exit(1);
+        }
+
+        while (fgets(buf, sizeof(buf), fd)) {
+            if (sscanf(buf, "%[^:]: %llu %llu %*u %*u %*u %*u %*u %*u %llu %llu",
+                       ifname, &r_bytes, &r_packets, &t_bytes, &t_packets) != 5) {
+                fprintf(stderr, "Could not parse /proc/net/dev line.\n");
+                exit(1);
+            }
+
+            if (strcmp(trimwhitespace(ifname), "lo") == 0)
+                continue;
+
+            net_io.r_bytes += r_bytes;
+            net_io.t_bytes += t_bytes;
+        }
+
+
+
         printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, net_io.r_bytes, net_io.t_bytes, containers[i].id);
     }
-    usleep(msleep_time*1000);
+
+    usleep(msleep_time * 1000);
 }
 
 static int parse_containers(container_t** containers, char* containers_string) {
@@ -161,6 +164,9 @@ static int parse_containers(container_t** containers, char* containers_string) {
                 fprintf(stderr, "Could not match container PID\n");
                 exit(1);
             }
+
+            snprintf((*containers)[length-1].ns_path, PATH_MAX, "/proc/%u/ns/net", (*containers)[length-1].pid);
+
             fclose(fd);
         }
     }
