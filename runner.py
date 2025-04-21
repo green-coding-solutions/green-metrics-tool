@@ -965,16 +965,35 @@ class Runner:
                         docker_run_string.append('--health-start-interval')
                         docker_run_string.append(service['healthcheck']['start_interval'])
 
+            command_prepend = []
 
             if 'entrypoint' in service:
                 if service['entrypoint']:
+                    # If `entrypoint` is present and `command` we need to only supply the entrypoint as one long arg list
+                    # please check https://github.com/green-coding-solutions/green-metrics-tool/issues/1100
+                    # for a detailed discussion
                     docker_run_string.append('--entrypoint')
-                    docker_run_string.append(service['entrypoint'])
+
+                    if isinstance(service['entrypoint'], list):
+                        docker_run_string.append(service['entrypoint'][0])
+                        command_prepend = service['entrypoint'][1:]
+
+                    elif isinstance(service['entrypoint'], str):
+                        entrypoint_list = shlex.split(service['entrypoint'])
+                        docker_run_string.append(entrypoint_list[0])
+                        command_prepend = entrypoint_list[1:]
+
+                    else:
+                        raise RuntimeError(f"Entrypoint in service '{service_name}' must be a string or a list but is: {type(service['entrypoint'])}")
                 else:
                     # empty entrypoint -> default entrypoint will be ignored
                     docker_run_string.append('--entrypoint=')
 
             docker_run_string.append(self.clean_image_name(service['image']))
+
+            # This is because only the first argument in the list is the command, the rest are arguments which need to come after
+            # the service name but before the commands
+            docker_run_string.extend(command_prepend)
 
             # Before finally starting the container for the current service, check if the dependent services are ready.
             # If not, wait for some time. If a dependent service is not ready after a certain time, throw an error.
@@ -1037,8 +1056,15 @@ class Runner:
                         healthcheck_errors = subprocess.check_output(['docker', 'inspect', "--format={{json .State.Health}}", dependent_container_name], encoding='UTF-8')
                         raise RuntimeError(f"Health check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not healthy but '{health}' after waiting for {time_waited} sec!\nHealth check errors: {healthcheck_errors}")
 
+
+
             if 'command' in service:  # must come last
-                docker_run_string.extend(shlex.split(service['command']))
+                if isinstance(service['command'], str):
+                    docker_run_string.extend(shlex.split(service['command']))
+                elif isinstance(service['command'], list):
+                    docker_run_string.extend(service['command'])
+                else:
+                    raise RuntimeError(f"Command in service '{service_name}' must be a string or a list but is: {type(service['command'])}")
 
             print(f"Running docker run with: {' '.join(docker_run_string)}")
 

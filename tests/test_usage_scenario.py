@@ -495,6 +495,31 @@ def test_container_is_in_network():
         inspect = ps.stdout
     assert 'test-container' in inspect, Tests.assertion_info('test-container', inspect)
 
+
+
+def test_cmd_entrypoint():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+
+    o = out.getvalue()
+    assert '--entrypoint echo alpine_gmt_run_tmp A $0 echo B $0' in o
+    assert '--entrypoint env alpine_gmt_run_tmp env' in o
+    assert '--entrypoint env alpine_gmt_run_tmp -h' in o
+    assert '--entrypoint echo alpine_gmt_run_tmp A $0 echo B $0' in o
+    assert 'alpine_gmt_run_tmp ash -c env' in o
+    assert 'alpine_gmt_run_tmp env' in o
+    assert 'alpine_gmt_run_tmp echo $0' in o
+    assert 'alpine_gmt_run_tmp echo $$0' in o
+    assert '--entrypoint echo alpine_gmt_run_tmp $0' in o
+    assert '--entrypoint echo alpine_gmt_run_tmp A $0' in o
+    assert 'alpine_gmt_run_tmp echo $0' in o
+
+    assert err.getvalue() == '', Tests.assertion_info('stderr should be empty', err.getvalue())
+
 # command: [str] (optional)
 #    Command to be executed when container is started.
 #    When container does not have a daemon running typically a shell
@@ -802,7 +827,6 @@ def test_read_detached_process_failure():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
-
     # TODO: Move this again to "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 127. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further." once GitHub Actions has updated docker. See https://github.com/green-coding-solutions/green-metrics-tool/issues/1128
     assert "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 12" in str(e.value), \
         Tests.assertion_info("Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 12", str(e.value))
@@ -946,7 +970,6 @@ def test_internal_network():
         runner.run()
 
     assert str(e.value) == "Process '['docker', 'exec', 'test-container', 'curl', '-s', '--fail', 'https://www.google.de']' had bad returncode: 6. Stderr: ; Detached process: False. Please also check the stdout in the logs and / or enable stdout logging to debug further."
-
 
     ## rethink this one
 def wip_test_verbose_provider_boot():
