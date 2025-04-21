@@ -101,6 +101,7 @@ class SchemaChecker():
 
             Optional("services"): {
                 Use(self.contains_no_invalid_chars): {
+                    Optional("init"): bool,
                     Optional("type"): Use(self.valid_service_types),
                     Optional("image"): And(str, Use(self.not_empty)),
                     Optional("build"): Or(Or({And(str, Use(self.not_empty)):And(str, Use(self.not_empty))},list),And(str, Use(self.not_empty))),
