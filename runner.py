@@ -1202,14 +1202,13 @@ class Runner:
     def run_flows(self):
         ps_to_kill_tmp = []
         ps_to_read_tmp = []
-        exception_occured = False
         flow_id = 0
         flows_len = len(self._usage_scenario['flow'])
+
         while flow_id < flows_len:
             flow = self._usage_scenario['flow'][flow_id]
             ps_to_kill_tmp.clear()
             ps_to_read_tmp.clear()
-            exception_occured = False # reset
 
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
@@ -1306,25 +1305,23 @@ class Runner:
                 self.__ps_to_kill += ps_to_kill_tmp
                 self.__ps_to_read += ps_to_read_tmp # will otherwise be discarded, bc they confuse execption handling
                 self.check_process_returncodes()
-                flow_id += 1
 
             # pylint: disable=broad-exception-caught
             except BaseException as flow_exc:
                 if not self._dev_flow_timetravel: # Exception handling only if explicitely wanted
                     raise flow_exc
+                if self.__phases[flow['name']].get('end', None) is None:
+                    self.end_phase(flow['name']) # force end phase if exception happened before ending phase
                 print('Exception occured: ', flow_exc)
-                exception_occured = True
-
+            finally:
+                flow_id += 1 # advance flow counter in any case
 
             if not self._dev_flow_timetravel: # Timetravel only if active
                 continue
 
-            print(TerminalColors.OKCYAN, '\nTime-Travel mode is active!\nWhat do you want to do?\n')
-            if not exception_occured:
-                print('0 -- Continue')
-            print('1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n9 / CTRL+C -- Abort', TerminalColors.ENDC)
-
-            value = sys.stdin.readline().strip()
+            print(TerminalColors.OKCYAN, '\nTime Travel mode is active!\nWhat do you want to do?\n')
+            print('0 -- Continue\n1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n')
+            print('9 / CTRL+C -- Abort', TerminalColors.ENDC)
 
             self.__ps_to_read.clear() # clear, so we do not read old processes
             for ps in ps_to_kill_tmp:
@@ -1334,22 +1331,30 @@ class Runner:
                 except ProcessLookupError as process_exc: # Process might have done expected exit already. However all other errors shall bubble
                     print(f"Could not kill {ps['cmd']}. Exception: {process_exc}")
 
-            if not exception_occured and value == '0':
-                continue
+            while True:
+                value = sys.stdin.readline().strip()
 
-            if value == '2':
-                for _ in range(0,flow_id+1):
+                if value == '0':
+                    break
+                elif value == '1':
                     self.__phases.popitem(last=True)
-                flow_id = 0
-            elif value == '3':
-                self.cleanup(continue_measurement=True)
-                self.setup_networks()
-                self.setup_services()
-                flow_id = 0
-            elif value == '9':
-                raise KeyboardInterrupt("Manual abort")
-            else: # implicit 1
-                self.__phases.popitem(last=True)
+                    flow_id -= 1
+                    break
+                elif value == '2':
+                    for _ in range(0,flow_id+1):
+                        self.__phases.popitem(last=True)
+                    flow_id = 0
+                    break
+                elif value == '3':
+                    self.cleanup(continue_measurement=True) # will reset self.__phases
+                    self.setup_networks()
+                    self.setup_services() #
+                    flow_id = 0
+                    break
+                elif value == '9':
+                    raise KeyboardInterrupt("Manual abort")
+                else:
+                    print(TerminalColors.OKCYAN, 'Did not understand input. Please type a valid number ...', TerminalColors.ENDC)
 
     # this method should never be called twice to avoid double logging of metrics
     def stop_metric_providers(self):

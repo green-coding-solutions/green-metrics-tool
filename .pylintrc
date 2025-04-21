@@ -32,7 +32,8 @@ disable=missing-function-docstring,
     wrong-import-order,
     ungrouped-imports,
     no-else-return,
-    too-many-positional-arguments
+    too-many-positional-arguments,
+    no-else-break
 
 [MASTER]
 ignore=env
