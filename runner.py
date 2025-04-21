@@ -850,6 +850,9 @@ class Runner:
                         docker_run_string.append('--mount')
                         docker_run_string.append(f"type=bind,source={path},target={vol[1]},readonly")
 
+            if service.get('init', False):
+                docker_run_string.append('--init')
+
             if 'ports' in service:
                 if self._allow_unsafe:
                     if not isinstance(service['ports'], list):
