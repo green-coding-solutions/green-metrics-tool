@@ -107,7 +107,7 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
         data: ci_data.data,
         columns: columns,
         deferRender: true,
-        order: [[columns.length-1, 'desc']], // API also orders, but we need to indicate order for the user
+        order: [[columns.length-2, 'desc']], // API also orders, but we need to indicate order for the user
     });
 }
 

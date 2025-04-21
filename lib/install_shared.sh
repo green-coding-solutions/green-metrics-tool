@@ -34,6 +34,7 @@ cert_file=''
 enterprise=false
 ask_ping=true
 force_send_ping=false
+ee_branch=''
 
 function print_message {
     echo ""
@@ -44,6 +45,13 @@ function generate_random_password() {
     local length=$1
     LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length"
     echo
+}
+
+function check_python_version() {
+    if ! python3 -c "import sys; exit(1) if (sys.version_info.major, sys.version_info.minor) < (3, 10) else exit(0)"; then
+        echo 'Python version is NOT greater than or equal to 3.10. GMT requires Python 3.10 at least. Please upgrade your Python version.'
+        exit 1
+    fi
 }
 
 function check_file_permissions() {
@@ -262,6 +270,12 @@ function checkout_submodules() {
     git submodule update --init metric_providers/psu/energy/ac/xgboost/machine/model
     if [[ $enterprise == true ]] ; then
         git submodule update --init ee
+
+        if [[ ! -z $ee_branch ]]; then
+            echo "Checking out ee branch $ee_branch"
+            git -C ee fetch origin
+            git -C ee checkout $ee_branch
+        fi
     fi
 }
 
@@ -350,113 +364,148 @@ function send_ping() {
 function check_optarg() {
     local option=$1
     local optarg=$2
+
+    if [[ -z "$optarg" ]]; then
+        echo "Error: Option -$option requires an argument, but none was provided." >&2
+        exit 1
+    fi
+
     if [[ "$optarg" == -* ]]; then
         echo "Error: Option -$option received broken argument: $optarg" >&2; exit 1;
+        exit 1
     fi
 }
 
-while getopts ":p:a:m:NhTBWISuRLc:k:e:zZdDgGfFjJ" o; do
-    case "$o" in
-        \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
-        :)  echo "Error: Option -$OPTARG requires an argument" >&2; exit 1 ;;
-        p)
-            check_optarg 'p' $OPTARG
-            db_pw=${OPTARG}
+check_python_version
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --ee-branch) # This is not documented in the help, as it is only for GCS internal use
+            check_optarg 'ee-branch' "${2:-}"
+            ee_branch="$2"
+            shift 2
             ;;
-        a)
-            check_optarg 'a' $OPTARG
-            api_url=${OPTARG}
+        -p)
+            check_optarg 'p' "${2:-}"
+            db_pw="$2"
+            shift 2
             ;;
-        m)
-            check_optarg 'm' $OPTARG
-            metrics_url=${OPTARG}
+        -a)
+            check_optarg 'a' "${2:-}"
+            api_url="$2"
+            shift 2
             ;;
-        B)
+        -m)
+            check_optarg 'm' "${2:-}"
+            metrics_url="$2"
+            shift 2
+            ;;
+        -B)
             build_docker_containers=false
+            shift
             ;;
-        W)
+        -W)
             modify_hosts=false
+            shift
             ;;
-        N)
+        -N)
             install_python_packages=false
+            shift
             ;;
-        T)
+        -T)
             ask_tmpfs=false
+            shift
             ;;
-        I)
+        -I)
             install_ipmi=false
+            shift
             ;;
-        S)
+        -S)
             install_sensors=false
+            shift
             ;;
-        R)
+        -R)
             install_msr_tools=false
+            shift
             ;;
-        u)
+        -u)
             use_system_site_packages=true
+            shift
             ;;
-        L)
+        -L)
             enable_ssl=false
             ask_ssl=false
+            shift
             ;;
-        X)
+        -X)
             build_sgx=false
+            shift
             ;;
-        c)
-            check_optarg 'c' $OPTARG
-            cert_file=${OPTARG}
+        -c)
+            check_optarg 'c' "${2:-}"
+            cert_file="$2"
+            shift 2
             ;;
-        k)
-            check_optarg 'k' $OPTARG
-            cert_key=${OPTARG}
+        -k)
+            check_optarg 'k' "${2:-}"
+            cert_key="$2"
+            shift 2
             ;;
-        e)
-            check_optarg 'e' $OPTARG
-            ee_token=${OPTARG}
+        -e)
+            check_optarg 'e' "${2:-}"
+            ee_token="$2"
             enterprise=true
+            shift 2
             ;;
-        z)
+        -z)
             ask_ping=false
+            shift
             ;;
-        Z)
+        -Z)
             force_send_ping=true
+            shift
             ;;
-
-        d)
+        -d)
             activate_carbon_db=true
             ask_carbon_db=false
+            shift
             ;;
-        D)
+        -D)
             activate_carbon_db=false
             ask_carbon_db=false
+            shift
             ;;
-        g)
+        -g)
             activate_power_hog=true
             ask_power_hog=false
+            shift
             ;;
-        G)
+        -G)
             activate_power_hog=false
             ask_power_hog=false
+            shift
             ;;
-
-        f)
+        -f)
             activate_scenario_runner=true
             ask_scenario_runner=false
+            shift
             ;;
-        F)
+        -F)
             activate_scenario_runner=false
             ask_scenario_runner=false
+            shift
             ;;
-        j)
+        -j)
             activate_eco_ci=true
             ask_eco_ci=false
+            shift
             ;;
-        J)
+        -J)
             activate_eco_ci=false
             ask_eco_ci=false
+            shift
             ;;
-
-        h)
+        -h)
             echo 'usage: ./install_XXX [p:] [a:] [m:] [N] [h] [T] [B] [I] [S] [u] [R] [L] [c:] [k:] [e:] [z] [Z] [d] [D] [g] [G] [f] [F] [j] [J]'
             echo ''
             echo 'options:'
@@ -490,10 +539,19 @@ while getopts ":p:a:m:NhTBWISuRLc:k:e:zZdDgGfFjJ" o; do
             exit 0
             ;;
         ## v) y) q) # reserved, as they typically have other meaning!
-
-
+        --)  # End of all options
+        shift
+        break
+        ;;
+        *)
+        # Unrecognized option or no more options
+        # Typically you either want to break or report an error here:
+        echo "Invalid option: $1" >&2
+        exit 1
+        ;;
     esac
 done
+
 
 if [[ $enterprise == true ]] ; then
     echo "Validating enterprise token"

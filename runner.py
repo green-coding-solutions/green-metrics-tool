@@ -1228,14 +1228,13 @@ class Runner:
     def run_flows(self):
         ps_to_kill_tmp = []
         ps_to_read_tmp = []
-        exception_occured = False
         flow_id = 0
         flows_len = len(self._usage_scenario['flow'])
+
         while flow_id < flows_len:
             flow = self._usage_scenario['flow'][flow_id]
             ps_to_kill_tmp.clear()
             ps_to_read_tmp.clear()
-            exception_occured = False # reset
 
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
@@ -1332,25 +1331,23 @@ class Runner:
                 self.__ps_to_kill += ps_to_kill_tmp
                 self.__ps_to_read += ps_to_read_tmp # will otherwise be discarded, bc they confuse execption handling
                 self.check_process_returncodes()
-                flow_id += 1
 
             # pylint: disable=broad-exception-caught
             except BaseException as flow_exc:
                 if not self._dev_flow_timetravel: # Exception handling only if explicitely wanted
                     raise flow_exc
+                if self.__phases[flow['name']].get('end', None) is None:
+                    self.end_phase(flow['name']) # force end phase if exception happened before ending phase
                 print('Exception occured: ', flow_exc)
-                exception_occured = True
-
+            finally:
+                flow_id += 1 # advance flow counter in any case
 
             if not self._dev_flow_timetravel: # Timetravel only if active
                 continue
 
-            print(TerminalColors.OKCYAN, '\nTime-Travel mode is active!\nWhat do you want to do?\n')
-            if not exception_occured:
-                print('0 -- Continue')
-            print('1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n9 / CTRL+C -- Abort', TerminalColors.ENDC)
-
-            value = sys.stdin.readline().strip()
+            print(TerminalColors.OKCYAN, '\nTime Travel mode is active!\nWhat do you want to do?\n')
+            print('0 -- Continue\n1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n')
+            print('9 / CTRL+C -- Abort', TerminalColors.ENDC)
 
             self.__ps_to_read.clear() # clear, so we do not read old processes
             for ps in ps_to_kill_tmp:
@@ -1360,22 +1357,30 @@ class Runner:
                 except ProcessLookupError as process_exc: # Process might have done expected exit already. However all other errors shall bubble
                     print(f"Could not kill {ps['cmd']}. Exception: {process_exc}")
 
-            if not exception_occured and value == '0':
-                continue
+            while True:
+                value = sys.stdin.readline().strip()
 
-            if value == '2':
-                for _ in range(0,flow_id+1):
+                if value == '0':
+                    break
+                elif value == '1':
                     self.__phases.popitem(last=True)
-                flow_id = 0
-            elif value == '3':
-                self.cleanup(continue_measurement=True)
-                self.setup_networks()
-                self.setup_services()
-                flow_id = 0
-            elif value == '9':
-                raise KeyboardInterrupt("Manual abort")
-            else: # implicit 1
-                self.__phases.popitem(last=True)
+                    flow_id -= 1
+                    break
+                elif value == '2':
+                    for _ in range(0,flow_id+1):
+                        self.__phases.popitem(last=True)
+                    flow_id = 0
+                    break
+                elif value == '3':
+                    self.cleanup(continue_measurement=True) # will reset self.__phases
+                    self.setup_networks()
+                    self.setup_services() #
+                    flow_id = 0
+                    break
+                elif value == '9':
+                    raise KeyboardInterrupt("Manual abort")
+                else:
+                    print(TerminalColors.OKCYAN, 'Did not understand input. Please type a valid number ...', TerminalColors.ENDC)
 
     # this method should never be called twice to avoid double logging of metrics
     def stop_metric_providers(self):
@@ -1579,9 +1584,24 @@ class Runner:
     def identify_invalid_run(self):
         # on macOS we run our tests inside the VM. Thus measurements are not reliable as they contain the overhead and reproducability is quite bad.
         if platform.system() == 'Darwin':
-            invalid_message = 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability'
-            DB().query('UPDATE runs SET invalid_run=%s WHERE id=%s', params=(invalid_message, self._run_id))
+            invalid_message = 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\n'
+            DB().query('''
+                UPDATE runs
+                SET invalid_run = COALESCE(invalid_run, '') || %s
+                WHERE id=%s''',
+                params=(invalid_message, self._run_id)
+            )
 
+        for argument in self._arguments:
+            if (argument.startswith('dev_') or argument == 'skip_system_checks')  and self._arguments[argument] not in (False, None):
+                invalid_message = 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n'
+                DB().query('''
+                    UPDATE runs
+                    SET invalid_run = COALESCE(invalid_run, '') || %s
+                    WHERE id=%s''',
+                    params=(invalid_message, self._run_id)
+                )
+                break # one is enough
 
     def cleanup(self, continue_measurement=False):
         #https://github.com/green-coding-solutions/green-metrics-tool/issues/97
@@ -1837,6 +1857,7 @@ if __name__ == '__main__':
     parser.add_argument('--dev-no-phase-stats', action='store_true', help='Do not calculate phase stats.')
     parser.add_argument('--dev-cache-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
     parser.add_argument('--dev-no-optimizations', action='store_true', help='Disable analysis after run to find possible optimizations.')
+    parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
     args = parser.parse_args()
@@ -1919,6 +1940,14 @@ if __name__ == '__main__':
         print(TerminalColors.OKGREEN,'\n\n####################################################################################')
         print(f"Please access your report on the URL {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={runner._run_id}")
         print('####################################################################################\n\n', TerminalColors.ENDC)
+
+
+        if args.print_phase_stats:
+            data = DB().fetch_all('SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
+            print(f"Data for phase {args.print_phase_stats}")
+            for el in data:
+                print(el)
+            print('')
 
     except FileNotFoundError as e:
         error_helpers.log_error('File or executable not found', exception=e, previous_exception=e.__context__, run_id=runner._run_id)

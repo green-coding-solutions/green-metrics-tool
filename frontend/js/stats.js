@@ -86,7 +86,11 @@ const fetchAndFillRunData = async (url_params) => {
     const run_data = run.data
 
     for (const item in run_data) {
-        if (item == 'machine_specs') {
+        if (item == 'machine_id') {
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]} (${GMT_MACHINES[run_data?.[item]] || run_data?.[item]})</td></tr>`);
+        } else if (item == 'runner_arguments') {
+            fillRunTab('#runner-arguments', run_data[item]); // recurse
+        } else if (item == 'machine_specs') {
             fillRunTab('#machine-specs', run_data[item]); // recurse
         } else if(item == 'usage_scenario') {
             document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<pre class="usage-scenario">${json2yaml(run_data?.[item])}</pre>`)
@@ -100,11 +104,16 @@ const fetchAndFillRunData = async (url_params) => {
             if (run_data?.[item] == null) continue; // some old runs did not save it
             let commit_link = buildCommitLink(run_data);
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="${commit_link}" target="_blank">${run_data?.[item]}</a></td></tr>`)
-        } else if(item == 'name' || item == 'filename') {
+        } else if(item == 'name' || item == 'filename' || item == 'branch') {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]}</td></tr>`)
         } else if(item == 'failed' && run_data?.[item] == true) {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Status</strong></td><td><span class="ui red horizontal label">This run has failed. Please see logs for details</span></td></tr>`)
-
+        } else if(item == 'start_measurement' || item == 'end_measurement' || item == 'created_at' ) {
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td title="${run_data?.[item]}">${new Date(run_data?.[item])}</td></tr>`)
+        } else if(item == 'invalid_run' && run_data?.[item] != null) {
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><span class="ui yellow horizontal label">${run_data?.[item]}</span></td></tr>`)
+        } else if(item == 'gmt_hash') {
+            document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data?.[item]}">${run_data?.[item]}</a></td></tr>`);
         } else if(item == 'uri') {
             let entry = run_data?.[item];
             if(run_data?.[item].indexOf('http') === 0) entry = `<a href="${run_data?.[item]}">${run_data?.[item]}</a>`;
@@ -117,11 +126,9 @@ const fetchAndFillRunData = async (url_params) => {
     // create new custom field
     // timestamp is in microseconds, therefore divide by 10**6
     const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1000000
-    document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td>${measurement_duration_in_s} s</td></tr>`)
+    const measurement_duration_display = (measurement_duration_in_s > 60) ? `${numberFormatter.format(measurement_duration_in_s / 60)} min` : `${numberFormatter.format(measurement_duration_in_s)} s`
 
-
-    $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data
-    $('.ui.accordion').accordion();
+    document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="${measurement_duration_in_s} seconds">${measurement_duration_display}</td></tr>`)
 
     if (run_data.invalid_run) {
         showNotification('Run measurement has been marked as invalid', run_data.invalid_run);
@@ -303,15 +310,29 @@ const displayTimelineCharts = async (metrics, notes) => {
 
 }
 
-const renderBadges = async (url_params) => {
+const renderBadges = async (url_params, phase_stats) => {
+    if (phase_stats == null) return;
 
-    document.querySelectorAll("#badges span.energy-badge-container").forEach(el => {
-        const link_node = document.createElement("a")
-        const img_node = document.createElement("img")
-        link_node.href = `${METRICS_URL}/stats.html?id=${url_params['id']}`
-        img_node.src = `${API_URL}/v1/badge/single/${url_params['id']}?metric=${el.attributes['data-metric'].value}`
-        link_node.appendChild(img_node)
-        el.appendChild(link_node)
+    const phase_stats_keys = Object.keys(phase_stats);
+
+
+    const badge_container = document.querySelector('#run-badges')
+
+    phase_stats_keys.forEach(metric_name => {
+        if (phase_stats[metric_name].type != 'TOTAL') return; // skip averaged metrics
+
+        badge_container.innerHTML += `
+            <div class="inline field">
+                <a href="${METRICS_URL}/stats.html?id=${url_params['id']}">
+                    <img src="${API_URL}/v1/badge/single/${url_params['id']}?metric=${metric_name}" loading="lazy">
+                </a>
+                <a class="copy-badge"><i class="copy icon"></i></a>
+                <div class="ui left pointing blue basic label">
+                    ${METRIC_MAPPINGS[metric_name]['explanation']}
+                </div>
+            </div>
+            <hr class="ui divider"></hr>`;
+
     })
     document.querySelectorAll(".copy-badge").forEach(el => {
         el.addEventListener('click', copyToClipboard)
@@ -340,6 +361,7 @@ const fetchAndFillPhaseStatsData = async (url_params) => {
     renderCompareChartsForPhase(phase_stats.data, getAndShowPhase());
     displayTotalChart(...buildTotalChartData(phase_stats.data));
 
+    return phase_stats;
 }
 
 const fetchAndFillNetworkIntercepts = async (url_params) => {
@@ -448,6 +470,9 @@ const fetchTimelineNotes = async (url_params) => {
 $(document).ready( (e) => {
     (async () => {
 
+        $('.ui.secondary.menu .item').tab({childrenOnly: true, context: '.run-data-container'}); // activate tabs for run data
+        $('.ui.accordion').accordion();
+
         let url_params = getURLParams();
 
         if(url_params['id'] == null || url_params['id'] == '' || url_params['id'] == 'null') {
@@ -455,11 +480,14 @@ $(document).ready( (e) => {
             return;
         }
 
-        renderBadges(url_params);
         fetchAndFillRunData(url_params);
         fetchAndFillNetworkIntercepts(url_params);
         fetchAndFillOptimizationsData(url_params);
-        fetchAndFillPhaseStatsData(url_params);
+
+        (async () => { // since we need to wait for fetchAndFillPhaseStatsData we wrap in async so later calls cann already proceed
+            const phase_stats = await fetchAndFillPhaseStatsData(url_params);
+            renderBadges(url_params, phase_stats?.data?.data['[RUNTIME]']);
+        })();
 
 
         if (localStorage.getItem('fetch_time_series') === 'true') {

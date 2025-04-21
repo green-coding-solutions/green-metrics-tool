@@ -97,8 +97,8 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
     if($('select[name="machine_id"]').val() !== '') api_url = `${api_url}&machine_id=${$('select[name="machine_id"]').val()}`
     if($('input[name="filename"]').val() !== '') api_url = `${api_url}&filename=${$('input[name="filename"]').val()}`
 
-    if(metric_override != null) api_url = `${api_url}&metrics=${metric_override}`
-    else if($('input[name="metrics"]:checked').val() !== '') api_url = `${api_url}&metrics=${$('input[name="metrics"]:checked').val()}`
+    if(metric_override != null) api_url = `${api_url}&metric=${metric_override}`
+    else if($('input[name="metrics"]:checked').val() !== '') api_url = `${api_url}&metric=${$('input[name="metrics"]:checked').val()}`
 
     if(detail_name != null) api_url = `${api_url}&detail_name=${detail_name}`
 
@@ -241,7 +241,7 @@ const loadCharts = async () => {
             const [ mean, stddev ] = calculateStatistics(data.slice(startIndex, endIndex+1), true);
 
             let options = chart_instance.getOption()
-            options.series[2].markArea.data[0][0].name = `StdDev: ${(stddev/mean * 100).toFixed(2)} %`
+            options.series[2].markArea.data[0][0].name = `StdDev: ${stddev.toFixed(2)} (${mean !== 0 ? `(${(stddev/mean * 100).toFixed(2)} %)` : 'N/A'}} %)`
             options.series[2].markArea.data[0][0].yAxis = mean + stddev
             options.series[2].markArea.data[0][1].yAxis = mean - stddev;
             chart_instance.setOption(options)

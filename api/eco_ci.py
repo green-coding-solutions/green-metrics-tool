@@ -109,6 +109,10 @@ async def post_ci_measurement_add(
     params.append(used_client_ip)
     params.append(user._id)
 
+    if measurement.note is not None and measurement.note.strip() == '':
+        measurement.note = None
+    params.append(measurement.note)
+
     query = f"""
         INSERT INTO
             ci_measurements (energy_uj,
@@ -133,12 +137,13 @@ async def post_ci_measurement_add(
                             filter_machine,
                             filter_tags,
                             ip_address,
-                            user_id
+                            user_id,
+                            note
                             )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 {tags_replacer},
-                %s, %s)
+                %s, %s, %s)
 
         """
 

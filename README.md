@@ -1,7 +1,7 @@
 [![Tests Status - Main](https://github.com/green-coding-solutions/green-metrics-tool/actions/workflows/tests-vm-main.yml/badge.svg)](https://github.com/green-coding-solutions/green-metrics-tool/actions/workflows/tests-vm-main.yml)
 
 
-[![Energy Used](https://api.green-coding.io/v1/ci/badge/get/?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393&mode=totals&metric=carbon&duration_days=30)](https://metrics.green-coding.io/ci.html?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393) (This is the carbon emitted for running our CI-Pipelines to test GMT on Github. [Find out more about Eco-CI](https://www.green-coding.io/products/eco-ci/))
+[![Energy Used](https://api.green-coding.io/v1/ci/badge/get?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393&mode=totals&metric=carbon&duration_days=30&)](https://metrics.green-coding.io/ci.html?repo=green-coding-solutions/green-metrics-tool&branch=main&workflow=45267393) (This is the carbon emitted for running our CI-Pipelines to test GMT on Github. [Find out more about Eco-CI](https://www.green-coding.io/products/eco-ci/))
 
 [![Try in Github Codespaces!](https://github.com/codespaces/badge.svg)](https://codespaces.new/green-coding-solutions/green-metrics-tool)
 

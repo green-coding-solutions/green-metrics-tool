@@ -273,6 +273,10 @@ a,
 }
 
 
+.compare-metrics-table td:nth-child(6) {
+    font-weight: bold;
+}
+
 .compare-chart-container, .key-metrics-chart-container {
     display: flex;
     flex-direction: row;
