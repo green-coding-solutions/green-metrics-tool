@@ -23,7 +23,7 @@ inputs:
   ee-branch:
     description: 'Sets the branch to checkout for the ee repo'
     required: false
-    default: false
+    default: ''
 
 
 runs:
@@ -45,7 +45,8 @@ runs:
       working-directory: ${{ inputs.gmt-directory }}
       run: |
         if ${{inputs.ee}}; then
-          if ${{inputs.ee-branch}}; then
+          if [[ "${{inputs.ee-branch}}" != '' ]]; then
+            echo "Using ee-branch ${{inputs.ee-branch}}"
             ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test --ee-branch ${{inputs.ee-branch}}
           else
             ./install_linux.sh -p testpw -a http://api.green-coding.internal:9142 -m http://metrics.green-coding.internal:9142 -B -T -L -z -f -j -d -g -e github-actions-test
