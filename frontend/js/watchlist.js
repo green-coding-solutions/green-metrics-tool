@@ -47,7 +47,7 @@ $(document).ready(function () {
                             <i data-tooltip="${getPretty(metric_name, 'explanation')}" data-position="bottom center" data-inverted>
                                 <i class="question circle icon link"></i>
                             </i><br>
-                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${repo_url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${repo_url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metrics=${metric_name}&detail_name=${detail_name}&unit=joules" alt="${metric_name} badge" onerror="this.closest('.field').style.display='none'" loading="lazy"></a></span>
+                            <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?uri=${repo_url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}" target="_blank"><img src="${API_URL}/v1/badge/timeline?uri=${repo_url}&branch=${branch}&filename=${filename}&machine_id=${machine_id}&metric=${metric_name}&detail_name=${detail_name}&unit=joules" alt="${metric_name} badge" onerror="this.closest('.field').style.display='none'" loading="lazy"></a></span>
                         </div>`
             })
 
