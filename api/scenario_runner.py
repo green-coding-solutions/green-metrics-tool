@@ -514,7 +514,7 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
     data = DB().fetch_one(query, params=params)
 
     if data is None or data == [] or data[1] is None: # special check for data[1] as this is aggregate query which always returns result
-        badge_value = 'No metric data yet'
+        return Response(status_code=204) # No-Content
     else:
         if data[2] != 'TOTAL':
             error_helpers.log_error('Your request tried to request a metric that is averaged. Only metrics that can be totaled (like energy, network, carbon etc.) can be requested. Please select a different metric.', query=query, params=params)
@@ -561,8 +561,7 @@ async def get_badge_single(run_id: str, metric: str = 'cpu_energy_rapl_msr_compo
 
     badge_str = str(badge)
 
-    if badge_value != 'No metric data yet':
-        store_artifact(ArtifactType.BADGE, f"{user._id}_{run_id}_{metric}_{unit}_{phase}", badge_str)
+    store_artifact(ArtifactType.BADGE, f"{user._id}_{run_id}_{metric}_{unit}_{phase}", badge_str)
 
     return Response(content=badge_str, media_type="image/svg+xml")
 
