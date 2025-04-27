@@ -929,13 +929,12 @@ class Runner:
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
 
-            if 'deploy' in service:
-                if memory := service['deploy'].get('resources', {}).get('limits', {}).get('memory', None):
-                    docker_run_string.append('--memory') # value in bytes
-                    docker_run_string.append(str(memory))
-                if cpus := service['deploy'].get('resources', {}).get('limits', {}).get('cpus', None):
-                    docker_run_string.append('--cpus') # value in cores
-                    docker_run_string.append(str(cpus))
+            if 'mem_limit' in service:
+                docker_run_string.append('--memory') # value in bytes
+                docker_run_string.append(str(service['mem_limit']))
+            if 'cpus' in service:
+                docker_run_string.append('--cpus') # value in cores
+                docker_run_string.append(str(service['cpus']))
 
 
             if 'healthcheck' in service:  # must come last

@@ -64,6 +64,10 @@ class SchemaChecker():
             raise SchemaError(f"{value} is not 'container'")
         return value
 
+    def deprecate_deploy(self, value):
+        raise SchemaError('The deploy key is deprecated. Please use the service top level keys "cpu" and "mem_limit"')
+
+
     def validate_networks_no_invalid_chars(self, value):
         if isinstance(value, list):
             for item in value:
@@ -103,6 +107,10 @@ class SchemaChecker():
                     Optional("ports"): self.single_or_list(Or(And(str, Use(self.not_empty)), int)),
                     Optional("depends_on"): Or([And(str, Use(self.not_empty))],dict),
                     Optional('container_name'): And(str, Use(self.not_empty)),
+                    Optional('cpus'): Or(int, float, And(str, Use(self.not_empty))),
+                    Optional('mem_limit'): And(str, Use(self.not_empty)),
+                    Optional('deploy'): Use(self.deprecate_deploy),
+
                     Optional("healthcheck"): {
                         Optional('test'): Or(list, And(str, Use(self.not_empty))),
                         Optional('interval'): And(str, Use(self.not_empty)),
