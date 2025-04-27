@@ -35,9 +35,11 @@ class TestYML(unittest.TestCase):
                       'author': 'Arne Tarara',
                       'description': 'test',
                       'services': {'my-database':
-                                   {'some-key': 'something',
-                                    'setup-commands':
-                                    ['cp /tmp/repo/test_1MB.jpg /usr/local/apache2/htdocs/test_1MB.jpg']}}}
+                                    {'some-key': 'something',
+                                      'setup-commands': [{'command': 'cp /tmp/repo/test_1MB.jpg /usr/local/apache2/htdocs/test_1MB.jpg'}]
+                                   }
+                                 }
+                     }
 
         print(f"actual: {runner._usage_scenario}")
         print(f"expect: {result_obj}")

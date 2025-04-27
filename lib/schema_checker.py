@@ -2,16 +2,6 @@ import os
 import string
 import re
 from schema import Schema, SchemaError, Optional, Or, Use, And, Regex
-#
-# networks documentation is different than what i see in the wild!
-    # name: str
-    # also isn't networks optional?
-    # fix documentation - name not needed, also netowrks optional
-    # add check in runner.py networks parsing, make sure its valid_string
-    # is services/type optional?
-
-# services /type missing from documentation?
-
 
 # https://github.com/compose-spec/compose-spec/blob/master/spec.md
 
@@ -96,6 +86,9 @@ class SchemaChecker():
             "name": str,
             "author": And(str, Use(self.not_empty)),
             "description": And(str, Use(self.not_empty)),
+            Optional("ignore-unsupported-compose"): bool,
+            Optional("version"): str, # is part of compose. we ignore it
+            Optional("architecture"): And(str, Use(self.not_empty)),
 
             Optional("networks"): Or(list, dict),
 
@@ -119,7 +112,10 @@ class SchemaChecker():
                         Optional('start_interval'): And(str, Use(self.not_empty)),
                         Optional('disable'): bool,
                     },
-                    Optional("setup-commands"): [And(str, Use(self.not_empty))],
+                    Optional("setup-commands"): [{
+                        'command': And(str, Use(self.not_empty)),
+                        Optional("shell"): And(str, Use(self.not_empty)),
+                    }],
                     Optional("volumes"): self.single_or_list(str),
                     Optional("folder-destination"):And(str, Use(self.not_empty)),
                     Optional("entrypoint"): Or(str, [str]),
@@ -152,16 +148,22 @@ class SchemaChecker():
             }],
 
             Optional("compose-file"): Use(self.validate_compose_include)
-        }, ignore_extra_keys=True)
-
+        }, ignore_extra_keys=bool(usage_scenario.get('ignore-unsupported-compose', False)))
 
         # First we check the general structure. Otherwise we later cannot even iterate over it
         try:
             usage_scenario_schema.validate(usage_scenario)
         except SchemaError as e: # This block filters out the too long error message that include the parsing structure
-            if len(e.autos) > 2:
-                raise SchemaError(e.autos[2:]) from e
-            raise SchemaError(e.autos) from e
+
+            error_message = e.autos
+
+            if len(e.autos) >= 3:
+                error_message = e.autos[2:]
+
+            if 'Wrong key' in e.code:
+                raise SchemaError(f"Your compose file does contain a key that GMT does not support - Please check if the container will still run as intended: {error_message}") from e
+
+            raise SchemaError(error_message) from e
 
 
         # This check is necessary to do in a seperate pass. If tried to bake into the schema object above,
@@ -170,7 +172,7 @@ class SchemaChecker():
             self.validate_networks_no_invalid_chars(usage_scenario['networks'])
 
         known_container_names = []
-        for service_name, service in usage_scenario.get('services').items():
+        for service_name, service in usage_scenario.get('services', {}).items():
             if 'container_name' in service:
                 container_name = service['container_name']
             else:
