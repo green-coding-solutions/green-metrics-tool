@@ -3,10 +3,12 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <time.h>
 #include <string.h> // for strtok
 #include <getopt.h>
 #include <limits.h>
-#include "parse_int.h"
+#include <stdbool.h>
+#include "gmt-lib.h"
 #include "detect_cgroup_path.h"
 
 
@@ -29,10 +31,13 @@ typedef struct disk_io_t { // struct is a specification and this static makes no
 // in any case, none of these variables should change between threads
 static int user_id = -1;
 static unsigned int msleep_time=1000;
+static struct timespec offset;
 
 static disk_io_t get_disk_cgroup(char* filename) {
-    long long int rbytes = -1;
-    long long int wbytes = -1;
+    unsigned long long int rbytes = 0;
+    unsigned long long int wbytes = 0;
+    unsigned int major_number;
+    unsigned int minor_number;
     disk_io_t disk_io = {0};
 
     FILE * fd = fopen(filename, "r");
@@ -41,7 +46,40 @@ static disk_io_t get_disk_cgroup(char* filename) {
         exit(1);
     }
 
-    while (fscanf(fd, "%*u:%*u rbytes=%lld wbytes=%lld rios=%*u wios=%*u dbytes=%*u dios=%*u", &rbytes, &wbytes) == 2) {
+    while (fscanf(fd, "%u:%u rbytes=%llu wbytes=%llu rios=%*u wios=%*u dbytes=%*u dios=%*u", &major_number, &minor_number, &rbytes, &wbytes) == 4) {
+
+        // 1    Memory devices (e.g., /dev/mem, /dev/null)
+        // 2    Floppy disk controller
+        // 3    IDE hard disks (primary controller)
+        // 7    Loopback devices (e.g., /dev/loop0)
+        // 8    SCSI disks (including SATA and NVMe drives)
+        // 9    Metadisk (RAID systems)
+        // 11    SCSI CD-ROM (e.g., /dev/sr0)
+        // 13    Input devices (e.g., /dev/input/event*)
+        // 21    SCSI tape drives
+        // 22    ESDI hard disks
+        // 29    Network block devices (e.g., /dev/nbd)
+        // 36    Accelerated Graphics Port (AGP)
+        // 89    iSCSI devices
+        // 116    ALSA (Advanced Linux Sound Architecture)
+        // 180    USB devices
+        // 202    Xen virtual block devices
+        // 254    Device-mapper (e.g., LVM, cryptsetup)
+
+        if (
+            major_number == 1 || // 1    Memory devices (e.g., /dev/mem, /dev/null)
+            major_number == 2 || // 2    Floppy disk controller
+            major_number == 7 || // 7    Loopback devices (e.g., /dev/loop0)
+            major_number == 11 || // 11    SCSI CD-ROM (e.g., /dev/sr0)
+            major_number == 116 || // 116    ALSA (Advanced Linux Sound Architecture)
+            major_number == 202 // 202    Xen virtual block devices
+        ) {
+            continue;
+        }
+        if (minor_number % 16 != 0) {
+            fprintf(stderr, "Partion inside a docker container found. This should not happen: %u:%u rbytes=%llu wbytes=%llu\n", major_number, minor_number, rbytes, wbytes);
+            exit(1);
+        }
         disk_io.rbytes += rbytes;
         disk_io.wbytes += wbytes;
     }
@@ -64,7 +102,7 @@ static void output_stats(container_t *containers, int length) {
     struct timeval now;
     int i;
 
-    gettimeofday(&now, NULL);
+    get_adjusted_time(&now, &offset);
     for(i=0; i<length; i++) {
         disk_io_t disk_io = get_disk_cgroup(containers[i].path);
         printf("%ld%06ld %llu %llu %s\n", now.tv_sec, now.tv_usec, disk_io.rbytes, disk_io.wbytes, containers[i].id);
@@ -126,7 +164,7 @@ static int check_system() {
 int main(int argc, char **argv) {
 
     int c;
-    int check_system_flag = 0;
+    bool check_system_flag = false;
     int optarg_len;
     char *containers_string = NULL;  // Dynamic buffer to store optarg
     container_t *containers = NULL;
@@ -150,7 +188,8 @@ int main(int argc, char **argv) {
             printf("\t-h      : displays this help\n");
             printf("\t-s      : string of container IDs separated by comma\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
-            printf("\t-c      : check system and exit\n\n");
+            printf("\t-c      : check system and exit\n");
+            printf("\n");
             exit(0);
         case 'i':
             msleep_time = parse_int(optarg);
@@ -166,7 +205,7 @@ int main(int argc, char **argv) {
             containers_string[optarg_len] = '\0'; // Ensure NUL termination if max length
             break;
         case 'c':
-            check_system_flag = 1;
+            check_system_flag = true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -177,6 +216,8 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_system());
     }
+
+    get_time_offset(&offset);
 
     int length = parse_containers(&containers, containers_string);
 

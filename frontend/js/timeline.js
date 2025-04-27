@@ -97,8 +97,8 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
     if($('select[name="machine_id"]').val() !== '') api_url = `${api_url}&machine_id=${$('select[name="machine_id"]').val()}`
     if($('input[name="filename"]').val() !== '') api_url = `${api_url}&filename=${$('input[name="filename"]').val()}`
 
-    if(metric_override != null) api_url = `${api_url}&metrics=${metric_override}`
-    else if($('input[name="metrics"]:checked').val() !== '') api_url = `${api_url}&metrics=${$('input[name="metrics"]:checked').val()}`
+    if(metric_override != null) api_url = `${api_url}&metric=${metric_override}`
+    else if($('input[name="metrics"]:checked').val() !== '') api_url = `${api_url}&metric=${$('input[name="metrics"]:checked').val()}`
 
     if(detail_name != null) api_url = `${api_url}&detail_name=${detail_name}`
 
@@ -140,13 +140,14 @@ const loadCharts = async () => {
     phase_stats_data.forEach( (data) => {
         let [run_id, run_name, created_at, metric_name, detail_name, phase, value, unit, commit_hash, commit_timestamp, gmt_hash] = data
 
+        const [transformed_value, transformed_unit] = convertValue(value, unit)
 
         if (series[`${metric_name} - ${detail_name}`] == undefined) {
-            series[`${metric_name} - ${detail_name}`] = {labels: [], values: [], notes: [], unit: unit, metric_name: metric_name, detail_name: detail_name}
+            series[`${metric_name} - ${detail_name}`] = {labels: [], values: [], notes: [], unit: transformed_unit, metric_name: metric_name, detail_name: detail_name}
         }
 
         series[`${metric_name} - ${detail_name}`].labels.push(commit_timestamp)
-        series[`${metric_name} - ${detail_name}`].values.push({value: value, commit_hash: commit_hash, gmt_hash: gmt_hash})
+        series[`${metric_name} - ${detail_name}`].values.push({value: transformed_value, commit_hash: commit_hash, gmt_hash: gmt_hash})
         series[`${metric_name} - ${detail_name}`].notes.push({
             run_name: run_name,
             created_at: created_at,
@@ -172,7 +173,7 @@ const loadCharts = async () => {
                             <i class="question circle icon link"></i>
                         </i>
                     </div>
-                    <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${buildQueryParams()}" target="_blank"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(skip_dates=false,metric_override=series[my_series].metric_name,detail_name=series[my_series].detail_name)}"></a></span>
+                    <span class="energy-badge-container"><a href="${METRICS_URL}/timeline.html?${buildQueryParams()}" target="_blank"><img src="${API_URL}/v1/badge/timeline?${buildQueryParams(skip_dates=false,metric_override=series[my_series].metric_name,detail_name=series[my_series].detail_name)}&unit=joules"></a></span>
                     <a class="copy-badge"><i class="copy icon"></i></a>
                 </div>
                 <p></p>`
@@ -240,7 +241,7 @@ const loadCharts = async () => {
             const [ mean, stddev ] = calculateStatistics(data.slice(startIndex, endIndex+1), true);
 
             let options = chart_instance.getOption()
-            options.series[2].markArea.data[0][0].name = `StdDev: ${(stddev/mean * 100).toFixed(2)} %`
+            options.series[2].markArea.data[0][0].name = `StdDev: ${stddev.toFixed(2)} (${mean !== 0 ? `(${(stddev/mean * 100).toFixed(2)} %)` : 'N/A'}} %)`
             options.series[2].markArea.data[0][0].yAxis = mean + stddev
             options.series[2].markArea.data[0][1].yAxis = mean - stddev;
             chart_instance.setOption(options)

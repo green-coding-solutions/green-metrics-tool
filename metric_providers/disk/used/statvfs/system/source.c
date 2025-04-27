@@ -4,14 +4,17 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <time.h>
 #include <getopt.h>
-#include "parse_int.h"
+#include <stdbool.h>
+#include "gmt-lib.h"
 
 // All variables are made static, because we believe that this will
 // keep them local in scope to the file and not make them persist in state
 // between Threads.
 // in any case, none of these variables should change between threads
 static unsigned int msleep_time=1000;
+static struct timespec offset;
 
 static unsigned long long get_disk_usage() {
     struct statvfs buf;
@@ -30,10 +33,9 @@ static unsigned long long get_disk_usage() {
 }
 
 static void output_stats() {
-
     struct timeval now;
+    get_adjusted_time(&now, &offset);
 
-    gettimeofday(&now, NULL);
     printf("%ld%06ld %llu\n", now.tv_sec, now.tv_usec, get_disk_usage());
     usleep(msleep_time*1000);
 
@@ -53,7 +55,7 @@ static int check_system() {
 int main(int argc, char **argv) {
 
     int c;
-    int check_system_flag = 0;
+    bool check_system_flag = false;
 
     setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -71,13 +73,14 @@ int main(int argc, char **argv) {
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
-            printf("\t-c      : check system and exit\n\n");
+            printf("\t-c      : check system and exit\n");
+            printf("\n");
             exit(0);
         case 'i':
             msleep_time = parse_int(optarg);
             break;
         case 'c':
-            check_system_flag = 1;
+            check_system_flag = true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -88,6 +91,8 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_system());
     }
+
+    get_time_offset(&offset);
 
     while(1) {
         output_stats();

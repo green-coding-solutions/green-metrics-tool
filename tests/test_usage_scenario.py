@@ -495,6 +495,31 @@ def test_container_is_in_network():
         inspect = ps.stdout
     assert 'test-container' in inspect, Tests.assertion_info('test-container', inspect)
 
+
+
+def test_cmd_entrypoint():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/test_docker_compose_entrypoint.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+
+    o = out.getvalue()
+    assert '--entrypoint echo alpine_gmt_run_tmp A $0 echo B $0' in o
+    assert '--entrypoint env alpine_gmt_run_tmp env' in o
+    assert '--entrypoint env alpine_gmt_run_tmp -h' in o
+    assert '--entrypoint echo alpine_gmt_run_tmp A $0 echo B $0' in o
+    assert 'alpine_gmt_run_tmp ash -c env' in o
+    assert 'alpine_gmt_run_tmp env' in o
+    assert 'alpine_gmt_run_tmp echo $0' in o
+    assert 'alpine_gmt_run_tmp echo $$0' in o
+    assert '--entrypoint echo alpine_gmt_run_tmp $0' in o
+    assert '--entrypoint echo alpine_gmt_run_tmp A $0' in o
+    assert 'alpine_gmt_run_tmp echo $0' in o
+
+    assert err.getvalue() == '', Tests.assertion_info('stderr should be empty', err.getvalue())
+
 # command: [str] (optional)
 #    Command to be executed when container is started.
 #    When container does not have a daemon running typically a shell
@@ -512,6 +537,62 @@ def test_cmd_ran():
         )
         docker_ps_out = ps.stdout
     assert '1 root      0:00 sh' in docker_ps_out, Tests.assertion_info('1 root      0:00 sh', docker_ps_out)
+
+# entrypoint: [str] (optional)
+#    entrypoint declares the default entrypoint for the service container.
+#    This overrides the ENTRYPOINT instruction from the service's Dockerfile.
+#    If the entrypoint is empty, the ENTRYPOINT instruction is ignored.
+def test_entrypoint_ran_with_script():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_script.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        ps = subprocess.run(
+            ['docker', 'exec', 'test-container', 'ps', '-a'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+        docker_ps_out = ps.stdout
+    assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
+    assert 'entrypoint-overwrite.sh' in docker_ps_out, Tests.assertion_info('entrypoint `entrypoint-overwrite.sh` in ps output', docker_ps_out)
+    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('entrypoint `tail -f /dev/null` in ps output', docker_ps_out)
+
+def test_entrypoint_ran_in_conjunction_with_command():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_with_command.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        ps = subprocess.run(
+            ['docker', 'exec', 'test-container', 'ps', '-a'],
+            check=True,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            encoding='UTF-8'
+        )
+        docker_ps_out = ps.stdout
+    assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been overwritten', docker_ps_out)
+    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('`tail -f /dev/null` in ps output', docker_ps_out)
+
+def test_entrypoint_empty():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/entrypoint_empty.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+            ps = subprocess.run(
+                ['docker', 'exec', 'test-container', 'ps', '-a'],
+                check=True,
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                encoding='UTF-8'
+        )
+        docker_ps_out = ps.stdout
+    docker_run_command = re.search(r"docker run with: (.*)", str(out.getvalue())).group(1)
+    assert '--entrypoint= ' in docker_run_command, f"--entrypoint= not found in docker run command: {docker_run_command}"
+    assert 'stress-ng' not in docker_ps_out, Tests.assertion_info('`stress-ng` should not be in ps output, as it should have been ignored', docker_ps_out)
+    assert 'tail -f /dev/null' in docker_ps_out, Tests.assertion_info('command `tail -f /dev/null` in ps output', docker_ps_out)
+
 
 ### The Tests for the runner options/flags
 ## --uri URI
@@ -746,8 +827,9 @@ def test_read_detached_process_failure():
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
-    assert "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 126. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further." == str(e.value), \
-        Tests.assertion_info("Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 126. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further.", str(e.value))
+    # TODO: Move this again to "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 127. Stderr: ; Detached process: True. Please also check the stdout in the logs and / or enable stdout logging to debug further." once GitHub Actions has updated docker. See https://github.com/green-coding-solutions/green-metrics-tool/issues/1128
+    assert "Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 12" in str(e.value), \
+        Tests.assertion_info("Process '['docker', 'exec', 'test-container', 'g4jiorejf']' had bad returncode: 12", str(e.value))
 
 def test_invalid_container_name():
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/invalid_container_name.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
@@ -757,8 +839,8 @@ def test_invalid_container_name():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(OSError) as e:
         runner.run()
 
-    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.\nSee 'docker run --help'.\n\nStdout: "
-    assert expected_exception == str(e.value), \
+    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (highload-api-:cont), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed"
+    assert expected_exception in str(e.value), \
         Tests.assertion_info(expected_exception, str(e.value))
 
 def test_invalid_container_name_2():
@@ -769,8 +851,8 @@ def test_invalid_container_name_2():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(OSError) as e:
         runner.run()
 
-    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed.\nSee 'docker run --help'.\n\nStdout: "
-    assert expected_exception == str(e.value), \
+    expected_exception = "Docker run failed\nStderr: docker: Error response from daemon: Invalid container name (8zhfiuw:-3tjfuehuis), only [a-zA-Z0-9][a-zA-Z0-9_.-] are allowed"
+    assert expected_exception in str(e.value), \
         Tests.assertion_info(expected_exception, str(e.value))
 
 def test_duplicate_container_name():
@@ -887,8 +969,7 @@ def test_internal_network():
     with pytest.raises(RuntimeError) as e:
         runner.run()
 
-    assert str(e.value) == "Process '['docker', 'exec', 'test-container', 'curl', '-s', '--fail', 'https://www.google.de']' had bad returncode: 126. Stderr: ; Detached process: False. Please also check the stdout in the logs and / or enable stdout logging to debug further."
-
+    assert str(e.value) == "Process '['docker', 'exec', 'test-container', 'curl', '-s', '--fail', 'https://www.google.de']' had bad returncode: 6. Stderr: ; Detached process: False. Please also check the stdout in the logs and / or enable stdout logging to debug further."
 
     ## rethink this one
 def wip_test_verbose_provider_boot():
@@ -929,3 +1010,27 @@ def wip_test_verbose_provider_boot():
         diff = (notes[i+1][0] - notes[i][0])/1000000
         assert 9.9 <= diff <= 10.1, \
             Tests.assertion_info('10s apart', f"time difference of notes: {diff}s")
+
+
+def test_bad_arg():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_arg_bad.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err), pytest.raises(RuntimeError) as e:
+        runner.run()
+
+    assert "is not allowed in the docker-run-args list. Please check the capabilities of the user." in str(e.value)
+
+def test_good_arg():
+
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/docker_arg_good.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, user_id=1, allowed_run_args=[r'--label\s+([\w.-]+)=([\w.-]+)'])
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    with redirect_stdout(out), redirect_stderr(err):
+        runner.run()
+
+    assert re.search(r"docker run -it -d .* --label test=true", str(out.getvalue())), f"--label test=true not found in docker run command: {out.getvalue()}"

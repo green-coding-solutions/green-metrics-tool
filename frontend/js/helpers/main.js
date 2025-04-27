@@ -1,3 +1,17 @@
+const GMT_MACHINES = JSON.parse(localStorage.getItem('gmt_machines')) || {}; // global variable. dynamically resolved via resolveMachinesToGlobalVariable
+
+// tricky to make this async as some other functions will depend on the value of the variable
+// but if it is not set yet it will populate in a later call
+const resolveMachinesToGlobalVariable = async () => {
+    if (Object.keys(GMT_MACHINES).length === 0) {
+        const api_data = await makeAPICall('/v1/machines')
+        api_data.data.forEach(el => {
+            GMT_MACHINES[el[0]] = el[1];
+        })
+    }
+    localStorage.setItem('gmt_machines', JSON.stringify(GMT_MACHINES));
+}
+
 /*
     WebComponent function without ShadowDOM
     to expand the menu in the HTML pages
@@ -7,52 +21,57 @@ class GMTMenu extends HTMLElement {
         let html_content = `
         <div id="menu" class="ui inverted vertical menu">
             <div class="item-container">
-                <a class="item" href="/index.html">
-                    <b><i class="home icon"></i>Home</b>
+                <a class="item" href="/index.html" aria-label="Home">
+                    <b><i class="home icon"></i> Home</b>
+                </a>`
+
+        if (ACTIVATE_SCENARIO_RUNNER == true) {
+            html_content = `${html_content}
+                <a class="item" href="/runs.html" aria-label="ScenarioRunner"><b><i class="tachometer alternate left icon"></i> ScenarioRunner</b></a>
+                <a class="item" href="/runs.html" aria-label="Runs / Repos">
+                    ⮑&nbsp;&nbsp;<b><i class="code branch icon"></i> Runs / Repos</b>
                 </a>
-                <a class="item" href="/repositories.html">
-                    <b><i class="code branch icon"></i>Repositories</b>
+                <a class="item" href="/watchlist.html" aria-label="Watchlist">
+                    ⮑&nbsp;&nbsp;<b><i class="list icon"></i> Watchlist</b>
                 </a>
-                <a class="item" href="/energy-timeline.html">
-                    <b><i class="history icon"></i>Energy Timeline</b>
+                <a class="item" href="/request.html" aria-label="Submit Software">
+                    ⮑&nbsp;&nbsp;<b><i class="bullseye icon"></i> Submit Software</b>
                 </a>
-                <a class="item" href="/request.html">
-                    <b><i class="bullseye icon"></i>Measure software</b>
-                </a>
-                <a class="item" href="/data-analysis.html">
-                    <b><i class="chartline icon"></i>Data Analysis</b>
+                <a class="item" href="/cluster-status.html" aria-label="Cluster Status">
+                    ⮑&nbsp;&nbsp;<b><i class="database icon"></i> Cluster Status</b>
                 </a>`;
+        };
 
         if (ACTIVATE_ECO_CI == true) {
             html_content = `${html_content}
-                <a class="item" href="/ci-index.html">
-                    <b><i class="seedling icon"></i>Eco-CI</b>
+                <a class="item" href="/ci-index.html" aria-label="Eco CI">
+                    <b><i class="seedling icon"></i> Eco CI</b>
                 </a>`;
         };
 
         if (ACTIVATE_POWER_HOG == true) {
             html_content = `${html_content}
-                <a class="item" href="/hog.html">
-                    <b><i class="piggy bank icon"></i>Power Hog</b>
+                <a class="item" href="/hog.html" aria-label="Power HOG">
+                    <b><i class="piggy bank icon"></i> Power HOG</b>
                 </a>`;
         };
 
         if (ACTIVATE_CARBON_DB == true) {
             html_content = `${html_content}
-                <a class="item" href="/carbondb.html">
-                    <b><i class="journal whills icon"></i>CarbonDB</b>
+                <a class="item" href="/carbondb.html" aria-label="CarbonDB">
+                    <b><i class="balance scale icon"></i> CarbonDB</b>
                 </a>`;
         };
 
         html_content = `${html_content}
-                <a class="item" href="/status.html">
-                    <b><i class="database icon"></i>Status</b>
+                <a class="item" href="/data-analysis.html" aria-label="Data Analysis">
+                    <b><i class="chartline icon"></i> Data Analysis</b>
                 </a>
-                <a class="item" href="/authentication.html">
+                <a class="item" href="/authentication.html" aria-label="Authentication">
                     <b><i class="users icon"></i>Authentication</b>
                 </a>
-                <a class="item" href="/settings.html">
-                    <b><i class="cogs icon"></i>Settings</b>
+                <a class="item" href="/settings.html" aria-label="Settings">
+                    <b><i class="cogs icon"></i> Settings</b>
                 </a>
             </div>
             <div class="sticky-container">
@@ -136,6 +155,7 @@ const calculateStatistics = (data, object_access=false) => {
 
 const replaceRepoIcon = (uri) => {
 
+  uri = String(uri)
   if(!uri.startsWith('http')) return uri; // ignore filesystem paths
 
   const url = new URL(uri);
@@ -189,7 +209,7 @@ const copyToClipboard = (e) => {
   return Promise.reject('The Clipboard API is not available.');
 };
 
-const dateToYMD = (date, short=false) => {
+const dateToYMD = (date, short=false, no_break=false) => {
     let day = date.getDate().toString().padStart(2, '0');
     let month = (date.getMonth() + 1).toString().padStart(2, '0'); //Month from 0 to 11
     let hours = date.getHours().toString().padStart(2, '0');
@@ -198,7 +218,8 @@ const dateToYMD = (date, short=false) => {
     offset = offset < 0 ? `+${-offset/60}` : -offset/60;
 
     if(short) return `${date.getFullYear().toString()}-${month}-${day}`;
-    return ` ${date.getFullYear()}-${month}-${day} <br> ${hours}:${minutes} UTC${offset}`;
+    const breaker = (no_break === true) ? '' : '<br>';
+    return ` ${date.getFullYear()}-${month}-${day} ${breaker} ${hours}:${minutes} UTC${offset}`;
 }
 
 const escapeString = (string) =>{
@@ -214,7 +235,7 @@ const escapeString = (string) =>{
     return my_string.replace(reg, (match) => map[match]);
   }
 
-async function makeAPICall(path, values=null, force_authentication_token=null) {
+async function makeAPICall(path, values=null, force_authentication_token=null, force_put=false) {
 
     if(values != null ) {
         var options = {
@@ -223,6 +244,9 @@ async function makeAPICall(path, values=null, force_authentication_token=null) {
             headers: {
                 'Content-Type': 'application/json'
             }
+        }
+        if (force_put == true) {
+            options.method = 'PUT';
         }
     }  else {
         var options = { method: 'GET', headers: {} }
@@ -238,18 +262,26 @@ async function makeAPICall(path, values=null, force_authentication_token=null) {
     }
 
     let json_response = null;
-    if(localStorage.getItem('remove_idle') == 'true') path += "?remove_idle=true"
+    if(localStorage.getItem('remove_idle') === 'true') path += (path.includes('?') ? '&' : '?') + 'remove_idle=true'
+
     await fetch(API_URL + path, options)
     .then(response => {
         if (response.status == 204) {
             // 204 responses use no body, so json() call would fail
             return {success: false, err: "No data to display. API returned empty response (HTTP 204)"}
         }
+        if (response.status == 202) {
+            return
+        }
+
         return response.json()
     })
     .then(my_json => {
-        if (my_json.success != true) {
-            throw my_json.err
+        if (my_json != null && my_json.success != true) {
+            if (Array.isArray(my_json.err) && my_json.err.length !== 0)
+                throw my_json.err[0]?.msg
+            else
+                throw my_json.err
         }
         json_response = my_json
     })
@@ -306,7 +338,7 @@ $(document).ready(function () {
     $(document).on('click','#menu-toggle.closed', openMenu);
     $(document).on('click','#menu-toggle.opened', closeMenu);
 
-    if ($(window).width() < 960 || localStorage.getItem('menu_closed') == 'true') {
+    if ($(window).width() < 960 || localStorage.getItem('menu_closed') === 'true') {
         $('#menu-toggle').removeClass('opened').addClass('closed');
         $('#menu').removeClass('opened').addClass('closed');
         $('#main').removeClass('opened').addClass('closed');
@@ -317,7 +349,7 @@ if (localStorage.getItem('closed_descriptions') == null) {
     localStorage.setItem('closed_descriptions', '');
 }
 
-$(window).on('load', function() {
+$(document).ready(() => {
     $("body").removeClass("preload"); // activate tranisition CSS properties again
     const closed_descriptions = localStorage.getItem('closed_descriptions');
     $('.close').on('click', function() {
@@ -328,5 +360,6 @@ $(window).on('load', function() {
         document.querySelectorAll('i.close.icon').forEach(el => { el.closest('.ui').remove()}
         )
     }
+    resolveMachinesToGlobalVariable();
 });
 

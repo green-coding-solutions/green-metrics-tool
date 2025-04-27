@@ -32,6 +32,11 @@ fi
 
 docker system prune
 
+echo 'Removing sudoers.d entries'
+# autocomplete might not find files and thus throw an error. We want to capture that
+sudo rm -f /etc/sudoers.d/green_coding* || true # legacy / macOS
+sudo rm -f /etc/sudoers.d/green-coding* || true # Linux
+
 
 if [[ $(uname) == "Linux" ]]; then
     if lsb_release -is | grep -q "Fedora"; then

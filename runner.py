@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import shlex
 import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
@@ -51,7 +52,7 @@ class Runner:
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
         dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
-        user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, dev_no_phase_stats=False,
+        user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, disabled_metric_providers=None, allowed_run_args=None, dev_no_phase_stats=False,
         skip_volume_inspect=False):
 
         if skip_unsafe is True and allow_unsafe is True:
@@ -96,6 +97,8 @@ class Runner:
         self._user_id = user_id
         self._measurement_flow_process_duration = measurement_flow_process_duration
         self._measurement_total_duration = measurement_total_duration
+        self._disabled_metric_providers = [] if disabled_metric_providers is None else disabled_metric_providers
+        self._allowed_run_args = [] if allowed_run_args is None else allowed_run_args # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
         self._last_measurement_duration = 0
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
@@ -461,8 +464,10 @@ class Runner:
 
         measurement_config = {}
 
-        measurement_config['settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric-providers'}
-        measurement_config['providers'] = utils.get_metric_providers(config)
+        measurement_config['settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric_providers'} # filter out static metric providers which might not be relevant for platform we are running on
+        measurement_config['providers'] = utils.get_metric_providers(config) # get only the providers relevant to our platform
+        measurement_config['allowed_run_args'] = self._allowed_run_args
+        measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
         measurement_config['sci'] = self._sci
 
 
@@ -513,6 +518,10 @@ class Runner:
             module_path, class_name = metric_provider.rsplit('.', 1)
             module_path = f"metric_providers.{module_path}"
             conf = metric_providers[metric_provider] or {}
+
+            if class_name in self._disabled_metric_providers:
+                print(TerminalColors.WARNING, arrows(f"Not importing {class_name} as disabled per user settings"), TerminalColors.ENDC)
+                continue
 
             print(f"Importing {class_name} from {module_path}")
             module = importlib.import_module(module_path)
@@ -841,6 +850,9 @@ class Runner:
                         docker_run_string.append('--mount')
                         docker_run_string.append(f"type=bind,source={path},target={vol[1]},readonly")
 
+            if service.get('init', False):
+                docker_run_string.append('--init')
+
             if 'ports' in service:
                 if self._allow_unsafe:
                     if not isinstance(service['ports'], list):
@@ -853,6 +865,14 @@ class Runner:
                     print(TerminalColors.WARNING, arrows('Found ports entry but not running in unsafe mode. Skipping'), TerminalColors.ENDC)
                 else:
                     raise RuntimeError('Found "ports" but neither --skip-unsafe nor --allow-unsafe is set')
+
+            if 'docker-run-args' in service:
+                for arg in service['docker-run-args']:
+                    if any(re.fullmatch(allow_item, arg) for allow_item in self._allowed_run_args):
+                        docker_run_string.extend(shlex.split(arg))
+                    else:
+                        raise RuntimeError(f"Argument '{arg}' is not allowed in the docker-run-args list. Please check the capabilities of the user.")
+
 
             if 'environment' in service:
                 env_var_check_errors = []
@@ -948,8 +968,35 @@ class Runner:
                         docker_run_string.append('--health-start-interval')
                         docker_run_string.append(service['healthcheck']['start_interval'])
 
+            command_prepend = []
+
+            if 'entrypoint' in service:
+                if service['entrypoint']:
+                    # If `entrypoint` is present and `command` we need to only supply the entrypoint as one long arg list
+                    # please check https://github.com/green-coding-solutions/green-metrics-tool/issues/1100
+                    # for a detailed discussion
+                    docker_run_string.append('--entrypoint')
+
+                    if isinstance(service['entrypoint'], list):
+                        docker_run_string.append(service['entrypoint'][0])
+                        command_prepend = service['entrypoint'][1:]
+
+                    elif isinstance(service['entrypoint'], str):
+                        entrypoint_list = shlex.split(service['entrypoint'])
+                        docker_run_string.append(entrypoint_list[0])
+                        command_prepend = entrypoint_list[1:]
+
+                    else:
+                        raise RuntimeError(f"Entrypoint in service '{service_name}' must be a string or a list but is: {type(service['entrypoint'])}")
+                else:
+                    # empty entrypoint -> default entrypoint will be ignored
+                    docker_run_string.append('--entrypoint=')
 
             docker_run_string.append(self.clean_image_name(service['image']))
+
+            # This is because only the first argument in the list is the command, the rest are arguments which need to come after
+            # the service name but before the commands
+            docker_run_string.extend(command_prepend)
 
             # Before finally starting the container for the current service, check if the dependent services are ready.
             # If not, wait for some time. If a dependent service is not ready after a certain time, throw an error.
@@ -993,7 +1040,8 @@ class Runner:
                                 if ps.returncode != 0 or health == '<nil>':
                                     raise RuntimeError(f"Health check for service '{dependent_service}' was requested by '{service_name}', but service has no healthcheck implemented! (Output was: {health})")
                                 if health == 'unhealthy':
-                                    raise RuntimeError(f'Health check of container "{dependent_container_name}" failed terminally with status "unhealthy" after {time_waited}s')
+                                    healthcheck_errors = subprocess.check_output(['docker', 'inspect', "--format={{json .State.Health}}", dependent_container_name], encoding='UTF-8')
+                                    raise RuntimeError(f'Health check of container "{dependent_container_name}" failed terminally with status "unhealthy" after {time_waited}s. Health check errors: {healthcheck_errors}')
                             elif condition == 'service_started':
                                 pass
                             else:
@@ -1008,11 +1056,18 @@ class Runner:
                     if state != 'running':
                         raise RuntimeError(f"State check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not running but '{state}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
                     if health != 'healthy':
-                        raise RuntimeError(f"Health check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not healthy but '{health}' after waiting for {time_waited} sec! Consider checking your service configuration, the entrypoint of the container or the logs of the container.")
+                        healthcheck_errors = subprocess.check_output(['docker', 'inspect', "--format={{json .State.Health}}", dependent_container_name], encoding='UTF-8')
+                        raise RuntimeError(f"Health check of dependent services of '{service_name}' failed! Container '{dependent_container_name}' is not healthy but '{health}' after waiting for {time_waited} sec!\nHealth check errors: {healthcheck_errors}")
+
+
 
             if 'command' in service:  # must come last
-                for cmd in service['command'].split():
-                    docker_run_string.append(cmd)
+                if isinstance(service['command'], str):
+                    docker_run_string.extend(shlex.split(service['command']))
+                elif isinstance(service['command'], list):
+                    docker_run_string.extend(service['command'])
+                else:
+                    raise RuntimeError(f"Command in service '{service_name}' must be a string or a list but is: {type(service['command'])}")
 
             print(f"Running docker run with: {' '.join(docker_run_string)}")
 
@@ -1049,7 +1104,7 @@ class Runner:
                 if shell := service.get('shell', False):
                     d_command = ['docker', 'exec', container_name, shell, '-c', cmd] # This must be a list!
                 else:
-                    d_command = ['docker', 'exec', container_name, *cmd.split()] # This must be a list!
+                    d_command = ['docker', 'exec', container_name, *shlex.split(cmd)] # This must be a list!
 
                 print('Running command: ', ' '.join(d_command))
 
@@ -1133,7 +1188,7 @@ class Runner:
 
     def check_total_runtime_exceeded(self):
         if self._measurement_total_duration and (time.time() - self.__start_measurement_seconds) > self._measurement_total_duration:
-            raise TimeoutError(f"Timeout of {self._measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total-duration'.")
+            raise TimeoutError(f"Timeout of {self._measurement_total_duration} s was exceeded. This can be configured in the user authentication for 'total_duration'.")
 
     def start_phase(self, phase, transition = True):
         config = GlobalConfig().config
@@ -1143,8 +1198,8 @@ class Runner:
 
         if transition:
             # The force-sleep must go and we must actually check for the temperature baseline
-            print(f"\nForce-sleeping for {config['measurement']['phase-transition-time']}s")
-            self.custom_sleep(config['measurement']['phase-transition-time'])
+            print(f"\nForce-sleeping for {config['measurement']['phase_transition_time']}s")
+            self.custom_sleep(config['measurement']['phase_transition_time'])
             #print(TerminalColors.HEADER, '\nChecking if temperature is back to baseline ...', TerminalColors.ENDC)
 
         phase_time = int(time.time_ns() / 1_000)
@@ -1176,14 +1231,13 @@ class Runner:
     def run_flows(self):
         ps_to_kill_tmp = []
         ps_to_read_tmp = []
-        exception_occured = False
         flow_id = 0
         flows_len = len(self._usage_scenario['flow'])
+
         while flow_id < flows_len:
             flow = self._usage_scenario['flow'][flow_id]
             ps_to_kill_tmp.clear()
             ps_to_read_tmp.clear()
-            exception_occured = False # reset
 
             print(TerminalColors.HEADER, '\nRunning flow: ', flow['name'], TerminalColors.ENDC)
 
@@ -1207,8 +1261,7 @@ class Runner:
                             docker_exec_command.append('-c')
                             docker_exec_command.append(cmd_obj['command'])
                         else:
-                            for cmd in cmd_obj['command'].split():
-                                docker_exec_command.append(cmd)
+                            docker_exec_command.extend(shlex.split(cmd_obj['command']))
 
                         # Note: In case of a detach wish in the usage_scenario.yml:
                         # We are NOT using the -d flag from docker exec, as this prohibits getting the stdout.
@@ -1281,25 +1334,23 @@ class Runner:
                 self.__ps_to_kill += ps_to_kill_tmp
                 self.__ps_to_read += ps_to_read_tmp # will otherwise be discarded, bc they confuse execption handling
                 self.check_process_returncodes()
-                flow_id += 1
 
             # pylint: disable=broad-exception-caught
             except BaseException as flow_exc:
                 if not self._dev_flow_timetravel: # Exception handling only if explicitely wanted
                     raise flow_exc
+                if self.__phases[flow['name']].get('end', None) is None:
+                    self.end_phase(flow['name']) # force end phase if exception happened before ending phase
                 print('Exception occured: ', flow_exc)
-                exception_occured = True
-
+            finally:
+                flow_id += 1 # advance flow counter in any case
 
             if not self._dev_flow_timetravel: # Timetravel only if active
                 continue
 
-            print(TerminalColors.OKCYAN, '\nTime-Travel mode is active!\nWhat do you want to do?\n')
-            if not exception_occured:
-                print('0 -- Continue')
-            print('1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n9 / CTRL+C -- Abort', TerminalColors.ENDC)
-
-            value = sys.stdin.readline().strip()
+            print(TerminalColors.OKCYAN, '\nTime Travel mode is active!\nWhat do you want to do?\n')
+            print('0 -- Continue\n1 -- Restart current flow\n2 -- Restart all flows\n3 -- Reload containers and restart flows\n')
+            print('9 / CTRL+C -- Abort', TerminalColors.ENDC)
 
             self.__ps_to_read.clear() # clear, so we do not read old processes
             for ps in ps_to_kill_tmp:
@@ -1309,22 +1360,30 @@ class Runner:
                 except ProcessLookupError as process_exc: # Process might have done expected exit already. However all other errors shall bubble
                     print(f"Could not kill {ps['cmd']}. Exception: {process_exc}")
 
-            if not exception_occured and value == '0':
-                continue
+            while True:
+                value = sys.stdin.readline().strip()
 
-            if value == '2':
-                for _ in range(0,flow_id+1):
+                if value == '0':
+                    break
+                elif value == '1':
                     self.__phases.popitem(last=True)
-                flow_id = 0
-            elif value == '3':
-                self.cleanup(continue_measurement=True)
-                self.setup_networks()
-                self.setup_services()
-                flow_id = 0
-            elif value == '9':
-                raise KeyboardInterrupt("Manual abort")
-            else: # implicit 1
-                self.__phases.popitem(last=True)
+                    flow_id -= 1
+                    break
+                elif value == '2':
+                    for _ in range(0,flow_id+1):
+                        self.__phases.popitem(last=True)
+                    flow_id = 0
+                    break
+                elif value == '3':
+                    self.cleanup(continue_measurement=True) # will reset self.__phases
+                    self.setup_networks()
+                    self.setup_services() #
+                    flow_id = 0
+                    break
+                elif value == '9':
+                    raise KeyboardInterrupt("Manual abort")
+                else:
+                    print(TerminalColors.OKCYAN, 'Did not understand input. Please type a valid number ...', TerminalColors.ENDC)
 
     # this method should never be called twice to avoid double logging of metrics
     def stop_metric_providers(self):
@@ -1528,9 +1587,24 @@ class Runner:
     def identify_invalid_run(self):
         # on macOS we run our tests inside the VM. Thus measurements are not reliable as they contain the overhead and reproducability is quite bad.
         if platform.system() == 'Darwin':
-            invalid_message = 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability'
-            DB().query('UPDATE runs SET invalid_run=%s WHERE id=%s', params=(invalid_message, self._run_id))
+            invalid_message = 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\n'
+            DB().query('''
+                UPDATE runs
+                SET invalid_run = COALESCE(invalid_run, '') || %s
+                WHERE id=%s''',
+                params=(invalid_message, self._run_id)
+            )
 
+        for argument in self._arguments:
+            if (argument.startswith('dev_') or argument == 'skip_system_checks')  and self._arguments[argument] not in (False, None):
+                invalid_message = 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n'
+                DB().query('''
+                    UPDATE runs
+                    SET invalid_run = COALESCE(invalid_run, '') || %s
+                    WHERE id=%s''',
+                    params=(invalid_message, self._run_id)
+                )
+                break # one is enough
 
     def cleanup(self, continue_measurement=False):
         #https://github.com/green-coding-solutions/green-metrics-tool/issues/97
@@ -1624,10 +1698,10 @@ class Runner:
             if self._debugger.active:
                 self._debugger.pause('metric-providers (non-container) start complete. Waiting to start measurement')
 
-            self.custom_sleep(config['measurement']['pre-test-sleep'])
+            self.custom_sleep(config['measurement']['pre_test_sleep'])
 
             self.start_phase('[BASELINE]')
-            self.custom_sleep(config['measurement']['baseline-duration'])
+            self.custom_sleep(config['measurement']['baseline_duration'])
             self.end_phase('[BASELINE]')
 
             if self._debugger.active:
@@ -1658,7 +1732,7 @@ class Runner:
                 self._debugger.pause('metric-providers (container) start complete. Waiting to start idle phase')
 
             self.start_phase('[IDLE]')
-            self.custom_sleep(config['measurement']['idle-duration'])
+            self.custom_sleep(config['measurement']['idle_duration'])
             self.end_phase('[IDLE]')
 
             if self._debugger.active:
@@ -1680,7 +1754,7 @@ class Runner:
 
             self.end_measurement()
             self.check_process_returncodes()
-            self.custom_sleep(config['measurement']['post-test-sleep'])
+            self.custom_sleep(config['measurement']['post_test_sleep'])
             self.identify_invalid_run()
 
         except BaseException as exc:
@@ -1786,6 +1860,7 @@ if __name__ == '__main__':
     parser.add_argument('--dev-no-phase-stats', action='store_true', help='Do not calculate phase stats.')
     parser.add_argument('--dev-cache-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
     parser.add_argument('--dev-no-optimizations', action='store_true', help='Disable analysis after run to find possible optimizations.')
+    parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
     args = parser.parse_args()
@@ -1860,7 +1935,7 @@ if __name__ == '__main__':
 
             print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
 
-            optimization_providers.base.run_reporters(runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
+            optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
         if args.file_cleanup:
             shutil.rmtree(runner._tmp_folder)
@@ -1869,17 +1944,28 @@ if __name__ == '__main__':
         print(f"Please access your report on the URL {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={runner._run_id}")
         print('####################################################################################\n\n', TerminalColors.ENDC)
 
+
+        if args.print_phase_stats:
+            data = DB().fetch_all('SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
+            print(f"Data for phase {args.print_phase_stats}")
+            for el in data:
+                print(el)
+            print('')
+
     except FileNotFoundError as e:
-        error_helpers.log_error('File or executable not found', exception=e, run_id=runner._run_id)
+        error_helpers.log_error('File or executable not found', exception=e, previous_exception=e.__context__, run_id=runner._run_id)
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error('Command failed', stdout=e.stdout, stderr=e.stderr, run_id=runner._run_id)
+        error_helpers.log_error('Command failed', stdout=e.stdout, stderr=e.stderr, previous_exception=e.__context__, run_id=runner._run_id)
     except RuntimeError as e:
-        error_helpers.log_error('RuntimeError occured in runner.py', exception=e, run_id=runner._run_id)
+        error_helpers.log_error('RuntimeError occured in runner.py', exception=e, previous_exception=e.__context__, run_id=runner._run_id)
     except BaseException as e:
-        error_helpers.log_error('Base exception occured in runner.py', exception=e, run_id=runner._run_id)
+        error_helpers.log_error('Base exception occured in runner.py', exception=e, previous_exception=e.__context__, run_id=runner._run_id)
     finally:
         if args.print_logs:
             for container_id_outer, std_out in runner.get_logs().items():
                 print(f"Container logs of '{container_id_outer}':")
                 print(std_out)
                 print('\n-----------------------------\n')
+
+        # Last thing before we exit is to shutdown the DB Pool
+        DB().shutdown()

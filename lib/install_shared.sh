@@ -7,6 +7,14 @@ NC='\033[0m' # No Color
 db_pw=''
 api_url=''
 metrics_url=''
+ask_scenario_runner=true
+activate_scenario_runner=true
+ask_eco_ci=true
+activate_eco_ci=false
+ask_power_hog=true
+activate_power_hog=false
+ask_carbon_db=true
+activate_carbon_db=false
 build_docker_containers=true
 install_python_packages=true
 modify_hosts=true
@@ -24,6 +32,9 @@ ask_ssl=true
 cert_key=''
 cert_file=''
 enterprise=false
+ask_ping=true
+force_send_ping=false
+ee_branch=''
 
 function print_message {
     echo ""
@@ -34,6 +45,13 @@ function generate_random_password() {
     local length=$1
     LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length"
     echo
+}
+
+function check_python_version() {
+    if ! python3 -c "import sys; exit(1) if (sys.version_info.major, sys.version_info.minor) < (3, 10) else exit(0)"; then
+        echo 'Python version is NOT greater than or equal to 3.10. GMT requires Python 3.10 at least. Please upgrade your Python version.'
+        exit 1
+    fi
 }
 
 function check_file_permissions() {
@@ -63,9 +81,9 @@ function check_file_permissions() {
     # Check if the file permissions are read-only for group and others using regex
 
     if [[ $(uname) == "Darwin" ]]; then
-        permissions=$(stat -f %Sp "$file")
+        local permissions=$(stat -f %Sp "$file")
     else
-        permissions=$(stat -c %A "$file") # Linux
+        local permissions=$(stat -c %A "$file") # Linux
     fi
 
     if [ -L "$file" ]; then
@@ -109,31 +127,56 @@ function prepare_config() {
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" config.yml"
 
     cp docker/nginx/api.conf.example docker/nginx/api.conf
-    host_api_url=`echo $api_url | sed -E 's/^\s*.*:\/\///g'`
-    host_api_url=${host_api_url%:*}
+    local host_api_url=`echo $api_url | sed -E 's/^\s*.*:\/\///g'`
+    local host_api_url=${host_api_url%:*}
     eval "${sed_command} -e \"s|__API_URL__|$host_api_url|\" docker/nginx/api.conf"
 
     cp docker/nginx/block.conf.example docker/nginx/block.conf
 
     cp docker/nginx/frontend.conf.example docker/nginx/frontend.conf
-    host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
-    host_metrics_url=${host_metrics_url%:*}
+    local host_metrics_url=`echo $metrics_url | sed -E 's/^\s*.*:\/\///g'`
+    local host_metrics_url=${host_metrics_url%:*}
     eval "${sed_command} -e \"s|__METRICS_URL__|$host_metrics_url|\" docker/nginx/frontend.conf"
 
     cp frontend/js/helpers/config.js.example frontend/js/helpers/config.js
     eval "${sed_command} -e \"s|__API_URL__|$api_url|\" frontend/js/helpers/config.js"
     eval "${sed_command} -e \"s|__METRICS_URL__|$metrics_url|\" frontend/js/helpers/config.js"
 
-    if [[ $enterprise == true ]]; then
-        eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|true|\" frontend/js/helpers/config.js"
-        eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|true|\" frontend/js/helpers/config.js"
-        eval "${sed_command} -e \"s|#EE-ONLY#||\" docker/compose.yml"
-
-        eval "${sed_command} -e \"s|ee_token:.*$|ee_token: ${ee_token}|\" config.yml"
+    if [[ $activate_scenario_runner == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_SCENARIO_RUNNER__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_scenario_runner:.*$|activate_scenario_runner: True|\" config.yml"
     else
-        eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|__ACTIVATE_SCENARIO_RUNNER__|false|\" frontend/js/helpers/config.js"
+    fi
+
+    if [[ $activate_eco_ci == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_ECO_CI__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_eco_ci:.*$|activate_eco_ci: True|\" config.yml"
+    else
+        eval "${sed_command} -e \"s|__ACTIVATE_ECO_CI__|false|\" frontend/js/helpers/config.js"
+    fi
+
+
+    if [[ $enterprise == true ]]; then
+        eval "${sed_command} -e \"s|#EE-ONLY#||\" docker/compose.yml"
+        eval "${sed_command} -e \"s|ee_token:.*$|ee_token: ${ee_token}|\" config.yml"
+    fi
+
+    # Activating CarbonDB and PowerHOG makes actually only sense in enterprise mode
+    # but must run still, as we need to set the variables and replacements
+    if [[ $activate_power_hog == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_power_hog:.*$|activate_power_hog: True|\" config.yml"
+    else
         eval "${sed_command} -e \"s|__ACTIVATE_POWER_HOG__|false|\" frontend/js/helpers/config.js"
     fi
+    if [[ $activate_carbon_db == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_carbon_db:.*$|activate_carbon_db: True|\" config.yml"
+    else
+        eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
+    fi
+
 
     if [[ $enable_ssl == true ]] ; then
         eval "${sed_command} -e \"s|9142:9142|443:443|\" docker/compose.yml"
@@ -151,7 +194,7 @@ function prepare_config() {
 
     if [[ $modify_hosts == true ]] ; then
 
-        local etc_hosts_line_1="127.0.0.1 green-coding-postgres-container"
+        local etc_hosts_line_1="127.0.0.1 green-coding-postgres-container green-coding-redis-container"
         local etc_hosts_line_2="127.0.0.1 ${host_api_url} ${host_metrics_url}"
 
         print_message "Writing to /etc/hosts file..."
@@ -214,6 +257,11 @@ function setup_python() {
 }
 
 function checkout_submodules() {
+    if [[ $activate_scenario_runner == false ]]; then
+        print_message 'Skipping checkout submodules ...'
+        return
+    fi
+
     print_message "Checking out further git submodules ..."
 
     if [[ $(uname) != "Darwin" ]]; then
@@ -222,10 +270,20 @@ function checkout_submodules() {
     git submodule update --init metric_providers/psu/energy/ac/xgboost/machine/model
     if [[ $enterprise == true ]] ; then
         git submodule update --init ee
+
+        if [[ ! -z $ee_branch ]]; then
+            echo "Checking out ee branch $ee_branch"
+            git -C ee fetch origin
+            git -C ee checkout $ee_branch
+        fi
     fi
 }
 
 function build_binaries() {
+    if [[ $activate_scenario_runner == false ]]; then
+        print_message 'Skipping build binaries ...'
+        return
+    fi
 
     print_message "Building binaries ..."
     local metrics_subdir="metric_providers"
@@ -282,63 +340,218 @@ function finalize() {
     fi
 }
 
+function generate_unique_hash() {
+    if [[ $(uname) == "Darwin" ]]; then
+        system_profiler SPHardwareDataType | awk '/Serial Number/ {print $4}'
+    else
+        cat /etc/machine-id
+    fi
+}
 
+function send_ping() {
+    local unique_hash=$(generate_unique_hash)
+    local random_hash=$(openssl rand -hex 8)
+    local arch=$(uname -m)
+    local os=$(uname -s)
+    local os_version=$(uname -r)
 
-while getopts "p:a:m:nhtbisyrlc:k:e:" o; do
-    case "$o" in
-        p)
-            db_pw=${OPTARG}
+    curl -i -X POST https://plausible.io/api/event \
+        -H "User-Agent: ${random_hash}" \
+        -H 'Content-Type: application/json' \
+        --data "{\"name\":\"install\",\"url\":\"http://hello.green-coding.io/install\",\"domain\":\"hello.green-coding.io\",\"props\":{\"unique_hash\":\"${unique_hash}\",\"arch\":\"${arch}\",\"os\":\"${os}\",\"os_version\":\"${os_version}\"}}" > /dev/null
+}
+
+function check_optarg() {
+    local option=$1
+    local optarg=$2
+
+    if [[ -z "$optarg" ]]; then
+        echo "Error: Option -$option requires an argument, but none was provided." >&2
+        exit 1
+    fi
+
+    if [[ "$optarg" == -* ]]; then
+        echo "Error: Option -$option received broken argument: $optarg" >&2; exit 1;
+        exit 1
+    fi
+}
+
+check_python_version
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --ee-branch) # This is not documented in the help, as it is only for GCS internal use
+            check_optarg 'ee-branch' "${2:-}"
+            ee_branch="$2"
+            shift 2
             ;;
-        a)
-            api_url=${OPTARG}
+        -p)
+            check_optarg 'p' "${2:-}"
+            db_pw="$2"
+            shift 2
             ;;
-        m)
-            metrics_url=${OPTARG}
+        -a)
+            check_optarg 'a' "${2:-}"
+            api_url="$2"
+            shift 2
             ;;
-        b)
+        -m)
+            check_optarg 'm' "${2:-}"
+            metrics_url="$2"
+            shift 2
+            ;;
+        -B)
             build_docker_containers=false
+            shift
             ;;
-        h)
+        -W)
             modify_hosts=false
+            shift
             ;;
-        n)
+        -N)
             install_python_packages=false
+            shift
             ;;
-        t)
+        -T)
             ask_tmpfs=false
+            shift
             ;;
-        i)
+        -I)
             install_ipmi=false
+            shift
             ;;
-        s)
+        -S)
             install_sensors=false
+            shift
             ;;
-        r)
+        -R)
             install_msr_tools=false
+            shift
             ;;
-        y)
+        -u)
             use_system_site_packages=true
+            shift
             ;;
-        l)
+        -L)
             enable_ssl=false
             ask_ssl=false
+            shift
             ;;
-        x)
+        -X)
             build_sgx=false
+            shift
             ;;
-        c)
-            cert_file=${OPTARG}
+        -c)
+            check_optarg 'c' "${2:-}"
+            cert_file="$2"
+            shift 2
             ;;
-        k)
-            cert_key=${OPTARG}
+        -k)
+            check_optarg 'k' "${2:-}"
+            cert_key="$2"
+            shift 2
             ;;
-        e)
-            ee_token=${OPTARG}
+        -e)
+            check_optarg 'e' "${2:-}"
+            ee_token="$2"
             enterprise=true
+            shift 2
             ;;
+        -z)
+            ask_ping=false
+            shift
+            ;;
+        -Z)
+            force_send_ping=true
+            shift
+            ;;
+        -d)
+            activate_carbon_db=true
+            ask_carbon_db=false
+            shift
+            ;;
+        -D)
+            activate_carbon_db=false
+            ask_carbon_db=false
+            shift
+            ;;
+        -g)
+            activate_power_hog=true
+            ask_power_hog=false
+            shift
+            ;;
+        -G)
+            activate_power_hog=false
+            ask_power_hog=false
+            shift
+            ;;
+        -f)
+            activate_scenario_runner=true
+            ask_scenario_runner=false
+            shift
+            ;;
+        -F)
+            activate_scenario_runner=false
+            ask_scenario_runner=false
+            shift
+            ;;
+        -j)
+            activate_eco_ci=true
+            ask_eco_ci=false
+            shift
+            ;;
+        -J)
+            activate_eco_ci=false
+            ask_eco_ci=false
+            shift
+            ;;
+        -h)
+            echo 'usage: ./install_XXX [p:] [a:] [m:] [N] [h] [T] [B] [I] [S] [u] [R] [L] [c:] [k:] [e:] [z] [Z] [d] [D] [g] [G] [f] [F] [j] [J]'
+            echo ''
+            echo 'options:'
+            echo -e '  -p DB_PW:\t\tSupply DB password'
+            echo -e '  -a API_URL:\t\tSupply API URL'
+            echo -e '  -m METRICS_URL:\tSupply Dashboard URL'
+            echo -e '  -B:\t\t\tDo not build docker containers'
+            echo -e '  -W:\t\t\tDo not Modify hosts'
+            echo -e '  -N:\t\t\tDo not install Python packages'
+            echo -e '  -T:\t\t\tDo not ask for tmpfs remounting'
+            echo -e '  -I:\t\t\tDo not install IPMI drivers'
+            echo -e '  -S:\t\t\tDo not install lm-sensors package'
+            echo -e '  -R:\t\t\tDo not install MSR tools'
+            echo -e '  -u:\t\t\tUse Python system packages'
+            echo -e '  -L:\t\t\tDisable SSL'
+            echo -e '  -X:\t\t\tDo not build SGX checking binaries'
+            echo -e '  -c:\t\t\tSupply SSL .crt file'
+            echo -e '  -k:\t\t\tSupply SSL .key file'
+            echo -e '  -e: EE_TOKEN\t\tActivate enterprise features and store token'
+            echo -e '  -z:\t\t\tDo not ask to send install telemetry ping'
+            echo -e '  -Z:\t\t\tForce to send install telemetry ping'
+            echo -e '  -d:\t\t\tActivate CarbonDB'
+            echo -e '  -D:\t\t\tDe-activate CarbonDB'
+            echo -e '  -g:\t\t\tActivate PowerHOG'
+            echo -e '  -G:\t\t\tDe-activate PowerHOG'
+            echo -e '  -f:\t\t\tActivate ScenarioRunner'
+            echo -e '  -F:\t\t\tDe-activate ScenarioRunner'
+            echo -e '  -j:\t\t\tActivate Eco CI'
+            echo -e '  -J:\t\t\tDe-activate Eco CI'
 
+            exit 0
+            ;;
+        ## v) y) q) # reserved, as they typically have other meaning!
+        --)  # End of all options
+        shift
+        break
+        ;;
+        *)
+        # Unrecognized option or no more options
+        # Typically you either want to break or report an error here:
+        echo "Invalid option: $1" >&2
+        exit 1
+        ;;
     esac
 done
+
 
 if [[ $enterprise == true ]] ; then
     echo "Validating enterprise token"
@@ -395,4 +608,57 @@ if [[ -z "$db_pw" ]] ; then
     read -sp "Please enter the new password to be set for the PostgreSQL DB (default: $default_password): " db_pw
     echo "" # force a newline, because read -sp will consume it
     db_pw=${db_pw:-"$default_password"}
+fi
+
+if [[ $ask_scenario_runner == true ]]; then
+    echo ""
+    read -p "Do you want to activate ScenarioRunner (For benchmarking container software)? (Y/n) : " activate_scenario_runner
+    if [[  "$activate_scenario_runner" == "Y" || "$activate_scenario_runner" == "y" || "$activate_scenario_runner" == "" ]] ; then
+        activate_scenario_runner=true
+    else
+        activate_scenario_runner=false
+    fi
+fi
+
+
+if [[ $ask_eco_ci == true ]]; then
+    echo ""
+    read -p "Do you want to activate Eco CI (For tracking CI/CD carbon emissions)? (y/N) : " activate_eco_ci
+    if [[  "$activate_eco_ci" == "Y" || "$activate_eco_ci" == "y" ]] ; then
+        activate_eco_ci=true
+    else
+        activate_eco_ci=false
+    fi
+fi
+
+if [[ $enterprise == true && $ask_carbon_db == true ]]; then
+    echo ""
+    read -p "Do you want to activate CarbonDB? (y/N) : " activate_carbon_db
+    if [[  "$activate_carbon_db" == "Y" || "$activate_carbon_db" == "y" ]] ; then
+        activate_carbon_db=true
+    else
+        activate_carbon_db=false
+    fi
+fi
+
+if [[ $enterprise == true && $ask_power_hog == true ]]; then
+    echo ""
+    read -p "Do you want to activate PowerHOG? (y/N) : " activate_power_hog
+    if [[  "$activate_power_hog" == "Y" || "$activate_power_hog" == "y" ]] ; then
+        activate_power_hog=true
+    else
+        activate_power_hog=false
+    fi
+fi
+
+
+send_ping_input=false
+if [[ $ask_ping == true ]]; then
+    echo ""
+    read -p "Developing software can be a lonely business. Want to let us know you are installing the GMT? No personal data will be shared! (y/N) : " send_ping_input
+    force_send_ping=false # if by a misconfiguration or future change the user will ever be asked and says no, we never want to force send a ping - this is just an extra guard clause
+fi
+
+if [[ $force_send_ping == true || "$send_ping_input" == "Y" || "$send_ping_input" == "y" ]] ; then
+    send_ping
 fi

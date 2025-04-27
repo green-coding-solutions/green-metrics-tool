@@ -49,8 +49,10 @@ class RunJob(Job):
             docker_prune=docker_prune,
             job_id=self._id,
             user_id=self._user_id,
-            measurement_flow_process_duration=user._capabilities['measurement']['settings']['flow-process-duration'],
-            measurement_total_duration=user._capabilities['measurement']['settings']['total-duration'],
+            measurement_flow_process_duration=user._capabilities['measurement']['flow_process_duration'],
+            measurement_total_duration=user._capabilities['measurement']['total_duration'],
+            disabled_metric_providers=user._capabilities['measurement']['disabled_metric_providers'],
+            allowed_run_args=user._capabilities['measurement']['orchestrators']['docker']['allowed_run_args'], # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
         )
         try:
             # Start main code. Only URL is allowed for cron jobs
@@ -60,7 +62,7 @@ class RunJob(Job):
             print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
             optimization_providers.base.import_reporters()
             print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
-            optimization_providers.base.run_reporters(runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
+            optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
             if self._email:
                 Job.insert(

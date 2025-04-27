@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Standard Meta -->
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <link rel="shortcut icon" href="/images/favicon.ico">
+    <link rel="icon" href="/images/favicon.ico">
+    <link rel="icon" href="/images/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" href="/images/favicon-32x32.png" sizes="32x32">
+    <!-- Site Properties -->
+    <title>Green Metrics Tool - ScenarioRunner Runs</title>
+    <meta name="referrer" content="no-referrer-when-downgrade" />
+    <meta name="description" content="Measuring the energy and carbon footprint of your software" />
+    <script src="/dist/js/jquery.min.js" defer></script>
+    <script src="/dist/js/datatables.min.js" defer></script>
+    <script src="/dist/js/accordion.min.js" defer></script>
+    <script src="/dist/js/transition.min.js" defer></script>
+    <script src="/dist/js/toast.min.js" defer></script>
+    <script src="/js/helpers/config.js" defer></script>
+    <script src="/js/helpers/main.js" defer></script>
+    <script src="/js/helpers/runs.js" defer></script>
+
+    <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/green-coding.css">
+    <link rel="stylesheet" type="text/css" href="/dist/css/datatables.min.css">
+</head>
+<body class="preload">
+    <gmt-menu></gmt-menu>
+    <div class="main ui container" id="main">
+        <h1 class="ui header float left">
+            <a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon opened"></i></a>
+            <span>ScenarioRunner - Last 50 Runs</span>
+            <button id="home-toggle-button" class="ui button green float-right">Switch to repository view</button>
+
+        </h1>
+        <div id="scenario-runner-repositories-description" class="ui full-width-card segment card">
+            <div class="content">
+                <div class="header">Repository overview</div>
+                <div class="description">
+                    <i class="close icon"></i>
+                    <p>The repositories page of ScenarioRunner shows you all known repos</p>
+                    <p>The view can be sorted by URI or by date of the last run</p>
+                    <p>From here you can go into the details for a specific measurement, or compare them.</p>
+                    <p>Comparing is possible for different repos, different branches and different runs as long as they are on the same machine. Also different machines are supported if you compare the same repo.</p>
+                    <p>Currently we do not support comparing different machines AND different repos at the same time. The tool will notify you if you attempt to do so :)</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="scenario-runner-runs-description" class="ui full-width-card segment card">
+            <div class="content">
+                <div class="header">Last runs</div>
+                <div class="description">
+                    <i class="close icon"></i>
+                    <p>The runs page of ScenarioRunner shows you the last 50 runs</p>
+                    <p>From here you can go into the details for a specific measurement, or compare them.</p>
+                    <p>Comparing is possible for different repos, different branches and different runs as long as they are on the same machine. Also different machines are supported if you compare the same repo.</p>
+                    <p>Currently we do not support comparing different machines AND different repos at the same time. The tool will notifiy you if you attempt to do so :)</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="ui warning message hidden">
+            <div class="header">
+                <i class="notched warning icon"></i> Filters are active
+            </div>
+            <ul></ul>
+        </div>
+
+        <table id="runs-and-repos-table" class="ui table">
+            <thead>
+                <tr>
+                    <th>
+                        <span id="runs-and-repos-table-title">Runs</span> (<i class="icon code github"></i> / <i class="icon code gitlab"></i> / <i class="icon code folder"></i> etc.)+
+                        <div class="float-right">
+                            <button id="compare-button" onclick="compareButton()" class="ui small button blue">Compare: 0 Run(s)</button>
+                            <select id="compare-force-mode" style="width: 160px; height: 40px; margin-top: 5px; display:none;">
+                                <option value="">--</option>
+                                <option value="branches">Branches</option>
+                                <option value="commit_hashes">Commits</option>
+                                <option value="machine_ids">Machines</option>
+                                <option value="usage_scenarios">Usage Scenarios</option>
+                                <option value="repos">Repos</option>
+                            </select>
+                            <button id="unselect-button" class="ui mini button red right " style="display:none">Unselect all</button>
+                        </div>
+                        <button id="sort-button" class="ui small button purple float-right"><i class="text icon"></i><span>Sort name</span></button>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><table class="ui celled striped table"></table></td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="clearing" style="display:block; height: 10px;"></div>
+    </div>
+
+</body>
+</html>

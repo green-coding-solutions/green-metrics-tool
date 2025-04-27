@@ -10,7 +10,7 @@
     <link rel="icon" href="/images/favicon-16x16.png" sizes="16x16">
     <link rel="icon" href="/images/favicon-32x32.png" sizes="32x32">
     <!-- Site Properties -->
-    <title>Green Metrics Tool</title>
+    <title>Green Metrics Tool - Home</title>
     <meta name="referrer" content="no-referrer-when-downgrade" />
     <meta name="description" content="Measuring the energy of your software" />
     <script src="/dist/js/jquery.min.js" defer></script>
@@ -20,7 +20,6 @@
     <script src="/dist/js/toast.min.js" defer></script>
     <script src="/js/helpers/config.js" defer></script>
     <script src="/js/helpers/main.js" defer></script>
-    <script src="/js/helpers/runs.js" defer></script>
     <script src="/js/index.js" defer></script>
 
     <link rel="stylesheet" type="text/css" class="ui" href="/dist/css/semantic_reduced.min.css">
@@ -31,7 +30,7 @@
     <gmt-menu></gmt-menu>
     <div class="main ui container" id="main">
         <h1 class="ui header float left">
-            <a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon openend"></i></a>
+            <a id="menu-toggle" class="opened"><i class="bars bordered inverted left icon opened"></i></a>
             Green Metrics Tool - Home
         </h1>
         <div class="ui full-width-card segment card">
@@ -39,22 +38,69 @@
                 <div class="header">Welcome to the home page</div>
                 <div class="description">
                     <i class="close icon"></i>
-                    <p>The home page of the Green Metrics Tool shows you the last 50 runs
+                    <p>The Green Metrics Tool is a modular suite of different tools that capture energy and carbon data for different stages of the software lifecycle.
                     </p>
-                    <p>From here you can go into the details for a specific measurement, or compare them.</p>
-                    <p>Comparing is possible for different repos, different branches and different runs as long as they are on the same machine. Also different machines are supported if you compare the same repo.
-                </p>
-                <p>Currently we do not support comparing different machines AND different repos at the same time. The tool will notifiy you if you attempt to do so :)</p>
+                    <p>The home page shows you all available and connected tools.</p>
+                    <p>Click on any of them to get to a detailed view of the energy and carbon data.</p>
+                    <p>Through settings you can also adjust the default sorting, default fetching of detailed metrics etc..
+                    </p>
                 </div>
             </div>
         </div>
-        <div class="ui warning message hidden">
-            <div class="header">
-                <i class="notched warning icon"></i> Filters are active
+        <div class="ui cards link">
+            <div class="ui card scenario-runner index-connected-tools">
+                <a href="/runs.html" class="project-item"><i class="tachometer alternate icon project-item-white" style="margin: 0px auto;"></i></a>
+                <div class="content">
+                    <a class="header" href="/runs.html">ScenarioRunner</a>
+                    <div class="meta">
+                        <span class="date">Measure software for energy and CO₂</span>
+                    </div>
+                    <div class="description">
+                        <p>Current Runs in DB: <b><span id="scenario-runner-count">N/A</span></b></p>
+                        <p>Oldest Run in DB: <b><span id="scenario-runner-oldest">N/A</span></b></p>
+                    </div>
+                </div>
             </div>
-            <ul></ul>
+            <div class="ui card eco-ci index-connected-tools">
+                <a href="/ci-index.html" class="project-item"><i class="leaf huge icon project-item-white" style="margin: 0px auto;"></i></a>
+                <div class="content">
+                    <a class="header" href="/ci-index.html">Eco CI</a>
+                    <div class="meta">
+                        <span class="date">CI/CD plug-in for energy and CO₂</span>
+                    </div>
+                    <div class="description">
+                        <p>Current CI/CD runs in DB: <b><span id="eco-ci-count">N/A</span></b></p>
+                        <p>Oldest Run in DB: <b><span id="eco-ci-oldest">N/A</span></b></p>
+                    </div>
+                </div>
+            </div>
+            <div class="ui card carbondb index-connected-tools">
+                <a href="/carbondb.html" class="project-item"><i class="balance scale huge icon project-item-white" style="margin: 0px auto;"></i></a>
+                <div class="content">
+                    <a class="header" href="/carbondb.html">CarbonDB</a>
+                    <div class="meta">
+                        <span class="date">View your total CO₂ by project, tool and source</span>
+                    </div>
+                    <div class="description">
+                        <p>Current data points DB: <b><span id="carbondb-count">N/A</span></b></p>
+                        <p>Oldest data in DB: <b><span id="carbondb-oldest">N/A</span></b></p>
+                    </div>
+                </div>
+            </div>
+            <div class="ui card power-hog index-connected-tools">
+                <a href="/hog.html" class="project-item"><i class="piggy bank huge icon project-item-white" style="margin: 0px auto;"></i></a>
+                <div class="content">
+                    <a class="header" href="/hog.html">PowerHOG</a>
+                    <div class="meta">
+                        <span class="date">Measure software for energy and CO₂</span>
+                    </div>
+                    <div class="description">
+                        <p>Current data points in DB: <b><span id="hog-count">N/A</span></b></p>
+                        <p>Oldest data in DB: <b><span id="hog-oldest">N/A</span></b></p>
+                    </div>
+                </div>
+            </div>
         </div>
-        <table id="runs-table" class="ui celled striped table"></table>
     </div>
 </body>
 </html>

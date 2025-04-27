@@ -6,14 +6,13 @@ async function getRepositories(sort_by = 'date') {
         return;
     }
 
-    const table_body = document.querySelector('#repositories-table tbody');
+    const table_body = document.querySelector('#ci-repositories-table tbody');
     table_body.innerHTML = '';
 
     api_data.data.forEach(el => {
         const repo = el[0]; // escaping not needed, as done in API ingest
         const source = el[1]; // escaping not needed, as done in API ingest
         const last_run = el[2]; // escaping not needed, as done in API ingest
-
 
         let row = table_body.insertRow()
         row.innerHTML = `
@@ -86,13 +85,19 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
             }
         },
         {data : 1, title: 'Branch'},
-        {data: 2, title: 'Workflow-ID'},
         {data: 3, title: 'Source'},
+
         {
             data: 4, title: 'Last Run', render: function(el, type, row) {
-                return `<span title=${el}}>${dateToYMD(new Date(el), short=true)}</span>`;
+                return `<span title=${el}>${dateToYMD(new Date(el), short=true)}</span>`;
             }
-        }
+        },
+        {
+            title: 'Carbon', render: function(el,type,row) {
+                return `<img src="${API_URL}/v1/ci/badge/get?repo=${row[0]}&branch=${row[1]}&workflow=${row[2]}&mode=totals&metric=carbon&duration_days=30">`;
+            }
+        },
+
     ]
     el.DataTable({
         // searchPanes: {
@@ -102,10 +107,10 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
         data: ci_data.data,
         columns: columns,
         deferRender: true,
-        order: [[columns.length-1, 'desc']], // API also orders, but we need to indicate order for the user
+        order: [[columns.length-2, 'desc']], // API also orders, but we need to indicate order for the user
     });
 }
 
 (async () => {
-    await sortDate();
+    sortDate();
 })();

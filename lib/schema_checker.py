@@ -101,6 +101,7 @@ class SchemaChecker():
 
             Optional("services"): {
                 Use(self.contains_no_invalid_chars): {
+                    Optional("init"): bool,
                     Optional("type"): Use(self.valid_service_types),
                     Optional("image"): And(str, Use(self.not_empty)),
                     Optional("build"): Or(Or({And(str, Use(self.not_empty)):And(str, Use(self.not_empty))},list),And(str, Use(self.not_empty))),
@@ -121,11 +122,14 @@ class SchemaChecker():
                     Optional("setup-commands"): [And(str, Use(self.not_empty))],
                     Optional("volumes"): self.single_or_list(str),
                     Optional("folder-destination"):And(str, Use(self.not_empty)),
-                    Optional("command"): And(str, Use(self.not_empty)),
+                    Optional("entrypoint"): Or(str, [str]),
+                    Optional("command"): Or(And(str, Use(self.not_empty)), [str]),
                     Optional("log-stdout"): bool,
                     Optional("log-stderr"): bool,
                     Optional("read-notes-stdout"): bool,
                     Optional("read-sci-stdout"): bool,
+                    Optional("docker-run-args"): [And(str, Use(self.not_empty))],
+
                 }
             },
 

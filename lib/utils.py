@@ -12,10 +12,15 @@ from lib.db import DB
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+def remove_git_suffix(url):
+    if url.endswith('.git'):
+        return url[:-4]
+    return url
+
 def get_git_api(parsed_url):
 
     if parsed_url.netloc in ['github.com', 'www.github.com']:
-        return [f"https://api.github.com/repos/{parsed_url.path.strip(' /')}", 'github']
+        return [f"https://api.github.com/repos/{remove_git_suffix(parsed_url.path.strip(' /'))}", 'github']
 
     if parsed_url.netloc in ['gitlab.com', 'www.gitlab.com']:
         return [f"https://gitlab.com/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab']
@@ -70,13 +75,13 @@ def get_repo_last_marker(repo_url, marker):
         return None
     return data[0][access_key] # We assume it is sorted DESC
 
-def get_timeline_project(repo_url):
+def get_watchlist_item(repo_url):
     query = """
             SELECT
                 *
             FROM
-                timeline_projects
-            WHERE url = %s
+                watchlist
+            WHERE repo_url = %s
             """
     data = DB().fetch_one(query, (repo_url, ), fetch_mode='dict')
     if data is None or data == []:
@@ -140,21 +145,21 @@ def get_pascal_case(in_string):
 def get_metric_providers(config):
     architecture = get_architecture()
 
-    if 'metric-providers' not in config['measurement'] or config['measurement']['metric-providers'] is None:
-        raise RuntimeError('You must set the "metric-providers" key under \
+    if 'metric_providers' not in config['measurement'] or config['measurement']['metric_providers'] is None:
+        raise RuntimeError('You must set the "metric_providers" key under \
             "measurement" and set at least one provider.')
 
     # we are checking for none, since we believe that YAML parsing can never return an empty list
     # which should also be checked for then
-    if architecture not in config['measurement']['metric-providers'] or \
-            config['measurement']['metric-providers'][architecture] is None:
+    if architecture not in config['measurement']['metric_providers'] or \
+            config['measurement']['metric_providers'][architecture] is None:
         metric_providers = {}
     else:
-        metric_providers = config['measurement']['metric-providers'][architecture]
+        metric_providers = config['measurement']['metric_providers'][architecture]
 
-    if 'common' in config['measurement']['metric-providers']:
-        if config['measurement']['metric-providers']['common'] is not None:
-            metric_providers = {**metric_providers, **config['measurement']['metric-providers']['common']}
+    if 'common' in config['measurement']['metric_providers']:
+        if config['measurement']['metric_providers']['common'] is not None:
+            metric_providers = {**metric_providers, **config['measurement']['metric_providers']['common']}
 
     return metric_providers
 

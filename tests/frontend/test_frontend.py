@@ -6,6 +6,7 @@ import requests
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
 
 from lib.global_config import GlobalConfig
+from lib.user import User
 
 from tests import test_functions as Tests
 from playwright.sync_api import sync_playwright
@@ -58,18 +59,37 @@ def setup_and_cleanup_test():
 def test_home():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    value = page.locator("#runs-table > tbody > tr:nth-child(2) > td:nth-child(1) > a").text_content()
+    value = page.locator("div.ui.cards.link > div.ui.card:nth-child(1) a.header").text_content()
+
+    assert value== 'ScenarioRunner'
+
+    value = page.locator("#scenario-runner-count").text_content()
+    assert value== '5'
+
+    page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+    value = page.locator("div.ui.cards.link > div.ui.card:nth-child(2) a.header").text_content()
+
+    assert value== 'Eco CI'
+
+
+def test_runs():
+
+    page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/runs.html')
+    page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
+
+    value = page.locator("#runs-and-repos-table > tbody tr:nth-child(2) > td:nth-child(1) > a").text_content()
 
     assert value== 'Stress Test #2'
+
 
 def test_eco_ci_demo_data():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Eco-CI").click()
+    page.locator("#menu").get_by_role("link", name="Eco CI", exact=True).click()
 
     page.wait_for_load_state("load") # ALL JS should be done
 
-    page.locator("#repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
+    page.locator("#ci-repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
     page.locator('#DataTables_Table_0 > tbody > tr  > td:first-child > a').click()
 
     page.wait_for_load_state("load") # ALL JS should be done
@@ -149,9 +169,9 @@ def test_eco_ci_adding_data():
 
 
         page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-        page.get_by_role("link", name="Eco-CI").click()
+        page.locator("#menu").get_by_role("link", name="Eco CI", exact=True).click()
 
-        page.locator("#repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
+        page.locator("#ci-repositories-table > tbody > tr:nth-child(1) > td > div > div.title").click()
         page.locator('#DataTables_Table_0 > tbody > tr  > td:first-child > a').click()
 
         page.wait_for_load_state("load") # ALL JS should be done
@@ -175,6 +195,8 @@ def test_stats():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
 
+    page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
+
     with context.expect_page() as new_page_info:
         page.get_by_role("link", name="Stress Test #1").click()
 
@@ -190,7 +212,7 @@ def test_stats():
     phase_duration = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.four.cards.stackable > div.ui.card.phase-duration > div > div.description > div.ui.fluid.mini.statistic > div > span").text_content()
 
 
-    assert energy_value.strip() == '76.10'
+    assert energy_value.strip() == '21.14'
     assert phase_duration.strip() == '5.20'
 
     # fetch time series
@@ -267,13 +289,17 @@ def test_stats():
 def test_repositories_and_compare():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Repositories").click()
-    page.locator('.ui.accordion div.title').click()
-    page.locator('.dataTables_info').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
+    page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
+    page.get_by_role("button", name="Switch to repository view").click()
 
-    elements = page.query_selector_all("input[type=checkbox]")  # Replace with your selector
+    page.locator('.ui.accordion div.title').click()
+    page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
+
+    elements = page.query_selector_all("input[type=checkbox]")
     for element in elements:
         element.click()
+
+    page.locator("#DataTables_Table_0 tr:last-child input[type=checkbox]").click() # uncheck last box with different scenario
 
     with context.expect_page() as new_page_info:
         page.locator('#compare-button').click()
@@ -285,7 +311,7 @@ def test_repositories_and_compare():
     assert comparison_type == 'Repeated Run'
 
     runs_compared = new_page.locator('#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)').text_content()
-    assert runs_compared == '5'
+    assert runs_compared == '4'
 
     # open details
     new_page.locator('a.step[data-tab="[RUNTIME]"]').click()
@@ -295,13 +321,13 @@ def test_repositories_and_compare():
     assert first_metric.strip() == 'CPU Power (Package)'
 
     first_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(6)").text_content()
-    assert first_value.strip() == '8.58'
+    assert first_value.strip() == '8.56'
 
     first_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(7)").text_content()
     assert first_unit.strip() == 'W'
 
     first_stddev = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(8)").text_content()
-    assert first_stddev.strip() == '± 2.21%'
+    assert first_stddev.strip() == '± 2.62%'
 
 
     # click on baseline
@@ -312,23 +338,80 @@ def test_repositories_and_compare():
     assert first_metric.strip() == 'CPU Energy (Package)'
 
     first_value = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(6)").text_content()
-    assert first_value.strip() == '8.91'
+    assert first_value.strip() == '2.40'
 
     first_unit = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(7)").text_content()
-    assert first_unit.strip() == 'J'
+    assert first_unit.strip() == 'mWh'
 
     first_stddev = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(8)").text_content()
-    assert first_stddev.strip() == '± 13.68%'
+    assert first_stddev.strip() == '± 15.63%'
+
+    new_page.close()
+
+def test_expert_compare_mode():
+
+    page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+    page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
+    page.wait_for_load_state("load")  # wait JS
+    assert page.locator("#expert-compare-mode").text_content() == 'Expert compare mode is off'
+
+    page.locator('#toggle-expert-compare-mode').click()
+
+    page.wait_for_load_state("load") # wait JS
+    assert page.locator("#expert-compare-mode").text_content() == 'Expert compare mode is on'
+
+    page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
+
+    page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
+
+    elements = page.query_selector_all("input[type=checkbox]")
+    for element in elements:
+        element.click()
+
+    with context.expect_page() as new_page_info:
+        page.locator('#compare-button').click()
+
+    new_page = new_page_info.value
+    new_page.set_default_timeout(3_000)
+
+    assert new_page.locator("#run-data-top > tbody:first-child > tr:first-child > td:nth-child(2)").text_content() == 'Usage Scenario'
 
     new_page.close()
 
 
-def test_timeline():
+    page.locator('#unselect-button').click()
+    elements = page.query_selector_all("input[type=checkbox]")
+    for element in elements:
+        element.click()
+    page.locator('#compare-force-mode').select_option("Machines")
+
+    with context.expect_page() as new_page_info:
+        page.locator('#compare-button').click()
+
+    new_page = new_page_info.value
+    new_page.set_default_timeout(3_000)
+
+    assert new_page.locator("#run-data-top > tbody:first-child > tr > td:nth-child(2)").text_content() == 'Machine'
+
+    assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:first-child").text_content() == 'Number of runs compared'
+
+    assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)").text_content() == '5'
+
+    assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(1)").text_content() == 'Machine'
+
+    assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(2)").text_content() == 'Local machine'
+
+
+    new_page.close()
+
+
+
+def test_watchlist():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Energy Timeline").click()
+    page.locator("#menu").get_by_role("link", name="Watchlist", exact=True).click()
     with context.expect_page() as new_page_info:
-        page.get_by_role("link", name=" Show Timeline").click()
+        page.get_by_role("link", name="Show Timeline").click()
 
     new_page = new_page_info.value
     new_page.set_default_timeout(3_000)
@@ -353,7 +436,7 @@ def test_timeline():
 def test_status():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Status").click()
+    page.locator("#menu").get_by_role("link", name="Cluster Status", exact=True).click()
 
     machine_name = page.locator('#machines-table > tbody > tr:nth-child(1) > td:nth-child(2)').text_content()
     assert machine_name.strip() == 'Local machine'
@@ -365,15 +448,15 @@ def test_status():
 
 
 
-def test_settings():
+def test_settings_display():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
-    page.get_by_role("link", name="Settings").click()
+    page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
 
     page.wait_for_load_state("load") # ALL JS should be done
 
     energy_display = page.locator('#energy-display').text_content()
-    assert energy_display.strip() == 'Currently showing Joules'
+    assert energy_display.strip() == 'Currently showing milli-Watt-Hours'
 
 
     units_display = page.locator('#units-display').text_content()
@@ -386,3 +469,41 @@ def test_settings():
 
     time_series_avg_display = page.locator('#time-series-avg-display').text_content()
     assert time_series_avg_display.strip() == 'Currently not showing AVG in time series'
+
+def test_settings_measurement():
+
+    page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+    page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
+
+    page.wait_for_load_state("load") # ALL JS should be done
+
+    page.locator("a#settings-tab-measurement").click()
+    page.wait_for_load_state("load") # ALL JS should be done
+
+    user = User(1)
+
+    value = page.locator('#measurement-total-duration').input_value()
+    assert int(value.strip()) == user._capabilities['measurement']['total_duration']
+
+
+    value = page.locator('#measurement-flow-process-duration').input_value()
+    assert int(value.strip()) == user._capabilities['measurement']['flow_process_duration']
+
+    value = page.locator('#measurement-disabled-metric-providers').input_value()
+    providers = [] if value.strip() == '' else [value.strip()]
+    assert providers == user._capabilities['measurement']['disabled_metric_providers']
+
+    page.locator('#measurement-total-duration').fill('123')
+    page.locator('#measurement-flow-process-duration').fill('456')
+    page.evaluate('$("#measurement-disabled-metric-providers").dropdown("set exactly", "NetworkConnectionsProxyContainerProvider");')
+
+    page.locator('#save-measurement-total-duration').click()
+    page.locator('#save-measurement-flow-process-duration').click()
+    page.locator('#save-measurement-disabled-metric-providers').click()
+
+    page.wait_for_load_state("networkidle") # ALL AJAX should be done
+
+    user = User(1)
+    assert user._capabilities['measurement']['total_duration'] == 123
+    assert user._capabilities['measurement']['flow_process_duration'] == 456
+    assert user._capabilities['measurement']['disabled_metric_providers'] == ['NetworkConnectionsProxyContainerProvider']

@@ -1,5 +1,40 @@
-$(document).ready(function () {
-    (async () => {
-        getRunsTable($('#runs-table'), `/v1/runs?${getFilterQueryStringFromURI()}&limit=50`)
-    })();
-});
+(async () => {
+    if (ACTIVATE_SCENARIO_RUNNER === true) {
+        document.querySelectorAll('.scenario-runner').forEach(el => el.style.setProperty("display", "block", "important"))
+        try {
+            const api_data = await makeAPICall(`/v1/insights`)
+            document.querySelector('#scenario-runner-count').innerText = api_data.data[0];
+            document.querySelector('#scenario-runner-oldest').innerText = api_data.data[1];
+        } catch (err) { showNotification(`Could not get ScenarioRunner stats from API`, err) }
+    }
+
+    if (ACTIVATE_ECO_CI === true) {
+        document.querySelectorAll('.eco-ci').forEach(el => el.style.setProperty("display", "block", "important"))
+        try {
+            const api_data = await makeAPICall(`/v1/ci/insights`)
+            document.querySelector('#eco-ci-count').innerText = api_data.data[0];
+            document.querySelector('#eco-ci-oldest').innerText = api_data.data[1];
+        } catch (err) { showNotification(`Could not get Eco CI stats from API`, err) }
+
+    }
+
+    if (ACTIVATE_CARBON_DB === true) {
+        document.querySelectorAll('.carbondb').forEach(el => el.style.setProperty("display", "block", "important"))
+        try {
+            const api_data = await makeAPICall(`/v1/carbondb/insights`)
+            document.querySelector('#carbondb-count').innerText = api_data.data[0];
+            document.querySelector('#carbondb-oldest').innerText = api_data.data[1];
+        } catch (err) { showNotification(`Could not get CarbonDB stats from API`, err) }
+
+    }
+
+    if (ACTIVATE_POWER_HOG === true) {
+        document.querySelectorAll('.power-hog').forEach(el => el.style.setProperty("display", "block", "important"))
+        try {
+            const api_data = await makeAPICall(`/v1/hog/insights`)
+            document.querySelector('#hog-count').innerText = api_data.data[0];
+            document.querySelector('#hog-oldest').innerText = api_data.data[1];
+        } catch (err) { showNotification(`Could not get PowerHOG stats from API`, err) }
+
+    }
+})();

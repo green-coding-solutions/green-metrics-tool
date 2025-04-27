@@ -33,7 +33,11 @@ $(document).ready( (e) => {
         const run_count = url_params['ids'].split(",").length
         let phase_stats_data = null
         try {
-            phase_stats_data = (await makeAPICall(`/v1/compare?ids=${url_params['ids']}`)).data
+            let url = `/v1/compare?ids=${url_params['ids']}`
+            if (url_params['force_mode']?.length) {
+                url = `${url}&force_mode=${url_params['force_mode']}`
+            }
+            phase_stats_data = (await makeAPICall(url)).data
         } catch (err) {
             showNotification('Could not get compare in-repo data from API', err);
             return
@@ -43,7 +47,20 @@ $(document).ready( (e) => {
         comparison_identifiers = comparison_identifiers.join(' vs. ')
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Comparison Type</strong></td><td>${phase_stats_data.comparison_case}</td></tr>`)
         document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Number of runs compared</strong></td><td>${run_count}</td></tr>`)
-        document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${comparison_identifiers}</td></tr>`)
+        if (phase_stats_data.comparison_case == 'Machine') {
+            const regex = /(\d+)\s+vs\.\s+(\d+)/;
+            const match = comparison_identifiers.match(regex);
+
+            if (match) {
+                const num1 = parseInt(match[1], 10); // First number
+                const num2 = parseInt(match[2], 10); // Second number
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${num1} (${GMT_MACHINES[num1]}) vs. ${num2} (${GMT_MACHINES[num2]})</td></tr>`)
+            } else {
+                document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${GMT_MACHINES[comparison_identifiers] || comparison_identifiers}</td></tr>`)
+            }
+        } else {
+            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${phase_stats_data.comparison_case}</strong></td><td>${comparison_identifiers}</td></tr>`)
+        }
         Object.keys(phase_stats_data['common_info']).forEach(function(key) {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${key}</strong></td><td>${phase_stats_data['common_info'][key]}</td></tr>`)
           });

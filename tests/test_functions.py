@@ -156,12 +156,28 @@ def insert_user(user_id, token):
     DB().query(f"""
         INSERT INTO "public"."users"("id", "name","token","capabilities","created_at")
         VALUES
-        (%s, %s, %s,E'{{"user":{{"visible_users":[{user_id}],"is_super_user": false}},"api":{{"quotas":{{}},"routes":["/v2/carbondb/add","/v2/carbondb/filters","/v2/carbondb","/v1/carbondb/add","/v1/ci/measurement/add","/v2/ci/measurement/add","/v1/software/add","/v1/hog/add","/v1/authentication/data"]}},"data":{{"runs":{{"retention":2678400}},"hog_tasks":{{"retention":2678400}},"measurements":{{"retention":2678400}},"hog_coalitions":{{"retention":2678400}},"ci_measurements":{{"retention":2678400}},"hog_measurements":{{"retention":2678400}}}},"jobs":{{"schedule_modes":["one-off","daily","weekly","commit","variance"]}},"machines":[1],"measurement":{{"quotas":{{}},"settings":{{"total-duration":86400,"flow-process-duration":86400}}}},"optimizations":["container_memory_utilization","container_cpu_utilization","message_optimization","container_build_time","container_boot_time","container_image_size"]}}',E'2024-08-22 11:28:24.937262+00');
+        (%s, %s, %s,E'{{"user":{{"visible_users":[{user_id}],"is_super_user": false}},"api":{{"quotas":{{}},"routes":["/v1/user/setting","/v1/user/settings","/v2/carbondb/add","/v2/carbondb/filters","/v2/carbondb","/v1/carbondb/add","/v1/ci/measurement/add","/v2/ci/measurement/add","/v1/software/add","/v1/hog/add"]}},"data":{{"runs":{{"retention":2678400}},"hog_tasks":{{"retention":2678400}},"measurements":{{"retention":2678400}},"hog_coalitions":{{"retention":2678400}},"ci_measurements":{{"retention":2678400}},"hog_measurements":{{"retention":2678400}}}},"jobs":{{"schedule_modes":["one-off","daily","weekly","commit","variance"]}},"machines":[1],"measurement":{{"quotas":{{}},"total_duration":86400,"flow_process_duration":86400}},"optimizations":["container_memory_utilization","container_cpu_utilization","message_optimization","container_build_time","container_boot_time","container_image_size"]}}',E'2024-08-22 11:28:24.937262+00');
     """, params=(user_id, token, sha256_hash.hexdigest()))
 
 def import_demo_data():
+    config = GlobalConfig().config
+    pg_port = config['postgresql']['port']
+    pg_dbname = config['postgresql']['dbname']
     subprocess.run(
-        f"docker exec -i --user postgres test-green-coding-postgres-container psql -dtest-green-coding -p9573 < {CURRENT_DIR}/../data/demo_data.sql",
+        f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{pg_dbname} -p{pg_port} < {CURRENT_DIR}/../data/demo_data.sql",
+        check=True,
+        shell=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+def import_demo_data_ee():
+    config = GlobalConfig().config
+    pg_port = config['postgresql']['port']
+    pg_dbname = config['postgresql']['dbname']
+    subprocess.run(
+        f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{pg_dbname} -p{pg_port} < {CURRENT_DIR}/../ee/data/demo_data_ee.sql",
         check=True,
         shell=True,
         stderr=subprocess.PIPE,
@@ -191,19 +207,28 @@ def build_image_fixture():
 # should be preceded by a yield statement and on autouse
 def reset_db():
     # DB().query('DROP schema "public" CASCADE') # we do not want to call DB commands. Reason being is that because of a misconfiguration we could be sending this to the live DB
+    config = GlobalConfig().config
+    pg_port = config['postgresql']['port']
+    pg_dbname = config['postgresql']['dbname']
+    redis_port = config['redis']['port']
     subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', 'psql -d test-green-coding --port 9573 -c \'DROP schema "public" CASCADE\' '],
+        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} -c \'DROP schema "public" CASCADE\' '],
         check=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
     subprocess.run(
-        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', 'psql --port 9573 < ./docker-entrypoint-initdb.d/01-structure.sql'],
+        ['docker', 'exec', '--user', 'postgres', 'test-green-coding-postgres-container', 'bash', '-c', f'psql -d {pg_dbname} --port {pg_port} < ./docker-entrypoint-initdb.d/01-structure.sql'],
         check=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        encoding='UTF-8'
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    subprocess.run(
+        ['docker', 'exec', 'test-green-coding-redis-container', 'redis-cli', '-p', f"{redis_port}", 'FLUSHALL'],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
 
 class RunUntilManager:
@@ -234,10 +259,10 @@ class RunUntilManager:
             self.__runner.initialize_run()
 
             self.__runner.start_metric_providers(allow_other=True, allow_container=False)
-            self.__runner.custom_sleep(config['measurement']['pre-test-sleep'])
+            self.__runner.custom_sleep(config['measurement']['pre_test_sleep'])
 
             self.__runner.start_phase('[BASELINE]')
-            self.__runner.custom_sleep(config['measurement']['baseline-duration'])
+            self.__runner.custom_sleep(config['measurement']['baseline_duration'])
             self.__runner.end_phase('[BASELINE]')
 
             self.__runner.start_phase('[INSTALLATION]')
@@ -259,7 +284,7 @@ class RunUntilManager:
             self.__runner.start_metric_providers(allow_container=True, allow_other=False)
 
             self.__runner.start_phase('[IDLE]')
-            self.__runner.custom_sleep(config['measurement']['idle-duration'])
+            self.__runner.custom_sleep(config['measurement']['idle_duration'])
             self.__runner.end_phase('[IDLE]')
 
             self.__runner.start_phase('[RUNTIME]')
@@ -273,7 +298,7 @@ class RunUntilManager:
             self.__runner.end_measurement()
             self.__runner.check_process_returncodes()
             self.__runner.identify_invalid_run()
-            self.__runner.custom_sleep(config['measurement']['post-test-sleep'])
+            self.__runner.custom_sleep(config['measurement']['post_test_sleep'])
             self.__runner.update_start_and_end_times()
             self.__runner.store_phases()
             self.__runner.read_container_logs()

@@ -3,6 +3,7 @@ from copy import deepcopy
 import subprocess
 import yaml
 import shutil
+import re
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -10,10 +11,23 @@ from lib import utils
 
 BASE_COMPOSE_NAME = 'compose.yml.example'
 TEST_COMPOSE_NAME = 'test-compose.yml'
+BASE_FRONTEND_CONFIG_NAME = 'frontend/js/helpers/config.js.example'
+OVERLAY_FRONTEND_CONFIG_NAME = 'frontend/js/helpers/config.js'
+TEST_FRONTEND_CONFIG_NAME = 'test-config.js'
+BASE_NGINX_PORT = 9142
+TEST_NGINX_PORT = 9143
+TEST_NGINX_PORT_MAPPING = [f"{TEST_NGINX_PORT}:{BASE_NGINX_PORT}"] # only change public port
+BASE_DATABASE_PORT = 9573
+TEST_DATABASE_PORT = 9574
+TEST_DATABASE_PORT_MAPPING = [f"{TEST_DATABASE_PORT}:{TEST_DATABASE_PORT}"] # change external and internal port
+TEST_REDIS_PORT = 6380 # original port: 6379
+TEST_REDIS_PORT_MAPPING = [f"127.0.0.1:{TEST_REDIS_PORT}:{TEST_REDIS_PORT}"] # change external and internal port
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
 base_compose_path = os.path.join(current_dir, f"../docker/{BASE_COMPOSE_NAME}")
 test_compose_path = os.path.join(current_dir, f"../docker/{TEST_COMPOSE_NAME}")
+base_frontend_config_path = os.path.join(current_dir, f'../{BASE_FRONTEND_CONFIG_NAME}')
+test_frontend_config_path = os.path.join(current_dir, TEST_FRONTEND_CONFIG_NAME)
 
 DB_PW = 'testpw'
 
@@ -39,6 +53,9 @@ def edit_compose_file():
     compose = None
     with open(base_compose_path, encoding='utf8') as base_compose_file:
         compose = yaml.load(base_compose_file, Loader=yaml.FullLoader)
+
+    # Edit stack name
+    compose['name'] = 'green-metrics-tool-test'
 
     # Save old volume names, as we will have to look for them under services/volumes soon
     vol_keys = compose['volumes'].copy().keys()
@@ -68,19 +85,38 @@ def edit_compose_file():
                 new_depends_on_list.append(f'test-{dep}')
             compose['services'][service]['depends_on'] = new_depends_on_list
 
-        # for nginx and gunicorn services, add test config mapping
+        # for nginx, change port mapping
+        if 'nginx' in service:
+            compose['services'][service]['ports'] = TEST_NGINX_PORT_MAPPING
+            new_vol_list.append(
+                f'{current_dir}/{TEST_FRONTEND_CONFIG_NAME}:/var/www/green-metrics-tool/{OVERLAY_FRONTEND_CONFIG_NAME}')
+
+        # for nginx and gunicorn services, add test config and frontend config mapping
         if 'nginx' in service or 'gunicorn' in service:
             new_vol_list.append(
                 f'{current_dir}/test-config.yml:/var/www/green-metrics-tool/config.yml')
+
         compose['services'][service]['volumes'] = new_vol_list
 
-        # For postgresql, change password
+        # For postgresql, change port mapping and password
         if 'postgres' in service:
+            command = compose['services'][service]['command']
+            new_command = command.replace(str(BASE_DATABASE_PORT), str(TEST_DATABASE_PORT))
+            compose['services'][service]['command'] = new_command
+            compose['services'][service]['ports'] = TEST_DATABASE_PORT_MAPPING
+
             new_env = []
             for env in compose['services'][service]['environment']:
                 env = env.replace('PLEASE_CHANGE_THIS', DB_PW)
                 new_env.append(env)
             compose['services'][service]['environment'] = new_env
+
+        # For redis, change port mapping
+        if 'redis' in service:
+            command = compose['services'][service]['command']
+            new_command = f'{command} --port {TEST_REDIS_PORT}'
+            compose['services'][service]['command'] = new_command
+            compose['services'][service]['ports'] = TEST_REDIS_PORT_MAPPING
 
         # Edit service container name
         old_container_name = compose['services'][service]['container_name']
@@ -101,10 +137,35 @@ def create_test_config_file(ee=False):
         content = file.read()
 
     if ee:
-        print('Activating enterprise ...')
+        print('Activating enterprise in config.yml ...')
         content = content.replace('#ee_token:', 'ee_token:')
+        content = content.replace('activate_power_hog: False', 'activate_power_hog: True')
+        content = content.replace('activate_carbon_db: False', 'activate_carbon_db: True')
 
     with open('test-config.yml', 'w', encoding='utf-8') as file:
+        file.write(content)
+
+def create_frontend_config_file(ee=False):
+    print('Creating frontend test-config.js file...')
+
+    with open(base_frontend_config_path, 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    content = content.replace('__API_URL__', 'http://api.green-coding.internal:9143')
+    content = content.replace('__METRICS_URL__', 'http://metrics.green-coding.internal:9143')
+
+    content = re.sub(r'ACTIVATE_SCENARIO_RUNNER.*$', 'ACTIVATE_SCENARIO_RUNNER = true;', content, flags=re.MULTILINE)
+    content = re.sub(r'ACTIVATE_ECO_CI.*$', 'ACTIVATE_ECO_CI = true;', content, flags=re.MULTILINE)
+
+    if ee:
+        print(f'Activating enterprise in {TEST_FRONTEND_CONFIG_NAME} ...')
+        content = re.sub(r'ACTIVATE_CARBON_DB.*$', 'ACTIVATE_CARBON_DB = true;', content, flags=re.MULTILINE)
+        content = re.sub(r'ACTIVATE_POWER_HOG.*$', 'ACTIVATE_POWER_HOG = true;', content, flags=re.MULTILINE)
+    else:
+        content = re.sub(r'ACTIVATE_CARBON_DB.*$', 'ACTIVATE_CARBON_DB = false;', content, flags=re.MULTILINE)
+        content = re.sub(r'ACTIVATE_POWER_HOG.*$', 'ACTIVATE_POWER_HOG = false;', content, flags=re.MULTILINE)
+
+    with open(test_frontend_config_path, 'w', encoding='utf-8') as file:
         file.write(content)
 
 def edit_etc_hosts():
@@ -126,6 +187,7 @@ if __name__ == '__main__':
 
     copy_sql_structure(args.ee)
     create_test_config_file(args.ee)
+    create_frontend_config_file(args.ee)
     edit_compose_file()
     edit_etc_hosts()
     if not args.no_docker_build:

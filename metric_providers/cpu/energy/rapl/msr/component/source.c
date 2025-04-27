@@ -36,8 +36,10 @@
 #include <string.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
+#include <time.h>
 #include <limits.h>
-#include "parse_int.h"
+#include <stdbool.h>
+#include "gmt-lib.h"
 
 /* AMD Support */
 #define MSR_AMD_RAPL_POWER_UNIT            0xc0010299
@@ -168,6 +170,7 @@ static long long read_msr(int fd, unsigned int which) {
 // not pollute another threads state
 static unsigned int msr_rapl_units,msr_pkg_energy_status,msr_pp0_energy_status;
 static unsigned int msleep_time=1000;
+static struct timespec offset;
 
 static int detect_cpu(void) {
 
@@ -473,7 +476,9 @@ static void rapl_msr(int measurement_mode) {
             // The register can overflow at some point, leading to the subtraction giving an incorrect value (negative)
             // For now, skip reporting this value. in the future, we can use a branchless alternative
             if(energy_output>=0) {
-                gettimeofday(&now, NULL);
+
+                get_adjusted_time(&now, &offset);
+
                 if (measurement_mode == MEASURE_ENERGY_PKG) {
                     printf("%ld%06ld %lld Package_%d\n", now.tv_sec, now.tv_usec, (long long)(energy_output*1000000), k);
                 } else if (measurement_mode == MEASURE_DRAM) {
@@ -504,17 +509,18 @@ int main(int argc, char **argv) {
     int c;
     int cpu_model;
     int measurement_mode = MEASURE_ENERGY_PKG;
-    int check_system_flag = 0;
+    bool check_system_flag = false;
 
     while ((c = getopt (argc, argv, "hi:dcp")) != -1) {
         switch (c) {
         case 'h':
-            printf("Usage: %s [-h] [-m]\n\n",argv[0]);
+            printf("Usage: %s [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
             printf("\t-d      : measure the dram energy instead of the CPU package\n");
             printf("\t-p      : measure the psys energy instead of the CPU package\n");
             printf("\t-c      : check system and exit\n");
+            printf("\n");
             exit(0);
         case 'i':
             msleep_time = parse_int(optarg);
@@ -526,7 +532,7 @@ int main(int argc, char **argv) {
             measurement_mode=MEASURE_PSYS;
             break;
         case 'c':
-            check_system_flag = 1;
+            check_system_flag = true;
             break;
         default:
             fprintf(stderr,"Unknown option %c\n",c);
@@ -545,6 +551,8 @@ int main(int argc, char **argv) {
     if(check_system_flag){
         exit(check_system());
     }
+
+    get_time_offset(&offset);
 
     rapl_msr(measurement_mode);
 

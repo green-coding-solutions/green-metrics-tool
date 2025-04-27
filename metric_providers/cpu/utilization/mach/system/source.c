@@ -3,10 +3,15 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <time.h>
 #include <mach/mach.h>
 #include <mach/mach_host.h>
 #include <unistd.h>
-#include "parse_int.h"
+#include <stdbool.h>
+#include "gmt-lib.h"
+
+static struct timespec offset;
+
 
 void loop_utilization(unsigned int msleep_time) {
     processor_info_array_t cpuInfo = NULL, prevCpuInfo = NULL;
@@ -15,12 +20,10 @@ void loop_utilization(unsigned int msleep_time) {
     while(1){
         natural_t numCPUsU = 0U;
         kern_return_t err = host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &numCPUsU, &cpuInfo, &numCpuInfo);
+        struct timeval now;
 
         if (err == KERN_SUCCESS) {
-
             float ut_total = 0U;
-            struct timeval now;
-
             for (unsigned i = 0; i < numCPUsU; ++i) {
                 float inUse, total;
                 if (prevCpuInfo) {
@@ -35,7 +38,9 @@ void loop_utilization(unsigned int msleep_time) {
                 ut_total = ut_total + (inUse / total);
             }
 
-            gettimeofday(&now, NULL);
+            get_adjusted_time(&now, &offset);
+
+
             printf("%ld%06i %i\n", now.tv_sec, now.tv_usec, (int)( (ut_total / (float)numCPUsU)*100*100) );
 
             if (prevCpuInfo) {
@@ -90,7 +95,8 @@ int main(int argc, char **argv) {
             printf("Usage: %s [-i msleep_time] [-h]\n\n",argv[0]);
             printf("\t-h      : displays this help\n");
             printf("\t-i      : specifies the milliseconds sleep time that will be slept between measurements\n");
-            printf("\t-c      : check system and exit\n\n");
+            printf("\t-c      : check system and exit\n");
+            printf("\n");
             exit(0);
         case 'i':
             msleep_time = parse_int(optarg);
@@ -105,6 +111,8 @@ int main(int argc, char **argv) {
             exit(-1);
         }
     }
+
+    get_time_offset(&offset);
 
     loop_utilization(msleep_time);
 

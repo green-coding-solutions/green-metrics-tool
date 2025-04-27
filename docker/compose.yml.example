@@ -1,3 +1,5 @@
+name: green-metrics-tool
+
 services:
   green-coding-postgres:
     # No need to fix version anymore than major version here
@@ -69,6 +71,9 @@ services:
       - green-coding-redis-data:/data
     command: redis-server --save 60 1 --loglevel warning
     restart: always
+    ports:
+      - "127.0.0.1:6379:6379"  # Only accessible from localhost
+
 
 
 # Although it would help us very much performance-wise the
