@@ -3,8 +3,6 @@ import string
 import re
 from schema import Schema, SchemaError, Optional, Or, Use, And, Regex
 
-from lib import error_helpers
-
 # https://github.com/compose-spec/compose-spec/blob/master/spec.md
 
 class SchemaChecker():
@@ -152,19 +150,15 @@ class SchemaChecker():
             usage_scenario_schema.validate(usage_scenario)
         except SchemaError as e: # This block filters out the too long error message that include the parsing structure
 
-            autos_error_start = e.autos[0]
             error_message = e.autos
 
-            if len(e.autos) == 3:
-                error_message = f"{e.autos[0]} - {e.autos[2]}"
-                autos_error_start = e.autos[2]
-            elif len(e.autos) > 3:
-                error_helpers.log_error('Unexpected SchemaError length encountered', schema_error_length=len(e.autos), exception=e.autos)
+            if len(e.autos) >= 3:
+                error_message = e.autos[2:]
 
-            if autos_error_start.startswith('Wrong key'):
+            if 'Wrong key' in e.code:
                 raise SchemaError(f"Your compose file does contain a key that GMT does not support - Please check if the container will still run as intended: {error_message}") from e
 
-            raise SchemaError(e.autos) from e
+            raise SchemaError(error_message) from e
 
 
         # This check is necessary to do in a seperate pass. If tried to bake into the schema object above,
