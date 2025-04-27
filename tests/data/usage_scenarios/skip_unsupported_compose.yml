@@ -3,7 +3,7 @@ name: Container name invalid test
 author: Arne Tarara
 description: Container name invalid test
 
-skip-unsupported-compose: True
+ignore-unsupported-compose: True
 
 services:
   highload-api-cont:

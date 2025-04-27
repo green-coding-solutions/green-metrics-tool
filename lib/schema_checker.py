@@ -86,7 +86,7 @@ class SchemaChecker():
             "name": str,
             "author": And(str, Use(self.not_empty)),
             "description": And(str, Use(self.not_empty)),
-            Optional("ignore-extra-keys"): bool,
+            Optional("ignore-unsupported-compose"): bool,
             Optional("version"): str, # is part of compose. we ignore it
 
             Optional("networks"): Or(list, dict),
@@ -147,7 +147,7 @@ class SchemaChecker():
             }],
 
             Optional("compose-file"): Use(self.validate_compose_include)
-        }, ignore_extra_keys=bool(usage_scenario.get('skip-unsupported-compose', False)))
+        }, ignore_extra_keys=bool(usage_scenario.get('ignore-unsupported-compose', False)))
 
         # First we check the general structure. Otherwise we later cannot even iterate over it
         try:
