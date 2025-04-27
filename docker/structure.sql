@@ -196,6 +196,9 @@ CREATE TABLE runs (
     invalid_run text,
     failed boolean DEFAULT false,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    "group" text NOT NULL,
+    project text NOT NULL,
+    tags text[] NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone
 );
@@ -316,10 +319,10 @@ CREATE TABLE ci_measurements (
     carbon_ug bigint,
     ip_address INET,
     note text CHECK (length(note) <= 1024),
-    filter_type text NOT NULL,
-    filter_project text NOT NULL,
-    filter_machine text NOT NULL,
-    filter_tags text[] NOT NULL,
+    "group" text NOT NULL,
+    project text NOT NULL,
+    machine text NOT NULL,
+    tags text[] NOT NULL,
     user_id integer NOT NULL REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone

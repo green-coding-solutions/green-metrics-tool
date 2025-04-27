@@ -129,9 +129,18 @@ async def get_network(run_id, user: User = Depends(authenticate)):
     escaped_data = html_escape_multi(data)
     return ORJSONResponseObjKeep({'success': True, 'data': escaped_data})
 
-
 @router.get('/v1/repositories')
-async def get_repositories(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, sort_by: str = 'name', user: User = Depends(authenticate)):
+async def get_repositories(
+    uri: str | None = None,
+    branch: str | None = None,
+    machine_id: int | None = None,
+    machine: str | None = None,
+    filename: str | None = None,
+    group: str | None = None,
+    project: str | None = None,
+    tags: str | None = None,
+    sort_by: str = 'name',
+    auth_user: User = Depends(authenticate)):
     query = '''
             SELECT
                 r.uri,
@@ -145,24 +154,37 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
     params = [user.is_super_user(), user.visible_users()]
 
     if uri:
-        query = f"{query} AND r.uri LIKE %s  \n"
-        params.append(f"%{uri}%")
+        query = f"{query} AND r.uri = %s  \n"
+        params.append(uri)
 
     if branch:
-        query = f"{query} AND r.branch LIKE %s  \n"
-        params.append(f"%{branch}%")
+        query = f"{query} AND r.branch = %s  \n"
+        params.append(branch)
 
     if filename:
-        query = f"{query} AND r.filename LIKE %s  \n"
-        params.append(f"%{filename}%")
+        query = f"{query} AND r.filename = %s  \n"
+        params.append(filename)
 
     if machine_id and check_int_field_api(machine_id, 'machine_id', 1024):
         query = f"{query} AND m.id = %s \n"
         params.append(machine_id)
 
     if machine:
-        query = f"{query} AND m.description LIKE %s \n"
-        params.append(f"%{machine}%")
+        query = f"{query} AND m.description = %s \n"
+        params.append(machine)
+
+    if category:
+        query = f"{query} AND r.category = %s \n"
+        params.append(category)
+
+    if project:
+        query = f"{query} AND r.project = %s \n"
+        params.append(project)
+
+    if tags:
+        tags_splitted = tags.split()
+        query = f"{query} AND r.tags && %s::text[] \n"
+        params.append(tags_splitted)
 
     query = f"{query} GROUP BY r.uri\n"
 
