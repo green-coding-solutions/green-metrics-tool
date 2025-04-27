@@ -88,6 +88,7 @@ class SchemaChecker():
             "description": And(str, Use(self.not_empty)),
             Optional("ignore-unsupported-compose"): bool,
             Optional("version"): str, # is part of compose. we ignore it
+            Optional("architecture"): And(str, Use(self.not_empty)),
 
             Optional("networks"): Or(list, dict),
 
