@@ -11,9 +11,9 @@ services:
     build:
       context: ../stress-application
     setup-commands:
-      - echo hello world
-      - ps -a
-      - echo goodbye world
+      - command: echo hello world
+      - command: ps -a
+      - command: echo goodbye world
 
 flow:
   - name: Stress

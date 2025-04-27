@@ -87,6 +87,7 @@ class SchemaChecker():
             "author": And(str, Use(self.not_empty)),
             "description": And(str, Use(self.not_empty)),
             Optional("ignore-extra-keys"): bool,
+            Optional("version"): str, # is part of compose. we ignore it
 
             Optional("networks"): Or(list, dict),
 
