@@ -87,13 +87,14 @@ class SchemaChecker():
             "author": And(str, Use(self.not_empty)),
             "description": And(str, Use(self.not_empty)),
             Optional("ignore-unsupported-compose"): bool,
-            Optional("version"): str, # is part of compose. we ignore it
+            Optional("version"): str, # is part of compose. we ignore it as it is non functionaly anyway
             Optional("architecture"): And(str, Use(self.not_empty)),
 
             Optional("networks"): Or(list, dict),
 
             Optional("services"): {
                 Use(self.contains_no_invalid_chars): {
+                    Optional("expose"): [str], # is part of compose. we ignore it as it is non functionaly anyway
                     Optional("init"): bool,
                     Optional("type"): Use(self.valid_service_types),
                     Optional("image"): And(str, Use(self.not_empty)),
