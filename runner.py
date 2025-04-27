@@ -1097,14 +1097,12 @@ class Runner:
 
             print('Stdout:', container_id)
 
-            if 'setup-commands' not in service:
-                continue  # setup commands are optional
             print('Running commands')
-            for cmd in service['setup-commands']:
-                if shell := service.get('shell', False):
-                    d_command = ['docker', 'exec', container_name, shell, '-c', cmd] # This must be a list!
+            for cmd in service.get('setup-commands', []):
+                if shell := cmd.get('shell', False):
+                    d_command = ['docker', 'exec', container_name, shell, '-c', cmd['command']] # This must be a list!
                 else:
-                    d_command = ['docker', 'exec', container_name, *shlex.split(cmd)] # This must be a list!
+                    d_command = ['docker', 'exec', container_name, *shlex.split(cmd['command'])] # This must be a list!
 
                 print('Running command: ', ' '.join(d_command))
 
