@@ -21,7 +21,7 @@ from lib import error_helpers
 from lib.configuration_check_error import ConfigurationCheckError, Status
 
 # We currently have this dynamically as it will probably change quite a bit
-STATUS_LIST = ['cooldown', 'warmup', 'job_no', 'job_start', 'job_error', 'job_end', 'cleanup_start', 'cleanup_end', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
+STATUS_LIST = ['cooldown', 'warmup', 'job_no', 'job_start', 'job_error', 'job_end', 'maintenance_start', 'maintenance_end', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def set_status(status_code, cur_temp, cooldown_time_after_job, data=None, run_id=None):
@@ -58,17 +58,17 @@ def set_status(status_code, cur_temp, cooldown_time_after_job, data=None, run_id
     )
     DB().query(query=query, params=params)
 
-def do_cleanup(cur_temp, cooldown_time_after_job):
-    set_status('cleanup_start', cur_temp, cooldown_time_after_job)
+def do_maintenance(cur_temp, cooldown_time_after_job):
+    set_status('maintenance_start', cur_temp, cooldown_time_after_job)
 
-    result = subprocess.run(['sudo',
-                             os.path.join(os.path.dirname(os.path.abspath(__file__)),'../tools/cluster/cleanup.sh')],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            check=True,)
+    result = subprocess.check_output(['sudo', os.path.join(os.path.dirname(os.path.abspath(__file__)),'../tools/cluster/cleanup.py')], encoding='UTF-8')
 
-    set_status('cleanup_end', cur_temp, cooldown_time_after_job, data=f"stdout: {result.stdout}, stderr: {result.stderr}")
+    set_status('maintenance_end', cur_temp, cooldown_time_after_job, data=result)
 
+    if '<<<< NO PACKAGES UPDATED - NO NEED TO RUN VALIDATION WORKLOAD >>>>' not in result:
+        return True # must run validation workload again. New packages installed
+
+    return None
 
 if __name__ == '__main__':
     try:
@@ -93,8 +93,14 @@ if __name__ == '__main__':
         last_cooldown_time = 0
         current_temperature = -1
         temperature_errors = 0
+        must_revalidated_bc_new_packages = False
 
         while True:
+
+            # run periodic cleanup in between every run
+            if not args.testing:
+                must_revalidated_bc_new_packages = do_maintenance(current_temperature, last_cooldown_time) # when new packages are installed, we must revalidate
+
             job = Job.get_job('run')
             if job and job.check_job_running():
                 error_helpers.log_error('Job is still running. This is usually an error case! Continuing for now ...', machine=config_main['machine']['description'])
@@ -134,7 +140,8 @@ if __name__ == '__main__':
                 last_cooldown_time = cooldown_time
                 cooldown_time = 0
 
-            if not args.testing and validate.is_validation_needed(config_main['machine']['id'], client_main['time_between_control_workload_validations']):
+
+            if not args.testing and (must_revalidated_bc_new_packages or validate.is_validation_needed(config_main['machine']['id'], client_main['time_between_control_workload_validations'])):
                 set_status('measurement_control_start', current_temperature, last_cooldown_time)
                 validate.run_workload(cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
                 set_status('measurement_control_end', current_temperature, last_cooldown_time)
@@ -152,6 +159,7 @@ if __name__ == '__main__':
                             name=f"{config_main['machine']['description']} is operating normally. All STDDEV fine.",
                             message='\n'.join(message)
                         )
+                    must_revalidated_bc_new_packages = False # reset after run
                 except Exception as exception: # pylint: disable=broad-except
                     validate.handle_validate_exception(exception)
                     set_status('measurement_control_error', current_temperature, last_cooldown_time)
@@ -160,8 +168,6 @@ if __name__ == '__main__':
                     # endlessly in validation until manually handled, which is what we want.
                     if not args.testing:
                         time.sleep(client_main['time_between_control_workload_validations'])
-                finally:
-                    do_cleanup(current_temperature, last_cooldown_time)
 
             elif job:
                 set_status('job_start', current_temperature, last_cooldown_time, run_id=job._run_id)
@@ -185,14 +191,12 @@ if __name__ == '__main__':
                 except Exception as exc: # pylint: disable=broad-except
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
                     error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, previous_exception=exc.__context__, run_id=job._run_id, machine=config_main['machine']['description'], name=job._name, url=job._url)
-                finally:
-                    if not args.testing:
-                        do_cleanup(current_temperature, last_cooldown_time)
 
             else:
-                do_cleanup(current_temperature, last_cooldown_time)
                 set_status('job_no', current_temperature, last_cooldown_time)
                 if client_main['shutdown_on_job_no'] is True:
+                    subprocess.check_output(['sync'])
+                    time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
                     subprocess.check_output(['sudo', 'systemctl', 'suspend'])
                 if not args.testing:
                     time.sleep(client_main['sleep_time_no_job'])
