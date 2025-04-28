@@ -1,0 +1,24 @@
+---
+name: Test Stress
+author: Dan Mateas
+description: test
+
+sci:
+  R_d: Cool run
+
+services:
+  test-container:
+    type: container
+    image: gcb_stress
+    build:
+      context: ../stress-application
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        shell: sh
+        command: stress-ng -c 1 -t 1 -q; echo GMT_SCI_R=100
+        log-stdout: True
+        read-sci-stdout: True
