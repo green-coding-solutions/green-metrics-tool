@@ -165,7 +165,7 @@ class SchemaChecker():
                 error_message = e.autos[2:]
 
             if 'Wrong key' in e.code:
-                raise SchemaError(f"Your compose file does contain a key that GMT does not support - Please check if the container will still run as intended: {error_message}") from e
+                raise SchemaError(f"Your compose file does contain a key that GMT does not support - Please check if the container will still run as intended. If you want to ignore this error you can add the attribute `ignore-unsupported-compose: true` to your usage_scenario.yml\nError: {error_message}") from e
 
             raise SchemaError(error_message) from e
 
