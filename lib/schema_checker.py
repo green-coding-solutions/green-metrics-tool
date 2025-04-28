@@ -97,7 +97,7 @@ class SchemaChecker():
 
             Optional("services"): {
                 Use(self.contains_no_invalid_chars): {
-                    Optional("expose"): [str], # is part of compose. we ignore it as it is non functionaly anyway
+                    Optional("expose"): [str, int], # is part of compose. we ignore it as it is non functionaly anyway
                     Optional("init"): bool,
                     Optional("type"): Use(self.valid_service_types),
                     Optional("image"): And(str, Use(self.not_empty)),
