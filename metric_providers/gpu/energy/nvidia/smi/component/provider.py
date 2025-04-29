@@ -2,10 +2,10 @@ import os
 
 from metric_providers.base import BaseMetricProvider
 
-class GpuEnergyNvidiaSmiComponentProvider(BaseMetricProvider):
+class GpuEnergyNvidiaNvmlComponentProvider(BaseMetricProvider):
     def __init__(self, resolution, skip_check=False):
         super().__init__(
-            metric_name='gpu_energy_nvidia_smi_component',
+            metric_name='gpu_energy_nvidia_nvml_component',
             metrics={'time': int, 'value': int, 'card_model': str},
             resolution=resolution,
             unit='uJ',
@@ -25,7 +25,7 @@ class GpuEnergyNvidiaSmiComponentProvider(BaseMetricProvider):
         WITH times as (
                     SELECT id, value, detail_name, time, (time - LAG(time) OVER (ORDER BY detail_name ASC, time ASC)) AS diff, unit
                     FROM measurements
-                    WHERE run_id = RUN_ID AND metric = 'gpu_energy_nvidia_smi_component'
+                    WHERE run_id = RUN_ID AND metric = 'gpu_energy_nvidia_nvml_component'
 
                     ORDER BY detail_name ASC, time ASC)
                     SELECT *, value / (diff / 1000) as power FROM times;
