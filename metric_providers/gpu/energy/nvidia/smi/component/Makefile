@@ -1,4 +1,5 @@
-CFLAGS = -O3 -Wall -Werror -lc -I../../../../../../lib/c -lnvidia-ml
+CFLAGS  = -O3 -Wall -Werror -I../../../../../../lib/c
+LDFLAGS = -L../../../../../../lib/c -lnvidia-ml -lc
 
 metric-provider-binary: source.c
-	gcc ../../../../../../lib/c/gmt-lib.o $< $(CFLAGS) -o $@
+	gcc $(CFLAGS) ../../../../../../lib/c/gmt-lib.o $< $(LDFLAGS) -o $@
