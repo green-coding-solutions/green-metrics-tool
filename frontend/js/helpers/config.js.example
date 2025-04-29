@@ -400,15 +400,15 @@ METRIC_MAPPINGS = {
         "source": "formula",
         "explanation": "Network total data traffic for the whole accumulated from procfs data"
     },
-    "gpu_energy_nvidia_smi_component": {
+    "gpu_energy_nvidia_nvml_component": {
         "clean_name": "GPU Energy",
-        "source": "NVIDIA SMI",
-        "explanation": "Derived NVIDIA SMI based GPU energy"
+        "source": "NVIDIA NVML",
+        "explanation": "Derived NVIDIA NVML based GPU energy"
     },
-    "gpu_power_nvidia_smi_component": {
+    "gpu_power_nvidia_nvml_component": {
         "clean_name": "GPU Power",
-        "source": "NVIDIA SMI",
-        "explanation": "NVIDIA SMI based GPU power"
+        "source": "NVIDIA NVML",
+        "explanation": "NVIDIA NVML based GPU power"
     },
     "cpu_energy_rapl_msr_component": {
         "clean_name": "CPU Energy (Package)",
