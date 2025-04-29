@@ -6,20 +6,16 @@ class GpuEnergyNvidiaSmiComponentProvider(BaseMetricProvider):
     def __init__(self, resolution, skip_check=False):
         super().__init__(
             metric_name='gpu_energy_nvidia_smi_component',
-            metrics={'time': int, 'value': int},
+            metrics={'time': int, 'value': int, 'card_model': str},
             resolution=resolution,
             unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
-            metric_provider_executable='metric-provider-nvidia-smi-wrapper.sh',
             skip_check=skip_check,
         )
 
-
-    def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
-        super().check_system(check_command=['which', 'nvidia-smi'], check_error_message="nvidia-smi is not installed on the system")
-
     def _parse_metrics(self, df):
         df = super()._parse_metrics(df) # sets detail_name
+        df['detail_name'] = df.card_model
 
         '''
         Conversion to Joules
