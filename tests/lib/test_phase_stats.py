@@ -1,12 +1,15 @@
 import os
+import io
 
 GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))+'/../../'
 
 import pytest
+from contextlib import redirect_stdout, redirect_stderr
 
 from tests import test_functions as Tests
 from lib.db import DB
 from lib.phase_stats import build_and_store_phase_stats
+from runner import Runner
 
 MICROJOULES_TO_KWH = 1/(3_600*1_000_000_000)
 
@@ -275,3 +278,19 @@ def test_phase_stats_single_network_procfs():
     assert data[5]['sampling_rate_max'] == 105930, 'MAX sampling rate not in expected range'
     assert data[5]['sampling_rate_95p'] == 100477, '95p sampling rate not in expected range'
     assert isinstance(data[5]['sampling_rate_95p'], int)
+
+
+def test_sci():
+    runner = Runner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_sci.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False)
+
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        run_id = runner.run()
+
+    data = DB().fetch_all("SELECT value, unit FROM phase_stats WHERE phase = %s AND run_id = %s AND metric = 'software_carbon_intensity_global' ", params=('004_[RUNTIME]', run_id), fetch_mode='dict')
+
+
+    assert len(data) == 1
+    assert 50 < data[0]['value'] < 70
+    assert data[0]['unit'] == 'ugCO2e/Cool run'

@@ -44,7 +44,6 @@ def get_env_vars():
     env_var_output = ps.stdout
     return env_var_output
 
-# Test allowed characters
 def test_env_variable_allowed_characters():
 
     runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/env_vars_stress_allowed.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
@@ -184,6 +183,19 @@ def test_context_include_escape():
     assert str(e.value).startswith('../../../../../../ must not be in folder above root repo folder') , \
         Tests.assertion_info('Root directory escape', str(e.value))
 
+def test_unsupported_compose():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/unsupported_compose.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+
+    with pytest.raises(SchemaError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+    assert str(e.value) == 'Your compose file does contain a key that GMT does not support - Please check if the container will still run as intended. If you want to ignore this error you can add the attribute `ignore-unsupported-compose: true` to your usage_scenario.yml\nError: ["Wrong key \'blkio_config\' in {\'image\': \'alpine\', \'blkio_config\': {\'weight\': 300}}"]'
+
+def test_skip_unsupported_compose():
+    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/skip_unsupported_compose.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('import_metric_providers')
 
 # setup-commands: [array] (optional)
 # Array of commands to be run before actual load testing.

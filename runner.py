@@ -868,10 +868,10 @@ class Runner:
 
             if 'docker-run-args' in service:
                 for arg in service['docker-run-args']:
-                    if any(re.fullmatch(allow_item, arg) for allow_item in self._allowed_run_args):
+                    if self._allow_unsafe or any(re.fullmatch(allow_item, arg) for allow_item in self._allowed_run_args):
                         docker_run_string.extend(shlex.split(arg))
                     else:
-                        raise RuntimeError(f"Argument '{arg}' is not allowed in the docker-run-args list. Please check the capabilities of the user.")
+                        raise RuntimeError(f"Argument '{arg}' is not allowed in the docker-run-args list. Please check the capabilities of the user or if running locally consider --allow-unsafe")
 
 
             if 'environment' in service:
@@ -1097,14 +1097,12 @@ class Runner:
 
             print('Stdout:', container_id)
 
-            if 'setup-commands' not in service:
-                continue  # setup commands are optional
             print('Running commands')
-            for cmd in service['setup-commands']:
-                if shell := service.get('shell', False):
-                    d_command = ['docker', 'exec', container_name, shell, '-c', cmd] # This must be a list!
+            for cmd in service.get('setup-commands', []):
+                if shell := cmd.get('shell', False):
+                    d_command = ['docker', 'exec', container_name, shell, '-c', cmd['command']] # This must be a list!
                 else:
-                    d_command = ['docker', 'exec', container_name, *shlex.split(cmd)] # This must be a list!
+                    d_command = ['docker', 'exec', container_name, *shlex.split(cmd['command'])] # This must be a list!
 
                 print('Running command: ', ' '.join(d_command))
 

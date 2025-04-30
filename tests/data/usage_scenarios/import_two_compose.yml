@@ -2,4 +2,4 @@ services:
   my-database:
     some-key: 'something'
     setup-commands:
-      - this should be overwritten with the cp string. This allows us to modify things in the imported file.
+      - command: this should be overwritten with the cp string. This allows us to modify things in the imported file.
