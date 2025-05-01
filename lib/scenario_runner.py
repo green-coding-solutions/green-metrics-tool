@@ -47,8 +47,8 @@ def arrows(text):
 
 def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables):
     for var in usage_scenario_variables:
-        if not re.fullmatch(r'__[\w]+__=.+', var):
-            raise ValueError("Usage Scenario variable is not in __[\\w]+__=.+ format: {key}. Must be like __MY_VAR__=xxx ")
+        if not re.fullmatch(r'__GMT_VAR_[\w]+__=.+', var):
+            raise ValueError("Usage Scenario variable is not in __GMT_VAR_[\\w]+__=.+ format: {key}. Must be like __GMT_VAR_EXAMPLE__=xxx ")
         key, value = var.split('=', maxsplit=1)
         usage_scenario = usage_scenario.replace(key, value)
 
