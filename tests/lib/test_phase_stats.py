@@ -9,7 +9,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from tests import test_functions as Tests
 from lib.db import DB
 from lib.phase_stats import build_and_store_phase_stats
-from runner import Runner
+from lib.scenario_runner import ScenarioRunner
 
 MICROJOULES_TO_KWH = 1/(3_600*1_000_000_000)
 
@@ -281,7 +281,7 @@ def test_phase_stats_single_network_procfs():
 
 
 def test_sci():
-    runner = Runner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_sci.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False)
+    runner = ScenarioRunner(uri=GMT_ROOT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_sci.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=False)
 
     out = io.StringIO()
     err = io.StringIO()
