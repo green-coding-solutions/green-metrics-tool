@@ -51,12 +51,14 @@ async def get_machines(
 async def get_jobs(
     machine_id: int | None = None,
     state: str | None = None,
+    job_id: int | None = None,
     user: User = Depends(authenticate), # pylint: disable=unused-argument
     ):
 
     params = [user.is_super_user(), user.visible_users()]
     machine_id_condition = ''
     state_condition = ''
+    job_id_condition = ''
 
     if machine_id and check_int_field_api(machine_id, 'machine_id', 1024):
         machine_id_condition = 'AND j.machine_id = %s'
@@ -65,6 +67,11 @@ async def get_jobs(
     if state is not None and state != '':
         state_condition = 'AND j.state = %s'
         params.append(state)
+
+    if job_id is not None:
+        job_id_condition = 'AND j.id = %s'
+        params.append(job_id)
+
 
     query = f"""
         SELECT j.id, r.id as run_id, j.name, j.url, j.filename, j.branch, m.description, j.state, j.updated_at, j.created_at
@@ -76,6 +83,7 @@ async def get_jobs(
             AND j.type = 'run'
             {machine_id_condition}
             {state_condition}
+            {job_id_condition}
         ORDER BY j.updated_at DESC, j.created_at ASC
     """
     data = DB().fetch_all(query, params)
@@ -653,16 +661,18 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
 
         Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
 
+    job_ids_inserted = []
+
     # even for Watchlist items we do at least one run directly
     amount = 3 if 'variance' in software.schedule_mode else 1
     for _ in range(0,amount):
-        Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id)
+        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id))
 
     # notify admin of new add
     if notification_email := GlobalConfig().config['admin']['notification_email']:
         Job.insert('email', user_id=user._id, name='New run added from Web Interface', message=str(software), email=notification_email)
 
-    return ORJSONResponse({'success': True}, status_code=202)
+    return ORJSONResponse({'success': True, 'data': job_ids_inserted}, status_code=202)
 
 
 @router.get('/v1/run/{run_id}')
