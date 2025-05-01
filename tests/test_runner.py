@@ -5,7 +5,7 @@ import re
 import os
 import platform
 
-from runner import Runner
+from lib.scenario_runner import ScenarioRunner
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.system_checks import ConfigurationCheckError
@@ -22,7 +22,7 @@ test_data = [
 def test_check_system(skip_system_checks, config_file, expectation):
 
     GlobalConfig().override_config(config_location=config_file)
-    runner = Runner(uri="not_relevant", uri_type="folder", skip_system_checks=skip_system_checks)
+    runner = ScenarioRunner(uri="not_relevant", uri_type="folder", skip_system_checks=skip_system_checks)
 
     try:
         with expectation:
@@ -31,8 +31,8 @@ def test_check_system(skip_system_checks, config_file, expectation):
         GlobalConfig().override_config(config_location=f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml") # reset, just in case. although done by fixture
 
 def test_reporters_still_running():
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False)
-    runner2 = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False)
+    runner2 = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False)
 
 
     with Tests.RunUntilManager(runner) as context:
@@ -51,7 +51,7 @@ def test_reporters_still_running():
 def test_runner_can_use_different_user():
     USER_ID = 758932
     Tests.insert_user(USER_ID, "My bad password")
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, user_id=USER_ID)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, user_id=USER_ID)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -60,7 +60,7 @@ def test_runner_can_use_different_user():
 
 def test_runner_run_invalidated():
 
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True)
 
     run_id = runner.run()
 

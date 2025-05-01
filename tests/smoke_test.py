@@ -13,7 +13,7 @@ from lib.db import DB
 from lib import utils
 from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
-from runner import Runner
+from lib.scenario_runner import ScenarioRunner
 
 run_stderr = None
 run_stdout = None
@@ -38,7 +38,7 @@ def setup_module(module):
         subprocess.run(['docker', 'compose', '-f', GMT_DIR+folder+'compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = Runner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_cache_build=False, dev_no_sleeps=False, dev_no_metrics=False, skip_system_checks=False)
+        runner = ScenarioRunner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_cache_build=False, dev_no_sleeps=False, dev_no_metrics=False, skip_system_checks=False)
         runner.run()
 
     #pylint: disable=global-statement
