@@ -45,6 +45,18 @@ from lib import metric_importer
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
 
+def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables):
+    for var in usage_scenario_variables:
+        if not re.fullmatch(r'__[\w]+__=.+', var):
+            raise ValueError("Usage Scenario variable is not in __[\\w]+__=.+ format: {key}. Must be like __MY_VAR__=xxx ")
+        key, value = var.split('=', maxsplit=1)
+        usage_scenario = usage_scenario.replace(key, value)
+
+    if matches := re.findall(r'__GMT_VAR_\w+__', usage_scenario):
+        raise RuntimeError(f"Unreplaced variables are still in usage_scenario: {matches}")
+
+    return usage_scenario
+
 class ScenarioRunner:
     def __init__(self,
         *, uri, uri_type, name=None, filename='usage_scenario.yml', branch=None,
@@ -53,7 +65,7 @@ class ScenarioRunner:
         dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
         user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, disabled_metric_providers=None, allowed_run_args=None, dev_no_phase_stats=False,
-        skip_volume_inspect=False, commit_hash_folder=''):
+        skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -83,6 +95,7 @@ class ScenarioRunner:
         self._branch = branch
         self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
         self._usage_scenario = {}
+        self._usage_scenario_variables = usage_scenario_variables if usage_scenario_variables else []
         self._architecture = utils.get_architecture()
 
         self._sci = {'R_d': None, 'R': 0}
@@ -94,7 +107,7 @@ class ScenarioRunner:
         self._run_id = None
         self._commit_hash = None
         self._commit_timestamp = None
-        self._commit_hash_folder = commit_hash_folder
+        self._commit_hash_folder = commit_hash_folder if commit_hash_folder else ''
         self._user_id = user_id
         self._measurement_flow_process_duration = measurement_flow_process_duration
         self._measurement_total_duration = measurement_total_duration
@@ -264,6 +277,8 @@ class ScenarioRunner:
         # running in CLI mode
         self._commit_hash, self._commit_timestamp = get_repo_info(self.join_paths(self._repo_folder, self._commit_hash_folder))
 
+
+
     # This method loads the yml file and takes care that the includes work and are secure.
     # It uses the tagging infrastructure provided by https://pyyaml.org/wiki/PyYAMLDocumentation
     # Inspiration from https://github.com/tanbro/pyyaml-include which we can't use as it doesn't
@@ -271,12 +286,9 @@ class ScenarioRunner:
     def load_yml_file(self):
         #pylint: disable=too-many-ancestors
         runner_join_paths = self.join_paths
-        class Loader(yaml.SafeLoader):
-            def __init__(self, stream):
-                # We need to find our own root as the Loader is instantiated in PyYaml
-                self._root = os.path.split(stream.name)[0]
-                super().__init__(stream)
+        usage_scenario_file = self.join_paths(self._repo_folder, self._original_filename)
 
+        class Loader(yaml.SafeLoader):
             def include(self, node):
                 # We allow two types of includes
                 # !include <filename> => ScalarNode
@@ -289,7 +301,8 @@ class ScenarioRunner:
                 else:
                     raise ValueError("We don't support Mapping Nodes to date")
                 try:
-                    filename = runner_join_paths(self._root, nodes[0], force_path_as_root=True)
+                    usage_scenario_dir = os.path.split(usage_scenario_file)[0]
+                    filename = runner_join_paths(usage_scenario_dir, nodes[0], force_path_as_root=True)
                 except RuntimeError as exc:
                     raise ValueError(f"Included compose file \"{nodes[0]}\" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore") from exc
 
@@ -312,7 +325,6 @@ class ScenarioRunner:
 
         Loader.add_constructor('!include', Loader.include)
 
-        usage_scenario_file = self.join_paths(self._repo_folder, self._original_filename)
 
         # We set the working folder now to the actual location of the usage_scenario
         if '/' in self._original_filename:
@@ -322,9 +334,12 @@ class ScenarioRunner:
             print("Working folder changed to ", self.__working_folder)
 
 
-        with open(usage_scenario_file, 'r', encoding='utf-8') as fp:
+        with open(usage_scenario_file, 'r', encoding='utf-8') as f:
+            usage_scenario = f.read()
+            usage_scenario = replace_usage_scenario_variables(usage_scenario, self._usage_scenario_variables)
+
             # We can use load here as the Loader extends SafeLoader
-            yml_obj = yaml.load(fp, Loader)
+            yml_obj = yaml.load(usage_scenario, Loader)
             # Now that we have parsed the yml file we need to check for the special case in which we have a
             # compose-file key. In this case we merge the data we find under this key but overwrite it with
             # the data from the including file.
@@ -363,8 +378,6 @@ class ScenarioRunner:
             self._usage_scenario = yml_obj
 
     def initial_parse(self):
-
-        self.load_yml_file()
 
         schema_checker = SchemaChecker(validate_compose_flag=True)
         schema_checker.check_usage_scenario(self._usage_scenario)
@@ -1681,6 +1694,7 @@ class ScenarioRunner:
             self.check_system('start')
             self.initialize_folder(self._tmp_folder)
             self.checkout_repository()
+            self.load_yml_file()
             self.initial_parse()
             self.register_machine_id()
             self.import_metric_providers()

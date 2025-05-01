@@ -30,6 +30,6 @@ flow:
     container: gcb-ai-model
     commands:
       - type: console
-        command: ollama run gemma3:1b "__GMT_PLACEHOLDER_PROMPT__"
+        command: ollama run gemma3:1b "__GMT_VAR_PROMPT__"
         read-notes-stdout: true
         log-stdout: true

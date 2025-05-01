@@ -21,30 +21,19 @@ from lib.terminal_colors import TerminalColors
 from lib.db import DB
 from lib.global_config import GlobalConfig
 
-def create_and_replace_tmp_usage_scenario(folder, placeholder, content):
-    with open(f"templates/{folder}/usage_scenario.yml", mode='r', encoding='utf-8') as f:
-        usage_scenario = f.read()
-        data = usage_scenario.replace(placeholder, content)
-    usage_scenario_tmp = f"templates/{folder}/usage_scenario.yml.tmp"
-    with open(usage_scenario_tmp, mode='w+', encoding='utf-8') as f:
-        f.write(data)
-
-    return usage_scenario_tmp
-
 if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', choices=['run', 'website', 'ai'], nargs='?', default="run", help="Choose the mode - 'run' does a normal ScenarioRunner run where you can define --uri etc., 'website' quick measures a URL and 'ai' quickly measures a prompt")
 
     parser.add_argument('--name', type=str, help='A name which will be stored to the database to discern this run from others')
 
     parser.add_argument('--uri', type=str, help='The URI to get the usage_scenario.yml from. Can be either a local directory starting  with / or a remote git repository starting with http(s)://')
     parser.add_argument('--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
-    parser.add_argument('--filename', type=str, help='An optional alternative filename if you do not want to use "usage_scenario.yml"')
+    parser.add_argument('--filename', type=str, default='usage_scenario.yml', help='An optional alternative filename if you do not want to use "usage_scenario.yml"')
 
-    parser.add_argument('--page', type=str, help='The URL to do a quick measurement of a website for (uses Firefox headless browser)')
-    parser.add_argument('--prompt', type=str, help='The prompt to do a quick measurement of (uses gemma3:1b)')
+    parser.add_argument('--variables', nargs='+', help='Variables that will be replaced into the usage_scenario.yml file')
+    parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
 
     parser.add_argument('--user-id', type=int, default=1, help='A user-ID the run shall be mapped to. Defaults to 1 (the default user)')
     parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
@@ -68,69 +57,25 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.mode == 'website':
+    if args.uri is None:
+        parser.print_help()
+        error_helpers.log_error('Please supply --uri to get usage_scenario.yml from')
+        sys.exit(1)
 
-        if not args.page:
-            parser.print_help()
-            error_helpers.log_error('Please supply --page for quick measurement website mode to work')
-            sys.exit(1)
-
-        if not args.page.startswith(('http://', 'https://')):
-            print(TerminalColors.OKBLUE, 'Page hat no scheme. Adding https://', TerminalColors.ENDC)
-            args.page = f"https://{args.page}"
-
-        if args.filename or args.branch:
-            parser.print_help()
-            error_helpers.log_error('--branch or --filename are not allowed in website mode. Please remove or use run mode with a repository')
-            sys.exit(1)
-
-        args.filename = create_and_replace_tmp_usage_scenario('website', '__GMT_PLACEHOLDER_WEBSITE__', args.page)
-        args.uri = GMT_ROOT_DIR
+    if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://':
+        print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', args.uri, TerminalColors.ENDC)
+        run_type = 'URL'
+    elif args.uri[0:1] == '/':
+        print(TerminalColors.OKBLUE, '\nDetected supplied folder: ', args.uri, TerminalColors. ENDC)
         run_type = 'folder'
-        commit_hash_folder = 'templates/website/'
-
-    elif args.mode == 'ai':
-        if not args.prompt:
+        if not Path(args.uri).is_dir():
             parser.print_help()
-            error_helpers.log_error('Please supply --prompt for quick measurement ai mode to work ')
+            error_helpers.log_error('Could not find folder on local system. Please double check: ', uri=args.uri)
             sys.exit(1)
-
-        if args.filename or args.branch:
-            parser.print_help()
-            error_helpers.log_error('--branch or --filename are not allowed in ai mode. Please remove or use run mode with a repository')
-            sys.exit(1)
-
-        args.filename = create_and_replace_tmp_usage_scenario('ai', '__GMT_PLACEHOLDER_PROMPT__', args.prompt)
-        args.uri = GMT_ROOT_DIR
-        run_type = 'folder'
-        commit_hash_folder = 'templates/ai/'
-
-
     else:
-        commit_hash_folder = GMT_ROOT_DIR
-
-        if not args.filename:
-            args.filename = 'usage_scenario.yml' # we do not want to use ArgumentParser default switch as we need to know if it was supplied for quick measurement overload check
-
-        if args.uri is None:
-            parser.print_help()
-            error_helpers.log_error('Please supply --uri to get usage_scenario.yml from')
-            sys.exit(1)
-
-        if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://':
-            print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', args.uri, TerminalColors.ENDC)
-            run_type = 'URL'
-        elif args.uri[0:1] == '/':
-            print(TerminalColors.OKBLUE, '\nDetected supplied folder: ', args.uri, TerminalColors. ENDC)
-            run_type = 'folder'
-            if not Path(args.uri).is_dir():
-                parser.print_help()
-                error_helpers.log_error('Could not find folder on local system. Please double check: ', uri=args.uri)
-                sys.exit(1)
-        else:
-            parser.print_help()
-            error_helpers.log_error('Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ', uri=args.uri)
-            sys.exit(1)
+        parser.print_help()
+        error_helpers.log_error('Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ', uri=args.uri)
+        sys.exit(1)
 
     if args.allow_unsafe and args.skip_unsafe:
         parser.print_help()
@@ -162,7 +107,7 @@ if __name__ == '__main__':
                     dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics,
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
                     docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
-                    skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=commit_hash_folder)
+                    skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder, usage_scenario_variables=args.variables)
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except

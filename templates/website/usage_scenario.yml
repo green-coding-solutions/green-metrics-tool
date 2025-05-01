@@ -1,7 +1,7 @@
 ---
-name: The Guardian Website Test
+name: Website Test (__GMT_VAR_PAGE__)
 author: Arne Tarara <arne@green-coding.io>
-description: Opens __GMT_PLACEHOLDER_WEBSITE__, waits for full load
+description: Opens __GMT_VAR_PAGE__, waits for full load
 
 sci:
   R_d: Website load
@@ -31,7 +31,7 @@ flow:
     container: gcb-playwright
     commands:
       - type: console
-        command: sleep 2
+        command: sleep __GMT_VAR_SLEEP_1__
         read-notes-stdout: true
         log-stdout: true
         log-stderr: true
@@ -42,7 +42,7 @@ flow:
     commands:
       - type: console
         shell: bash
-        command: echo "__GMT_PLACEHOLDER_WEBSITE__" > /tmp/my_fifo
+        command: echo "__GMT_VAR_PAGE__" > /tmp/my_fifo
         read-notes-stdout: true
         log-stdout: true
         log-stderr: true
@@ -52,7 +52,7 @@ flow:
     commands:
       - type: console
         shell: bash
-        command: echo "__GMT_PLACEHOLDER_WEBSITE__" > /tmp/my_fifo && sleep 60
+        command: echo "__GMT_VAR_PAGE__" > /tmp/my_fifo && sleep __GMT_VAR_SLEEP_2__
         read-notes-stdout: true
         log-stdout: true
         log-stderr: true
@@ -62,7 +62,7 @@ flow:
     commands:
       - type: console
         shell: bash
-        command: echo "__GMT_PLACEHOLDER_WEBSITE__" > /tmp/my_fifo
+        command: echo "__GMT_VAR_PAGE__" > /tmp/my_fifo
         read-notes-stdout: true
         log-stdout: true
         log-stderr: true

@@ -4,6 +4,7 @@ import pytest
 import re
 import os
 import platform
+import subprocess
 
 from lib.scenario_runner import ScenarioRunner
 from lib.global_config import GlobalConfig
@@ -46,6 +47,19 @@ def test_reporters_still_running():
 
             expected_error = r'Another instance of the \w+ metrics provider is already running on the system!\nPlease close it before running the Green Metrics Tool.'
             assert re.match(expected_error, str(e.value)), Tests.assertion_info(expected_error, str(e.value))
+
+def test_template_website():
+    ps = subprocess.run(
+        ['bash', '../run-template.sh', 'website', 'https://www.google.de', '--quick', '--config-override', f"{os.path.dirname(os.path.realpath(__file__))}/test-config.yml"],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8'
+    )
+
+    assert ps.returncode == 0
+    assert 'MEASUREMENT SUCCESSFULLY COMPLETED' in ps.stdout
+    assert ps.stderr == '', Tests.assertion_info('no errors', ps.stderr)
 
 
 def test_runner_can_use_different_user():

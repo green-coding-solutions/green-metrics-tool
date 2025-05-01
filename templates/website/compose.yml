@@ -8,5 +8,6 @@ services:
 
   squid:
     build: .
-    ports:
-      - 3128:3128
+# activate for debugging
+#    ports:
+#      - 3128:3128
