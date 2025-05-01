@@ -33,6 +33,8 @@ def run(p_sync: Playwright, browser_name: str, fifo_path: str) -> None:
                 page.goto(url)
                 page.wait_for_load_state('load')
                 log_note(f"Finished loading URL {url}")
+                page.close()
+                context.close()
 
 
     except Exception as e:
