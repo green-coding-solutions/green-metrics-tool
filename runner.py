@@ -21,6 +21,16 @@ from lib.terminal_colors import TerminalColors
 from lib.db import DB
 from lib.global_config import GlobalConfig
 
+def create_and_replace_tmp_usage_scenario(folder, placeholder, content):
+    with open(f"templates/{folder}/usage_scenario.yml", mode='r', encoding='utf-8') as f:
+        usage_scenario = f.read()
+        data = usage_scenario.replace(placeholder, content)
+    usage_scenario_tmp = f"templates/{folder}/usage_scenario.yml.tmp"
+    with open(usage_scenario_tmp, mode='w+', encoding='utf-8') as f:
+        f.write(data)
+
+    return usage_scenario_tmp
+
 if __name__ == '__main__':
     import argparse
 
@@ -74,13 +84,8 @@ if __name__ == '__main__':
             error_helpers.log_error('--branch or --filename are not allowed in website mode. Please remove or use run mode with a repository')
             sys.exit(1)
 
+        args.filename = create_and_replace_tmp_usage_scenario('website', '__GMT_PLACEHOLDER_WEBSITE__', args.page)
         args.uri = GMT_ROOT_DIR
-        with open('templates/website/usage_scenario.yml', mode='r', encoding='utf-8') as f:
-            usage_scenario = f.read()
-            usage_scenario = usage_scenario.replace('__GMT_PLACEHOLDER_WEBSITE__', args.page)
-        with open('templates/website/usage_scenario.yml.tmp', mode='w+', encoding='utf-8') as f:
-            f.write(usage_scenario)
-        args.filename = 'templates/website/usage_scenario.yml.tmp'
         run_type = 'folder'
         commit_hash_folder = 'templates/website/'
 
@@ -95,8 +100,8 @@ if __name__ == '__main__':
             error_helpers.log_error('--branch or --filename are not allowed in website mode. Please remove or use run mode with a repository')
             sys.exit(1)
 
+        args.filename = create_and_replace_tmp_usage_scenario('ai', '__GMT_PLACEHOLDER_PROMPT__', args.prompt)
         args.uri = GMT_ROOT_DIR
-        args.filename = 'templates/ai/usage_scenario.yml'
         run_type = 'folder'
         commit_hash_folder = 'templates/ai/'
 
@@ -187,9 +192,9 @@ if __name__ == '__main__':
 
 
         if args.print_phase_stats:
-            data = DB().fetch_all('SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
+            phase_stats = DB().fetch_all('SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
             print(f"Data for phase {args.print_phase_stats}")
-            for el in data:
+            for el in phase_stats:
                 print(el)
             print('')
 
