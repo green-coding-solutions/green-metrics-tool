@@ -13,7 +13,7 @@ import os
 import subprocess
 from pathlib import Path
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 from lib.scenario_runner import ScenarioRunner
 from lib import error_helpers

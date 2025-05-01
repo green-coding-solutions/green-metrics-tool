@@ -24,7 +24,7 @@ from collections import OrderedDict
 from datetime import datetime
 import platform
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+GMT_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
 from lib import utils
 from lib import process_helpers
@@ -286,7 +286,6 @@ class ScenarioRunner:
                     nodes = self.construct_sequence(node)
                 else:
                     raise ValueError("We don't support Mapping Nodes to date")
-
                 try:
                     filename = runner_join_paths(self._root, nodes[0], force_path_as_root=True)
                 except RuntimeError as exc:
@@ -450,7 +449,7 @@ class ScenarioRunner:
     def initialize_run(self):
         config = GlobalConfig().config
 
-        gmt_hash, _ = get_repo_info(CURRENT_DIR)
+        gmt_hash, _ = get_repo_info(GMT_ROOT_DIR)
 
         # There are two ways we get hardware info. First things we don't need to be root to do which we get through
         # a method call. And then things we need root privilege which we need to call as a subprocess with sudo. The
@@ -458,7 +457,7 @@ class ScenarioRunner:
         machine_specs = hardware_info.get_default_values()
 
         if len(hardware_info_root.get_root_list()) > 0:
-            ps = subprocess.run(['sudo', '/usr/bin/python3', '-m', 'lib.hardware_info_root'], stdout=subprocess.PIPE, cwd=CURRENT_DIR, check=True, encoding='UTF-8')
+            ps = subprocess.run(['sudo', '/usr/bin/python3', '-m', 'lib.hardware_info_root'], stdout=subprocess.PIPE, cwd=GMT_ROOT_DIR, check=True, encoding='UTF-8')
             machine_specs_root = json.loads(ps.stdout)
             machine_specs.update(machine_specs_root)
 
