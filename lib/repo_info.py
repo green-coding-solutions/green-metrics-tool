@@ -4,20 +4,15 @@ import subprocess
 
 def get_repo_info(folder):
     output = subprocess.check_output(
-        ['git', 'rev-parse', 'HEAD'],
+        ['git', 'log', '-n', '1', '--pretty=format:%H %cd', '--date=iso', '--', folder],
         encoding='UTF-8',
         cwd=folder,
     )
-    commit_hash = output.strip("\n")
+    output = output.strip("\n")
 
-    output = subprocess.check_output(
-        ['git', 'show', '-s', '--format=%ci'],
-        encoding='UTF-8',
-        cwd=folder,
-    )
+    commit_hash, commit_timestamp = output.split(' ', maxsplit=1)
 
-    commit_timestamp = output.strip("\n")
-    commit_timestamp = datetime.strptime(commit_timestamp, "%Y-%m-%d %H:%M:%S %z")
+    commit_timestamp = datetime.strptime(commit_timestamp.strip(), "%Y-%m-%d %H:%M:%S %z")
 
     return commit_hash, commit_timestamp
 

@@ -1,0 +1,35 @@
+---
+name: AI model
+author: Arne Tarara <arne@green-coding.io>
+description: Run an inference with a small AI model on the CPU
+
+services:
+  gcb-ai-model:
+    image: ollama/ollama
+    docker-run-args:
+      - -v ollama:/root/.ollama
+
+flow:
+  - name: Download gemma3-1b
+    container: gcb-ai-model
+    commands:
+      - type: console
+        command: ollama pull gemma3:1b
+        read-notes-stdout: true
+        log-stdout: true
+
+  - name: Load gemma3-1b into memory
+    container: gcb-ai-model
+    commands:
+      - type: console
+        command: ollama run gemma3:1b ""
+        read-notes-stdout: true
+        log-stdout: true
+
+  - name: Run Inference on gemma3-1b
+    container: gcb-ai-model
+    commands:
+      - type: console
+        command: ollama run gemma3:1b "__GMT_PLACEHOLDER_PROMPT__"
+        read-notes-stdout: true
+        log-stdout: true

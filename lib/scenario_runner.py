@@ -53,7 +53,7 @@ class ScenarioRunner:
         dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
         user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, disabled_metric_providers=None, allowed_run_args=None, dev_no_phase_stats=False,
-        skip_volume_inspect=False):
+        skip_volume_inspect=False, commit_hash_folder=''):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
@@ -94,6 +94,7 @@ class ScenarioRunner:
         self._run_id = None
         self._commit_hash = None
         self._commit_timestamp = None
+        self._commit_hash_folder = commit_hash_folder
         self._user_id = user_id
         self._measurement_flow_process_duration = measurement_flow_process_duration
         self._measurement_total_duration = measurement_total_duration
@@ -192,6 +193,8 @@ class ScenarioRunner:
         subprocess.check_output(['sudo', '/usr/sbin/sysctl', '-w', 'vm.drop_caches=3'])
 
     def check_system(self, mode='start'):
+        print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
+
         if self._skip_system_checks:
             print("System check skipped")
             return
@@ -260,7 +263,8 @@ class ScenarioRunner:
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
-        self._commit_hash, self._commit_timestamp = get_repo_info(self._repo_folder)
+
+        self._commit_hash, self._commit_timestamp = get_repo_info(self.join_paths(self._repo_folder, self._commit_hash_folder))
 
     # This method loads the yml file and takes care that the includes work and are secure.
     # It uses the tagging infrastructure provided by https://pyyaml.org/wiki/PyYAMLDocumentation
