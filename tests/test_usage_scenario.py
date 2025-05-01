@@ -1033,7 +1033,7 @@ def test_bad_arg():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(RuntimeError) as e:
         runner.run()
 
-    assert "is not allowed in the docker-run-args list. Please check the capabilities of the user." in str(e.value)
+    assert "Argument '-P' is not allowed in the docker-run-args list. Please check the capabilities of the user or if running locally consider --allow-unsafe" in str(e.value)
 
 def test_good_arg():
 
