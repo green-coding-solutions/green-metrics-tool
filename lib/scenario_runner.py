@@ -194,7 +194,6 @@ class ScenarioRunner:
 
     def check_system(self, mode='start'):
         print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
-
         if self._skip_system_checks:
             print("System check skipped")
             return
@@ -263,7 +262,6 @@ class ScenarioRunner:
 
         # we can safely do this, even with problematic folders, as the folder can only be a local unsafe one when
         # running in CLI mode
-
         self._commit_hash, self._commit_timestamp = get_repo_info(self.join_paths(self._repo_folder, self._commit_hash_folder))
 
     # This method loads the yml file and takes care that the includes work and are secure.
