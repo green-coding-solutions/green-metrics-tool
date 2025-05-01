@@ -169,7 +169,6 @@ if __name__ == '__main__':
         # In a cloud setup it however makes sense to free the measurement machine as soon as possible
         # So this code should be individually callable, separate from the runner
 
-
         if not runner._dev_no_optimizations:
             import optimization_providers.base  # We need to import this here as we need the correct config file
             print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
