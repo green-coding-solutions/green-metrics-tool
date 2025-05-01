@@ -75,7 +75,7 @@ if __name__ == '__main__':
             error_helpers.log_error('Please supply --page for quick measurement website mode to work')
             sys.exit(1)
 
-        if args.page[0:7] != 'http:':
+        if not args.page.startswith(('http://', 'https://')):
             print(TerminalColors.OKBLUE, 'Page hat no scheme. Adding https://', TerminalColors.ENDC)
             args.page = f"https://{args.page}"
 
@@ -97,7 +97,7 @@ if __name__ == '__main__':
 
         if args.filename or args.branch:
             parser.print_help()
-            error_helpers.log_error('--branch or --filename are not allowed in website mode. Please remove or use run mode with a repository')
+            error_helpers.log_error('--branch or --filename are not allowed in ai mode. Please remove or use run mode with a repository')
             sys.exit(1)
 
         args.filename = create_and_replace_tmp_usage_scenario('ai', '__GMT_PLACEHOLDER_PROMPT__', args.prompt)
