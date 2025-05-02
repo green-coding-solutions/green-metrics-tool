@@ -180,7 +180,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "{'__GMT_VAR_STATUS__': 'I love the GMT!'}": {
                                 "ci": null,
@@ -218,7 +218,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -981,7 +981,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "{'__GMT_VAR_STATUS__': 'I love the GMT!'}": {
                                 "ci": null,
@@ -1019,7 +1019,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -1359,7 +1359,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "{'__GMT_VAR_STATUS__': 'I love the GMT!'}": {
                                 "ci": null,
@@ -1397,7 +1397,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -1784,7 +1784,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "{'__GMT_VAR_STATUS__': 'I love the GMT!'}": {
                                 "ci": null,
@@ -1822,7 +1822,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -2585,7 +2585,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "{'__GMT_VAR_STATUS__': 'I love the GMT!'}": {
                                 "ci": null,
@@ -2606,7 +2606,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -2993,7 +2993,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "{'__GMT_VAR_STATUS__': 'I love the GMT!'}": {
                                 "ci": null,
@@ -3031,7 +3031,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -3841,7 +3841,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "{'__GMT_VAR_STATUS__': 'I love the GMT!'}": {
                                 "ci": null,
@@ -3879,7 +3879,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },

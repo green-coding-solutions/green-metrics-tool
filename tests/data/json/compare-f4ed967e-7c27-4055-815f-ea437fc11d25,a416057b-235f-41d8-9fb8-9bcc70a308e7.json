@@ -183,7 +183,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "different/usage_scenario.yml": {
                                 "ci": null,
@@ -221,7 +221,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -984,7 +984,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "different/usage_scenario.yml": {
                                 "ci": null,
@@ -1022,7 +1022,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -1362,7 +1362,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "different/usage_scenario.yml": {
                                 "ci": null,
@@ -1400,7 +1400,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -1787,7 +1787,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "different/usage_scenario.yml": {
                                 "ci": null,
@@ -1825,7 +1825,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -2966,7 +2966,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "different/usage_scenario.yml": {
                                 "ci": null,
@@ -3004,7 +3004,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -3814,7 +3814,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "different/usage_scenario.yml": {
                                 "ci": null,
@@ -3852,7 +3852,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },

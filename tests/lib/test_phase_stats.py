@@ -33,7 +33,7 @@ def test_phase_stats_single_energy():
 
 
     assert data[1]['metric'] == 'psu_energy_ac_mcp_machine'
-    assert data[1]['detail_name'] == '[machine]'
+    assert data[1]['detail_name'] == '[MACHINE]'
     assert data[1]['unit'] == 'uJ'
     assert data[1]['value'] == 13177695386
     assert data[1]['type'] == 'TOTAL'
@@ -43,7 +43,7 @@ def test_phase_stats_single_energy():
     assert isinstance(data[1]['sampling_rate_95p'], int)
 
     assert data[2]['metric'] == 'psu_power_ac_mcp_machine'
-    assert data[2]['detail_name'] == '[machine]'
+    assert data[2]['detail_name'] == '[MACHINE]'
     assert data[2]['unit'] == 'mW'
     assert data[2]['value'] == 28038
     assert data[2]['type'] == 'MEAN'
@@ -140,7 +140,7 @@ def test_phase_embodied_and_operational_carbon():
     psu_carbon_ac_mcp_machine = data[3]
 
     assert psu_carbon_ac_mcp_machine['metric'] == 'psu_carbon_ac_mcp_machine'
-    assert psu_carbon_ac_mcp_machine['detail_name'] == '[machine]'
+    assert psu_carbon_ac_mcp_machine['detail_name'] == '[MACHINE]'
     assert psu_carbon_ac_mcp_machine['unit'] == 'ug'
 
     operational_carbon_expected = int(psu_energy_ac_mcp_machine['value'] * MICROJOULES_TO_KWH * sci['I'] * 1_000_000)

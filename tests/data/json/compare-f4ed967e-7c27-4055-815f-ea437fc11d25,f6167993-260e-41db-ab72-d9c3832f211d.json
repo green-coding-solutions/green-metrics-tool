@@ -134,7 +134,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "58c7a5002c684f41f8d7a355f3ede641d8e45ddc": {
                                 "ci": 31.765511841080258,
@@ -156,7 +156,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -663,7 +663,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "58c7a5002c684f41f8d7a355f3ede641d8e45ddc": {
                                 "ci": 127.06204736432103,
@@ -685,7 +685,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -913,7 +913,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "58c7a5002c684f41f8d7a355f3ede641d8e45ddc": {
                                 "ci": 362.1268349883149,
@@ -935,7 +935,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -1194,7 +1194,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "58c7a5002c684f41f8d7a355f3ede641d8e45ddc": {
                                 "ci": 184.23996867826548,
@@ -1216,7 +1216,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -1973,7 +1973,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "58c7a5002c684f41f8d7a355f3ede641d8e45ddc": {
                                 "ci": 82.59033078680866,
@@ -1995,7 +1995,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -2533,7 +2533,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "58c7a5002c684f41f8d7a355f3ede641d8e45ddc": {
                                 "ci": 31.765511841080258,
@@ -2555,7 +2555,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
