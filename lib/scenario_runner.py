@@ -13,7 +13,6 @@ import subprocess
 import json
 import os
 import time
-from html import escape
 import importlib
 import re
 from pathlib import Path
@@ -45,11 +44,14 @@ from lib import metric_importer
 def arrows(text):
     return f"\n\n>>>> {text} <<<<\n\n"
 
+def validate_usage_scenario_variables(usage_scenario_variables):
+    for key, _ in usage_scenario_variables.items():
+        if not re.fullmatch(r'__GMT_VAR_[\w]+__', key):
+            raise ValueError(f"Usage Scenario variable ({key}) has invalid name. Format must be __GMT_VAR_[\\w]+__ - Example: __GMT_VAR_EXAMPLE__")
+    return usage_scenario_variables
+
 def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables):
-    for var in usage_scenario_variables:
-        if not re.fullmatch(r'__GMT_VAR_[\w]+__=.+', var):
-            raise ValueError("Usage Scenario variable is not in __GMT_VAR_[\\w]+__=.+ format: {key}. Must be like __GMT_VAR_EXAMPLE__=xxx ")
-        key, value = var.split('=', maxsplit=1)
+    for key, value in usage_scenario_variables.items():
         usage_scenario = usage_scenario.replace(key, value)
 
     if matches := re.findall(r'__GMT_VAR_\w+__', usage_scenario):
@@ -95,7 +97,7 @@ class ScenarioRunner:
         self._branch = branch
         self._tmp_folder = Path('/tmp/green-metrics-tool').resolve() # since linux has /tmp and macos /private/tmp
         self._usage_scenario = {}
-        self._usage_scenario_variables = usage_scenario_variables if usage_scenario_variables else []
+        self._usage_scenario_variables = validate_usage_scenario_variables(usage_scenario_variables) if usage_scenario_variables else {}
         self._architecture = utils.get_architecture()
 
         self._sci = {'R_d': None, 'R': 0}
@@ -491,22 +493,22 @@ class ScenarioRunner:
                     job_id, name, uri, branch, filename,
                     commit_hash, commit_timestamp, runner_arguments,
                     machine_specs, measurement_config,
-                    usage_scenario, gmt_hash,
+                    usage_scenario, usage_scenario_variables, gmt_hash,
                     machine_id, user_id, created_at
                 )
                 VALUES (
                     %s, %s, %s, %s, %s,
                     %s, %s, %s,
                     %s, %s,
-                    %s, %s,
+                    %s, %s, %s,
                     %s, %s, NOW()
                 )
                 RETURNING id
                 """, params=(
                     self._job_id, self._name, self._uri, self._branch, self._original_filename,
                     self._commit_hash, self._commit_timestamp, json.dumps(self._arguments),
-                    escape(json.dumps(machine_specs), quote=False), json.dumps(measurement_config),
-                    escape(json.dumps(self._usage_scenario), quote=False), gmt_hash,
+                    json.dumps(machine_specs), json.dumps(measurement_config),
+                    json.dumps(self._usage_scenario), json.dumps(self._usage_scenario_variables), gmt_hash,
                     GlobalConfig().config['machine']['id'], self._user_id,
                 ))[0]
         return self._run_id

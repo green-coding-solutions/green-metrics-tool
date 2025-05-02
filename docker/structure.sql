@@ -183,6 +183,7 @@ CREATE TABLE runs (
     commit_timestamp timestamp with time zone,
     categories int[],
     usage_scenario json,
+    usage_scenario_variables jsonb DEFAULT '{}',
     filename text NOT NULL,
     machine_specs jsonb,
     runner_arguments json,

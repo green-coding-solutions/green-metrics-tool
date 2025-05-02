@@ -10,6 +10,7 @@ check_venv() # this check must even run before __main__ as imports might not get
 
 import shutil
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -77,6 +78,13 @@ if __name__ == '__main__':
         error_helpers.log_error('Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ', uri=args.uri)
         sys.exit(1)
 
+    variables_dict = {}
+    for var in args.variables:
+        if not re.fullmatch(r'__GMT_VAR_[\w]+__=.*', var):
+            raise ValueError(f"Usage Scenario variable ({var}) has invalid name. Format must be __GMT_VAR_[\\w]+__. Example: __GMT_VAR_EXAMPLE__")
+        key, value = var.split('=', maxsplit=1)
+        variables_dict[key] = value
+
     if args.allow_unsafe and args.skip_unsafe:
         parser.print_help()
         error_helpers.log_error('--allow-unsafe and skip--unsafe in conjuction is not possible')
@@ -107,7 +115,7 @@ if __name__ == '__main__':
                     dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics,
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
                     docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
-                    skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder, usage_scenario_variables=args.variables)
+                    skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder, usage_scenario_variables=variables_dict)
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
