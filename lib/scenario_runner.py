@@ -52,10 +52,12 @@ def validate_usage_scenario_variables(usage_scenario_variables):
 
 def replace_usage_scenario_variables(usage_scenario, usage_scenario_variables):
     for key, value in usage_scenario_variables.items():
+        if key not in usage_scenario:
+            raise ValueError(f"Usage Scenario Variable '{key}' does not exist in usage scenario. Did you forget to add it?")
         usage_scenario = usage_scenario.replace(key, value)
 
     if matches := re.findall(r'__GMT_VAR_\w+__', usage_scenario):
-        raise RuntimeError(f"Unreplaced variables are still in usage_scenario: {matches}")
+        raise RuntimeError(f"Unreplaced leftover variables are still in usage_scenario: {matches}. Please add variables when submitting run.")
 
     return usage_scenario
 

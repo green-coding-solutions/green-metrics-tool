@@ -11,7 +11,7 @@ $(document).ready(function () {
         }
 
         try {
-            jobs_data = await makeAPICall('/v1/jobs')
+            jobs_data = await makeAPICall('/v2/jobs')
         } catch (err) {
             showNotification('Could not get jobs data from API', err); // we do not return here, as empty data is an OK response
         }
