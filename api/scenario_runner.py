@@ -199,7 +199,7 @@ def old_v1_runs_endpoint():
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v2/runs')
-async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
+async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, job_id: int | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
 
     query = '''
             SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, r.usage_scenario_variables, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
@@ -233,6 +233,10 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
     if machine:
         query = f"{query} AND m.description LIKE %s \n"
         params.append(f"%{machine}%")
+
+    if job_id:
+        query = f"{query} AND r.job_id = %s \n"
+        params.append(job_id)
 
     query = f"{query} ORDER BY r.created_at DESC"
 
