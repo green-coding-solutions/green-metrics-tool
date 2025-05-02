@@ -588,7 +588,7 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
         elif case == 'Usage Scenario':
             key = filename # Case C_2 : SoftwareDeveloper Case
         elif case == 'Machine':
-            key = machine_id # Case C_1 : DataCenter Case
+            key = str(machine_id) # Case C_1 : DataCenter Case
         elif case in ('Commit', 'Repeated Run'):
             key = commit_hash # Repeated Run
         elif case == 'Usage Scenario Variables':
