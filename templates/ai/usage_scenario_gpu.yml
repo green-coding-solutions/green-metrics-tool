@@ -1,23 +1,16 @@
 ---
-name: AI model
+name: AI model GPU
 author: Arne Tarara <arne@green-coding.io>
-description: Run an inference with a small AI model on the CPU
+description: Run an inference with a cached AI model on the GPU
 
 services:
   gcb-ai-model:
     image: ollama/ollama
     docker-run-args:
-      - -v ollama:/root/.ollama
+      - -v ollama:/root/.ollama:ro
+      - --gpus=all
 
 flow:
-  - name: Download model
-    container: gcb-ai-model
-    commands:
-      - type: console
-        command: ollama pull __GMT_VAR_MODEL__
-        read-notes-stdout: true
-        log-stdout: true
-
   - name: Load model into memory
     container: gcb-ai-model
     commands:
