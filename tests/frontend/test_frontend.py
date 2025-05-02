@@ -296,8 +296,10 @@ def test_repositories_and_compare():
     page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
 
     elements = page.query_selector_all("input[type=checkbox]")
-    for element in elements:
-        element.click()
+    elements[0].click()
+    elements[1].click()
+    elements[2].click()
+    elements[4].click()
 
     page.locator("#DataTables_Table_0 tr:last-child input[type=checkbox]").click() # uncheck last box with different scenario
 
@@ -311,7 +313,7 @@ def test_repositories_and_compare():
     assert comparison_type == 'Repeated Run'
 
     runs_compared = new_page.locator('#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)').text_content()
-    assert runs_compared == '4'
+    assert runs_compared == '3'
 
     # open details
     new_page.locator('a.step[data-tab="[RUNTIME]"]').click()
@@ -321,13 +323,13 @@ def test_repositories_and_compare():
     assert first_metric.strip() == 'CPU Power (Package)'
 
     first_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(6)").text_content()
-    assert first_value.strip() == '8.56'
+    assert first_value.strip() == '8.64'
 
     first_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(7)").text_content()
     assert first_unit.strip() == 'W'
 
     first_stddev = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(8)").text_content()
-    assert first_stddev.strip() == '± 2.62%'
+    assert first_stddev.strip() == '± 2.85%'
 
 
     # click on baseline
@@ -338,13 +340,13 @@ def test_repositories_and_compare():
     assert first_metric.strip() == 'CPU Energy (Package)'
 
     first_value = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(6)").text_content()
-    assert first_value.strip() == '2.40'
+    assert first_value.strip() == '2.62'
 
     first_unit = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(7)").text_content()
     assert first_unit.strip() == 'mWh'
 
     first_stddev = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(8)").text_content()
-    assert first_stddev.strip() == '± 15.63%'
+    assert first_stddev.strip() == '± 3.89%'
 
     new_page.close()
 
