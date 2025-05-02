@@ -410,7 +410,44 @@ def test_expert_compare_mode():
     new_page.close()
 
 
+def test_new_usage_scenario_variables_compare_mode():
+    page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+    page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
+    page.wait_for_load_state("load")  # wait JS
+    assert page.locator("#expert-compare-mode").text_content() == 'Expert compare mode is off'
 
+    page.locator('#toggle-expert-compare-mode').click()
+
+    page.wait_for_load_state("load") # wait JS
+    assert page.locator("#expert-compare-mode").text_content() == 'Expert compare mode is on'
+
+    page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
+
+    page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
+
+    elements = page.query_selector_all("input[type=checkbox]")
+    for element in elements:
+        element.click()
+
+    page.locator('#compare-force-mode').select_option("Usage Scenario Variables")
+
+
+    with context.expect_page() as new_page_info:
+        page.locator('#compare-button').click()
+
+    new_page = new_page_info.value
+    new_page.set_default_timeout(3_000)
+
+    assert new_page.locator("#run-data-top > tbody:first-child > tr:first-child > td:nth-child(2)").text_content() == 'Usage Scenario Variables'
+
+    assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:first-child").text_content() == 'Number of runs compared'
+
+    assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)").text_content() == '5'
+
+    assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(2)").text_content() == "{} vs. {'__GMT_VAR_STATUS__': 'I love the GMT!'}"
+
+
+    new_page.close()
 def test_watchlist():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
