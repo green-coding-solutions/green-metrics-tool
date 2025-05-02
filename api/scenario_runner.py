@@ -189,11 +189,11 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
 
 
 # A route to return all of the available entries in our catalog.
-@router.get('/v1/runs')
+@router.get('/v2/runs')
 async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
 
     query = '''
-            SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
+            SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, r.usage_scenario_variables, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE
@@ -675,7 +675,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     return ORJSONResponse({'success': True, 'data': job_ids_inserted}, status_code=202)
 
 
-@router.get('/v1/run/{run_id}')
+@router.get('/v2/run/{run_id}')
 async def get_run(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
         raise RequestValidationError('Run ID is not a valid UUID or empty')

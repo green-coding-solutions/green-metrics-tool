@@ -36,7 +36,7 @@ def test_get_runs():
                     VALUES \
                     (%s,%s,'testing','testing',NOW(),1,1) RETURNING id;", params=(run_name, uri))[0]
 
-    response = requests.get(f"{API_URL}/v1/runs?repo=&filename=", timeout=15)
+    response = requests.get(f"{API_URL}/v2/runs?repo=&filename=", timeout=15)
     res_json = response.json()
     assert response.status_code == 200
     assert res_json['data'][0][0] == str(pid)
