@@ -17,7 +17,8 @@
                 "index": 0,
                 "name": "Stress Test #1",
                 "repo": "/home/arne/Sites/green-coding/example-applications/",
-                "run_id": "a416057b-235f-41d8-9fb8-9bcc70a308e7"
+                "run_id": "a416057b-235f-41d8-9fb8-9bcc70a308e7",
+                "usage_scenario_variables": {}
             },
             {
                 "commit_hash": "58c7a5002c684f41f8d7a355f3ede641d8e45ddc",
@@ -27,12 +28,13 @@
                 "index": 1,
                 "name": "Stress Test #3",
                 "repo": "/home/arne/Sites/green-coding/example-applications/",
-                "run_id": "f4ed967e-7c27-4055-815f-ea437fc11d25"
+                "run_id": "f4ed967e-7c27-4055-815f-ea437fc11d25",
+                "usage_scenario_variables": {}
             }
         ]
     ],
     "comparison_identifiers": [
-        1
+        "1"
     ],
     "data": {
         "Stress": {

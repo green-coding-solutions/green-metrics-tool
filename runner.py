@@ -10,6 +10,7 @@ check_venv() # this check must even run before __main__ as imports might not get
 
 import shutil
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -25,10 +26,16 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
+
+    parser.add_argument('--name', type=str, help='A name which will be stored to the database to discern this run from others')
+
     parser.add_argument('--uri', type=str, help='The URI to get the usage_scenario.yml from. Can be either a local directory starting  with / or a remote git repository starting with http(s)://')
     parser.add_argument('--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
-    parser.add_argument('--name', type=str, help='A name which will be stored to the database to discern this run from others')
     parser.add_argument('--filename', type=str, default='usage_scenario.yml', help='An optional alternative filename if you do not want to use "usage_scenario.yml"')
+
+    parser.add_argument('--variables', nargs='+', help='Variables that will be replaced into the usage_scenario.yml file')
+    parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
+
     parser.add_argument('--user-id', type=int, default=1, help='A user-ID the run shall be mapped to. Defaults to 1 (the default user)')
     parser.add_argument('--config-override', type=str, help='Override the configuration file with the passed in yml file. Supply full path.')
     parser.add_argument('--file-cleanup', action='store_true', help='Delete all temporary files that the runner produced')
@@ -56,6 +63,29 @@ if __name__ == '__main__':
         error_helpers.log_error('Please supply --uri to get usage_scenario.yml from')
         sys.exit(1)
 
+    if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://':
+        print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', args.uri, TerminalColors.ENDC)
+        run_type = 'URL'
+    elif args.uri[0:1] == '/':
+        print(TerminalColors.OKBLUE, '\nDetected supplied folder: ', args.uri, TerminalColors.ENDC)
+        run_type = 'folder'
+        if not Path(args.uri).is_dir():
+            parser.print_help()
+            error_helpers.log_error('Could not find folder on local system. Please double check: ', uri=args.uri)
+            sys.exit(1)
+    else:
+        parser.print_help()
+        error_helpers.log_error('Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ', uri=args.uri)
+        sys.exit(1)
+
+    variables_dict = {}
+    if args.variables:
+        for var in args.variables:
+            if not re.fullmatch(r'__GMT_VAR_[\w]+__=.*', var):
+                raise ValueError(f"Usage Scenario variable ({var}) has invalid name. Format must be __GMT_VAR_[\\w]+__. Example: __GMT_VAR_EXAMPLE__")
+            key, value = var.split('=', maxsplit=1)
+            variables_dict[key] = value
+
     if args.allow_unsafe and args.skip_unsafe:
         parser.print_help()
         error_helpers.log_error('--allow-unsafe and skip--unsafe in conjuction is not possible')
@@ -69,21 +99,6 @@ if __name__ == '__main__':
     if args.full_docker_prune and GlobalConfig().config['postgresql']['host'] == 'green-coding-postgres-container':
         parser.print_help()
         error_helpers.log_error('--full-docker-prune is set while your database host is "green-coding-postgres-container".\nThe switch is only for remote measuring machines. It would stop the GMT images itself when running locally')
-        sys.exit(1)
-
-    if args.uri[0:8] == 'https://' or args.uri[0:7] == 'http://':
-        print('Detected supplied URL: ', args.uri)
-        run_type = 'URL'
-    elif args.uri[0:1] == '/':
-        print('Detected supplied folder: ', args.uri)
-        run_type = 'folder'
-        if not Path(args.uri).is_dir():
-            parser.print_help()
-            error_helpers.log_error('Could not find folder on local system. Please double check: ', uri=args.uri)
-            sys.exit(1)
-    else:
-        parser.print_help()
-        error_helpers.log_error('Could not detected correct URI. Please use local folder in Linux format /folder/subfolder/... or URL http(s):// : ', uri=args.uri)
         sys.exit(1)
 
     if args.config_override is not None:
@@ -101,7 +116,7 @@ if __name__ == '__main__':
                     dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics,
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
                     docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
-                    skip_volume_inspect=args.skip_volume_inspect)
+                    skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder, usage_scenario_variables=variables_dict)
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
@@ -112,7 +127,6 @@ if __name__ == '__main__':
         # From a user perspective it makes perfect sense to run both jobs directly after each other
         # In a cloud setup it however makes sense to free the measurement machine as soon as possible
         # So this code should be individually callable, separate from the runner
-
 
         if not runner._dev_no_optimizations:
             import optimization_providers.base  # We need to import this here as we need the correct config file
@@ -132,9 +146,9 @@ if __name__ == '__main__':
 
 
         if args.print_phase_stats:
-            data = DB().fetch_all('SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
+            phase_stats = DB().fetch_all('SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
             print(f"Data for phase {args.print_phase_stats}")
-            for el in data:
+            for el in phase_stats:
                 print(el)
             print('')
 

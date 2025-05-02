@@ -246,6 +246,7 @@ class RunUntilManager:
             self.__runner.check_system('start')
             self.__runner.initialize_folder(self.__runner._tmp_folder)
             self.__runner.checkout_repository()
+            self.__runner.load_yml_file()
             self.__runner.initial_parse()
             self.__runner.register_machine_id()
             self.__runner.import_metric_providers()

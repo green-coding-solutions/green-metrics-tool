@@ -49,6 +49,7 @@ class RunJob(Job):
             docker_prune=docker_prune,
             job_id=self._id,
             user_id=self._user_id,
+            usage_scenario_variables=self._usage_scenario_variables,
             measurement_flow_process_duration=user._capabilities['measurement']['flow_process_duration'],
             measurement_total_duration=user._capabilities['measurement']['total_duration'],
             disabled_metric_providers=user._capabilities['measurement']['disabled_metric_providers'],

@@ -296,8 +296,10 @@ def test_repositories_and_compare():
     page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
 
     elements = page.query_selector_all("input[type=checkbox]")
-    for element in elements:
-        element.click()
+    elements[0].click()
+    elements[1].click()
+    elements[2].click()
+    elements[4].click()
 
     page.locator("#DataTables_Table_0 tr:last-child input[type=checkbox]").click() # uncheck last box with different scenario
 
@@ -311,7 +313,7 @@ def test_repositories_and_compare():
     assert comparison_type == 'Repeated Run'
 
     runs_compared = new_page.locator('#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)').text_content()
-    assert runs_compared == '4'
+    assert runs_compared == '3'
 
     # open details
     new_page.locator('a.step[data-tab="[RUNTIME]"]').click()
@@ -321,13 +323,13 @@ def test_repositories_and_compare():
     assert first_metric.strip() == 'CPU Power (Package)'
 
     first_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(6)").text_content()
-    assert first_value.strip() == '8.56'
+    assert first_value.strip() == '8.64'
 
     first_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(7)").text_content()
     assert first_unit.strip() == 'W'
 
     first_stddev = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(3) > td:nth-child(8)").text_content()
-    assert first_stddev.strip() == '± 2.62%'
+    assert first_stddev.strip() == '± 2.85%'
 
 
     # click on baseline
@@ -338,13 +340,13 @@ def test_repositories_and_compare():
     assert first_metric.strip() == 'CPU Energy (Package)'
 
     first_value = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(6)").text_content()
-    assert first_value.strip() == '2.40'
+    assert first_value.strip() == '2.62'
 
     first_unit = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(7)").text_content()
     assert first_unit.strip() == 'mWh'
 
     first_stddev = new_page.locator("#main > div.ui.tab.attached.segment.secondary.active > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(2) > td:nth-child(8)").text_content()
-    assert first_stddev.strip() == '± 15.63%'
+    assert first_stddev.strip() == '± 3.89%'
 
     new_page.close()
 
@@ -365,8 +367,10 @@ def test_expert_compare_mode():
     page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
 
     elements = page.query_selector_all("input[type=checkbox]")
-    for element in elements:
-        element.click()
+    elements[0].click()
+    elements[1].click()
+    elements[2].click()
+    elements[4].click()
 
     with context.expect_page() as new_page_info:
         page.locator('#compare-button').click()
@@ -381,8 +385,11 @@ def test_expert_compare_mode():
 
     page.locator('#unselect-button').click()
     elements = page.query_selector_all("input[type=checkbox]")
-    for element in elements:
-        element.click()
+    elements[0].click()
+    elements[1].click()
+    elements[2].click()
+    elements[4].click()
+
     page.locator('#compare-force-mode').select_option("Machines")
 
     with context.expect_page() as new_page_info:
@@ -395,7 +402,7 @@ def test_expert_compare_mode():
 
     assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:first-child").text_content() == 'Number of runs compared'
 
-    assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)").text_content() == '5'
+    assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)").text_content() == '4'
 
     assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(1)").text_content() == 'Machine'
 
@@ -405,7 +412,44 @@ def test_expert_compare_mode():
     new_page.close()
 
 
+def test_new_usage_scenario_variables_compare_mode():
+    page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')
+    page.locator("#menu").get_by_role("link", name="Settings", exact=True).click()
+    page.wait_for_load_state("load")  # wait JS
+    assert page.locator("#expert-compare-mode").text_content() == 'Expert compare mode is off'
 
+    page.locator('#toggle-expert-compare-mode').click()
+
+    page.wait_for_load_state("load") # wait JS
+    assert page.locator("#expert-compare-mode").text_content() == 'Expert compare mode is on'
+
+    page.locator("#menu").get_by_role("link", name="Runs / Repos", exact=True).click()
+
+    page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
+
+    elements = page.query_selector_all("input[type=checkbox]")
+    for element in elements:
+        element.click()
+
+    page.locator('#compare-force-mode').select_option("Usage Scenario Variables")
+
+
+    with context.expect_page() as new_page_info:
+        page.locator('#compare-button').click()
+
+    new_page = new_page_info.value
+    new_page.set_default_timeout(3_000)
+
+    assert new_page.locator("#run-data-top > tbody:first-child > tr:first-child > td:nth-child(2)").text_content() == 'Usage Scenario Variables'
+
+    assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:first-child").text_content() == 'Number of runs compared'
+
+    assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)").text_content() == '5'
+
+    assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(2)").text_content() == "{} vs. {'__GMT_VAR_STATUS__': 'I love the GMT!'}"
+
+
+    new_page.close()
 def test_watchlist():
 
     page.goto(GlobalConfig().config['cluster']['metrics_url'] + '/index.html')

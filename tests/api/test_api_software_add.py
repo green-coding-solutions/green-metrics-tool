@@ -64,14 +64,45 @@ def test_post_run_add_github_commit():
     assert re.match(r'^[a-fA-F0-9]{40}$',watchlist_item['last_marker'])
     assert watchlist_item['schedule_mode'] == 'commit-variance'
     assert watchlist_item['image_url'] == ''
+    assert watchlist_item['usage_scenario_variables'] == {}
 
     # also retrieve from API
-    response = requests.get(f"{API_URL}/v1/jobs?id={job_ids[0]}", timeout=15)
+    response = requests.get(f"{API_URL}/v2/jobs?id={job_ids[0]}", timeout=15)
     assert response.status_code == 200, Tests.assertion_info('success', response.text)
     data = response.json()
 
     assert data['data'][0][0] == job_ids[0]
     assert data['data'][0][3] == 'https://github.com/green-coding-solutions/green-metrics-tool'
+    assert data['data'][0][5] == {}
+
+def test_post_run_add_github_commit_with_variables():
+    run_name = 'test_' + utils.randomword(12)
+    GMT_VARIABLES = {"__GMT_VAR_COMMAND__": "300"}
+    run = Software(name=run_name, repo_url='https://github.com/green-coding-solutions/green-metrics-tool', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='commit-variance', usage_scenario_variables=GMT_VARIABLES)
+    response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
+    assert response.status_code == 202, Tests.assertion_info('success', response.text)
+
+    data = response.json()
+    assert isinstance(data['data'], list)
+    assert len(data['data']) == 3
+
+    job_ids = get_job_ids(run_name)
+    assert job_ids == data['data']
+
+    watchlist_item = utils.get_watchlist_item('https://github.com/green-coding-solutions/green-metrics-tool')
+    assert re.match(r'^[a-fA-F0-9]{40}$',watchlist_item['last_marker'])
+    assert watchlist_item['schedule_mode'] == 'commit-variance'
+    assert watchlist_item['image_url'] == ''
+    assert watchlist_item['usage_scenario_variables'] == GMT_VARIABLES
+
+    # also retrieve from API
+    response = requests.get(f"{API_URL}/v2/jobs?id={job_ids[0]}", timeout=15)
+    assert response.status_code == 200, Tests.assertion_info('success', response.text)
+    data = response.json()
+
+    assert data['data'][0][0] == job_ids[0]
+    assert data['data'][0][3] == 'https://github.com/green-coding-solutions/green-metrics-tool'
+    assert data['data'][0][5] == GMT_VARIABLES
 
 
 def test_post_run_add_gitlab_commit():
