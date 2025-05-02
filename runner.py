@@ -67,7 +67,7 @@ if __name__ == '__main__':
         print(TerminalColors.OKBLUE, '\nDetected supplied URL: ', args.uri, TerminalColors.ENDC)
         run_type = 'URL'
     elif args.uri[0:1] == '/':
-        print(TerminalColors.OKBLUE, '\nDetected supplied folder: ', args.uri, TerminalColors. ENDC)
+        print(TerminalColors.OKBLUE, '\nDetected supplied folder: ', args.uri, TerminalColors.ENDC)
         run_type = 'folder'
         if not Path(args.uri).is_dir():
             parser.print_help()

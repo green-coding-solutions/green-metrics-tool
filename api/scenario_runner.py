@@ -680,7 +680,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
 
 @router.get('/v1/run/{run_id}', deprecated=True)
 def old_v1_run_endpoint():
-    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v1/run/{run_id}'}, status_code=410)
+    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/run/{run_id}'}, status_code=410)
 
 @router.get('/v2/run/{run_id}')
 async def get_run(run_id: str, user: User = Depends(authenticate)):
