@@ -79,11 +79,12 @@ if __name__ == '__main__':
         sys.exit(1)
 
     variables_dict = {}
-    for var in args.variables:
-        if not re.fullmatch(r'__GMT_VAR_[\w]+__=.*', var):
-            raise ValueError(f"Usage Scenario variable ({var}) has invalid name. Format must be __GMT_VAR_[\\w]+__. Example: __GMT_VAR_EXAMPLE__")
-        key, value = var.split('=', maxsplit=1)
-        variables_dict[key] = value
+    if args.variables:
+        for var in args.variables:
+            if not re.fullmatch(r'__GMT_VAR_[\w]+__=.*', var):
+                raise ValueError(f"Usage Scenario variable ({var}) has invalid name. Format must be __GMT_VAR_[\\w]+__. Example: __GMT_VAR_EXAMPLE__")
+            key, value = var.split('=', maxsplit=1)
+            variables_dict[key] = value
 
     if args.allow_unsafe and args.skip_unsafe:
         parser.print_help()
