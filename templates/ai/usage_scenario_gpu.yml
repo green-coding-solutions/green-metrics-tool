@@ -11,14 +11,6 @@ services:
       - --gpus=all
 
 flow:
-  - name: Load model into memory
-    container: gcb-ai-model
-    commands:
-      - type: console
-        command: ollama run __GMT_VAR_MODEL__ ""
-        read-notes-stdout: true
-        log-stdout: true
-
   - name: Run Inference
     container: gcb-ai-model
     commands:
