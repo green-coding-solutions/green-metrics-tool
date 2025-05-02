@@ -647,7 +647,7 @@ def get_phase_stats_object(phase_stats, case=None, comparison_details=None, comp
                 'values': [value],
             }
             if comparison_details: # create None filled lists in comparison casese so that we can later understand which values are missing when parsing in JS for example
-                detail_data[key]['values'] = [None for _ in comparison_details[key]]
+                detail_data[key]['values'] = [None for _ in comparison_details[key]] # Debug: if this line errors it means we have not inserted a new at the beginning of the function (L584++)
                 detail_data[key]['sr_avg_values'] = [None for _ in comparison_details[key]]
                 detail_data[key]['sr_max_values'] = [None for _ in comparison_details[key]]
                 detail_data[key]['sr_95p_values'] = [None for _ in comparison_details[key]]

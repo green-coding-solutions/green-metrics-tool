@@ -188,6 +188,10 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
 
+@router.get('/v1/runs', deprecated=True)
+def old_v1_runs_endpoint():
+    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/runs'}, status_code=410)
+
 # A route to return all of the available entries in our catalog.
 @router.get('/v2/runs')
 async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
@@ -674,6 +678,9 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
 
     return ORJSONResponse({'success': True, 'data': job_ids_inserted}, status_code=202)
 
+@router.get('/v1/run/{run_id}', deprecated=True)
+def old_v1_run_endpoint():
+    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v1/run/{run_id}'}, status_code=410)
 
 @router.get('/v2/run/{run_id}')
 async def get_run(run_id: str, user: User = Depends(authenticate)):
