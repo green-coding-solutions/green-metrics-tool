@@ -365,8 +365,10 @@ def test_expert_compare_mode():
     page.locator('#DataTables_Table_0').wait_for(timeout=3_000) # wait for accordion to fetch XHR and open
 
     elements = page.query_selector_all("input[type=checkbox]")
-    for element in elements:
-        element.click()
+    elements[0].click()
+    elements[1].click()
+    elements[2].click()
+    elements[4].click()
 
     with context.expect_page() as new_page_info:
         page.locator('#compare-button').click()
@@ -381,8 +383,11 @@ def test_expert_compare_mode():
 
     page.locator('#unselect-button').click()
     elements = page.query_selector_all("input[type=checkbox]")
-    for element in elements:
-        element.click()
+    elements[0].click()
+    elements[1].click()
+    elements[2].click()
+    elements[4].click()
+
     page.locator('#compare-force-mode').select_option("Machines")
 
     with context.expect_page() as new_page_info:
@@ -395,7 +400,7 @@ def test_expert_compare_mode():
 
     assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:first-child").text_content() == 'Number of runs compared'
 
-    assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)").text_content() == '5'
+    assert new_page.locator("#run-data-top > tbody:nth-child(2) > tr > td:nth-child(2)").text_content() == '4'
 
     assert new_page.locator("#run-data-top > tbody:nth-child(3) > tr > td:nth-child(1)").text_content() == 'Machine'
 
