@@ -1046,3 +1046,10 @@ def test_good_arg():
         runner.run()
 
     assert re.search(r"docker run -it -d .* --label test=true", str(out.getvalue())), f"--label test=true not found in docker run command: {out.getvalue()}"
+
+def test_restart_no_error():
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/compose_restart_key.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
