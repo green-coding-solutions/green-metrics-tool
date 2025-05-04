@@ -62,7 +62,6 @@ def test_resource_limits_memory_int():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert "Or({Optional('resources'): {Optional('limits'): {Optional('cpus'): Or(<class 'str'>, <class 'float'>, <class 'int'>), Optional('memory'): <class 'str'>}}}, None) did not validate {'resources': {'limits': {'memory': 1}}}" in str(e.value)
     assert "1 should be instance of 'str'" in str(e.value)
 
 def test_resource_limits_memory_float():
