@@ -107,6 +107,7 @@ if __name__ == '__main__':
 
                 if last_cleanup < (time.time() - 43200): # every 12 hours
                     do_cleanup(current_temperature, last_cooldown_time)
+                    last_cleanup = time.time()
 
                 current_temperature = get_temperature(
                     GlobalConfig().config['machine']['base_temperature_chip'],
