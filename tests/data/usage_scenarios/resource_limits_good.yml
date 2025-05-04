@@ -11,13 +11,14 @@ services:
       resources:
         limits:
           cpus: "1.2"
+
   test-container-only-memory:
     type: container
     image: alpine
     deploy:
       resources:
         limits:
-          cpus: "1.2"
+          memory: "100MB"
 
   test-container-both:
     type: container

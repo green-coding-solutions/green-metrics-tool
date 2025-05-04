@@ -960,11 +960,11 @@ class ScenarioRunner:
             if 'deploy' in service and service['deploy'] is not None and (cpus := service['deploy'].get('resources', {}).get('limits', {}).get('cpus', None)):
                 docker_run_string.append('--cpus') # value in cores
                 docker_run_string.append(str(cpus))
-                print('Applying CPU Limit from services')
+                print('Applying CPU Limit from deploy')
             elif cpus := service.get('cpus', None): # we only need to get resources or cpus. they must align anyway
                 docker_run_string.append('--cpus')
                 docker_run_string.append(str(cpus)) # value in (fractional) cores
-                print('Applying CPU Limit from deploy')
+                print('Applying CPU Limit from services')
 
             if 'healthcheck' in service:  # must come last
                 if 'disable' in service['healthcheck'] and service['healthcheck']['disable'] is True:

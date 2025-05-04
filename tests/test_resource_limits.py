@@ -54,7 +54,7 @@ def test_resource_limits_good():
     assert 'Applying CPU Limit from deploy' in out.getvalue()
     assert 'Applying CPU Limit from services' in out.getvalue()
     assert 'Applying Memory Limit from deploy' in out.getvalue()
-    assert 'Applying CPU Limit from services' in out.getvalue()
+    assert 'Applying Memory Limit from services' in out.getvalue()
 
 def test_resource_limits_memory_int():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_memory_int.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
