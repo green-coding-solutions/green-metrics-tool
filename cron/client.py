@@ -93,6 +93,7 @@ if __name__ == '__main__':
         last_cooldown_time = 0
         current_temperature = -1
         temperature_errors = 0
+        last_cleanup = 0
 
         while True:
             job = Job.get_job('run')
@@ -103,6 +104,10 @@ if __name__ == '__main__':
                 continue
 
             if not args.testing:
+
+                if last_cleanup < (time.time() - 43200): # every 12 hours
+                    do_cleanup(current_temperature, last_cooldown_time)
+
                 current_temperature = get_temperature(
                     GlobalConfig().config['machine']['base_temperature_chip'],
                     GlobalConfig().config['machine']['base_temperature_feature']
@@ -160,8 +165,6 @@ if __name__ == '__main__':
                     # endlessly in validation until manually handled, which is what we want.
                     if not args.testing:
                         time.sleep(client_main['time_between_control_workload_validations'])
-                finally:
-                    do_cleanup(current_temperature, last_cooldown_time)
 
             elif job:
                 set_status('job_start', current_temperature, last_cooldown_time, run_id=job._run_id)
@@ -186,11 +189,9 @@ if __name__ == '__main__':
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
                     error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, previous_exception=exc.__context__, run_id=job._run_id, machine=config_main['machine']['description'], name=job._name, url=job._url)
                 finally:
-                    if not args.testing:
-                        do_cleanup(current_temperature, last_cooldown_time)
+                    temperature_errors = 0 # reset
 
             else:
-                do_cleanup(current_temperature, last_cooldown_time)
                 set_status('job_no', current_temperature, last_cooldown_time)
                 if client_main['shutdown_on_job_no'] is True:
                     subprocess.check_output(['sudo', 'systemctl', 'suspend'])
