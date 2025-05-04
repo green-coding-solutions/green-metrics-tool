@@ -47,16 +47,23 @@ async def get_machines(
 
     return ORJSONResponse({'success': True, 'data': data})
 
-@router.get('/v1/jobs')
+@router.get('/v1/jobs', deprecated=True)
+def old_v1_jobs_endpoint():
+    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/jobs'}, status_code=410)
+
+
+@router.get('/v2/jobs')
 async def get_jobs(
     machine_id: int | None = None,
     state: str | None = None,
+    job_id: int | None = None,
     user: User = Depends(authenticate), # pylint: disable=unused-argument
     ):
 
     params = [user.is_super_user(), user.visible_users()]
     machine_id_condition = ''
     state_condition = ''
+    job_id_condition = ''
 
     if machine_id and check_int_field_api(machine_id, 'machine_id', 1024):
         machine_id_condition = 'AND j.machine_id = %s'
@@ -66,8 +73,13 @@ async def get_jobs(
         state_condition = 'AND j.state = %s'
         params.append(state)
 
+    if job_id is not None:
+        job_id_condition = 'AND j.id = %s'
+        params.append(job_id)
+
+
     query = f"""
-        SELECT j.id, r.id as run_id, j.name, j.url, j.filename, j.branch, m.description, j.state, j.updated_at, j.created_at
+        SELECT j.id, r.id as run_id, j.name, j.url, j.filename, j.usage_scenario_variables, j.branch, m.description, j.state, j.updated_at, j.created_at
         FROM jobs as j
         LEFT JOIN machines as m on m.id = j.machine_id
         LEFT JOIN runs as r on r.job_id = j.id
@@ -76,6 +88,7 @@ async def get_jobs(
             AND j.type = 'run'
             {machine_id_condition}
             {state_condition}
+            {job_id_condition}
         ORDER BY j.updated_at DESC, j.created_at ASC
     """
     data = DB().fetch_all(query, params)
@@ -180,12 +193,16 @@ async def get_repositories(uri: str | None = None, branch: str | None = None, ma
     return ORJSONResponse({'success': True, 'data': escaped_data})
 
 
+@router.get('/v1/runs', deprecated=True)
+def old_v1_runs_endpoint():
+    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/runs'}, status_code=410)
+
 # A route to return all of the available entries in our catalog.
-@router.get('/v1/runs')
-async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
+@router.get('/v2/runs')
+async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, job_id: int | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
 
     query = '''
-            SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
+            SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, r.usage_scenario_variables, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE
@@ -216,6 +233,10 @@ async def get_runs(uri: str | None = None, branch: str | None = None, machine_id
     if machine:
         query = f"{query} AND m.description LIKE %s \n"
         params.append(f"%{machine}%")
+
+    if job_id:
+        query = f"{query} AND r.job_id = %s \n"
+        params.append(job_id)
 
     query = f"{query} ORDER BY r.created_at DESC"
 
@@ -628,6 +649,9 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if software.filename is None or software.filename.strip() == '':
         software.filename = 'usage_scenario.yml'
 
+    if software.usage_scenario_variables is None:
+        software.usage_scenario_variables = {}
+
     if not DB().fetch_one('SELECT id FROM machines WHERE id=%s AND available=TRUE', params=(software.machine_id,)):
         raise RequestValidationError('Machine does not exist')
 
@@ -651,21 +675,26 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
         if 'commit' in software.schedule_mode:
             last_marker = utils.get_repo_last_marker(software.repo_url, 'commits')
 
-        Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
+        Watchlist.insert(name=software.name, image_url=software.image_url, repo_url=software.repo_url, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables, user_id=user._id, schedule_mode=software.schedule_mode, last_marker=last_marker)
+
+    job_ids_inserted = []
 
     # even for Watchlist items we do at least one run directly
     amount = 3 if 'variance' in software.schedule_mode else 1
     for _ in range(0,amount):
-        Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id)
+        job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables))
 
     # notify admin of new add
     if notification_email := GlobalConfig().config['admin']['notification_email']:
         Job.insert('email', user_id=user._id, name='New run added from Web Interface', message=str(software), email=notification_email)
 
-    return ORJSONResponse({'success': True}, status_code=202)
+    return ORJSONResponse({'success': True, 'data': job_ids_inserted}, status_code=202)
 
+@router.get('/v1/run/{run_id}', deprecated=True)
+def old_v1_run_endpoint():
+    return ORJSONResponse({'success': False, 'err': 'This endpoint is deprecated. Please migrate to /v2/run/{run_id}'}, status_code=410)
 
-@router.get('/v1/run/{run_id}')
+@router.get('/v2/run/{run_id}')
 async def get_run(run_id: str, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
         raise RequestValidationError('Run ID is not a valid UUID or empty')

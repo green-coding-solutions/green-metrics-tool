@@ -363,6 +363,10 @@ a {
     font-weight: bold;
 }
 
+#usage-scenario-variables li {
+    margin-bottom: 5px;
+}
+
 
 /* PRINT STYLESHEETS */
 @media print {

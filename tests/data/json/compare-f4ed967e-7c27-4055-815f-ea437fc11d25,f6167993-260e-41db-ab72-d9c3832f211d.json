@@ -18,7 +18,8 @@
                 "index": 0,
                 "name": "Stress Test #2",
                 "repo": "/home/arne/Sites/green-coding/example-applications/",
-                "run_id": "f6167993-260e-41db-ab72-d9c3832f211d"
+                "run_id": "f6167993-260e-41db-ab72-d9c3832f211d",
+                "usage_scenario_variables": {}
             },
             {
                 "commit_hash": "58c7a5002c684f41f8d7a355f3ede641d8e45ddc",
@@ -28,7 +29,8 @@
                 "index": 1,
                 "name": "Stress Test #3",
                 "repo": "/home/arne/Sites/green-coding/example-applications/",
-                "run_id": "f4ed967e-7c27-4055-815f-ea437fc11d25"
+                "run_id": "f4ed967e-7c27-4055-815f-ea437fc11d25",
+                "usage_scenario_variables": {}
             }
         ]
     ],
@@ -132,7 +134,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "58c7a5002c684f41f8d7a355f3ede641d8e45ddc": {
                                 "ci": 31.765511841080258,
@@ -154,7 +156,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -661,7 +663,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "58c7a5002c684f41f8d7a355f3ede641d8e45ddc": {
                                 "ci": 127.06204736432103,
@@ -683,7 +685,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -911,7 +913,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "58c7a5002c684f41f8d7a355f3ede641d8e45ddc": {
                                 "ci": 362.1268349883149,
@@ -933,7 +935,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -1192,7 +1194,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "58c7a5002c684f41f8d7a355f3ede641d8e45ddc": {
                                 "ci": 184.23996867826548,
@@ -1214,7 +1216,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -1971,7 +1973,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "58c7a5002c684f41f8d7a355f3ede641d8e45ddc": {
                                 "ci": 82.59033078680866,
@@ -1993,7 +1995,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -2531,7 +2533,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "58c7a5002c684f41f8d7a355f3ede641d8e45ddc": {
                                 "ci": 31.765511841080258,
@@ -2553,7 +2555,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },

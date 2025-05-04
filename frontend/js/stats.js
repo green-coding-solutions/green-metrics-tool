@@ -77,7 +77,7 @@ const fetchAndFillRunData = async (url_params) => {
     let run = null;
 
     try {
-        run = await makeAPICall('/v1/run/' + url_params['id'])
+        run = await makeAPICall('/v2/run/' + url_params['id'])
     } catch (err) {
         showNotification('Could not get run data from API', err);
         return
@@ -93,9 +93,21 @@ const fetchAndFillRunData = async (url_params) => {
         } else if (item == 'machine_specs') {
             fillRunTab('#machine-specs', run_data[item]); // recurse
         } else if(item == 'usage_scenario') {
-            document.querySelector("#usage-scenario").insertAdjacentHTML('beforeend', `<pre class="usage-scenario">${json2yaml(run_data?.[item])}</pre>`)
-        } else if(item == 'logs') {
-            document.querySelector("#logs").insertAdjacentHTML('beforeend', `<pre>${run_data?.[item]}</pre>`)
+            // we would really like to highlight here what was replaced, but since the replace mechanism is so powerful that even the !include command could be modified we can only replace after the file was merged. Thus it is not possible to know after what the replacements are
+            document.querySelector("pre#usage-scenario").textContent = json2yaml(run_data[item]);
+        } else if(item == 'usage_scenario_variables') {
+            if (Object.keys(run_data[item]).length > 0) {
+                const container = document.querySelector("#usage-scenario-variables ul");
+                for (const key in run_data[item]) {
+                    container.insertAdjacentHTML('beforeend', `<li><span class="ui label">${key}=${run_data[item][key]}</span></li>`)
+                }
+            } else {
+                document.querySelector("#usage-scenario-variables").insertAdjacentHTML('beforeend', `N/A`)
+            }
+
+        } else if(item == 'logs' && run_data?.[item] != null) {
+            // textContent does escaping for us
+            document.querySelector("pre#logs").textContent = run_data[item];
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
         } else if(item == 'phases' || item == 'id') {
@@ -151,11 +163,10 @@ const buildCommitLink = (run_data) => {
 
 const fillRunTab = async (selector, data, parent = '') => {
     for (const item in data) {
-        if(typeof data[item] == 'object')
+        if(data[item] != null && typeof data[item] == 'object')
             fillRunTab(selector, data[item], `${item}.`)
         else
             document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${parent}${item}</strong></td><td>${data?.[item]}</td></tr>`)
-
     }
 }
 

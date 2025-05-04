@@ -103,13 +103,13 @@ if __name__ == '__main__':
                 continue
 
             if not args.testing:
-                if temperature_errors >= 10:
-                    raise RuntimeError('Temperature could not be stabilized in time. Pleae check logs ...')
-
                 current_temperature = get_temperature(
                     GlobalConfig().config['machine']['base_temperature_chip'],
                     GlobalConfig().config['machine']['base_temperature_feature']
                 )
+
+                if temperature_errors >= 10:
+                    raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {GlobalConfig().config['machine']['base_temperature_value']}. Pleae check logs ...")
 
                 if current_temperature > config_main['machine']['base_temperature_value']:
                     print(f"Machine is still too hot: {current_temperature}°. Sleeping for 1 minute")
@@ -125,7 +125,7 @@ if __name__ == '__main__':
                     set_status('warmup', current_temperature, last_cooldown_time)
                     temperature_errors += 1
                     current_time = time.time()
-                    while True:
+                    while True: # spinlock
                         if time.time() > (current_time + 10):
                             break
                     continue # still retry loop and make all checks again

@@ -16,7 +16,7 @@ from lib.db import DB
 from lib.user import User
 from lib.terminal_colors import TerminalColors
 from lib.system_checks import ConfigurationCheckError
-from runner import Runner
+from lib.scenario_runner import ScenarioRunner
 import optimization_providers.base
 
 
@@ -37,7 +37,7 @@ class RunJob(Job):
         if not user.has_measurement_quota(self._machine_id):
             raise RuntimeError(f"Your user does not have enough measurement quota to run a job on the selected machine. Machine ID: {self._machine_id}")
 
-        runner = Runner(
+        runner = ScenarioRunner(
             name=self._name,
             uri=self._url,
             uri_type='URL',
@@ -49,6 +49,7 @@ class RunJob(Job):
             docker_prune=docker_prune,
             job_id=self._id,
             user_id=self._user_id,
+            usage_scenario_variables=self._usage_scenario_variables,
             measurement_flow_process_duration=user._capabilities['measurement']['flow_process_duration'],
             measurement_total_duration=user._capabilities['measurement']['total_duration'],
             disabled_metric_providers=user._capabilities['measurement']['disabled_metric_providers'],
