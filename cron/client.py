@@ -25,6 +25,12 @@ STATUS_LIST = ['cooldown', 'warmup', 'job_no', 'job_start', 'job_error', 'job_en
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def set_status(status_code, cur_temp, cooldown_time_after_job, data=None, run_id=None):
+    if not hasattr(set_status, "last_status"):
+        set_status.last_status = status_code  # static variable
+    elif set_status.last_status == status_code:
+        return # no need to update status, if it has not changed since last time
+    set_status.last_status = status_code
+
     # pylint: disable=redefined-outer-name
     config = GlobalConfig().config
     client = config['cluster']['client']
