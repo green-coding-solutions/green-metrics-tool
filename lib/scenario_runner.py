@@ -947,14 +947,24 @@ class ScenarioRunner:
             if 'pause-after-phase' in service:
                 self.__services_to_pause_phase[service['pause-after-phase']] = self.__services_to_pause_phase.get(service['pause-after-phase'], []) + [container_name]
 
-            if 'deploy' in service:
-                if memory := service['deploy'].get('resources', {}).get('limits', {}).get('memory', None):
-                    docker_run_string.append('--memory') # value in bytes
-                    docker_run_string.append(str(memory))
-                if cpus := service['deploy'].get('resources', {}).get('limits', {}).get('cpus', None):
-                    docker_run_string.append('--cpus') # value in cores
-                    docker_run_string.append(str(cpus))
+            # wildly the docker compose spec allows deploy to be None ... thus we need to check and cannot .get()
+            if 'deploy' in service and service['deploy'] is not None and (memory := service['deploy'].get('resources', {}).get('limits', {}).get('memory', None)):
+                docker_run_string.append('--memory') # value in bytes
+                docker_run_string.append(str(memory))
+                print('Applying Memory Limit from deploy')
+            elif memory := service.get('mem_limit', None): # we only need to get resources or cpus. they must align anyway
+                docker_run_string.append('--memory')
+                docker_run_string.append(str(memory))  # value in bytes e.g. "10M"
+                print('Applying Memory Limit from services')
 
+            if 'deploy' in service and service['deploy'] is not None and (cpus := service['deploy'].get('resources', {}).get('limits', {}).get('cpus', None)):
+                docker_run_string.append('--cpus') # value in cores
+                docker_run_string.append(str(cpus))
+                print('Applying CPU Limit from deploy')
+            elif cpus := service.get('cpus', None): # we only need to get resources or cpus. they must align anyway
+                docker_run_string.append('--cpus')
+                docker_run_string.append(str(cpus)) # value in (fractional) cores
+                print('Applying CPU Limit from services')
 
             if 'healthcheck' in service:  # must come last
                 if 'disable' in service['healthcheck'] and service['healthcheck']['disable'] is True:

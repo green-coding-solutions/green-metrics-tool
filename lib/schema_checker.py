@@ -105,7 +105,17 @@ class SchemaChecker():
                     Optional("networks"): self.single_or_list(Use(self.contains_no_invalid_chars)),
                     Optional("environment"): self.single_or_list(Or(dict,And(str, Use(self.not_empty)))),
                     Optional("ports"): self.single_or_list(Or(And(str, Use(self.not_empty)), int)),
-                    Optional("depends_on"): Or([And(str, Use(self.not_empty))],dict),
+                    Optional('depends_on'): Or([And(str, Use(self.not_empty))],dict),
+                    Optional('deploy'):Or({
+                        Optional('resources'): {
+                            Optional('limits'): {
+                                Optional('cpus'): Or(str, float, int),
+                                Optional('memory') : str,
+                            }
+                        }
+                    }, None),
+                    Optional('mem_limit'): str,
+                    Optional('cpus') : Or(str, float, int),
                     Optional('container_name'): And(str, Use(self.not_empty)),
                     Optional("healthcheck"): {
                         Optional('test'): Or(list, And(str, Use(self.not_empty))),
@@ -170,6 +180,8 @@ class SchemaChecker():
             raise SchemaError(error_message) from e
 
 
+
+
         # This check is necessary to do in a seperate pass. If tried to bake into the schema object above,
         # it will not know how to handle the value passed when it could be either a dict or list
         if 'networks' in usage_scenario:
@@ -190,6 +202,15 @@ class SchemaChecker():
                 raise SchemaError(f"The 'image' key for service '{service_name}' is required when 'build' key is not present.")
             if 'cmd' in service:
                 raise SchemaError(f"The 'cmd' key for service '{service_name}' is not supported anymore. Please migrate to 'command'")
+
+
+            if (cpus := service.get('cpus')) and (cpus_deploy := service.get('deploy', {}).get('resources', {}).get('limits', {}).get('cpus')):
+                if cpus != cpus_deploy:
+                    raise SchemaError('cpus service top level key and deploy.resources.limits.cpus must be identical')
+
+            if (mem_limit := service.get('mem_limit')) and (mem_limit_deploy := service.get('deploy', {}).get('resources', {}).get('limits', {}).get('memory')):
+                if mem_limit != mem_limit_deploy:
+                    raise SchemaError('mem_limit service top level key and deploy.resources.limits.memory must be identical')
 
         known_flow_names = []
         for flow in usage_scenario['flow']:
