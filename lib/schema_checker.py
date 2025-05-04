@@ -64,6 +64,7 @@ class SchemaChecker():
             raise SchemaError(f"{value} is not 'container'")
         return value
 
+
     def validate_networks_no_invalid_chars(self, value):
         if isinstance(value, list):
             for item in value:
@@ -109,14 +110,15 @@ class SchemaChecker():
                     Optional('deploy'):Or({
                         Optional('resources'): {
                             Optional('limits'): {
-                                Optional('cpus'): Or(str, float, int),
-                                Optional('memory') : str,
+                                Optional('cpus'): Or(And(str, Use(self.not_empty)), float, int),
+                                Optional('memory') : And(str, Use(self.not_empty)),
                             }
                         }
                     }, None),
-                    Optional('mem_limit'): str,
-                    Optional('cpus') : Or(str, float, int),
+                    Optional('mem_limit'): And(str, Use(self.not_empty)),
+                    Optional('cpus') : Or(And(str, Use(self.not_empty)), float, int),
                     Optional('container_name'): And(str, Use(self.not_empty)),
+
                     Optional("healthcheck"): {
                         Optional('test'): Or(list, And(str, Use(self.not_empty))),
                         Optional('interval'): And(str, Use(self.not_empty)),
@@ -178,8 +180,6 @@ class SchemaChecker():
                 raise SchemaError(f"Your compose file does contain a key that GMT does not support - Please check if the container will still run as intended. If you want to ignore this error you can add the attribute `ignore-unsupported-compose: true` to your usage_scenario.yml\nError: {error_message}") from e
 
             raise SchemaError(error_message) from e
-
-
 
 
         # This check is necessary to do in a seperate pass. If tried to bake into the schema object above,
