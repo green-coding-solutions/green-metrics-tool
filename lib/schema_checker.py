@@ -90,7 +90,6 @@ class SchemaChecker():
             Optional("ignore-unsupported-compose"): bool,
             Optional("version"): str, # is part of compose. we ignore it as it is non functionaly anyway
             Optional("architecture"): And(str, Use(self.not_empty)),
-            Optional("restart"): str, # is part of compose. we ignore it as GMT has own orchestration
             Optional("sci"): {
                 'R_d': And(str, Use(self.not_empty)),
             },
@@ -98,7 +97,9 @@ class SchemaChecker():
             Optional("networks"): Or(list, dict),
 
             Optional("services"): {
+
                 Use(self.contains_no_invalid_chars): {
+                    Optional("restart"): str, # is part of compose. we ignore it as GMT has own orchestration
                     Optional("expose"): [str, int], # is part of compose. we ignore it as it is non functionaly anyway
                     Optional("init"): bool,
                     Optional("type"): Use(self.valid_service_types),
