@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import glob
 import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
@@ -31,7 +32,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--uri', type=str, help='The URI to get the usage_scenario.yml from. Can be either a local directory starting  with / or a remote git repository starting with http(s)://')
     parser.add_argument('--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
-    parser.add_argument('--filename', type=str, default='usage_scenario.yml', help='An optional alternative filename if you do not want to use "usage_scenario.yml"')
+    parser.add_argument('--filename', type=str, action='append', default=['usage_scenario.yml'], help='An optional alternative filename if you do not want to use "usage_scenario.yml"')
 
     parser.add_argument('--variables', nargs='+', help='Variables that will be replaced into the usage_scenario.yml file')
     parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
@@ -55,6 +56,8 @@ if __name__ == '__main__':
     parser.add_argument('--dev-no-optimizations', action='store_true', help='Disable analysis after run to find possible optimizations.')
     parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
+    parser.add_argument('--iterations', type=int, default=1, help='Specify how many times the scenario should be run. Default is 1. Normally your setup should be good enough for this not to be needed.')
+
 
     args = parser.parse_args()
 
@@ -108,49 +111,58 @@ if __name__ == '__main__':
             sys.exit(1)
         GlobalConfig(config_location=args.config_override)
 
-    runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=args.filename,
-                    branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
-                    skip_system_checks=args.skip_system_checks,
-                    skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
-                    full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
-                    dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics,
-                    dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
-                    docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
-                    skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder, usage_scenario_variables=variables_dict)
+    filenames = []
+    for pattern in args.filename:
+        matches = glob.glob(pattern)
+        filenames.extend(f for f in matches if os.path.isfile(f))
+
+    filenames = list(set(filenames)) * args.iterations
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
     try:
-        run_id = runner.run()  # Start main code
+        for filename in filenames:
+            print(TerminalColors.OKBLUE, '\nRunning: ', filename, TerminalColors.ENDC)
+            runner = ScenarioRunner(name=args.name, uri=args.uri, uri_type=run_type, filename=filename,
+                            branch=args.branch, debug_mode=args.debug, allow_unsafe=args.allow_unsafe,
+                            skip_system_checks=args.skip_system_checks,
+                            skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
+                            full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
+                            dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics,
+                            dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
+                            docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
+                            skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder, usage_scenario_variables=variables_dict)
 
-        # this code can live at a different position.
-        # From a user perspective it makes perfect sense to run both jobs directly after each other
-        # In a cloud setup it however makes sense to free the measurement machine as soon as possible
-        # So this code should be individually callable, separate from the runner
+            run_id = runner.run()  # Start main code
 
-        if not runner._dev_no_optimizations:
-            import optimization_providers.base  # We need to import this here as we need the correct config file
-            print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
-            optimization_providers.base.import_reporters()
+            # this code can live at a different position.
+            # From a user perspective it makes perfect sense to run both jobs directly after each other
+            # In a cloud setup it however makes sense to free the measurement machine as soon as possible
+            # So this code should be individually callable, separate from the runner
 
-            print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
+            if not runner._dev_no_optimizations:
+                import optimization_providers.base  # We need to import this here as we need the correct config file
+                print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
+                optimization_providers.base.import_reporters()
 
-            optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
+                print(TerminalColors.HEADER, '\nRunning optimization reporters ...', TerminalColors.ENDC)
 
-        if args.file_cleanup:
-            shutil.rmtree(runner._tmp_folder)
+                optimization_providers.base.run_reporters(runner._user_id, runner._run_id, runner._tmp_folder, runner.get_optimizations_ignore())
 
-        print(TerminalColors.OKGREEN,'\n\n####################################################################################')
-        print(f"Please access your report on the URL {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={runner._run_id}")
-        print('####################################################################################\n\n', TerminalColors.ENDC)
+            if args.file_cleanup:
+                shutil.rmtree(runner._tmp_folder)
+
+            print(TerminalColors.OKGREEN,'\n\n####################################################################################')
+            print(f"Please access your report on the URL {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={runner._run_id}")
+            print('####################################################################################\n\n', TerminalColors.ENDC)
 
 
-        if args.print_phase_stats:
-            phase_stats = DB().fetch_all('SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
-            print(f"Data for phase {args.print_phase_stats}")
-            for el in phase_stats:
-                print(el)
-            print('')
+            if args.print_phase_stats:
+                phase_stats = DB().fetch_all('SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
+                print(f"Data for phase {args.print_phase_stats}")
+                for el in phase_stats:
+                    print(el)
+                print('')
 
     except FileNotFoundError as e:
         error_helpers.log_error('File or executable not found', exception=e, previous_exception=e.__context__, run_id=runner._run_id)
