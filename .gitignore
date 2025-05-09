@@ -30,3 +30,4 @@ tools/sgx_enable
 /tests/test-config.js
 /templates/ai/usage_scenario.yml.tmp
 /templates/website/usage_scenario.yml.tmp
+/ee
