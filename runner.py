@@ -53,6 +53,7 @@ if __name__ == '__main__':
     parser.add_argument('--dev-no-phase-stats', action='store_true', help='Do not calculate phase stats.')
     parser.add_argument('--dev-cache-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
     parser.add_argument('--dev-no-optimizations', action='store_true', help='Disable analysis after run to find possible optimizations.')
+    parser.add_argument('--dev-no-save', action='store_true', help='Will save no data to the DB. This impcitiely activates --dev-no-phase-stats, --dev-no-metrics and --dev-no-optimizations')
     parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
@@ -113,10 +114,11 @@ if __name__ == '__main__':
                     skip_system_checks=args.skip_system_checks,
                     skip_unsafe=args.skip_unsafe,verbose_provider_boot=args.verbose_provider_boot,
                     full_docker_prune=args.full_docker_prune, dev_no_sleeps=args.dev_no_sleeps,
-                    dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics,
+                    dev_cache_build=args.dev_cache_build, dev_no_metrics=args.dev_no_metrics, dev_no_save=args.dev_no_save,
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
                     docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
-                    skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder, usage_scenario_variables=variables_dict)
+                    skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder,
+                    usage_scenario_variables=variables_dict)
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
@@ -128,7 +130,7 @@ if __name__ == '__main__':
         # In a cloud setup it however makes sense to free the measurement machine as soon as possible
         # So this code should be individually callable, separate from the runner
 
-        if not runner._dev_no_optimizations:
+        if not runner._dev_no_optimizations and not runner._dev_no_save:
             import optimization_providers.base  # We need to import this here as we need the correct config file
             print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
             optimization_providers.base.import_reporters()
@@ -140,17 +142,22 @@ if __name__ == '__main__':
         if args.file_cleanup:
             shutil.rmtree(runner._tmp_folder)
 
-        print(TerminalColors.OKGREEN,'\n\n####################################################################################')
-        print(f"Please access your report on the URL {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={runner._run_id}")
-        print('####################################################################################\n\n', TerminalColors.ENDC)
+        if not runner._dev_no_save:
+            print(TerminalColors.OKGREEN,'\n\n####################################################################################')
+            print(f"Please access your report on the URL {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={runner._run_id}")
+            print('####################################################################################\n\n', TerminalColors.ENDC)
 
 
-        if args.print_phase_stats:
-            phase_stats = DB().fetch_all('SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
-            print(f"Data for phase {args.print_phase_stats}")
-            for el in phase_stats:
-                print(el)
-            print('')
+            if args.print_phase_stats:
+                phase_stats = DB().fetch_all('SELECT metric, detail_name, value, type, unit FROM phase_stats WHERE run_id = %s and phase LIKE %s ', params=(runner._run_id, f"%{args.print_phase_stats}"))
+                print(f"Data for phase {args.print_phase_stats}")
+                for el in phase_stats:
+                    print(el)
+                print('')
+        else:
+            print(TerminalColors.OKGREEN,'\n\n####################################################################################')
+            print('Run finished | --dev-no-save was active and nothing was written to DB')
+            print('####################################################################################\n\n', TerminalColors.ENDC)
 
     except FileNotFoundError as e:
         error_helpers.log_error('File or executable not found', exception=e, previous_exception=e.__context__, run_id=runner._run_id)
