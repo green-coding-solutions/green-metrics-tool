@@ -433,7 +433,7 @@ class ScenarioRunner:
         print(TerminalColors.HEADER, '\nRemoving all temporary GMT images', TerminalColors.ENDC)
 
         if self._dev_cache_build:
-            print('Skipping remving of all temporary GMT images skipped due to --dev-cache-build')
+            print('Skipping removing of all temporary GMT images skipped due to --dev-cache-build')
             return
 
         subprocess.run(

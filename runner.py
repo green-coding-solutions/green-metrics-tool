@@ -53,7 +53,7 @@ if __name__ == '__main__':
     parser.add_argument('--dev-no-phase-stats', action='store_true', help='Do not calculate phase stats.')
     parser.add_argument('--dev-cache-build', action='store_true', help='Checks if a container image is already in the local cache and will then not build it. Also doesn\'t clear the images after a run. Please note that skipping builds only works the second time you make a run since the image has to be built at least initially to work.')
     parser.add_argument('--dev-no-optimizations', action='store_true', help='Disable analysis after run to find possible optimizations.')
-    parser.add_argument('--dev-no-save', action='store_true', help='Will save no data to the DB. This impcitiely activates --dev-no-phase-stats, --dev-no-metrics and --dev-no-optimizations')
+    parser.add_argument('--dev-no-save', action='store_true', help='Will save no data to the DB. This implicitly activates --dev-no-phase-stats, --dev-no-metrics and --dev-no-optimizations')
     parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
 
@@ -130,7 +130,7 @@ if __name__ == '__main__':
         # In a cloud setup it however makes sense to free the measurement machine as soon as possible
         # So this code should be individually callable, separate from the runner
 
-        if not runner._dev_no_optimizations and not runner._dev_no_save:
+        if runner._dev_no_optimizations is False and runner._dev_no_save is False:
             import optimization_providers.base  # We need to import this here as we need the correct config file
             print(TerminalColors.HEADER, '\nImporting optimization reporters ...', TerminalColors.ENDC)
             optimization_providers.base.import_reporters()
