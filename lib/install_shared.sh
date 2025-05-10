@@ -288,7 +288,6 @@ function checkout_submodules() {
         ln -sf ../../ee/tests/frontend/test_frontend_ee.py tests/frontend/test_frontend_ee.py
         ln -sf ../../ee/tests/api/test_api_hog.py tests/api/test_api_hog.py
         ln -sf ../../ee/tests/api/test_api_carbondb.py tests/api/test_api_carbondb.py
-        ln -sf ../../ee/tests/cron/test_carbondb_compress.py tests/cron/test_carbondb_compress.py
         ln -sf ../ee/tools/rebuild_carbondb.py tools/rebuild_carbondb.py
         ln -sf ../../ee/frontend/js/hog-details.js frontend/js/hog-details.js
         ln -sf ../../ee/frontend/js/carbondb.js frontend/js/carbondb.js
