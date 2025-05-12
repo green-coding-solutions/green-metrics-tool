@@ -68,7 +68,7 @@ class ScenarioRunner:
         skip_unsafe=False, verbose_provider_boot=False, full_docker_prune=False,
         dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
-        user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, disabled_metric_providers=None, allowed_run_args=None, dev_no_phase_stats=False,
+        user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, disabled_metric_providers=None, allowed_run_args=None, dev_no_phase_stats=False, dev_no_save=False,
         skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None):
 
         if skip_unsafe is True and allow_unsafe is True:
@@ -93,6 +93,7 @@ class ScenarioRunner:
         self._dev_flow_timetravel = dev_flow_timetravel
         self._dev_no_optimizations = dev_no_optimizations
         self._dev_no_phase_stats = dev_no_phase_stats
+        self._dev_no_save = dev_no_save
         self._uri = uri
         self._uri_type = uri_type
         self._original_filename = filename
@@ -195,10 +196,12 @@ class ScenarioRunner:
         Path(path).mkdir(parents=True, exist_ok=True)
 
     def save_notes_runner(self):
-        if not self._run_id:
+        print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
+
+        if not self._run_id or self._dev_no_save:
+            print('Skipping saving notes due to missing run_id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
-        print(TerminalColors.HEADER, '\nSaving notes: ', TerminalColors.ENDC, self.__notes_helper.get_notes())
         self.__notes_helper.save_to_db(self._run_id)
 
     def clear_caches(self):
@@ -212,7 +215,7 @@ class ScenarioRunner:
     def check_system(self, mode='start'):
         print(TerminalColors.HEADER, '\nChecking system', TerminalColors.ENDC)
         if self._skip_system_checks:
-            print("System check skipped")
+            print('Skipping check system due to --skip-system-checks')
             return
 
         if mode =='start':
@@ -427,10 +430,12 @@ class ScenarioRunner:
                     service['image'] = f"{service_name}_{random.randint(500000,10000000)}"
 
     def remove_docker_images(self):
+        print(TerminalColors.HEADER, '\nRemoving all temporary GMT images', TerminalColors.ENDC)
+
         if self._dev_cache_build:
+            print('Skipping removing of all temporary GMT images skipped due to --dev-cache-build')
             return
 
-        print(TerminalColors.HEADER, '\nRemoving all temporary GMT images', TerminalColors.ENDC)
         subprocess.run(
             'docker images --format "{{.Repository}}:{{.Tag}}" | grep "gmt_run_tmp" | xargs docker rmi -f',
             shell=True,
@@ -466,6 +471,13 @@ class ScenarioRunner:
         machine.register()
 
     def initialize_run(self):
+        print(TerminalColors.HEADER, '\nInitializing run', TerminalColors.ENDC)
+
+        if self._dev_no_save:
+            self._run_id = None
+            print('Skipping initialization of run due to --dev-no-save')
+            return self._run_id
+
         config = GlobalConfig().config
 
         gmt_hash, _ = get_repo_info(GMT_ROOT_DIR)
@@ -487,7 +499,6 @@ class ScenarioRunner:
         measurement_config['allowed_run_args'] = self._allowed_run_args
         measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
         measurement_config['sci'] = self._sci
-
 
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self._run_id = DB().fetch_one("""
@@ -516,13 +527,14 @@ class ScenarioRunner:
         return self._run_id
 
     def import_metric_providers(self):
-        if self._dev_no_metrics:
-            print(TerminalColors.HEADER, '\nSkipping import of metric providers', TerminalColors.ENDC)
+        print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
+
+        if self._dev_no_metrics or self._dev_no_save:
+            print('Skipping import of metric providers due to --dev-no-save or --dev-no-metrics')
             return
 
         config = GlobalConfig().config
 
-        print(TerminalColors.HEADER, '\nImporting metric providers', TerminalColors.ENDC)
 
         metric_providers = utils.get_metric_providers(config)
 
@@ -564,8 +576,10 @@ class ScenarioRunner:
         self.__metric_providers.sort(key=lambda item: 'rapl' not in item.__class__.__name__.lower())
 
     def download_dependencies(self):
+        print(TerminalColors.HEADER, '\nDownloading dependencies', TerminalColors.ENDC)
+
         if self._dev_cache_build:
-            print(TerminalColors.HEADER, '\nSkipping downloading dependencies', TerminalColors.ENDC)
+            print('Skipping downloading dependencies due to --dev-cache-build')
             return
 
         print(TerminalColors.HEADER, '\nDownloading dependencies', TerminalColors.ENDC)
@@ -697,6 +711,8 @@ class ScenarioRunner:
 
     def save_image_and_volume_sizes(self):
 
+        print(TerminalColors.HEADER, '\nSaving image and volume sizes', TerminalColors.ENDC)
+
         for _, service in self._usage_scenario.get('services', {}).items():
             tmp_img_name = self.clean_image_name(service['image'])
 
@@ -725,6 +741,11 @@ class ScenarioRunner:
                     self.__volume_sizes[volume] = int(output.strip().split('\t', maxsplit=1)[0])
                 except Exception as exc:
                     raise RuntimeError('Docker volumes could not be inspected. This can happen if you are storing images in a root only accessible location. Consider switching to docker rootless, running with --skip-volume-inspect or running GMT with sudo.') from exc
+
+        if self._dev_no_save:
+            print('Skipping saving of image and volume sizes due to --dev-no-save')
+            return
+
         DB().query("""
             UPDATE runs
             SET machine_specs = machine_specs || %s
@@ -1170,10 +1191,12 @@ class ScenarioRunner:
                 metric_provider.add_containers(self.__containers)
 
     def start_metric_providers(self, allow_container=True, allow_other=True):
-        if self._dev_no_metrics:
+        print(TerminalColors.HEADER, '\nStarting metric providers', TerminalColors.ENDC)
+
+        if self._dev_no_metrics or self._dev_no_save:
+            print('Skipping start of metric providers due to --dev-no-metrics or --dev-no-save')
             return
 
-        print(TerminalColors.HEADER, '\nStarting metric providers', TerminalColors.ENDC)
 
         # Here we start all container related providers
         # This includes tcpdump, which is only for debugging of the containers itself
@@ -1413,10 +1436,12 @@ class ScenarioRunner:
 
     # this method should never be called twice to avoid double logging of metrics
     def stop_metric_providers(self):
-        if self._dev_no_metrics:
+        print(TerminalColors.HEADER, 'Stopping metric providers and parsing measurements', TerminalColors.ENDC)
+
+        if self._dev_no_metrics or self._dev_no_save:
+            print('Skipping stop of metric providers due to --dev-no-metrics or --dev-no-save')
             return
 
-        print(TerminalColors.HEADER, 'Stopping metric providers and parsing measurements', TerminalColors.ENDC)
         errors = []
         for metric_provider in self.__metric_providers:
             if not metric_provider.has_started():
@@ -1518,10 +1543,12 @@ class ScenarioRunner:
         self.__notes_helper.add_note({'note': 'End of measurement', 'detail_name': '[NOTES]', 'timestamp': self.__end_measurement})
 
     def update_start_and_end_times(self):
-        if not self._run_id:
+        print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
+
+        if not self._run_id or self._dev_no_save:
+            print('Skipping update of start and end times due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
-        print(TerminalColors.HEADER, '\nUpdating start and end measurement times', TerminalColors.ENDC)
         DB().query("""
             UPDATE runs
             SET start_measurement=%s, end_measurement=%s
@@ -1531,7 +1558,10 @@ class ScenarioRunner:
 
 
     def set_run_failed(self):
-        if not self._run_id:
+        print(TerminalColors.HEADER, '\nMarking run as failed', TerminalColors.ENDC)
+
+        if not self._run_id or self._dev_no_save:
+            print('Skipping marking run to failed due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
         DB().query("""
@@ -1542,10 +1572,12 @@ class ScenarioRunner:
 
 
     def store_phases(self):
-        if not self._run_id:
+        print(TerminalColors.HEADER, '\nUpdating phases in DB', TerminalColors.ENDC)
+
+        if not self._run_id or self._dev_no_save:
+            print('Skipping updating phases in DB due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
-        print(TerminalColors.HEADER, '\nUpdating phases in DB', TerminalColors.ENDC)
         # internally PostgreSQL stores JSON ordered. This means our name-indexed dict will get
         # re-ordered. Therefore we change the structure and make it a list now.
         # We did not make this before, as we needed the duplicate checking of dicts
@@ -1591,10 +1623,12 @@ class ScenarioRunner:
                 self.add_to_log(container_id, f"stderr: {log.stderr}")
 
     def save_stdout_logs(self):
-        if not self._run_id:
+        print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
+
+        if not self._run_id or self._dev_no_save:
+            print('Skipping savings logs to DB due to missing run id or --dev-no-save')
             return # Nothing to do, but also no hard error needed
 
-        print(TerminalColors.HEADER, '\nSaving logs to DB', TerminalColors.ENDC)
         logs_as_str = '\n\n'.join([f"{k}:{v}" for k,v in self.__stdout_logs.items()])
         logs_as_str = logs_as_str.replace('\x00','')
         if logs_as_str:
@@ -1611,25 +1645,37 @@ class ScenarioRunner:
     #    - Turbo Boost became active during run
     #    - etc.
     def identify_invalid_run(self):
+        print(TerminalColors.HEADER, '\nTrying to identify if run is invalid', TerminalColors.ENDC)
+
         # on macOS we run our tests inside the VM. Thus measurements are not reliable as they contain the overhead and reproducability is quite bad.
         if platform.system() == 'Darwin':
             invalid_message = 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\n'
-            DB().query('''
-                UPDATE runs
-                SET invalid_run = COALESCE(invalid_run, '') || %s
-                WHERE id=%s''',
-                params=(invalid_message, self._run_id)
-            )
+            print(TerminalColors.WARNING, invalid_message, TerminalColors.ENDC)
 
-        for argument in self._arguments:
-            if (argument.startswith('dev_') or argument == 'skip_system_checks')  and self._arguments[argument] not in (False, None):
-                invalid_message = 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n'
+            if not self._run_id or self._dev_no_save:
+                print(TerminalColors.WARNING, '\nSkipping saving identification if run is invalid due to missing run id or --dev-no-save', TerminalColors.ENDC)
+            else:
                 DB().query('''
                     UPDATE runs
                     SET invalid_run = COALESCE(invalid_run, '') || %s
                     WHERE id=%s''',
                     params=(invalid_message, self._run_id)
                 )
+
+        for argument in self._arguments:
+            if (argument.startswith('dev_') or argument == 'skip_system_checks')  and self._arguments[argument] not in (False, None):
+                invalid_message = 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n'
+                print(TerminalColors.WARNING, invalid_message, TerminalColors.ENDC)
+
+                if not self._run_id or self._dev_no_save:
+                    print(TerminalColors.WARNING, '\nSkipping saving identification if run is invalid due to missing run id or --dev-no-save', TerminalColors.ENDC)
+                else:
+                    DB().query('''
+                        UPDATE runs
+                        SET invalid_run = COALESCE(invalid_run, '') || %s
+                        WHERE id=%s''',
+                        params=(invalid_message, self._run_id)
+                    )
                 break # one is enough
 
     def cleanup(self, continue_measurement=False):
@@ -1837,7 +1883,7 @@ class ScenarioRunner:
                                 raise exc
                             finally:
                                 try:
-                                    if self._run_id and self._dev_no_phase_stats is False:
+                                    if self._run_id and self._dev_no_phase_stats is False and self._dev_no_save is False:
                                         # After every run, even if it failed, we want to generate phase stats.
                                         # They will not show the accurate data, but they are still neded to understand how
                                         # much a failed run has accrued in total energy and carbon costs
