@@ -120,10 +120,10 @@ if __name__ == '__main__':
                     GlobalConfig().config['machine']['base_temperature_feature']
                 )
 
-                if temperature_errors >= 10:
-                    raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {GlobalConfig().config['machine']['base_temperature_value']}. Pleae check logs ...")
-
                 if current_temperature > config_main['machine']['base_temperature_value']:
+                    if temperature_errors >= 10:
+                        raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {GlobalConfig().config['machine']['base_temperature_value']}. Pleae check logs ...")
+
                     print(f"Machine is still too hot: {current_temperature}°. Sleeping for 1 minute")
                     set_status('cooldown', current_temperature, last_cooldown_time)
                     cooldown_time += 60
@@ -133,6 +133,9 @@ if __name__ == '__main__':
                     continue
 
                 if current_temperature <= (config_main['machine']['base_temperature_value'] - 5):
+                    if temperature_errors >= 10:
+                        raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {GlobalConfig().config['machine']['base_temperature_value']}. Pleae check logs ...")
+
                     print(f"Machine is too cool: {current_temperature}°. Warming up and retrying")
                     set_status('warmup', current_temperature, last_cooldown_time)
                     temperature_errors += 1
@@ -145,6 +148,7 @@ if __name__ == '__main__':
                 print('Machine is temperature is good. Continuing ...')
                 last_cooldown_time = cooldown_time
                 cooldown_time = 0
+                temperature_errors = 0
 
             if not args.testing and validate.is_validation_needed(config_main['machine']['id'], client_main['time_between_control_workload_validations']):
                 set_status('measurement_control_start', current_temperature, last_cooldown_time)
@@ -195,8 +199,6 @@ if __name__ == '__main__':
                 except Exception as exc: # pylint: disable=broad-except
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
                     error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, previous_exception=exc.__context__, run_id=job._run_id, machine=config_main['machine']['description'], name=job._name, url=job._url)
-                finally:
-                    temperature_errors = 0 # reset
 
             else:
                 set_status('job_no', current_temperature, last_cooldown_time)
