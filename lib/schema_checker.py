@@ -2,6 +2,7 @@ import os
 import string
 import re
 from schema import Schema, SchemaError, Optional, Or, Use, And, Regex
+from datetime import datetime
 
 # https://github.com/compose-spec/compose-spec/blob/master/spec.md
 
@@ -88,7 +89,7 @@ class SchemaChecker():
             "author": And(str, Use(self.not_empty)),
             "description": And(str, Use(self.not_empty)),
             Optional("ignore-unsupported-compose"): bool,
-            Optional("version"): str, # is part of compose. we ignore it as it is non functionaly anyway
+            Optional("version"): Or(str, int, float, datetime), # is part of compose. we ignore it as it is non functionaly anyway
             Optional("architecture"): And(str, Use(self.not_empty)),
             Optional("sci"): {
                 'R_d': And(str, Use(self.not_empty)),
