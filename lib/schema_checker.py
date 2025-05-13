@@ -114,11 +114,11 @@ class SchemaChecker():
                         Optional('resources'): {
                             Optional('limits'): {
                                 Optional('cpus'): Or(And(str, Use(self.not_empty)), float, int),
-                                Optional('memory') : And(str, Use(self.not_empty)),
+                                Optional('memory') : Or(And(str, Use(self.not_empty)), float, int),
                             }
                         }
                     }, None),
-                    Optional('mem_limit'): And(str, Use(self.not_empty)),
+                    Optional('mem_limit'): Or(And(str, Use(self.not_empty)), float, int),
                     Optional('cpus') : Or(And(str, Use(self.not_empty)), float, int),
                     Optional('container_name'): And(str, Use(self.not_empty)),
 

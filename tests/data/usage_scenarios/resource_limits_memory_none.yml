@@ -11,7 +11,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1
+          memory: null
 
 
 flow:

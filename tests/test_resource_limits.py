@@ -56,21 +56,21 @@ def test_resource_limits_good():
     assert 'Applying Memory Limit from deploy' in out.getvalue()
     assert 'Applying Memory Limit from services' in out.getvalue()
 
-def test_resource_limits_memory_int():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_memory_int.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+def test_resource_limits_memory_none():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_memory_none.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
     with pytest.raises(SchemaError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert "1 should be instance of 'str'" in str(e.value)
+    assert "None should be instance of 'str'" in str(e.value)
 
-def test_resource_limits_memory_float():
-    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_memory_float.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+def test_resource_limits_cpu_none():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/resource_limits_cpu_none.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
     with pytest.raises(SchemaError) as e:
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert "1.2 should be instance of 'str'" in str(e.value)
+    assert "None should be instance of 'str'" in str(e.value)
 
 
 def test_resource_limits_disalign_cpu():
