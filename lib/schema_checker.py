@@ -121,7 +121,7 @@ class SchemaChecker():
                     Optional('mem_limit'): Or(And(str, Use(self.not_empty)), float, int),
                     Optional('cpus') : Or(And(str, Use(self.not_empty)), float, int),
                     Optional('container_name'): And(str, Use(self.not_empty)),
-
+                    Optional('shm_size'): Or(And(str, Use(self.not_empty)), float, int),
                     Optional("healthcheck"): {
                         Optional('test'): Or(list, And(str, Use(self.not_empty))),
                         Optional('interval'): And(str, Use(self.not_empty)),

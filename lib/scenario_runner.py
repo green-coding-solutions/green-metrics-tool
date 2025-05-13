@@ -892,6 +892,10 @@ class ScenarioRunner:
             if service.get('init', False):
                 docker_run_string.append('--init')
 
+            if shm_size := service.get('shm_size', False):
+                docker_run_string.append('--shm-size')
+                docker_run_string.append(str(shm_size))
+
             if 'ports' in service:
                 if self._allow_unsafe:
                     if not isinstance(service['ports'], list):
