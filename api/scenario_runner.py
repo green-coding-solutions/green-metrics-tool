@@ -658,7 +658,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if not user.can_use_machine(software.machine_id):
         raise RequestValidationError('Your user does not have the permissions to use that machine.')
 
-    if software.schedule_mode not in ['one-off', 'daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance', 'variance']:
+    if software.schedule_mode not in ['one-off', 'daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance', 'variance', 'statistical-significance']:
         raise RequestValidationError(f"Please select a valid measurement interval. ({software.schedule_mode}) is unknown.")
 
     if not user.can_schedule_job(software.schedule_mode):
@@ -679,8 +679,13 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
 
     job_ids_inserted = []
 
-    # even for Watchlist items we do at least one run directly
-    amount = 3 if 'variance' in software.schedule_mode else 1
+    if 'variance' in software.schedule_mode:
+        amount = 3
+    elif software.schedule_mode == 'statistical-significance':
+        amount = 30
+    else: # even for Watchlist items we do at least one run directly
+        amount = 1
+
     for _ in range(0,amount):
         job_ids_inserted.append(Job.insert('run', user_id=user._id, name=software.name, url=software.repo_url, email=software.email, branch=software.branch, filename=software.filename, machine_id=software.machine_id, usage_scenario_variables=software.usage_scenario_variables))
 

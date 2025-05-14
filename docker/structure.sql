@@ -95,7 +95,8 @@ VALUES (
                 "variance",
                 "tag",
                 "commit-variance",
-                "tag-variance"
+                "tag-variance",
+                "statistical-significance"
             ]
         },
         "machines": [1],
