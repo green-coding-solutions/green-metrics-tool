@@ -152,8 +152,11 @@ class BaseMetricProvider:
         return df
 
     def _add_unit_and_metric(self, df): # can be overriden in child
-        df['unit'] = self._unit
-        df['metric'] = self._metric_name
+        if 'unit' not in df.columns:
+            df['unit'] = self._unit
+        if 'metric' not in df.columns:
+            df['metric'] = self._metric_name
+
         return df
 
     @final
@@ -167,13 +170,14 @@ class BaseMetricProvider:
         self._check_resolution_underflow(df)
 
         df = self._parse_metrics(df)
-        df = self._add_unit_and_metric(df)
 
-        df = self._add_and_validate_resolution_and_jitter(df)
+        def process_df(df):
+            df = self._add_unit_and_metric(df)
+            df = self._add_and_validate_resolution_and_jitter(df)
+            self._check_empty(df)
+            return df
 
-        self._check_empty(df) # we do another check after transformations, as this could have resulted in zero rows
-
-        return df
+        return process_df(df) if not isinstance(df, list) else [process_df(dfi) for dfi in df]
 
     def _add_extra_switches(self, call_string): # will be adapted in child if needed
         return call_string

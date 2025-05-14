@@ -140,12 +140,30 @@ def build_and_store_phase_stats(run_id, sci=None):
                 if metric in ('cpu_utilization_cgroup_container', 'cpu_utilization_cgroup_system', ):
                     cpu_utilization_containers[detail_name] = avg_value
 
-            elif metric in ['network_io_cgroup_system', 'disk_io_cgroup_system', 'network_io_cgroup_container', 'network_io_procfs_system', 'disk_io_procfs_system', 'disk_io_cgroup_container', 'disk_io_bytesread_powermetrics_vm', 'disk_io_byteswritten_powermetrics_vm']:
+            elif metric in ['network_io_cgroup_system',
+                            'network_io_cgroup_container',
+                            'network_io_procfs_system',
+                            'disk_io_procfs_system',
+                            'disk_io_cgroup_container',
+                            'disk_io_bytesread_powermetrics_vm',
+                            'disk_io_byteswritten_powermetrics_vm',
+                            'disk_io_read_cgroup_container',
+                            'disk_io_write_cgroup_container',
+                            'disk_io_write_cgroup_system',
+                            'disk_io_read_cgroup_system',
+                            ]:
 
                 # if we only have one value, we cannot determine the effective sampling resolution.
                 # Thus we have to use the target resolution from the settings
                 if value_count == 1:
                     provider_name = metric.replace('_', '.') + '.provider.' + utils.get_pascal_case(metric) + 'Provider'
+                    if provider_name not in measurement_config['providers']:
+                        # I can't find a "nicer" way of doing this. I think a cleaner solution would be to get the resolution from the DB as like this we
+                        # decouple the phase stats from the local config. But this would require a lot of changes in the code and I am not sure if it is worth it.
+
+                        if provider_name in ('disk.io.read.cgroup.system.provider.DiskIoReadCgroupSystemProvider', 'disk.io.write.cgroup.system.provider.DiskIoWriteCgroupSystemProvider'):
+                            provider_name = 'disk.io.cgroup.system.provider.DiskIoCgroupSystemProvider'
+
                     sampling_rate_avg = sampling_rate_max = sampling_rate_95p = Decimal(measurement_config['providers'][provider_name]['resolution'])*1000
 
                 # I/O values should be per second. However we have very different timing intervals.

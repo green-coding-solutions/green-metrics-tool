@@ -454,5 +454,45 @@ METRIC_MAPPINGS = {
         "clean_name": "Machine Power",
         "source": "SDIA",
         "explanation": "Full machine power (AC) as estimated by SDIA model"
-    }
+    },
+    "disk_io_read_cgroup_container": {
+        "clean_name": "Disk Reads",
+        "source": "cgroup",
+        "explanation": "Data read from disk per container via cgroup"
+    },
+    "disk_io_write_cgroup_container": {
+        "clean_name": "Disk Writes",
+        "source": "cgroup",
+        "explanation": "Data written to disk per container via cgroup"
+    },
+    "disk_io_read_cgroup_system": {
+        "clean_name": "Disk Reads",
+        "source": "cgroup",
+        "explanation": "Data read from disk per container via cgroup"
+    },
+    "disk_io_write_cgroup_system": {
+        "clean_name": "Disk Writes",
+        "source": "cgroup",
+        "explanation": "Data written to disk per container via cgroup"
+    },
+    "disk_total_read_cgroup_container": {
+        "clean_name": "Total Disk Reads",
+        "source": "cgroup",
+        "explanation": "Total data read from disk per container via cgroup"
+    },
+    "disk_total_write_cgroup_container": {
+        "clean_name": "Total Disk Writes",
+        "source": "cgroup",
+        "explanation": "Total data written to disk per container via cgroup"
+    },
+    "disk_total_read_cgroup_system": {
+        "clean_name": "Total Sytem Disk Reads",
+        "source": "cgroup",
+        "explanation": "Total data read from disk for the system via cgroup"
+    },
+    "disk_total_write_cgroup_system": {
+        "clean_name": "Total System Disk Writes",
+        "source": "cgroup",
+        "explanation": "Total data written to disk for the system via cgroup"
+    },
 } // PLEASE DO NOT REMOVE THIS COMMENT -- END METRIC_MAPPINGS

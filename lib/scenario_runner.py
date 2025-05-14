@@ -1468,7 +1468,11 @@ class ScenarioRunner:
                 errors.append(f"{metric_provider.__class__.__name__} returned error message: {str(exc)}")
                 continue
 
-            metric_importer.import_measurements(df, metric_provider._metric_name, self._run_id)
+            if isinstance(df, list):
+                for i, dfi in enumerate(df):
+                    metric_importer.import_measurements(dfi, metric_provider._sub_metrics_name[i], self._run_id)
+            else:
+                metric_importer.import_measurements(df, metric_provider._metric_name, self._run_id)
 
             print('Imported', TerminalColors.HEADER, len(df), TerminalColors.ENDC, 'metrics from ', metric_provider.__class__.__name__)
 
