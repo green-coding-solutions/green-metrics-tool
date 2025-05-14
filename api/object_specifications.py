@@ -22,7 +22,7 @@ class Software(BaseModel):
 
 class UserSetting(BaseModel):
     name: str
-    value: str | list
+    value: str | list | bool
 
     model_config = ConfigDict(extra='forbid')
 

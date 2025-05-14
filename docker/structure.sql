@@ -40,7 +40,13 @@ VALUES (
         "user": {
             "visible_users": [0,1],
             "is_super_user": true,
-            "updateable_settings": ["measurement.disabled_metric_providers","measurement.flow_process_duration","measurement.total_duration"]
+            "updateable_settings": [
+                "measurement.dev_no_sleeps",
+                "measurement.dev_no_optimizations",
+                "measurement.disabled_metric_providers",
+                "measurement.flow_process_duration",
+                "measurement.total_duration"
+            ]
         },
         "api": {
             "quotas": {},
@@ -95,6 +101,8 @@ VALUES (
         "machines": [1],
         "measurement": {
             "quotas": {},
+            "dev_no_sleeps": false,
+            "dev_no_optimizations": false,
             "total_duration": 86400,
             "flow_process_duration": 86400,
             "orchestrators": {

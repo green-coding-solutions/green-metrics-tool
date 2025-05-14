@@ -1667,7 +1667,8 @@ class ScenarioRunner:
                 )
 
         for argument in self._arguments:
-            if (argument.startswith('dev_') or argument == 'skip_system_checks')  and self._arguments[argument] not in (False, None):
+            # dev no optimizations does not make the run invalid ... all others do
+            if argument != 'dev_no_optimizations' and (argument.startswith('dev_') or argument == 'skip_system_checks')  and self._arguments[argument] not in (False, None):
                 invalid_message = 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n'
                 print(TerminalColors.WARNING, invalid_message, TerminalColors.ENDC)
 
