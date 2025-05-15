@@ -233,12 +233,17 @@ def reset_db():
 
 class RunUntilManager:
     def __init__(self, runner):
+        self._active = False
         self.__runner = runner
 
     def __enter__(self):
+        self._active = True
         return self
 
     def run_until(self, step):
+        if not getattr(self, '_active', False):
+            raise RuntimeError("run_until must be used within the context")
+
         try:
             config = GlobalConfig().config
             self.__runner.start_measurement()
@@ -317,4 +322,5 @@ class RunUntilManager:
             raise exc
 
     def __exit__(self, exc_type, exc_value, traceback):
+        self._active = False
         self.__runner.cleanup()
