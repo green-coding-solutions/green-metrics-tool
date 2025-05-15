@@ -29,6 +29,7 @@ def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename'
         {"start": TEST_MEASUREMENT_START_TIME-4, "name": "[BOOT]", "end": TEST_MEASUREMENT_START_TIME-3},
         {"start": TEST_MEASUREMENT_START_TIME-2, "name": "[IDLE]", "end": TEST_MEASUREMENT_START_TIME-1},
         {"start": TEST_MEASUREMENT_START_TIME, "name": "[RUNTIME]", "end": TEST_MEASUREMENT_END_TIME},
+        {"start": TEST_MEASUREMENT_START_TIME, "name": "Only Phase", "end": TEST_MEASUREMENT_END_TIME},
         {"start": TEST_MEASUREMENT_END_TIME+1, "name": "[REMOVE]", "end": TEST_MEASUREMENT_END_TIME+2},
     ]
 
