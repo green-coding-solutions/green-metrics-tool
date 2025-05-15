@@ -25,8 +25,12 @@ def get_git_api(parsed_url):
     if parsed_url.netloc in ['gitlab.com', 'www.gitlab.com']:
         return [f"https://gitlab.com/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab']
 
+    # Alternative:
     # assume gitlab private hosted
-    return [f"{parsed_url.scheme}://{parsed_url.netloc}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab']
+    # However: Often times the token or SSH access is too restrictive then and cannot be used ... remove for now ...
+    # return [f"{parsed_url.scheme}://{parsed_url.netloc}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab']
+
+    raise ValueError(f"Could not find any possible candidate for {parsed_url.netloc}")
 
 
 def check_repo(repo_url, branch='main'):
