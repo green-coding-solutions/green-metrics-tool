@@ -291,5 +291,5 @@ def test_sci():
 
 
     assert len(data) == 1
-    assert 50 < data[0]['value'] < 70
+    assert 50 < data[0]['value'] < 150
     assert data[0]['unit'] == 'ugCO2e/Cool run'

@@ -40,6 +40,7 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx):
 
     # now we need to actually fix the totals. This is done in a separate step as we could not reference the total phase
     # time for the runtime phases and their aggreagate value in one query
+
     total_runtime_sub_phase_duration = DB().fetch_one(
         "SELECT value FROM phase_stats WHERE phase = %s AND run_id = %s AND metric = 'phase_time_syscall_system' AND detail_name = '[SYSTEM]' AND unit = 'us' AND type = 'TOTAL' ",
         params=(f"{runtime_phase_idx:03}_[RUNTIME]", run_id,)
@@ -63,11 +64,6 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx):
         ''', params=(run_id, total_runtime_sub_phase_duration, f"{runtime_phase_idx:03}_[RUNTIME]", run_id)
     )
 
-        ## now we need to update every value here with an actual mean
-
-
-#    csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{idx:03}_{phase['name']}", (machine_carbon_in_ug + embodied_carbon_share_ug + network_io_carbon_in_ug) / Decimal(sci['R']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{sci['R_d']}"))
-
 
 def generate_csv_line(run_id, metric, detail_name, phase_name, value, value_type, max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit):
     # else '' resolves to NULL
@@ -79,6 +75,7 @@ def build_and_store_phase_stats(run_id, sci=None):
     if not sci:
         sci = {}
 
+    software_carbon_intensity_global = {}
 
     query = """
             SELECT id, metric, unit, detail_name
@@ -237,6 +234,7 @@ def build_and_store_phase_stats(run_id, sci=None):
 
                 if metric.endswith('_machine') and sci.get('I', None) is not None:
                     machine_carbon_in_ug = (value_sum / 3_600_000) * Decimal(sci['I'])
+                    software_carbon_intensity_global['machine_carbon_in_ug'] = software_carbon_intensity_global.get('machine_carbon_in_ug', 0) + machine_carbon_in_ug
 
                     csv_buffer.write(generate_csv_line(run_id, f"{metric.replace('_energy_', '_carbon_')}", detail_name, f"{idx:03}_{phase['name']}", machine_carbon_in_ug, 'TOTAL', None, None, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, 'ug'))
 
@@ -261,6 +259,7 @@ def build_and_store_phase_stats(run_id, sci=None):
             csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_uJ, 'TOTAL', None, None, None, None, None, 'uJ'))
             # co2 calculations
             network_io_carbon_in_ug = network_io_in_kWh * Decimal(config['sci']['I']) * 1_000_000
+            software_carbon_intensity_global['network_io_carbon_in_ug'] = software_carbon_intensity_global.get('network_io_carbon_in_ug', 0) + network_io_carbon_in_ug
             csv_buffer.write(generate_csv_line(run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
         else:
             network_io_carbon_in_ug = 0
@@ -269,7 +268,9 @@ def build_and_store_phase_stats(run_id, sci=None):
             duration_in_years = duration_in_s / (60 * 60 * 24 * 365)
             embodied_carbon_share_g = (duration_in_years / Decimal(sci['EL']) ) * Decimal(sci['TE']) * Decimal(sci['RS'])
             embodied_carbon_share_ug = Decimal(embodied_carbon_share_g * 1_000_000)
+            software_carbon_intensity_global['embodied_carbon_share_ug'] = software_carbon_intensity_global.get('embodied_carbon_share_ug', 0) + embodied_carbon_share_ug
             csv_buffer.write(generate_csv_line(run_id, 'embodied_carbon_share_machine', '[SYSTEM]', f"{idx:03}_{phase['name']}", embodied_carbon_share_ug, 'TOTAL', None, None, None, None, None, 'ug'))
+
 
         if machine_power_current_phase and machine_power_baseline and cpu_utilization_machine and cpu_utilization_containers:
             surplus_power_runtime = machine_power_current_phase - machine_power_baseline
@@ -287,6 +288,16 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_slice', detail_name, f"{idx:03}_{phase['name']}", machine_power_current_phase * splitting_ratio, 'TOTAL', None, None, None, None, None, 'mW'))
                 csv_buffer.write(generate_csv_line(run_id, 'psu_energy_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_energy_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'uJ'))
                 csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'mW'))
+
+    # TODO: refactor to be a metric provider. Than it can also be per phase
+    print(software_carbon_intensity_global, sci)
+    if software_carbon_intensity_global.get('machine_carbon_in_ug', None) is not None \
+        and software_carbon_intensity_global.get('embodied_carbon_share_ug', None) is not None \
+        and sci.get('R', 0) != 0 \
+        and sci.get('R_d', None) is not None:
+
+        csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', '004_[RUNTIME]', (software_carbon_intensity_global['machine_carbon_in_ug'] + software_carbon_intensity_global['embodied_carbon_share_ug'] + software_carbon_intensity_global.get('network_io_carbon_in_ug', 0)) / Decimal(sci['R']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{sci['R_d']}"))
+    # TODO End
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning
     DB().copy_from(
