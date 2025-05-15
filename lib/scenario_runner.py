@@ -1268,7 +1268,8 @@ class ScenarioRunner:
 
         phase_time = int(time.time_ns() / 1_000)
 
-        phase_time += self._sampling_interval_padding
+        self.__notes_helper.add_note({'note': f"Ending phase {phase} [UNPADDED]", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+        phase_time += self._sampling_interval_padding*1000 # value is in ms and we need to get to us
         time.sleep(self._sampling_interval_padding/1000) # no custom sleep here as even with dev_no_sleeps we must ensure phases don't overlap
 
         if phase not in self.__phases:
@@ -1278,13 +1279,13 @@ class ScenarioRunner:
             for container_to_pause in self.__services_to_pause_phase[phase]:
                 info_text = f"Pausing {container_to_pause} after phase: {phase}."
                 print(info_text)
-                self.__notes_helper.add_note({'note': info_text, 'detail_name': '[NOTES]', 'timestamp': phase_time})
+                self.__notes_helper.add_note({'note':  info_text, 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
                 subprocess.run(['docker', 'pause', container_to_pause], check=True, stdout=subprocess.DEVNULL)
 
 
         self.__phases[phase]['end'] = phase_time
-        self.__notes_helper.add_note({'note': f"Ending phase {phase}", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+        self.__notes_helper.add_note({'note': f"Ending phase {phase} [PADDED]", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
     def run_flows(self):
         ps_to_kill_tmp = []
