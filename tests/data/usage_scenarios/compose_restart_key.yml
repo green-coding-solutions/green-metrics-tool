@@ -1,0 +1,17 @@
+---
+name: Docker args valid test
+author: Mr Burns
+description: Docker args valid test
+
+services:
+  test:
+    image: alpine
+    restart: asd
+
+flow:
+  - name: Small-Test
+    container: test
+    commands:
+      - type: console
+        command: echo "This is nice that it works, isn't it 🥺"
+        shell: /bin/sh

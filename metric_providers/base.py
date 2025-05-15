@@ -130,7 +130,7 @@ class BaseMetricProvider:
 
 
     def _parse_metrics(self, df): # can be overriden in child
-        df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]" # default, can be overridden in child
+        df['detail_name'] = f"[{self._metric_name.split('_')[-1].upper()}]" # default, can be overridden in child
         return df
 
     def _add_and_validate_resolution_and_jitter(self, df):

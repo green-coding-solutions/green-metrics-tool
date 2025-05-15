@@ -10,11 +10,11 @@ from contextlib import redirect_stdout, redirect_stderr
 import pytest
 
 from tests import test_functions as Tests
-from runner import Runner
+from lib.scenario_runner import ScenarioRunner
 from lib.db import DB
 
 def test_volume_load_no_escape():
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_etc_hosts.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_etc_hosts.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
 
     try:
         with pytest.raises(ValueError) as e:
@@ -28,7 +28,7 @@ def test_volume_load_no_escape():
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
 def test_volume_load_escape_ok_with_allow_unsafe():
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_etc_hosts.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, allow_unsafe=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_etc_hosts.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, allow_unsafe=True)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -47,7 +47,7 @@ def test_volume_load_escape_ok_with_allow_unsafe():
     assert "File mounted" in out, Tests.assertion_info('File mounted', f"out: {out} | err: {err}")
 
 def test_load_files_from_within_gmt():
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_within_proj.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_within_proj.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -71,7 +71,7 @@ def test_symlinks_should_fail():
 
     os.symlink('/etc/hosts', symlink_file)
 
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_symlinks_negative.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_symlinks_negative.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
 
     try:
         with pytest.raises(ValueError) as e:
@@ -86,7 +86,7 @@ def test_symlinks_should_fail():
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
 def test_non_bind_mounts_should_fail():
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_non_bind_mounts.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_non_bind_mounts.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
 
     try:
         with pytest.raises(RuntimeError) as e:
@@ -100,7 +100,7 @@ def test_non_bind_mounts_should_fail():
     assert container_running is False, Tests.assertion_info('test-container stopped', 'test-container was still running!')
 
 def test_load_volume_references():
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_references.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/volume_load_references.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
@@ -119,7 +119,7 @@ def test_load_volume_references():
     assert "File mounted" in out, Tests.assertion_info('File mounted', f"out: {out} | err: {err}")
 
 def test_volume_loading_subdirectories_root():
-    runner = Runner(uri=GMT_DIR, filename='tests/data/usage_scenarios/subdir_volume_loading/usage_scenario.yml', uri_type='folder', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+    runner = ScenarioRunner(uri=GMT_DIR, filename='tests/data/usage_scenarios/subdir_volume_loading/usage_scenario.yml', uri_type='folder', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -145,7 +145,7 @@ def test_volume_loading_subdirectories_root():
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
 def test_volume_loading_subdirectories_subdir():
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename="tests/data/usage_scenarios/subdir_volume_loading/subdir/usage_scenario_subdir.yml", skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename="tests/data/usage_scenarios/subdir_volume_loading/subdir/usage_scenario_subdir.yml", skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -162,7 +162,7 @@ def test_volume_loading_subdirectories_subdir():
     assert expect_mounted_testfile_3 in run_stdout, Tests.assertion_info(expect_mounted_testfile_3, f"expected output not in {run_stdout}")
 
 def test_volume_loading_subdirectories_subdir2():
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename="tests/data/usage_scenarios/subdir_volume_loading/subdir/subdir2/usage_scenario_subdir2.yml", skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename="tests/data/usage_scenarios/subdir_volume_loading/subdir/subdir2/usage_scenario_subdir2.yml", skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -206,7 +206,7 @@ def test_volume_inspect():
     )
     assert ps.returncode == 1, 'docker volume of 2g89huiwecjuShjg_Sdnufewiuasd seems to be present on file system. Cannot execute test safely'
 
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_with_named_volume.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, allow_unsafe=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/stress_with_named_volume.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False, allow_unsafe=True)
 
 
     try:

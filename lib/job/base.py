@@ -5,6 +5,7 @@ import sys
 import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
+import json
 import os
 import importlib
 from abc import ABC, abstractmethod
@@ -24,7 +25,7 @@ from lib.configuration_check_error import ConfigurationCheckError
 """
 
 class Job(ABC):
-    def __init__(self, *, state, name, email, url,  branch, filename, machine_id, user_id, run_id, job_id, machine_description, message, created_at = None):
+    def __init__(self, *, state, name, email, url,  branch, filename, usage_scenario_variables, machine_id, user_id, run_id, job_id, machine_description, message, created_at = None):
         self._id = job_id
         self._state = state
         self._name = name
@@ -32,6 +33,7 @@ class Job(ABC):
         self._url = url
         self._branch = branch
         self._filename = filename
+        self._usage_scenario_variables = usage_scenario_variables
         self._machine_id = machine_id
         self._user_id = user_id
         self._machine_description = machine_description
@@ -74,18 +76,21 @@ class Job(ABC):
         pass
 
     @classmethod
-    def insert(cls, job_type, *, user_id, name=None, url=None, email=None, branch=None, filename=None, machine_id=None, message=None):
+    def insert(cls, job_type, *, user_id, name=None, url=None, email=None, branch=None, filename=None, machine_id=None, usage_scenario_variables=None, message=None):
 
         if job_type == 'run' and (not branch or not url or not filename or not machine_id):
             raise RuntimeError('For adding runs branch, url, filename and machine_id must be set')
 
+        if usage_scenario_variables is None:
+            usage_scenario_variables = {}
+
         query = """
                 INSERT INTO
-                    jobs (type, name, url, email, branch, filename, machine_id, user_id, message, state, created_at)
+                    jobs (type, name, url, email, branch, filename, usage_scenario_variables, machine_id, user_id, message, state, created_at)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'WAITING', NOW()) RETURNING id;
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'WAITING', NOW()) RETURNING id;
                 """
-        params = (job_type, name, url, email, branch, filename, machine_id, user_id, message)
+        params = (job_type, name, url, email, branch, filename, json.dumps(usage_scenario_variables),  machine_id, user_id, message)
         return DB().fetch_one(query, params=params)[0]
 
     # A static method to get a job object
@@ -96,7 +101,7 @@ class Job(ABC):
         query = '''
             SELECT
                 j.id, j.state, j.name, j.email, j.url, j.branch,
-                j.filename, j.machine_id, j.user_id, m.description, j.message, r.id as run_id, j.created_at
+                j.filename, j.usage_scenario_variables, j.machine_id, j.user_id, m.description, j.message, r.id as run_id, j.created_at
 
             FROM jobs as j
             LEFT JOIN machines as m on m.id = j.machine_id
@@ -135,12 +140,13 @@ class Job(ABC):
             url=job[4],
             branch=job[5],
             filename=job[6],
-            machine_id=job[7],
-            user_id=job[8],
-            machine_description=job[9],
-            message=job[10],
-            run_id=job[11],
-            created_at=job[12],
+            usage_scenario_variables=job[7],
+            machine_id=job[8],
+            user_id=job[9],
+            machine_description=job[10],
+            message=job[11],
+            run_id=job[12],
+            created_at=job[13],
         )
 
     @classmethod

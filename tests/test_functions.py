@@ -233,12 +233,17 @@ def reset_db():
 
 class RunUntilManager:
     def __init__(self, runner):
+        self._active = False
         self.__runner = runner
 
     def __enter__(self):
+        self._active = True
         return self
 
     def run_until(self, step):
+        if not getattr(self, '_active', False):
+            raise RuntimeError("run_until must be used within the context")
+
         try:
             config = GlobalConfig().config
             self.__runner.start_measurement()
@@ -246,6 +251,7 @@ class RunUntilManager:
             self.__runner.check_system('start')
             self.__runner.initialize_folder(self.__runner._tmp_folder)
             self.__runner.checkout_repository()
+            self.__runner.load_yml_file()
             self.__runner.initial_parse()
             self.__runner.register_machine_id()
             self.__runner.import_metric_providers()
@@ -316,4 +322,5 @@ class RunUntilManager:
             raise exc
 
     def __exit__(self, exc_type, exc_value, traceback):
+        self._active = False
         self.__runner.cleanup()

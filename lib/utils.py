@@ -25,8 +25,12 @@ def get_git_api(parsed_url):
     if parsed_url.netloc in ['gitlab.com', 'www.gitlab.com']:
         return [f"https://gitlab.com/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab']
 
+    # Alternative:
     # assume gitlab private hosted
-    return [f"{parsed_url.scheme}://{parsed_url.netloc}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab']
+    # However: Often times the token or SSH access is too restrictive then and cannot be used ... remove for now ...
+    # return [f"{parsed_url.scheme}://{parsed_url.netloc}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab']
+
+    raise ValueError(f"Could not find any possible candidate for {parsed_url.netloc}")
 
 
 def check_repo(repo_url, branch='main'):
@@ -142,7 +146,7 @@ def get_run_data(run_name):
 def get_pascal_case(in_string):
     return ''.join([s.capitalize() for s in in_string.split('_')])
 
-def get_metric_providers(config):
+def get_metric_providers(config, disabled_metric_providers=None):
     architecture = get_architecture()
 
     if 'metric_providers' not in config['measurement'] or config['measurement']['metric_providers'] is None:
@@ -160,6 +164,9 @@ def get_metric_providers(config):
     if 'common' in config['measurement']['metric_providers']:
         if config['measurement']['metric_providers']['common'] is not None:
             metric_providers = {**metric_providers, **config['measurement']['metric_providers']['common']}
+
+    if disabled_metric_providers:
+        metric_providers = {key: value for key, value in metric_providers.items() if key.rsplit('.', maxsplit=1)[-1] not in disabled_metric_providers}
 
     return metric_providers
 

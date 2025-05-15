@@ -164,7 +164,7 @@ async function getRepositories(sort_by = 'date') {
 
             if(!$.fn.DataTable.isDataTable(table)) {
                 const uri = this.getAttribute('data-uri');
-                getRunsTable($(table), `/v1/runs?uri=${uri}&uri_mode=exact&limit=0`, false, false, true)
+                getRunsTable($(table), `/v2/runs?uri=${uri}&uri_mode=exact&limit=0`, false, false, true)
             }
     }});
 }
@@ -187,8 +187,8 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
             render: function(el, type, row) {
 
                 // only show Failed OR in Progress
-                if(row[10] == true) el = `${el} <span class="ui red horizontal label">Failed</span>`;
-                else if(row[9] == null) el = `${el} (in progress 🔥)`;
+                if(row[11] == true) el = `${el} <span class="ui red horizontal label">Failed</span>`;
+                else if(row[10] == null) el = `${el} (in progress 🔥)`;
 
                 if(row[5] != null) el = `${el} <span class="ui yellow horizontal label" title="${row[5]}">invalidated</span>`;
 
@@ -215,7 +215,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
     columns.push({ data: 3, title: '<i class="icon code branch"></i>Branch'});
 
     columns.push({
-        data: 8,
+        data: 9,
         title: '<i class="icon history"></i>Commit</th>',
         render: function(el, type, row) {
           // Modify the content of the "Name" column here
@@ -223,9 +223,16 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         },
     });
 
-    columns.push({ data: 6, title: '<i class="icon file alternate"></i>Filename', });
-    columns.push({ data: 7, title: '<i class="icon laptop code"></i>Machine</th>' });
-    columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>', render: (el, type, row) => el == null ? '-' : `${dateToYMD(new Date(el))}<br><a href="/timeline.html?uri=${row[2]}&branch=${row[3]}&machine_id=${row[11]}&filename=${row[6]}&metrics=key" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>` });
+    columns.push({
+        data: 6,
+        title: '<i class="icon file alternate"></i>Filename',
+        render: function(el, type, row) {
+            const usage_scenario_variables = Object.entries(row[7]).map(([k, v]) => `<span class="ui label">${k}=${v}</span>`);
+            return `${el} ${usage_scenario_variables.join(' ')}`
+        }
+    });
+    columns.push({ data: 8, title: '<i class="icon laptop code"></i>Machine</th>' });
+    columns.push({ data: 4, title: '<i class="icon calendar"></i>Last run</th>', render: (el, type, row) => el == null ? '-' : `${dateToYMD(new Date(el))}<br><a href="/timeline.html?uri=${row[2]}&branch=${row[3]}&machine_id=${row[12]}&filename=${row[6]}&metrics=key" class="ui teal horizontal label  no-wrap"><i class="ui icon clock"></i>History &nbsp;</a>` });
 
     columns.push({
         data: 0,
@@ -287,7 +294,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
     } else {
         document.querySelector('#scenario-runner-repositories-description')?.remove();
         document.querySelector('#sort-button').remove()
-        getRunsTable($('#runs-and-repos-table tbody table'), `/v1/runs?${getFilterQueryStringFromURI()}&limit=50`)
+        getRunsTable($('#runs-and-repos-table tbody table'), `/v2/runs?${getFilterQueryStringFromURI()}&limit=50`)
     }
 
     if (localStorage.getItem('expert_compare_mode') === 'true') {

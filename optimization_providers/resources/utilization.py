@@ -69,8 +69,7 @@ def container_cpu_utilization(self, run, measurements, repo_path, network, notes
     cpus = {}
     for s, d in run.get('usage_scenario').get('services').items():
         if x := d.get('deploy', {}).get('resources', {}).get('limits', {}).get('cpus', None):
-            cpus[s] = x
-
+            cpus[s] = float(x)
 
     for service, measurement_stats in phases.get('data').get('[RUNTIME]').get('cpu_utilization_cgroup_container').get('data').items():
         if not service in cpus:

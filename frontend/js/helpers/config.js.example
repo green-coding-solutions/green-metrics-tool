@@ -88,7 +88,7 @@ const DEFAULT_ENERGY_TIMELINE_BADGE_METRICS = [
     // ['cpu_energy_rapl_msr_component','Package_0'], // uncomment if you want RAPL CPU energy in timeline overview
     // ['memory_energy_rapl_msr_component','Package_0'], // uncomment if you want RAPL DRAM energy in timeline overview
     // ['network_energy_formula_global','[FORMULA]'], // uncomment if you want network in timeline overview
-    ['psu_energy_ac_mcp_machine','[machine]'],
+    ['psu_energy_ac_mcp_machine','[MACHINE]'],
     // ['software_carbon_intensity_global','[SYSTEM]'] // uncomment if you want SCI as badge in timeline overview
 ]
 

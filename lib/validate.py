@@ -27,7 +27,7 @@ from lib.db import DB
 from lib.terminal_colors import TerminalColors
 from lib import error_helpers
 
-from runner import Runner
+from lib.scenario_runner import ScenarioRunner
 
 class ValidationWorkloadStddevError(RuntimeError):
     pass
@@ -76,7 +76,7 @@ def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_windo
 
 
 def run_workload(name, uri, filename, branch):
-    runner = Runner(
+    runner = ScenarioRunner(
         name=name,
         uri=uri,
         uri_type='URL',
