@@ -96,6 +96,7 @@ class SchemaChecker():
             },
 
             Optional("networks"): Or(list, dict),
+            Optional("volumes"): Or(list, dict), # volumes in the root level are fine. They have no implication alone and will be checked in the service then if listed
 
             Optional("services"): {
 
