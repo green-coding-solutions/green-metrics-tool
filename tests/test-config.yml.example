@@ -70,8 +70,8 @@ measurement:
     linux:
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
         resolution: 99
-#      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
-#        resolution: 99
+      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
+        resolution: 99
       network.io.procfs.system.provider.NetworkIoProcfsSystemProvider:
         resolution: 99
         remove_virtual_interfaces: True
@@ -84,6 +84,8 @@ measurement:
       memory.used.cgroup.container.provider.MemoryUsedCgroupContainerProvider:
         resolution: 99
       network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
+        resolution: 99
+      disk.io.cgroup.container.provider.DiskIoCgroupContainerProvider:
         resolution: 99
     macos:
       cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
