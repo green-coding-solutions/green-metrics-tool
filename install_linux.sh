@@ -38,6 +38,19 @@ if [[ $activate_scenario_runner == true ]] ; then
     sudo systemctl stop tinyproxy
     sudo systemctl disable tinyproxy
 
+    if [[ $install_nvidia_toolkit_headers == true ]] ; then
+        print_message "Installing nvidia toolkit headers"
+        if lsb_release -is | grep -q "Fedora"; then
+            if ! sudo dnf -y install cuda-nvml-dev; then
+                print_message "Failed to install msr-tools; continuing without RAPL."
+            fi
+        else
+            if ! sudo apt-get install -y libnvidia-ml-dev; then
+                print_message "Failed to install msr-tools; continuing without RAPL."
+            fi
+        fi
+    fi
+
     print_message "Building C libs"
     make -C "lib/c"
 
