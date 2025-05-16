@@ -500,7 +500,10 @@ class ScenarioRunner:
         measurement_config['allowed_run_args'] = self._allowed_run_args
         measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
         measurement_config['sci'] = self._sci
-        self._sampling_interval_padding = measurement_config['sampling_interval_padding'] = max(measurement_config['providers'].values(), key=lambda x: x.get('resolution', 0)).get('resolution', 0)
+        self._sampling_interval_padding = measurement_config['sampling_interval_padding'] = max(
+            measurement_config['providers'].values(),
+            key=lambda x: x.get('resolution', 0) if x else 0
+        ).get('resolution', 0)
 
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self._run_id = DB().fetch_one("""
