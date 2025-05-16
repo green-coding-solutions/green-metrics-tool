@@ -52,7 +52,10 @@ def check_largest_sampling_rate():
     if not metric_providers: # no provider provider configured passes this check
         return True
 
-    return max(metric_providers.values(), key=lambda x: x.get('resolution', 0)).get('resolution', 0) <= 1000
+    return max(
+        metric_providers.values(),
+        key=lambda x: x.get('resolution', 0) if x else 0
+    ).get('resolution', 0) <= 1000
 
 def check_cpu_utilization():
     return psutil.cpu_percent(0.1) < 5.0
