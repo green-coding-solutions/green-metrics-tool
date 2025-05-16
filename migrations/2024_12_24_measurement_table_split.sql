@@ -21,6 +21,7 @@ CREATE TABLE measurement_values (
 );
 
 CREATE INDEX measurement_values_mmid ON measurement_values(measurement_metric_id);
+CREATE UNIQUE INDEX measurement_values_unique ON measurement_values(measurement_metric_id, time);
 
 INSERT INTO measurement_metrics (run_id, metric, detail_name, unit)
 SELECT DISTINCT run_id, metric, detail_name, unit

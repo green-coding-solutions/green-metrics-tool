@@ -1,1 +1,0 @@
- DROP INDEX IF EXISTS measurement_values_unique;

@@ -468,12 +468,12 @@ METRIC_MAPPINGS = {
     "disk_io_read_cgroup_system": {
         "clean_name": "Disk Reads",
         "source": "cgroup",
-        "explanation": "Data read from disk per container via cgroup"
+        "explanation": "Data read from disk for the system via cgroup"
     },
     "disk_io_write_cgroup_system": {
         "clean_name": "Disk Writes",
         "source": "cgroup",
-        "explanation": "Data written to disk per container via cgroup"
+        "explanation": "Data written to disk for the system via cgroup"
     },
     "disk_total_read_cgroup_container": {
         "clean_name": "Total Disk Reads",
@@ -486,7 +486,7 @@ METRIC_MAPPINGS = {
         "explanation": "Total data written to disk per container via cgroup"
     },
     "disk_total_read_cgroup_system": {
-        "clean_name": "Total Sytem Disk Reads",
+        "clean_name": "Total System Disk Reads",
         "source": "cgroup",
         "explanation": "Total data read from disk for the system via cgroup"
     },
