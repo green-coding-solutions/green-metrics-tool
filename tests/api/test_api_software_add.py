@@ -176,8 +176,7 @@ def test_post_run_add_broken_repo_url():
     run_name = 'test_' + utils.randomword(12)
     run = Software(name=run_name, repo_url='h8gw4hruihuf', email='testEmail', branch='', filename='', machine_id=1, schedule_mode='one-off')
     response = requests.post(f"{API_URL}/v1/software/add", json=run.model_dump(), timeout=15)
-    assert response.status_code == 422, Tests.assertion_info('success', response.text)
-    assert json.loads(response.text)['err'] == 'Could not find repository h8gw4hruihuf and branch main. Is the repo publicly accessible, not empty and does the branch main exist?'
+    assert response.status_code == 202 # we changed from failing on unknowns to allowing them due to allowing other vendors or private repos with reduced capbility tokens that might be cloneable but do not expose the API
 
 def test_post_run_add_non_existent_repo():
     run_name = 'test_' + utils.randomword(12)
