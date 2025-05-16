@@ -312,7 +312,7 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
         <td>${detail_name}</td>
         <td>${metric_data.type}</td>
         <td><span title="${detail_data_array[0]}">${transformed_value_1?.toFixed(2)}</span> ${ transformed_value_1?.toFixed(2) == '0.00' ? `<i data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data_array[0]} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i>` : ''}</td>
-        <td><span title="${detail_data_array[1]}">${transformed_value_2?.toFixed(2)}</span> ${ transformed_value_1?.toFixed(2) == '0.00' ? `<i data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data_array[1]} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i>` : ''}</td>
+        <td><span title="${detail_data_array[1]}">${transformed_value_2?.toFixed(2)}</span> ${ transformed_value_2?.toFixed(2) == '0.00' ? `<i data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data_array[1]} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i>` : ''}</td>
         <td>${transformed_unit}</td>
         <td class="${icon_color}">${relative_difference}</td>
         <td>${extra_label}</td>`;
