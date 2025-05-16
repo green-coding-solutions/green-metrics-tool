@@ -310,4 +310,5 @@ def build_and_store_phase_stats(run_id, sci=None):
     )
     csv_buffer.close()  # Close the buffer
 
-    reconstruct_runtime_phase(run_id, runtime_phase_idx)
+    if runtime_phase_idx:
+        reconstruct_runtime_phase(run_id, runtime_phase_idx)
