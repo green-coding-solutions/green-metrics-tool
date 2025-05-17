@@ -108,7 +108,7 @@ def build_and_store_phase_stats(run_id, sci=None):
 
     runtime_phase_idx = None
 
-    for idx, phase in enumerate(phases):
+    for idx, phase in enumerate(phases[0]):
         if phase['name'] == '[RUNTIME]': # do not process runtime like this, but rather reconstruct it later. Still advance the idx counter though as we want to use the number later
             runtime_phase_idx = idx
             continue

@@ -222,7 +222,7 @@ CREATE TABLE measurement_metrics (
     metric text NOT NULL,
     detail_name text NOT NULL,
     unit text NOT NULL,
-    sampling_rate_configured int -- can be null for providers like NetworkProxy
+    sampling_rate_configured int  NOT NULL
 );
 
 CREATE UNIQUE INDEX measurement_metrics_get ON measurement_metrics(run_id,metric,detail_name); -- technically we could allow also different units, but we want to see the use case for that first
