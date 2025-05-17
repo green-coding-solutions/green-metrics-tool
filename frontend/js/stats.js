@@ -466,7 +466,7 @@ const fetchAndFillAIData = async (url_params) => {
 
     ai_data.sort((a, b) => a.rating - b.rating);
 
-    stats = {
+    const stats = {
         'green':0,
         'yellow':0,
         'red':0
@@ -502,7 +502,7 @@ const fetchAndFillAIData = async (url_params) => {
         <div class="content">
             <h4 class="ui horizontal divider header">
             <i class="barcode icon"></i>
-                You code
+                Your code
             </h4>
             <pre>{{code}}</pre>
             <h4 class="ui horizontal divider header">
