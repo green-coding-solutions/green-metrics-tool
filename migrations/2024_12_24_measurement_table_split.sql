@@ -28,15 +28,15 @@ SELECT DISTINCT run_id, metric, detail_name, unit
 FROM measurements;
 
 INSERT INTO measurement_values (measurement_metric_id, value, time)
-SELECT 
+SELECT
     mm.id AS measurement_metric_id,
     m.value,
     m.time
-FROM 
+FROM
     measurements m
-JOIN 
+JOIN
     measurement_metrics mm
-ON 
+ON
     m.run_id = mm.run_id
     AND m.metric = mm.metric
     AND m.detail_name = mm.detail_name

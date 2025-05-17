@@ -1,8 +1,9 @@
 import os
 
 from metric_providers.cgroup import CgroupMetricProvider
+from metric_providers.disk.io.disk_io_parse import DiskIoParseMixin
 
-class DiskIoCgroupSystemProvider(CgroupMetricProvider):
+class DiskIoCgroupSystemProvider(DiskIoParseMixin, CgroupMetricProvider):
     def __init__(self, resolution, skip_check=False, cgroups: dict = None):
         super().__init__(
             metric_name='disk_io_cgroup_system',
@@ -13,3 +14,5 @@ class DiskIoCgroupSystemProvider(CgroupMetricProvider):
             skip_check=skip_check,
             cgroups=cgroups,
         )
+
+        self._sub_metrics_name = ['disk_io_read_cgroup_system', 'disk_io_write_cgroup_system']
