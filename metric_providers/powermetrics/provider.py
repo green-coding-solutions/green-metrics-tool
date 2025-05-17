@@ -100,7 +100,7 @@ class PowermetricsProvider(BaseMetricProvider):
     def _parse_metrics(self, df):
         return df # noop, as we have already set detail_name individually in _read_metrics
 
-    def _add_unit_and_metric(self, df):
+    def _add_auxillary_fields(self, df):
         return df # noop, as we have already set detail_name individually in _read_metrics
 
     def _check_resolution_underflow(self, df):
