@@ -31,7 +31,7 @@ def get_git_api(parsed_url):
     # Alternative:
 
     # assume gitlab private hosted
-    return [f"https://{parsed_url.netloc}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab']
+    return [f"https://{parsed_url.netloc}/api/v4/projects/{parsed_url.path.strip(' /').replace('/', '%2F')}/repository", 'gitlab-custom']
 
 
 def check_repo(repo_url, branch='main'):
@@ -39,7 +39,7 @@ def check_repo(repo_url, branch='main'):
     [url, git_api] = get_git_api(parsed_url)
     if git_api == 'github':
         url = f"{url}/commits?per_page=1&sha={branch}"
-    elif git_api == 'gitlab':
+    elif git_api in ('gitlab', 'gitlab-custom'):
         url = f"{url}/commits?per_page=1"
     else:
         error_helpers.log_error('Unknown git repo type detected. Skipping further validation for now.',repo_url=repo_url)
@@ -53,7 +53,9 @@ def check_repo(repo_url, branch='main'):
 
     # We do not fail here, but only do a warning, bc often times the SSH or token which might be supplied in the URL is too restrictive then and cannot be used to query the commits also
     # However we do check the commits endpoint bc this tells us if the repo is non empty or not
-    if response.status_code != 200:
+    if response.status_code != 200 and git_api in ('gitlab', 'github'):
+        raise RequestValidationError(f"Could not read from repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?")
+    else:
         error_helpers.log_error(f"Connect to {git_api} API was possbile, but return code was not 200",url=url,status_code=response.status_code,status_text=response.text)
 
 def get_repo_last_marker(repo_url, marker):
