@@ -11,7 +11,6 @@ from io import StringIO
 from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import error_helpers
-from lib import utils
 
 def reconstruct_runtime_phase(run_id, runtime_phase_idx):
     # First we create averages for all types. This includes means and totals
@@ -78,7 +77,7 @@ def build_and_store_phase_stats(run_id, sci=None):
     software_carbon_intensity_global = {}
 
     query = """
-            SELECT id, metric, unit, detail_name
+            SELECT id, metric, unit, detail_name, sampling_rate_configured
             FROM measurement_metrics
             WHERE run_id = %s
             ORDER BY metric ASC -- we need this ordering for later, when we read again
@@ -91,11 +90,11 @@ def build_and_store_phase_stats(run_id, sci=None):
 
 
     query = """
-        SELECT phases, measurement_config
+        SELECT phases
         FROM runs
         WHERE id = %s
         """
-    phases, measurement_config = DB().fetch_one(query, (run_id, ))
+    phases = DB().fetch_one(query, (run_id, ))
 
     if not phases or not phases[0]:
         error_helpers.log_error('Phases object was empty and no phase_stats could be created. This can happen for failed runs, but should be very rare ...', run_id=run_id)
@@ -144,7 +143,7 @@ def build_and_store_phase_stats(run_id, sci=None):
         csv_buffer.write(generate_csv_line(run_id, 'phase_time_syscall_system', '[SYSTEM]', f"{idx:03}_{phase['name']}", duration, 'TOTAL', None, None, None, None, None, 'us'))
 
         # now we go through all metrics in the run and aggregate them
-        for measurement_metric_id, metric, unit, detail_name in metrics: # unpack
+        for measurement_metric_id, metric, unit, detail_name, sampling_rate_configured in metrics: # unpack
             # -- saved for future if I need lag time query
             #    WITH times as (
             #        SELECT id, value, time, (time - LAG(time) OVER (ORDER BY detail_name ASC, time ASC)) AS diff, unit
@@ -200,11 +199,10 @@ def build_and_store_phase_stats(run_id, sci=None):
 
             elif metric in ['network_io_cgroup_system', 'disk_io_cgroup_system', 'network_io_cgroup_container', 'network_io_procfs_system', 'disk_io_procfs_system', 'disk_io_cgroup_container', 'disk_io_bytesread_powermetrics_vm', 'disk_io_byteswritten_powermetrics_vm']:
 
-                # if we only have one value, we cannot determine the effective sampling resolution.
-                # Thus we have to use the target resolution from the settings
+                # if we only have one value, we cannot determine the effective sampling rate.
+                # Thus we have to use the configured sampling_rate from the settings
                 if value_count == 1:
-                    provider_name = metric.replace('_', '.') + '.provider.' + utils.get_pascal_case(metric) + 'Provider'
-                    sampling_rate_avg = sampling_rate_max = sampling_rate_95p = Decimal(measurement_config['providers'][provider_name]['resolution'])*1000
+                    sampling_rate_avg = sampling_rate_max = sampling_rate_95p = Decimal(sampling_rate_configured)*1000
 
                 # I/O values should be per second. However we have very different timing intervals.
                 # So we do not directly use the average here, as this would be the average per sampling frequency. We go through the duration

@@ -4,11 +4,11 @@ from lib import utils
 from metric_providers.container import ContainerMetricProvider
 
 class NetworkIoCgroupContainerProvider(ContainerMetricProvider):
-    def __init__(self, resolution, skip_check=False, containers: dict = None):
+    def __init__(self, sampling_rate, skip_check=False, containers: dict = None):
         super().__init__(
             metric_name='network_io_cgroup_container',
             metrics={'time': int, 'received_bytes': int, 'transmitted_bytes': int, 'container_id': str},
-            resolution=resolution,
+            sampling_rate=sampling_rate,
             unit='Bytes',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
