@@ -23,7 +23,7 @@ class LmsensorsProvider(BaseMetricProvider):
         return ['-c'] + [f"'{i}'" for i in provider_config['chips']] \
             + ['-f'] + [f"'{i}'" for i in provider_config['features']]
 
-    def __init__(self, metric_name, resolution, unit, skip_check=False):
+    def __init__(self, metric_name, sampling_rate, unit, skip_check=False):
         if __name__ == '__main__':
             # If you run this on the command line you will need to set this in the config
             # This is separate so it is always clear what config is used.
@@ -33,7 +33,7 @@ class LmsensorsProvider(BaseMetricProvider):
         super().__init__(
             metric_name=metric_name,
             metrics={'time': int, 'value': int, 'sensor_name': str},
-            resolution=resolution,
+            sampling_rate=sampling_rate,
             unit=unit,
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,

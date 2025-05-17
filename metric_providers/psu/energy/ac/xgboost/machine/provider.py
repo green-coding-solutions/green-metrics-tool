@@ -10,12 +10,12 @@ from metric_providers.base import BaseMetricProvider, MetricProviderConfiguratio
 from lib.global_config import GlobalConfig
 
 class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
-    def __init__(self, resolution, *, HW_CPUFreq, CPUChips, CPUThreads, TDP,
+    def __init__(self, sampling_rate, *, HW_CPUFreq, CPUChips, CPUThreads, TDP,
                  HW_MemAmountGB, CPUCores=None, Hardware_Availability_Year=None, VHost_Ratio=1, skip_check=False, filename=None):
         super().__init__(
             metric_name="psu_energy_ac_xgboost_machine",
             metrics={"time": int, "value": int},
-            resolution=resolution,
+            sampling_rate=sampling_rate,
             unit="uJ",
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,

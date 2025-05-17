@@ -208,7 +208,7 @@ def test_phase_stats_network_io_two_measurements():
     assert data[3]['sampling_rate_95p'] == 1000486
 
 def test_phase_stats_network_io_two_measurements_at_phase_border():
-    run_id = Tests.insert_run(measurement_config='{"providers": {"network.io.procfs.system.provider.NetworkIoProcfsSystemProvider": {"resolution": 99}}}')
+    run_id = Tests.insert_run(measurement_config='{"providers": {"network.io.procfs.system.provider.NetworkIoProcfsSystemProvider": {"sampling_rate": 99}}}')
     Tests.import_two_network_io_procfs_measurements_at_phase_border(run_id)
 
     build_and_store_phase_stats(run_id)
