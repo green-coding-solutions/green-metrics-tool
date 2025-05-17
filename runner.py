@@ -47,6 +47,7 @@ if __name__ == '__main__':
     parser.add_argument('--full-docker-prune', action='store_true', help='Stop and remove all containers, build caches, volumes and images on the system')
     parser.add_argument('--docker-prune', action='store_true', help='Prune all unassociated build caches, networks volumes and stopped containers on the system')
     parser.add_argument('--skip-volume-inspect', action='store_true', help='Disable docker volume inspection. Can help if you encounter permission issues.')
+    parser.add_argument('--no-phase-padding', action='store_true', help='Do not add paddings to phase end to capture incomplete last sampling interval.')
     parser.add_argument('--dev-flow-timetravel', action='store_true', help='Allows to repeat a failed flow or timetravel to beginning of flows or restart services.')
     parser.add_argument('--dev-no-metrics', action='store_true', help='Skips loading the metric providers. Runs will be faster, but you will have no metric')
     parser.add_argument('--dev-no-sleeps', action='store_true', help='Removes all sleeps. Resulting measurement data will be skewed.')
@@ -118,7 +119,7 @@ if __name__ == '__main__':
                     dev_flow_timetravel=args.dev_flow_timetravel, dev_no_optimizations=args.dev_no_optimizations,
                     docker_prune=args.docker_prune, dev_no_phase_stats=args.dev_no_phase_stats, user_id=args.user_id,
                     skip_volume_inspect=args.skip_volume_inspect, commit_hash_folder=args.commit_hash_folder,
-                    usage_scenario_variables=variables_dict)
+                    usage_scenario_variables=variables_dict, phase_padding=not args.no_phase_padding)
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
