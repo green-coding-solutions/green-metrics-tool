@@ -258,7 +258,8 @@ const renderCompareChartsForPhase = (phase_stats_object, phase='[RUNTIME]', run_
                     co2_calculated = true;
                 }
 
-                metric_box_data[key_index] = transformed_mean
+                metric_box_data[key_index] = detail_data['data'][key]?.mean
+
                 compare_chart_data.push(transformed_values)
                 compare_chart_labels.push(`${phase_stats_object.comparison_case}: ${key}`)
                 compare_chart_mark.push({
