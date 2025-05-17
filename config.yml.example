@@ -243,6 +243,7 @@ activate_scenario_runner: False
 activate_eco_ci: False
 activate_power_hog: False
 activate_carbon_db: False
+activate_ai: False
 
 # GMT can activate additional enterprise only functionality
 # If you have a subscription insert your token here
