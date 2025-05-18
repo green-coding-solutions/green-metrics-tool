@@ -208,7 +208,7 @@ def test_phase_stats_network_io_two_measurements():
     assert data[3]['sampling_rate_95p'] == 1000486
 
 def test_phase_stats_network_io_two_measurements_at_phase_border():
-    run_id = Tests.insert_run(measurement_config='{"providers": {"network.io.procfs.system.provider.NetworkIoProcfsSystemProvider": {"sampling_rate": 99}}}')
+    run_id = Tests.insert_run()
     Tests.import_two_network_io_procfs_measurements_at_phase_border(run_id)
 
     build_and_store_phase_stats(run_id)
@@ -223,24 +223,24 @@ def test_phase_stats_network_io_two_measurements_at_phase_border():
 
     assert data[3]['metric'] == 'network_io_procfs_system'
     assert data[3]['detail_name'] == 'CURRENT_ACTUAL_NETWORK_INTERFACE'
-    assert data[3]['value'] == 138242
-    assert data[3]['sampling_rate_95p'] == 99000
-    assert data[3]['sampling_rate_avg'] == 99000
-    assert data[3]['sampling_rate_max'] == 99000
+    assert data[3]['value'] == 13686
+    assert data[3]['sampling_rate_95p'] == 1000000
+    assert data[3]['sampling_rate_avg'] == 1000000
+    assert data[3]['sampling_rate_max'] == 1000000
 
     assert data[0]['metric'] == 'network_total_procfs_system'
     assert data[0]['detail_name'] == 'CURRENT_ACTUAL_NETWORK_INTERFACE'
     assert data[0]['value'] == 13686
-    assert data[0]['sampling_rate_95p'] == 99000
-    assert data[0]['sampling_rate_avg'] == 99000
-    assert data[0]['sampling_rate_max'] == 99000
+    assert data[0]['sampling_rate_95p'] == 1000000
+    assert data[0]['sampling_rate_avg'] == 1000000
+    assert data[0]['sampling_rate_max'] == 1000000
 
     assert data[4]['metric'] == 'network_io_procfs_system'
     assert data[4]['detail_name'] == 'lo'
     assert data[4]['value'] == 0
-    assert data[4]['sampling_rate_95p'] == 99000
-    assert data[4]['sampling_rate_avg'] == 99000
-    assert data[4]['sampling_rate_max'] == 99000
+    assert data[4]['sampling_rate_95p'] == 1000000
+    assert data[4]['sampling_rate_avg'] == 1000000
+    assert data[4]['sampling_rate_max'] == 1000000
 
 
 def test_phase_stats_single_network_procfs():
