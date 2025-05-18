@@ -98,7 +98,7 @@ $(document).ready(function () {
                 { data: 9, title: 'Updated at', render: (el) => el == null ? '-' : dateToYMD(new Date(el)) },
             ],
             deferRender: true,
-            order: [[8, 'desc']] // API also orders, but we need to indicate order for the user
+            order: [[7, 'desc']] // API also orders, but we need to indicate order for the user
         });
 
 
