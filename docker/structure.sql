@@ -45,7 +45,8 @@ VALUES (
                 "measurement.dev_no_optimizations",
                 "measurement.disabled_metric_providers",
                 "measurement.flow_process_duration",
-                "measurement.total_duration"
+                "measurement.total_duration",
+                "measurement.phase_padding"
             ]
         },
         "api": {

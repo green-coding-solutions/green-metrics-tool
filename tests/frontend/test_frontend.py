@@ -530,29 +530,54 @@ def test_settings_measurement():
     page.wait_for_load_state("load") # ALL JS should be done
 
     user = User(1)
+    # check default values
+    assert user._capabilities['measurement']['disabled_metric_providers'] == []
+    assert user._capabilities['measurement']['flow_process_duration'] == 86400
+    assert user._capabilities['measurement']['total_duration'] == 86400
+    assert user._capabilities['measurement']['phase_padding'] is True
+    assert user._capabilities['measurement']['dev_no_sleeps'] is False
+    assert user._capabilities['measurement']['dev_no_optimizations'] is False
 
-    value = page.locator('#measurement-total-duration').input_value()
-    assert int(value.strip()) == user._capabilities['measurement']['total_duration']
-
-
-    value = page.locator('#measurement-flow-process-duration').input_value()
-    assert int(value.strip()) == user._capabilities['measurement']['flow_process_duration']
 
     value = page.locator('#measurement-disabled-metric-providers').input_value()
     providers = [] if value.strip() == '' else [value.strip()]
     assert providers == user._capabilities['measurement']['disabled_metric_providers']
 
-    page.locator('#measurement-total-duration').fill('123')
-    page.locator('#measurement-flow-process-duration').fill('456')
-    page.evaluate('$("#measurement-disabled-metric-providers").dropdown("set exactly", "NetworkConnectionsProxyContainerProvider");')
+    value = page.locator('#measurement-flow-process-duration').input_value()
+    assert int(value.strip()) == user._capabilities['measurement']['flow_process_duration']
 
-    page.locator('#save-measurement-total-duration').click()
-    page.locator('#save-measurement-flow-process-duration').click()
+    value = page.locator('#measurement-total-duration').input_value()
+    assert int(value.strip()) == user._capabilities['measurement']['total_duration']
+
+    value = page.locator('#measurement-phase-padding').is_checked()
+    assert value is user._capabilities['measurement']['phase_padding']
+
+    value = page.locator('#measurement-dev-no-sleeps').is_checked()
+    assert value is user._capabilities['measurement']['dev_no_sleeps']
+
+    value = page.locator('#measurement-dev-no-optimizations').is_checked()
+    assert value is user._capabilities['measurement']['dev_no_optimizations']
+
+    page.evaluate('$("#measurement-disabled-metric-providers").dropdown("set exactly", "NetworkConnectionsProxyContainerProvider");')
+    page.locator('#measurement-flow-process-duration').fill('456')
+    page.locator('#measurement-total-duration').fill('123')
+    page.locator('#measurement-phase-padding').click()
+    page.locator('#measurement-dev-no-sleeps').click()
+    page.locator('#measurement-dev-no-optimizations').click()
+
     page.locator('#save-measurement-disabled-metric-providers').click()
+    page.locator('#save-measurement-flow-process-duration').click()
+    page.locator('#save-measurement-total-duration').click()
+    page.locator('#save-measurement-phase-padding').click()
+    page.locator('#save-measurement-dev-no-sleeps').click()
+    page.locator('#save-measurement-dev-no-optimizations').click()
 
     page.wait_for_load_state("networkidle") # ALL AJAX should be done
 
     user = User(1)
-    assert user._capabilities['measurement']['total_duration'] == 123
-    assert user._capabilities['measurement']['flow_process_duration'] == 456
     assert user._capabilities['measurement']['disabled_metric_providers'] == ['NetworkConnectionsProxyContainerProvider']
+    assert user._capabilities['measurement']['flow_process_duration'] == 456
+    assert user._capabilities['measurement']['total_duration'] == 123
+    assert user._capabilities['measurement']['phase_padding'] is False
+    assert user._capabilities['measurement']['dev_no_sleeps'] is True
+    assert user._capabilities['measurement']['dev_no_optimizations'] is True
