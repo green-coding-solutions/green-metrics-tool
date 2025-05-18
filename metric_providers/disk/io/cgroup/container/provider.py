@@ -4,11 +4,11 @@ from metric_providers.container import ContainerMetricProvider
 from metric_providers.disk.io.disk_io_parse import DiskIoParseMixin
 
 class DiskIoCgroupContainerProvider(DiskIoParseMixin, ContainerMetricProvider):
-    def __init__(self, resolution, skip_check=False, containers: dict = None):
+    def __init__(self, sampling_rate, skip_check=False, containers: dict = None):
         super().__init__(
             metric_name='disk_io_cgroup_container',
             metrics={'time': int, 'read_bytes': int, 'written_bytes': int, 'container_id': str},
-            resolution=resolution,
+            sampling_rate=sampling_rate,
             unit='Bytes',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,

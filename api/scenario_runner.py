@@ -664,7 +664,11 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if not user.can_schedule_job(software.schedule_mode):
         raise RequestValidationError('Your user does not have the permissions to use that schedule mode.')
 
-    utils.check_repo(software.repo_url, software.branch) # if it exists through the git api
+    try:
+        utils.check_repo(software.repo_url, software.branch) # if it exists through the git api
+    except ValueError as exc: # We accept the value error here if the repository is unknown, but log it for now
+        error_helpers.log_error('Repository could not be checked in /v1/software/add.', exception=exc)
+
 
     if software.schedule_mode in ['daily', 'weekly', 'commit', 'commit-variance', 'tag', 'tag-variance']:
 

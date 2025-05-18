@@ -1,11 +1,11 @@
 from metric_providers.lmsensors.abstract_provider import LmsensorsProvider
 
 class LmsensorsTemperatureComponentProvider(LmsensorsProvider):
-    def __init__(self, resolution, *, skip_check=False, **_):
+    def __init__(self, sampling_rate, *, skip_check=False, **_):
         self._provider_config_path = 'lmsensors.temperature.component.provider.LmsensorsTemperatureComponentProvider'
         super().__init__(
             metric_name='lmsensors_temperature_component',
-            resolution=resolution,
+            sampling_rate=sampling_rate,
             unit='centi°C',
             skip_check=skip_check,
         )

@@ -15,6 +15,8 @@ ask_power_hog=true
 activate_power_hog=false
 ask_carbon_db=true
 activate_carbon_db=false
+ask_ai_optimisations=true
+activate_ai_optimisations=false
 build_docker_containers=true
 install_python_packages=true
 modify_hosts=true
@@ -175,6 +177,12 @@ function prepare_config() {
         eval "${sed_command} -e \"s|activate_carbon_db:.*$|activate_carbon_db: True|\" config.yml"
     else
         eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
+    fi
+    if [[ $activate_ai_optimisations == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_AI_OPTIMISATIONS__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_ai_optimisations:.*$|activate_ai_optimisations: True|\" config.yml"
+    else
+        eval "${sed_command} -e \"s|__ACTIVATE_AI_OPTIMISATIONS__|false|\" frontend/js/helpers/config.js"
     fi
 
 
@@ -399,6 +407,18 @@ check_python_version
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --ai) # This is not documented in the help, as it is only for GCS internal use
+            ask_ai_optimisations=false
+            activate_ai_optimisations=true
+            shift
+            ;;
+
+        --no-ai) # This is not documented in the help, as it is only for GCS internal use
+            ask_ai_optimisations=false
+            activate_ai_optimisations=false
+            shift
+            ;;
+
         --ee-branch) # This is not documented in the help, as it is only for GCS internal use
             check_optarg 'ee-branch' "${2:-}"
             ee_branch="$2"
@@ -667,6 +687,16 @@ if [[ $enterprise == true && $ask_power_hog == true ]]; then
         activate_power_hog=true
     else
         activate_power_hog=false
+    fi
+fi
+
+if [[ $enterprise == true && $ask_ai_optimisations == true ]]; then
+    echo ""
+    read -p "Do you want to activate AI Optimizations? (y/N) : " activate_ai_optimisations
+    if [[  "$activate_ai_optimisations" == "Y" || "$activate_ai_optimisations" == "y" ]] ; then
+        activate_ai_optimisations=true
+    else
+        activate_ai_optimisations=false
     fi
 fi
 
