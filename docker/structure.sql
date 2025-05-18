@@ -101,6 +101,7 @@ VALUES (
         },
         "machines": [1],
         "measurement": {
+            "phase_padding": true,
             "quotas": {},
             "dev_no_sleeps": false,
             "dev_no_optimizations": false,
