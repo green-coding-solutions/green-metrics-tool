@@ -116,3 +116,4 @@ activate_scenario_runner: True
 activate_eco_ci: True
 activate_power_hog: False
 activate_carbon_db: False
+activate_ai_optimisations: False
