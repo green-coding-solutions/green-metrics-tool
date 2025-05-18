@@ -88,6 +88,8 @@ def run_workload(name, uri, filename, branch):
         docker_prune=True,
         job_id=None,
         user_id=0, # User id 0 is the [GMT-SYSTEM] user
+        measurement_flow_process_duration=1800,
+        measurement_total_duration=1800,
     )
     # Start main code. Only URL is allowed for cron jobs
     runner.run()

@@ -69,11 +69,12 @@ class ScenarioRunner:
         dev_no_sleeps=False, dev_cache_build=False, dev_no_metrics=False,
         dev_flow_timetravel=False, dev_no_optimizations=False, docker_prune=False, job_id=None,
         user_id=1, measurement_flow_process_duration=None, measurement_total_duration=None, disabled_metric_providers=None, allowed_run_args=None, dev_no_phase_stats=False, dev_no_save=False,
-        skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None):
+        skip_volume_inspect=False, commit_hash_folder=None, usage_scenario_variables=None, phase_padding=True):
 
         if skip_unsafe is True and allow_unsafe is True:
             raise RuntimeError('Cannot specify both --skip-unsafe and --allow-unsafe')
 
+        config = GlobalConfig().config
         # variables that should not change if you call run multiple times
         if name:
             self._name = name
@@ -104,7 +105,7 @@ class ScenarioRunner:
         self._architecture = utils.get_architecture()
 
         self._sci = {'R_d': None, 'R': 0}
-        self._sci |= GlobalConfig().config.get('sci', None)  # merge in data from machine config like I, TE etc.
+        self._sci |= config.get('sci', None)  # merge in data from machine config like I, TE etc.
 
         self._job_id = job_id
         self._arguments = locals()
@@ -112,7 +113,7 @@ class ScenarioRunner:
         self._run_id = None
         self._commit_hash = None
         self._commit_timestamp = None
-        self._sampling_interval_padding = 0
+
         self._commit_hash_folder = commit_hash_folder if commit_hash_folder else ''
         self._user_id = user_id
         self._measurement_flow_process_duration = measurement_flow_process_duration
@@ -120,6 +121,11 @@ class ScenarioRunner:
         self._disabled_metric_providers = [] if disabled_metric_providers is None else disabled_metric_providers
         self._allowed_run_args = [] if allowed_run_args is None else allowed_run_args # They are specific to the orchestrator. However currently we only have one. As soon as we support more orchestrators we will sub-class Runner with dedicated child classes (DockerRunner, PodmanRunner etc.)
         self._last_measurement_duration = 0
+        self._phase_padding = phase_padding
+        self._phase_padding_ms = max(
+            utils.get_metric_providers(config, self._disabled_metric_providers).values(),
+            key=lambda x: x.get('sampling_rate', 0) if x else 0
+        ).get('sampling_rate', 0)
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
@@ -500,10 +506,7 @@ class ScenarioRunner:
         measurement_config['allowed_run_args'] = self._allowed_run_args
         measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
         measurement_config['sci'] = self._sci
-        self._sampling_interval_padding = measurement_config['sampling_interval_padding'] = max(
-            measurement_config['providers'].values(),
-            key=lambda x: x.get('sampling_rate', 0) if x else 0
-        ).get('sampling_rate', 0)
+        measurement_config['phase_padding'] = self._phase_padding_ms
 
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self._run_id = DB().fetch_one("""
@@ -1271,9 +1274,10 @@ class ScenarioRunner:
 
         phase_time = int(time.time_ns() / 1_000)
 
-        self.__notes_helper.add_note({'note': f"Ending phase {phase} [UNPADDED]", 'detail_name': '[NOTES]', 'timestamp': phase_time})
-        phase_time += self._sampling_interval_padding*1000 # value is in ms and we need to get to us
-        time.sleep(self._sampling_interval_padding/1000) # no custom sleep here as even with dev_no_sleeps we must ensure phases don't overlap
+        if self._phase_padding:
+            self.__notes_helper.add_note({'note': f"Ending phase {phase} [UNPADDED]", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+            phase_time += self._phase_padding_ms*1000 # value is in ms and we need to get to us
+            time.sleep(self._phase_padding_ms/1000) # no custom sleep here as even with dev_no_sleeps we must ensure phases don't overlap
 
         if phase not in self.__phases:
             raise RuntimeError('Calling end_phase before start_phase. This is a developer error!')
@@ -1286,9 +1290,12 @@ class ScenarioRunner:
 
                 subprocess.run(['docker', 'pause', container_to_pause], check=True, stdout=subprocess.DEVNULL)
 
-
         self.__phases[phase]['end'] = phase_time
-        self.__notes_helper.add_note({'note': f"Ending phase {phase} [PADDED]", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+
+        if self._phase_padding:
+            self.__notes_helper.add_note({'note': f"Ending phase {phase} [PADDED]", 'detail_name': '[NOTES]', 'timestamp': phase_time})
+        else:
+            self.__notes_helper.add_note({'note': f"Ending phase {phase} [UNPADDED]", 'detail_name': '[NOTES]', 'timestamp': phase_time})
 
     def run_flows(self):
         ps_to_kill_tmp = []

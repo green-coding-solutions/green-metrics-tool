@@ -45,7 +45,8 @@ VALUES (
                 "measurement.dev_no_optimizations",
                 "measurement.disabled_metric_providers",
                 "measurement.flow_process_duration",
-                "measurement.total_duration"
+                "measurement.total_duration",
+                "measurement.phase_padding"
             ]
         },
         "api": {
@@ -101,6 +102,7 @@ VALUES (
         },
         "machines": [1],
         "measurement": {
+            "phase_padding": true,
             "quotas": {},
             "dev_no_sleeps": false,
             "dev_no_optimizations": false,
@@ -129,8 +131,40 @@ VALUES (
 
 -- Default password for user 0 is empty
 INSERT INTO "public"."users"("id", "name","token","capabilities","created_at","updated_at")
-VALUES
-(0, E'[GMT-SYSTEM]',E'',E'{"user":{"is_super_user": false},"api":{"quotas":{},"routes":[]},"data":{"runs":{"retention":2678400},"measurements":{"retention":2678400},"ci_measurements":{"retention":2678400}},"jobs":{"schedule_modes":[]},"machines":[],"measurement":{"quotas":{},"settings":{"total_duration":86400,"flow_process_duration":86400}},"optimizations":[]}',E'2024-11-06 11:28:24.937262+00',NULL);
+VALUES (
+    0,
+    E'[GMT-SYSTEM]',
+    E'',
+    E'{
+        "api": {
+            "quotas": {},
+            "routes": []
+        },
+        "data": {
+            "ci_measurements": {
+                "retention": 2678400
+            },
+            "measurements": {
+                "retention": 2678400
+            },
+            "runs": {
+                "retention": 2678400
+            }
+        },
+        "jobs": {
+            "schedule_modes": []
+        },
+        "machines": [],
+        "measurement": {
+        },
+        "optimizations": [],
+        "user": {
+            "is_super_user": false
+        }
+    }', -- listing entries in 'measurement' has no current effect, as they are not used by the validate.py
+    E'2024-11-06 11:28:24.937262+00',
+    NULL
+);
 
 SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
 
