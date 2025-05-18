@@ -164,7 +164,7 @@ def import_demo_data():
     config = GlobalConfig().config
     pg_port = config['postgresql']['port']
     pg_dbname = config['postgresql']['dbname']
-    subprocess.run(
+    ps = subprocess.run(
         f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{pg_dbname} -p{pg_port} < {CURRENT_DIR}/../data/demo_data.sql",
         check=True,
         shell=True,
@@ -173,11 +173,15 @@ def import_demo_data():
         encoding='UTF-8'
     )
 
+    if ps.stderr != '':
+        reset_db()
+        raise RuntimeError('Import of Demo data into DB failed', ps.stderr)
+
 def import_demo_data_ee():
     config = GlobalConfig().config
     pg_port = config['postgresql']['port']
     pg_dbname = config['postgresql']['dbname']
-    subprocess.run(
+    ps = subprocess.run(
         f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{pg_dbname} -p{pg_port} < {CURRENT_DIR}/../ee/data/demo_data_ee.sql",
         check=True,
         shell=True,
@@ -186,6 +190,9 @@ def import_demo_data_ee():
         encoding='UTF-8'
     )
 
+    if ps.stderr != '':
+        reset_db()
+        raise RuntimeError('Import of Demo data into DB failed', ps.stderr)
 
 def assertion_info(expected, actual):
     return f"Expected: {expected}, Actual: {actual}"
