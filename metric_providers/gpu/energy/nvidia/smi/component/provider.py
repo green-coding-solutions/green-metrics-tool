@@ -47,7 +47,7 @@ class GpuEnergyNvidiaSmiComponentProvider(BaseMetricProvider):
         df['interval'] = intervals  # in microseconds
         # value is initially in milliWatts. So we multiply by 1_000 to get uW and then divide by 1_000_000 to get from us to s  => / 1_000
         df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_000, axis=1)
-        df['value'] = df.value.astype(int)
+        df['value'] = df.value.astype('int64')
 
         df = df.drop(columns='interval')  # clean up
 

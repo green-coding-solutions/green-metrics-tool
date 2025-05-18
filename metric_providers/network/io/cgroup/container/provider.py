@@ -37,7 +37,7 @@ class NetworkIoCgroupContainerProvider(ContainerMetricProvider):
             raise ValueError('NetworkIoCgroupContainerProvider data column transmitted_bytes_intervals had negative values.')
 
         df['value'] = df['received_bytes_intervals'] + df['transmitted_bytes_intervals']
-        df['value'] = df.value.astype(int)
+        df['value'] = df.value.astype('int64')
 
         df = df.drop(columns=['received_bytes','transmitted_bytes', 'transmitted_bytes_intervals', 'received_bytes_intervals'])  # clean up
 

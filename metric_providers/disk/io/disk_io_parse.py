@@ -28,7 +28,7 @@ class DiskIoParseMixin:
             .rename(columns={"read_bytes_intervals": "value"})
             .copy()
         )
-        df_read["value"] = df_read["value"].astype(int)
+        df_read["value"] = df_read["value"].astype('int64')
         df_read['unit'] = self._unit
         df_read['metric'] = self._sub_metrics_name[0]
 
@@ -37,7 +37,7 @@ class DiskIoParseMixin:
             .rename(columns={"written_bytes_intervals": "value"})
             .copy()
         )
-        df_written["value"] = df_written["value"].astype(int)
+        df_written["value"] = df_written["value"].astype('int64')
         df_written['unit'] = self._unit
         df_written['metric'] = self._sub_metrics_name[1]
 

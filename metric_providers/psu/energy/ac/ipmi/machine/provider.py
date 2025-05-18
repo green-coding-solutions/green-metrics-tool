@@ -43,7 +43,7 @@ class PsuEnergyAcIpmiMachineProvider(BaseMetricProvider):
 
         df['interval'] = intervals  # in microseconds
         df['value'] = df.apply(lambda x: x['value'] * x['interval'], axis=1) # will result in uJ
-        df['value'] = df.value.astype(int)
+        df['value'] = df.value.astype('int64')
 
         df = df.drop(columns='interval')  # clean up
 

@@ -34,7 +34,7 @@ def import_measurements(df, metric_name, run_id):
             ''', params=(run_id, row['metric'], row['detail_name'], row['unit'], row['sampling_rate_configured']))[0] # using row['metric'] here instead of metric_name, as some providers have multiple metrics inlined like powermetrics
             df.loc[(df['metric'] == row['metric']) & (df['detail_name'] == row['detail_name']) & (df['unit'] == row['unit']), 'measurement_metric_id'] = measurement_metric_id
 
-        df['measurement_metric_id'] = df.measurement_metric_id.astype(int)
+        df['measurement_metric_id'] = df.measurement_metric_id.astype('int64')
 
         f = StringIO(df[['measurement_metric_id', 'value', 'time']]
             .to_csv(index=False, header=False))

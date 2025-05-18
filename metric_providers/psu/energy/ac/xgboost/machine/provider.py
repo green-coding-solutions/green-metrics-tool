@@ -102,7 +102,7 @@ class PsuEnergyAcXgboostMachineProvider(BaseMetricProvider):
         # Since one value is useless for us we drop the row
         df.dropna(inplace=True)
 
-        df.value = df.value.astype(int)
+        df.value = df.value.astype('int64')
 
         if df.empty:
             raise RuntimeError(f"Metrics provider {self._metric_name} metrics log file was empty.")

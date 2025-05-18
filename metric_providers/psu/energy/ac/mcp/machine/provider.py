@@ -41,7 +41,7 @@ class PsuEnergyAcMcpMachineProvider(BaseMetricProvider):
 
         df['interval'] = intervals  # in microseconds
         df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_00, axis=1) # value is in centiwatts (0.01 W), so divide by 1_00 to get Watts and multiply with us to get micro-Joules
-        df['value'] = df.value.astype(int)
+        df['value'] = df.value.astype('int64')
 
         df = df.drop(columns='interval')  # clean up
 
