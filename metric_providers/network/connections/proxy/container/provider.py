@@ -101,7 +101,7 @@ class NetworkConnectionsProxyContainerProvider(BaseMetricProvider):
     def _check_monotonic(self, df):
         pass  # noop. Just for overwriting
 
-    def _add_auxillary_fields(self, df):
+    def _add_auxiliary_fields(self, df):
         return df # noop. Just for overwriting
 
     def _check_sampling_rate_underflow(self, df):

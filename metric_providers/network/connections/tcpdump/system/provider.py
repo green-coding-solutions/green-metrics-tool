@@ -33,7 +33,7 @@ class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
     def _check_empty(self, df):
         pass # noop. Just for overwriting. Empty data is ok for this reporter
 
-    def _add_auxillary_fields(self, df):
+    def _add_auxiliary_fields(self, df):
         return df # noop. Just for overwriting
 
     def _check_monotonic(self, df):

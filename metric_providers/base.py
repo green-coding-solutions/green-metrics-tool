@@ -151,7 +151,7 @@ class BaseMetricProvider:
 
         return df
 
-    def _add_auxillary_fields(self, df): # can be overriden in child
+    def _add_auxiliary_fields(self, df): # can be overriden in child
         df['unit'] = self._unit
         df['metric'] = self._metric_name
         df['sampling_rate_configured'] = self._sampling_rate
@@ -168,7 +168,7 @@ class BaseMetricProvider:
         self._check_resolution_underflow(df)
 
         df = self._parse_metrics(df)
-        df = self._add_auxillary_fields(df)
+        df = self._add_auxiliary_fields(df)
 
         df = self._add_and_validate_sampling_rate_and_jitter(df)
 
