@@ -13,7 +13,9 @@ class DiskIoProcfsSystemProvider(BaseMetricProvider, DiskIoParseMixin):
             unit='Bytes',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
-    )
+        )
+
+        self._sub_metrics_name = ['disk_io_read_procfs_system', 'disk_io_write_procfs_system']
 
     def _parse_metrics(self, df):
         df = super()._parse_metrics(df)
@@ -23,8 +25,8 @@ class DiskIoProcfsSystemProvider(BaseMetricProvider, DiskIoParseMixin):
         df = super()._parse_metrics(df)
 
         df['blocksize'] = df['device'].apply(self.get_blocksize)
-        df['read_bytes'] = df['read_bytes']*df['blocksize']
-        df['written_bytes'] = df['written_bytes']*df['blocksize']
+        df['read_bytes'] = df['read_sectors']*df['blocksize']
+        df['written_bytes'] = df['written_sectors']*df['blocksize']
         df['detail_name'] = df['device']
 
         return self._parse_metrics_splitup_helper(df)
