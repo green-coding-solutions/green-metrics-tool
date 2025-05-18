@@ -51,10 +51,15 @@ def setup_and_cleanup_test():
     context = browser.new_context(viewport={"width": 1920, "height": 5600})
     page = context.new_page()
     page.set_default_timeout(3_000)
+
+    page.on("pageerror", handle_page_error)
+
     yield
     page.close()
     browser.close()
 
+def handle_page_error(exception):
+    raise RuntimeError("JS error occured on page:", exception)
 
 def test_home():
 
