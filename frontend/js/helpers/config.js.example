@@ -116,10 +116,15 @@ METRIC_MAPPINGS = {
         "source": "statvfs syscall",
         "explanation": "Disk used space of the root filesystem via statvfs syscall"
     },
-    "disk_io_procfs_system": {
-        "clean_name": "Disk I/O",
+    "disk_io_read_procfs_system": {
+        "clean_name": "Disk I/O (Read)",
         "source": "procfs",
-        "explanation": "Disk I/O for whole system via procfs"
+        "explanation": "Disk bytes read for whole system via procfs"
+    },
+    "disk_io_write_procfs_system": {
+        "clean_name": "Disk I/O (Write)",
+        "source": "procfs",
+        "explanation": "Disk bytes written for whole system via procfs"
     },
     "disk_io_cgroup_container": {
         "clean_name": "Disk I/O",
@@ -141,10 +146,15 @@ METRIC_MAPPINGS = {
         "source": "formula",
         "explanation": "Disk I/O Totals accumulated per container via cgroup"
     },
-    "disk_total_procfs_system": {
-        "clean_name": "Disk Data",
+    "disk_total_read_procfs_system": {
+        "clean_name": "Disk Data (Read)",
         "source": "formula",
-        "explanation": "Disk I/O Totals for whole system accumulated via procfs"
+        "explanation": "Disk read bytes totals for whole system accumulated via procfs"
+    },
+    "disk_total_write_procfs_system": {
+        "clean_name": "Disk Data (Write)",
+        "source": "formula",
+        "explanation": "Disk written bytes totals for whole system accumulated via procfs"
     },
     "psu_energy_cgroup_container": {
         "clean_name": "Container Energy",
