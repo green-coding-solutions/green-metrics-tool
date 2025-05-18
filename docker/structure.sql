@@ -273,7 +273,6 @@ CREATE TABLE measurement_values (
 CREATE INDEX measurement_values_mmid ON measurement_values(measurement_metric_id);
 CREATE UNIQUE INDEX measurement_values_unique ON measurement_values(measurement_metric_id, time);
 
-
 CREATE TABLE network_intercepts (
     id SERIAL PRIMARY KEY,
     run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE ,
