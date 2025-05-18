@@ -11,7 +11,7 @@ class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
         super().__init__(
             metric_name='network_connections_tcpdump_system',
             metrics={},
-            resolution=None,
+            sampling_rate=None,
             unit=None,
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='tcpdump.sh',
@@ -33,16 +33,16 @@ class NetworkConnectionsTcpdumpSystemProvider(BaseMetricProvider):
     def _check_empty(self, df):
         pass # noop. Just for overwriting. Empty data is ok for this reporter
 
-    def _add_unit_and_metric(self, df):
+    def _add_auxiliary_fields(self, df):
         return df # noop. Just for overwriting
 
     def _check_monotonic(self, df):
         pass  # noop. Just for overwriting
 
-    def _check_resolution_underflow(self, df):
+    def _check_sampling_rate_underflow(self, df):
         pass  # noop. Just for overwriting
 
-    def _add_and_validate_resolution_and_jitter(self, df):
+    def _add_and_validate_sampling_rate_and_jitter(self, df):
         return df  # noop. Just for overwriting
 
     def get_stderr(self):

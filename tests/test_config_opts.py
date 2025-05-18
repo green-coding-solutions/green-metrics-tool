@@ -76,6 +76,67 @@ def test_provider_disabling_working():
     assert 'Not importing NetworkConnectionsProxyContainerProvider as disabled per user settings' in out.getvalue()
 
 
+def test_phase_padding_inactive():
+    out = io.StringIO()
+    err = io.StringIO()
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/noop.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, phase_padding=False)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        run_id = runner.run()
+
+    assert '>>>> MEASUREMENT SUCCESSFULLY COMPLETED <<<<' in out.getvalue()
+    query = """
+            SELECT
+                time, note
+            FROM
+                notes
+            WHERE
+                run_id = %s
+            ORDER BY
+                time
+            """
+
+    notes = DB().fetch_all(query, (run_id,))
+
+    assert notes[10][1] == 'Starting phase Testing Noop'
+    assert notes[11][1] == 'Ending phase Testing Noop [UNPADDED]'
+    assert notes[12][1] == 'Ending phase [RUNTIME] [UNPADDED]' # this implictely means we have no PADDED entries
+    assert notes[12][0] > notes[13][0] - 300 # end times of reconstructed runtime and last sub-runtime are very close, but not exact, bc we only reconstruct phase_stats but not measurements table. 300 microseconds is a good cutoff
+
+def test_phase_padding_active():
+    out = io.StringIO()
+    err = io.StringIO()
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/noop.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, phase_padding=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        run_id = runner.run()
+
+    assert '>>>> MEASUREMENT SUCCESSFULLY COMPLETED <<<<' in out.getvalue()
+    query = """
+            SELECT
+                time, note
+            FROM
+                notes
+            WHERE
+                run_id = %s
+            ORDER BY
+                time
+            """
+
+    notes = DB().fetch_all(query, (run_id,))
+
+    assert notes[14][1] == 'Starting phase Testing Noop'
+    assert notes[15][1] == 'Ending phase Testing Noop [UNPADDED]'
+    assert notes[16][1] == 'Ending phase Testing Noop [PADDED]'
+    FROM_MS_TO_US = 1000
+    assert notes[16][0] - notes[15][0] == runner._phase_padding_ms*FROM_MS_TO_US
+
+    assert notes[17][1] == 'Ending phase [RUNTIME] [UNPADDED]'
+
+
+
 # Rethink how to do this test entirely
 def wip_test_idle_start_time(reset_config):
     GlobalConfig().config['measurement']['idle-time-start'] = 2
