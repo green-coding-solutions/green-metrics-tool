@@ -124,8 +124,8 @@ class ScenarioRunner:
         self._phase_padding = phase_padding
         self._phase_padding_ms = max(
             utils.get_metric_providers(config, self._disabled_metric_providers).values(),
-            key=lambda x: x.get('resolution', 0) if x else 0
-        ).get('resolution', 0)
+            key=lambda x: x.get('sampling_rate', 0) if x else 0
+        ).get('sampling_rate', 0)
 
         del self._arguments['self'] # self is not needed and also cannot be serialzed. We remove it
 
@@ -507,7 +507,6 @@ class ScenarioRunner:
         measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
         measurement_config['sci'] = self._sci
         measurement_config['phase_padding'] = self._phase_padding_ms
-
 
         # We issue a fetch_one() instead of a query() here, cause we want to get the RUN_ID
         self._run_id = DB().fetch_one("""

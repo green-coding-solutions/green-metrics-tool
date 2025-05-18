@@ -54,8 +54,8 @@ def check_largest_sampling_rate():
 
     return max(
         metric_providers.values(),
-        key=lambda x: x.get('resolution', 0) if x else 0
-    ).get('resolution', 0) <= 1000
+        key=lambda x: x.get('sampling_rate', 0) if x else 0
+    ).get('sampling_rate', 0) <= 1000
 
 def check_cpu_utilization():
     return psutil.cpu_percent(0.1) < 5.0

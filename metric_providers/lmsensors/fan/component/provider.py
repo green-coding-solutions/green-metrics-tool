@@ -1,11 +1,11 @@
 from metric_providers.lmsensors.abstract_provider import LmsensorsProvider
 
 class LmsensorsFanComponentProvider(LmsensorsProvider):
-    def __init__(self, resolution, *, skip_check=False, **_):
+    def __init__(self, sampling_rate, *, skip_check=False, **_):
         self._provider_config_path = 'lmsensors.fan.component.provider.LmsensorsFanComponentProvider'
         super().__init__(
             metric_name='lmsensors_fan_component',
-            resolution=resolution,
+            sampling_rate=sampling_rate,
             unit='RPM',
             skip_check=skip_check,
         )

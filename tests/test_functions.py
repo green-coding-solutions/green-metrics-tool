@@ -21,7 +21,7 @@ TEST_MEASUREMENT_DURATION = TEST_MEASUREMENT_END_TIME - TEST_MEASUREMENT_START_T
 TEST_MEASUREMENT_DURATION_S = TEST_MEASUREMENT_DURATION / 1_000_000
 TEST_MEASUREMENT_DURATION_H = TEST_MEASUREMENT_DURATION_S/60/60
 
-def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename', user_id=1, machine_id=1, measurement_config='{}'):
+def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename', user_id=1, machine_id=1):
     # spoof time from the beginning of UNIX time until now.
     phases = [
         {"start": TEST_MEASUREMENT_START_TIME-8, "name": "[BASELINE]", "end": TEST_MEASUREMENT_START_TIME-7},
@@ -34,10 +34,10 @@ def insert_run(*, uri='test-uri', branch='test-branch', filename='test-filename'
     ]
 
     return DB().fetch_one('''
-        INSERT INTO runs (uri, branch, filename, phases, user_id, machine_id, measurement_config)
+        INSERT INTO runs (uri, branch, filename, phases, user_id, machine_id)
         VALUES
-        (%s, %s, %s, %s, %s, %s, %s) RETURNING id;
-    ''', params=(uri, branch, filename, json.dumps(phases), user_id, machine_id, measurement_config))[0]
+        (%s, %s, %s, %s, %s, %s) RETURNING id;
+    ''', params=(uri, branch, filename, json.dumps(phases), user_id, machine_id))[0]
 
 def import_single_cpu_energy_measurement(run_id):
 
@@ -164,7 +164,7 @@ def import_demo_data():
     config = GlobalConfig().config
     pg_port = config['postgresql']['port']
     pg_dbname = config['postgresql']['dbname']
-    subprocess.run(
+    ps = subprocess.run(
         f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{pg_dbname} -p{pg_port} < {CURRENT_DIR}/../data/demo_data.sql",
         check=True,
         shell=True,
@@ -173,11 +173,15 @@ def import_demo_data():
         encoding='UTF-8'
     )
 
+    if ps.stderr != '':
+        reset_db()
+        raise RuntimeError('Import of Demo data into DB failed', ps.stderr)
+
 def import_demo_data_ee():
     config = GlobalConfig().config
     pg_port = config['postgresql']['port']
     pg_dbname = config['postgresql']['dbname']
-    subprocess.run(
+    ps = subprocess.run(
         f"docker exec -i --user postgres test-green-coding-postgres-container psql -d{pg_dbname} -p{pg_port} < {CURRENT_DIR}/../ee/data/demo_data_ee.sql",
         check=True,
         shell=True,
@@ -186,6 +190,9 @@ def import_demo_data_ee():
         encoding='UTF-8'
     )
 
+    if ps.stderr != '':
+        reset_db()
+        raise RuntimeError('Import of Demo data into DB failed', ps.stderr)
 
 def assertion_info(expected, actual):
     return f"Expected: {expected}, Actual: {actual}"

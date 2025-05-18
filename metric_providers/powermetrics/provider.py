@@ -10,14 +10,14 @@ import signal
 from metric_providers.base import MetricProviderConfigurationError, BaseMetricProvider
 
 class PowermetricsProvider(BaseMetricProvider):
-    def __init__(self, resolution, skip_check=False):
+    def __init__(self, sampling_rate, skip_check=False):
         # We get this value on init as we want to have to for check_system to work in the normal case
         self._pm_process_count = self.powermetrics_total_count()
 
         super().__init__(
             metric_name='powermetrics',
             metrics={'time': int, 'value': int},
-            resolution=resolution,
+            sampling_rate=sampling_rate,
             unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='/usr/bin/powermetrics',
@@ -100,7 +100,7 @@ class PowermetricsProvider(BaseMetricProvider):
     def _parse_metrics(self, df):
         return df # noop, as we have already set detail_name individually in _read_metrics
 
-    def _add_unit_and_metric(self, df):
+    def _add_auxiliary_fields(self, df):
         return df # noop, as we have already set detail_name individually in _read_metrics
 
     def _check_resolution_underflow(self, df):
