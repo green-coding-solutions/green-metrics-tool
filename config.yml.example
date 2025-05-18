@@ -167,7 +167,7 @@ measurement:
     macos:
     #--- MacOS: On Mac you only need this provider. Please remove all others!
       powermetrics.provider.PowermetricsProvider:
-        sampling_rate: 499 # If you set this value too low powermetrics will not be able to accomodate the timing. We recommend now lower than 199 ms
+        sampling_rate: 499 # If you set this value too low powermetrics will not be able to accommodate the timing. We recommend no lower than 199 ms
       cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
         sampling_rate: 99
     #--- Architecture - Common
