@@ -1,8 +1,7 @@
 from lib import utils
 
 class DiskIoParseMixin:
-    def _parse_metrics(self, df):
-        df = super()._parse_metrics(df)
+    def _parse_metrics_splitup_helper(self, df):
 
         df = df.sort_values(by=['detail_name', 'time'], ascending=True)
 
@@ -17,10 +16,10 @@ class DiskIoParseMixin:
         df.dropna(inplace=True)
 
         if (df['read_bytes_intervals'] < 0).any():
-            raise ValueError('DiskIoCgroupContainerProvider data column read_bytes_intervals had negative values.')
+            raise ValueError(f"{self.__class__.__name__} data column read_bytes_intervals had negative values.")
 
         if (df['written_bytes_intervals'] < 0).any():
-            raise ValueError('DiskIoCgroupContainerProvider data column written_bytes_intervals had negative values.')
+            raise ValueError(f"{self.__class__.__name__} data column written_bytes_intervals had negative values.")
 
         base_cols = ['time', 'detail_name']
 

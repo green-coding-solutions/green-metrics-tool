@@ -16,3 +16,7 @@ class DiskIoCgroupSystemProvider(DiskIoParseMixin, CgroupMetricProvider):
         )
 
         self._sub_metrics_name = ['disk_io_read_cgroup_system', 'disk_io_write_cgroup_system']
+
+    def _parse_metrics(self, df):
+        df = super()._parse_metrics(df)
+        return self._parse_metrics_splitup_helper(df)
