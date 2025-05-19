@@ -17,7 +17,7 @@ class BaseMetricProvider:
     def __init__(self, *,
         metric_name,
         metrics,
-        resolution,
+        sampling_rate,
         unit,
         current_dir,
         metric_provider_executable='metric-provider-binary',
@@ -27,7 +27,7 @@ class BaseMetricProvider:
     ):
         self._metric_name = metric_name
         self._metrics = metrics
-        self._resolution = resolution
+        self._sampling_rate = sampling_rate
         self._unit = unit
         self._current_dir = current_dir
         self._metric_provider_executable = metric_provider_executable
@@ -130,10 +130,10 @@ class BaseMetricProvider:
 
 
     def _parse_metrics(self, df): # can be overriden in child
-        df['detail_name'] = f"[{self._metric_name.split('_')[-1]}]" # default, can be overridden in child
+        df['detail_name'] = f"[{self._metric_name.split('_')[-1].upper()}]" # default, can be overridden in child
         return df
 
-    def _add_and_validate_resolution_and_jitter(self, df):
+    def _add_and_validate_sampling_rate_and_jitter(self, df):
         # DF can have many columns still. Since all of them might have induced a separate timing row
         # we group by everything apart from time and value itself
         # for most metric providers only detail_name and container_id should be present and differ though
@@ -143,17 +143,20 @@ class BaseMetricProvider:
         df['sampling_rate_95p'] = df.groupby(grouping_columms)['sampling_rate'].transform(lambda x: x.quantile(0.95))
         df = df.drop('sampling_rate', axis=1)
 
-        if (sampling_rate_95p := df['sampling_rate_95p'].max()) >= self._resolution*1000*1.2:
-            raise RuntimeError(f"Effective sampling rate (95p) was absurdly high: {sampling_rate_95p} compared to target rate of {self._resolution*1000}", df)
+        if (sampling_rate_95p := df['sampling_rate_95p'].max()) >= self._sampling_rate*1000*1.2:
+            raise RuntimeError(f"Effective sampling rate (95p) was absurdly high: {sampling_rate_95p} compared to configured rate of {self._sampling_rate*1000}", df)
 
-        if (sampling_rate_95p := df['sampling_rate_95p'].min()) <= self._resolution*1000*0.8:
-            raise RuntimeError(f"Effective sampling rate (95p) was absurdly low: {sampling_rate_95p} compared to target rate of {self._resolution*1000}", df)
+        if (sampling_rate_95p := df['sampling_rate_95p'].min()) <= self._sampling_rate*1000*0.8:
+            raise RuntimeError(f"Effective sampling rate (95p) was absurdly low: {sampling_rate_95p} compared to configured rate of {self._sampling_rate*1000}", df)
 
         return df
 
-    def _add_unit_and_metric(self, df): # can be overriden in child
-        df['unit'] = self._unit
-        df['metric'] = self._metric_name
+    def _add_auxiliary_fields(self, df): # can be overriden in child
+        if 'unit' not in df.columns:
+            df['unit'] = self._unit
+        if 'metric' not in df.columns:
+            df['metric'] = self._metric_name
+        df['sampling_rate_configured'] = self._sampling_rate
         return df
 
     @final
@@ -167,23 +170,24 @@ class BaseMetricProvider:
         self._check_resolution_underflow(df)
 
         df = self._parse_metrics(df)
-        df = self._add_unit_and_metric(df)
 
-        df = self._add_and_validate_resolution_and_jitter(df)
+        def process_df(df):
+            df = self._add_auxiliary_fields(df)
+            df = self._add_and_validate_sampling_rate_and_jitter(df)
+            self._check_empty(df)
+            return df
 
-        self._check_empty(df) # we do another check after transformations, as this could have resulted in zero rows
-
-        return df
+        return process_df(df) if not isinstance(df, list) else [process_df(dfi) for dfi in df]
 
     def _add_extra_switches(self, call_string): # will be adapted in child if needed
         return call_string
 
     def start_profiling(self):
 
-        if self._resolution is None:
+        if self._sampling_rate is None:
             call_string = self._metric_provider_executable
         else:
-            call_string = f"{self._metric_provider_executable} -i {self._resolution}"
+            call_string = f"{self._metric_provider_executable} -i {self._sampling_rate}"
 
 
         if self._metric_provider_executable[0] != '/':

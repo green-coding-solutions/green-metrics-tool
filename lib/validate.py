@@ -27,7 +27,7 @@ from lib.db import DB
 from lib.terminal_colors import TerminalColors
 from lib import error_helpers
 
-from runner import Runner
+from lib.scenario_runner import ScenarioRunner
 
 class ValidationWorkloadStddevError(RuntimeError):
     pass
@@ -76,7 +76,7 @@ def get_workload_stddev(repo_uri, filename, branch, machine_id, comparison_windo
 
 
 def run_workload(name, uri, filename, branch):
-    runner = Runner(
+    runner = ScenarioRunner(
         name=name,
         uri=uri,
         uri_type='URL',
@@ -88,6 +88,8 @@ def run_workload(name, uri, filename, branch):
         docker_prune=True,
         job_id=None,
         user_id=0, # User id 0 is the [GMT-SYSTEM] user
+        measurement_flow_process_duration=1800,
+        measurement_total_duration=1800,
     )
     # Start main code. Only URL is allowed for cron jobs
     runner.run()

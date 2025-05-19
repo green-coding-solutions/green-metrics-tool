@@ -91,7 +91,7 @@ def load_metric_providers(mp, pt_providers, provider_interval_override=None):
         logging.info(f"Importing {class_name} from {module_path}")
 
         if provider_interval_override:
-            conf['resolution'] = provider_interval_override
+            conf['sampling_rate'] = provider_interval_override
 
 
         module = importlib.import_module(module_path)

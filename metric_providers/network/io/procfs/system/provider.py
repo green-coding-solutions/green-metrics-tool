@@ -4,11 +4,11 @@ from lib import utils
 from metric_providers.base import BaseMetricProvider
 
 class NetworkIoProcfsSystemProvider(BaseMetricProvider):
-    def __init__(self, resolution, remove_virtual_interfaces=True, skip_check=False):
+    def __init__(self, sampling_rate, remove_virtual_interfaces=True, skip_check=False):
         super().__init__(
             metric_name='network_io_procfs_system',
             metrics={'time': int, 'received_bytes': int, 'transmitted_bytes': int, 'interface': str},
-            resolution=resolution,
+            sampling_rate=sampling_rate,
             unit='Bytes',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
@@ -42,7 +42,7 @@ class NetworkIoProcfsSystemProvider(BaseMetricProvider):
             raise ValueError('NetworkIoProcfsSystemProvider data column received_bytes_intervals had negative values.')
 
         df['value'] = df['received_bytes_intervals'] + df['transmitted_bytes_intervals']
-        df['value'] = df.value.astype(int)
+        df['value'] = df.value.astype('int64')
 
         df = df.drop(columns=['received_bytes','transmitted_bytes', 'transmitted_bytes_intervals', 'received_bytes_intervals', 'interface'])  # clean up
 

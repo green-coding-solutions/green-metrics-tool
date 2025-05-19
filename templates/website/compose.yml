@@ -1,0 +1,13 @@
+services:
+  gcb-playwright:
+    image: greencoding/gcb_playwright:v12
+#    volumes:
+#       - /tmp/.X11-unix:/tmp/.X11-unix # for debugging in non-headless mode
+    environment:
+       DISPLAY: ":0" # for debugging in non-headless mode
+
+  squid:
+    build: .
+# activate for debugging
+#    ports:
+#      - 3128:3128
