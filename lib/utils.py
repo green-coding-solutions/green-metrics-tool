@@ -12,6 +12,23 @@ from lib.db import DB
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+def is_outside_symlink(base_dir, symlink_path):
+    try:
+        target = os.readlink(symlink_path)
+        abs_target = os.path.abspath(os.path.join(os.path.dirname(symlink_path), target))
+        return not abs_target.startswith(os.path.abspath(base_dir)), abs_target
+    except OSError:
+        return False, None  # Not a symlink
+
+def find_outside_symlinks(base_dir):
+    for root, dirs, files in os.walk(base_dir):
+        for name in dirs + files:
+            full_path = os.path.join(root, name)
+            is_outside, target = is_outside_symlink(base_dir, full_path)
+            if is_outside:
+                return f"{full_path} → {target}"
+    return None
+
 def remove_git_suffix(url):
     if url.endswith('.git'):
         return url[:-4]
