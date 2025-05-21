@@ -505,5 +505,5 @@ METRIC_MAPPINGS = {
         "clean_name": "Total System Disk Writes",
         "source": "cgroup",
         "explanation": "Total data written to disk for the system via cgroup"
-    },
+    }
 } // PLEASE DO NOT REMOVE THIS COMMENT -- END METRIC_MAPPINGS
