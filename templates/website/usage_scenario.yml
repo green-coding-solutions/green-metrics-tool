@@ -22,7 +22,7 @@ flow:
     commands:
       - type: console
         detach: true
-        command: python3 /tmp/repo/templates/website/visit.py
+        command: python3 /tmp/repo/templates/website/visit.py --browser firefox
         read-notes-stdout: true
         log-stdout: true
         log-stderr: true
