@@ -273,6 +273,8 @@ class ScenarioRunner:
                     encoding='UTF-8'
                 )  # always name target-dir repo according to spec
 
+            if problematic_symlink := utils.find_outside_symlinks(self._repo_folder):
+                raise RuntimeError(f"Repository contained outside symlink: {problematic_symlink}\nGMT cannot handle this in URL or Cluster mode due to security concerns. Please change or remove the symlink or run GMT locally.")
         else:
             if self._branch:
                 # we never want to checkout a local directory to a different branch as this might also be the GMT directory itself and might confuse the tool
@@ -653,6 +655,7 @@ class ScenarioRunner:
 
                 docker_build_command = ['docker', 'run', '--rm',
                     '-v', '/workspace',
+                    # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
                     '-v', f"{self._repo_folder}:/tmp/repo:ro", # this is the folder where the usage_scenario is!
                     '-v', f"{temp_dir}:/output",
                     'gcr.io/kaniko-project/executor:latest',
@@ -852,8 +855,10 @@ class ScenarioRunner:
 
             docker_run_string.append('-v')
             if 'folder-destination' in service:
+                 # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
                 docker_run_string.append(f"{self._repo_folder}:{service['folder-destination']}:ro")
             else:
+                 # if we ever decide here to copy and not link in read-only we must NOT copy resolved symlinks, as they can be malicious
                 docker_run_string.append(f"{self._repo_folder}:/tmp/repo:ro")
 
             if self.__docker_params:

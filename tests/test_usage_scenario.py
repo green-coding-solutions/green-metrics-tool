@@ -1053,3 +1053,45 @@ def test_restart_no_error():
 
     with Tests.RunUntilManager(runner) as context:
         context.run_until('setup_services')
+
+
+def test_outside_symlink_not_allowed():
+    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', filename='usage_scenario.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+
+    with pytest.raises(RuntimeError) as exc:
+
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('import_metric_providers')
+
+    assert 'Repository contained outside symlink' in str(exc)
+    assert '/passwd' in str(exc)
+
+
+def test_outside_symlink_not_allowed_deep():
+    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', branch="deep", filename='usage_scenario_deep.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+
+    with pytest.raises(RuntimeError) as exc:
+
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('import_metric_providers')
+
+    assert 'Repository contained outside symlink' in str(exc)
+    assert '/passwd' in str(exc)
+
+def test_outside_symlink_not_allowed_missing_outside():
+    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', branch="missing-outside", filename='usage_scenario.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+
+    with pytest.raises(RuntimeError) as exc:
+
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('import_metric_providers')
+
+    assert 'Repository contained outside symlink' in str(exc)
+    assert '/h4huhguihui3ghguirue' in str(exc)
+
+# plain symlinks, even if missing, as long as they are inside the repository we want to allow at the moment
+def test_outside_symlink_not_allowed_missing_inside():
+    runner = ScenarioRunner(uri='https://github.com/green-coding-solutions/symlink-repo', uri_type='URL', branch="missing-inside", filename='usage_scenario.yml', skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('import_metric_providers')
