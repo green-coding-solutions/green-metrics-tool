@@ -14,7 +14,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def is_outside_symlink(base_dir, symlink_path):
     try:
-        abs_target = os.path.realpath(os.path.join(os.path.dirname(symlink_path), symlink_path))
+        abs_target = os.path.realpath(symlink_path)
         return not abs_target.startswith(os.path.realpath(base_dir)), abs_target
     except OSError:
         return False, None  # Not a symlink
