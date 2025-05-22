@@ -53,10 +53,11 @@ def check_repo(repo_url, branch='main'):
 
     # We do not fail here, but only do a warning, bc often times the SSH or token which might be supplied in the URL is too restrictive then and cannot be used to query the commits also
     # However we do check the commits endpoint bc this tells us if the repo is non empty or not
-    if response.status_code != 200 and git_api in ('gitlab', 'github'):
-        raise RequestValidationError(f"Could not read from repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?")
-    else:
-        error_helpers.log_error(f"Connect to {git_api} API was possbile, but return code was not 200",url=url,status_code=response.status_code,status_text=response.text)
+    if response.status_code != 200:
+        if git_api in ('gitlab', 'github'):
+            raise RequestValidationError(f"Could not read from repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?")
+        else:
+            error_helpers.log_error(f"Connect to {git_api} API was possible, but return code was not 200",url=url,status_code=response.status_code,status_text=response.text)
 
 def get_repo_last_marker(repo_url, marker):
 
