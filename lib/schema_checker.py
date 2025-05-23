@@ -134,6 +134,7 @@ class SchemaChecker():
                     },
                     Optional("setup-commands"): [{
                         'command': And(str, Use(self.not_empty)),
+                        Optional("detach"): bool,
                         Optional("shell"): And(str, Use(self.not_empty)),
                     }],
                     Optional("volumes"): self.single_or_list(str),

@@ -1172,17 +1172,32 @@ class ScenarioRunner:
 
                 print('Running command: ', ' '.join(d_command))
 
-                # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
-                # injection of unwawnted params
-                ps = subprocess.run(
-                    d_command,
-                    check=True,
-                    stderr=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    encoding='UTF-8'
-                )
-                print('Stdout:', ps.stdout)
-                print('Stderr:', ps.stderr)
+                if cmd.get('detach', False) is True:
+                    print('Executing setup-commands process asynchronously and detaching ...')
+                    #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
+                    # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
+                    # injection of unwawnted params
+
+                    ps = subprocess.Popen(
+                        d_command,
+                        stderr=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        preexec_fn=os.setsid,
+                        encoding='UTF-8',
+                    )
+
+                else:
+                    # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
+                    # injection of unwawnted params
+                    ps = subprocess.run(
+                        d_command,
+                        check=True,
+                        stderr=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        encoding='UTF-8'
+                    )
+                    print('Stdout:', ps.stdout)
+                    print('Stderr:', ps.stderr)
 
                 if ps.stdout:
                     self.add_to_log(container_name, f"stdout {ps.stdout}", d_command)
