@@ -409,7 +409,7 @@ async def get_measurements_single(run_id: str, user: User = Depends(authenticate
     return ORJSONResponseObjKeep({'success': True, 'data': data})
 
 @router.get('/v1/timeline')
-async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, start_date: date | None = None, end_date: date | None = None, metrics: str | None = None, phase: str | None = None, sorting: str | None = None, user: User = Depends(authenticate)):
+async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = None, filename: str | None = None, start_date: date | None = None, end_date: date | None = None, metric: str | None = None, phase: str | None = None, sorting: str | None = None, user: User = Depends(authenticate)):
     if uri is None or uri.strip() == '':
         raise RequestValidationError('URI is empty')
 
@@ -418,7 +418,7 @@ async def get_timeline_stats(uri: str, machine_id: int, branch: str | None = Non
 
     check_int_field_api(machine_id, 'machine_id', 1024) # can cause exception
 
-    query, params = get_timeline_query(user, uri, filename, machine_id, branch, metrics, phase, start_date=start_date, end_date=end_date, sorting=sorting)
+    query, params = get_timeline_query(user, uri, filename, machine_id, branch, metric, phase, start_date=start_date, end_date=end_date, sorting=sorting)
 
     data = DB().fetch_all(query, params=params)
 
