@@ -3,6 +3,7 @@ import re
 import orjson
 from xml.sax.saxutils import escape as xml_escape
 from datetime import date, datetime, timedelta
+import pprint
 
 from fastapi import APIRouter, Response, Depends
 from fastapi.responses import ORJSONResponse
@@ -699,7 +700,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
 
     # notify admin of new add
     if notification_email := GlobalConfig().config['admin']['notification_email']:
-        Job.insert('email', user_id=user._id, name='New run added from Web Interface', message=str(software), email=notification_email)
+        Job.insert('email', user_id=user._id, name='New run added from Web Interface', message=pprint.pformat(software.model_dump(), width=60, indent=2), email=notification_email)
 
     return ORJSONResponse({'success': True, 'data': job_ids_inserted}, status_code=202)
 
