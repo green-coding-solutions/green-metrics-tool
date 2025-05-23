@@ -12,7 +12,7 @@ scipy==1.15.2
 schema==0.7.7
 deepdiff==8.5.0
 redis==6.1.0
-hiredis==3.1.1
+hiredis==3.2.0
 requests==2.32.3
 uvicorn-worker==0.3.0
 cachetools==5.5.2
