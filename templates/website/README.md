@@ -35,10 +35,10 @@ For production `usage_scenario.yml` files we pre-building the squid container.
 
 Build command (please adjust the tag to your repository): 
 
-> Please look up details how to setup your build infrastructure here: https://docs.docker.com/build/building/multi-platform/
+Please look up details how to setup your build infrastructure here: https://docs.docker.com/build/building/multi-platform/
 ```bash
-docker buildx build --platform linux/amd64,linux/arm64 --push -t greencoding/squid_reverse_proxy:v1 .
+docker buildx build --platform linux/amd64,linux/arm64 --push -t greencoding/squid_reverse_proxy:vX
 ```
 
 ### Pre-Built
-We supply a pre-built container via: `greencoding/squid_reverse_proxy:v1` from Docker Hub.
+We supply a pre-built container via: `greencoding/squid_reverse_proxy` from Docker Hub.

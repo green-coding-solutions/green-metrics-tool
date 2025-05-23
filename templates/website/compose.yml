@@ -7,7 +7,7 @@ services:
        DISPLAY: ":0" # for debugging in non-headless mode
 
   squid:
-    build: .
+        image: greencoding/squid_proxy:v2
 # activate for debugging
 #    ports:
 #      - 3128:3128
