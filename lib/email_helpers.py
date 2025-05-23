@@ -1,7 +1,7 @@
 import smtplib
 import ssl
 from datetime import datetime, timedelta
-from email.mime.multipart import MIMEMultipart
+#from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from lib.global_config import GlobalConfig
 
@@ -11,15 +11,17 @@ def send_email(receiver, subject, message):
 
 
     message = f"{message}\n\n---\n{config['cluster']['metrics_url']}"
-    body_html = f"""
-    <html>
-      <body>
-        <pre>{message}</pre>
-      </body>
-    </html>
-    """
+    # body_html = f"""
+    # <html>
+    #   <body>
+    #     <pre>{message}</pre>
+    #   </body>
+    # </html>
+    # """
 
-    msg = MIMEMultipart("alternative")
+#    msg = MIMEMultipart("alternative")
+    msg = MIMEText(message, "plain")
+
     msg["From"] = config['smtp']['sender']
     msg["To"] = receiver
     msg["Subject"] = subject
@@ -30,11 +32,11 @@ def send_email(receiver, subject, message):
         msg['Bcc'] = config['admin']['email_bcc']
         receiver.append(config['admin']['email_bcc'])
 
-    # Attach the plain text and HTML parts
-    part1 = MIMEText(message, "plain")
-    part2 = MIMEText(body_html, "html")
-    msg.attach(part1)
-    msg.attach(part2)
+    # Attach the plain text and HTML parts - legacy
+#    part1 = MIMEText(message, "plain")
+#    part2 = MIMEText(body_html, "html")
+#    msg.attach(part1)
+#    msg.attach(part2)
 
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL(config['smtp']['server'], config['smtp']['port'], context=context) as server:
