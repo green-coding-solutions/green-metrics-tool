@@ -59,18 +59,18 @@ if __name__ == '__main__':
         elif args.type == 'email':
             job_main.process()
         print('Successfully processed jobs queue item.')
-    except Exception as exception: #pylint: disable=broad-except
+    except Exception as exc: #pylint: disable=broad-except
         if job_main:
-            error_helpers.log_error('Base exception occurred in jobs.py: ', exception=exception, run_id=job_main._run_id, name=job_main._name, machine=job_main._machine_description)
+            error_helpers.log_error('Base exception occurred in jobs.py: ', exception_context=exc.__context__, last_exception=exc, run_id=job_main._run_id, name=job_main._name, machine=job_main._machine_description)
 
             # reduced error message to client, but only if no ConfigurationCheckError
-            if job_main._email and not isinstance(exception, ConfigurationCheckError):
+            if job_main._email and not isinstance(exc, ConfigurationCheckError):
                 Job.insert(
                     'email',
                     user_id=job_main._user_id,
                     email=job_main._email,
                     name='Measurement Job on Green Metrics Tool Cluster failed',
-                    message=f"Run-ID: {job_main._run_id}\nName: {job_main._name}\nMachine: {job_main._machine_description}\n\nDetails can also be found in the log under: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={job_main._run_id}\n\nError message: {exception}\n"
+                    message=f"Run-ID: {job_main._run_id}\nName: {job_main._name}\nMachine: {job_main._machine_description}\n\nDetails can also be found in the log under: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={job_main._run_id}\n\nError message: {exc.__context__}\n{exc}\n"
                 )
         else:
-            error_helpers.log_error('Base exception occurred in jobs.py: ', exception=exception)
+            error_helpers.log_error('Base exception occurred in jobs.py: ', exception_context=exc.__context__, last_exception=exc)
