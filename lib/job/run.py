@@ -15,7 +15,6 @@ from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib.user import User
 from lib.terminal_colors import TerminalColors
-from lib.system_checks import ConfigurationCheckError
 from lib.scenario_runner import ScenarioRunner
 import optimization_providers.base
 
@@ -76,18 +75,6 @@ class RunJob(Job):
                     name=f"Measurement Job '{self._name}' successfully processed on Green Metrics Tool Cluster",
                     message=f"Your report is now accessible under the URL: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={self._run_id}"
                 )
-
-        except Exception as exc:
-            self._run_id = runner._run_id # might not be set yet, but we try
-            if self._email and not isinstance(exc, ConfigurationCheckError): # reduced error message to client, but only if no ConfigurationCheckError
-
-                Job.insert(
-                    'email',
-                    user_id=self._user_id,
-                    email=self._email,
-                    name='Measurement Job on Green Metrics Tool Cluster failed',
-                    message=f"Run-ID: {self._run_id}\nName: {self._name}\n\nDetails can also be found in the log under: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={self._run_id}\n\nError message: {exc}\n"
-                )
-            raise exc
         finally:
+            self._run_id = runner._run_id # might not be set yet, but we try
             user.deduct_measurement_quota(self._machine_id, int(runner._last_measurement_duration/1_000_000)) # duration in runner is in microseconds. We need seconds
