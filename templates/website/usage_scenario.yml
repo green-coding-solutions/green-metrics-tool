@@ -14,21 +14,38 @@ services:
       - command: mkfifo /tmp/my_fifo
       - command: python3 /tmp/repo/templates/website/visit.py --browser firefox
         detach: true
-      - command: sleep '__GMT_VAR_SLEEP_1__'
+      - command: until [ -f "/tmp/browser_ready" ]; do sleep 1; done && echo "Browser ready!"
+        shell: bash
       - command: echo '__GMT_VAR_PAGE__' > /tmp/my_fifo # warmup
+        shell: bash
+      - command: sleep '__GMT_VAR_SLEEP__' # we need same sleep as later as some resources might only be fetched from the website after staying on the page for a while
 
 flow:
+  - name: Dump Log (Warmup)
+    container: squid
+    commands:
+      - type: console
+        command: cat /apps/squid/var/logs/access.log
+        log-stdout: true
+        log-stderr: true
+      - type: console
+        command: grep 'TCP_MISS/' /apps/squid/var/logs/access.log #validate that TCP_MISSes present
+      - type: console
+        command: echo > /apps/squid/var/logs/access.log
+        shell: bash
+        log-stdout: true
+        log-stderr: true
   - name: Load and idle
     container: gcb-playwright
     commands:
       - type: console
         shell: bash
-        command: "echo '__GMT_VAR_PAGE__' > /tmp/my_fifo && sleep __GMT_VAR_SLEEP_2__"
+        command: "echo '__GMT_VAR_PAGE__' > /tmp/my_fifo && sleep __GMT_VAR_SLEEP__"
         read-notes-stdout: true
         log-stdout: true
         log-stderr: true
 
-  - name: Dump Log
+  - name: Dump Log (Load and idle)
     container: squid
     commands:
       - type: console
@@ -36,3 +53,7 @@ flow:
         read-notes-stdout: true
         log-stdout: true
         log-stderr: true
+      - type: console
+        command: grep 'TCP_MEM_HIT/' /apps/squid/var/logs/access.log #validate that TCP_MEM_HITs present
+      - type: console
+        command: awk '/TCP_MISS\// { found=1 } END { exit found }' /apps/squid/var/logs/access.log # ensure no TCP_MISSes present
