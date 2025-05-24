@@ -55,5 +55,7 @@ flow:
         log-stderr: true
       - type: console
         command: grep 'TCP_MEM_HIT/' /apps/squid/var/logs/access.log #validate that TCP_MEM_HITs present
-      - type: console
-        command: awk '/TCP_MISS\// { found=1 } END { exit found }' /apps/squid/var/logs/access.log # ensure no TCP_MISSes present
+        # This is sadly too strict. Pages fingerprint you all the time and a new request might get a new fingerprint that will not be cached
+        # But if you have a page that does not fingerprint we recommend having this uncommented, as it will warn you if resources bypass the cache pre-loading
+#      - type: console
+#        command: awk '/TCP_MISS\// { found=1 } END { exit found }' /apps/squid/var/logs/access.log # ensure no TCP_MISSes present
