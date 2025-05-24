@@ -124,7 +124,7 @@ measurement:
 #      psu.energy.dc.rapl.msr.machine.provider.PsuEnergyDcRaplMsrMachineProvider:
 #        sampling_rate: 99
     #--- GPU - Only enable these if you have GPUs with power measurement enabled in your machine
-#      gpu.energy.nvidia.smi.component.provider.GpuEnergyNvidiaSmiComponentProvider:
+#      gpu.energy.nvidia.nvml.component.provider.GpuEnergyNvidiaNvmlComponentProvider:
 #        sampling_rate: 99
     #--- Sensors - these providers need the lm-sensors package installed
 #      lmsensors.temperature.component.provider.LmsensorsTemperatureComponentProvider:

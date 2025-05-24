@@ -36,6 +36,7 @@ cert_file=''
 enterprise=false
 ask_ping=true
 force_send_ping=false
+install_nvidia_toolkit_headers=false
 ee_branch=''
 
 function print_message {
@@ -329,6 +330,9 @@ function build_binaries() {
             if [[ "$make_path" == *"/lmsensors/"* ]] && [[ "${install_sensors}" == false ]]; then
                 continue
             fi
+            if [[ "$make_path" == *"/nvidia/"* ]] && [[ "${install_nvidia_toolkit_headers}" == false ]]; then
+                continue
+            fi
             echo "Installing $subdir/metric-provider-binary ..."
             rm -f $subdir/metric-provider-binary 2> /dev/null
             make -C $subdir
@@ -407,18 +411,20 @@ check_python_version
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --nvidia-gpu)
+            install_nvidia_toolkit_headers=true
+            shift
+            ;;
         --ai) # This is not documented in the help, as it is only for GCS internal use
             ask_ai_optimisations=false
             activate_ai_optimisations=true
             shift
             ;;
-
         --no-ai) # This is not documented in the help, as it is only for GCS internal use
             ask_ai_optimisations=false
             activate_ai_optimisations=false
             shift
             ;;
-
         --ee-branch) # This is not documented in the help, as it is only for GCS internal use
             check_optarg 'ee-branch' "${2:-}"
             ee_branch="$2"
