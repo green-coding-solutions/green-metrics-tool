@@ -25,8 +25,12 @@ jobs:
                   alert_message[0] = dialog.message
                   print("Alert detected:", alert_message[0])
                   dialog.dismiss()
+       
+              def handle_console(msg):
+                print(f"CONSOLE [{msg.type.upper()}] {msg.text}")                  
 
               page.on("dialog", handle_dialog)
+              page.on("console", handle_console)
 
               page.goto("https://website-tester.green-coding.io/")
               page.fill('input[name="page"]', 'www.green-coding.io')
