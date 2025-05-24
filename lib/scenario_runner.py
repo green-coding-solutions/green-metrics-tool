@@ -1164,15 +1164,15 @@ class ScenarioRunner:
             print('Stdout:', container_id)
 
             print('Running commands')
-            for cmd in service.get('setup-commands', []):
-                if shell := cmd.get('shell', False):
-                    d_command = ['docker', 'exec', container_name, shell, '-c', cmd['command']] # This must be a list!
+            for cmd_obj in service.get('setup-commands', []):
+                if shell := cmd_obj.get('shell', False):
+                    d_command = ['docker', 'exec', container_name, shell, '-c', cmd_obj['command']] # This must be a list!
                 else:
-                    d_command = ['docker', 'exec', container_name, *shlex.split(cmd['command'])] # This must be a list!
+                    d_command = ['docker', 'exec', container_name, *shlex.split(cmd_obj['command'])] # This must be a list!
 
                 print('Running command: ', ' '.join(d_command))
 
-                if cmd.get('detach', False) is True:
+                if cmd_obj.get('detach', False) is True:
                     print('Executing setup-commands process asynchronously and detaching ...')
                     #pylint: disable=consider-using-with,subprocess-popen-preexec-fn
                     # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
@@ -1186,6 +1186,8 @@ class ScenarioRunner:
                         encoding='UTF-8',
                     )
 
+                    self.__ps_to_kill.append({'ps': ps, 'cmd': cmd_obj['command'], 'ps_group': False})
+
                 else:
                     # docker exec must stay as list, cause this forces items to be quoted and escaped and prevents
                     # injection of unwawnted params
@@ -1196,13 +1198,17 @@ class ScenarioRunner:
                         stdout=subprocess.PIPE,
                         encoding='UTF-8'
                     )
-                    print('Stdout:', ps.stdout)
-                    print('Stderr:', ps.stderr)
 
-                if ps.stdout:
-                    self.add_to_log(container_name, f"stdout {ps.stdout}", d_command)
-                if ps.stderr:
-                    self.add_to_log(container_name, f"stderr {ps.stderr}", d_command)
+                self.__ps_to_read.append({
+                    'cmd': d_command,
+                    'ps': ps,
+                    'container_name': container_name,
+                    'read-notes-stdout': cmd_obj.get('read-notes-stdout', False),
+                    'ignore-errors': cmd_obj.get('ignore-errors', False),
+                    'read-sci-stdout': cmd_obj.get('read-sci-stdout', False),
+                    'detail_name': container_name,
+                    'detach': cmd_obj.get('detach', False),
+                })
 
         print(TerminalColors.HEADER, '\nCurrent known containers: ', self.__containers, TerminalColors.ENDC)
 
@@ -1838,6 +1844,7 @@ class ScenarioRunner:
             self.setup_networks()
             self.setup_services()
             self.end_phase('[BOOT]')
+            self.check_process_returncodes()
 
             if self._debugger.active:
                 self._debugger.pause('Container setup complete. Waiting to start container providers')
