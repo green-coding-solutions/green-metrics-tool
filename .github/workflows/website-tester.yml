@@ -1,0 +1,47 @@
+name: Website Tester Playwright Python Test
+
+on:
+  schedule:
+    - cron: '10 10 * * *'
+  workflow_dispatch:
+
+jobs:
+  run-playwright:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Save test script
+        run: |
+          cat > test_playwright.py <<'EOF'
+          from playwright.sync_api import sync_playwright, Dialog
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              context = browser.new_context()
+              page = context.new_page()
+
+              alert_message = [None]
+
+              def handle_dialog(dialog: Dialog):
+                  alert_message[0] = dialog.message
+                  print("Alert detected:", alert_message[0])
+                  dialog.dismiss()
+
+              page.on("dialog", handle_dialog)
+
+              page.goto("https://website-tester.green-coding.io/")
+              page.fill('input[name="page"]', 'www.green-coding.io')
+              page.click('button:has-text("Measure")')
+
+              page.wait_for_timeout(3000)
+
+              if alert_message[0] is None:
+                  raise Exception("Expected alert did not occur.")
+
+              print("Test passed: Alert occurred with message:", alert_message[0])
+
+              browser.close()
+          EOF
+
+      - name: Run Playwright Python in Docker
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/src -w greencoding/gcb_playwright:v18 python3 test_playwright.py
