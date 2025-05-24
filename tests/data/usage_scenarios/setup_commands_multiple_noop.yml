@@ -1,6 +1,7 @@
 ---
-name: Test Stress
+name: Test noop
 author: Dan Mateas
+description: test
 description: test
 
 services:
@@ -10,13 +11,14 @@ services:
     build:
       context: ../stress-application
     setup-commands:
+      - command: echo hello world
       - command: ps -a
-        shell: sh
+      - command: echo goodbye world
 
 flow:
-  - name: Stress
+  - name: noop
     container: test-container
     commands:
       - type: console
-        command: stress-ng -c 1 -t 1 -q
-        note: Starting Stress
+        command: echo 1
+        note: Starting noop
