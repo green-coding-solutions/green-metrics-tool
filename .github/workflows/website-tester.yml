@@ -15,8 +15,8 @@ jobs:
           from playwright.sync_api import sync_playwright, Dialog
 
           with sync_playwright() as p:
-              browser = p.chromium.launch(headless=True)
-              context = browser.new_context()
+              browser = p.chrome.launch(headless=False,args=["--headless=new"])
+              context = browser.new_context(locale="en-US", user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36")
               page = context.new_page()
 
               alert_message = [None]
