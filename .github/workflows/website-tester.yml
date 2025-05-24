@@ -44,4 +44,4 @@ jobs:
 
       - name: Run Playwright Python in Docker
         run: |
-          docker run --rm -v ${{ github.workspace }}:/src -w greencoding/gcb_playwright:v18 python3 test_playwright.py
+          docker run --rm -v ${{ github.workspace }}:/src -w /src greencoding/gcb_playwright:v18 python3 test_playwright.py
