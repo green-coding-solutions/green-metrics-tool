@@ -226,5 +226,5 @@ if __name__ == '__main__':
                 print('Successfully ended testing run of client.py')
                 break
 
-    except Exception as exc: # pylint: disable=broad-except
+    except BaseException as exc: # pylint: disable=broad-except
         error_helpers.log_error(f'Processing in {__file__} failed.', exception_context=exc.__context__, last_exception=exc, machine=config_main['machine']['description'])
