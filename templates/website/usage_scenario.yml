@@ -12,7 +12,7 @@ services:
   gcb-playwright:
     setup-commands:
       - command: mkfifo /tmp/my_fifo
-      - command: python3 /tmp/repo/templates/website/visit.py --browser firefox
+      - command: python3 /tmp/repo/templates/website/visit.py --browser chromium
         detach: true
       - command: until [ -f "/tmp/browser_ready" ]; do sleep 1; done && echo "Browser ready!"
         shell: bash
