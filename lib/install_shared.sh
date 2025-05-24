@@ -413,18 +413,18 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --nvidia-gpu)
             install_nvidia_toolkit_headers=true
+            shift
+            ;;
         --ai) # This is not documented in the help, as it is only for GCS internal use
             ask_ai_optimisations=false
             activate_ai_optimisations=true
             shift
             ;;
-
         --no-ai) # This is not documented in the help, as it is only for GCS internal use
             ask_ai_optimisations=false
             activate_ai_optimisations=false
             shift
             ;;
-
         --ee-branch) # This is not documented in the help, as it is only for GCS internal use
             check_optarg 'ee-branch' "${2:-}"
             ee_branch="$2"
