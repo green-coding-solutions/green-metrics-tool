@@ -1,0 +1,54 @@
+name: Website Tester Playwright Python Test
+
+on:
+  schedule:
+    - cron: '10 10 * * 1'
+  workflow_dispatch:
+
+jobs:
+  run-playwright:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Save test script
+        run: |
+          cat > test_playwright.py <<'EOF'
+          from playwright.sync_api import sync_playwright, Dialog
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=False,args=["--headless=new"])
+              context = browser.new_context(locale="en-US", user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36")
+              page = context.new_page()
+
+              alert_message = [None]
+
+              def handle_dialog(dialog: Dialog):
+                  alert_message[0] = dialog.message
+                  print("Alert detected:", alert_message[0])
+                  dialog.dismiss()
+       
+              def handle_console(msg):
+                print(f"CONSOLE [{msg.type.upper()}] {msg.text}")                  
+
+              page.on("dialog", handle_dialog)
+              page.on("console", handle_console)
+
+              page.goto("https://website-tester.green-coding.io/")
+              page.fill('input[name="page"]', 'www.green-coding.io')
+              page.click('button:has-text("Measure")')
+
+              page.wait_for_timeout(3000)
+
+              if alert_message[0] is None:
+                  raise Exception("Expected alert did not occur.")
+              if alert_message[0] != 'Thanks, we have received your measurement request and will e-mail you shortly!':
+                  raise Exception(f"Different alert occured {alert_message[0]}")
+              
+
+              print("Test passed: Alert occurred with message:", alert_message[0])
+
+              browser.close()
+          EOF
+
+      - name: Run Playwright Python in Docker
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/src -w /src greencoding/gcb_playwright:v18 python3 test_playwright.py
