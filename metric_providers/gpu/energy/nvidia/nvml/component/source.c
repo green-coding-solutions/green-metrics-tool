@@ -99,6 +99,7 @@ static int check_system() {
 
     nvmlDeviceGetHandleByIndex(0, &device);
     nvmlDeviceGetPowerUsage(device, &power_usage);
+    nvmlShutdown();
 
     return 0;
 }
