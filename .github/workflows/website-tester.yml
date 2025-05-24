@@ -36,7 +36,7 @@ jobs:
 
               if alert_message[0] is None:
                   raise Exception("Expected alert did not occur.")
-              if alert_message[0] != 'Thanks, we have received your measurement request and will e-mail you shortly!'
+              if alert_message[0] != 'Thanks, we have received your measurement request and will e-mail you shortly!':
                   raise Exception(f"Different alert occured {alert_message[0]}")
               
 
