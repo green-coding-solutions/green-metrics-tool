@@ -12,6 +12,22 @@ from lib.db import DB
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+def is_outside_symlink(base_dir, symlink_path):
+    try:
+        abs_target = os.path.realpath(symlink_path)
+        return not abs_target.startswith(os.path.realpath(base_dir)), abs_target
+    except OSError:
+        return False, None  # Not a symlink
+
+def find_outside_symlinks(base_dir):
+    for root, dirs, files in os.walk(base_dir):
+        for name in dirs + files:
+            full_path = os.path.join(root, name)
+            is_outside, target = is_outside_symlink(base_dir, full_path)
+            if is_outside:
+                return f"{full_path} → {target}"
+    return None
+
 def remove_git_suffix(url):
     if url.endswith('.git'):
         return url[:-4]
@@ -53,10 +69,11 @@ def check_repo(repo_url, branch='main'):
 
     # We do not fail here, but only do a warning, bc often times the SSH or token which might be supplied in the URL is too restrictive then and cannot be used to query the commits also
     # However we do check the commits endpoint bc this tells us if the repo is non empty or not
-    if response.status_code != 200 and git_api in ('gitlab', 'github'):
-        raise RequestValidationError(f"Could not read from repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?")
-    else:
-        error_helpers.log_error(f"Connect to {git_api} API was possbile, but return code was not 200",url=url,status_code=response.status_code,status_text=response.text)
+    if response.status_code != 200:
+        if git_api in ('gitlab', 'github'):
+            raise RequestValidationError(f"Could not read from repository {repo_url} and branch {branch}. Is the repo publicly accessible, not empty and does the branch {branch} exist?")
+        else:
+            error_helpers.log_error(f"Connect to {git_api} API was possible, but return code was not 200",url=url,status_code=response.status_code,status_text=response.text)
 
 def get_repo_last_marker(repo_url, marker):
 

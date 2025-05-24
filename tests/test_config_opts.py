@@ -99,10 +99,11 @@ def test_phase_padding_inactive():
 
     notes = DB().fetch_all(query, (run_id,))
 
-    assert notes[10][1] == 'Starting phase Testing Noop'
-    assert notes[11][1] == 'Ending phase Testing Noop [UNPADDED]'
-    assert notes[12][1] == 'Ending phase [RUNTIME] [UNPADDED]' # this implictely means we have no PADDED entries
-    assert notes[12][0] > notes[13][0] - 300 # end times of reconstructed runtime and last sub-runtime are very close, but not exact, bc we only reconstruct phase_stats but not measurements table. 300 microseconds is a good cutoff
+    # we count the array from the end as depending on if the test is executed alone or in conjunction with other tests 'alpine' will get pulled and produce a note at the beginning that extends the notes
+    assert notes[-6][1] == 'Starting phase Testing Noop'
+    assert notes[-5][1] == 'Ending phase Testing Noop [UNPADDED]'
+    assert notes[-4][1] == 'Ending phase [RUNTIME] [UNPADDED]' # this implictely means we have no PADDED entries
+    assert notes[-4][0] > notes[-3][0] - 300 # end times of reconstructed runtime and last sub-runtime are very close, but not exact, bc we only reconstruct phase_stats but not measurements table. 300 microseconds is a good cutoff
 
 def test_phase_padding_active():
     out = io.StringIO()
@@ -127,13 +128,14 @@ def test_phase_padding_active():
 
     notes = DB().fetch_all(query, (run_id,))
 
-    assert notes[14][1] == 'Starting phase Testing Noop'
-    assert notes[15][1] == 'Ending phase Testing Noop [UNPADDED]'
-    assert notes[16][1] == 'Ending phase Testing Noop [PADDED]'
+    # we count the array from the end as depending on if the test is executed alone or in conjunction with other tests 'alpine' will get pulled and produce a note at the beginning that extends the notes
+    assert notes[-9][1] == 'Starting phase Testing Noop'
+    assert notes[-8][1] == 'Ending phase Testing Noop [UNPADDED]'
+    assert notes[-7][1] == 'Ending phase Testing Noop [PADDED]'
     FROM_MS_TO_US = 1000
-    assert notes[16][0] - notes[15][0] == runner._phase_padding_ms*FROM_MS_TO_US
+    assert notes[-7][0] - notes[-8][0] == runner._phase_padding_ms*FROM_MS_TO_US
 
-    assert notes[17][1] == 'Ending phase [RUNTIME] [UNPADDED]'
+    assert notes[-6][1] == 'Ending phase [RUNTIME] [UNPADDED]'
 
 
 

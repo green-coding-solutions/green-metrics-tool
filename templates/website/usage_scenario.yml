@@ -8,45 +8,16 @@ sci:
 
 compose-file: !include compose.yml
 
+services:
+  gcb-playwright:
+    setup-commands:
+      - command: mkfifo /tmp/my_fifo
+      - command: python3 /tmp/repo/templates/website/visit.py --browser firefox
+        detach: true
+      - command: sleep '__GMT_VAR_SLEEP_1__'
+      - command: echo '__GMT_VAR_PAGE__' > /tmp/my_fifo # warmup
 
 flow:
-
-  - name: Create named pipe
-    container: gcb-playwright
-    commands:
-      - type: console
-        command: mkfifo /tmp/my_fifo
-
-  - name: Startup
-    container: gcb-playwright
-    commands:
-      - type: console
-        detach: true
-        command: python3 /tmp/repo/templates/website/visit.py
-        read-notes-stdout: true
-        log-stdout: true
-        log-stderr: true
-
-  - name: Pause
-    container: gcb-playwright
-    commands:
-      - type: console
-        command: "sleep __GMT_VAR_SLEEP_1__"
-        read-notes-stdout: true
-        log-stdout: true
-        log-stderr: true
-
-
-  - name: Warmup
-    container: gcb-playwright
-    commands:
-      - type: console
-        shell: bash
-        command: "echo '__GMT_VAR_PAGE__' > /tmp/my_fifo"
-        read-notes-stdout: true
-        log-stdout: true
-        log-stderr: true
-
   - name: Load and idle
     container: gcb-playwright
     commands:
@@ -56,17 +27,6 @@ flow:
         read-notes-stdout: true
         log-stdout: true
         log-stderr: true
-
-  - name: Load
-    container: gcb-playwright
-    commands:
-      - type: console
-        shell: bash
-        command: "echo '__GMT_VAR_PAGE__' > /tmp/my_fifo"
-        read-notes-stdout: true
-        log-stdout: true
-        log-stderr: true
-
 
   - name: Dump Log
     container: squid
