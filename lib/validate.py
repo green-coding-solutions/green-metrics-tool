@@ -98,7 +98,7 @@ def validate_workload_stddev(data, metrics):
     warning = False
     info_string_acc = []
     for el in data:
-        info_string = f"{el['metric']} {el['detail_name']}:\n\t{round(el['avg'], 2)} +/- {round(el['stddev'], 2)} {el['stddev_rel']*100} %"
+        info_string = f"{el['metric']} {el['detail_name']}:\n\t{round(el['avg'], 2)} +/- {round(el['stddev'], 2)} {round(el['stddev_rel']*100)} %"
         info_string_acc.append(info_string)
 
         if metrics[el['metric']]['type'] == 'stddev_rel':
