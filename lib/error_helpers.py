@@ -17,19 +17,27 @@ def format_error(*messages, **kwargs):
     if 'run_id' in kwargs and kwargs['run_id']:
         err += f"\nRun-ID Link: {GlobalConfig().config['cluster']['metrics_url']}/stats.html?id={kwargs['run_id']}"
 
-    error_string = f"""
+    if kwargs.get('traceback_first', True):
+        error_string = f"""
 \n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n
 {traceback.format_exc()}
 \n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n
 Error: {err}
 \n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n
     """
-
+    else:
+        error_string = f"""
+\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n
+Error: {err}
+\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n
+{traceback.format_exc()}
+\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 0_o >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n
+    """
     return error_string
 
 
 def log_error(*messages, **kwargs):
-    err = format_error(*messages, **kwargs)
+    err = format_error(*messages, **kwargs, traceback_first=True)
 
     if error_file := GlobalConfig().config['admin']['error_file']:
         try:
@@ -42,4 +50,4 @@ def log_error(*messages, **kwargs):
 
     if error_email := GlobalConfig().config['admin']['error_email']:
         # User 0 is the [GMT-SYSTEM] user
-        Job.insert('email', user_id=0, email=error_email, name='Green Metrics Tool Error', message=err)
+        Job.insert('email', user_id=0, email=error_email, name='Green Metrics Tool Error', message=format_error(*messages, **kwargs, traceback_first=False))
