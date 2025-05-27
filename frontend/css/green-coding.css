@@ -306,10 +306,17 @@ a,
     vertical-align: top;
 }
 
-#usage-scenario, #logs, #machine-specs, #machine-specs-tab {
-    white-space: pre-wrap;
+#usage-scenario, #logs {
+    white-space: pre;
     word-wrap: break-word;
     overflow: auto;
+    font-family: monospace;
+}
+
+#machine-specs, #machine-specs-tab {
+    white-space: pre;
+    word-wrap: break-word;
+    overflow: scroll; /* without forcing scroll on table does not work */
     font-family: monospace;
 }
 
