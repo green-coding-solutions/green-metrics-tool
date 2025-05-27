@@ -107,7 +107,7 @@ const fetchAndFillRunData = async (url_params) => {
 
         } else if(item == 'logs' && run_data?.[item] != null) {
             // textContent does escaping for us
-            document.querySelector("pre#logs").textContent = run_data[item];
+            document.querySelector("#logs").textContent = run_data[item];
         } else if(item == 'measurement_config') {
             fillRunTab('#measurement-config', run_data[item]); // recurse
         } else if(item == 'phases' || item == 'id') {
