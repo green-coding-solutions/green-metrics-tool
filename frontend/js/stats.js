@@ -94,7 +94,7 @@ const fetchAndFillRunData = async (url_params) => {
             fillRunTab('#machine-specs', run_data[item]); // recurse
         } else if(item == 'usage_scenario') {
             // we would really like to highlight here what was replaced, but since the replace mechanism is so powerful that even the !include command could be modified we can only replace after the file was merged. Thus it is not possible to know after what the replacements are
-            document.querySelector("pre#usage-scenario").textContent = json2yaml(run_data[item]);
+            document.querySelector("#usage-scenario").textContent = json2yaml(run_data[item]);
         } else if(item == 'usage_scenario_variables') {
             if (Object.keys(run_data[item]).length > 0) {
                 const container = document.querySelector("#usage-scenario-variables ul");

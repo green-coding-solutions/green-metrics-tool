@@ -285,10 +285,6 @@ a,
     margin-bottom: 40px;
 }
 
-.usage-scenario, #diff-pre {
-    word-wrap: break-word;
-    white-space: pre-wrap;
-}
 
 .break {
   flex-basis: 100%;
@@ -310,11 +306,11 @@ a,
     vertical-align: top;
 }
 
-#logs pre, #machine-specs-tab {
-    max-width: 80vw;
+#usage-scenario, #logs, #machine-specs, #machine-specs-tab {
     white-space: pre-wrap;
     word-wrap: break-word;
-    overflow: scroll;
+    overflow: auto;
+    font-family: monospace;
 }
 
 #unselect-button, #compare-force-mode {
