@@ -56,8 +56,7 @@ def reconstruct_runtime_phase(run_id, runtime_phase_idx):
         )
         UPDATE phase_stats
             SET value =
-                (SELECT COALESCE(SUM(tvt.value * tvt.time_of_the_sub_phase), 0) FROM tvt WHERE tvt.metric = phase_stats.metric AND tvt.detail_name = phase_stats.detail_name AND tvt.unit = phase_stats.unit)
-                / %s
+                (SELECT COALESCE(SUM(tvt.value * (tvt.time_of_the_sub_phase::DOUBLE PRECISION / %s)), 0) FROM tvt WHERE tvt.metric = phase_stats.metric AND tvt.detail_name = phase_stats.detail_name AND tvt.unit = phase_stats.unit)::BIGINT
 
         WHERE phase = %s AND run_id = %s AND type = 'MEAN'
         ''', params=(run_id, total_runtime_sub_phase_duration, f"{runtime_phase_idx:03}_[RUNTIME]", run_id)
