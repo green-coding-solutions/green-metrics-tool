@@ -123,10 +123,14 @@ $(document).ready(function () {
                 } },
             ],
             deferRender: true,
-            order: [[7, 'desc']] // API also orders, but we need to indicate order for the user
+            order: [[7, 'desc']], // API also orders, but we need to indicate order for the user
+            drawCallback: function(settings) {
+                document.querySelectorAll('.cancel-job').forEach(el => {
+                    el.removeEventListener('click', cancelJob)
+                    el.addEventListener('click', cancelJob)
+                })
+            },
         });
-
-        document.querySelectorAll('.cancel-job').forEach(el => el.addEventListener('click', cancelJob))
 
     })();
 });
