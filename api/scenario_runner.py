@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 
 import anybadge
 
-from api.object_specifications import Software
+from api.object_specifications import Software, JobChange
 from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics,
                          determine_comparison_case,get_comparison_details,
                          html_escape_multi, get_phase_stats, get_phase_stats_object,
@@ -97,6 +97,55 @@ async def get_jobs(
         return Response(status_code=204) # No-Content
 
     return ORJSONResponse({'success': True, 'data': data})
+
+@router.put('/v1/job')
+async def update_job(
+    job: JobChange,
+    user: User = Depends(authenticate), # pylint: disable=unused-argument
+    ):
+
+    params = [user.is_super_user(), user._id, job.job_id]
+
+    query = '''
+        SELECT state
+        FROM jobs as j
+        WHERE
+            (TRUE = %s OR j.user_id = %s)
+            AND j.type = 'run'
+            AND j.id = %s
+    '''
+
+    job_state = DB().fetch_one(query, params)
+    if job_state is None or job_state == []:
+        raise RequestValidationError('The job you wanted to change does not exist in the database or is not assigned to your user_id.')
+
+    if job_state[0] == 'RUNNING':
+        raise RequestValidationError('The job you are trying to change is already running and cannot be cancelled anymore.')
+
+    if job_state[0] == 'CANCELLED':
+        raise RequestValidationError('The job you are trying to change is already cancelled.')
+
+    if job_state[0] != 'WAITING':
+        raise RequestValidationError('The job you are trying to change is not in the waiting state anymore and thus cannot be cancelled.')
+
+    if job.action != 'cancel':
+        raise RequestValidationError(f"You are trying to make an unsupported action: {job.action}")
+
+    query = '''
+        UPDATE jobs
+        SET state = 'CANCELLED'
+        WHERE
+            (TRUE = %s OR user_id = %s)
+            AND type = 'run'
+            AND id = %s
+    '''
+
+    status_message = DB().query(query, params)
+    if status_message == 'UPDATE 1':
+        return Response(status_code=204) # No-Content
+    else:
+        error_helpers.log_error('Job update did return unexpected result', params=params, status_message=status_message)
+        raise RuntimeError('Could not update job due to database error')
 
 # A route to return all of the available entries in our catalog.
 @router.get('/v1/notes/{run_id}')

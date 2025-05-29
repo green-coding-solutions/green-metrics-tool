@@ -68,7 +68,7 @@ class DB:
             elif return_type == 'all':
                 ret = cur.fetchall()
             else:
-                ret = True
+                ret = cur.statusmessage
 
         return ret
 

@@ -55,6 +55,7 @@ VALUES (
                 "/v1/insights",
                 "/v1/ci/insights",
                 "/v1/machines",
+                "/v1/job",
                 "/v2/jobs",
                 "/v1/notes/{run_id}",
                 "/v1/network/{run_id}",
