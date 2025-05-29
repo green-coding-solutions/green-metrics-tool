@@ -1,3 +1,21 @@
+async function cancelJob(e){
+    e.preventDefault()
+    const job_id = this.getAttribute('data-job-id');
+    try {
+        await makeAPICall('/v1/job', {job_id: job_id, action: 'cancel'}, null, true)
+    } catch (err) {
+        if (err == 'No data to display. API returned empty response (HTTP 204)') {
+            const row = this.closest('tr');
+            row.querySelector('.job-state').innerText = 'CANCELLED'
+            row.querySelector('.job-action').innerHTML = '<i class="ui large icon grey minus"></i>'
+            showNotification('Job cancelled', 'Job has been cancelled successfully');
+        } else {
+            showNotification('Could not cancel job', err);
+        }
+    }
+    return false; // bc link click
+};
+
 $(document).ready(function () {
     (async () => {
 
@@ -93,14 +111,22 @@ $(document).ready(function () {
                     }},
                 { data: 6, title: 'Branch'},
                 { data: 7, title: 'Machine'},
-                { data: 8, title: 'State'},
+                { data: 8, title: 'State', class: "job-state"},
                 { data: 10, title: 'Created at', render: (el) => el == null ? '-' : dateToYMD(new Date(el)) },
                 { data: 9, title: 'Updated at', render: (el) => el == null ? '-' : dateToYMD(new Date(el)) },
+                { data: 8,  title: '-', class: "job-action",  render: (el, type, row) => {
+                    if (el == 'WAITING') {
+                        return `<a class="cancel-job" data-job-id="${row[0]}"><i class="ui large icon red times circle"></i></a>`
+                    } else {
+                        return `<i class="ui large icon grey minus"></i>`
+                    }
+                } },
             ],
             deferRender: true,
             order: [[7, 'desc']] // API also orders, but we need to indicate order for the user
         });
 
+        document.querySelectorAll('.cancel-job').forEach(el => el.addEventListener('click', cancelJob))
 
     })();
 });
