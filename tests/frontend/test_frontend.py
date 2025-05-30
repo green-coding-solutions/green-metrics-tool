@@ -646,7 +646,8 @@ def test_settings_measurement():
     page.locator('#save-measurement-dev-no-sleeps').click()
     page.locator('#save-measurement-dev-no-optimizations').click()
 
-    page.wait_for_load_state("networkidle") # ALL AJAX should be done
+    #page.wait_for_load_state("networkidle") # Network Idle sadly not enough here. The DB seems to take 1-2 seconds
+    time.sleep(1)
 
     user = User(1)
     assert user._capabilities['measurement']['disabled_metric_providers'] == ['NetworkConnectionsProxyContainerProvider']
