@@ -163,10 +163,15 @@ const buildCommitLink = (run_data) => {
 
 const fillRunTab = async (selector, data, parent = '') => {
     for (const item in data) {
-        if(data[item] != null && typeof data[item] == 'object')
+
+        if(data[item] != null && typeof data[item] == 'object') {
+            if (parent == '') {
+                document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong><h2>${item}</h2></strong></td><td></td></tr>`)
+            }
             fillRunTab(selector, data[item], `${item}.`)
-        else
+        } else {
             document.querySelector(selector).insertAdjacentHTML('beforeend', `<tr><td><strong>${parent}${item}</strong></td><td>${data?.[item]}</td></tr>`)
+        }
     }
 }
 

@@ -503,8 +503,10 @@ class ScenarioRunner:
 
         measurement_config = {}
 
-        measurement_config['settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric_providers'} # filter out static metric providers which might not be relevant for platform we are running on
-        measurement_config['providers'] = utils.get_metric_providers(config, self._disabled_metric_providers) # get only the providers relevant to our platform
+        measurement_config['measurement_settings'] = {k: v for k, v in config['measurement'].items() if k != 'metric_providers'} # filter out static metric providers which might not be relevant for platform we are running on
+        measurement_config['configured_metric_providers'] = utils.get_metric_providers(config, self._disabled_metric_providers) # get only the providers relevant to our platform
+        measurement_config['cluster_settings'] = config.get('cluster', {}) # untypical that it is empty, but it does not necessarily need to exist
+        measurement_config['machine_settings'] = config['machine']
         measurement_config['allowed_run_args'] = self._allowed_run_args
         measurement_config['disabled_metric_providers'] = self._disabled_metric_providers
         measurement_config['sci'] = self._sci

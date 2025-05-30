@@ -370,6 +370,10 @@ a {
     margin-bottom: 5px;
 }
 
+#measurement-config h2 {
+    margin-top: 30px;
+}
+
 
 /* PRINT STYLESHEETS */
 @media print {
