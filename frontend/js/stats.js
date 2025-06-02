@@ -139,7 +139,7 @@ const fetchAndFillRunData = async (url_params) => {
 
     // create new custom field
     // timestamp is in microseconds, therefore divide by 10**6
-    const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1000000
+    const measurement_duration_in_s = (run_data.end_measurement - run_data.start_measurement) / 1e6
     const measurement_duration_display = (measurement_duration_in_s > 60) ? `${numberFormatter.format(measurement_duration_in_s / 60)} min` : `${numberFormatter.format(measurement_duration_in_s)} s`
 
     document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="${measurement_duration_in_s} seconds">${measurement_duration_display}</td></tr>`)
