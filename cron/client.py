@@ -132,7 +132,7 @@ if __name__ == '__main__':
                         time.sleep(60)
                     continue
 
-                if current_temperature <= (config_main['machine']['base_temperature_value'] - 5):
+                if current_temperature <= (config_main['machine']['base_temperature_value'] - 10):
                     if temperature_errors >= 10:
                         raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {GlobalConfig().config['machine']['base_temperature_value']}. Pleae check logs ...")
 
