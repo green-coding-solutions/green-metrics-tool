@@ -17,6 +17,12 @@
     //     }
     // })
 
+    $('#clear-authentication-token').on('click', function(){
+        localStorage.removeItem('authentication_token');
+        showNotification('Logout successful');
+    })
+
+
     $('#save-authentication-token').on('click', async function(){
 
         const authentication_token = $("#authentication-token").val().trim();
