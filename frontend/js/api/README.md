@@ -113,7 +113,7 @@ var ids = "ids_example"; // {String}
 var opts = {
   'forceMode': "forceMode_example" // {String} 
 };
-api.compareInRepoV1CompareGet(ids, opts).then(function(data) {
+api.compareInRepo(ids, opts).then(function(data) {
   console.log('API called successfully. Returned data: ' + data);
 }, function(error) {
   console.error(error);
@@ -128,41 +128,41 @@ All URIs are relative to *http://localhost*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
-*FastApi.DefaultApi* | [**compareInRepoV1CompareGet**](docs/DefaultApi.md#compareInRepoV1CompareGet) | **GET** /v1/compare | Compare In Repo
-*FastApi.DefaultApi* | [**diffV1DiffGet**](docs/DefaultApi.md#diffV1DiffGet) | **GET** /v1/diff | Diff
-*FastApi.DefaultApi* | [**getBadgeSingleV1BadgeSingleRunIdGet**](docs/DefaultApi.md#getBadgeSingleV1BadgeSingleRunIdGet) | **GET** /v1/badge/single/{run_id} | Get Badge Single
-*FastApi.DefaultApi* | [**getCiBadgeGetV1CiBadgeGetGet**](docs/DefaultApi.md#getCiBadgeGetV1CiBadgeGetGet) | **GET** /v1/ci/badge/get | Get Ci Badge Get
-*FastApi.DefaultApi* | [**getCiBadgeGetV1CiBadgeGetHead**](docs/DefaultApi.md#getCiBadgeGetV1CiBadgeGetHead) | **HEAD** /v1/ci/badge/get | Get Ci Badge Get
-*FastApi.DefaultApi* | [**getCiMeasurementsV1CiMeasurementsGet**](docs/DefaultApi.md#getCiMeasurementsV1CiMeasurementsGet) | **GET** /v1/ci/measurements | Get Ci Measurements
-*FastApi.DefaultApi* | [**getCiRepositoriesV1CiRepositoriesGet**](docs/DefaultApi.md#getCiRepositoriesV1CiRepositoriesGet) | **GET** /v1/ci/repositories | Get Ci Repositories
-*FastApi.DefaultApi* | [**getCiRunsV1CiRunsGet**](docs/DefaultApi.md#getCiRunsV1CiRunsGet) | **GET** /v1/ci/runs | Get Ci Runs
-*FastApi.DefaultApi* | [**getCiStatsV1CiStatsGet**](docs/DefaultApi.md#getCiStatsV1CiStatsGet) | **GET** /v1/ci/stats | Get Ci Stats
-*FastApi.DefaultApi* | [**getInsightsV1CiInsightsGet**](docs/DefaultApi.md#getInsightsV1CiInsightsGet) | **GET** /v1/ci/insights | Get Insights
-*FastApi.DefaultApi* | [**getInsightsV1InsightsGet**](docs/DefaultApi.md#getInsightsV1InsightsGet) | **GET** /v1/insights | Get Insights
-*FastApi.DefaultApi* | [**getJobsV2JobsGet**](docs/DefaultApi.md#getJobsV2JobsGet) | **GET** /v2/jobs | Get Jobs
-*FastApi.DefaultApi* | [**getMachinesV1MachinesGet**](docs/DefaultApi.md#getMachinesV1MachinesGet) | **GET** /v1/machines | Get Machines
-*FastApi.DefaultApi* | [**getMeasurementsSingleV1MeasurementsSingleRunIdGet**](docs/DefaultApi.md#getMeasurementsSingleV1MeasurementsSingleRunIdGet) | **GET** /v1/measurements/single/{run_id} | Get Measurements Single
-*FastApi.DefaultApi* | [**getNetworkV1NetworkRunIdGet**](docs/DefaultApi.md#getNetworkV1NetworkRunIdGet) | **GET** /v1/network/{run_id} | Get Network
-*FastApi.DefaultApi* | [**getNotesV1NotesRunIdGet**](docs/DefaultApi.md#getNotesV1NotesRunIdGet) | **GET** /v1/notes/{run_id} | Get Notes
-*FastApi.DefaultApi* | [**getOptimizationsV1OptimizationsRunIdGet**](docs/DefaultApi.md#getOptimizationsV1OptimizationsRunIdGet) | **GET** /v1/optimizations/{run_id} | Get Optimizations
-*FastApi.DefaultApi* | [**getPhaseStatsSingleV1PhaseStatsSingleRunIdGet**](docs/DefaultApi.md#getPhaseStatsSingleV1PhaseStatsSingleRunIdGet) | **GET** /v1/phase_stats/single/{run_id} | Get Phase Stats Single
-*FastApi.DefaultApi* | [**getRepositoriesV1RepositoriesGet**](docs/DefaultApi.md#getRepositoriesV1RepositoriesGet) | **GET** /v1/repositories | Get Repositories
-*FastApi.DefaultApi* | [**getRunV2RunRunIdGet**](docs/DefaultApi.md#getRunV2RunRunIdGet) | **GET** /v2/run/{run_id} | Get Run
-*FastApi.DefaultApi* | [**getRunsV2RunsGet**](docs/DefaultApi.md#getRunsV2RunsGet) | **GET** /v2/runs | Get Runs
-*FastApi.DefaultApi* | [**getTimelineBadgeV1BadgeTimelineGet**](docs/DefaultApi.md#getTimelineBadgeV1BadgeTimelineGet) | **GET** /v1/badge/timeline | Get Timeline Badge
-*FastApi.DefaultApi* | [**getTimelineStatsV1TimelineGet**](docs/DefaultApi.md#getTimelineStatsV1TimelineGet) | **GET** /v1/timeline | Get Timeline Stats
-*FastApi.DefaultApi* | [**getUserSettingsV1UserSettingsGet**](docs/DefaultApi.md#getUserSettingsV1UserSettingsGet) | **GET** /v1/user/settings | Get User Settings
-*FastApi.DefaultApi* | [**getWatchlistV1WatchlistGet**](docs/DefaultApi.md#getWatchlistV1WatchlistGet) | **GET** /v1/watchlist | Get Watchlist
-*FastApi.DefaultApi* | [**homeGet**](docs/DefaultApi.md#homeGet) | **GET** / | Home
-*FastApi.DefaultApi* | [**oldV1JobsEndpointV1JobsGet**](docs/DefaultApi.md#oldV1JobsEndpointV1JobsGet) | **GET** /v1/jobs | Old V1 Jobs Endpoint
-*FastApi.DefaultApi* | [**oldV1RunEndpointV1RunRunIdGet**](docs/DefaultApi.md#oldV1RunEndpointV1RunRunIdGet) | **GET** /v1/run/{run_id} | Old V1 Run Endpoint
-*FastApi.DefaultApi* | [**oldV1RunsEndpointV1RunsGet**](docs/DefaultApi.md#oldV1RunsEndpointV1RunsGet) | **GET** /v1/runs | Old V1 Runs Endpoint
-*FastApi.DefaultApi* | [**postCiMeasurementAddDeprecatedV1CiMeasurementAddPost**](docs/DefaultApi.md#postCiMeasurementAddDeprecatedV1CiMeasurementAddPost) | **POST** /v1/ci/measurement/add | Post Ci Measurement Add Deprecated
-*FastApi.DefaultApi* | [**postCiMeasurementAddV2CiMeasurementAddPost**](docs/DefaultApi.md#postCiMeasurementAddV2CiMeasurementAddPost) | **POST** /v2/ci/measurement/add | Post Ci Measurement Add
-*FastApi.DefaultApi* | [**robotsTxtRobotsTxtGet**](docs/DefaultApi.md#robotsTxtRobotsTxtGet) | **GET** /robots.txt | Robots Txt
-*FastApi.DefaultApi* | [**softwareAddV1SoftwareAddPost**](docs/DefaultApi.md#softwareAddV1SoftwareAddPost) | **POST** /v1/software/add | Software Add
-*FastApi.DefaultApi* | [**updateJobV1JobPut**](docs/DefaultApi.md#updateJobV1JobPut) | **PUT** /v1/job | Update Job
-*FastApi.DefaultApi* | [**updateUserSettingV1UserSettingPut**](docs/DefaultApi.md#updateUserSettingV1UserSettingPut) | **PUT** /v1/user/setting | Update User Setting
+*FastApi.DefaultApi* | [**compareInRepo**](docs/DefaultApi.md#compareInRepo) | **GET** /v1/compare | Compare In Repo
+*FastApi.DefaultApi* | [**diff**](docs/DefaultApi.md#diff) | **GET** /v1/diff | Diff
+*FastApi.DefaultApi* | [**getBadgeSingle**](docs/DefaultApi.md#getBadgeSingle) | **GET** /v1/badge/single/{run_id} | Get Badge Single
+*FastApi.DefaultApi* | [**getCiBadgeGet**](docs/DefaultApi.md#getCiBadgeGet) | **GET** /v1/ci/badge/get | Get Ci Badge Get
+*FastApi.DefaultApi* | [**getCiBadgeGet_0**](docs/DefaultApi.md#getCiBadgeGet_0) | **HEAD** /v1/ci/badge/get | Get Ci Badge Get
+*FastApi.DefaultApi* | [**getCiMeasurements**](docs/DefaultApi.md#getCiMeasurements) | **GET** /v1/ci/measurements | Get Ci Measurements
+*FastApi.DefaultApi* | [**getCiRepositories**](docs/DefaultApi.md#getCiRepositories) | **GET** /v1/ci/repositories | Get Ci Repositories
+*FastApi.DefaultApi* | [**getCiRuns**](docs/DefaultApi.md#getCiRuns) | **GET** /v1/ci/runs | Get Ci Runs
+*FastApi.DefaultApi* | [**getCiStats**](docs/DefaultApi.md#getCiStats) | **GET** /v1/ci/stats | Get Ci Stats
+*FastApi.DefaultApi* | [**getInsights**](docs/DefaultApi.md#getInsights) | **GET** /v1/insights | Get Insights
+*FastApi.DefaultApi* | [**getInsights_0**](docs/DefaultApi.md#getInsights_0) | **GET** /v1/ci/insights | Get Insights
+*FastApi.DefaultApi* | [**getJobs**](docs/DefaultApi.md#getJobs) | **GET** /v2/jobs | Get Jobs
+*FastApi.DefaultApi* | [**getMachines**](docs/DefaultApi.md#getMachines) | **GET** /v1/machines | Get Machines
+*FastApi.DefaultApi* | [**getMeasurementsSingle**](docs/DefaultApi.md#getMeasurementsSingle) | **GET** /v1/measurements/single/{run_id} | Get Measurements Single
+*FastApi.DefaultApi* | [**getNetwork**](docs/DefaultApi.md#getNetwork) | **GET** /v1/network/{run_id} | Get Network
+*FastApi.DefaultApi* | [**getNotes**](docs/DefaultApi.md#getNotes) | **GET** /v1/notes/{run_id} | Get Notes
+*FastApi.DefaultApi* | [**getOptimizations**](docs/DefaultApi.md#getOptimizations) | **GET** /v1/optimizations/{run_id} | Get Optimizations
+*FastApi.DefaultApi* | [**getPhaseStatsSingle**](docs/DefaultApi.md#getPhaseStatsSingle) | **GET** /v1/phase_stats/single/{run_id} | Get Phase Stats Single
+*FastApi.DefaultApi* | [**getRepositories**](docs/DefaultApi.md#getRepositories) | **GET** /v1/repositories | Get Repositories
+*FastApi.DefaultApi* | [**getRun**](docs/DefaultApi.md#getRun) | **GET** /v2/run/{run_id} | Get Run
+*FastApi.DefaultApi* | [**getRuns**](docs/DefaultApi.md#getRuns) | **GET** /v2/runs | Get Runs
+*FastApi.DefaultApi* | [**getTimelineBadge**](docs/DefaultApi.md#getTimelineBadge) | **GET** /v1/badge/timeline | Get Timeline Badge
+*FastApi.DefaultApi* | [**getTimelineStats**](docs/DefaultApi.md#getTimelineStats) | **GET** /v1/timeline | Get Timeline Stats
+*FastApi.DefaultApi* | [**getUserSettings**](docs/DefaultApi.md#getUserSettings) | **GET** /v1/user/settings | Get User Settings
+*FastApi.DefaultApi* | [**getWatchlist**](docs/DefaultApi.md#getWatchlist) | **GET** /v1/watchlist | Get Watchlist
+*FastApi.DefaultApi* | [**home**](docs/DefaultApi.md#home) | **GET** / | Home
+*FastApi.DefaultApi* | [**oldV1JobsEndpoint**](docs/DefaultApi.md#oldV1JobsEndpoint) | **GET** /v1/jobs | Old V1 Jobs Endpoint
+*FastApi.DefaultApi* | [**oldV1RunEndpoint**](docs/DefaultApi.md#oldV1RunEndpoint) | **GET** /v1/run/{run_id} | Old V1 Run Endpoint
+*FastApi.DefaultApi* | [**oldV1RunsEndpoint**](docs/DefaultApi.md#oldV1RunsEndpoint) | **GET** /v1/runs | Old V1 Runs Endpoint
+*FastApi.DefaultApi* | [**postCiMeasurementAdd**](docs/DefaultApi.md#postCiMeasurementAdd) | **POST** /v2/ci/measurement/add | Post Ci Measurement Add
+*FastApi.DefaultApi* | [**postCiMeasurementAddDeprecated**](docs/DefaultApi.md#postCiMeasurementAddDeprecated) | **POST** /v1/ci/measurement/add | Post Ci Measurement Add Deprecated
+*FastApi.DefaultApi* | [**robotsTxt**](docs/DefaultApi.md#robotsTxt) | **GET** /robots.txt | Robots Txt
+*FastApi.DefaultApi* | [**softwareAdd**](docs/DefaultApi.md#softwareAdd) | **POST** /v1/software/add | Software Add
+*FastApi.DefaultApi* | [**updateJob**](docs/DefaultApi.md#updateJob) | **PUT** /v1/job | Update Job
+*FastApi.DefaultApi* | [**updateUserSetting**](docs/DefaultApi.md#updateUserSetting) | **PUT** /v1/user/setting | Update User Setting
 
 
 ## Documentation for Models

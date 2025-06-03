@@ -9,6 +9,7 @@ from fastapi.responses import ORJSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRoute
 
 from starlette.responses import RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -173,6 +174,11 @@ if GlobalConfig().config.get('activate_ai_optimisations', False):
     from ee.api import ai_optimisations
     app.include_router(ai_optimisations.router)
 
+for route in app.routes:
+    if not isinstance(route, APIRoute):
+        continue
+
+    route.operation_id = route.name
 
 if __name__ == '__main__':
     app.run() # pylint: disable=no-member

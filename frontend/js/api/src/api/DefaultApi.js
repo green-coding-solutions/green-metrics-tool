@@ -47,12 +47,12 @@ export default class DefaultApi {
      * @param {String} [forceMode] 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    compareInRepoV1CompareGetWithHttpInfo(ids, opts) {
+    compareInRepoWithHttpInfo(ids, opts) {
       opts = opts || {};
       let postBody = null;
       // verify the required parameter 'ids' is set
       if (ids === undefined || ids === null) {
-        throw new Error("Missing the required parameter 'ids' when calling compareInRepoV1CompareGet");
+        throw new Error("Missing the required parameter 'ids' when calling compareInRepo");
       }
 
       let pathParams = {
@@ -84,8 +84,8 @@ export default class DefaultApi {
      * @param {String} opts.forceMode 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    compareInRepoV1CompareGet(ids, opts) {
-      return this.compareInRepoV1CompareGetWithHttpInfo(ids, opts)
+    compareInRepo(ids, opts) {
+      return this.compareInRepoWithHttpInfo(ids, opts)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -97,11 +97,11 @@ export default class DefaultApi {
      * @param {String} ids 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    diffV1DiffGetWithHttpInfo(ids) {
+    diffWithHttpInfo(ids) {
       let postBody = null;
       // verify the required parameter 'ids' is set
       if (ids === undefined || ids === null) {
-        throw new Error("Missing the required parameter 'ids' when calling diffV1DiffGet");
+        throw new Error("Missing the required parameter 'ids' when calling diff");
       }
 
       let pathParams = {
@@ -130,8 +130,8 @@ export default class DefaultApi {
      * @param {String} ids 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    diffV1DiffGet(ids) {
-      return this.diffV1DiffGetWithHttpInfo(ids)
+    diff(ids) {
+      return this.diffWithHttpInfo(ids)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -147,12 +147,12 @@ export default class DefaultApi {
      * @param {String} [phase] 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getBadgeSingleV1BadgeSingleRunIdGetWithHttpInfo(runId, opts) {
+    getBadgeSingleWithHttpInfo(runId, opts) {
       opts = opts || {};
       let postBody = null;
       // verify the required parameter 'runId' is set
       if (runId === undefined || runId === null) {
-        throw new Error("Missing the required parameter 'runId' when calling getBadgeSingleV1BadgeSingleRunIdGet");
+        throw new Error("Missing the required parameter 'runId' when calling getBadgeSingle");
       }
 
       let pathParams = {
@@ -188,8 +188,8 @@ export default class DefaultApi {
      * @param {String} opts.phase 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getBadgeSingleV1BadgeSingleRunIdGet(runId, opts) {
-      return this.getBadgeSingleV1BadgeSingleRunIdGetWithHttpInfo(runId, opts)
+    getBadgeSingle(runId, opts) {
+      return this.getBadgeSingleWithHttpInfo(runId, opts)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -208,20 +208,20 @@ export default class DefaultApi {
      * @param {String} [unit = 'watt-hours')] 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getCiBadgeGetV1CiBadgeGetGetWithHttpInfo(repo, branch, workflow, opts) {
+    getCiBadgeGetWithHttpInfo(repo, branch, workflow, opts) {
       opts = opts || {};
       let postBody = null;
       // verify the required parameter 'repo' is set
       if (repo === undefined || repo === null) {
-        throw new Error("Missing the required parameter 'repo' when calling getCiBadgeGetV1CiBadgeGetGet");
+        throw new Error("Missing the required parameter 'repo' when calling getCiBadgeGet");
       }
       // verify the required parameter 'branch' is set
       if (branch === undefined || branch === null) {
-        throw new Error("Missing the required parameter 'branch' when calling getCiBadgeGetV1CiBadgeGetGet");
+        throw new Error("Missing the required parameter 'branch' when calling getCiBadgeGet");
       }
       // verify the required parameter 'workflow' is set
       if (workflow === undefined || workflow === null) {
-        throw new Error("Missing the required parameter 'workflow' when calling getCiBadgeGetV1CiBadgeGetGet");
+        throw new Error("Missing the required parameter 'workflow' when calling getCiBadgeGet");
       }
 
       let pathParams = {
@@ -263,8 +263,8 @@ export default class DefaultApi {
      * @param {String} opts.unit  (default to 'watt-hours')
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getCiBadgeGetV1CiBadgeGetGet(repo, branch, workflow, opts) {
-      return this.getCiBadgeGetV1CiBadgeGetGetWithHttpInfo(repo, branch, workflow, opts)
+    getCiBadgeGet(repo, branch, workflow, opts) {
+      return this.getCiBadgeGetWithHttpInfo(repo, branch, workflow, opts)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -283,20 +283,20 @@ export default class DefaultApi {
      * @param {String} [unit = 'watt-hours')] 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getCiBadgeGetV1CiBadgeGetHeadWithHttpInfo(repo, branch, workflow, opts) {
+    getCiBadgeGet_0WithHttpInfo(repo, branch, workflow, opts) {
       opts = opts || {};
       let postBody = null;
       // verify the required parameter 'repo' is set
       if (repo === undefined || repo === null) {
-        throw new Error("Missing the required parameter 'repo' when calling getCiBadgeGetV1CiBadgeGetHead");
+        throw new Error("Missing the required parameter 'repo' when calling getCiBadgeGet_0");
       }
       // verify the required parameter 'branch' is set
       if (branch === undefined || branch === null) {
-        throw new Error("Missing the required parameter 'branch' when calling getCiBadgeGetV1CiBadgeGetHead");
+        throw new Error("Missing the required parameter 'branch' when calling getCiBadgeGet_0");
       }
       // verify the required parameter 'workflow' is set
       if (workflow === undefined || workflow === null) {
-        throw new Error("Missing the required parameter 'workflow' when calling getCiBadgeGetV1CiBadgeGetHead");
+        throw new Error("Missing the required parameter 'workflow' when calling getCiBadgeGet_0");
       }
 
       let pathParams = {
@@ -338,8 +338,8 @@ export default class DefaultApi {
      * @param {String} opts.unit  (default to 'watt-hours')
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getCiBadgeGetV1CiBadgeGetHead(repo, branch, workflow, opts) {
-      return this.getCiBadgeGetV1CiBadgeGetHeadWithHttpInfo(repo, branch, workflow, opts)
+    getCiBadgeGet_0(repo, branch, workflow, opts) {
+      return this.getCiBadgeGet_0WithHttpInfo(repo, branch, workflow, opts)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -355,27 +355,27 @@ export default class DefaultApi {
      * @param {Date} endDate 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getCiMeasurementsV1CiMeasurementsGetWithHttpInfo(repo, branch, workflow, startDate, endDate) {
+    getCiMeasurementsWithHttpInfo(repo, branch, workflow, startDate, endDate) {
       let postBody = null;
       // verify the required parameter 'repo' is set
       if (repo === undefined || repo === null) {
-        throw new Error("Missing the required parameter 'repo' when calling getCiMeasurementsV1CiMeasurementsGet");
+        throw new Error("Missing the required parameter 'repo' when calling getCiMeasurements");
       }
       // verify the required parameter 'branch' is set
       if (branch === undefined || branch === null) {
-        throw new Error("Missing the required parameter 'branch' when calling getCiMeasurementsV1CiMeasurementsGet");
+        throw new Error("Missing the required parameter 'branch' when calling getCiMeasurements");
       }
       // verify the required parameter 'workflow' is set
       if (workflow === undefined || workflow === null) {
-        throw new Error("Missing the required parameter 'workflow' when calling getCiMeasurementsV1CiMeasurementsGet");
+        throw new Error("Missing the required parameter 'workflow' when calling getCiMeasurements");
       }
       // verify the required parameter 'startDate' is set
       if (startDate === undefined || startDate === null) {
-        throw new Error("Missing the required parameter 'startDate' when calling getCiMeasurementsV1CiMeasurementsGet");
+        throw new Error("Missing the required parameter 'startDate' when calling getCiMeasurements");
       }
       // verify the required parameter 'endDate' is set
       if (endDate === undefined || endDate === null) {
-        throw new Error("Missing the required parameter 'endDate' when calling getCiMeasurementsV1CiMeasurementsGet");
+        throw new Error("Missing the required parameter 'endDate' when calling getCiMeasurements");
       }
 
       let pathParams = {
@@ -412,8 +412,8 @@ export default class DefaultApi {
      * @param {Date} endDate 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getCiMeasurementsV1CiMeasurementsGet(repo, branch, workflow, startDate, endDate) {
-      return this.getCiMeasurementsV1CiMeasurementsGetWithHttpInfo(repo, branch, workflow, startDate, endDate)
+    getCiMeasurements(repo, branch, workflow, startDate, endDate) {
+      return this.getCiMeasurementsWithHttpInfo(repo, branch, workflow, startDate, endDate)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -427,7 +427,7 @@ export default class DefaultApi {
      * @param {String} [sortBy = 'name')] 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getCiRepositoriesV1CiRepositoriesGetWithHttpInfo(opts) {
+    getCiRepositoriesWithHttpInfo(opts) {
       opts = opts || {};
       let postBody = null;
 
@@ -460,8 +460,8 @@ export default class DefaultApi {
      * @param {String} opts.sortBy  (default to 'name')
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getCiRepositoriesV1CiRepositoriesGet(opts) {
-      return this.getCiRepositoriesV1CiRepositoriesGetWithHttpInfo(opts)
+    getCiRepositories(opts) {
+      return this.getCiRepositoriesWithHttpInfo(opts)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -473,11 +473,11 @@ export default class DefaultApi {
      * @param {String} repo 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getCiRunsV1CiRunsGetWithHttpInfo(repo) {
+    getCiRunsWithHttpInfo(repo) {
       let postBody = null;
       // verify the required parameter 'repo' is set
       if (repo === undefined || repo === null) {
-        throw new Error("Missing the required parameter 'repo' when calling getCiRunsV1CiRunsGet");
+        throw new Error("Missing the required parameter 'repo' when calling getCiRuns");
       }
 
       let pathParams = {
@@ -506,8 +506,8 @@ export default class DefaultApi {
      * @param {String} repo 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getCiRunsV1CiRunsGet(repo) {
-      return this.getCiRunsV1CiRunsGetWithHttpInfo(repo)
+    getCiRuns(repo) {
+      return this.getCiRunsWithHttpInfo(repo)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -523,27 +523,27 @@ export default class DefaultApi {
      * @param {Date} endDate 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getCiStatsV1CiStatsGetWithHttpInfo(repo, branch, workflow, startDate, endDate) {
+    getCiStatsWithHttpInfo(repo, branch, workflow, startDate, endDate) {
       let postBody = null;
       // verify the required parameter 'repo' is set
       if (repo === undefined || repo === null) {
-        throw new Error("Missing the required parameter 'repo' when calling getCiStatsV1CiStatsGet");
+        throw new Error("Missing the required parameter 'repo' when calling getCiStats");
       }
       // verify the required parameter 'branch' is set
       if (branch === undefined || branch === null) {
-        throw new Error("Missing the required parameter 'branch' when calling getCiStatsV1CiStatsGet");
+        throw new Error("Missing the required parameter 'branch' when calling getCiStats");
       }
       // verify the required parameter 'workflow' is set
       if (workflow === undefined || workflow === null) {
-        throw new Error("Missing the required parameter 'workflow' when calling getCiStatsV1CiStatsGet");
+        throw new Error("Missing the required parameter 'workflow' when calling getCiStats");
       }
       // verify the required parameter 'startDate' is set
       if (startDate === undefined || startDate === null) {
-        throw new Error("Missing the required parameter 'startDate' when calling getCiStatsV1CiStatsGet");
+        throw new Error("Missing the required parameter 'startDate' when calling getCiStats");
       }
       // verify the required parameter 'endDate' is set
       if (endDate === undefined || endDate === null) {
-        throw new Error("Missing the required parameter 'endDate' when calling getCiStatsV1CiStatsGet");
+        throw new Error("Missing the required parameter 'endDate' when calling getCiStats");
       }
 
       let pathParams = {
@@ -580,8 +580,8 @@ export default class DefaultApi {
      * @param {Date} endDate 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getCiStatsV1CiStatsGet(repo, branch, workflow, startDate, endDate) {
-      return this.getCiStatsV1CiStatsGetWithHttpInfo(repo, branch, workflow, startDate, endDate)
+    getCiStats(repo, branch, workflow, startDate, endDate) {
+      return this.getCiStatsWithHttpInfo(repo, branch, workflow, startDate, endDate)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -592,46 +592,7 @@ export default class DefaultApi {
      * Get Insights
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getInsightsV1CiInsightsGetWithHttpInfo() {
-      let postBody = null;
-
-      let pathParams = {
-      };
-      let queryParams = {
-      };
-      let headerParams = {
-      };
-      let formParams = {
-      };
-
-      let authNames = ['Header'];
-      let contentTypes = [];
-      let accepts = ['application/json'];
-      let returnType = Object;
-      return this.apiClient.callApi(
-        '/v1/ci/insights', 'GET',
-        pathParams, queryParams, headerParams, formParams, postBody,
-        authNames, contentTypes, accepts, returnType, null
-      );
-    }
-
-    /**
-     * Get Insights
-     * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
-     */
-    getInsightsV1CiInsightsGet() {
-      return this.getInsightsV1CiInsightsGetWithHttpInfo()
-        .then(function(response_and_data) {
-          return response_and_data.data;
-        });
-    }
-
-
-    /**
-     * Get Insights
-     * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
-     */
-    getInsightsV1InsightsGetWithHttpInfo() {
+    getInsightsWithHttpInfo() {
       let postBody = null;
 
       let pathParams = {
@@ -658,8 +619,47 @@ export default class DefaultApi {
      * Get Insights
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getInsightsV1InsightsGet() {
-      return this.getInsightsV1InsightsGetWithHttpInfo()
+    getInsights() {
+      return this.getInsightsWithHttpInfo()
+        .then(function(response_and_data) {
+          return response_and_data.data;
+        });
+    }
+
+
+    /**
+     * Get Insights
+     * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
+     */
+    getInsights_0WithHttpInfo() {
+      let postBody = null;
+
+      let pathParams = {
+      };
+      let queryParams = {
+      };
+      let headerParams = {
+      };
+      let formParams = {
+      };
+
+      let authNames = ['Header'];
+      let contentTypes = [];
+      let accepts = ['application/json'];
+      let returnType = Object;
+      return this.apiClient.callApi(
+        '/v1/ci/insights', 'GET',
+        pathParams, queryParams, headerParams, formParams, postBody,
+        authNames, contentTypes, accepts, returnType, null
+      );
+    }
+
+    /**
+     * Get Insights
+     * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
+     */
+    getInsights_0() {
+      return this.getInsights_0WithHttpInfo()
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -674,7 +674,7 @@ export default class DefaultApi {
      * @param {Number} [jobId] 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getJobsV2JobsGetWithHttpInfo(opts) {
+    getJobsWithHttpInfo(opts) {
       opts = opts || {};
       let postBody = null;
 
@@ -709,8 +709,8 @@ export default class DefaultApi {
      * @param {Number} opts.jobId 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getJobsV2JobsGet(opts) {
-      return this.getJobsV2JobsGetWithHttpInfo(opts)
+    getJobs(opts) {
+      return this.getJobsWithHttpInfo(opts)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -721,7 +721,7 @@ export default class DefaultApi {
      * Get Machines
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getMachinesV1MachinesGetWithHttpInfo() {
+    getMachinesWithHttpInfo() {
       let postBody = null;
 
       let pathParams = {
@@ -748,8 +748,8 @@ export default class DefaultApi {
      * Get Machines
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getMachinesV1MachinesGet() {
-      return this.getMachinesV1MachinesGetWithHttpInfo()
+    getMachines() {
+      return this.getMachinesWithHttpInfo()
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -761,11 +761,11 @@ export default class DefaultApi {
      * @param {String} runId 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getMeasurementsSingleV1MeasurementsSingleRunIdGetWithHttpInfo(runId) {
+    getMeasurementsSingleWithHttpInfo(runId) {
       let postBody = null;
       // verify the required parameter 'runId' is set
       if (runId === undefined || runId === null) {
-        throw new Error("Missing the required parameter 'runId' when calling getMeasurementsSingleV1MeasurementsSingleRunIdGet");
+        throw new Error("Missing the required parameter 'runId' when calling getMeasurementsSingle");
       }
 
       let pathParams = {
@@ -794,8 +794,8 @@ export default class DefaultApi {
      * @param {String} runId 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getMeasurementsSingleV1MeasurementsSingleRunIdGet(runId) {
-      return this.getMeasurementsSingleV1MeasurementsSingleRunIdGetWithHttpInfo(runId)
+    getMeasurementsSingle(runId) {
+      return this.getMeasurementsSingleWithHttpInfo(runId)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -807,11 +807,11 @@ export default class DefaultApi {
      * @param {Object} runId 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getNetworkV1NetworkRunIdGetWithHttpInfo(runId) {
+    getNetworkWithHttpInfo(runId) {
       let postBody = null;
       // verify the required parameter 'runId' is set
       if (runId === undefined || runId === null) {
-        throw new Error("Missing the required parameter 'runId' when calling getNetworkV1NetworkRunIdGet");
+        throw new Error("Missing the required parameter 'runId' when calling getNetwork");
       }
 
       let pathParams = {
@@ -840,8 +840,8 @@ export default class DefaultApi {
      * @param {Object} runId 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getNetworkV1NetworkRunIdGet(runId) {
-      return this.getNetworkV1NetworkRunIdGetWithHttpInfo(runId)
+    getNetwork(runId) {
+      return this.getNetworkWithHttpInfo(runId)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -853,11 +853,11 @@ export default class DefaultApi {
      * @param {Object} runId 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getNotesV1NotesRunIdGetWithHttpInfo(runId) {
+    getNotesWithHttpInfo(runId) {
       let postBody = null;
       // verify the required parameter 'runId' is set
       if (runId === undefined || runId === null) {
-        throw new Error("Missing the required parameter 'runId' when calling getNotesV1NotesRunIdGet");
+        throw new Error("Missing the required parameter 'runId' when calling getNotes");
       }
 
       let pathParams = {
@@ -886,8 +886,8 @@ export default class DefaultApi {
      * @param {Object} runId 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getNotesV1NotesRunIdGet(runId) {
-      return this.getNotesV1NotesRunIdGetWithHttpInfo(runId)
+    getNotes(runId) {
+      return this.getNotesWithHttpInfo(runId)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -899,11 +899,11 @@ export default class DefaultApi {
      * @param {String} runId 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getOptimizationsV1OptimizationsRunIdGetWithHttpInfo(runId) {
+    getOptimizationsWithHttpInfo(runId) {
       let postBody = null;
       // verify the required parameter 'runId' is set
       if (runId === undefined || runId === null) {
-        throw new Error("Missing the required parameter 'runId' when calling getOptimizationsV1OptimizationsRunIdGet");
+        throw new Error("Missing the required parameter 'runId' when calling getOptimizations");
       }
 
       let pathParams = {
@@ -932,8 +932,8 @@ export default class DefaultApi {
      * @param {String} runId 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getOptimizationsV1OptimizationsRunIdGet(runId) {
-      return this.getOptimizationsV1OptimizationsRunIdGetWithHttpInfo(runId)
+    getOptimizations(runId) {
+      return this.getOptimizationsWithHttpInfo(runId)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -945,11 +945,11 @@ export default class DefaultApi {
      * @param {String} runId 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getPhaseStatsSingleV1PhaseStatsSingleRunIdGetWithHttpInfo(runId) {
+    getPhaseStatsSingleWithHttpInfo(runId) {
       let postBody = null;
       // verify the required parameter 'runId' is set
       if (runId === undefined || runId === null) {
-        throw new Error("Missing the required parameter 'runId' when calling getPhaseStatsSingleV1PhaseStatsSingleRunIdGet");
+        throw new Error("Missing the required parameter 'runId' when calling getPhaseStatsSingle");
       }
 
       let pathParams = {
@@ -978,8 +978,8 @@ export default class DefaultApi {
      * @param {String} runId 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getPhaseStatsSingleV1PhaseStatsSingleRunIdGet(runId) {
-      return this.getPhaseStatsSingleV1PhaseStatsSingleRunIdGetWithHttpInfo(runId)
+    getPhaseStatsSingle(runId) {
+      return this.getPhaseStatsSingleWithHttpInfo(runId)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -997,7 +997,7 @@ export default class DefaultApi {
      * @param {String} [sortBy = 'name')] 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getRepositoriesV1RepositoriesGetWithHttpInfo(opts) {
+    getRepositoriesWithHttpInfo(opts) {
       opts = opts || {};
       let postBody = null;
 
@@ -1038,8 +1038,8 @@ export default class DefaultApi {
      * @param {String} opts.sortBy  (default to 'name')
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getRepositoriesV1RepositoriesGet(opts) {
-      return this.getRepositoriesV1RepositoriesGetWithHttpInfo(opts)
+    getRepositories(opts) {
+      return this.getRepositoriesWithHttpInfo(opts)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1051,11 +1051,11 @@ export default class DefaultApi {
      * @param {String} runId 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getRunV2RunRunIdGetWithHttpInfo(runId) {
+    getRunWithHttpInfo(runId) {
       let postBody = null;
       // verify the required parameter 'runId' is set
       if (runId === undefined || runId === null) {
-        throw new Error("Missing the required parameter 'runId' when calling getRunV2RunRunIdGet");
+        throw new Error("Missing the required parameter 'runId' when calling getRun");
       }
 
       let pathParams = {
@@ -1084,8 +1084,8 @@ export default class DefaultApi {
      * @param {String} runId 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getRunV2RunRunIdGet(runId) {
-      return this.getRunV2RunRunIdGetWithHttpInfo(runId)
+    getRun(runId) {
+      return this.getRunWithHttpInfo(runId)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1106,7 +1106,7 @@ export default class DefaultApi {
      * @param {Object} [uriMode] 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getRunsV2RunsGetWithHttpInfo(opts) {
+    getRunsWithHttpInfo(opts) {
       opts = opts || {};
       let postBody = null;
 
@@ -1153,8 +1153,8 @@ export default class DefaultApi {
      * @param {Object} opts.uriMode 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getRunsV2RunsGet(opts) {
-      return this.getRunsV2RunsGetWithHttpInfo(opts)
+    getRuns(opts) {
+      return this.getRunsWithHttpInfo(opts)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1173,16 +1173,16 @@ export default class DefaultApi {
      * @param {String} [unit = 'watt-hours')] 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getTimelineBadgeV1BadgeTimelineGetWithHttpInfo(metric, uri, opts) {
+    getTimelineBadgeWithHttpInfo(metric, uri, opts) {
       opts = opts || {};
       let postBody = null;
       // verify the required parameter 'metric' is set
       if (metric === undefined || metric === null) {
-        throw new Error("Missing the required parameter 'metric' when calling getTimelineBadgeV1BadgeTimelineGet");
+        throw new Error("Missing the required parameter 'metric' when calling getTimelineBadge");
       }
       // verify the required parameter 'uri' is set
       if (uri === undefined || uri === null) {
-        throw new Error("Missing the required parameter 'uri' when calling getTimelineBadgeV1BadgeTimelineGet");
+        throw new Error("Missing the required parameter 'uri' when calling getTimelineBadge");
       }
 
       let pathParams = {
@@ -1224,8 +1224,8 @@ export default class DefaultApi {
      * @param {String} opts.unit  (default to 'watt-hours')
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getTimelineBadgeV1BadgeTimelineGet(metric, uri, opts) {
-      return this.getTimelineBadgeV1BadgeTimelineGetWithHttpInfo(metric, uri, opts)
+    getTimelineBadge(metric, uri, opts) {
+      return this.getTimelineBadgeWithHttpInfo(metric, uri, opts)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1246,16 +1246,16 @@ export default class DefaultApi {
      * @param {String} [sorting] 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getTimelineStatsV1TimelineGetWithHttpInfo(uri, machineId, opts) {
+    getTimelineStatsWithHttpInfo(uri, machineId, opts) {
       opts = opts || {};
       let postBody = null;
       // verify the required parameter 'uri' is set
       if (uri === undefined || uri === null) {
-        throw new Error("Missing the required parameter 'uri' when calling getTimelineStatsV1TimelineGet");
+        throw new Error("Missing the required parameter 'uri' when calling getTimelineStats");
       }
       // verify the required parameter 'machineId' is set
       if (machineId === undefined || machineId === null) {
-        throw new Error("Missing the required parameter 'machineId' when calling getTimelineStatsV1TimelineGet");
+        throw new Error("Missing the required parameter 'machineId' when calling getTimelineStats");
       }
 
       let pathParams = {
@@ -1301,8 +1301,8 @@ export default class DefaultApi {
      * @param {String} opts.sorting 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getTimelineStatsV1TimelineGet(uri, machineId, opts) {
-      return this.getTimelineStatsV1TimelineGetWithHttpInfo(uri, machineId, opts)
+    getTimelineStats(uri, machineId, opts) {
+      return this.getTimelineStatsWithHttpInfo(uri, machineId, opts)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1313,7 +1313,7 @@ export default class DefaultApi {
      * Get User Settings
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getUserSettingsV1UserSettingsGetWithHttpInfo() {
+    getUserSettingsWithHttpInfo() {
       let postBody = null;
 
       let pathParams = {
@@ -1340,8 +1340,8 @@ export default class DefaultApi {
      * Get User Settings
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getUserSettingsV1UserSettingsGet() {
-      return this.getUserSettingsV1UserSettingsGetWithHttpInfo()
+    getUserSettings() {
+      return this.getUserSettingsWithHttpInfo()
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1352,7 +1352,7 @@ export default class DefaultApi {
      * Get Watchlist
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    getWatchlistV1WatchlistGetWithHttpInfo() {
+    getWatchlistWithHttpInfo() {
       let postBody = null;
 
       let pathParams = {
@@ -1379,8 +1379,8 @@ export default class DefaultApi {
      * Get Watchlist
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    getWatchlistV1WatchlistGet() {
-      return this.getWatchlistV1WatchlistGetWithHttpInfo()
+    getWatchlist() {
+      return this.getWatchlistWithHttpInfo()
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1391,7 +1391,7 @@ export default class DefaultApi {
      * Home
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    homeGetWithHttpInfo() {
+    homeWithHttpInfo() {
       let postBody = null;
 
       let pathParams = {
@@ -1418,8 +1418,8 @@ export default class DefaultApi {
      * Home
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    homeGet() {
-      return this.homeGetWithHttpInfo()
+    home() {
+      return this.homeWithHttpInfo()
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1430,7 +1430,7 @@ export default class DefaultApi {
      * Old V1 Jobs Endpoint
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    oldV1JobsEndpointV1JobsGetWithHttpInfo() {
+    oldV1JobsEndpointWithHttpInfo() {
       let postBody = null;
 
       let pathParams = {
@@ -1457,8 +1457,8 @@ export default class DefaultApi {
      * Old V1 Jobs Endpoint
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    oldV1JobsEndpointV1JobsGet() {
-      return this.oldV1JobsEndpointV1JobsGetWithHttpInfo()
+    oldV1JobsEndpoint() {
+      return this.oldV1JobsEndpointWithHttpInfo()
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1469,7 +1469,7 @@ export default class DefaultApi {
      * Old V1 Run Endpoint
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    oldV1RunEndpointV1RunRunIdGetWithHttpInfo() {
+    oldV1RunEndpointWithHttpInfo() {
       let postBody = null;
 
       let pathParams = {
@@ -1496,8 +1496,8 @@ export default class DefaultApi {
      * Old V1 Run Endpoint
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    oldV1RunEndpointV1RunRunIdGet() {
-      return this.oldV1RunEndpointV1RunRunIdGetWithHttpInfo()
+    oldV1RunEndpoint() {
+      return this.oldV1RunEndpointWithHttpInfo()
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1508,7 +1508,7 @@ export default class DefaultApi {
      * Old V1 Runs Endpoint
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    oldV1RunsEndpointV1RunsGetWithHttpInfo() {
+    oldV1RunsEndpointWithHttpInfo() {
       let postBody = null;
 
       let pathParams = {
@@ -1535,53 +1535,8 @@ export default class DefaultApi {
      * Old V1 Runs Endpoint
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    oldV1RunsEndpointV1RunsGet() {
-      return this.oldV1RunsEndpointV1RunsGetWithHttpInfo()
-        .then(function(response_and_data) {
-          return response_and_data.data;
-        });
-    }
-
-
-    /**
-     * Post Ci Measurement Add Deprecated
-     * @param {module:model/CIMeasurementOld} cIMeasurementOld 
-     * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
-     */
-    postCiMeasurementAddDeprecatedV1CiMeasurementAddPostWithHttpInfo(cIMeasurementOld) {
-      let postBody = cIMeasurementOld;
-      // verify the required parameter 'cIMeasurementOld' is set
-      if (cIMeasurementOld === undefined || cIMeasurementOld === null) {
-        throw new Error("Missing the required parameter 'cIMeasurementOld' when calling postCiMeasurementAddDeprecatedV1CiMeasurementAddPost");
-      }
-
-      let pathParams = {
-      };
-      let queryParams = {
-      };
-      let headerParams = {
-      };
-      let formParams = {
-      };
-
-      let authNames = ['Header'];
-      let contentTypes = ['application/json'];
-      let accepts = ['application/json'];
-      let returnType = Object;
-      return this.apiClient.callApi(
-        '/v1/ci/measurement/add', 'POST',
-        pathParams, queryParams, headerParams, formParams, postBody,
-        authNames, contentTypes, accepts, returnType, null
-      );
-    }
-
-    /**
-     * Post Ci Measurement Add Deprecated
-     * @param {module:model/CIMeasurementOld} cIMeasurementOld 
-     * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
-     */
-    postCiMeasurementAddDeprecatedV1CiMeasurementAddPost(cIMeasurementOld) {
-      return this.postCiMeasurementAddDeprecatedV1CiMeasurementAddPostWithHttpInfo(cIMeasurementOld)
+    oldV1RunsEndpoint() {
+      return this.oldV1RunsEndpointWithHttpInfo()
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1593,11 +1548,11 @@ export default class DefaultApi {
      * @param {module:model/CIMeasurement} cIMeasurement 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    postCiMeasurementAddV2CiMeasurementAddPostWithHttpInfo(cIMeasurement) {
+    postCiMeasurementAddWithHttpInfo(cIMeasurement) {
       let postBody = cIMeasurement;
       // verify the required parameter 'cIMeasurement' is set
       if (cIMeasurement === undefined || cIMeasurement === null) {
-        throw new Error("Missing the required parameter 'cIMeasurement' when calling postCiMeasurementAddV2CiMeasurementAddPost");
+        throw new Error("Missing the required parameter 'cIMeasurement' when calling postCiMeasurementAdd");
       }
 
       let pathParams = {
@@ -1625,8 +1580,53 @@ export default class DefaultApi {
      * @param {module:model/CIMeasurement} cIMeasurement 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    postCiMeasurementAddV2CiMeasurementAddPost(cIMeasurement) {
-      return this.postCiMeasurementAddV2CiMeasurementAddPostWithHttpInfo(cIMeasurement)
+    postCiMeasurementAdd(cIMeasurement) {
+      return this.postCiMeasurementAddWithHttpInfo(cIMeasurement)
+        .then(function(response_and_data) {
+          return response_and_data.data;
+        });
+    }
+
+
+    /**
+     * Post Ci Measurement Add Deprecated
+     * @param {module:model/CIMeasurementOld} cIMeasurementOld 
+     * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
+     */
+    postCiMeasurementAddDeprecatedWithHttpInfo(cIMeasurementOld) {
+      let postBody = cIMeasurementOld;
+      // verify the required parameter 'cIMeasurementOld' is set
+      if (cIMeasurementOld === undefined || cIMeasurementOld === null) {
+        throw new Error("Missing the required parameter 'cIMeasurementOld' when calling postCiMeasurementAddDeprecated");
+      }
+
+      let pathParams = {
+      };
+      let queryParams = {
+      };
+      let headerParams = {
+      };
+      let formParams = {
+      };
+
+      let authNames = ['Header'];
+      let contentTypes = ['application/json'];
+      let accepts = ['application/json'];
+      let returnType = Object;
+      return this.apiClient.callApi(
+        '/v1/ci/measurement/add', 'POST',
+        pathParams, queryParams, headerParams, formParams, postBody,
+        authNames, contentTypes, accepts, returnType, null
+      );
+    }
+
+    /**
+     * Post Ci Measurement Add Deprecated
+     * @param {module:model/CIMeasurementOld} cIMeasurementOld 
+     * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
+     */
+    postCiMeasurementAddDeprecated(cIMeasurementOld) {
+      return this.postCiMeasurementAddDeprecatedWithHttpInfo(cIMeasurementOld)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1637,7 +1637,7 @@ export default class DefaultApi {
      * Robots Txt
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    robotsTxtRobotsTxtGetWithHttpInfo() {
+    robotsTxtWithHttpInfo() {
       let postBody = null;
 
       let pathParams = {
@@ -1664,8 +1664,8 @@ export default class DefaultApi {
      * Robots Txt
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    robotsTxtRobotsTxtGet() {
-      return this.robotsTxtRobotsTxtGetWithHttpInfo()
+    robotsTxt() {
+      return this.robotsTxtWithHttpInfo()
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1677,11 +1677,11 @@ export default class DefaultApi {
      * @param {module:model/Software} software 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    softwareAddV1SoftwareAddPostWithHttpInfo(software) {
+    softwareAddWithHttpInfo(software) {
       let postBody = software;
       // verify the required parameter 'software' is set
       if (software === undefined || software === null) {
-        throw new Error("Missing the required parameter 'software' when calling softwareAddV1SoftwareAddPost");
+        throw new Error("Missing the required parameter 'software' when calling softwareAdd");
       }
 
       let pathParams = {
@@ -1709,8 +1709,8 @@ export default class DefaultApi {
      * @param {module:model/Software} software 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    softwareAddV1SoftwareAddPost(software) {
-      return this.softwareAddV1SoftwareAddPostWithHttpInfo(software)
+    softwareAdd(software) {
+      return this.softwareAddWithHttpInfo(software)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1722,11 +1722,11 @@ export default class DefaultApi {
      * @param {module:model/JobChange} jobChange 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    updateJobV1JobPutWithHttpInfo(jobChange) {
+    updateJobWithHttpInfo(jobChange) {
       let postBody = jobChange;
       // verify the required parameter 'jobChange' is set
       if (jobChange === undefined || jobChange === null) {
-        throw new Error("Missing the required parameter 'jobChange' when calling updateJobV1JobPut");
+        throw new Error("Missing the required parameter 'jobChange' when calling updateJob");
       }
 
       let pathParams = {
@@ -1754,8 +1754,8 @@ export default class DefaultApi {
      * @param {module:model/JobChange} jobChange 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    updateJobV1JobPut(jobChange) {
-      return this.updateJobV1JobPutWithHttpInfo(jobChange)
+    updateJob(jobChange) {
+      return this.updateJobWithHttpInfo(jobChange)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
@@ -1767,11 +1767,11 @@ export default class DefaultApi {
      * @param {module:model/UserSetting} userSetting 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with an object containing data of type {@link Object} and HTTP response
      */
-    updateUserSettingV1UserSettingPutWithHttpInfo(userSetting) {
+    updateUserSettingWithHttpInfo(userSetting) {
       let postBody = userSetting;
       // verify the required parameter 'userSetting' is set
       if (userSetting === undefined || userSetting === null) {
-        throw new Error("Missing the required parameter 'userSetting' when calling updateUserSettingV1UserSettingPut");
+        throw new Error("Missing the required parameter 'userSetting' when calling updateUserSetting");
       }
 
       let pathParams = {
@@ -1799,8 +1799,8 @@ export default class DefaultApi {
      * @param {module:model/UserSetting} userSetting 
      * @return {Promise} a {@link https://www.promisejs.org/|Promise}, with data of type {@link Object}
      */
-    updateUserSettingV1UserSettingPut(userSetting) {
-      return this.updateUserSettingV1UserSettingPutWithHttpInfo(userSetting)
+    updateUserSetting(userSetting) {
+      return this.updateUserSettingWithHttpInfo(userSetting)
         .then(function(response_and_data) {
           return response_and_data.data;
         });
