@@ -75,10 +75,11 @@ $(document).ready(function () {
                 }},
                 { data: 8, title: 'Base temp (°)'},
                 { data: 9, title: 'Current temp (°)', render: (el) => el == null ? '-' : el},
-                { data: 10, title: 'Cooldown time', render: function(el) {
+                { data: 10, title: 'Expected cooldown time', render: function(el) {
                     return (el == null) ? 'awaiting info': `${Math.round(el/60)} Minutes`;
                 }},
                 { data: 11, title: 'Waiting Jobs'},
+                { data: 13, title: 'Jobs queue update freq.', render: (el) => el?.cluster?.client?.sleep_time_no_job == null ? '-' : `${Math.round(el['cluster']['client']['sleep_time_no_job'] / 60)} Minutes` },
                 { data: 12, title: 'Estimated waiting time', render: function(el, type, row) {
                     return (row[10] == null || row[12] == null) ? 'awaiting info' : `${Math.round(( (row[10]+row[12]) * row[11]) / 60)} Minutes`
                 }},

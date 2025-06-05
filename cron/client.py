@@ -58,7 +58,7 @@ def set_status(status_code, cur_temp, cooldown_time_after_job, data=None, run_id
         status_code, cooldown_time_after_job, cur_temp,
         config['machine']['base_temperature_value'], client['jobs_processing'],
         gmt_hash, gmt_timestamp,
-        json.dumps({"measurement": config['measurement'], "machine": config['machine']}),
+        json.dumps({'measurement': config['measurement'], 'machine': config['machine'], 'cluster': config['cluster']}),
         config['machine']['id'],
 
     )
