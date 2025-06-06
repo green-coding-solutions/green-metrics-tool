@@ -1,3 +1,5 @@
+import DefaultApi from "./api/src/api/DefaultApi";
+
 class CO2Tangible extends HTMLElement {
    connectedCallback() {
         this.innerHTML = `
@@ -77,7 +79,8 @@ const fetchAndFillRunData = async (url_params) => {
     let run = null;
 
     try {
-        run = await makeAPICall('/v2/run/' + url_params['id'])
+        const api = new DefaultApi();
+        run = await api.getRun(url_params['id']);
     } catch (err) {
         showNotification('Could not get run data from API', err);
         return
