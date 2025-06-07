@@ -160,6 +160,8 @@ if __name__ == '__main__':
             print('Run finished | --dev-no-save was active and nothing was written to DB')
             print('####################################################################################\n\n', TerminalColors.ENDC)
 
+    except KeyboardInterrupt:
+        pass
     except FileNotFoundError as e:
         error_helpers.log_error('File or executable not found', exception_context=e.__context__, final_exception=e, run_id=runner._run_id)
     except subprocess.CalledProcessError as e:
