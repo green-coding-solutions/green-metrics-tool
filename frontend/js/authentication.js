@@ -19,7 +19,7 @@
 
     $('#clear-authentication-token').on('click', function(){
         localStorage.removeItem('authentication_token');
-        showNotification('Logout successful');
+        $('#logout-successful-message').show();
     })
 
 
@@ -31,6 +31,7 @@
             return false;
         }
         try {
+            $('#logout-successful-message').hide();
             $('#login-successful-message').hide();
             $('#token-details-message').hide();
             const user_data = await makeAPICall('/v1/user/settings', null, authentication_token);
