@@ -44,6 +44,15 @@ def check_one_energy_and_scope_machine_provider():
     energy_machine_providers = [provider for provider in metric_providers if ".energy" in provider and ".machine" in provider]
     return len(energy_machine_providers) <= 1
 
+def check_ssh_connections():
+    ps = subprocess.run(['pgrep', 'sshd'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    return ps.stdout == b'' and ps.stderr == b'' and ps.returncode == 1
+
+def check_active_users():
+    ps = subprocess.run(['who'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    return ps.stdout == b'' and ps.stderr == b'' and ps.returncode == 0
+
+
 def check_tmpfs_mount():
     return not any(partition.mountpoint == '/tmp' and partition.fstype != 'tmpfs' for partition in psutil.disk_partitions())
 
@@ -106,6 +115,8 @@ start_checks = [
     (check_db, Status.ERROR, 'db online', 'This text will never be triggered, please look in the function itself'),
     (check_one_energy_and_scope_machine_provider, Status.ERROR, 'single energy scope machine provider', 'Please only select one provider with energy and scope machine'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
+    (check_ssh_connections, Status.WARN, 'ssh connections', 'There are open SSH connections on the system. Please terminate all connections before measurement.'),
+    (check_active_users, Status.WARN, 'active users', 'There are active users on the system. We recommend running measurements unattended.'),
     (check_cpu_utilization, Status.WARN, '< 5% CPU utilization', 'Your system seems to be busy. Utilization is above 5%. Consider terminating some processes for a more stable measurement.'),
     (check_largest_sampling_rate, Status.WARN, 'high sampling rate', 'You have chosen at least one provider with a sampling rate > 1000 ms. That is not recommended and might lead also to longer benchmarking times due to internal extra sleeps to adjust measurement frames.'),
     (check_free_disk, Status.ERROR, '1 GiB free hdd space', 'We recommend to free up some disk space (< 1GiB available)'),
