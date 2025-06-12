@@ -469,6 +469,10 @@ class ScenarioRunner:
         and then link itself in the runs table accordingly.
     '''
     def register_machine_id(self):
+
+        if self._dev_no_save:
+            return
+
         config = GlobalConfig().config
         if config['machine'].get('id') is None \
             or not isinstance(config['machine']['id'], int) \
