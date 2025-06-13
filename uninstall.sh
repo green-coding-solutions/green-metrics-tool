@@ -41,6 +41,8 @@ sudo rm -f /etc/sudoers.d/green-coding* || true # Linux
 if [[ $(uname) == "Linux" ]]; then
     if lsb_release -is | grep -q "Fedora"; then
         sudo dnf -y remove msr-tools lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy stress-ng lshw ipmitool
+    elif lsb_release -is | grep -q "openSUSE"; then
+        sudo zyper rm -n msr-tools sensors libsensors4-devel glib2-tools glib2-devel tinyproxy stress-ng lshw freeipmi ipmitool
     else
         sudo apt remove -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw freeipmi-tools ipmitool msr-tools
     fi
