@@ -29,5 +29,5 @@ if __name__ == '__main__':
         print("This will remove all runs that have not ended, which includes failed ones, but also possibly running, so be sure no measurement is currently active. Continue? (y/N)")
         answer = sys.stdin.readline()
         if answer.strip().lower() == 'y':
-            DB().query('DELETE FROM runs WHERE end_measurement IS NULL')
+            DB().query('DELETE FROM runs WHERE failed = TRUE')
             print("Done")
