@@ -1,1 +1,0 @@
-../../ee/frontend/js/hog-details.js

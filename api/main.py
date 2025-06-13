@@ -169,6 +169,10 @@ if GlobalConfig().config.get('activate_carbon_db', False):
     from ee.api import carbondb
     app.include_router(carbondb.router)
 
+if GlobalConfig().config.get('activate_ai_optimisations', False):
+    from ee.api import ai_optimisations
+    app.include_router(ai_optimisations.router)
+
 
 if __name__ == '__main__':
     app.run() # pylint: disable=no-member

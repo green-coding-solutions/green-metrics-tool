@@ -4,11 +4,11 @@ from metric_providers.base import BaseMetricProvider, MetricProviderConfiguratio
 from lib.utils import is_rapl_energy_filtering_deactivated
 
 class PsuEnergyDcRaplMsrMachineProvider(BaseMetricProvider):
-    def __init__(self, resolution, skip_check=False):
+    def __init__(self, sampling_rate, skip_check=False):
         super().__init__(
             metric_name='psu_energy_dc_rapl_msr_machine',
             metrics={'time': int, 'value': int, 'psys_id': str},
-            resolution=resolution,
+            sampling_rate=sampling_rate,
             unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,

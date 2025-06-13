@@ -21,6 +21,7 @@ def get_diffable_rows(user, uuids):
         gmt_hash,
         commit_timestamp,
         usage_scenario,
+        usage_scenario_variables,
         measurement_config,
         runner_arguments,
         machine_specs -- most complex. Should come last

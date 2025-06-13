@@ -1,0 +1,35 @@
+---
+name: AI model
+author: Arne Tarara <arne@green-coding.io>
+description: Run an inference with a small AI model on the CPU
+
+services:
+  gcb-ai-model:
+    image: ollama/ollama
+    docker-run-args:
+      - -v ollama:/root/.ollama
+
+flow:
+  - name: Download model
+    container: gcb-ai-model
+    commands:
+      - type: console
+        command: "ollama pull '__GMT_VAR_MODEL__'"
+        read-notes-stdout: true
+        log-stdout: true
+
+  - name: Load model into memory
+    container: gcb-ai-model
+    commands:
+      - type: console
+        command: "ollama run '__GMT_VAR_MODEL__' ''"
+        read-notes-stdout: true
+        log-stdout: true
+
+  - name: Run Inference
+    container: gcb-ai-model
+    commands:
+      - type: console
+        command: "ollama run '__GMT_VAR_MODEL__' '__GMT_VAR_PROMPT__'"
+        read-notes-stdout: true
+        log-stdout: true

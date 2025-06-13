@@ -130,7 +130,7 @@ def edit_compose_file():
     with open(test_compose_path, 'w', encoding='utf8') as test_compose_file:
         yaml.dump(compose, test_compose_file)
 
-def create_test_config_file(ee=False):
+def create_test_config_file(ee=False, ai=False):
     print('Creating test-config.yml...')
 
     with open('test-config.yml.example', 'r', encoding='utf-8') as file:
@@ -142,10 +142,14 @@ def create_test_config_file(ee=False):
         content = content.replace('activate_power_hog: False', 'activate_power_hog: True')
         content = content.replace('activate_carbon_db: False', 'activate_carbon_db: True')
 
+    if ai:
+        print('Activating AI in config.yml ...')
+        content = content.replace('activate_ai_optimisations: False', 'activate_ai_optimisations: True')
+
     with open('test-config.yml', 'w', encoding='utf-8') as file:
         file.write(content)
 
-def create_frontend_config_file(ee=False):
+def create_frontend_config_file(ee=False, ai=False):
     print('Creating frontend test-config.js file...')
 
     with open(base_frontend_config_path, 'r', encoding='utf-8') as file:
@@ -165,6 +169,12 @@ def create_frontend_config_file(ee=False):
         content = re.sub(r'ACTIVATE_CARBON_DB.*$', 'ACTIVATE_CARBON_DB = false;', content, flags=re.MULTILINE)
         content = re.sub(r'ACTIVATE_POWER_HOG.*$', 'ACTIVATE_POWER_HOG = false;', content, flags=re.MULTILINE)
 
+    if ai:
+        print(f'Activating AI in {TEST_FRONTEND_CONFIG_NAME} ...')
+        content = re.sub(r'ACTIVATE_AI_OPTIMISATIONS.*$', 'ACTIVATE_AI_OPTIMISATIONS = true;', content, flags=re.MULTILINE)
+    else:
+        content = re.sub(r'ACTIVATE_AI_OPTIMISATIONS.*$', 'ACTIVATE_AI_OPTIMISATIONS = false;', content, flags=re.MULTILINE)
+
     with open(test_frontend_config_path, 'w', encoding='utf-8') as file:
         file.write(content)
 
@@ -182,12 +192,15 @@ if __name__ == '__main__':
                         help='Do not build the docker image')
     parser.add_argument('--ee', action='store_true',
                         help='Enable enterprise tests')
+    parser.add_argument('--ai', action='store_true',
+                        help='Enable AI tests')
+
 
     args = parser.parse_args()
 
     copy_sql_structure(args.ee)
-    create_test_config_file(args.ee)
-    create_frontend_config_file(args.ee)
+    create_test_config_file(args.ee, args.ai)
+    create_frontend_config_file(args.ee, args.ai)
     edit_compose_file()
     edit_etc_hosts()
     if not args.no_docker_build:

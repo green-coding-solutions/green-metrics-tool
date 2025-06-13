@@ -116,6 +116,21 @@
                                     <td><input type="text" placeholder="Input a value" id="measurement-total-duration" name="measurement-total-duration" data-setting="measurement.total_duration" required="" ></td>
                                     <td><button id="save-measurement-total-duration" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
                                 </tr>
+                                <tr>
+                                    <td>Phase padding</td>
+                                    <td><input type="checkbox" id="measurement-phase-padding" name="measurement-phase-padding" data-setting="measurement.phase_padding"></td>
+                                    <td><button id="save-measurement-phase-padding" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>(DEV) No Sleeps during run<br><span><small><i class="question circle icon"></i>You can use this while developing to speed up runs on the cluster. However it will make the measurement invalid as important cooldown times are skipped.</small></span></td>
+                                    <td><input type="checkbox" id="measurement-dev-no-sleeps" name="measurement-dev-no-sleeps" data-setting="measurement.dev_no_sleeps"></td>
+                                    <td><button id="save-measurement-dev-no-sleeps" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
+                                <tr>
+                                    <td>(DEV) No optimizations after run<br><span><small><i class="question circle icon"></i>You can use this while developing to speed up runs on the cluster if you are not interested in the optimizations to run.</small></span></td>
+                                    <td><input type="checkbox"  id="measurement-dev-no-optimizations" name="measurement-dev-no-optimizations" data-setting="measurement.dev_no_optimizations"></td>
+                                    <td><button id="save-measurement-dev-no-optimizations" class="ui positive small button" onclick="updateSetting(this);">Save</button></td>
+                                </tr>
                                 <!--
                                 <tr>
                                     <td>Kill running measurements</td>

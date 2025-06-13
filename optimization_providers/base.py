@@ -69,7 +69,7 @@ async def fetch_all_data(run_id):
     # - Detaches the code more so we can split this into a separate module in the future. In theory we could do this over
     #   http as we are looking at the same return data.
     urls = [
-        f"{GlobalConfig().config['cluster']['api_url']}/v1/run/{run_id}",
+        f"{GlobalConfig().config['cluster']['api_url']}/v2/run/{run_id}",
         f"{GlobalConfig().config['cluster']['api_url']}/v1/measurements/single/{run_id}",
         f"{GlobalConfig().config['cluster']['api_url']}/v1/network/{run_id}",
         f"{GlobalConfig().config['cluster']['api_url']}/v1/notes/{run_id}",

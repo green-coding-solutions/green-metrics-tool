@@ -17,6 +17,12 @@
     //     }
     // })
 
+    $('#clear-authentication-token').on('click', function(){
+        localStorage.removeItem('authentication_token');
+        $('#logout-successful-message').show();
+    })
+
+
     $('#save-authentication-token').on('click', async function(){
 
         const authentication_token = $("#authentication-token").val().trim();
@@ -25,11 +31,14 @@
             return false;
         }
         try {
+            $('#logout-successful-message').hide();
+            $('#login-successful-message').hide();
             $('#token-details-message').hide();
             const user_data = await makeAPICall('/v1/user/settings', null, authentication_token);
 
             localStorage.setItem('authentication_token', authentication_token);
 
+            $('#login-successful-message').show();
             $('#token-details-message').show();
             $('#token-details').text(JSON.stringify(user_data.data, null, 2));
 

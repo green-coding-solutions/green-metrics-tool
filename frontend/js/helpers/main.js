@@ -205,7 +205,7 @@ const copyToClipboard = (e) => {
     navigator.clipboard.writeText(e.currentTarget.previousElementSibling.innerHTML)
     return false
 
-  alert('Copying badge on local is not working due to browser security models')
+  alert('Copying to clipboard on local is not working due to browser security models')
   return Promise.reject('The Clipboard API is not available.');
 };
 

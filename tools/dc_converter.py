@@ -34,7 +34,7 @@ def main(args):
     }, axis=1)
 
     # bring timestamp to our used microsecond format
-    df.time = (df.time * 1000000).astype(int)
+    df.time = (df.time * 1000000).astype('int64')
 
     # we make this here AFTER the int conversion, cause otherwise we get a bit off floating point values like 0.09999995412
     measurement_interval = (df.time[1] - df.time[0])/1000000
@@ -60,7 +60,7 @@ def main(args):
 #    df.ch_13_12V = ((df.ch_13_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
 #    df.ch_15_12V = ((df.ch_15_12V / 1000) / 0.005) * 12 * measurement_interval * 10**3
 
-    df = df.astype(int)
+    df = df.astype('int64')
 
     df = df.melt(id_vars=['time'], var_name='detail_name', value_name='value')
 

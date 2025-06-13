@@ -1,4 +1,3 @@
-from html import escape
 from re import fullmatch
 
 from lib.db import DB
@@ -21,7 +20,7 @@ class Notes():
                     VALUES
                     (%s, %s, %s, %s, NOW())
                     """,
-                       params=(run_id, escape(note['detail_name']), escape(note['note']), int(note['timestamp']))
+                       params=(run_id, note['detail_name'], note['note'], int(note['timestamp']))
                        )
 
     def parse_note(self, line):

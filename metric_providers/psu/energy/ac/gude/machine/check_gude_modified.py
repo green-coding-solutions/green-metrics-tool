@@ -6,15 +6,15 @@ import sys
 import requests
 
 
-def main(resolution):
+def main(sampling_rate):
     url = 'http://192.168.178.32/status.json'
 
     only_values = 0x4000
     cgi = {'components': only_values}  # simple-sensors + and only values
 
-    resolution = float(resolution)
+    sampling_rate = float(sampling_rate)
 
-    target_sleep_time = resolution / 1000.0
+    target_sleep_time = sampling_rate / 1000.0
 
     while True:  # loop until CTRL+C
         timestamp_before = time.time_ns()
@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     if args.i is None:
         parser.print_help()
-        print('Please supply -i to set resolution in milliseconds')
+        print('Please supply -i to set sampling_rate in milliseconds')
         sys.exit(1)
 
     main(args.i)

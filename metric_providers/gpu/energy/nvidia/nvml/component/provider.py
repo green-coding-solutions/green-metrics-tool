@@ -2,24 +2,20 @@ import os
 
 from metric_providers.base import BaseMetricProvider
 
-class GpuEnergyNvidiaSmiComponentProvider(BaseMetricProvider):
-    def __init__(self, resolution, skip_check=False):
+class GpuEnergyNvidiaNvmlComponentProvider(BaseMetricProvider):
+    def __init__(self, sampling_rate, skip_check=False):
         super().__init__(
-            metric_name='gpu_energy_nvidia_smi_component',
-            metrics={'time': int, 'value': int},
-            resolution=resolution,
+            metric_name='gpu_energy_nvidia_nvml_component',
+            metrics={'time': int, 'value': int, 'card_model': str},
+            sampling_rate=sampling_rate,
             unit='uJ',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
-            metric_provider_executable='metric-provider-nvidia-smi-wrapper.sh',
             skip_check=skip_check,
         )
 
-
-    def check_system(self, check_command="default", check_error_message=None, check_parallel_provider=True):
-        super().check_system(check_command=['which', 'nvidia-smi'], check_error_message="nvidia-smi is not installed on the system")
-
     def _parse_metrics(self, df):
         df = super()._parse_metrics(df) # sets detail_name
+        df['detail_name'] = df.card_model
 
         '''
         Conversion to Joules
@@ -29,7 +25,7 @@ class GpuEnergyNvidiaSmiComponentProvider(BaseMetricProvider):
         WITH times as (
                     SELECT id, value, detail_name, time, (time - LAG(time) OVER (ORDER BY detail_name ASC, time ASC)) AS diff, unit
                     FROM measurements
-                    WHERE run_id = RUN_ID AND metric = 'gpu_energy_nvidia_smi_component'
+                    WHERE run_id = RUN_ID AND metric = 'gpu_energy_nvidia_nvml_component'
 
                     ORDER BY detail_name ASC, time ASC)
                     SELECT *, value / (diff / 1000) as power FROM times;
@@ -47,7 +43,7 @@ class GpuEnergyNvidiaSmiComponentProvider(BaseMetricProvider):
         df['interval'] = intervals  # in microseconds
         # value is initially in milliWatts. So we multiply by 1_000 to get uW and then divide by 1_000_000 to get from us to s  => / 1_000
         df['value'] = df.apply(lambda x: x['value'] * x['interval'] / 1_000, axis=1)
-        df['value'] = df.value.astype(int)
+        df['value'] = df.value.astype('int64')
 
         df = df.drop(columns='interval')  # clean up
 

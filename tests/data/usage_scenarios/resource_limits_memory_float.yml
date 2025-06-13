@@ -4,14 +4,14 @@ author: Dan Mateas
 description: test
 
 services:
-  test-container:
+
+  test-container-memory-int:
     type: container
-    image: gcb_stress
-    build:
-      context: ../stress-application
-    setup-commands:
-      - command: ps -a
-        shell: sh
+    image: alpine
+    deploy:
+      resources:
+        limits:
+          memory: 1.2
 
 flow:
   - name: Stress

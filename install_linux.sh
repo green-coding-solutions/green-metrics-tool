@@ -29,7 +29,9 @@ if [[ $activate_scenario_runner == true ]] ; then
 
     if lsb_release -is | grep -q "Fedora"; then
         if ! sudo dnf -y install lm_sensors lm_sensors-devel; then
-            print_message "Failed to install lm_sensors lm_sensors-devel; continuing without Sensors."
+            print_message "Failed to install lm_sensors lm_sensors-devel;" >&2
+            print_message "You can add -S to the install script to skip installing lm_sensors. However cluster mode and temperature reporters will not work then." >&2
+            exit 1
         fi
     elif lsb_release -is | grep -q "openSUSE"; then
         if ! sudo zypper -n in sensors libsensors4-devel; then
@@ -37,12 +39,34 @@ if [[ $activate_scenario_runner == true ]] ; then
         fi
     else
         if ! sudo apt-get install -y lm-sensors libsensors-dev; then
-           print_message "Failed to install lm-sensors libsensors-dev; continuing without Sensors."
+           print_message "Failed to install lm-sensors libsensors-dev;" >&2
+            print_message "You can add -S to the install script to skip installing lm_sensors. However cluster mode and temperature reporters will not work then." >&2
+           exit 1
         fi
     fi
 
     sudo systemctl stop tinyproxy
     sudo systemctl disable tinyproxy
+
+    if [[ $install_nvidia_toolkit_headers == true ]] ; then
+        print_message "Installing nvidia toolkit headers"
+        if lsb_release -is | grep -q "Fedora"; then
+            curl -O https://developer.download.nvidia.com/compute/cuda/repos/fedora$(rpm -E %fedora)/x86_64/cuda-fedora$(rpm -E %fedora).repo
+            sudo mv cuda-fedora$(rpm -E %fedora).repo /etc/yum.repos.d/
+            sudo dnf makecache
+            if ! sudo dnf -y install libnvidia-ml cuda-nvml-devel-12-9; then
+                print_message "Failed to install nvidia toolkit headers; Please remove --nvidia-gpu flag and install manually" >&2
+                exit 1
+            else
+                sudo ln -s /usr/lib64/libnvidia-ml.so.1 /usr/lib64/libnvidia-ml.so
+            fi
+        else
+            if ! sudo apt-get install -y libnvidia-ml-dev; then
+                print_message "Failed to install nvidia toolkit headers; Please remove --nvidia-gpu flag and install manually" >&2
+                exit 1
+            fi
+        fi
+    fi
 
     print_message "Building C libs"
     make -C "lib/c"
@@ -70,10 +94,11 @@ if [[ $activate_scenario_runner == true ]] ; then
     if [[ $install_msr_tools == true ]] ; then
         print_message "Installing msr-tools"
         print_message "Important: If this step fails it means msr-tools is not available on you system"
-        print_message "If you do not plan to use RAPL you can skip the installation by appending '-r'"
+        print_message ""
         if lsb_release -is | grep -q "Fedora"; then
             if ! sudo dnf -y install msr-tools; then
-                print_message "Failed to install msr-tools; continuing without RAPL."
+                print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-r'" >&2
+                exit 1
             fi
         elif lsb_release -is | grep -q "openSUSE"; then
             if ! sudo zypper -n in msr-tools; then
@@ -81,7 +106,8 @@ if [[ $activate_scenario_runner == true ]] ; then
             fi
         else
             if ! sudo apt-get install -y msr-tools; then
-                print_message "Failed to install msr-tools; continuing without RAPL."
+                print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-r'" >&2
+                exit 1
             fi
         fi
     fi
@@ -89,7 +115,6 @@ if [[ $activate_scenario_runner == true ]] ; then
     if [[ $install_ipmi == true ]] ; then
         print_message "Installing IPMI tools"
         print_message "Important: If this step fails it means ipmitool is not available on you system"
-        print_message "If you do not plan to use IPMI you can skip the installation by appending '-i'"
         {
             if lsb_release -is | grep -q "Fedora"; then
                 sudo dnf -y install freeipmi ipmitool
@@ -105,7 +130,9 @@ if [[ $activate_scenario_runner == true ]] ; then
             # remove old file name
             sudo rm -f /etc/sudoers.d/ipmi_get_machine_energy_stat
         } || {
-            print_message "Failed to install and configure IPMI tools. Continuing without IPMI support..."
+            print_message "Failed to install and configure IPMI tools. Please try to install manually ..." >&2
+            print_message "If you do not plan to use IPMI you can skip the installation by appending '-i'" >&2
+            exit 1
         }
 
     fi

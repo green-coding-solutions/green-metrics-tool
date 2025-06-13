@@ -15,6 +15,8 @@ ask_power_hog=true
 activate_power_hog=false
 ask_carbon_db=true
 activate_carbon_db=false
+ask_ai_optimisations=true
+activate_ai_optimisations=false
 build_docker_containers=true
 install_python_packages=true
 modify_hosts=true
@@ -34,6 +36,7 @@ cert_file=''
 enterprise=false
 ask_ping=true
 force_send_ping=false
+install_nvidia_toolkit_headers=false
 ee_branch=''
 
 function print_message {
@@ -176,6 +179,12 @@ function prepare_config() {
     else
         eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
     fi
+    if [[ $activate_ai_optimisations == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_AI_OPTIMISATIONS__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_ai_optimisations:.*$|activate_ai_optimisations: True|\" config.yml"
+    else
+        eval "${sed_command} -e \"s|__ACTIVATE_AI_OPTIMISATIONS__|false|\" frontend/js/helpers/config.js"
+    fi
 
 
     if [[ $enable_ssl == true ]] ; then
@@ -267,15 +276,34 @@ function checkout_submodules() {
     if [[ $(uname) != "Darwin" ]]; then
         git submodule update --init lib/sgx-software-enable
     fi
+
     git submodule update --init metric_providers/psu/energy/ac/xgboost/machine/model
+
     if [[ $enterprise == true ]] ; then
-        git submodule update --init ee
+        if [[ ! -d "ee" ]]; then
+            git clone git@github.com:green-coding-solutions/gmt-enterprise.git ee
+        fi
 
         if [[ ! -z $ee_branch ]]; then
             echo "Checking out ee branch $ee_branch"
             git -C ee fetch origin
             git -C ee checkout $ee_branch
         fi
+
+        ln -sf ../ee/cron/delete_expired_data.py cron/delete_expired_data.py
+        ln -sf ../ee/cron/carbondb_copy_over_and_remove_duplicates.py cron/carbondb_copy_over_and_remove_duplicates.py
+        ln -sf ../ee/cron/carbondb_compress.py cron/carbondb_compress.py
+        ln -sf ../../ee/tests/cron/test_carbondb_compress.py tests/cron/test_carbondb_compress.py
+        ln -sf ../../ee/tests/frontend/test_frontend_ee.py tests/frontend/test_frontend_ee.py
+        ln -sf ../../ee/tests/api/test_api_hog.py tests/api/test_api_hog.py
+        ln -sf ../../ee/tests/api/test_api_carbondb.py tests/api/test_api_carbondb.py
+        ln -sf ../ee/tools/rebuild_carbondb.py tools/rebuild_carbondb.py
+        ln -sf ../../ee/frontend/js/hog-details.js frontend/js/hog-details.js
+        ln -sf ../../ee/frontend/js/carbondb.js frontend/js/carbondb.js
+        ln -sf ../../ee/frontend/js/hog.js frontend/js/hog.js
+        ln -sf ../ee/frontend/hog-details.html frontend/hog-details.html
+        ln -sf ../ee/frontend/hog.html frontend/hog.html
+        ln -sf ../ee/frontend/carbondb.html frontend/carbondb.html
     fi
 }
 
@@ -300,6 +328,9 @@ function build_binaries() {
                 continue
             fi
             if [[ "$make_path" == *"/lmsensors/"* ]] && [[ "${install_sensors}" == false ]]; then
+                continue
+            fi
+            if [[ "$make_path" == *"/nvidia/"* ]] && [[ "${install_nvidia_toolkit_headers}" == false ]]; then
                 continue
             fi
             echo "Installing $subdir/metric-provider-binary ..."
@@ -380,6 +411,20 @@ check_python_version
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --nvidia-gpu)
+            install_nvidia_toolkit_headers=true
+            shift
+            ;;
+        --ai) # This is not documented in the help, as it is only for GCS internal use
+            ask_ai_optimisations=false
+            activate_ai_optimisations=true
+            shift
+            ;;
+        --no-ai) # This is not documented in the help, as it is only for GCS internal use
+            ask_ai_optimisations=false
+            activate_ai_optimisations=false
+            shift
+            ;;
         --ee-branch) # This is not documented in the help, as it is only for GCS internal use
             check_optarg 'ee-branch' "${2:-}"
             ee_branch="$2"
@@ -648,6 +693,16 @@ if [[ $enterprise == true && $ask_power_hog == true ]]; then
         activate_power_hog=true
     else
         activate_power_hog=false
+    fi
+fi
+
+if [[ $enterprise == true && $ask_ai_optimisations == true ]]; then
+    echo ""
+    read -p "Do you want to activate AI Optimizations? (y/N) : " activate_ai_optimisations
+    if [[  "$activate_ai_optimisations" == "Y" || "$activate_ai_optimisations" == "y" ]] ; then
+        activate_ai_optimisations=true
+    else
+        activate_ai_optimisations=false
     fi
 fi
 

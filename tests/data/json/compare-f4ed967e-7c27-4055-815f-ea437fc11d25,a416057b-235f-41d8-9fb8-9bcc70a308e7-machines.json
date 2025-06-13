@@ -17,7 +17,8 @@
                 "index": 0,
                 "name": "Stress Test #1",
                 "repo": "/home/arne/Sites/green-coding/example-applications/",
-                "run_id": "a416057b-235f-41d8-9fb8-9bcc70a308e7"
+                "run_id": "a416057b-235f-41d8-9fb8-9bcc70a308e7",
+                "usage_scenario_variables": {}
             },
             {
                 "commit_hash": "58c7a5002c684f41f8d7a355f3ede641d8e45ddc",
@@ -27,12 +28,13 @@
                 "index": 1,
                 "name": "Stress Test #3",
                 "repo": "/home/arne/Sites/green-coding/example-applications/",
-                "run_id": "f4ed967e-7c27-4055-815f-ea437fc11d25"
+                "run_id": "f4ed967e-7c27-4055-815f-ea437fc11d25",
+                "usage_scenario_variables": {}
             }
         ]
     ],
     "comparison_identifiers": [
-        1
+        "1"
     ],
     "data": {
         "Stress": {
@@ -131,7 +133,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "1": {
                                 "ci": 0.0,
@@ -153,7 +155,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -660,7 +662,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "1": {
                                 "ci": 95.29653552324078,
@@ -682,7 +684,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -910,7 +912,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "1": {
                                 "ci": 19.059307104648152,
@@ -932,7 +934,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -1191,7 +1193,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "1": {
                                 "ci": 171.5337639418334,
@@ -1213,7 +1215,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -1970,7 +1972,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "1": {
                                 "ci": 2757.246427805766,
@@ -1992,7 +1994,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },
@@ -2530,7 +2532,7 @@
             },
             "cpu_utilization_procfs_system": {
                 "data": {
-                    "[system]": {
+                    "[SYSTEM]": {
                         "data": {
                             "1": {
                                 "ci": 0.0,
@@ -2552,7 +2554,7 @@
                             }
                         },
                         "is_significant": null,
-                        "name": "[system]",
+                        "name": "[SYSTEM]",
                         "p_value": null
                     }
                 },

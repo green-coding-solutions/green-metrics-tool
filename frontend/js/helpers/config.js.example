@@ -6,6 +6,7 @@ ACTIVATE_SCENARIO_RUNNER = __ACTIVATE_SCENARIO_RUNNER__;
 ACTIVATE_ECO_CI = __ACTIVATE_ECO_CI__;
 ACTIVATE_CARBON_DB = __ACTIVATE_CARBON_DB__;
 ACTIVATE_POWER_HOG = __ACTIVATE_POWER_HOG__;
+ACTIVATE_AI_OPTIMISATIONS = __ACTIVATE_AI_OPTIMISATIONS__;
 
 
 /*
@@ -88,7 +89,7 @@ const DEFAULT_ENERGY_TIMELINE_BADGE_METRICS = [
     // ['cpu_energy_rapl_msr_component','Package_0'], // uncomment if you want RAPL CPU energy in timeline overview
     // ['memory_energy_rapl_msr_component','Package_0'], // uncomment if you want RAPL DRAM energy in timeline overview
     // ['network_energy_formula_global','[FORMULA]'], // uncomment if you want network in timeline overview
-    ['psu_energy_ac_mcp_machine','[machine]'],
+    ['psu_energy_ac_mcp_machine','[MACHINE]'],
     // ['software_carbon_intensity_global','[SYSTEM]'] // uncomment if you want SCI as badge in timeline overview
 ]
 
@@ -115,10 +116,15 @@ METRIC_MAPPINGS = {
         "source": "statvfs syscall",
         "explanation": "Disk used space of the root filesystem via statvfs syscall"
     },
-    "disk_io_procfs_system": {
-        "clean_name": "Disk I/O",
+    "disk_io_read_procfs_system": {
+        "clean_name": "Disk I/O (Read)",
         "source": "procfs",
-        "explanation": "Disk I/O for whole system via procfs"
+        "explanation": "Disk bytes read for whole system via procfs"
+    },
+    "disk_io_write_procfs_system": {
+        "clean_name": "Disk I/O (Write)",
+        "source": "procfs",
+        "explanation": "Disk bytes written for whole system via procfs"
     },
     "disk_io_cgroup_container": {
         "clean_name": "Disk I/O",
@@ -140,10 +146,15 @@ METRIC_MAPPINGS = {
         "source": "formula",
         "explanation": "Disk I/O Totals accumulated per container via cgroup"
     },
-    "disk_total_procfs_system": {
-        "clean_name": "Disk Data",
+    "disk_total_read_procfs_system": {
+        "clean_name": "Disk Data (Read)",
         "source": "formula",
-        "explanation": "Disk I/O Totals for whole system accumulated via procfs"
+        "explanation": "Disk read bytes totals for whole system accumulated via procfs"
+    },
+    "disk_total_write_procfs_system": {
+        "clean_name": "Disk Data (Write)",
+        "source": "formula",
+        "explanation": "Disk written bytes totals for whole system accumulated via procfs"
     },
     "psu_energy_cgroup_container": {
         "clean_name": "Container Energy",
@@ -400,15 +411,15 @@ METRIC_MAPPINGS = {
         "source": "formula",
         "explanation": "Network total data traffic for the whole accumulated from procfs data"
     },
-    "gpu_energy_nvidia_smi_component": {
+    "gpu_energy_nvidia_nvml_component": {
         "clean_name": "GPU Energy",
-        "source": "NVIDIA SMI",
-        "explanation": "Derived NVIDIA SMI based GPU energy"
+        "source": "NVIDIA NVML",
+        "explanation": "Derived NVIDIA NVML based GPU energy"
     },
-    "gpu_power_nvidia_smi_component": {
+    "gpu_power_nvidia_nvml_component": {
         "clean_name": "GPU Power",
-        "source": "NVIDIA SMI",
-        "explanation": "NVIDIA SMI based GPU power"
+        "source": "NVIDIA NVML",
+        "explanation": "NVIDIA NVML based GPU power"
     },
     "cpu_energy_rapl_msr_component": {
         "clean_name": "CPU Energy (Package)",
@@ -454,5 +465,45 @@ METRIC_MAPPINGS = {
         "clean_name": "Machine Power",
         "source": "SDIA",
         "explanation": "Full machine power (AC) as estimated by SDIA model"
+    },
+    "disk_io_read_cgroup_container": {
+        "clean_name": "Disk Reads",
+        "source": "cgroup",
+        "explanation": "Data read from disk per container via cgroup"
+    },
+    "disk_io_write_cgroup_container": {
+        "clean_name": "Disk Writes",
+        "source": "cgroup",
+        "explanation": "Data written to disk per container via cgroup"
+    },
+    "disk_io_read_cgroup_system": {
+        "clean_name": "Disk Reads",
+        "source": "cgroup",
+        "explanation": "Data read from disk for the system via cgroup"
+    },
+    "disk_io_write_cgroup_system": {
+        "clean_name": "Disk Writes",
+        "source": "cgroup",
+        "explanation": "Data written to disk for the system via cgroup"
+    },
+    "disk_total_read_cgroup_container": {
+        "clean_name": "Total Disk Reads",
+        "source": "cgroup",
+        "explanation": "Total data read from disk per container via cgroup"
+    },
+    "disk_total_write_cgroup_container": {
+        "clean_name": "Total Disk Writes",
+        "source": "cgroup",
+        "explanation": "Total data written to disk per container via cgroup"
+    },
+    "disk_total_read_cgroup_system": {
+        "clean_name": "Total System Disk Reads",
+        "source": "cgroup",
+        "explanation": "Total data read from disk for the system via cgroup"
+    },
+    "disk_total_write_cgroup_system": {
+        "clean_name": "Total System Disk Writes",
+        "source": "cgroup",
+        "explanation": "Total data written to disk for the system via cgroup"
     }
 } // PLEASE DO NOT REMOVE THIS COMMENT -- END METRIC_MAPPINGS

@@ -185,7 +185,7 @@ const displayRunDetailsTable = (measurements, repo) => {
     measurements.forEach(measurement => {
         const li_node = document.createElement("tr");
 
-        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, carbon_ug] = measurement;
+        let [energy_uj, run_id, created_at, label, cpu, commit_hash, duration_us, source, cpu_util, workflow_name, lat, lon, city, carbon_intensity_g, carbon_ug, note] = measurement;
 
         const short_hash = commit_hash.substring(0, 7);
         const tooltip = `title="${commit_hash}"`;
@@ -220,6 +220,8 @@ const displayRunDetailsTable = (measurements, repo) => {
                             <td class="td-index">${city_string}</td>
                             <td class="td-index">${escapeString(carbon_intensity_g)} gCO2/kWh</td>
                             <td class="td-index" title="${carbon_ug/1000000}">${escapeString(numberFormatterLong.format(carbon_ug/1000000))} gCO2e</td>
+                            <td class="td-index">${ (note == null) ? '' : `<span class="ui icon" data-position="top right" data-inverted="" data-tooltip="${escapeString(note)}"><i class="ui question circle icon fluid"></i></span>` }</td>
+
                             `;
         document.querySelector("#ci-table").appendChild(li_node);
     });
@@ -232,7 +234,9 @@ const getBadges = async (repo, branch, workflow_id) => {
         const img_node = document.createElement("img")
         img_node.src = `${API_URL}/v1/ci/badge/get?repo=${repo}&branch=${branch}&workflow=${workflow_id}`
         img_node.onerror = function() {this.src='/images/no-data-badge.webp'}
-        link_node.href = '#'
+        link_node.href = `${METRICS_URL}/ci.html?repo=${repo}&branch=${branch}&workflow=${workflow_id}`
+        link_node.rel = 'noopener'
+        link_node.target = '_blank'
 
         const energy_last = link_node.cloneNode(true)
         const energy_last_image = img_node.cloneNode(true)

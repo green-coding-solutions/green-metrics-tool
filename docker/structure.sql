@@ -40,7 +40,14 @@ VALUES (
         "user": {
             "visible_users": [0,1],
             "is_super_user": true,
-            "updateable_settings": ["measurement.disabled_metric_providers","measurement.flow_process_duration","measurement.total_duration"]
+            "updateable_settings": [
+                "measurement.dev_no_sleeps",
+                "measurement.dev_no_optimizations",
+                "measurement.disabled_metric_providers",
+                "measurement.flow_process_duration",
+                "measurement.total_duration",
+                "measurement.phase_padding"
+            ]
         },
         "api": {
             "quotas": {},
@@ -48,16 +55,17 @@ VALUES (
                 "/v1/insights",
                 "/v1/ci/insights",
                 "/v1/machines",
-                "/v1/jobs",
+                "/v1/job",
+                "/v2/jobs",
                 "/v1/notes/{run_id}",
                 "/v1/network/{run_id}",
                 "/v1/repositories",
-                "/v1/runs",
+                "/v2/runs",
                 "/v1/compare",
                 "/v1/phase_stats/single/{run_id}",
                 "/v1/measurements/single/{run_id}",
                 "/v1/diff",
-                "/v1/run/{run_id}",
+                "/v2/run/{run_id}",
                 "/v1/optimizations/{run_id}",
                 "/v1/watchlist",
                 "/v1/badge/single/{run_id}",
@@ -89,12 +97,16 @@ VALUES (
                 "variance",
                 "tag",
                 "commit-variance",
-                "tag-variance"
+                "tag-variance",
+                "statistical-significance"
             ]
         },
         "machines": [1],
         "measurement": {
+            "phase_padding": true,
             "quotas": {},
+            "dev_no_sleeps": false,
+            "dev_no_optimizations": false,
             "total_duration": 86400,
             "flow_process_duration": 86400,
             "orchestrators": {
@@ -120,8 +132,40 @@ VALUES (
 
 -- Default password for user 0 is empty
 INSERT INTO "public"."users"("id", "name","token","capabilities","created_at","updated_at")
-VALUES
-(0, E'[GMT-SYSTEM]',E'',E'{"user":{"is_super_user": false},"api":{"quotas":{},"routes":[]},"data":{"runs":{"retention":2678400},"measurements":{"retention":2678400},"ci_measurements":{"retention":2678400}},"jobs":{"schedule_modes":[]},"machines":[],"measurement":{"quotas":{},"settings":{"total_duration":86400,"flow_process_duration":86400}},"optimizations":[]}',E'2024-11-06 11:28:24.937262+00',NULL);
+VALUES (
+    0,
+    E'[GMT-SYSTEM]',
+    E'',
+    E'{
+        "api": {
+            "quotas": {},
+            "routes": []
+        },
+        "data": {
+            "ci_measurements": {
+                "retention": 2678400
+            },
+            "measurements": {
+                "retention": 2678400
+            },
+            "runs": {
+                "retention": 2678400
+            }
+        },
+        "jobs": {
+            "schedule_modes": []
+        },
+        "machines": [],
+        "measurement": {
+        },
+        "optimizations": [],
+        "user": {
+            "is_super_user": false
+        }
+    }', -- listing entries in 'measurement' has no current effect, as they are not used by the validate.py
+    E'2024-11-06 11:28:24.937262+00',
+    NULL
+);
 
 SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
 
@@ -161,6 +205,7 @@ CREATE TABLE jobs (
     url text,
     branch text,
     filename text,
+    usage_scenario_variables jsonb NOT NULL DEFAULT '{}',
     categories int[],
     machine_id int REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE,
     message text,
@@ -183,6 +228,7 @@ CREATE TABLE runs (
     commit_timestamp timestamp with time zone,
     categories int[],
     usage_scenario json,
+    usage_scenario_variables jsonb NOT NULL DEFAULT '{}',
     filename text NOT NULL,
     machine_specs jsonb,
     runner_arguments json,
@@ -210,7 +256,8 @@ CREATE TABLE measurement_metrics (
     run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE ON UPDATE CASCADE,
     metric text NOT NULL,
     detail_name text NOT NULL,
-    unit text NOT NULL
+    unit text NOT NULL,
+    sampling_rate_configured int NOT NULL
 );
 
 CREATE UNIQUE INDEX measurement_metrics_get ON measurement_metrics(run_id,metric,detail_name); -- technically we could allow also different units, but we want to see the use case for that first
@@ -226,7 +273,6 @@ CREATE TABLE measurement_values (
 
 CREATE INDEX measurement_values_mmid ON measurement_values(measurement_metric_id);
 CREATE UNIQUE INDEX measurement_values_unique ON measurement_values(measurement_metric_id, time);
-
 
 CREATE TABLE network_intercepts (
     id SERIAL PRIMARY KEY,
@@ -353,6 +399,7 @@ CREATE TABLE watchlist (
     categories integer[],
     branch text NOT NULL,
     filename text NOT NULL,
+    usage_scenario_variables jsonb NOT NULL DEFAULT '{}',
     machine_id integer REFERENCES machines(id) ON DELETE RESTRICT ON UPDATE CASCADE NOT NULL,
     schedule_mode text NOT NULL,
     last_scheduled timestamp with time zone,

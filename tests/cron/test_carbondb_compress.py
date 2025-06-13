@@ -1,1 +1,0 @@
-../../ee/tests/cron/test_carbondb_compress.py

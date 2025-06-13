@@ -229,7 +229,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
             <td>${scope}</td>
             <td>${detail_name}</td>
             <td>${metric_data.type}</td>
-            <td>${transformed_value?.toFixed(2)}</td>
+            <td><span title="${detail_data.mean}">${transformed_value?.toFixed(2)}</span> ${ transformed_value?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data.mean} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
             <td>${transformed_unit}</td>
             <td>${std_dev_text_table}</td>
             <td>${max_value}</td>
@@ -249,7 +249,7 @@ const displaySimpleMetricBox = (phase, metric_name, metric_data, detail_name, de
             <td>${scope}</td>
             <td>${detail_name}</td>
             <td>${metric_data.type}</td>
-            <td>${transformed_value?.toFixed(2)}</td>
+            <td><span title="${detail_data.mean}">${transformed_value?.toFixed(2)}</span> ${ transformed_value?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data.mean} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
             <td>${transformed_unit}</td>
             <td>${max_value}</td>
             <td>${min_value}</td>
@@ -311,8 +311,8 @@ const displayDiffMetricBox = (phase, metric_name, metric_data, detail_name, deta
         <td>${scope}</td>
         <td>${detail_name}</td>
         <td>${metric_data.type}</td>
-        <td>${transformed_value_1?.toFixed(2)}</td>
-        <td>${transformed_value_2?.toFixed(2)}</td>
+        <td><span title="${detail_data_array[0]}">${transformed_value_1?.toFixed(2)}</span> ${ transformed_value_1?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data_array[0]} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
+        <td><span title="${detail_data_array[1]}">${transformed_value_2?.toFixed(2)}</span> ${ transformed_value_2?.toFixed(2) == '0.00' ? `<span data-tooltip="Value is lower than rounding. Unrounded value is ${detail_data_array[1]} ${metric_data.unit}" data-position="bottom center" data-inverted><i class="question circle icon link"></i></span>` : ''}</td>
         <td>${transformed_unit}</td>
         <td class="${icon_color}">${relative_difference}</td>
         <td>${extra_label}</td>`;

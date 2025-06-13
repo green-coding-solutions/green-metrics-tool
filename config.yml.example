@@ -38,7 +38,7 @@ cluster:
     jobs_processing: "random"
     time_between_control_workload_validations: 21600
     send_control_workload_status_mail: False
-    shutdown_on_job_no: False
+    shutdown_on_job_no: suspend
     control_workload:
       name: "Measurement control Workload"
       uri: "https://github.com/green-coding-solutions/measurement-control-workload"
@@ -97,66 +97,66 @@ measurement:
     linux:
     #--- Always-On - We recommend these providers to be always enabled
       cpu.utilization.procfs.system.provider.CpuUtilizationProcfsSystemProvider:
-        resolution: 99
+        sampling_rate: 99
     #--- CGroupV2 - Turn these on if you have CGroupsV2 working on your machine
       cpu.utilization.cgroup.container.provider.CpuUtilizationCgroupContainerProvider:
-        resolution: 99
+        sampling_rate: 99
       memory.used.cgroup.container.provider.MemoryUsedCgroupContainerProvider:
-        resolution: 99
+        sampling_rate: 99
       network.io.cgroup.container.provider.NetworkIoCgroupContainerProvider:
-        resolution: 99
+        sampling_rate: 99
       disk.io.cgroup.container.provider.DiskIoCgroupContainerProvider:
-        resolution: 99
+        sampling_rate: 99
     #--- RAPL - Only enable these if you have RAPL enabled on your machine
 #      cpu.energy.rapl.msr.component.provider.CpuEnergyRaplMsrComponentProvider:
-#        resolution: 99
+#        sampling_rate: 99
 #      memory.energy.rapl.msr.component.provider.MemoryEnergyRaplMsrComponentProvider:
-#        resolution: 99
+#        sampling_rate: 99
     #--- Machine Energy - These providers need special hardware / lab equipment to work
 #      psu.energy.ac.gude.machine.provider.PsuEnergyAcGudeMachineProvider:
-#        resolution: 99
+#        sampling_rate: 99
 #      psu.energy.ac.powerspy2.machine.provider.PsuEnergyAcPowerspy2MachineProvider:
-#        resolution: 250
+#        sampling_rate: 250
 #      psu.energy.ac.mcp.machine.provider.PsuEnergyAcMcpMachineProvider:
-#        resolution: 99
+#        sampling_rate: 99
 #      psu.energy.ac.ipmi.machine.provider.PsuEnergyAcIpmiMachineProvider:
-#        resolution: 99
+#        sampling_rate: 99
 #      psu.energy.dc.rapl.msr.machine.provider.PsuEnergyDcRaplMsrMachineProvider:
-#        resolution: 99
+#        sampling_rate: 99
     #--- GPU - Only enable these if you have GPUs with power measurement enabled in your machine
-#      gpu.energy.nvidia.smi.component.provider.GpuEnergyNvidiaSmiComponentProvider:
-#        resolution: 99
+#      gpu.energy.nvidia.nvml.component.provider.GpuEnergyNvidiaNvmlComponentProvider:
+#        sampling_rate: 99
     #--- Sensors - these providers need the lm-sensors package installed
 #      lmsensors.temperature.component.provider.LmsensorsTemperatureComponentProvider:
-#        resolution: 99
+#        sampling_rate: 99
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000', 'coretemp-isa-0000']
 #        features: ['CPU', 'Package id 0', 'Core 0', 'Core 1', 'Core 2', 'Core 3']
 #      lmsensors.fan.component.provider.LmsensorsFanComponentProvider:
-#        resolution: 99
+#        sampling_rate: 99
       # Please change these values according to the names in '$ sensors'
 #        chips: ['thinkpad-isa-0000']
 #        features: ['fan1', 'fan2']
     #--- Debug - These providers should only be needed for debugging and introspection purposes
 #      cpu.frequency.sysfs.core.provider.CpuFrequencySysfsCoreProvider:
-#        resolution: 99
+#        sampling_rate: 99
 #      cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
-#        resolution: 99
+#        sampling_rate: 99
 #      cpu.time.cgroup.system.provider.CpuTimeCgroupSystemProvider:
-#        resolution: 99
+#        sampling_rate: 99
 #      cpu.time.procfs.system.provider.CpuTimeProcfsSystemProvider:
-#        resolution: 99
+#        sampling_rate: 99
 #      disk.io.procfs.system.provider.DiskIoProcfsSystemProvider:
-#        resolution: 99
+#        sampling_rate: 99
 #      network.io.procfs.system.provider.NetworkIoProcfsSystemProvider:
-#        resolution: 99
+#        sampling_rate: 99
 #        remove_virtual_interfaces: True
 #      disk.used.statvfs.system.provider.DiskUsedStatvfsSystemProvider:
-#        resolution: 99
+#        sampling_rate: 99
 #      memory.used.procfs.system.provider.MemoryUsedProcfsSystemProvider:
-#        resolution: 99
+#        sampling_rate: 99
 #      cpu.utilization.cgroup.system.provider.CpuUtilizationCgroupSystemProvider:
-#        resolution: 99
+#        sampling_rate: 99
 #        cgroups:
 #            "org.gnome.Shell@wayland.service":
 #                name: "Window Manager incl. X11"
@@ -167,21 +167,21 @@ measurement:
     macos:
     #--- MacOS: On Mac you only need this provider. Please remove all others!
       powermetrics.provider.PowermetricsProvider:
-        resolution: 499 # If you set this value too low powermetrics will not be able to accomodate the timing. We recommend now lower than 199 ms
+        sampling_rate: 499 # If you set this value too low powermetrics will not be able to accommodate the timing. We recommend no lower than 199 ms
       cpu.utilization.mach.system.provider.CpuUtilizationMachSystemProvider:
-        resolution: 99
+        sampling_rate: 99
     #--- Architecture - Common
     common:
 #      network.connections.proxy.container.provider.NetworkConnectionsProxyContainerProvider:
 ##        host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails
     #--- Model based - These providers estimate rather than measure. Helpful where measuring is not possible, like in VMs
 #      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
-#        resolution: 99
+#        sampling_rate: 99
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        TDP: 65
 #      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
-#        resolution: 99
+#        sampling_rate: 99
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        HW_CPUFreq: 3200
@@ -222,10 +222,11 @@ sci:
     TE: 181000
     # I is the Carbon Intensity at the location of this machine
     # The value can either be a number in gCO2e/kWh or a carbon intensity provider that fetches this number dynamically
-    # https://docs.green-coding.io/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/
-    # For fixed values get the number from https://ember-climate.org/insights/research/global-electricity-review-2023/
-    # The number 436 that comes as default is for Germany from 2022
-    I: 436
+    # https://docs.green-coding.io/docs/measuring/carbon-intensity-providers/carbon-intensity-providers-overview/ (TODO)
+    # For fixed world-wide values get the number from https://ember-climate.org/insights/research/global-electricity-review-2025/
+    # The number worldwide for 2024 is 473
+    # The number 334 that comes as default is for Germany from 2024 and comes from https://app.electricitymaps.com/zone/DE/all/yearly
+    I: 334
 
 #optimization:
 #  ignore:
@@ -243,6 +244,7 @@ activate_scenario_runner: False
 activate_eco_ci: False
 activate_power_hog: False
 activate_carbon_db: False
+activate_ai: False
 
 # GMT can activate additional enterprise only functionality
 # If you have a subscription insert your token here

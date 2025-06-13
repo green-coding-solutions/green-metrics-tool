@@ -2,6 +2,7 @@ import os
 import string
 import re
 from schema import Schema, SchemaError, Optional, Or, Use, And, Regex
+from datetime import datetime
 
 # https://github.com/compose-spec/compose-spec/blob/master/spec.md
 
@@ -64,6 +65,7 @@ class SchemaChecker():
             raise SchemaError(f"{value} is not 'container'")
         return value
 
+
     def validate_networks_no_invalid_chars(self, value):
         if isinstance(value, list):
             for item in value:
@@ -87,16 +89,19 @@ class SchemaChecker():
             "author": And(str, Use(self.not_empty)),
             "description": And(str, Use(self.not_empty)),
             Optional("ignore-unsupported-compose"): bool,
-            Optional("version"): str, # is part of compose. we ignore it as it is non functionaly anyway
+            Optional("version"): Or(str, int, float, datetime), # is part of compose. we ignore it as it is non functionaly anyway
             Optional("architecture"): And(str, Use(self.not_empty)),
             Optional("sci"): {
                 'R_d': And(str, Use(self.not_empty)),
             },
 
             Optional("networks"): Or(list, dict),
+            Optional("volumes"): Or(list, dict), # volumes in the root level are fine. They have no implication alone and will be checked in the service then if listed
 
             Optional("services"): {
+
                 Use(self.contains_no_invalid_chars): {
+                    Optional("restart"): str, # is part of compose. we ignore it as GMT has own orchestration
                     Optional("expose"): [str, int], # is part of compose. we ignore it as it is non functionaly anyway
                     Optional("init"): bool,
                     Optional("type"): Use(self.valid_service_types),
@@ -105,8 +110,19 @@ class SchemaChecker():
                     Optional("networks"): self.single_or_list(Use(self.contains_no_invalid_chars)),
                     Optional("environment"): self.single_or_list(Or(dict,And(str, Use(self.not_empty)))),
                     Optional("ports"): self.single_or_list(Or(And(str, Use(self.not_empty)), int)),
-                    Optional("depends_on"): Or([And(str, Use(self.not_empty))],dict),
+                    Optional('depends_on'): Or([And(str, Use(self.not_empty))],dict),
+                    Optional('deploy'):Or({
+                        Optional('resources'): {
+                            Optional('limits'): {
+                                Optional('cpus'): Or(And(str, Use(self.not_empty)), float, int),
+                                Optional('memory') : Or(And(str, Use(self.not_empty)), float, int),
+                            }
+                        }
+                    }, None),
+                    Optional('mem_limit'): Or(And(str, Use(self.not_empty)), float, int),
+                    Optional('cpus') : Or(And(str, Use(self.not_empty)), float, int),
                     Optional('container_name'): And(str, Use(self.not_empty)),
+                    Optional('shm_size'): Or(And(str, Use(self.not_empty)), float, int),
                     Optional("healthcheck"): {
                         Optional('test'): Or(list, And(str, Use(self.not_empty))),
                         Optional('interval'): And(str, Use(self.not_empty)),
@@ -118,6 +134,7 @@ class SchemaChecker():
                     },
                     Optional("setup-commands"): [{
                         'command': And(str, Use(self.not_empty)),
+                        Optional("detach"): bool,
                         Optional("shell"): And(str, Use(self.not_empty)),
                     }],
                     Optional("volumes"): self.single_or_list(str),
@@ -190,6 +207,15 @@ class SchemaChecker():
                 raise SchemaError(f"The 'image' key for service '{service_name}' is required when 'build' key is not present.")
             if 'cmd' in service:
                 raise SchemaError(f"The 'cmd' key for service '{service_name}' is not supported anymore. Please migrate to 'command'")
+
+
+            if (cpus := service.get('cpus')) and (cpus_deploy := service.get('deploy', {}).get('resources', {}).get('limits', {}).get('cpus')):
+                if cpus != cpus_deploy:
+                    raise SchemaError('cpus service top level key and deploy.resources.limits.cpus must be identical')
+
+            if (mem_limit := service.get('mem_limit')) and (mem_limit_deploy := service.get('deploy', {}).get('resources', {}).get('limits', {}).get('memory')):
+                if mem_limit != mem_limit_deploy:
+                    raise SchemaError('mem_limit service top level key and deploy.resources.limits.memory must be identical')
 
         known_flow_names = []
         for flow in usage_scenario['flow']:
