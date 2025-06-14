@@ -90,6 +90,8 @@ def do_maintenance():
     return None
 
 def validate_temperature():
+    config = GlobalConfig().config # pylint: disable=redefined-outer-name
+
     if not hasattr(validate_temperature, "temperature_errors") or not hasattr(validate_temperature, "cooldown_time"):
         validate_temperature.temperature_errors = 0  # initialize static variable
         validate_temperature.cooldown_time = 0  # initialize static variable
@@ -99,7 +101,7 @@ def validate_temperature():
         GlobalConfig().config['machine']['base_temperature_feature']
     )
 
-    DB().query('UPDATE machines SET current_temperature=%s WHERE id = %s', params=(current_temperature, ))
+    DB().query('UPDATE machines SET current_temperature=%s WHERE id = %s', params=(current_temperature, config['machine']['id']))
 
     if current_temperature > config_main['machine']['base_temperature_value']:
         if validate_temperature.temperature_errors >= 10:
