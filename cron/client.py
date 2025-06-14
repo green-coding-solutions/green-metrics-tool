@@ -167,12 +167,14 @@ if __name__ == '__main__':
 
         client_main = config_main['cluster']['client']
         must_revalidate_bc_new_packages = False
+        last_24h_maintenance = 0
 
         while True:
 
-            # run periodic cleanup in between every run
-            if not args.testing:
-                must_revalidate_bc_new_packages = do_maintenance() # when new packages are installed, we must revalidate
+            # run forced maintenance with cleanup every 24 hours
+            if last_24h_maintenance < (time.time() - 43200): # every 12 hours
+                must_revalidate_bc_new_packages = do_maintenance()
+                last_24h_maintenance = time.time()
 
             job = Job.get_job('run')
             if job and job.check_job_running():
@@ -230,6 +232,10 @@ if __name__ == '__main__':
                             name='Measurement Job on Green Metrics Tool Cluster failed',
                             message=f"Run-ID: {job._run_id}\nName: {job._name}\nMachine: {job._machine_description}\n\nDetails can also be found in the log under: {config_main['cluster']['metrics_url']}/stats.html?id={job._run_id}\n\nError message: {exc.__context__}\n{exc}\n"
                         )
+                finally: # run periodic maintenance with cleanup in between every run
+                    if not args.testing:
+                        must_revalidate_bc_new_packages = do_maintenance() # when new packages are installed, we must revalidate
+                        last_24h_maintenance = time.time()
 
             else:
                 set_status('job_no')
