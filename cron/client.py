@@ -75,7 +75,9 @@ def do_maintenance():
         encoding='UTF-8',
     )
     if ps.returncode != 0:
-        raise RuntimeError(f"Cluster cleanup failed: {ps.stdout}")
+        set_status('maintenance_error')
+        error_helpers.log_error('Cluster cleanup failed', stdout=ps.stdout)
+        time.sleep(config['cluster']['client']['time_between_control_workload_validations'])
 
     set_status('maintenance_end', data=ps.stdout)
 
