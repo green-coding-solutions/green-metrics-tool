@@ -154,10 +154,10 @@ if __name__ == '__main__':
                 continue
 
             if not args.testing:
-                if not validate_temperature():
-                    continue
-
-                print('Machine is temperature is good. Continuing ...')
+                if validate_temperature():
+                    print('Machine is temperature is good. Continuing ...')
+                else:
+                    continue # retry all checks
 
             if not args.testing and (must_revalidated_bc_new_packages or validate.is_validation_needed(config_main['machine']['id'], client_main['time_between_control_workload_validations'])):
                 set_status('measurement_control_start')
