@@ -2,6 +2,7 @@ import os
 import pytest
 import time
 import requests
+from typing import Final
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
 
@@ -9,7 +10,7 @@ from lib.global_config import GlobalConfig
 from lib.user import User
 
 from tests import test_functions as Tests
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, Page, expect, Locator
 
 from api.object_specifications import CI_Measurement
 
@@ -195,6 +196,17 @@ def test_eco_ci_adding_data():
         Tests.reset_db()
         Tests.import_demo_data()
 
+def expect_value_card(page: Page, selector: str, label_text: str, value_text: str) -> None:
+    card: Final = page.locator(selector).filter(visible=True)
+    expect(card.locator('.label')).to_have_text(label_text)
+    expect(card.locator('.value')).to_have_text(value_text)
+
+def expect_metrics_row(row: Locator, metric: str, value: str, unit: str, sampling_rate: str = '- / - / - ms') -> None:
+    cells = row.locator('th,td')
+    expect(cells.nth(0)).to_have_text(metric)
+    expect(cells.nth(5)).to_have_text(value)
+    expect(cells.nth(6)).to_have_text(unit)
+    expect(cells.nth(9)).to_have_text(sampling_rate)
 
 def test_stats():
 
@@ -211,14 +223,10 @@ def test_stats():
 
     # open details
     new_page.locator('a.step[data-tab="[RUNTIME]"]').click()
-    new_page.locator('#runtime-steps phase-metrics .ui.accordion .title > a').first.click()
 
-    energy_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.four.cards.stackable > div.ui.card.machine-energy > div > div.description > div.ui.fluid.mini.statistic > div > span").text_content()
-    phase_duration = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.four.cards.stackable > div.ui.card.phase-duration > div > div.description > div.ui.fluid.mini.statistic > div > span").text_content()
-
-
-    assert energy_value.strip() == '21.14'
-    assert phase_duration.strip() == '5.20'
+    new_page.get_by_text('Click here for detailed metrics ...').click()
+    expect_value_card(new_page, '.machine-energy', 'Machine Energy [mWh]', '21.14')
+    expect_value_card(new_page, '.phase-duration', 'Phase Duration [s]', '5.20')
 
     # fetch time series
     new_page.locator('button#fetch-time-series').click()
@@ -231,60 +239,17 @@ def test_stats():
     chart_label = new_page.locator("#chart-container > div:nth-child(3) > div > div.ui.left.floated.chart-title").text_content()
     assert chart_label.strip() == 'CPU % via procfs'
 
+    compare_metrics_table = new_page.locator('.compare-metrics-table').filter(visible=True)
 
-    first_metric = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(1)").text_content()
-    assert first_metric.strip() == 'Phase Duration'
+    metrics_columns = compare_metrics_table.locator('thead tr')
+    expect_metrics_row(metrics_columns, 'Metric', 'Value', 'Unit', 'SR (mean/95p/max)')
 
-    first_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(6)").text_content()
-    assert first_value.strip() == '5.20'
-
-    first_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(7)").text_content()
-    assert first_unit.strip() == 's'
-
-    first_sr = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(1) > td:nth-child(10)").text_content().replace(" ","")
-    assert first_sr.strip() == '-/\n-/\n-ms'
-
-    machine_power_metric = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(10) > td:nth-child(1)").text_content()
-    assert machine_power_metric.strip() == 'Machine Power'
-
-    machine_power_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(10) > td:nth-child(6)").text_content()
-    assert machine_power_value.strip() == '14.62'
-
-    machine_power_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(10) > td:nth-child(7)").text_content()
-    assert machine_power_unit.strip() == 'W'
-
-    machine_power_sr = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(10) > td:nth-child(10)").text_content().replace(" ","")
-    assert machine_power_sr.strip() == '99/\n100/\n101ms'
-
-    network_io_metric = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(7) > td:nth-child(1)").text_content()
-    assert network_io_metric.strip() == 'Network I/O'
-
-    network_io_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(7) > td:nth-child(6)").text_content()
-    assert network_io_value.strip() == '0.07'
-
-    network_io_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(7) > td:nth-child(7)").text_content()
-    assert network_io_unit.strip() == 'MB/s'
-
-    network_traffic_metric = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(8) > td:nth-child(1)").text_content()
-    assert network_traffic_metric.strip() == 'Network Traffic'
-
-    network_traffic_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(8) > td:nth-child(6)")
-    assert network_traffic_value.text_content().strip() == '0.37'
-    assert network_traffic_value.inner_html().strip() == '<span title="367908">0.37</span>'
-
-    network_traffic_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(8) > td:nth-child(7)").text_content()
-    assert network_traffic_unit.strip() == 'MB'
-
-
-    network_traffic_metric = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(1)").text_content()
-    assert network_traffic_metric.strip() == 'Network Transmission CO₂'
-
-    network_traffic_value = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(6)").inner_html()
-    assert network_traffic_value.strip() == '<span title="425">0.00</span> <span data-tooltip="Value is lower than rounding. Unrounded value is 425 ug" data-position="bottom center" data-inverted=""><i class="question circle icon link"></i></span>'
-
-    network_traffic_unit = new_page.locator("#runtime-steps > div.ui.bottom.attached.active.tab.segment > div.ui.segment.secondary > phase-metrics > div.ui.accordion > div.content.active > table > tbody > tr:nth-child(13) > td:nth-child(7)").text_content()
-    assert network_traffic_unit.strip() == 'g'
-
+    metrics_rows = compare_metrics_table.locator('tbody tr')
+    expect_metrics_row(metrics_rows.nth(0), 'Phase Duration', '5.20', 's')
+    expect_metrics_row(metrics_rows.nth(6), 'Network I/O', '0.07', 'MB/s')
+    expect_metrics_row(metrics_rows.nth(7), 'Network Traffic', '0.37', 'MB')
+    expect_metrics_row(metrics_rows.nth(9), 'Machine Power', '14.62', 'W', '99 / 100 / 101 ms')
+    expect_metrics_row(metrics_rows.nth(12), 'Network Transmission CO₂', '0.00', 'g')
 
     # click on baseline
     new_page.locator('a.step[data-tab="[BASELINE]"]').click()
