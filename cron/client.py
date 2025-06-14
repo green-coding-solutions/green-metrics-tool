@@ -21,7 +21,7 @@ from lib import error_helpers
 from lib.configuration_check_error import ConfigurationCheckError, Status
 
 # We currently have this dynamically as it will probably change quite a bit
-STATUS_LIST = ['cooldown', 'warmup', 'job_no', 'job_start', 'job_error', 'job_end', 'maintenance_start', 'maintenance_end', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
+STATUS_LIST = ['cooldown', 'warmup', 'job_no', 'job_start', 'job_error', 'job_end', 'maintenance_start', 'maintenance_end', 'maintenance_error', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def set_status(status_code, data=None, run_id=None):
