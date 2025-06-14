@@ -456,7 +456,7 @@ CREATE TABLE changelog (
     message text,
     machine_id integer REFERENCES machines(id) ON DELETE SET NULL ON UPDATE CASCADE,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp without time zone
+    updated_at timestamp with time zone
 );
 
 CREATE TRIGGER changelog_moddatetime
