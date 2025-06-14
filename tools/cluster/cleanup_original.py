@@ -44,7 +44,7 @@ if (not os.path.exists('/var/log/apt/history.log')) or ((now - os.path.getmtime(
     print("history.log is older than 24 hours")
     subprocess.check_output(['sudo', 'apt', 'update'])
 
-    apt_packages_upgrade = subprocess.check_output(['apt', 'list', '--upgradable'])
+    apt_packages_upgrade = subprocess.check_output(['apt', 'list', '--upgradable'], encoding='UTF-8')
 
     subprocess.check_output(['sudo', 'apt', 'full-upgrade', '-y'])
 
