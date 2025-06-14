@@ -118,6 +118,35 @@ def validate_temperature():
 
     return True
 
+def do_measurement_control():
+    config = GlobalConfig().config # pylint: disable=redefined-outer-name
+    cwl = config['cluster']['client']['control_workload']
+
+    set_status('measurement_control_start')
+    validate.run_workload(cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
+    set_status('measurement_control_end')
+
+    stddev_data = validate.get_workload_stddev(cwl['uri'], cwl['filename'], cwl['branch'], config['machine']['id'], cwl['comparison_window'], cwl['phase'], cwl['metrics'])
+    print('get_workload_stddev returned: ', stddev_data)
+
+    try:
+        message = validate.validate_workload_stddev(stddev_data, cwl['metrics'])
+        if client_main['send_control_workload_status_mail'] and config['admin']['notification_email']:
+            Job.insert(
+                'email',
+                user_id=0, # User 0 is the [GMT-SYSTEM] user
+                email=config['admin']['notification_email'],
+                name=f"{config['machine']['description']} is operating normally. All STDDEV fine.",
+                message='\n'.join(message)
+            )
+
+    except Exception as exception: # pylint: disable=broad-except
+        validate.handle_validate_exception(exception)
+        set_status('measurement_control_error')
+        # the process will now go to sleep for 'time_between_control_workload_validations''
+        # This is as long as the next validation is needed and thus it will loop
+        # endlessly in validation until manually handled, which is what we want.
+        time.sleep(client_main['time_between_control_workload_validations'])
 
 if __name__ == '__main__':
     try:
@@ -137,14 +166,13 @@ if __name__ == '__main__':
         config_main = GlobalConfig().config
 
         client_main = config_main['cluster']['client']
-        cwl = client_main['control_workload']
-        must_revalidated_bc_new_packages = False
+        must_revalidate_bc_new_packages = False
 
         while True:
 
             # run periodic cleanup in between every run
             if not args.testing:
-                must_revalidated_bc_new_packages = do_maintenance() # when new packages are installed, we must revalidate
+                must_revalidate_bc_new_packages = do_maintenance() # when new packages are installed, we must revalidate
 
             job = Job.get_job('run')
             if job and job.check_job_running():
@@ -159,35 +187,12 @@ if __name__ == '__main__':
                 else:
                     continue # retry all checks
 
-            if not args.testing and (must_revalidated_bc_new_packages or validate.is_validation_needed(config_main['machine']['id'], client_main['time_between_control_workload_validations'])):
-                set_status('measurement_control_start')
-                validate.run_workload(cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
-                set_status('measurement_control_end')
+            if not args.testing and (must_revalidate_bc_new_packages or validate.is_validation_needed(config_main['machine']['id'], client_main['time_between_control_workload_validations'])):
+                do_measurement_control()
+                must_revalidate_bc_new_packages = False # reset as measurement control has run. even if failed
+                continue # re-do temperature checks
 
-                stddev_data = validate.get_workload_stddev(cwl['uri'], cwl['filename'], cwl['branch'], config_main['machine']['id'], cwl['comparison_window'], cwl['phase'], cwl['metrics'])
-                print('get_workload_stddev returned: ', stddev_data)
-
-                try:
-                    message = validate.validate_workload_stddev(stddev_data, cwl['metrics'])
-                    if client_main['send_control_workload_status_mail'] and config_main['admin']['notification_email']:
-                        Job.insert(
-                            'email',
-                            user_id=0, # User 0 is the [GMT-SYSTEM] user
-                            email=config_main['admin']['notification_email'],
-                            name=f"{config_main['machine']['description']} is operating normally. All STDDEV fine.",
-                            message='\n'.join(message)
-                        )
-                    must_revalidated_bc_new_packages = False # reset after run
-                except Exception as exception: # pylint: disable=broad-except
-                    validate.handle_validate_exception(exception)
-                    set_status('measurement_control_error')
-                    # the process will now go to sleep for 'time_between_control_workload_validations''
-                    # This is as long as the next validation is needed and thus it will loop
-                    # endlessly in validation until manually handled, which is what we want.
-                    if not args.testing:
-                        time.sleep(client_main['time_between_control_workload_validations'])
-
-            elif job:
+            if job:
                 set_status('job_start', run_id=job._run_id)
                 try:
                     job.process(docker_prune=True)
