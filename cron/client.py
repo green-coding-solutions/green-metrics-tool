@@ -24,15 +24,14 @@ from lib.configuration_check_error import ConfigurationCheckError, Status
 STATUS_LIST = ['cooldown', 'warmup', 'job_no', 'job_start', 'job_error', 'job_end', 'maintenance_start', 'maintenance_end', 'measurement_control_start', 'measurement_control_end', 'measurement_control_error']
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def set_status(status_code, cur_temp, cooldown_time_after_job, data=None, run_id=None):
+def set_status(status_code, data=None, run_id=None):
     if not hasattr(set_status, "last_status"):
         set_status.last_status = status_code  # static variable
     elif set_status.last_status == status_code:
         return # no need to update status, if it has not changed since last time
     set_status.last_status = status_code
 
-    # pylint: disable=redefined-outer-name
-    config = GlobalConfig().config
+    config = GlobalConfig().config # pylint: disable=redefined-outer-name
     client = config['cluster']['client']
 
     if status_code not in STATUS_LIST:
@@ -48,14 +47,14 @@ def set_status(status_code, cur_temp, cooldown_time_after_job, data=None, run_id
 
     query = """
         UPDATE machines
-        SET status_code=%s, cooldown_time_after_job=%s, current_temperature=%s, base_temperature=%s, jobs_processing=%s, gmt_hash=%s, gmt_timestamp=%s, configuration=%s
+        SET status_code=%s, base_temperature=%s, jobs_processing=%s, gmt_hash=%s, gmt_timestamp=%s, configuration=%s
         WHERE id = %s
     """
 
     gmt_hash, gmt_timestamp = get_repo_info(CURRENT_DIR)
 
     params = (
-        status_code, cooldown_time_after_job, cur_temp,
+        status_code,
         config['machine']['base_temperature_value'], client['jobs_processing'],
         gmt_hash, gmt_timestamp,
         json.dumps({'measurement': config['measurement'], 'machine': config['machine'], 'cluster': config['cluster']}),
@@ -64,17 +63,61 @@ def set_status(status_code, cur_temp, cooldown_time_after_job, data=None, run_id
     )
     DB().query(query=query, params=params)
 
-def do_maintenance(cur_temp, cooldown_time_after_job):
-    set_status('maintenance_start', cur_temp, cooldown_time_after_job)
+def do_maintenance():
+    set_status('maintenance_start')
 
     result = subprocess.check_output(['sudo', os.path.join(os.path.dirname(os.path.abspath(__file__)),'../tools/cluster/cleanup.py')], encoding='UTF-8')
 
-    set_status('maintenance_end', cur_temp, cooldown_time_after_job, data=result)
+    set_status('maintenance_end', data=result)
 
     if '<<<< NO PACKAGES UPDATED - NO NEED TO RUN VALIDATION WORKLOAD >>>>' not in result:
         return True # must run validation workload again. New packages installed
 
     return None
+
+def validate_temperature():
+    if not hasattr(validate_temperature, "temperature_errors") or not hasattr(validate_temperature, "cooldown_time"):
+        validate_temperature.temperature_errors = 0  # initialize static variable
+        validate_temperature.cooldown_time = 0  # initialize static variable
+
+    current_temperature = get_temperature(
+        GlobalConfig().config['machine']['base_temperature_chip'],
+        GlobalConfig().config['machine']['base_temperature_feature']
+    )
+
+    DB().query('UPDATE machines SET current_temperature=%s WHERE id = %s', params=(current_temperature, ))
+
+    if current_temperature > config_main['machine']['base_temperature_value']:
+        if validate_temperature.temperature_errors >= 10:
+            raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {GlobalConfig().config['machine']['base_temperature_value']}. Pleae check logs ...")
+
+        print(f"Machine is still too hot: {current_temperature}°. Sleeping for 1 minute")
+        set_status('cooldown')
+        validate_temperature.cooldown_time += 60
+        validate_temperature.temperature_errors += 1
+        time.sleep(60)
+        return False
+
+    if current_temperature <= (config_main['machine']['base_temperature_value'] - 10):
+        if validate_temperature.temperature_errors >= 10:
+            raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {GlobalConfig().config['machine']['base_temperature_value']}. Pleae check logs ...")
+
+        print(f"Machine is too cool: {current_temperature}°. Warming up and retrying")
+        set_status('warmup')
+        validate_temperature.temperature_errors += 1
+        current_time = time.time()
+        while True: # spinlock
+            if time.time() > (current_time + 10):
+                break
+        return False
+
+    DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(validate_temperature.cooldown_time, ))
+
+    validate_temperature.temperature_errors = 0 # reset
+    validate_temperature.cooldown_time = 0 # reset
+
+    return True
+
 
 if __name__ == '__main__':
     try:
@@ -95,18 +138,13 @@ if __name__ == '__main__':
 
         client_main = config_main['cluster']['client']
         cwl = client_main['control_workload']
-        cooldown_time = 0
-        last_cooldown_time = 0
-        current_temperature = -1
-        temperature_errors = 0
         must_revalidated_bc_new_packages = False
-        last_cleanup = 0
 
         while True:
 
             # run periodic cleanup in between every run
             if not args.testing:
-                must_revalidated_bc_new_packages = do_maintenance(current_temperature, last_cooldown_time) # when new packages are installed, we must revalidate
+                must_revalidated_bc_new_packages = do_maintenance() # when new packages are installed, we must revalidate
 
             job = Job.get_job('run')
             if job and job.check_job_running():
@@ -116,51 +154,15 @@ if __name__ == '__main__':
                 continue
 
             if not args.testing:
-
-                if last_cleanup < (time.time() - 43200): # every 12 hours
-                    do_maintenance(current_temperature, last_cooldown_time)
-                    last_cleanup = time.time()
-
-                current_temperature = get_temperature(
-                    GlobalConfig().config['machine']['base_temperature_chip'],
-                    GlobalConfig().config['machine']['base_temperature_feature']
-                )
-
-                if current_temperature > config_main['machine']['base_temperature_value']:
-                    if temperature_errors >= 10:
-                        raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {GlobalConfig().config['machine']['base_temperature_value']}. Pleae check logs ...")
-
-                    print(f"Machine is still too hot: {current_temperature}°. Sleeping for 1 minute")
-                    set_status('cooldown', current_temperature, last_cooldown_time)
-                    cooldown_time += 60
-                    temperature_errors += 1
-                    if not args.testing:
-                        time.sleep(60)
+                if not validate_temperature():
                     continue
 
-                if current_temperature <= (config_main['machine']['base_temperature_value'] - 10):
-                    if temperature_errors >= 10:
-                        raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {GlobalConfig().config['machine']['base_temperature_value']}. Pleae check logs ...")
-
-                    print(f"Machine is too cool: {current_temperature}°. Warming up and retrying")
-                    set_status('warmup', current_temperature, last_cooldown_time)
-                    temperature_errors += 1
-                    current_time = time.time()
-                    while True: # spinlock
-                        if time.time() > (current_time + 10):
-                            break
-                    continue # still retry loop and make all checks again
-
                 print('Machine is temperature is good. Continuing ...')
-                last_cooldown_time = cooldown_time
-                cooldown_time = 0
-                temperature_errors = 0
-
 
             if not args.testing and (must_revalidated_bc_new_packages or validate.is_validation_needed(config_main['machine']['id'], client_main['time_between_control_workload_validations'])):
-                set_status('measurement_control_start', current_temperature, last_cooldown_time)
+                set_status('measurement_control_start')
                 validate.run_workload(cwl['name'], cwl['uri'], cwl['filename'], cwl['branch'])
-                set_status('measurement_control_end', current_temperature, last_cooldown_time)
+                set_status('measurement_control_end')
 
                 stddev_data = validate.get_workload_stddev(cwl['uri'], cwl['filename'], cwl['branch'], config_main['machine']['id'], cwl['comparison_window'], cwl['phase'], cwl['metrics'])
                 print('get_workload_stddev returned: ', stddev_data)
@@ -178,7 +180,7 @@ if __name__ == '__main__':
                     must_revalidated_bc_new_packages = False # reset after run
                 except Exception as exception: # pylint: disable=broad-except
                     validate.handle_validate_exception(exception)
-                    set_status('measurement_control_error', current_temperature, last_cooldown_time)
+                    set_status('measurement_control_error')
                     # the process will now go to sleep for 'time_between_control_workload_validations''
                     # This is as long as the next validation is needed and thus it will loop
                     # endlessly in validation until manually handled, which is what we want.
@@ -186,12 +188,12 @@ if __name__ == '__main__':
                         time.sleep(client_main['time_between_control_workload_validations'])
 
             elif job:
-                set_status('job_start', current_temperature, last_cooldown_time, run_id=job._run_id)
+                set_status('job_start', run_id=job._run_id)
                 try:
                     job.process(docker_prune=True)
-                    set_status('job_end', current_temperature, last_cooldown_time, run_id=job._run_id)
+                    set_status('job_end', run_id=job._run_id)
                 except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
-                    set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
+                    set_status('job_error', data=str(exc), run_id=job._run_id)
                     if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
                         error_helpers.log_error('Job processing in cluster failed (client.py)', exception_context=exc.__context__, last_exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config_main['machine']['description'], sleep_duration=600)
                         if not args.testing:
@@ -202,7 +204,7 @@ if __name__ == '__main__':
                             time.sleep(client_main['time_between_control_workload_validations'])
 
                 except Exception as exc: # pylint: disable=broad-except
-                    set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
+                    set_status('job_error', data=str(exc), run_id=job._run_id)
                     error_helpers.log_error('Job processing in cluster failed (client.py)',
                         exception_context=exc.__context__,
                         last_exception=exc,
@@ -225,7 +227,7 @@ if __name__ == '__main__':
                         )
 
             else:
-                set_status('job_no', current_temperature, last_cooldown_time)
+                set_status('job_no')
                 if client_main['shutdown_on_job_no']:
                     subprocess.check_output(['sync'])
                     time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
