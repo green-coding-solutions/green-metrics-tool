@@ -12,7 +12,7 @@ import subprocess
 
 # always
 commands = [
-    ['usr/libexec/dpkg/dpkg-db-backup'],
+    ['/usr/libexec/dpkg/dpkg-db-backup'],
     ['/sbin/e2scrub_all'],
     ['/sbin/fstrim', '--listed-in', '/etc/fstab:/proc/self/mountinfo', '--verbose', '--quiet-unsupported'],
     ['systemd-tmpfiles', '--clean'],
