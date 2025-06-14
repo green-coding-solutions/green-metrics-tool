@@ -17,7 +17,7 @@ subprocess.check_output(['sudo', '/sbin/e2scrub_all'])
 
 subprocess.check_output(['sudo', '/sbin/fstrim', '--listed-in', '/etc/fstab:/proc/self/mountinfo', '--verbose', '--quiet-unsupported'])
 
-subprocess.check_output(['sudo', '/systemd-tmpfiles', '--clean'])
+subprocess.check_output(['sudo', 'systemd-tmpfiles', '--clean'])
 
 subprocess.check_output(['sudo', '/usr/sbin/logrotate', '/etc/logrotate.conf'])
 
