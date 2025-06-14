@@ -29,12 +29,15 @@ subprocess.check_output(['sudo', 'journalctl', '--flush'])
 subprocess.check_output(['sudo', 'timedatectl', 'set-ntp', 'true']) # this will trigger immediate update
 ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8')
 if 'System clock synchronized: yes' not in ntp_status or 'NTP service: active' not in ntp_status:
-    raise RuntimeError('System clock could not be synchronized', ntp_status=ntp_status)
+    raise RuntimeError('System clock could not be synchronized', ntp_status)
 
 result = subprocess.check_output(['sudo', 'timedatectl', 'set-ntp', 'false']) # we want NTP always off in clusters
 ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8')
-if 'System clock synchronized: no' not in ntp_status or 'NTP service: inactive' not in ntp_status:
-    raise RuntimeError('System clock synchronization could not be turned off', ntp_status=ntp_status)
+if 'System clock synchronized: yes' not in ntp_status:
+    raise RuntimeError('System clock synchronization could not be synchronized', ntp_status)
+
+if 'NTP service: inactive' not in ntp_status:
+    raise RuntimeError('System clock synchronization could not be turned off', ntp_status)
 
 ## Do APT last, as we want to insert the Changelog
 apt_packages_upgrade = None
