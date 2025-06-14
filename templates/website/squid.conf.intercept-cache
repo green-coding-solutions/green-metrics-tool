@@ -1,0 +1,69 @@
+# Inspiration for the config docker build and config file from: https://github.com/salrashid123/squid_proxy
+
+# always_direct handles if caching should be bypassed
+# We want to deny that whenever possible
+always_direct deny all
+
+# define some access control lists. From original repo. Most are not needed
+acl localhost src 127.0.0.1/32
+acl to_localhost dst 127.0.0.0/8
+acl localnet src 10.0.0.0/8    # RFC1918 possible internal network
+acl localnet src 172.16.0.0/12    # RFC1918 possible internal network
+acl localnet src 192.168.0.0/16    # RFC1918 possible internal network
+acl SSL_ports port 443
+acl Safe_ports port 80        # http
+acl Safe_ports port 21        # ftp
+acl Safe_ports port 443        # https
+acl Safe_ports port 70        # gopher
+acl Safe_ports port 210        # wais
+acl Safe_ports port 1025-65535    # unregistered ports
+acl Safe_ports port 280        # http-mgmt
+acl Safe_ports port 488        # gss-http
+acl Safe_ports port 591        # filemaker
+acl Safe_ports port 777        # multiling http
+acl CONNECT method CONNECT
+
+# allow access to HTTP endpoint of squid
+http_access allow all
+# allow management of squid via HTTP only from localhost
+http_access allow manager localhost
+# deny management of squid via HTTP from everywhere else
+http_access deny manager
+
+# HTCP handles communication between squid proxies if multiple exist. we disable
+htcp_access deny all
+
+# does not really matter. Is only put in X-Cache header
+visible_hostname squid.yourdomain.com
+
+# This makes squid listen on port 3128 and if SSL is requested it enables bumping and own certifcate generation
+http_port 3128 ssl-bump generate-host-certificates=on cert=/apps/tls-ca.crt key=/apps/tls-ca.key
+
+# Allow ssl buming always for all hosts and IPs
+ssl_bump allow all
+
+# enable SSL cert generation
+sslproxy_cert_error deny all
+sslcrtd_program /usr/lib/squid/security_file_certgen -s /apps/squid/var/lib/ssl_db -M 4MB sslcrtd_children 8 startup=1 idle=1
+
+# ICAP is another cache federation protocol. Not needed in our case
+icap_enable          off
+icap_preview_enable  off
+icap_preview_size    128
+icap_send_client_ip  off
+
+# ICP is another inter-cache communication thing. we disable
+# icp_port 3130
+
+
+access_log /apps/squid/var/logs/access.log squid
+
+debug_options ALL,1
+
+cache_mem 10 MB
+cache_dir ufs /apps/squid/var/cache/squid 100 16 256
+
+# This patterns means that we cache everything forever
+refresh_pattern . 1000000 100% 1000000
+
+coredump_dir /apps/squid/var/cache

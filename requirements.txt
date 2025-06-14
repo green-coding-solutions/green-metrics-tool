@@ -1,11 +1,11 @@
 PyYAML==6.0.2
-pandas==2.2.3
-psycopg[binary]==3.2.6
+pandas==2.3.0
+psycopg[binary]==3.2.9
 psycopg_pool==3.2.6
 pyserial==3.5
 psutil==7.0.0
 schema==0.7.7
-aiohttp==3.11.14
+aiohttp==3.12.12
 
 # calibration script dep
 tqdm==4.67.1

@@ -97,8 +97,8 @@ const buildQueryParams = (skip_dates=false,metric_override=null,detail_name=null
     if($('select[name="machine_id"]').val() !== '') api_url = `${api_url}&machine_id=${$('select[name="machine_id"]').val()}`
     if($('input[name="filename"]').val() !== '') api_url = `${api_url}&filename=${$('input[name="filename"]').val()}`
 
-    if(metric_override != null) api_url = `${api_url}&metrics=${metric_override}`
-    else if($('input[name="metrics"]:checked').val() !== '') api_url = `${api_url}&metrics=${$('input[name="metrics"]:checked').val()}`
+    if(metric_override != null) api_url = `${api_url}&metric=${metric_override}`
+    else if($('input[name="metrics"]:checked').val() !== '') api_url = `${api_url}&metric=${$('input[name="metrics"]:checked').val()}`
 
     if(detail_name != null) api_url = `${api_url}&detail_name=${detail_name}`
 

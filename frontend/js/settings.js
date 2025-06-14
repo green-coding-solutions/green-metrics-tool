@@ -2,10 +2,13 @@ const updateSetting = async (el) => {
     const left_el = el.parentElement.previousElementSibling.querySelector('input, select');
     const name = left_el.getAttribute('data-setting');
     try {
-        if (left_el.tagName.toLowerCase() === 'select') {
+        if (left_el.type == 'select-multiple') {
             const value = $(left_el).dropdown('get values');
             await makeAPICall('/v1/user/setting', {name: name, value: value}, null, true)
             showNotification('Save success!', `${name} = ${value}`)
+        } else if (left_el.type == 'checkbox') {
+            await makeAPICall('/v1/user/setting', {name: name, value: left_el.checked}, null, true)
+            showNotification('Save success!', `${name} = ${left_el.checked}`)
         } else {
             await makeAPICall('/v1/user/setting', {name: name, value: left_el.value}, null, true)
             showNotification('Save success!', `${name} = ${left_el.value}`)
@@ -20,8 +23,11 @@ const getSettings = async () => {
     try {
         const data = await makeAPICall('/v1/user/settings');
 
-        document.querySelector('#measurement-flow-process-duration').value = data?.data?._capabilities?.measurement?.flow_process_duration
-        document.querySelector('#measurement-total-duration').value = data?.data?._capabilities?.measurement?.total_duration
+        if (data?.data?._capabilities?.measurement?.dev_no_optimizations === true) document.querySelector('#measurement-dev-no-optimizations').checked = true;
+        if (data?.data?._capabilities?.measurement?.dev_no_sleeps === true) document.querySelector('#measurement-dev-no-sleeps').checked = true;
+        if (data?.data?._capabilities?.measurement?.phase_padding === true) document.querySelector('#measurement-phase-padding').checked = true;
+        document.querySelector('#measurement-flow-process-duration').value = data?.data?._capabilities?.measurement?.flow_process_duration;
+        document.querySelector('#measurement-total-duration').value = data?.data?._capabilities?.measurement?.total_duration;
         $('#measurement-disabled-metric-providers').dropdown('set exactly', data?.data?._capabilities?.measurement?.disabled_metric_providers);
     } catch (err) {
         showNotification('Could not load settings', err);

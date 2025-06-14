@@ -1,7 +1,15 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
-from typing import Optional
+from typing import Optional, Dict, Literal
 
 from fastapi.exceptions import RequestValidationError
+
+### Jobs
+
+class JobChange(BaseModel):
+    job_id: int
+    action: Literal['cancel']
+
+    model_config = ConfigDict(extra='forbid')
 
 ### Software Add
 
@@ -14,6 +22,7 @@ class Software(BaseModel):
     branch: str
     machine_id: int
     schedule_mode: str
+    usage_scenario_variables: Optional[Dict[str, str]] = None
 
     model_config = ConfigDict(extra='forbid')
 
@@ -21,7 +30,7 @@ class Software(BaseModel):
 
 class UserSetting(BaseModel):
     name: str
-    value: str | list
+    value: str | list | bool
 
     model_config = ConfigDict(extra='forbid')
 

@@ -9,7 +9,7 @@ GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 from lib.db import DB
 from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
-from runner import Runner
+from lib.scenario_runner import ScenarioRunner
 
 #pylint: disable=unused-argument # unused arguement off for now - because there are no running tests in this file
 @pytest.fixture(name="reset_config")
@@ -27,7 +27,7 @@ def test_global_timeout():
 
     measurement_total_duration = 1
 
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, measurement_total_duration=1)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_cache_build=False, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True, measurement_total_duration=1)
 
     out = io.StringIO()
     err = io.StringIO()
@@ -53,7 +53,7 @@ def test_provider_disabling_not_active_by_default():
     out = io.StringIO()
     err = io.StringIO()
 
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=True)
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
@@ -67,7 +67,7 @@ def test_provider_disabling_working():
     out = io.StringIO()
     err = io.StringIO()
 
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=True, disabled_metric_providers=['NetworkConnectionsProxyContainerProvider'])
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/stress-application/usage_scenario.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, dev_no_phase_stats=True, disabled_metric_providers=['NetworkConnectionsProxyContainerProvider'])
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
@@ -76,10 +76,73 @@ def test_provider_disabling_working():
     assert 'Not importing NetworkConnectionsProxyContainerProvider as disabled per user settings' in out.getvalue()
 
 
+def test_phase_padding_inactive():
+    out = io.StringIO()
+    err = io.StringIO()
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/noop.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, phase_padding=False)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        run_id = runner.run()
+
+    assert '>>>> MEASUREMENT SUCCESSFULLY COMPLETED <<<<' in out.getvalue()
+    query = """
+            SELECT
+                time, note
+            FROM
+                notes
+            WHERE
+                run_id = %s
+            ORDER BY
+                time
+            """
+
+    notes = DB().fetch_all(query, (run_id,))
+
+    # we count the array from the end as depending on if the test is executed alone or in conjunction with other tests 'alpine' will get pulled and produce a note at the beginning that extends the notes
+    assert notes[-6][1] == 'Starting phase Testing Noop'
+    assert notes[-5][1] == 'Ending phase Testing Noop [UNPADDED]'
+    assert notes[-4][1] == 'Ending phase [RUNTIME] [UNPADDED]' # this implictely means we have no PADDED entries
+    assert notes[-4][0] > notes[-3][0] - 300 # end times of reconstructed runtime and last sub-runtime are very close, but not exact, bc we only reconstruct phase_stats but not measurements table. 300 microseconds is a good cutoff
+
+def test_phase_padding_active():
+    out = io.StringIO()
+    err = io.StringIO()
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/noop.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True, phase_padding=True)
+
+    with redirect_stdout(out), redirect_stderr(err):
+        run_id = runner.run()
+
+    assert '>>>> MEASUREMENT SUCCESSFULLY COMPLETED <<<<' in out.getvalue()
+    query = """
+            SELECT
+                time, note
+            FROM
+                notes
+            WHERE
+                run_id = %s
+            ORDER BY
+                time
+            """
+
+    notes = DB().fetch_all(query, (run_id,))
+
+    # we count the array from the end as depending on if the test is executed alone or in conjunction with other tests 'alpine' will get pulled and produce a note at the beginning that extends the notes
+    assert notes[-9][1] == 'Starting phase Testing Noop'
+    assert notes[-8][1] == 'Ending phase Testing Noop [UNPADDED]'
+    assert notes[-7][1] == 'Ending phase Testing Noop [PADDED]'
+    FROM_MS_TO_US = 1000
+    assert notes[-7][0] - notes[-8][0] == runner._phase_padding_ms*FROM_MS_TO_US
+
+    assert notes[-6][1] == 'Ending phase [RUNTIME] [UNPADDED]'
+
+
+
 # Rethink how to do this test entirely
 def wip_test_idle_start_time(reset_config):
     GlobalConfig().config['measurement']['idle-time-start'] = 2
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
     run_id = runner.run()
     query = """
             SELECT
@@ -105,7 +168,7 @@ def wip_test_idle_start_time(reset_config):
 # Rethink how to do this test entirely
 def wip_test_idle_end_time(reset_config):
     GlobalConfig().config['measurement']['idle-time-end'] = 2
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
     run_id = runner.run()
     query = """
             SELECT
@@ -129,7 +192,7 @@ def wip_test_idle_end_time(reset_config):
 
 def wip_test_process_runtime_exceeded(reset_config):
     GlobalConfig().config['measurement']['flow-process-runtime'] = .1
-    runner = Runner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
     with pytest.raises(RuntimeError) as err:
         runner.run()
     expected_exception = 'Process exceeded runtime of 0.1s: stress-ng -c 1 -t 1 -q'

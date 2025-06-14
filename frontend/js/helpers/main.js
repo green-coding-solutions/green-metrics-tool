@@ -1,3 +1,17 @@
+const GMT_MACHINES = JSON.parse(localStorage.getItem('gmt_machines')) || {}; // global variable. dynamically resolved via resolveMachinesToGlobalVariable
+
+// tricky to make this async as some other functions will depend on the value of the variable
+// but if it is not set yet it will populate in a later call
+const resolveMachinesToGlobalVariable = async () => {
+    if (Object.keys(GMT_MACHINES).length === 0) {
+        const api_data = await makeAPICall('/v1/machines')
+        api_data.data.forEach(el => {
+            GMT_MACHINES[el[0]] = el[1];
+        })
+    }
+    localStorage.setItem('gmt_machines', JSON.stringify(GMT_MACHINES));
+}
+
 /*
     WebComponent function without ShadowDOM
     to expand the menu in the HTML pages
@@ -191,7 +205,7 @@ const copyToClipboard = (e) => {
     navigator.clipboard.writeText(e.currentTarget.previousElementSibling.innerHTML)
     return false
 
-  alert('Copying badge on local is not working due to browser security models')
+  alert('Copying to clipboard on local is not working due to browser security models')
   return Promise.reject('The Clipboard API is not available.');
 };
 
@@ -335,7 +349,7 @@ if (localStorage.getItem('closed_descriptions') == null) {
     localStorage.setItem('closed_descriptions', '');
 }
 
-$(window).on('load', function() {
+$(document).ready(() => {
     $("body").removeClass("preload"); // activate tranisition CSS properties again
     const closed_descriptions = localStorage.getItem('closed_descriptions');
     $('.close').on('click', function() {
@@ -346,5 +360,6 @@ $(window).on('load', function() {
         document.querySelectorAll('i.close.icon').forEach(el => { el.closest('.ui').remove()}
         )
     }
+    resolveMachinesToGlobalVariable();
 });
 

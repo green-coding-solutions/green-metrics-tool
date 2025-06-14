@@ -5,7 +5,7 @@ class CgroupMetricProvider(BaseMetricProvider):
     def __init__(self, *,
             metric_name,
             metrics,
-            resolution,
+            sampling_rate,
             unit,
             current_dir,
             skip_check,
@@ -14,7 +14,7 @@ class CgroupMetricProvider(BaseMetricProvider):
         super().__init__(
             metric_name=metric_name,
             metrics=metrics,
-            resolution=resolution,
+            sampling_rate=sampling_rate,
             unit=unit,
             current_dir=current_dir,
             skip_check=skip_check

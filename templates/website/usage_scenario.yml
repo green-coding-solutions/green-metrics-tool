@@ -1,0 +1,61 @@
+---
+name: "Website Test (__GMT_VAR_PAGE__)"
+author: Arne Tarara <arne@green-coding.io>
+description: "Opens __GMT_VAR_PAGE__, waits for full load"
+
+sci:
+  R_d: Website load
+
+compose-file: !include compose.yml
+
+services:
+  gcb-playwright:
+    setup-commands:
+      - command: mkfifo /tmp/my_fifo
+      - command: python3 /tmp/repo/templates/website/visit.py --browser chromium
+        detach: true
+      - command: until [ -f "/tmp/browser_ready" ]; do sleep 1; done && echo "Browser ready!"
+        shell: bash
+      - command: echo '__GMT_VAR_PAGE__' > /tmp/my_fifo # warmup
+        shell: bash
+      - command: sleep '__GMT_VAR_SLEEP__' # we need same sleep as later as some resources might only be fetched from the website after staying on the page for a while
+
+flow:
+  - name: Dump Log (Warmup)
+    container: squid
+    commands:
+      - type: console
+        command: cat /apps/squid/var/logs/access.log
+        log-stdout: true
+        log-stderr: true
+      - type: console
+        command: grep 'TCP_MISS/' /apps/squid/var/logs/access.log #validate that TCP_MISSes present
+      - type: console
+        command: echo > /apps/squid/var/logs/access.log
+        shell: bash
+        log-stdout: true
+        log-stderr: true
+  - name: Load and idle
+    container: gcb-playwright
+    commands:
+      - type: console
+        shell: bash
+        command: "echo '__GMT_VAR_PAGE__' > /tmp/my_fifo && sleep __GMT_VAR_SLEEP__"
+        read-notes-stdout: true
+        log-stdout: true
+        log-stderr: true
+
+  - name: Dump Log (Load and idle)
+    container: squid
+    commands:
+      - type: console
+        command: cat /apps/squid/var/logs/access.log
+        read-notes-stdout: true
+        log-stdout: true
+        log-stderr: true
+      - type: console
+        command: grep 'TCP_MEM_HIT/' /apps/squid/var/logs/access.log #validate that TCP_MEM_HITs present
+        # This is sadly too strict. Pages fingerprint you all the time and a new request might get a new fingerprint that will not be cached
+        # But if you have a page that does not fingerprint we recommend having this uncommented, as it will warn you if resources bypass the cache pre-loading
+#      - type: console
+#        command: awk '/TCP_MISS\// { found=1 } END { exit found }' /apps/squid/var/logs/access.log # ensure no TCP_MISSes present

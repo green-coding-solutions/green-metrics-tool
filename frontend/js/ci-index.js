@@ -94,7 +94,7 @@ const getCIRunsTable = async (el, url, include_uri=true, include_button=true, se
         },
         {
             title: 'Carbon', render: function(el,type,row) {
-                return `<img src="${API_URL}/v1/ci/badge/get?repo=${row[0]}&branch=${row[1]}&workflow=${row[2]}&mode=totals&metric=carbon&duration_days=30">`;
+                return `<img src="${API_URL}/v1/ci/badge/get?repo=${row[0]}&branch=${row[1]}&workflow=${row[2]}&mode=totals&metric=carbon&duration_days=30" onerror="this.src='/images/no-data-badge.webp'">`;
             }
         },
 

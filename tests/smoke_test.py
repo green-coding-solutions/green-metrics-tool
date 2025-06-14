@@ -2,6 +2,7 @@ import io
 import os
 import subprocess
 import re
+import platform
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -12,7 +13,7 @@ from lib.db import DB
 from lib import utils
 from lib.global_config import GlobalConfig
 from tests import test_functions as Tests
-from runner import Runner
+from lib.scenario_runner import ScenarioRunner
 
 run_stderr = None
 run_stdout = None
@@ -37,7 +38,7 @@ def setup_module(module):
         subprocess.run(['docker', 'compose', '-f', GMT_DIR+folder+'compose.yml', 'build'], check=True)
 
         # Run the application
-        runner = Runner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=False, skip_system_checks=False)
+        runner = ScenarioRunner(name=RUN_NAME, uri=GMT_DIR, filename=folder+filename, uri_type='folder', dev_cache_build=False, dev_no_sleeps=False, dev_no_metrics=False, skip_system_checks=False)
         runner.run()
 
     #pylint: disable=global-statement
@@ -128,3 +129,17 @@ def test_db_rows_are_written_and_presented():
 
     if not 'PowermetricsProvider' in metric_providers:
         assert len(metric_providers) == 0
+
+def test_run_is_not_invalidated():
+    if platform.system() == 'Darwin':
+        return
+
+    run_id = utils.get_run_data(RUN_NAME)['id']
+    query = """
+            SELECT id, invalid_run
+            FROM runs
+            WHERE id = %s
+            """
+    data = DB().fetch_one(query, (run_id,))
+    assert data[0] == run_id
+    assert data[1] is None

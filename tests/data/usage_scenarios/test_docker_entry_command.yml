@@ -1,0 +1,99 @@
+
+services:
+
+### This discusses how the entrypoint and command work together
+
+  # Short ENTRYPOINT + Short COMMAND
+  short-entrypoint-short-command:
+    image: alpine
+    entrypoint: echo "A $0"
+    command: echo "B $0"
+  # -> This executes echo and then "A $0" 'echo' "B $0"
+
+  short-entrypoint-short-command-env:
+    image: alpine
+    entrypoint: env
+    command: env
+  # -> This executes env with the parameter env
+
+  short-entrypoint-short-command-env-with-param:
+    image: alpine
+    entrypoint: env
+    command: -h
+  # -> As proven here
+
+# Now we want to check if long forms make a difference
+
+  # Short ENTRYPOINT + Long COMMAND
+  short-entrypoint-long-command:
+    image: alpine
+    entrypoint: echo "A $0"
+    command:
+      - echo
+      - "B $0"
+  # -> This is the same output as the short form
+
+  # Long ENTRYPOINT + Short COMMAND
+  long-entrypoint-short-command:
+    image: alpine
+    entrypoint:
+      - echo
+      - "A $0"
+    command: echo "B $0"
+  # -> same here
+
+  # Long ENTRYPOINT + Long COMMAND
+  long-entrypoint-long-command:
+    image: alpine
+    entrypoint:
+      - echo
+      - "A $0"
+    command:
+      - echo
+      - "B $0"
+  # -> This again executes echo and puts the rest as commands output is  'A $0 echo B $0'
+
+  # Now we want to see how env looks like in a shell
+  no-entrypoint-short-command:
+    image: alpine
+    command: ash -c 'env'
+
+  no-entrypoint-short-command2:
+    image: alpine
+    command: env
+  # -> We can see that the ash shell (default in alpine) adds some vars
+
+
+  # No ENTRYPOINT + Long COMMAND
+  no-entrypoint-long-command:
+    image: alpine
+    command:
+      - echo
+      - $0
+  # -> This also doesn't create a shell. It calls shell with '$0'
+
+  # No ENTRYPOINT + Long COMMAND
+  no-entrypoint-long-command-escaped:
+    image: alpine
+    command:
+      - echo
+      - $$0
+  # -> Maybe there is some escaping going on. No the output is the same
+
+  # Short ENTRYPOINT + No COMMAND Just checking
+  short-entrypoint-no-command:
+    image: alpine
+    entrypoint: echo $0
+
+  # 8) Long ENTRYPOINT + No COMMAND
+  long-entrypoint-no-command:
+    image: alpine
+    entrypoint:
+      - echo
+      - "A $0"
+
+  # Finally maybe you need to create a string
+  no-entrypoint-short-command-string:
+    image: alpine
+    command: 'echo $0'
+  # -> This is split (output is $0). So echo is executed and $0 is the param

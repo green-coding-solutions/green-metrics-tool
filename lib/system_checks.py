@@ -57,6 +57,16 @@ def check_ntp():
 
     return True
 
+def check_largest_sampling_rate():
+    metric_providers = utils.get_metric_providers(GlobalConfig().config)
+    if not metric_providers: # no provider provider configured passes this check
+        return True
+
+    return max(
+        metric_providers.values(),
+        key=lambda x: x.get('sampling_rate', 0) if x else 0
+    ).get('sampling_rate', 0) <= 1000
+
 def check_cpu_utilization():
     return psutil.cpu_percent(0.1) < 5.0
 
@@ -105,6 +115,7 @@ start_checks = [
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
     (check_ntp, Status.WARN, 'ntp', 'You have NTP time syncing active. This can create noise in runs and should be deactivated.'),
     (check_cpu_utilization, Status.WARN, '< 5% CPU utilization', 'Your system seems to be busy. Utilization is above 5%. Consider terminating some processes for a more stable measurement.'),
+    (check_largest_sampling_rate, Status.WARN, 'high sampling rate', 'You have chosen at least one provider with a sampling rate > 1000 ms. That is not recommended and might lead also to longer benchmarking times due to internal extra sleeps to adjust measurement frames.'),
     (check_free_disk, Status.ERROR, '1 GiB free hdd space', 'We recommend to free up some disk space (< 1GiB available)'),
     (check_free_memory, Status.ERROR, '1 GiB free memory', 'No free memory! Please kill some programs (< 1GiB available)'),
     (check_docker_daemon, Status.ERROR, 'docker daemon', 'The docker daemon could not be reached. Are you running in rootless mode or have added yourself to the docker group? See installation: [See https://docs.green-coding.io/docs/installation/]'),

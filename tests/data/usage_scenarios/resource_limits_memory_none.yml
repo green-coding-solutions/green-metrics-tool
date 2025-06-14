@@ -1,0 +1,23 @@
+---
+name: Test Stress
+author: Dan Mateas
+description: test
+
+services:
+
+  test-container-memory-int:
+    type: container
+    image: alpine
+    deploy:
+      resources:
+        limits:
+          memory: null
+
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1 -q
+        note: Starting Stress

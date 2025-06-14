@@ -1,6 +1,5 @@
 name: Cat Subdir
 author: Arne Tarara <arne@green-coding.io>
-version: 1
 description: Cat Subdir
 
 services:

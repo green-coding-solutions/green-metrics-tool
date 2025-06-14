@@ -3,11 +3,11 @@ import os
 from metric_providers.base import BaseMetricProvider
 
 class CpuFrequencySysfsCoreProvider(BaseMetricProvider):
-    def __init__(self, resolution, skip_check=False):
+    def __init__(self, sampling_rate, skip_check=False):
         super().__init__(
             metric_name='cpu_frequency_sysfs_core',
             metrics={'time': int, 'value': int, 'core_id': int},
-            resolution=resolution,
+            sampling_rate=sampling_rate,
             unit='Hz',
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             metric_provider_executable='get-scaling-cur-freq.sh',

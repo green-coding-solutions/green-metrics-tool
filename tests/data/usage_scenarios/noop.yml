@@ -1,0 +1,16 @@
+---
+name: Testing Noop
+author: Arne Tarara
+description: Testing Noop
+
+services:
+  test-container:
+    type: container
+    image: alpine
+
+flow:
+  - name: Testing Noop
+    container: test-container
+    commands:
+      - type: console
+        command: echo 1

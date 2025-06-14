@@ -1,0 +1,112 @@
+---
+name: Test Stress
+author: Dan Mateas
+description: test
+
+services:
+  test-container-only-cpu:
+    type: container
+    image: alpine
+    deploy:
+      resources:
+        limits:
+          cpus: "1.2"
+
+  test-container-only-memory:
+    type: container
+    image: alpine
+    deploy:
+      resources:
+        limits:
+          memory: "100MB"
+
+  test-container-both:
+    type: container
+    image: alpine
+    deploy:
+      resources:
+        limits:
+          cpus: "1.2"
+          memory: "10M"
+
+  test-container-cpu-float:
+    type: container
+    image: alpine
+    deploy:
+      resources:
+        limits:
+          cpus: 1.2
+          memory: "10M"
+
+  test-container-cpu-int:
+    type: container
+    image: alpine
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: "10M"
+
+  test-container-memory-int:
+    type: container
+    image: alpine
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: 11000000
+
+
+  test-container-memory-float:
+    type: container
+    image: alpine
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: 10000001.23
+
+  test-container-limits-partial:
+    type: container
+    image: alpine
+    deploy: # allowed to be None
+
+  test-container-cpu-and-memory-in-both:
+    type: container
+    image: alpine
+    deploy:
+      resources:
+        limits:
+          cpus: 1
+          memory: "10M"
+    cpus: 1
+    mem_limit: "10M"
+
+  test-container-limit-only-service-level:
+    type: container
+    image: alpine
+    cpus: 1
+    mem_limit: "10M"
+
+
+  test-container-limit-only-service-level-memory-int:
+    type: container
+    image: alpine
+    cpus: 1
+    mem_limit: 11000000
+
+  test-container-limit-only-service-level-memory-float:
+    type: container
+    image: alpine
+    cpus: 1
+    mem_limit: 10000001.23
+
+
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1 -q
+        note: Starting Stress

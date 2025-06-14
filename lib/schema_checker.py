@@ -2,16 +2,7 @@ import os
 import string
 import re
 from schema import Schema, SchemaError, Optional, Or, Use, And, Regex
-#
-# networks documentation is different than what i see in the wild!
-    # name: str
-    # also isn't networks optional?
-    # fix documentation - name not needed, also netowrks optional
-    # add check in runner.py networks parsing, make sure its valid_string
-    # is services/type optional?
-
-# services /type missing from documentation?
-
+from datetime import datetime
 
 # https://github.com/compose-spec/compose-spec/blob/master/spec.md
 
@@ -74,6 +65,7 @@ class SchemaChecker():
             raise SchemaError(f"{value} is not 'container'")
         return value
 
+
     def validate_networks_no_invalid_chars(self, value):
         if isinstance(value, list):
             for item in value:
@@ -96,19 +88,41 @@ class SchemaChecker():
             "name": str,
             "author": And(str, Use(self.not_empty)),
             "description": And(str, Use(self.not_empty)),
+            Optional("ignore-unsupported-compose"): bool,
+            Optional("version"): Or(str, int, float, datetime), # is part of compose. we ignore it as it is non functionaly anyway
+            Optional("architecture"): And(str, Use(self.not_empty)),
+            Optional("sci"): {
+                'R_d': And(str, Use(self.not_empty)),
+            },
 
             Optional("networks"): Or(list, dict),
+            Optional("volumes"): Or(list, dict), # volumes in the root level are fine. They have no implication alone and will be checked in the service then if listed
 
             Optional("services"): {
+
                 Use(self.contains_no_invalid_chars): {
+                    Optional("restart"): str, # is part of compose. we ignore it as GMT has own orchestration
+                    Optional("expose"): [str, int], # is part of compose. we ignore it as it is non functionaly anyway
+                    Optional("init"): bool,
                     Optional("type"): Use(self.valid_service_types),
                     Optional("image"): And(str, Use(self.not_empty)),
                     Optional("build"): Or(Or({And(str, Use(self.not_empty)):And(str, Use(self.not_empty))},list),And(str, Use(self.not_empty))),
                     Optional("networks"): self.single_or_list(Use(self.contains_no_invalid_chars)),
                     Optional("environment"): self.single_or_list(Or(dict,And(str, Use(self.not_empty)))),
                     Optional("ports"): self.single_or_list(Or(And(str, Use(self.not_empty)), int)),
-                    Optional("depends_on"): Or([And(str, Use(self.not_empty))],dict),
+                    Optional('depends_on'): Or([And(str, Use(self.not_empty))],dict),
+                    Optional('deploy'):Or({
+                        Optional('resources'): {
+                            Optional('limits'): {
+                                Optional('cpus'): Or(And(str, Use(self.not_empty)), float, int),
+                                Optional('memory') : Or(And(str, Use(self.not_empty)), float, int),
+                            }
+                        }
+                    }, None),
+                    Optional('mem_limit'): Or(And(str, Use(self.not_empty)), float, int),
+                    Optional('cpus') : Or(And(str, Use(self.not_empty)), float, int),
                     Optional('container_name'): And(str, Use(self.not_empty)),
+                    Optional('shm_size'): Or(And(str, Use(self.not_empty)), float, int),
                     Optional("healthcheck"): {
                         Optional('test'): Or(list, And(str, Use(self.not_empty))),
                         Optional('interval'): And(str, Use(self.not_empty)),
@@ -118,11 +132,15 @@ class SchemaChecker():
                         Optional('start_interval'): And(str, Use(self.not_empty)),
                         Optional('disable'): bool,
                     },
-                    Optional("setup-commands"): [And(str, Use(self.not_empty))],
+                    Optional("setup-commands"): [{
+                        'command': And(str, Use(self.not_empty)),
+                        Optional("detach"): bool,
+                        Optional("shell"): And(str, Use(self.not_empty)),
+                    }],
                     Optional("volumes"): self.single_or_list(str),
                     Optional("folder-destination"):And(str, Use(self.not_empty)),
-                    Optional("entrypoint"): str,
-                    Optional("command"): And(str, Use(self.not_empty)),
+                    Optional("entrypoint"): Or(str, [str]),
+                    Optional("command"): Or(And(str, Use(self.not_empty)), [str]),
                     Optional("log-stdout"): bool,
                     Optional("log-stderr"): bool,
                     Optional("read-notes-stdout"): bool,
@@ -151,16 +169,22 @@ class SchemaChecker():
             }],
 
             Optional("compose-file"): Use(self.validate_compose_include)
-        }, ignore_extra_keys=True)
-
+        }, ignore_extra_keys=bool(usage_scenario.get('ignore-unsupported-compose', False)))
 
         # First we check the general structure. Otherwise we later cannot even iterate over it
         try:
             usage_scenario_schema.validate(usage_scenario)
         except SchemaError as e: # This block filters out the too long error message that include the parsing structure
-            if len(e.autos) > 2:
-                raise SchemaError(e.autos[2:]) from e
-            raise SchemaError(e.autos) from e
+
+            error_message = e.autos
+
+            if len(e.autos) >= 3:
+                error_message = e.autos[2:]
+
+            if 'Wrong key' in e.code:
+                raise SchemaError(f"Your compose file does contain a key that GMT does not support - Please check if the container will still run as intended. If you want to ignore this error you can add the attribute `ignore-unsupported-compose: true` to your usage_scenario.yml\nError: {error_message}") from e
+
+            raise SchemaError(error_message) from e
 
 
         # This check is necessary to do in a seperate pass. If tried to bake into the schema object above,
@@ -169,7 +193,7 @@ class SchemaChecker():
             self.validate_networks_no_invalid_chars(usage_scenario['networks'])
 
         known_container_names = []
-        for service_name, service in usage_scenario.get('services').items():
+        for service_name, service in usage_scenario.get('services', {}).items():
             if 'container_name' in service:
                 container_name = service['container_name']
             else:
@@ -183,6 +207,15 @@ class SchemaChecker():
                 raise SchemaError(f"The 'image' key for service '{service_name}' is required when 'build' key is not present.")
             if 'cmd' in service:
                 raise SchemaError(f"The 'cmd' key for service '{service_name}' is not supported anymore. Please migrate to 'command'")
+
+
+            if (cpus := service.get('cpus')) and (cpus_deploy := service.get('deploy', {}).get('resources', {}).get('limits', {}).get('cpus')):
+                if cpus != cpus_deploy:
+                    raise SchemaError('cpus service top level key and deploy.resources.limits.cpus must be identical')
+
+            if (mem_limit := service.get('mem_limit')) and (mem_limit_deploy := service.get('deploy', {}).get('resources', {}).get('limits', {}).get('memory')):
+                if mem_limit != mem_limit_deploy:
+                    raise SchemaError('mem_limit service top level key and deploy.resources.limits.memory must be identical')
 
         known_flow_names = []
         for flow in usage_scenario['flow']:

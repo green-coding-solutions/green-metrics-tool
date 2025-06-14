@@ -9,7 +9,6 @@ services:
       context: ../stress-application
     image: gcb_stress
     container_name: test-container
-    restart: always
     volumes:
       - /etc/hosts:/tmp/hosts
 

@@ -25,6 +25,12 @@ STATUS_LIST = ['cooldown', 'warmup', 'job_no', 'job_start', 'job_error', 'job_en
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def set_status(status_code, cur_temp, cooldown_time_after_job, data=None, run_id=None):
+    if not hasattr(set_status, "last_status"):
+        set_status.last_status = status_code  # static variable
+    elif set_status.last_status == status_code:
+        return # no need to update status, if it has not changed since last time
+    set_status.last_status = status_code
+
     # pylint: disable=redefined-outer-name
     config = GlobalConfig().config
     client = config['cluster']['client']
@@ -52,7 +58,7 @@ def set_status(status_code, cur_temp, cooldown_time_after_job, data=None, run_id
         status_code, cooldown_time_after_job, cur_temp,
         config['machine']['base_temperature_value'], client['jobs_processing'],
         gmt_hash, gmt_timestamp,
-        json.dumps({"measurement": config['measurement'], "machine": config['machine']}),
+        json.dumps({'measurement': config['measurement'], 'machine': config['machine'], 'cluster': config['cluster']}),
         config['machine']['id'],
 
     )
@@ -94,6 +100,7 @@ if __name__ == '__main__':
         current_temperature = -1
         temperature_errors = 0
         must_revalidated_bc_new_packages = False
+        last_cleanup = 0
 
         while True:
 
@@ -109,8 +116,10 @@ if __name__ == '__main__':
                 continue
 
             if not args.testing:
-                if temperature_errors >= 10:
-                    raise RuntimeError('Temperature could not be stabilized in time. Pleae check logs ...')
+
+                if last_cleanup < (time.time() - 43200): # every 12 hours
+                    do_maintenance(current_temperature, last_cooldown_time)
+                    last_cleanup = time.time()
 
                 current_temperature = get_temperature(
                     GlobalConfig().config['machine']['base_temperature_chip'],
@@ -118,6 +127,9 @@ if __name__ == '__main__':
                 )
 
                 if current_temperature > config_main['machine']['base_temperature_value']:
+                    if temperature_errors >= 10:
+                        raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {GlobalConfig().config['machine']['base_temperature_value']}. Pleae check logs ...")
+
                     print(f"Machine is still too hot: {current_temperature}°. Sleeping for 1 minute")
                     set_status('cooldown', current_temperature, last_cooldown_time)
                     cooldown_time += 60
@@ -126,12 +138,15 @@ if __name__ == '__main__':
                         time.sleep(60)
                     continue
 
-                if current_temperature <= (config_main['machine']['base_temperature_value'] - 5):
+                if current_temperature <= (config_main['machine']['base_temperature_value'] - 10):
+                    if temperature_errors >= 10:
+                        raise RuntimeError(f"Temperature could not be stabilized in time. Was {current_temperature} but should be {GlobalConfig().config['machine']['base_temperature_value']}. Pleae check logs ...")
+
                     print(f"Machine is too cool: {current_temperature}°. Warming up and retrying")
                     set_status('warmup', current_temperature, last_cooldown_time)
                     temperature_errors += 1
                     current_time = time.time()
-                    while True:
+                    while True: # spinlock
                         if time.time() > (current_time + 10):
                             break
                     continue # still retry loop and make all checks again
@@ -139,6 +154,7 @@ if __name__ == '__main__':
                 print('Machine is temperature is good. Continuing ...')
                 last_cooldown_time = cooldown_time
                 cooldown_time = 0
+                temperature_errors = 0
 
 
             if not args.testing and (must_revalidated_bc_new_packages or validate.is_validation_needed(config_main['machine']['id'], client_main['time_between_control_workload_validations'])):
@@ -177,32 +193,52 @@ if __name__ == '__main__':
                 except ConfigurationCheckError as exc: # ConfigurationChecks indicate that before the job ran, some setup with the machine was incorrect. So we soft-fail here with sleeps
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
                     if exc.status == Status.WARN: # Warnings is something like CPU% too high. Here short sleep
-                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, previous_exception=exc.__context__, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config_main['machine']['description'], sleep_duration=600)
+                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception_context=exc.__context__, last_exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config_main['machine']['description'], sleep_duration=600)
                         if not args.testing:
                             time.sleep(600)
                     else: # Hard fails won't resolve on it's own. We sleep until next cluster validation
-                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, previous_exception=exc.__context__, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config_main['machine']['description'], sleep_duration=client_main['time_between_control_workload_validations'])
+                        error_helpers.log_error('Job processing in cluster failed (client.py)', exception_context=exc.__context__, last_exception=exc, status=exc.status, run_id=job._run_id, name=job._name, url=job._url, machine=config_main['machine']['description'], sleep_duration=client_main['time_between_control_workload_validations'])
                         if not args.testing:
                             time.sleep(client_main['time_between_control_workload_validations'])
 
-                except subprocess.CalledProcessError as exc:
-                    set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
-                    error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, previous_exception=exc.__context__, stdout=exc.stdout, stderr=exc.stderr, run_id=job._run_id, machine=config_main['machine']['description'], name=job._name, url=job._url)
                 except Exception as exc: # pylint: disable=broad-except
                     set_status('job_error', current_temperature, last_cooldown_time, data=str(exc), run_id=job._run_id)
-                    error_helpers.log_error('Job processing in cluster failed (client.py)', exception=exc, previous_exception=exc.__context__, run_id=job._run_id, machine=config_main['machine']['description'], name=job._name, url=job._url)
+                    error_helpers.log_error('Job processing in cluster failed (client.py)',
+                        exception_context=exc.__context__,
+                        last_exception=exc,
+                        stdout=(exc.stdout if hasattr(exc, 'stdout') else None),
+                        stderr=(exc.stderr if hasattr(exc, 'stderr') else None),
+                        run_id=job._run_id,
+                        machine=config_main['machine']['description'],
+                        name=job._name,
+                        url=job._url
+                    )
+
+                    # reduced error message to client, but only if no ConfigurationCheckError
+                    if job._email:
+                        Job.insert(
+                            'email',
+                            user_id=job._user_id,
+                            email=job._email,
+                            name='Measurement Job on Green Metrics Tool Cluster failed',
+                            message=f"Run-ID: {job._run_id}\nName: {job._name}\nMachine: {job._machine_description}\n\nDetails can also be found in the log under: {config_main['cluster']['metrics_url']}/stats.html?id={job._run_id}\n\nError message: {exc.__context__}\n{exc}\n"
+                        )
 
             else:
                 set_status('job_no', current_temperature, last_cooldown_time)
-                if client_main['shutdown_on_job_no'] is True:
+                if client_main['shutdown_on_job_no']:
                     subprocess.check_output(['sync'])
                     time.sleep(60) # sleep for 60 before going to suspend to allow logins to cluster when systems are fresh rebooted for maintenance
-                    subprocess.check_output(['sudo', 'systemctl', 'suspend'])
+                    subprocess.check_output(['sudo', 'systemctl', client_main['shutdown_on_job_no']])
+
                 if not args.testing:
                     time.sleep(client_main['sleep_time_no_job'])
+
             if args.testing:
                 print('Successfully ended testing run of client.py')
                 break
 
-    except Exception as exc: # pylint: disable=broad-except
-        error_helpers.log_error(f'Processing in {__file__} failed.', exception=exc, previous_exception=exc.__context__, machine=config_main['machine']['description'])
+    except KeyboardInterrupt:
+        pass
+    except BaseException as exc: # pylint: disable=broad-except
+        error_helpers.log_error(f'Processing in {__file__} failed.', exception_context=exc.__context__, last_exception=exc, machine=config_main['machine']['description'])

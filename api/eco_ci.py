@@ -168,7 +168,7 @@ async def get_ci_measurements(repo: str, branch: str, workflow: str, start_date:
                 AND latest_workflow.workflow_id = ci_measurements.workflow_id
                 ORDER BY latest_workflow.created_at DESC
                 LIMIT 1) AS workflow_name,
-               lat, lon, city, carbon_intensity_g, carbon_ug
+               lat, lon, city, carbon_intensity_g, carbon_ug, note
         FROM ci_measurements
         WHERE
             (TRUE = %s OR user_id = ANY(%s::int[]))

@@ -15,6 +15,8 @@ ask_power_hog=true
 activate_power_hog=false
 ask_carbon_db=true
 activate_carbon_db=false
+ask_ai_optimisations=true
+activate_ai_optimisations=false
 build_docker_containers=true
 install_python_packages=true
 modify_hosts=true
@@ -34,6 +36,8 @@ cert_file=''
 enterprise=false
 ask_ping=true
 force_send_ping=false
+install_nvidia_toolkit_headers=false
+ee_branch=''
 
 function print_message {
     echo ""
@@ -175,6 +179,12 @@ function prepare_config() {
     else
         eval "${sed_command} -e \"s|__ACTIVATE_CARBON_DB__|false|\" frontend/js/helpers/config.js"
     fi
+    if [[ $activate_ai_optimisations == true ]]; then
+        eval "${sed_command} -e \"s|__ACTIVATE_AI_OPTIMISATIONS__|true|\" frontend/js/helpers/config.js"
+        eval "${sed_command} -e \"s|activate_ai_optimisations:.*$|activate_ai_optimisations: True|\" config.yml"
+    else
+        eval "${sed_command} -e \"s|__ACTIVATE_AI_OPTIMISATIONS__|false|\" frontend/js/helpers/config.js"
+    fi
 
 
     if [[ $enable_ssl == true ]] ; then
@@ -266,9 +276,34 @@ function checkout_submodules() {
     if [[ $(uname) != "Darwin" ]]; then
         git submodule update --init lib/sgx-software-enable
     fi
+
     git submodule update --init metric_providers/psu/energy/ac/xgboost/machine/model
+
     if [[ $enterprise == true ]] ; then
-        git submodule update --init ee
+        if [[ ! -d "ee" ]]; then
+            git clone git@github.com:green-coding-solutions/gmt-enterprise.git ee
+        fi
+
+        if [[ ! -z $ee_branch ]]; then
+            echo "Checking out ee branch $ee_branch"
+            git -C ee fetch origin
+            git -C ee checkout $ee_branch
+        fi
+
+        ln -sf ../ee/cron/delete_expired_data.py cron/delete_expired_data.py
+        ln -sf ../ee/cron/carbondb_copy_over_and_remove_duplicates.py cron/carbondb_copy_over_and_remove_duplicates.py
+        ln -sf ../ee/cron/carbondb_compress.py cron/carbondb_compress.py
+        ln -sf ../../ee/tests/cron/test_carbondb_compress.py tests/cron/test_carbondb_compress.py
+        ln -sf ../../ee/tests/frontend/test_frontend_ee.py tests/frontend/test_frontend_ee.py
+        ln -sf ../../ee/tests/api/test_api_hog.py tests/api/test_api_hog.py
+        ln -sf ../../ee/tests/api/test_api_carbondb.py tests/api/test_api_carbondb.py
+        ln -sf ../ee/tools/rebuild_carbondb.py tools/rebuild_carbondb.py
+        ln -sf ../../ee/frontend/js/hog-details.js frontend/js/hog-details.js
+        ln -sf ../../ee/frontend/js/carbondb.js frontend/js/carbondb.js
+        ln -sf ../../ee/frontend/js/hog.js frontend/js/hog.js
+        ln -sf ../ee/frontend/hog-details.html frontend/hog-details.html
+        ln -sf ../ee/frontend/hog.html frontend/hog.html
+        ln -sf ../ee/frontend/carbondb.html frontend/carbondb.html
     fi
 }
 
@@ -293,6 +328,9 @@ function build_binaries() {
                 continue
             fi
             if [[ "$make_path" == *"/lmsensors/"* ]] && [[ "${install_sensors}" == false ]]; then
+                continue
+            fi
+            if [[ "$make_path" == *"/nvidia/"* ]] && [[ "${install_nvidia_toolkit_headers}" == false ]]; then
                 continue
             fi
             echo "Installing $subdir/metric-provider-binary ..."
@@ -357,115 +395,162 @@ function send_ping() {
 function check_optarg() {
     local option=$1
     local optarg=$2
+
+    if [[ -z "$optarg" ]]; then
+        echo "Error: Option -$option requires an argument, but none was provided." >&2
+        exit 1
+    fi
+
     if [[ "$optarg" == -* ]]; then
         echo "Error: Option -$option received broken argument: $optarg" >&2; exit 1;
+        exit 1
     fi
 }
 
 check_python_version
 
-while getopts ":p:a:m:NhTBWISuRLc:k:e:zZdDgGfFjJ" o; do
-    case "$o" in
-        \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
-        :)  echo "Error: Option -$OPTARG requires an argument" >&2; exit 1 ;;
-        p)
-            check_optarg 'p' $OPTARG
-            db_pw=${OPTARG}
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --nvidia-gpu)
+            install_nvidia_toolkit_headers=true
+            shift
             ;;
-        a)
-            check_optarg 'a' $OPTARG
-            api_url=${OPTARG}
+        --ai) # This is not documented in the help, as it is only for GCS internal use
+            ask_ai_optimisations=false
+            activate_ai_optimisations=true
+            shift
             ;;
-        m)
-            check_optarg 'm' $OPTARG
-            metrics_url=${OPTARG}
+        --no-ai) # This is not documented in the help, as it is only for GCS internal use
+            ask_ai_optimisations=false
+            activate_ai_optimisations=false
+            shift
             ;;
-        B)
+        --ee-branch) # This is not documented in the help, as it is only for GCS internal use
+            check_optarg 'ee-branch' "${2:-}"
+            ee_branch="$2"
+            shift 2
+            ;;
+        -p)
+            check_optarg 'p' "${2:-}"
+            db_pw="$2"
+            shift 2
+            ;;
+        -a)
+            check_optarg 'a' "${2:-}"
+            api_url="$2"
+            shift 2
+            ;;
+        -m)
+            check_optarg 'm' "${2:-}"
+            metrics_url="$2"
+            shift 2
+            ;;
+        -B)
             build_docker_containers=false
+            shift
             ;;
-        W)
+        -W)
             modify_hosts=false
+            shift
             ;;
-        N)
+        -N)
             install_python_packages=false
+            shift
             ;;
-        T)
+        -T)
             ask_tmpfs=false
+            shift
             ;;
-        I)
+        -I)
             install_ipmi=false
+            shift
             ;;
-        S)
+        -S)
             install_sensors=false
+            shift
             ;;
-        R)
+        -R)
             install_msr_tools=false
+            shift
             ;;
-        u)
+        -u)
             use_system_site_packages=true
+            shift
             ;;
-        L)
+        -L)
             enable_ssl=false
             ask_ssl=false
+            shift
             ;;
-        X)
+        -X)
             build_sgx=false
+            shift
             ;;
-        c)
-            check_optarg 'c' $OPTARG
-            cert_file=${OPTARG}
+        -c)
+            check_optarg 'c' "${2:-}"
+            cert_file="$2"
+            shift 2
             ;;
-        k)
-            check_optarg 'k' $OPTARG
-            cert_key=${OPTARG}
+        -k)
+            check_optarg 'k' "${2:-}"
+            cert_key="$2"
+            shift 2
             ;;
-        e)
-            check_optarg 'e' $OPTARG
-            ee_token=${OPTARG}
+        -e)
+            check_optarg 'e' "${2:-}"
+            ee_token="$2"
             enterprise=true
+            shift 2
             ;;
-        z)
+        -z)
             ask_ping=false
+            shift
             ;;
-        Z)
+        -Z)
             force_send_ping=true
+            shift
             ;;
-
-        d)
+        -d)
             activate_carbon_db=true
             ask_carbon_db=false
+            shift
             ;;
-        D)
+        -D)
             activate_carbon_db=false
             ask_carbon_db=false
+            shift
             ;;
-        g)
+        -g)
             activate_power_hog=true
             ask_power_hog=false
+            shift
             ;;
-        G)
+        -G)
             activate_power_hog=false
             ask_power_hog=false
+            shift
             ;;
-
-        f)
+        -f)
             activate_scenario_runner=true
             ask_scenario_runner=false
+            shift
             ;;
-        F)
+        -F)
             activate_scenario_runner=false
             ask_scenario_runner=false
+            shift
             ;;
-        j)
+        -j)
             activate_eco_ci=true
             ask_eco_ci=false
+            shift
             ;;
-        J)
+        -J)
             activate_eco_ci=false
             ask_eco_ci=false
+            shift
             ;;
-
-        h)
+        -h)
             echo 'usage: ./install_XXX [p:] [a:] [m:] [N] [h] [T] [B] [I] [S] [u] [R] [L] [c:] [k:] [e:] [z] [Z] [d] [D] [g] [G] [f] [F] [j] [J]'
             echo ''
             echo 'options:'
@@ -499,10 +584,19 @@ while getopts ":p:a:m:NhTBWISuRLc:k:e:zZdDgGfFjJ" o; do
             exit 0
             ;;
         ## v) y) q) # reserved, as they typically have other meaning!
-
-
+        --)  # End of all options
+        shift
+        break
+        ;;
+        *)
+        # Unrecognized option or no more options
+        # Typically you either want to break or report an error here:
+        echo "Invalid option: $1" >&2
+        exit 1
+        ;;
     esac
 done
+
 
 if [[ $enterprise == true ]] ; then
     echo "Validating enterprise token"
@@ -599,6 +693,16 @@ if [[ $enterprise == true && $ask_power_hog == true ]]; then
         activate_power_hog=true
     else
         activate_power_hog=false
+    fi
+fi
+
+if [[ $enterprise == true && $ask_ai_optimisations == true ]]; then
+    echo ""
+    read -p "Do you want to activate AI Optimizations? (y/N) : " activate_ai_optimisations
+    if [[  "$activate_ai_optimisations" == "Y" || "$activate_ai_optimisations" == "y" ]] ; then
+        activate_ai_optimisations=true
+    else
+        activate_ai_optimisations=false
     fi
 fi
 

@@ -1,0 +1,20 @@
+---
+name: AI model GPU
+author: Arne Tarara <arne@green-coding.io>
+description: Run an inference with a cached AI model on the GPU
+
+services:
+  gcb-ai-model:
+    image: ollama/ollama
+    docker-run-args:
+      - -v ollama:/root/.ollama:ro
+      - --gpus=all
+
+flow:
+  - name: Run Inference
+    container: gcb-ai-model
+    commands:
+      - type: console
+        command: 'ollama run __GMT_VAR_MODEL__ "__GMT_VAR_PROMPT__"'
+        read-notes-stdout: true
+        log-stdout: true
