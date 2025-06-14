@@ -127,7 +127,7 @@ def validate_temperature():
                 break
         return False
 
-    DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(validate_temperature.cooldown_time, ))
+    DB().query('UPDATE machines SET cooldown_time_after_job=%s WHERE id = %s', params=(validate_temperature.cooldown_time, config['machine']['id']))
 
     validate_temperature.temperature_errors = 0 # reset
     validate_temperature.cooldown_time = 0 # reset
