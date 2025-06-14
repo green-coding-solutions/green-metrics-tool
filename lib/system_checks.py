@@ -52,7 +52,7 @@ def check_ntp():
         return True
 
     ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8')
-    if 'System clock synchronized: no' not in ntp_status or 'NTP service: inactive' not in ntp_status:
+    if 'NTP service: inactive' not in ntp_status: # NTP must be inactive
         return False
 
     return True
