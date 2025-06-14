@@ -64,6 +64,8 @@ def set_status(status_code, data=None, run_id=None):
     DB().query(query=query, params=params)
 
 def do_maintenance():
+    config = GlobalConfig().config # pylint: disable=redefined-outer-name
+
     set_status('maintenance_start')
 
     result = subprocess.check_output(['sudo', os.path.join(os.path.dirname(os.path.abspath(__file__)),'../tools/cluster/cleanup.py')], encoding='UTF-8')
@@ -71,6 +73,8 @@ def do_maintenance():
     set_status('maintenance_end', data=result)
 
     if '<<<< NO PACKAGES UPDATED - NO NEED TO RUN VALIDATION WORKLOAD >>>>' not in result:
+        DB().query('INSERT INTO changelog (message, machine_id) VALUES (%s, %s)', params=(result, config['machine']['id']))
+
         return True # must run validation workload again. New packages installed
 
     return None
