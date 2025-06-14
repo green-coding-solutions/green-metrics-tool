@@ -176,7 +176,7 @@ if __name__ == '__main__':
         while True:
 
             # run forced maintenance with cleanup every 24 hours
-            if last_24h_maintenance < (time.time() - 43200): # every 12 hours
+            if not args.testing and last_24h_maintenance < (time.time() - 43200): # every 12 hours
                 must_revalidate_bc_new_packages = do_maintenance()
                 last_24h_maintenance = time.time()
 
