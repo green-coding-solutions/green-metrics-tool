@@ -68,7 +68,17 @@ def do_maintenance():
 
     set_status('maintenance_start')
 
-    result = subprocess.check_output(['sudo', os.path.join(os.path.dirname(os.path.abspath(__file__)),'../tools/cluster/cleanup.py')], encoding='UTF-8')
+    ps = subprocess.run(
+        ['sudo', os.path.join(os.path.dirname(os.path.abspath(__file__)),'../tools/cluster/cleanup.py')],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT, # put both in one stream
+        encoding='UTF-8',
+    )
+    if ps.returncode != 0:
+        raise RuntimeError(f"Cluster cleanup failed: {ps.stdout}")
+
+    result = ps.stdout.strip()
 
     set_status('maintenance_end', data=result)
 

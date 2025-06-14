@@ -11,17 +11,25 @@ import subprocess
 # This will only be true for non-venv pure system packages coming with the python distribution of the OS
 
 # always
-subprocess.check_output(['sudo', '/usr/libexec/dpkg/dpkg-db-backup'])
-
-subprocess.check_output(['sudo', '/sbin/e2scrub_all'])
-
-subprocess.check_output(['sudo', '/sbin/fstrim', '--listed-in', '/etc/fstab:/proc/self/mountinfo', '--verbose', '--quiet-unsupported'])
-
-subprocess.check_output(['sudo', 'systemd-tmpfiles', '--clean'])
-
-subprocess.check_output(['sudo', '/usr/sbin/logrotate', '/etc/logrotate.conf'])
-
-subprocess.check_output(['sudo', 'journalctl', '--flush'])
+commands = [
+    ['usr/libexec/dpkg/dpkg-db-backup'],
+    ['/sbin/e2scrub_all'],
+    ['/sbin/fstrim', '--listed-in', '/etc/fstab:/proc/self/mountinfo', '--verbose', '--quiet-unsupported'],
+    ['systemd-tmpfiles', '--clean'],
+    ['/usr/sbin/logrotate', '/etc/logrotate.conf'],
+    ['journalctl', '--flush']
+]
+for command in commands:
+    print('Running', command)
+    ps = subprocess.run(
+        ['sudo', *command],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT, # put both in one stream
+        encoding='UTF-8',
+    )
+    if ps.returncode != 0:
+        raise RuntimeError(f"{command} failed: {ps.stdout}")
 
 ## Update time
 # may throw exception, but we need to check if time sync calls work, as we do not know what the actual time is
@@ -45,11 +53,27 @@ now = time.time()
 if (not os.path.exists('/var/log/apt/history.log')) or ((now - os.path.getmtime('/var/log/apt/history.log')) > 86400):
 
     print("history.log is older than 24 hours")
-    subprocess.check_output(['sudo', 'apt', 'update'])
+    ps = subprocess.run(
+        ['sudo', 'apt', 'update'],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT, # put both in one stream
+        encoding='UTF-8',
+    )
+    if ps.returncode != 0:
+        raise RuntimeError(f"sudo apt update failed: {ps.stdout}")
 
     apt_packages_upgrade = subprocess.check_output(['apt', 'list', '--upgradable'], encoding='UTF-8')
 
-    subprocess.check_output(['sudo', 'apt', 'full-upgrade', '-y'])
+    ps = subprocess.run(
+        ['sudo', 'apt', 'full-upgrade', '-y'],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT, # put both in one stream
+        encoding='UTF-8',
+    )
+    if ps.returncode != 0:
+        raise RuntimeError(f"sudo apt full-upgrade -y failed: {ps.stdout}")
 
 if apt_packages_upgrade:
     print('<<<< UPDATED APT PACKAGES >>>>')
