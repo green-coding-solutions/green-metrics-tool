@@ -35,6 +35,7 @@ for command in commands:
 # may throw exception, but we need to check if time sync calls work, as we do not know what the actual time is
 # Typically in cluster installations port 123 is blocked and a local time server is available. Thus the guard function here
 subprocess.check_output(['sudo', 'timedatectl', 'set-ntp', 'true']) # this will trigger immediate update
+time.sleep(5)
 ntp_status = subprocess.check_output(['timedatectl', '-a'], encoding='UTF-8')
 if 'System clock synchronized: yes' not in ntp_status or 'NTP service: active' not in ntp_status:
     raise RuntimeError('System clock could not be synchronized', ntp_status)
