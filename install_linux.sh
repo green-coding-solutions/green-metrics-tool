@@ -86,10 +86,10 @@ if [[ $activate_scenario_runner == true ]] ; then
     sudo chmod 500 /etc/sudoers.d/green-coding-drop-caches
 
     print_message "Setting the cluster cleanup.sh file to be owned by root"
-    sudo cp -f $PWD/tools/cluster/cleanup_original.sh $PWD/tools/cluster/cleanup.sh
-    sudo chown root:root $PWD/tools/cluster/cleanup.sh
-    sudo chmod 755 $PWD/tools/cluster/cleanup.sh
-    sudo chmod +x $PWD/tools/cluster/cleanup.sh
+    sudo cp -f $PWD/tools/cluster/cleanup_original.py $PWD/tools/cluster/cleanup.py
+    sudo chown root:root $PWD/tools/cluster/cleanup.py
+    sudo chmod 755 $PWD/tools/cluster/cleanup.py
+    sudo chmod +x $PWD/tools/cluster/cleanup.py
 
     if [[ $install_msr_tools == true ]] ; then
         print_message "Installing msr-tools"

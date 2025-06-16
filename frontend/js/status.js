@@ -50,8 +50,8 @@ $(document).ready(function () {
                             case 'job_start': return `${el} <span data-inverted data-tooltip="Current Job has started running"><i class="ui question circle icon fluid"></i></span>`;
                             case 'job_error': return `${el} <span data-inverted data-tooltip="Last job failed"></i></span>`;
                             case 'job_end': return `${el} <span data-inverted data-tooltip="Current job ended"></i></span>`;
-                            case 'cleanup_start': return `${el} <span data-inverted data-tooltip="Cleanup after job has started"><i class="ui question circle icon fluid"></i></span>`;
-                            case 'cleanup_end': return `${el} <span data-inverted data-tooltip="Cleanup after job has finished"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'maintenance_start': return `${el} <span data-inverted data-tooltip="Maintenance after job has started"><i class="ui question circle icon fluid"></i></span>`;
+                            case 'maintenance_end': return `${el} <span data-inverted data-tooltip="Maintenance after job has finished"><i class="ui question circle icon fluid"></i></span>`;
                             case 'measurement_control_start': return `${el} <span data-inverted data-tooltip="Periodic Measurement Control job has started"><i class="ui question circle icon fluid"></i></span>`;
                             case 'cooldown': return `${el} <span data-inverted data-tooltip="Machine is currently cooling down to base temperature"><i class="ui question circle icon fluid"></i></span>`;
                             case 'measurement_control_error': return `${el} <span data-inverted data-tooltip="Last periodic Measurement Control job has failed"><i class="ui question circle icon fluid"></i></span>`;

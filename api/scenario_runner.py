@@ -740,7 +740,7 @@ async def software_add(software: Software, user: User = Depends(authenticate)):
     if 'variance' in software.schedule_mode:
         amount = 3
     elif software.schedule_mode == 'statistical-significance':
-        amount = 30
+        amount = 10
     else: # even for Watchlist items we do at least one run directly
         amount = 1
 
