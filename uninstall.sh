@@ -41,8 +41,8 @@ sudo rm -f /etc/sudoers.d/green-coding* || true # Linux
 if [[ $(uname) == "Linux" ]]; then
     if lsb_release -is | grep -q "Fedora"; then
         sudo dnf -y remove msr-tools lm_sensors lm_sensors-devel glib2 glib2-devel tinyproxy stress-ng lshw ipmitool
-    elif lsb_release -is | grep -q "openSUSE"; then
-        sudo zyper rm -n msr-tools sensors libsensors4-devel glib2-tools glib2-devel tinyproxy stress-ng lshw freeipmi ipmitool
+    elif cat /etc/os-release | grep -q "openSUSE"; then
+        sudo zypper rm -n msr-tools sensors libsensors4-devel glib2-tools glib2-devel tinyproxy stress-ng lshw freeipmi ipmitool
     else
         sudo apt remove -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw freeipmi-tools ipmitool msr-tools
     fi
@@ -51,6 +51,8 @@ if [[ $(uname) == "Linux" ]]; then
     if [[  "$pre_install" == "Y" || "$pre_install" == "y" ]] ; then
         if lsb_release -is | grep -q "Fedora"; then
             sudo dnf remove -y curl git make gcc python3 python3-devel
+        elif cat /etc/os-release | grep -q "openSUSE"; then
+            sudo zypper rm --dry-run -n git make gcc python313 python313-pip python313-virtualenv
         else
             sudo apt remove -y git make gcc python3 python3-pip python3-venv
         fi
@@ -60,6 +62,8 @@ if [[ $(uname) == "Linux" ]]; then
     if [[  "$pre_docker" == "Y" || "$pre_docker" == "y" ]] ; then
         if lsb_release -is | grep -q "Fedora"; then
             sudo dnf remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+         elif cat /etc/os-release | grep -q "openSUSE"; then
+            sudo zypper rm -n docker docker-compose docker-compose-switch
         else
             sudo apt remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
         fi
