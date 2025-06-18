@@ -7,7 +7,7 @@ import os
 import re
 import subprocess
 
-GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
+GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
 from contextlib import redirect_stdout, redirect_stderr
 import pytest
@@ -957,9 +957,7 @@ def test_non_git_root_supplied():
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(Exception) as e:
         runner.run()
 
-    assert 'Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename' == str(e.value), \
-        Tests.assertion_info('Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename', str(e.value))
-
+    assert f"Supplied folder through --uri is not the root of the git repository. Please only supply the root folder and then the target directory through --filename. Real repo root is {GMT_DIR}" == str(e.value)
 
 def test_internal_network():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/internal_network.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
