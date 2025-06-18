@@ -52,7 +52,7 @@ if [[ $(uname) == "Linux" ]]; then
         if lsb_release -is | grep -q "Fedora"; then
             sudo dnf remove -y curl git make gcc python3 python3-devel
         elif cat /etc/os-release | grep -q "openSUSE"; then
-            sudo zypper rm --dry-run -n git make gcc python313 python313-pip python313-virtualenv
+            sudo zypper rm -n git make gcc python313 python313-pip python313-virtualenv
         else
             sudo apt remove -y git make gcc python3 python3-pip python3-venv
         fi
