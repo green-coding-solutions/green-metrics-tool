@@ -39,8 +39,8 @@ void get_time_offset(struct timespec *offset) {
         perror("clock_gettime CLOCK_REALTIME");
         exit(EXIT_FAILURE);
     }
-    if (clock_gettime(CLOCK_MONOTONIC_RAW, &monotonic) != 0) {
-        perror("clock_gettime CLOCK_MONOTONIC_RAW");
+    if (clock_gettime(CLOCK_BOOTTIME, &monotonic) != 0) {
+        perror("clock_gettime CLOCK_BOOTTIME");
         exit(EXIT_FAILURE);
     }
     offset->tv_sec = realtime.tv_sec - monotonic.tv_sec;
@@ -53,8 +53,8 @@ void get_time_offset(struct timespec *offset) {
 
 void get_adjusted_time(struct timeval *adjusted, struct timespec *offset) {
     struct timespec now_monotonic;
-    if (clock_gettime(CLOCK_MONOTONIC_RAW, &now_monotonic) != 0) {
-        perror("clock_gettime CLOCK_MONOTONIC_RAW");
+    if (clock_gettime(CLOCK_BOOTTIME, &now_monotonic) != 0) {
+        perror("clock_gettime CLOCK_BOOTTIME");
         exit(EXIT_FAILURE);
     }
 
