@@ -20,6 +20,8 @@ if [[ $activate_scenario_runner == true ]] ; then
     print_message "Installing needed binaries for building ..."
     if lsb_release -is | grep -q "Fedora"; then
         sudo dnf -y install glib2 glib2-devel tinyproxy stress-ng lshw
+    elif cat /etc/os-release | grep -q "openSUSE"; then
+        sudo zypper -n in glib2-tools glib2-devel tinyproxy stress-ng lshw
     else
         sudo apt-get update
         sudo apt-get install -y  libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw
@@ -30,6 +32,10 @@ if [[ $activate_scenario_runner == true ]] ; then
             print_message "Failed to install lm_sensors lm_sensors-devel;" >&2
             print_message "You can add -S to the install script to skip installing lm_sensors. However cluster mode and temperature reporters will not work then." >&2
             exit 1
+        fi
+    elif cat /etc/os-release | grep -q "openSUSE"; then
+        if ! sudo zypper -n in sensors libsensors4-devel; then
+            print_message "Failed to install sensors libsensors4-devel; continuing without Sensors."
         fi
     else
         if ! sudo apt-get install -y lm-sensors libsensors-dev; then
@@ -94,6 +100,10 @@ if [[ $activate_scenario_runner == true ]] ; then
                 print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-r'" >&2
                 exit 1
             fi
+        elif cat /etc/os-release | grep -q "openSUSE"; then
+            if ! sudo zypper -n in msr-tools; then
+                print_message "Failed to install msr-tools; continuing without RAPL."
+            fi
         else
             if ! sudo apt-get install -y msr-tools; then
                 print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-r'" >&2
@@ -108,6 +118,8 @@ if [[ $activate_scenario_runner == true ]] ; then
         {
             if lsb_release -is | grep -q "Fedora"; then
                 sudo dnf -y install freeipmi ipmitool
+            elif cat /etc/os-release | grep -q "openSUSE"; then
+                sudo zypper -n in freeipmi ipmitool
             else
                 sudo apt-get install -y freeipmi-tools ipmitool
             fi
@@ -131,6 +143,8 @@ if ! mount | grep -E '\s/tmp\s' | grep -Eq '\stmpfs\s' && [[ $ask_tmpfs == true 
     if [[ "$tmpfs" == "Y" || "$tmpfs" == "y" ]] ; then
         if lsb_release -is | grep -q "Fedora"; then
             sudo systemctl unmask --now tmp.mount
+        elif cat /etc/os-release | grep -q "openSUSE"; then
+            echo "You probably already have /tmp on a tmpfs"
         else
             sudo systemctl enable /usr/share/systemd/tmp.mount
         fi
