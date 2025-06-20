@@ -138,13 +138,14 @@ if [[ $activate_scenario_runner == true ]] ; then
     fi
 fi
 
-if ! mount | grep -E '\s/tmp\s' | grep -Eq '\stmpfs\s' && [[ $ask_tmpfs == true ]]; then
+if ! findmnt -n -o FSTYPE /tmp | grep tmpfs && [[ $ask_tmpfs == true ]]; then
     read -p "We strongly recommend mounting /tmp on a tmpfs. Do you want to do that? (y/N)" tmpfs
     if [[ "$tmpfs" == "Y" || "$tmpfs" == "y" ]] ; then
         if lsb_release -is | grep -q "Fedora"; then
             sudo systemctl unmask --now tmp.mount
         elif cat /etc/os-release | grep -q "openSUSE"; then
-            echo "You probably already have /tmp on a tmpfs"
+            print_message "Please mount /tmp manually as tmpfs. GMT cannot handle this in the install script" >&2
+            exit 1
         else
             sudo systemctl enable /usr/share/systemd/tmp.mount
         fi
