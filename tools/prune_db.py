@@ -6,7 +6,7 @@ import faulthandler
 faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to stderr
 
 from lib.db import DB
-from psycopg import errors
+from lib.global_config import GlobalConfig
 
 if __name__ == '__main__':
     import argparse
@@ -20,12 +20,17 @@ if __name__ == '__main__':
         print("This will remove ALL runs, measurement, CI, carbonDB and hog data from the DB. Continue? (y/N)")
         answer = sys.stdin.readline()
         if answer.strip().lower() == 'y':
-            tables = ['runs', 'ci_measurements', 'hog_measurements', 'carbondb_data', 'carbondb_data_raw']
-            for table in tables:
-                try:
-                    DB().query(f"TRUNCATE TABLE {table} CASCADE")
-                except errors.UndefinedTable:
-                    continue
+            DB().query(f"TRUNCATE TABLE runs CASCADE")
+            DB().query(f"TRUNCATE TABLE ci_measurements CASCADE")
+
+            if GlobalConfig().config.get('activate_carbon_db', False):
+                from ee.tools.prune_db_ee import prune_carbondb
+                prune_carbondb()
+
+            if GlobalConfig().config.get('activate_power_hog', False):
+                from ee.tools.prune_db_ee import prune_power_hog
+                prune_power_hog()
+
             print("Done")
     elif args.mode == 'failed-runs':
         print("This will remove all runs that have not ended, which includes failed ones, but also possibly running, so be sure no measurement is currently active. Continue? (y/N)")
