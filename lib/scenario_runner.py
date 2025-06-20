@@ -175,8 +175,8 @@ class ScenarioRunner:
         }
 
         for key, value in durations.items():
-            if value is not None and value >= self._measurement_total_duration:
-                raise ValueError(f"Cannot run flows due to configuration error. Measurement_total_duration must be > {key}, otherwise the flow will run into a timeout in every case. Values are: {key}: {value} and measurement_total_duration: {self._measurement_total_duration}")
+            if value is not None and value > self._measurement_total_duration:
+                raise ValueError(f"Cannot run flows due to configuration error. Measurement_total_duration must be >= {key}, otherwise the flow will run into a timeout in every case. Values are: {key}: {value} and measurement_total_duration: {self._measurement_total_duration}")
 
 
     def custom_sleep(self, sleep_time):
