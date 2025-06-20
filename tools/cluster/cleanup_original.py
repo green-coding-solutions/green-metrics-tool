@@ -68,8 +68,9 @@ if (not os.path.exists('/var/log/apt/history.log')) or ((now - os.path.getmtime(
     apt_packages_upgrade = subprocess.check_output(['apt', 'list', '--upgradable'], encoding='UTF-8')
 
     ps = subprocess.run(
-        ['sudo', 'apt', 'full-upgrade', '-y'],
+        ['sudo', 'apt', '-o', 'Dpkg::Options::=--force-confdef', '-o', 'Dpkg::Options::=--force-confold', 'full-upgrade', '-y'],
         check=False,
+        env={'DEBIAN_FRONTEND': 'noninteractive'},
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, # put both in one stream
         encoding='UTF-8',
