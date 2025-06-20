@@ -44,17 +44,17 @@ if [[ $(uname) == "Linux" ]]; then
     elif cat /etc/os-release | grep -q "openSUSE"; then
         sudo zypper rm -n msr-tools sensors libsensors4-devel glib2-tools glib2-devel tinyproxy stress-ng lshw freeipmi ipmitool
     else
-        sudo apt remove -y lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw freeipmi-tools ipmitool msr-tools
+        sudo apt remove -y msr-tools lm-sensors libsensors-dev libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw freeipmi-tools ipmitool
     fi
 
     read -p "Do you also want to remove pre-install requirements (curl git make gcc python3 python3-devel)? (y/N) : " pre_install
     if [[  "$pre_install" == "Y" || "$pre_install" == "y" ]] ; then
         if cat /etc/os-release | grep -q "Fedora"; then
-            sudo dnf remove -y curl git make gcc python3 python3-devel
+            sudo dnf remove -y git make gcc python3 python3-devel curl
         elif cat /etc/os-release | grep -q "openSUSE"; then
-            sudo zypper rm -n git make gcc python313 python313-pip python313-virtualenv
+            sudo zypper rm -n git make gcc python313 python313-pip python313-virtualenv curl
         else
-            sudo apt remove -y git make gcc python3 python3-pip python3-venv
+            sudo apt remove -y git make gcc python3 python3-pip python3-venv curl
         fi
     fi
 
