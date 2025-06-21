@@ -62,7 +62,7 @@ if [[ $(uname) == "Linux" ]]; then
     if [[  "$pre_docker" == "Y" || "$pre_docker" == "y" ]] ; then
         if cat /etc/os-release | grep -q "Fedora"; then
             sudo dnf remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-         elif cat /etc/os-release | grep -q "openSUSE"; then
+        elif cat /etc/os-release | grep -q "openSUSE"; then
             sudo zypper rm -n docker docker-compose docker-compose-switch
         else
             sudo apt remove -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
