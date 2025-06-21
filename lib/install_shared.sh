@@ -344,10 +344,9 @@ function build_containers() {
 
     if [[ $build_docker_containers == true ]] ; then
         print_message "Building / Updating docker containers"
-            docker compose -f docker/compose.yml down
-            docker compose -f docker/compose.yml build
-            docker compose -f docker/compose.yml pull
-        fi
+        docker compose -f docker/compose.yml down
+        docker compose -f docker/compose.yml build
+        docker compose -f docker/compose.yml pull
     fi
 }
 
