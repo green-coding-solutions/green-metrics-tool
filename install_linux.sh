@@ -18,7 +18,7 @@ build_containers
 
 if [[ $activate_scenario_runner == true ]] ; then
     print_message "Installing needed binaries for building ..."
-    if lsb_release -is | grep -q "Fedora"; then
+    if cat /etc/os-release | grep -q "Fedora"; then
         sudo dnf -y install glib2 glib2-devel tinyproxy stress-ng lshw
     elif cat /etc/os-release | grep -q "openSUSE"; then
         sudo zypper -n in glib2-tools glib2-devel tinyproxy stress-ng lshw
@@ -27,7 +27,7 @@ if [[ $activate_scenario_runner == true ]] ; then
         sudo apt-get install -y  libglib2.0-0 libglib2.0-dev tinyproxy stress-ng lshw
     fi
 
-    if lsb_release -is | grep -q "Fedora"; then
+    if cat /etc/os-release | grep -q "Fedora"; then
         if ! sudo dnf -y install lm_sensors lm_sensors-devel; then
             print_message "Failed to install lm_sensors lm_sensors-devel;" >&2
             print_message "You can add -S to the install script to skip installing lm_sensors. However cluster mode and temperature reporters will not work then." >&2
@@ -50,7 +50,7 @@ if [[ $activate_scenario_runner == true ]] ; then
 
     if [[ $install_nvidia_toolkit_headers == true ]] ; then
         print_message "Installing nvidia toolkit headers"
-        if lsb_release -is | grep -q "Fedora"; then
+        if cat /etc/os-release | grep -q "Fedora"; then
             curl -O https://developer.download.nvidia.com/compute/cuda/repos/fedora$(rpm -E %fedora)/x86_64/cuda-fedora$(rpm -E %fedora).repo
             sudo mv cuda-fedora$(rpm -E %fedora).repo /etc/yum.repos.d/
             sudo dnf makecache
@@ -95,7 +95,7 @@ if [[ $activate_scenario_runner == true ]] ; then
         print_message "Installing msr-tools"
         print_message "Important: If this step fails it means msr-tools is not available on you system"
         print_message ""
-        if lsb_release -is | grep -q "Fedora"; then
+        if cat /etc/os-release | grep -q "Fedora"; then
             if ! sudo dnf -y install msr-tools; then
                 print_message "Failed to install msr-tools; If you do not plan to use RAPL you can skip the installation by appending '-r'" >&2
                 exit 1
@@ -116,7 +116,7 @@ if [[ $activate_scenario_runner == true ]] ; then
         print_message "Installing IPMI tools"
         print_message "Important: If this step fails it means ipmitool is not available on you system"
         {
-            if lsb_release -is | grep -q "Fedora"; then
+            if cat /etc/os-release | grep -q "Fedora"; then
                 sudo dnf -y install freeipmi ipmitool
             elif cat /etc/os-release | grep -q "openSUSE"; then
                 sudo zypper -n in freeipmi ipmitool
@@ -138,13 +138,14 @@ if [[ $activate_scenario_runner == true ]] ; then
     fi
 fi
 
-if ! mount | grep -E '\s/tmp\s' | grep -Eq '\stmpfs\s' && [[ $ask_tmpfs == true ]]; then
+if ! findmnt -n -o FSTYPE /tmp | grep tmpfs && [[ $ask_tmpfs == true ]]; then
     read -p "We strongly recommend mounting /tmp on a tmpfs. Do you want to do that? (y/N)" tmpfs
     if [[ "$tmpfs" == "Y" || "$tmpfs" == "y" ]] ; then
-        if lsb_release -is | grep -q "Fedora"; then
+        if cat /etc/os-release | grep -q "Fedora"; then
             sudo systemctl unmask --now tmp.mount
         elif cat /etc/os-release | grep -q "openSUSE"; then
-            echo "You probably already have /tmp on a tmpfs"
+            print_message "Please mount /tmp manually as tmpfs. GMT cannot handle this in the install script" >&2
+            exit 1
         else
             sudo systemctl enable /usr/share/systemd/tmp.mount
         fi

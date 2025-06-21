@@ -344,17 +344,9 @@ function build_containers() {
 
     if [[ $build_docker_containers == true ]] ; then
         print_message "Building / Updating docker containers"
-        if docker info 2>/dev/null | grep rootless || docker info 2>/dev/null | grep lima-rancher-desktop || [[ $(uname) == "Darwin" ]]; then
-            print_message "Docker is running in rootless/VM mode. Using non-sudo call ..."
-            docker compose -f docker/compose.yml down
-            docker compose -f docker/compose.yml build
-            docker compose -f docker/compose.yml pull
-        else
-            print_message "Docker is running in default root mode. Using sudo call ..."
-            sudo docker compose -f docker/compose.yml down
-            sudo docker compose -f docker/compose.yml build
-            sudo docker compose -f docker/compose.yml pull
-        fi
+        docker compose -f docker/compose.yml down
+        docker compose -f docker/compose.yml build
+        docker compose -f docker/compose.yml pull
     fi
 }
 
