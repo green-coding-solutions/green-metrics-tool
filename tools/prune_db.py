@@ -20,15 +20,16 @@ if __name__ == '__main__':
         print("This will remove ALL runs, measurement, CI, carbonDB and hog data from the DB. Continue? (y/N)")
         answer = sys.stdin.readline()
         if answer.strip().lower() == 'y':
-            DB().query(f"TRUNCATE TABLE runs CASCADE")
-            DB().query(f"TRUNCATE TABLE ci_measurements CASCADE")
+            DB().query('TRUNCATE TABLE runs CASCADE')
+            DB().query('TRUNCATE TABLE ci_measurements CASCADE')
 
             if GlobalConfig().config.get('activate_carbon_db', False):
-                from ee.tools.prune_db_ee import prune_carbondb
+                from ee.tools.prune_db_ee import prune_carbondb #pylint: disable=import-error,no-name-in-module
                 prune_carbondb()
 
             if GlobalConfig().config.get('activate_power_hog', False):
-                from ee.tools.prune_db_ee import prune_power_hog
+                from ee.tools.prune_db_ee import prune_power_hog #pylint: disable=import-error,no-name-in-module
+
                 prune_power_hog()
 
             print("Done")
