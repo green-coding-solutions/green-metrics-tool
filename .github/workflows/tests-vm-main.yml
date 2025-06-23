@@ -55,8 +55,3 @@ jobs:
         uses: green-coding-solutions/eco-ci-energy-estimation@main
         with:
           task: display-results
-
-      - name: Eco CI Debug
-        shell: bash
-        run: |
-            journalctl -n 50000 | grep myprocess
