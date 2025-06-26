@@ -65,7 +65,8 @@ if (not os.path.exists('/var/log/apt/history.log')) or ((now - os.path.getmtime(
     if ps.returncode != 0:
         raise RuntimeError(f"sudo apt update failed: {ps.stdout}")
 
-    apt_packages_upgrade = subprocess.check_output(['apt', 'list', '--upgradable'], encoding='UTF-8')
+
+    apt_packages_upgrade = subprocess.check_output(['apt', 'list', '--upgradeable'], encoding='UTF-8', stderr=subprocess.DEVNULL).split('\n')[1:]
 
     ps = subprocess.run(
         ['sudo', 'apt', '-o', 'Dpkg::Options::=--force-confdef', '-o', 'Dpkg::Options::=--force-confold', 'full-upgrade', '-y'],
@@ -78,7 +79,7 @@ if (not os.path.exists('/var/log/apt/history.log')) or ((now - os.path.getmtime(
     if ps.returncode != 0:
         raise RuntimeError(f"sudo apt full-upgrade -y failed: {ps.stdout}")
 
-if apt_packages_upgrade:
+if apt_packages_upgrade != ['']:
     print('<<<< UPDATED APT PACKAGES >>>>')
     print(apt_packages_upgrade)
     print('<<<< END UPDATED APT PACKAGES >>>>')
