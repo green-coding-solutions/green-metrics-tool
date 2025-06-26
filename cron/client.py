@@ -83,7 +83,7 @@ def do_maintenance():
     set_status('maintenance_end', data=ps.stdout)
 
     if updated_apt_packages := re.findall(r'<<<< UPDATED APT PACKAGES >>>>\n(.*)\n<<<< END UPDATED APT PACKAGES >>>>', ps.stdout, re.DOTALL):
-        updated_apt_packages_list = updated_apt_packages[0].split('\n')[1:]
+        updated_apt_packages_list = updated_apt_packages[0].split('\n')
         DB().query('INSERT INTO changelog (message, machine_id) VALUES (%s, %s)', params=(updated_apt_packages_list, config['machine']['id']))
 
         return True # must run validation workload again. New packages installed
