@@ -199,14 +199,20 @@ const showNotification = (message_title, message_text, type='warning') => {
     return;
 }
 
-const copyToClipboard = (e) => {
+const copyToClipboard = async (e) => {
   e.preventDefault();
-  if (navigator && navigator.clipboard && navigator.clipboard.writeText)
-    navigator.clipboard.writeText(e.currentTarget.previousElementSibling.innerHTML)
-    return false
-
-  alert('Copying to clipboard on local is not working due to browser security models')
-  return Promise.reject('The Clipboard API is not available.');
+  
+  if (!navigator?.clipboard?.writeText) {
+    alert('Clipboard API not supported');
+    return;
+  }
+  
+  try {
+    const htmlContent = e.currentTarget.previousElementSibling.innerHTML;
+    await navigator.clipboard.writeText(htmlContent);
+  } catch (err) {
+    alert('Failed to copy HTML content to clipboard!');
+  }
 };
 
 const dateToYMD = (date, short=false, no_break=false) => {
