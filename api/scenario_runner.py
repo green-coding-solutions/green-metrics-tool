@@ -682,6 +682,7 @@ async def get_watchlist(user: User = Depends(authenticate)):
 @router.post('/v1/software/add')
 async def software_add(software: Software, user: User = Depends(authenticate)):
 
+    return Response('{"success": false, "err": "Due to the heat our servers are offline - Accurate energy measurement is extremely temperature sensitive, thus we have decided to not super cool our servers today (which would cost exponentially more energy than usual) but rather accept the fact that there is a heat wave and continue our service tomorrow. Enjoy the sun"}', status_code=500) # manual
     software = html_escape_multi(software)
 
     if software.name is None or software.name.strip() == '':
