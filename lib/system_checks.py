@@ -81,6 +81,9 @@ def check_containers_running():
     result = subprocess.check_output(['docker', 'ps', '--format', '{{.Names}}'], encoding='UTF-8')
     return not bool(result.strip())
 
+def check_gmt_dir_dirty():
+    return subprocess.check_output(['git', 'status', '-s'], encoding='UTF-8') == ''
+
 def check_docker_daemon():
     result = subprocess.run(['docker', 'version'],
                             stdout=subprocess.PIPE,
@@ -111,6 +114,7 @@ def check_swap_disabled():
 
 start_checks = [
     (check_db, Status.ERROR, 'db online', 'This text will never be triggered, please look in the function itself'),
+    (check_gmt_dir_dirty, Status.WARN, 'gmt directory dirty', 'The GMT directory contains untracked or changed files - These changes will not be stored and it will be hard to understand possible changes when comparing the measurements later. We recommend only running on a clean dir.'),
     (check_one_energy_and_scope_machine_provider, Status.ERROR, 'single energy scope machine provider', 'Please only select one provider with energy and scope machine'),
     (check_tmpfs_mount, Status.INFO, 'tmpfs mount', 'We recommend to mount tmp on tmpfs'),
     (check_ntp, Status.WARN, 'ntp', 'You have NTP time syncing active. This can create noise in runs and should be deactivated.'),

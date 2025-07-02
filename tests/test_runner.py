@@ -1,10 +1,13 @@
 from contextlib import nullcontext as does_not_raise
 
+import io
 import pytest
 import re
 import os
 import platform
 import subprocess
+
+from contextlib import redirect_stdout, redirect_stderr
 
 from lib.scenario_runner import ScenarioRunner
 from lib.global_config import GlobalConfig
@@ -103,6 +106,29 @@ def test_runner_can_use_different_user():
         context.run_until('setup_services')
 
     assert runner._user_id == USER_ID
+
+@pytest.fixture
+def delete_and_create_temp_file():
+    file_path = f"{GMT_DIR}/THIS_IS_A_TEST_FILE_FROM_A_UNIT_TESTS_DELETE_ME"
+
+    with open(file_path, "w", encoding='utf-8') as f:
+        f.write("Hello, world!")
+
+    yield
+
+    os.unlink(file_path)
+
+def test_runner_dirty_dir(delete_and_create_temp_file): #pylint: disable=unused-argument, redefined-outer-name
+
+    out = io.StringIO()
+    err = io.StringIO()
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/basic_stress.yml', skip_system_checks=False, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True)
+
+    with redirect_stdout(out), redirect_stderr(err), Tests.RunUntilManager(runner) as context:
+        context.run_until('import_metric_providers')
+
+    assert 'The GMT directory contains untracked or changed files - These changes will not be stored and it will be hard to understand possible changes when comparing the measurements later. We recommend only running on a clean dir.' in out.getvalue()
 
 def test_runner_run_invalidated():
 
