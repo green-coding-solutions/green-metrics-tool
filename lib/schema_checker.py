@@ -107,8 +107,18 @@ class SchemaChecker():
                     Optional("type"): Use(self.valid_service_types),
                     Optional("image"): And(str, Use(self.not_empty)),
                     Optional("build"): Or(Or({And(str, Use(self.not_empty)):And(str, Use(self.not_empty))},list),And(str, Use(self.not_empty))),
-                    Optional("networks"): self.single_or_list(Use(self.contains_no_invalid_chars)),
+                    Optional("networks"): Or(
+                        self.single_or_list(Use(self.contains_no_invalid_chars)),
+                        {
+                            Use(self.contains_no_invalid_chars):
+                                Or(
+                                    None,
+                                    { "aliases": [Use(self.contains_no_invalid_chars)] }
+                                )
+                        }
+                    ),
                     Optional("environment"): self.single_or_list(Or(dict,And(str, Use(self.not_empty)))),
+                    Optional("labels"): self.single_or_list(Or(dict,And(str, Use(self.not_empty)))),
                     Optional("ports"): self.single_or_list(Or(And(str, Use(self.not_empty)), int)),
                     Optional('depends_on'): Or([And(str, Use(self.not_empty))],dict),
                     Optional('deploy'):Or({
