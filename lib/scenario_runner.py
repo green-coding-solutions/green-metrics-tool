@@ -986,8 +986,7 @@ class ScenarioRunner:
                     elif isinstance(service['labels'], dict):
                         label_key, label_value = str(docker_label_var), str(service['labels'][docker_label_var])
                     else:
-
-                        raise RuntimeError('Environment variable needs to be a string with = or dict and non-empty. We do not allow the feature of forwarding variables from the host OS!')
+                        raise RuntimeError('Label needs to be a string with = or dict and non-empty. We do not allow the feature of forwarding variables from the host OS!')
 
                     # Check the key of the environment var
                     if not self._allow_unsafe and re.fullmatch(r'[A-Za-z_]+[A-Za-z0-9_.]*', label_key) is None:
@@ -1001,10 +1000,7 @@ class ScenarioRunner:
                     # We only forbid long values (>1024), every character is allowed.
                     # The value is directly passed to the container and is not evaluated on the host system, so there is no security related reason to forbid special characters.
                     if not self._allow_unsafe and len(label_value) > 1024:
-                        if self._skip_unsafe:
-                            print(TerminalColors.WARNING, arrows(f"Found label value with size {len(label_value)} (max allowed length is 1024) - Skipping label '{label_value}'"), TerminalColors.ENDC)
-                            continue
-                        labels_check_errors.append(f"- value of label '{label_key}' is too long {len(label_key)} (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe")
+                        labels_check_errors.append(f"- value of label '{label_key}' is too long {len(label_value)} (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe")
 
                     docker_run_string.append('-l')
                     docker_run_string.append(f"{label_key}={label_value}")
