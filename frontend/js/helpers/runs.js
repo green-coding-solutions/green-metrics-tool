@@ -273,6 +273,8 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
 
 (async () => {
 
+    const url_params = getURLParams();
+
     document.querySelector('#home-toggle-button').addEventListener('click', el => {
         if (el.currentTarget.innerText === 'Switch to repository view') {
             document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Repositories';
@@ -285,7 +287,7 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
         }
     });
 
-    if (localStorage.getItem('scenario_runner_data_shown') === 'repositories') {
+    if (url_params['show'] === 'repositories' || localStorage.getItem('scenario_runner_data_shown') === 'repositories') {
         document.querySelector('#runs-and-repos-table-title').innerText = 'Repositories';
         document.querySelector('#home-toggle-button').innerText = 'Switch to last runs view';
         document.querySelector('h1.ui.header span').innerText = 'ScenarioRunner - Repositories';
