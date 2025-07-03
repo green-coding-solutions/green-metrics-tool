@@ -955,7 +955,7 @@ class ScenarioRunner:
                         raise RuntimeError('Environment variable needs to be a string with = or dict and non-empty. We do not allow the feature of forwarding variables from the host OS!')
 
                     # Check the key of the environment var
-                    if not self._allow_unsafe and re.search(r'^[A-Z_]+[A-Z0-9_]*$', env_key) is None:
+                    if not self._allow_unsafe and re.fullmatch(r'[A-Z_]+[A-Z0-9_]*', env_key) is None:
                         if self._skip_unsafe:
                             warn_message= arrows(f"Found environment var key with wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ allowed: {env_key} - Skipping")
                             print(TerminalColors.WARNING, warn_message, TerminalColors.ENDC)
@@ -990,7 +990,7 @@ class ScenarioRunner:
                         raise RuntimeError('Environment variable needs to be a string with = or dict and non-empty. We do not allow the feature of forwarding variables from the host OS!')
 
                     # Check the key of the environment var
-                    if not self._allow_unsafe and re.search(r'^[A-Za-z_]+[A-Za-z0-9_.]*$', label_key) is None:
+                    if not self._allow_unsafe and re.fullmatch(r'[A-Za-z_]+[A-Za-z0-9_.]*', label_key) is None:
                         if self._skip_unsafe:
                             warn_message= arrows(f"Found label key with wrong format. Only ^[A-Za-z_]+[A-Za-z0-9_.]*$ allowed: {label_key} - Skipping")
                             print(TerminalColors.WARNING, warn_message, TerminalColors.ENDC)
