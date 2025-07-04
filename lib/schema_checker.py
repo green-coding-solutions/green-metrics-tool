@@ -10,9 +10,6 @@ class SchemaChecker():
     def __init__(self, validate_compose_flag):
         self._validate_compose_flag = validate_compose_flag
 
-    def single_or_list(self, value):
-        return Or(value, [value])
-
     def is_valid_string(self, value):
         valid_chars = set(string.ascii_letters + string.digits + '_' + '-')
         if not set(value).issubset(valid_chars):
@@ -95,11 +92,15 @@ class SchemaChecker():
                 'R_d': And(str, Use(self.not_empty)),
             },
 
-            Optional("networks"): Or(list, dict),
-            Optional("volumes"): Or(list, dict), # volumes in the root level are fine. They have no implication alone and will be checked in the service then if listed
-
+            Optional("networks"): Or(
+                dict,
+                [And(str, Use(self.contains_no_invalid_chars))],
+            ),
+            Optional("volumes"): Or(
+                dict,
+                And(str, Use(self.contains_no_invalid_chars))
+            ),
             Optional("services"): {
-
                 Use(self.contains_no_invalid_chars): {
                     Optional("restart"): str, # is part of compose. we ignore it as GMT has own orchestration
                     Optional("expose"): [str, int], # is part of compose. we ignore it as it is non functionaly anyway
@@ -108,7 +109,7 @@ class SchemaChecker():
                     Optional("image"): And(str, Use(self.not_empty)),
                     Optional("build"): Or(Or({And(str, Use(self.not_empty)):And(str, Use(self.not_empty))},list),And(str, Use(self.not_empty))),
                     Optional("networks"): Or(
-                        self.single_or_list(Use(self.contains_no_invalid_chars)),
+                        [And(str, Use(self.contains_no_invalid_chars))],
                         {
                             Use(self.contains_no_invalid_chars):
                                 Or(
@@ -117,10 +118,22 @@ class SchemaChecker():
                                 )
                         }
                     ),
-                    Optional("environment"): self.single_or_list(Or(dict,And(str, Use(self.not_empty)))),
-                    Optional("labels"): self.single_or_list(Or(dict,And(str, Use(self.not_empty)))),
-                    Optional("ports"): self.single_or_list(Or(And(str, Use(self.not_empty)), int)),
-                    Optional('depends_on'): Or([And(str, Use(self.not_empty))],dict),
+                    Optional("environment"): Or(
+                        dict,
+                        [And(str, Use(self.not_empty))]
+                    ),
+                    Optional("labels"): Or(
+                        dict,
+                        [And(str, Use(self.not_empty))]
+                    ),
+                    Optional("ports"): [Or( # we do not support the long form as mappings
+                        int,
+                        And(str, Use(self.not_empty))
+                    )],
+                    Optional('depends_on'): Or(
+                        dict,
+                        [And(str, Use(self.not_empty))]
+                    ),
                     Optional('deploy'):Or({
                         Optional('resources'): {
                             Optional('limits'): {
@@ -147,10 +160,10 @@ class SchemaChecker():
                         Optional("detach"): bool,
                         Optional("shell"): And(str, Use(self.not_empty)),
                     }],
-                    Optional("volumes"): self.single_or_list(str),
+                    Optional("volumes"): [And(str, Use(self.not_empty))],
                     Optional("folder-destination"):And(str, Use(self.not_empty)),
-                    Optional("entrypoint"): Or(str, [str]),
-                    Optional("command"): Or(And(str, Use(self.not_empty)), [str]),
+                    Optional("entrypoint"): Or(str, [str]), # can be empty!
+                    Optional("command"): Or(And(str, Use(self.not_empty)), [And(str, Use(self.not_empty))]),
                     Optional("log-stdout"): bool,
                     Optional("log-stderr"): bool,
                     Optional("read-notes-stdout"): bool,
