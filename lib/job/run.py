@@ -45,6 +45,7 @@ class RunJob(Job):
             skip_unsafe=user._capabilities['measurement'].get('skip_unsafe', True),
             allow_unsafe=user._capabilities['measurement'].get('allow_unsafe', False),
             skip_system_checks=skip_system_checks,
+            skip_volume_inspect=user._capabilities['measurement'].get('skip_volume_inspect', False),
             full_docker_prune=full_docker_prune,
             docker_prune=docker_prune,
             job_id=self._id,
