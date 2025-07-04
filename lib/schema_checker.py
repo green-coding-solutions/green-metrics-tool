@@ -92,11 +92,15 @@ class SchemaChecker():
                 'R_d': And(str, Use(self.not_empty)),
             },
 
-            Optional("networks"): Or(list, dict),
-            Optional("volumes"): Or(list, dict), # volumes in the root level are fine. They have no implication alone and will be checked in the service then if listed
-
+            Optional("networks"): Or(
+                dict,
+                [And(str, Use(self.contains_no_invalid_chars))],
+            ),
+            Optional("volumes"): Or(
+                dict,
+                And(str, Use(self.contains_no_invalid_chars))
+            ),
             Optional("services"): {
-
                 Use(self.contains_no_invalid_chars): {
                     Optional("restart"): str, # is part of compose. we ignore it as GMT has own orchestration
                     Optional("expose"): [str, int], # is part of compose. we ignore it as it is non functionaly anyway
