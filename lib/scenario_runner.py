@@ -1012,7 +1012,7 @@ class ScenarioRunner:
                 for network in service['networks']:
                     docker_run_string.append('--net')
                     docker_run_string.append(network)
-                    if service['networks'][network]:
+                    if isinstance(service['networks'], dict) and service['networks'][network]:
                         if service['networks'][network].get('aliases', None):
                             for alias in service['networks'][network]['aliases']:
                                 docker_run_string.append('--network-alias')
