@@ -955,12 +955,12 @@ class ScenarioRunner:
                         raise RuntimeError('Environment variable needs to be a string with = or dict and non-empty. We do not allow the feature of forwarding variables from the host OS!')
 
                     # Check the key of the environment var
-                    if not self._allow_unsafe and re.fullmatch(r'[A-Z_]+[A-Z0-9_]*', env_key) is None:
+                    if not self._allow_unsafe and re.fullmatch(r'[A-Za-z_]+[A-Za-z0-9_]*', env_key) is None:
                         if self._skip_unsafe:
-                            warn_message= arrows(f"Found environment var key with wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ allowed: {env_key} - Skipping")
+                            warn_message= arrows(f"Found environment var key with wrong format. Only ^[A-Za-z_]+[A-Za-z0-9_]*$ allowed: {env_key} - Skipping")
                             print(TerminalColors.WARNING, warn_message, TerminalColors.ENDC)
                             continue
-                        env_var_check_errors.append(f"- key '{env_key}' has wrong format. Only ^[A-Z_]+[A-Z0-9_]*$ is allowed - Maybe consider using --allow-unsafe or --skip-unsafe")
+                        env_var_check_errors.append(f"- key '{env_key}' has wrong format. Only ^[A-Za-z_]+[A-Za-z0-9_]*$ is allowed - Maybe consider using --allow-unsafe or --skip-unsafe")
 
                     # Check the value of the environment var
                     # We only forbid long values (>1024), every character is allowed.
@@ -1012,7 +1012,7 @@ class ScenarioRunner:
                 for network in service['networks']:
                     docker_run_string.append('--net')
                     docker_run_string.append(network)
-                    if service['networks'][network]:
+                    if isinstance(service['networks'], dict) and service['networks'][network]:
                         if service['networks'][network].get('aliases', None):
                             for alias in service['networks'][network]['aliases']:
                                 docker_run_string.append('--network-alias')
