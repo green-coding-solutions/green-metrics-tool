@@ -1,5 +1,7 @@
 const GMT_MACHINES = JSON.parse(localStorage.getItem('gmt_machines')) || {}; // global variable. dynamically resolved via resolveMachinesToGlobalVariable
 
+class APIEmptyResponse204 extends Error {}
+
 // tricky to make this async as some other functions will depend on the value of the variable
 // but if it is not set yet it will populate in a later call
 const resolveMachinesToGlobalVariable = async () => {
@@ -274,7 +276,7 @@ async function makeAPICall(path, values=null, force_authentication_token=null, f
     .then(response => {
         if (response.status == 204) {
             // 204 responses use no body, so json() call would fail
-            return {success: false, err: "No data to display. API returned empty response (HTTP 204)"}
+            throw new APIEmptyResponse204('No data to display. API returned empty response (HTTP 204)')
         }
         if (response.status == 202) {
             return
