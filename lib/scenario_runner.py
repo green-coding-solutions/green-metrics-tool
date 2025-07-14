@@ -371,7 +371,7 @@ class ScenarioRunner:
                         else:
                             dict1[k] = v
                     return dict1
-                return dict1
+                return dict2
 
             new_dict = {}
             if 'compose-file' in yml_obj.keys():
