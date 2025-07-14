@@ -125,9 +125,21 @@ const loadCharts = async () => {
     let phase_stats_data = null;
     try {
         phase_stats_data = (await makeAPICall(`/v1/timeline?${buildQueryParams()}`)).data
+        console.log(phase_stats_data);
+
+        document.querySelectorAll('.container-no-data').forEach(el => el.style.display = '')
+        document.querySelector('#message-no-data').style.display = 'none';
+
     } catch (err) {
-        showNotification('Could not get compare in-repo data from API', err);
-        return
+        if (err instanceof APIEmptyResponse204) {
+            document.querySelectorAll('.container-no-data').forEach(el => el.style.display = 'none')
+            document.querySelector('#message-no-data').style.display = '';
+            document.querySelector('a.item[data-tab=two]').click()
+            return
+        } else {
+            showNotification('Could not get data from API', err);
+            return; // abort
+        }
     }
 
     history.pushState(null, '', `${window.location.origin}${window.location.pathname}?${buildQueryParams()}`); // replace URL to bookmark!
