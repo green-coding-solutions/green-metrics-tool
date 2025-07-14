@@ -36,42 +36,6 @@ class UserSetting(BaseModel):
 
 ### Eco CI
 # pylint: disable=invalid-name
-class CI_Measurement_Old(BaseModel):
-    energy_value: int
-    energy_unit: str
-    repo: str
-    branch: str
-    cpu: str
-    cpu_util_avg: float
-    commit_hash: str
-    workflow: str   # workflow_id, change when we make API change of workflow_name being mandatory
-    run_id: str
-    source: str
-    label: str
-    duration: int
-    workflow_name: str = None
-    cb_company_uuid: Optional[str] = '' # will just be ignored as of now
-    cb_project_uuid: Optional[str] = '' # will just be ignored as of now
-    cb_machine_uuid: Optional[str] = '' # will just be ignored as of now
-    lat: Optional[str] = ''
-    lon: Optional[str] = ''
-    city: Optional[str] = ''
-    co2i: Optional[str] = ''
-    co2eq: Optional[str] = ''
-    project_id: Optional[str] = '' # legacy. Is ignored
-
-    model_config = ConfigDict(extra='forbid')
-
-    # Empty string will not trigger error on their own
-    @field_validator('repo', 'branch', 'cpu', 'commit_hash', 'workflow', 'run_id', 'source', 'label')
-    @classmethod
-    def check_not_empty(cls, values, data):
-        if not values or values == '':
-            raise RequestValidationError(f"{data.field_name} must be set and not empty")
-        return values
-
-
-# pylint: disable=invalid-name
 class CI_Measurement(BaseModel):
     energy_uj: int
     repo: str

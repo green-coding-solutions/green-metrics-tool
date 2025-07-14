@@ -10,26 +10,9 @@ from tests import test_functions as Tests
 
 API_URL = GlobalConfig().config['cluster']['api_url'] # will be pre-loaded with test-config.yml due to conftest.py
 
-# TODO: Turn on once deprecated fully
-#def test_ci_deprecated_endpoint():
-#    response = requests.post(f"{API_URL}/v1/ci/measurement/add", json={}, timeout=15)
-#    assert response.status_code == 410, Tests.assertion_info('success', response.text)
-
-
-# We are using a dict here and not the Model itself as the model sets the defaults automatically
-MEASUREMENT_MODEL_OLD = {'energy_value': 123,
-                        'energy_unit': 'mJ',
-                        'repo': 'testRepo',
-                        'branch': 'testBranch',
-                        'cpu': 'testCPU',
-                        'cpu_util_avg': 50,
-                        'commit_hash': '1234asdf',
-                        'workflow': 'testWorkflow',
-                        'run_id': 'testRunID',
-                        'source': 'testSource',
-                        'label': 'testLabel',
-                        'duration': 5,
-                        'workflow_name': 'testWorkflowName'}
+def test_ci_deprecated_endpoint():
+    response = requests.post(f"{API_URL}/v1/ci/measurement/add", json={}, timeout=15)
+    assert response.status_code == 410, Tests.assertion_info('success', response.text)
 
 MEASUREMENT_MODEL_NEW = {'energy_uj': 123000,
                         'repo': 'testRepo',
@@ -43,40 +26,6 @@ MEASUREMENT_MODEL_NEW = {'energy_uj': 123000,
                         'label': 'testLabel',
                         'duration_us': 20000,
                         'workflow_name': 'testWorkflowName'}
-
-def test_old_api():
-
-    measurement_model = MEASUREMENT_MODEL_OLD.copy()
-    response = requests.post(f"{API_URL}/v1/ci/measurement/add", json=measurement_model, timeout=15)
-    assert response.status_code == 204, Tests.assertion_info('success', response.text)
-
-    data = fetch_data_from_db(measurement_model['run_id'])
-
-    assert data['user_id'] == 1
-    assert data['energy_uj'] == measurement_model['energy_value']*1_000
-    assert data['run_id'] == measurement_model['run_id']
-    assert data['source'] == measurement_model['source']
-
-    assert data['duration_us'] == measurement_model['duration']*1_000_000
-
-def test_old_api_with_co2():
-    measurement_model = MEASUREMENT_MODEL_OLD.copy()
-    measurement_model['co2i'] = '333'
-    measurement_model['co2eq'] = '0.31321'
-
-    response = requests.post(f"{API_URL}/v1/ci/measurement/add", json=measurement_model, timeout=15)
-    assert response.status_code == 204, Tests.assertion_info('success', response.text)
-
-    data = fetch_data_from_db(measurement_model['run_id'])
-
-    assert data['user_id'] == 1
-    assert data['energy_uj'] == measurement_model['energy_value']*1_000
-    assert data['run_id'] == measurement_model['run_id']
-    assert data['source'] == measurement_model['source']
-    assert data['duration_us'] == measurement_model['duration']*1_000_000
-
-    assert data['carbon_ug'] == int(float(measurement_model['co2eq'])*1_000_000)
-    assert data['carbon_intensity_g'] == int(measurement_model['co2i'])
 
 def test_ci_measurement_add_default_user():
 
