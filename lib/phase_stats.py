@@ -8,7 +8,6 @@ faulthandler.enable(file=sys.__stderr__)  # will catch segfaults and write to st
 from decimal import Decimal
 from io import StringIO
 
-from lib.global_config import GlobalConfig
 from lib.db import DB
 from lib import error_helpers
 
@@ -68,8 +67,6 @@ def generate_csv_line(run_id, metric, detail_name, phase_name, value, value_type
     return f"{run_id},{metric},{detail_name},{phase_name},{round(value)},{value_type},{round(max_value) if max_value is not None else ''},{round(min_value) if min_value is not None else ''},{round(sampling_rate_avg) if sampling_rate_avg is not None else ''},{round(sampling_rate_max) if sampling_rate_max is not None else ''},{round(sampling_rate_95p) if sampling_rate_95p is not None else ''},{unit},NOW()\n"
 
 def build_and_store_phase_stats(run_id, sci=None):
-    config = GlobalConfig().config
-
     if not sci:
         sci = {}
 
@@ -263,17 +260,20 @@ def build_and_store_phase_stats(run_id, sci=None):
 
         # after going through detail metrics, create cumulated ones
         if network_bytes_total:
-            # build the network energy
-            # network via formula: https://www.green-coding.io/co2-formulas/
-            # pylint: disable=invalid-name
-            network_io_in_kWh = Decimal(sum(network_bytes_total)) / 1_000_000_000 * Decimal(config['sci']['N'])
-            network_io_in_uJ = network_io_in_kWh * 3_600_000_000_000
-            csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_uJ, 'TOTAL', None, None, None, None, None, 'uJ'))
-            # co2 calculations
-            network_io_carbon_in_ug = network_io_in_kWh * Decimal(config['sci']['I']) * 1_000_000
-            if '[' not in phase['name']: # only for runtime sub phases
-                software_carbon_intensity_global['network_io_carbon_in_ug'] = software_carbon_intensity_global.get('network_io_carbon_in_ug', 0) + network_io_carbon_in_ug
-            csv_buffer.write(generate_csv_line(run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
+            if sci.get('N', None) is not None and sci.get('I', None) is not None:
+                # build the network energy by using a formula: https://www.green-coding.io/co2-formulas/
+                # pylint: disable=invalid-name
+                network_io_in_kWh = Decimal(sum(network_bytes_total)) / 1_000_000_000 * Decimal(sci['N'])
+                network_io_in_uJ = network_io_in_kWh * 3_600_000_000_000
+                csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_uJ, 'TOTAL', None, None, None, None, None, 'uJ'))
+                # co2 calculations
+                network_io_carbon_in_ug = network_io_in_kWh * Decimal(sci['I']) * 1_000_000
+                if '[' not in phase['name']: # only for runtime sub phases
+                    software_carbon_intensity_global['network_io_carbon_in_ug'] = software_carbon_intensity_global.get('network_io_carbon_in_ug', 0) + network_io_carbon_in_ug
+                csv_buffer.write(generate_csv_line(run_id, 'network_carbon_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_carbon_in_ug, 'TOTAL', None, None, None, None, None, 'ug'))
+            else:
+                error_helpers.log_error('Cannot calculate the total network energy consumption. SCI values I and N are missing in the config.', run_id=run_id)
+                network_io_carbon_in_ug = 0
         else:
             network_io_carbon_in_ug = 0
 
@@ -303,14 +303,14 @@ def build_and_store_phase_stats(run_id, sci=None):
                 csv_buffer.write(generate_csv_line(run_id, 'psu_energy_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_energy_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'uJ'))
                 csv_buffer.write(generate_csv_line(run_id, 'psu_power_cgroup_container', detail_name, f"{idx:03}_{phase['name']}", surplus_power_runtime * splitting_ratio, 'TOTAL', None, None, None, None, None, 'mW'))
 
-    # TODO: refactor to be a metric provider. Than it can also be per phase
+    # TODO: refactor to be a metric provider. Than it can also be per phase # pylint: disable=fixme
     if software_carbon_intensity_global.get('machine_carbon_ug', None) is not None \
         and software_carbon_intensity_global.get('embodied_carbon_share_ug', None) is not None \
         and sci.get('R', 0) != 0 \
         and sci.get('R_d', None) is not None:
 
         csv_buffer.write(generate_csv_line(run_id, 'software_carbon_intensity_global', '[SYSTEM]', f"{runtime_phase_idx:03}_[RUNTIME]", (software_carbon_intensity_global['machine_carbon_ug'] + software_carbon_intensity_global['embodied_carbon_share_ug'] + software_carbon_intensity_global.get('network_io_carbon_in_ug', 0)) / Decimal(sci['R']), 'TOTAL', None, None, None, None, None, f"ugCO2e/{sci['R_d']}"))
-    # TODO End
+    # TODO End # pylint: disable=fixme
 
     csv_buffer.seek(0)  # Reset buffer position to the beginning
     DB().copy_from(
