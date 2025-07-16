@@ -1,0 +1,13 @@
+---
+name: Name overwritten
+author: Author overwritten
+
+compose-file: !include include_example.yml
+
+flow:
+  - name: dummy
+    container: test-container-1
+    commands:
+      - type: console
+        command: pwd
+

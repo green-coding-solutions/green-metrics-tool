@@ -316,6 +316,7 @@ class ScenarioRunner:
                     nodes = self.construct_sequence(node)
                 else:
                     raise ValueError("We don't support Mapping Nodes to date")
+
                 try:
                     usage_scenario_dir = os.path.split(usage_scenario_file)[0]
                     filename = runner_join_paths(usage_scenario_dir, nodes[0], force_path_as_root=True)
@@ -356,6 +357,7 @@ class ScenarioRunner:
 
             # We can use load here as the Loader extends SafeLoader
             yml_obj = yaml.load(usage_scenario, Loader)
+
             # Now that we have parsed the yml file we need to check for the special case in which we have a
             # compose-file key. In this case we merge the data we find under this key but overwrite it with
             # the data from the including file.
@@ -369,7 +371,7 @@ class ScenarioRunner:
                         else:
                             dict1[k] = v
                     return dict1
-                return dict1
+                return dict2
 
             new_dict = {}
             if 'compose-file' in yml_obj.keys():
@@ -382,6 +384,7 @@ class ScenarioRunner:
                 del yml_obj['compose-file']
 
             yml_obj.update(new_dict)
+
 
             # If a service is defined as None we remove it. This is so we can have a compose file that starts
             # all the various services but we can disable them in the usage_scenario. This is quite useful when

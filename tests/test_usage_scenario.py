@@ -155,7 +155,7 @@ def test_compose_include_not_same_dir():
 
     with redirect_stdout(out), redirect_stderr(err), pytest.raises(ValueError) as e:
         with Tests.RunUntilManager(runner) as context:
-            context.run_until('setup_services')
+            context.run_until('import_metric_providers')
     assert str(e.value).startswith('Included compose file "../compose.yml" may only be in the same directory as the usage_scenario file as otherwise relative context_paths and volume_paths cannot be mapped anymore') , \
         Tests.assertion_info('Root directory escape', str(e.value))
 
@@ -167,7 +167,7 @@ def test_context_include():
 
     with redirect_stdout(out), redirect_stderr(err):
         with Tests.RunUntilManager(runner) as context:
-            context.run_until('setup_services')
+            context.run_until('import_metric_providers')
     # will not throw an exception
 
 def test_context_include_escape():
@@ -183,12 +183,33 @@ def test_context_include_escape():
     assert str(e.value).startswith('../../../../../../ must not be in folder above root repo folder') , \
         Tests.assertion_info('Root directory escape', str(e.value))
 
+def test_include_overwrites_string_values():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/overwrite_string_from_include.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('import_metric_providers')
+
+    assert runner._usage_scenario['name'] == 'Name overwritten'
+    assert runner._usage_scenario['author'] == 'Author overwritten'
+    assert runner._usage_scenario['description'] == 'Description as is'
+
+def test_include_overwrites_string_values_even_if_top_include():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/overwrite_string_from_include_even_if_top.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('import_metric_providers')
+
+    assert runner._usage_scenario['name'] == 'Name overwritten'
+    assert runner._usage_scenario['author'] == 'Author overwritten'
+    assert runner._usage_scenario['description'] == 'Description as is'
+
+
 def test_unsupported_compose():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/unsupported_compose.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=False)
 
     with pytest.raises(SchemaError) as e:
         with Tests.RunUntilManager(runner) as context:
-            context.run_until('setup_services')
+            context.run_until('import_metric_providers')
     assert str(e.value) == 'Your compose file does contain a key that GMT does not support - Please check if the container will still run as intended. If you want to ignore this error you can add the attribute `ignore-unsupported-compose: true` to your usage_scenario.yml\nError: ["Wrong key \'blkio_config\' in {\'image\': \'alpine\', \'blkio_config\': {\'weight\': 300}}"]'
 
 def test_skip_unsupported_compose():
@@ -468,7 +489,7 @@ def test_depends_on_healthcheck_error_max_waiting_time():
 def test_network_created():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_stress.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
     with Tests.RunUntilManager(runner) as context:
-        context.run_until('setup_services')
+        context.run_until('setup_networks')
         ps = subprocess.run(
             ['docker', 'network', 'ls'],
             check=True,
