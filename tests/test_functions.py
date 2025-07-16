@@ -11,6 +11,7 @@ from metric_providers.cpu.utilization.cgroup.system.provider import CpuUtilizati
 from metric_providers.psu.energy.ac.mcp.machine.provider import PsuEnergyAcMcpMachineProvider
 from metric_providers.cpu.energy.rapl.msr.component.provider import CpuEnergyRaplMsrComponentProvider
 from metric_providers.network.io.procfs.system.provider import NetworkIoProcfsSystemProvider
+from metric_providers.network.io.cgroup.container.provider import NetworkIoCgroupContainerProvider
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -124,6 +125,17 @@ def import_network_io_procfs(run_id):
     df = obj.read_metrics()
 
     metric_importer.import_measurements(df, 'network_io_procfs_system', run_id)
+
+    return df
+
+def import_network_io_cgroup_container(run_id):
+
+    obj = NetworkIoCgroupContainerProvider(99, skip_check=True)
+
+    obj._filename = os.path.join(CURRENT_DIR, 'data/metrics/network_io_cgroup_container.log')
+    df = obj.read_metrics()
+
+    metric_importer.import_measurements(df, 'network_io_cgroup_container', run_id)
 
     return df
 
