@@ -283,6 +283,9 @@ class ScenarioRunner:
             path = os.path.realpath(self._uri)
             self.__working_folder = self._repo_folder = path
 
+        if self._dev_no_save:
+            return
+
         self._branch = subprocess.check_output(['git', 'branch', '--show-current'], cwd=self._repo_folder, encoding='UTF-8').strip()
 
         git_repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=self._repo_folder, encoding='UTF-8').strip()
