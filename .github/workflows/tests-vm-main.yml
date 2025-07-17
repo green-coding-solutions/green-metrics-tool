@@ -7,7 +7,7 @@ on:
 
 jobs:
   run-tests-main:
-    runs-on: carbonrunner-2vcpu-ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
 
       - name: Eco CI Energy Estimation - Initialize
@@ -15,7 +15,7 @@ jobs:
         with:
           task: start-measurement
           project: "Green Metrics Tool"
-          machine: "carbonrunner-2vcpu-ubuntu-latest"
+          machine: "ubuntu-latest"
           tags: "CI/CD, Main-Workflow"
           gmt-api-token: ${{ secrets.GMT_API_TOKEN }}
           # Intensity for California in 2024
