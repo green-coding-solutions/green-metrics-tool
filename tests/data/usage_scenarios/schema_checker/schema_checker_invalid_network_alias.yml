@@ -1,0 +1,27 @@
+---
+name: Test
+author: Dan Mateas
+description: test
+
+networks:
+  gmt-test-network:
+
+services:
+  test-container:
+    type: container
+    image: gcb_stress
+    networks:
+      gmt-test-network:
+        aliases:
+          - bad!alias
+
+flow:
+  - name: Stress
+    container: test-container
+    commands:
+      - type: console
+        command: stress-ng -c 1 -t 1 -q
+        note: Starting Stress
+        shell: bash
+        log-stdout: true
+        log-stderr: false
