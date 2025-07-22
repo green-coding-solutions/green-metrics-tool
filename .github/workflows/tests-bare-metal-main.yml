@@ -1,5 +1,5 @@
-name: Daily Test Run - Virtual Machine - Main Branch
-run-name: Scheduled - main branch
+name: Daily Test Run - Bare Metal - Main Branch
+run-name: Scheduled - main branch - Bare Metal
 on:
 #  schedule:
 #    - cron: '2 50 * * *'
