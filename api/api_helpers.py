@@ -180,7 +180,7 @@ def get_run_info(user, run_id):
                     LEFT JOIN categories as t on t.id = elements) as categories,
                 filename, start_measurement, end_measurement,
                 measurement_config, machine_specs, machine_id, usage_scenario, usage_scenario_variables,
-                created_at, invalid_run, phases, logs, failed, gmt_hash, runner_arguments
+                created_at, phases, logs, failed, gmt_hash, runner_arguments
             FROM runs
             WHERE
                 (TRUE = %s OR user_id = ANY(%s::int[]))

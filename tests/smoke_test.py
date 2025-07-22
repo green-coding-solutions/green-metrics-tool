@@ -136,10 +136,9 @@ def test_run_is_not_invalidated():
 
     run_id = utils.get_run_data(RUN_NAME)['id']
     query = """
-            SELECT id, invalid_run
-            FROM runs
-            WHERE id = %s
+            SELECT message
+            FROM warnings
+            WHERE run_id = %s
             """
-    data = DB().fetch_one(query, (run_id,))
-    assert data[0] == run_id
-    assert data[1] is None
+    data = DB().fetch_all(query, (run_id,))
+    assert data == []

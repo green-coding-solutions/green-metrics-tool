@@ -226,7 +226,9 @@ class ScenarioRunner:
             return
 
         if mode =='start':
-            system_checks.check_start()
+            warnings = system_checks.check_start()
+            for warn in warnings:
+                self.add_warning(warn)
         else:
             raise RuntimeError('Unknown mode for system check:', mode)
 
@@ -1272,6 +1274,11 @@ class ScenarioRunner:
         if log_entry_name not in self.__stdout_logs:
             self.__stdout_logs[log_entry_name] = ''
         self.__stdout_logs[log_entry_name] = '\n'.join((self.__stdout_logs[log_entry_name], message))
+    def add_warning(self, message):
+        if not self._run_id or self._dev_no_save:
+            print("Skipping saving warning due to missing run id or --dev-no-save")
+            return
+        DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (self._run_id, message))
 
     def add_containers_to_metric_providers(self):
         for metric_provider in self.__metric_providers:
@@ -1755,12 +1762,7 @@ class ScenarioRunner:
             if not self._run_id or self._dev_no_save:
                 print(TerminalColors.WARNING, '\nSkipping saving identification if run is invalid due to missing run id or --dev-no-save', TerminalColors.ENDC)
             else:
-                DB().query('''
-                    UPDATE runs
-                    SET invalid_run = COALESCE(invalid_run, '') || %s
-                    WHERE id=%s''',
-                    params=(invalid_message, self._run_id)
-                )
+                self.add_warning(invalid_message)
 
         for argument in self._arguments:
             # dev no optimizations does not make the run invalid ... all others do
@@ -1771,12 +1773,7 @@ class ScenarioRunner:
                 if not self._run_id or self._dev_no_save:
                     print(TerminalColors.WARNING, '\nSkipping saving identification if run is invalid due to missing run id or --dev-no-save', TerminalColors.ENDC)
                 else:
-                    DB().query('''
-                        UPDATE runs
-                        SET invalid_run = COALESCE(invalid_run, '') || %s
-                        WHERE id=%s''',
-                        params=(invalid_message, self._run_id)
-                    )
+                    self.add_warning(invalid_message)
                 break # one is enough
 
     def cleanup(self, continue_measurement=False):

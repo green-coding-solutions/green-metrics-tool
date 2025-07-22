@@ -172,6 +172,30 @@ async def get_notes(run_id, user: User = Depends(authenticate)):
     return ORJSONResponseObjKeep({'success': True, 'data': escaped_data})
 
 
+@router.get('/v1/warnings/{run_id}')
+async def get_warnings(run_id, user: User = Depends(authenticate)):
+    if run_id is None or not is_valid_uuid(run_id):
+        raise RequestValidationError('Run ID is not a valid UUID or empty')
+
+    query = '''
+            SELECT w.run_id, w.message, w.created_at
+            FROM warnings as w
+            JOIN runs as r on w.run_id = r.id
+            WHERE
+                (TRUE = %s OR r.user_id = ANY(%s::int[]))
+                AND w.run_id = %s
+            ORDER BY w.created_at DESC
+            '''
+
+    params = (user.is_super_user(), user.visible_users(), run_id)
+    data = DB().fetch_all(query, params=params)
+    if data is None or data == []:
+        return Response(status_code=204)
+
+    escaped_data = [html_escape_multi(note) for note in data]
+    return ORJSONResponseObjKeep({'success': True, 'data': escaped_data})
+
+
 @router.get('/v1/network/{run_id}')
 async def get_network(run_id, user: User = Depends(authenticate)):
     if run_id is None or not is_valid_uuid(run_id):
@@ -252,7 +276,7 @@ def old_v1_runs_endpoint():
 async def get_runs(uri: str | None = None, branch: str | None = None, machine_id: int | None = None, machine: str | None = None, filename: str | None = None, job_id: int | None = None, failed: bool | None = None, limit: int | None = 50, uri_mode = 'none', user: User = Depends(authenticate)):
 
     query = '''
-            SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.invalid_run, r.filename, r.usage_scenario_variables, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
+            SELECT r.id, r.name, r.uri, r.branch, r.created_at, r.filename, r.usage_scenario_variables, m.description, r.commit_hash, r.end_measurement, r.failed, r.machine_id
             FROM runs as r
             LEFT JOIN machines as m on r.machine_id = m.id
             WHERE
