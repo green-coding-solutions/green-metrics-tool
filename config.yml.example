@@ -138,6 +138,8 @@ measurement:
 #        chips: ['thinkpad-isa-0000']
 #        features: ['fan1', 'fan2']
     #--- Debug - These providers should only be needed for debugging and introspection purposes
+#      cpu.throttling.msr.component.provider.CpuThrottlingMsrComponentProvider:
+#        sampling_rate: 99
 #      cpu.frequency.sysfs.core.provider.CpuFrequencySysfsCoreProvider:
 #        sampling_rate: 99
 #      cpu.time.cgroup.container.provider.CpuTimeCgroupContainerProvider:
