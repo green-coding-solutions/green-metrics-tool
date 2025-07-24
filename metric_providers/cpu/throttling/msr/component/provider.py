@@ -20,16 +20,16 @@ class CpuThrottlingMsrComponentProvider(BaseMetricProvider):
         base_cols = ['time', 'detail_name']
 
         df_thermal_throttling_status = (
-            df[base_cols + ["thermal_throttling_status"]]
-            .rename(columns={"thermal_throttling_status": "value"})
+            df[base_cols + ['thermal_throttling_status']]
+            .rename(columns={'thermal_throttling_status': 'value'})
             .copy()
         )
         df_thermal_throttling_status['unit'] = self._unit
-        df_thermal_throttling_status['metric'] = 'df_thermal_throttling_status'
+        df_thermal_throttling_status['metric'] = 'thermal_throttling_status'
 
         df_power_limit_throttling_status = (
-            df[base_cols + ["power_limit_throttling_status"]]
-            .rename(columns={"power_limit_throttling_status": "value"})
+            df[base_cols + ['power_limit_throttling_status']]
+            .rename(columns={'power_limit_throttling_status': 'value'})
             .copy()
         )
         df_power_limit_throttling_status['unit'] = self._unit
