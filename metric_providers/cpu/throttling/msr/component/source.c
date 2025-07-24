@@ -77,6 +77,11 @@ static void detect_packages(void) {
         }
         fclose(fff);
 
+        if (package >= MAX_PACKAGES) {
+            fprintf(stderr, "Package ID %d exceeds maximum supported packages (%d)\n", package, MAX_PACKAGES);
+            exit(127);
+        }
+
         if (package_map[package] == -1) {
             total_packages++;
             package_map[package] = i;
