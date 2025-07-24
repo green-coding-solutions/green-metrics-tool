@@ -18,6 +18,29 @@ async function fetchDiff() {
 
 }
 
+const fetchWarningsForRuns = async (ids) => {
+    const warnings = [];
+    for (const id of ids) {
+        try {
+            const data = await makeAPICall('/v1/warnings/' + id);
+            if (data?.data) warnings.push(...data.data);
+        } catch (err) {
+            showNotification('Could not get warnings data from API', err);
+        }
+    }
+    return warnings;
+};
+
+const fillWarnings = (warnings) => {
+    if (!warnings || warnings.length === 0) return;
+    const container = document.querySelector('#run-warnings');
+    const ul = container.querySelector('ul');
+    warnings.forEach(w => {
+        ul.insertAdjacentHTML('beforeend', `<li>${w[1]}</li>`);
+    });
+    container.classList.remove('hidden');
+};
+
 $(document).ready( (e) => {
     (async () => {
         const url_params = getURLParams();
@@ -42,6 +65,9 @@ $(document).ready( (e) => {
             showNotification('Could not get compare in-repo data from API', err);
             return
         }
+
+        const warnings = await fetchWarningsForRuns(url_params['ids'].split(','));
+        fillWarnings(warnings);
 
         let comparison_identifiers = phase_stats_data.comparison_identifiers.map((el) => replaceRepoIcon(el));
         comparison_identifiers = comparison_identifiers.join(' vs. ')

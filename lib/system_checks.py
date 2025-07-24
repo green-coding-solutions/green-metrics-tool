@@ -131,6 +131,7 @@ start_checks = [
 
 def check_start():
     print(TerminalColors.HEADER, '\nRunning System Checks', TerminalColors.ENDC)
+    warnings = []
     max_key_length = max(len(key[2]) for key in start_checks)
 
     for check in start_checks:
@@ -146,6 +147,7 @@ def check_start():
             else:
                 if check[1] == Status.WARN:
                     output = f"{TerminalColors.WARNING}WARN{TerminalColors.ENDC} ({check[3]})"
+                    warnings.append(check[3])
                 elif check[1] == Status.INFO:
                     output = f"{TerminalColors.OKCYAN}INFO{TerminalColors.ENDC} ({check[3]})"
                 else:
@@ -160,3 +162,5 @@ def check_start():
             if retval is False and check[1].value >= GlobalConfig().config['measurement']['system_check_threshold']:
                 # Error needs to raise
                 raise ConfigurationCheckError(check[3], check[1])
+
+    return warnings

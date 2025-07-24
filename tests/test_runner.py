@@ -137,15 +137,17 @@ def test_runner_run_invalidated():
     run_id = runner.run()
 
     query = """
-            SELECT id, invalid_run
-            FROM runs
-            WHERE id = %s
+            SELECT message
+            FROM warnings
+            WHERE run_id = %s
+            ORDER BY created_at DESC
             """
-    data = DB().fetch_one(query, (run_id,))
+    data = DB().fetch_all(query, (run_id,))
 
-    assert data[0] == run_id
+    messages = [d[0] for d in data]
 
     if platform.system() == 'Darwin':
-        assert data[1] == 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\nDevelopment switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n'
+        assert 'Measurements are not reliable as they are done on a Mac in a virtualized docker environment with high overhead and low reproducability.\n' in messages
+        assert any('Development switches or skip_system_checks were active for this run.' in msg for msg in messages)
     else:
-        assert data[1] == 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n'
+        assert 'Development switches or skip_system_checks were active for this run. This will likely produce skewed measurement data.\n' in messages

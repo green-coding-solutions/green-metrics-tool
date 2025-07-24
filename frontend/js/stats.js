@@ -124,8 +124,6 @@ const fetchAndFillRunData = async (url_params) => {
             document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td title="${run_data?.[item]}">${new Date(run_data?.[item] / 1e3)}</td></tr>`)
         } else if(item == 'created_at' ) {
             document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td title="${run_data?.[item]}">${new Date(run_data?.[item])}</td></tr>`)
-        } else if(item == 'invalid_run' && run_data?.[item] != null) {
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><span class="ui yellow horizontal label">${run_data?.[item]}</span></td></tr>`)
         } else if(item == 'gmt_hash') {
             document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td><a href="https://github.com/green-coding-solutions/green-metrics-tool/commit/${run_data?.[item]}">${run_data?.[item]}</a></td></tr>`);
         } else if(item == 'uri') {
@@ -144,10 +142,7 @@ const fetchAndFillRunData = async (url_params) => {
 
     document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>duration</strong></td><td title="${measurement_duration_in_s} seconds">${measurement_duration_display}</td></tr>`)
 
-    if (run_data.invalid_run) {
-        showNotification('Run measurement has been marked as invalid', run_data.invalid_run);
-        document.body.classList.add("invalidated-measurement")
-    }
+    // warnings will be fetched separately
 
 }
 
@@ -592,6 +587,26 @@ const fetchTimelineNotes = async (url_params) => {
     return notes?.data;
 }
 
+const fetchWarnings = async (url_params) => {
+    let warnings = null;
+    try {
+        warnings = await makeAPICall('/v1/warnings/' + url_params['id'])
+    } catch (err) {
+        showNotification('Could not get warnings data from API', err);
+    }
+    return warnings?.data;
+}
+
+const fillWarnings = (warnings) => {
+    if (!warnings || warnings.length === 0) return;
+    const container = document.querySelector('#run-warnings');
+    const ul = container.querySelector('ul');
+    warnings.forEach(w => {
+        ul.insertAdjacentHTML('beforeend', `<li>${w[1]}</li>`);
+    });
+    container.classList.remove('hidden');
+}
+
 
 /* Chart starting code*/
 $(document).ready( (e) => {
@@ -611,6 +626,8 @@ $(document).ready( (e) => {
         fetchAndFillNetworkIntercepts(url_params);
         fetchAndFillOptimizationsData(url_params);
         fetchAndFillAIData(url_params);
+        const warnings = await fetchWarnings(url_params);
+        fillWarnings(warnings);
 
         (async () => { // since we need to wait for fetchAndFillPhaseStatsData we wrap in async so later calls cann already proceed
             const phase_stats = await fetchAndFillPhaseStatsData(url_params);
