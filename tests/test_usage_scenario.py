@@ -121,7 +121,7 @@ def test_labels_too_long():
         with Tests.RunUntilManager(runner) as context:
             context.run_until('setup_services')
 
-    assert "- value of label 'LABEL_TOO_LONG' is too long 1025 (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe" == str(e.value), Tests.assertion_info('Label value is too long', str(e.value))
+    assert "- value of label 'LABEL_TOO_LONG' is too long 1075 (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe" == str(e.value), Tests.assertion_info('Label value is too long', str(e.value))
 
 def test_labels_skip_unsafe_true():
     runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', skip_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)

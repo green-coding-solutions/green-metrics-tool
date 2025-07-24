@@ -1006,6 +1006,10 @@ class ScenarioRunner:
                     # We only forbid long values (>1024), every character is allowed.
                     # The value is directly passed to the container and is not evaluated on the host system, so there is no security related reason to forbid special characters.
                     if not self._allow_unsafe and len(label_value) > 1024:
+                        if self._skip_unsafe:
+                            warn_message= arrows(f"Found label length > 1024: {label_key} - Skipping")
+                            print(TerminalColors.WARNING, warn_message, TerminalColors.ENDC)
+                            continue
                         labels_check_errors.append(f"- value of label '{label_key}' is too long {len(label_value)} (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe")
                         continue # do not add to append string if not conformant
 
