@@ -6,6 +6,7 @@ import io
 import os
 import re
 import subprocess
+import json
 
 GMT_DIR = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
 
@@ -88,6 +89,58 @@ def test_env_variable_allow_unsafe_true():
     # Both allowed and forbidden values should be in env vars
     assert 'TEST_ALLOWED' in env_var_output, Tests.assertion_info('TEST_ALLOWED in env vars', env_var_output)
     assert 'TEST_TOO_LONG' in env_var_output, Tests.assertion_info('TEST_TOO_LONG in env vars', env_var_output)
+
+# labels: [object] (optional)
+# Key-Value pairs for labels on the container
+
+def get_labels():
+    ps = subprocess.run(
+        ['docker', 'inspect', 'test-container'],
+        check=True,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        encoding='UTF-8',
+    )
+    labels = json.loads(ps.stdout)[0].get('Config', {}).get('Labels', {})
+    return labels
+
+def test_labels_allowed_characters():
+
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_allowed.yml', skip_unsafe=False, skip_system_checks=True, dev_cache_build=True, dev_no_sleeps=True, dev_no_metrics=True, dev_no_phase_stats=True)
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        labels = get_labels()
+
+        assert labels.get('TESTALLOWED') == 'alpha-num123_', Tests.assertion_info('TESTALLOWED label', labels)
+        assert labels.get('test.label') == 'example.com', Tests.assertion_info('test.label label', labels)
+        assert labels.get('OTHER_LABEL') == 'http://localhost:8080', Tests.assertion_info('OTHER_LABEL label', labels)
+
+def test_labels_too_long():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with pytest.raises(RuntimeError) as e:
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert "- value of label 'LABEL_TOO_LONG' is too long 1075 (max allowed length is 1024) - Maybe consider using --allow-unsafe or --skip-unsafe" == str(e.value), Tests.assertion_info('Label value is too long', str(e.value))
+
+def test_labels_skip_unsafe_true():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', skip_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        labels = get_labels()
+
+    assert 'LABEL_ALLOWED' in labels, Tests.assertion_info('LABEL_ALLOWED in labels', labels)
+    assert 'LABEL_TOO_LONG' not in labels, Tests.assertion_info('LABEL_TOO_LONG not in labels', labels)
+
+def test_labels_allow_unsafe_true():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/labels_stress_forbidden.yml', allow_unsafe=True, skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    with Tests.RunUntilManager(runner) as context:
+        context.run_until('setup_services')
+        labels = get_labels()
+
+    assert 'LABEL_ALLOWED' in labels, Tests.assertion_info('LABEL_ALLOWED in labels', labels)
+    assert 'LABEL_TOO_LONG' in labels, Tests.assertion_info('LABEL_TOO_LONG in labels', labels)
 
 # ports: [int:int] (optional)
 # Docker container portmapping on host OS to be used with --allow-unsafe flag.
@@ -513,6 +566,18 @@ def test_container_is_in_network():
         )
         inspect = ps.stdout
     assert 'test-container' in inspect, Tests.assertion_info('test-container', inspect)
+
+def test_network_alias_added():
+    runner = ScenarioRunner(uri=GMT_DIR, uri_type='folder', filename='tests/data/usage_scenarios/network_alias.yml', skip_system_checks=True, dev_no_metrics=True, dev_no_phase_stats=True, dev_no_sleeps=True, dev_cache_build=True)
+    out = io.StringIO()
+    err = io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        with Tests.RunUntilManager(runner) as context:
+            context.run_until('setup_services')
+
+    assert 'Adding network alias test-alias for network gmt-test-network in service test-container' in out.getvalue()
+    docker_run_command = re.search(r"docker run with: (.*)", out.getvalue()).group(1)
+    assert '--network-alias test-alias' in docker_run_command
 
 
 
