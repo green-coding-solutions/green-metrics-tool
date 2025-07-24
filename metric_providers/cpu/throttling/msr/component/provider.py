@@ -12,6 +12,8 @@ class CpuThrottlingMsrComponentProvider(BaseMetricProvider):
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
+        self._sub_metrics_name = ['thermal_throttling_status', 'power_limit_throttling_status']
+
 
     def _parse_metrics(self, df):
         df['detail_name'] = df.package_id
@@ -25,7 +27,7 @@ class CpuThrottlingMsrComponentProvider(BaseMetricProvider):
             .copy()
         )
         df_thermal_throttling_status['unit'] = self._unit
-        df_thermal_throttling_status['metric'] = 'thermal_throttling_status'
+        df_thermal_throttling_status['metric'] = self._sub_metrics_name[0]
 
         df_power_limit_throttling_status = (
             df[base_cols + ['power_limit_throttling_status']]
@@ -33,6 +35,6 @@ class CpuThrottlingMsrComponentProvider(BaseMetricProvider):
             .copy()
         )
         df_power_limit_throttling_status['unit'] = self._unit
-        df_power_limit_throttling_status['metric'] = 'power_limit_throttling_status'
+        df_power_limit_throttling_status['metric'] = self._sub_metrics_name[1]
 
         return [df_thermal_throttling_status, df_power_limit_throttling_status]
