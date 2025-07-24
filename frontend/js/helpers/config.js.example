@@ -306,10 +306,15 @@ METRIC_MAPPINGS = {
         "source": "sysfs",
         "explanation": "CPU Frequency per core as reported by sysfs"
     },
-    "cpu_throttling_msr_component": {
-        "clean_name": "CPU Throttling",
+    "cpu_throttling_thermal_msr_component": {
+        "clean_name": "CPU Throttling (Thermal)",
         "source": "msr",
-        "explanation": "Indicator for CPU throttling due to thermal or power capping"
+        "explanation": "Indicator for CPU throttling due to thermal capping"
+    },
+    "cpu_throttling_power_msr_component": {
+        "clean_name": "CPU Throttling (Power)",
+        "source": "msr",
+        "explanation": "Indicator for CPU throttling due to power capping"
     },
     "ane_power_powermetrics_component": {
         "clean_name": "ANE Power",

@@ -12,7 +12,7 @@ class CpuThrottlingMsrComponentProvider(BaseMetricProvider):
             current_dir=os.path.dirname(os.path.abspath(__file__)),
             skip_check=skip_check,
         )
-        self._sub_metrics_name = ['thermal_throttling_status', 'power_limit_throttling_status']
+        self._sub_metrics_name = ['cpu_throttling_thermal_msr_component', 'cpu_throttling_power_msr_component']
 
 
     def _parse_metrics(self, df):

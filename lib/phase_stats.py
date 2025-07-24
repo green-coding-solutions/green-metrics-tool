@@ -188,8 +188,8 @@ def build_and_store_phase_stats(run_id, sci=None):
                 'energy_impact_powermetrics_vm',
                 'disk_used_statvfs_system',
                 'cpu_frequency_sysfs_core',
-                'power_limit_throttling_status',
-                'thermal_throttling_status',
+                'cpu_throttling_thermal_msr_component',
+                'cpu_throttling_power_msr_component',
             ):
                 csv_buffer.write(generate_csv_line(run_id, metric, detail_name, f"{idx:03}_{phase['name']}", avg_value, 'MEAN', max_value, min_value, sampling_rate_avg, sampling_rate_max, sampling_rate_95p, unit))
 
