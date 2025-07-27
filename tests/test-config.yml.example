@@ -104,6 +104,7 @@ sci:
   RS: 1
   TE: 181000
   I: 436
+  N: 0.001875
 
 optimization:
   ignore:

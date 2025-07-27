@@ -266,7 +266,7 @@ def build_and_store_phase_stats(run_id, sci=None):
             # build the network energy
             # network via formula: https://www.green-coding.io/co2-formulas/
             # pylint: disable=invalid-name
-            network_io_in_kWh = Decimal(sum(network_bytes_total)) / 1_000_000_000 * Decimal(0.002651650429449553)
+            network_io_in_kWh = Decimal(sum(network_bytes_total)) / 1_000_000_000 * Decimal(config['sci']['N'])
             network_io_in_uJ = network_io_in_kWh * 3_600_000_000_000
             csv_buffer.write(generate_csv_line(run_id, 'network_energy_formula_global', '[FORMULA]', f"{idx:03}_{phase['name']}", network_io_in_uJ, 'TOTAL', None, None, None, None, None, 'uJ'))
             # co2 calculations

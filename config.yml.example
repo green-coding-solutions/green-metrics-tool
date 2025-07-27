@@ -229,6 +229,10 @@ sci:
     # The number worldwide for 2024 is 473
     # The number 334 that comes as default is for Germany from 2024 and comes from https://app.electricitymaps.com/zone/DE/all/yearly
     I: 334
+    # N is not technically part of the SCI, but we keep the value here for better clustering.
+    # N is the network energy intensity per transferred data. It transforms values like GB to kWh
+    # See https://www.green-coding.io/co2-formulas/ for details
+    N: 0.001875
 
 #optimization:
 #  ignore:
