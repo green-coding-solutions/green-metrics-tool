@@ -232,7 +232,7 @@ sci:
     # N is not technically part of the SCI, but we keep the value here for better clustering.
     # N is the network energy intensity per transferred data. It transforms values like GB to kWh
     # See https://www.green-coding.io/co2-formulas/ for details
-    N: 0.001875
+    N: 0.04106063
 
 #optimization:
 #  ignore:
