@@ -1,5 +1,6 @@
 import os
 import io
+import math
 from decimal import Decimal
 
 GMT_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))+'/../../'
@@ -312,8 +313,7 @@ def test_phase_stats_network_data():
     total_network_bytes = sum(row['value'] for row in network_totals)
     expected_network_energy_kwh = Decimal(total_network_bytes) / 1_000_000_000 * Decimal(test_sci_config['N'])
     expected_network_energy_uj = expected_network_energy_kwh * 3_600_000_000_000
-    assert abs(network_energy_entry['value'] - expected_network_energy_uj) < 1, \
-        f"Expected network energy: {expected_network_energy_uj}, got: {network_energy_entry['value']}"
+    assert math.isclose(network_energy_entry['value'], expected_network_energy_uj, rel_tol=1e-5), f"Expected network energy: {expected_network_energy_uj}, got: {network_energy_entry['value']}"
 
     # Network carbon data
     network_carbon_data = DB().fetch_all(
@@ -330,8 +330,7 @@ def test_phase_stats_network_data():
     assert network_carbon_entry['detail_name'] == '[FORMULA]'
     assert network_carbon_entry['unit'] == 'ug'
     assert network_carbon_entry['type'] == 'TOTAL'
-    assert abs(network_carbon_entry['value'] - expected_network_carbon_ug) < 1, \
-        f"Expected network carbon: {expected_network_carbon_ug}, got: {network_carbon_entry['value']}"
+    assert math.isclose(network_carbon_entry['value'], expected_network_carbon_ug, rel_tol=1e-5), f"Expected network carbon: {expected_network_carbon_ug}, got: {network_carbon_entry['value']}"
 
 def test_sci_calculation():
     run_id = Tests.insert_run()
@@ -355,19 +354,19 @@ def test_sci_calculation():
 
     # 1. Machine carbon from energy consumption
     machine_carbon_data = DB().fetch_all(
-        'SELECT metric, value, unit FROM phase_stats WHERE phase = %s AND metric LIKE %s',
-        params=('004_[RUNTIME]', '%_carbon_ac_%'), fetch_mode='dict'
+        'SELECT metric, value, unit FROM phase_stats WHERE phase = %s AND metric = %s',
+        params=('004_[RUNTIME]', 'psu_carbon_ac_mcp_machine'), fetch_mode='dict'
     )
-    assert len(machine_carbon_data) >= 1, "Machine carbon should be calculated"
-    machine_carbon_ug = sum(row['value'] for row in machine_carbon_data if row['unit'] == 'ug')
+    assert len(machine_carbon_data) == 1, "Machine carbon should be calculated"
+    machine_carbon_ug = machine_carbon_data[0]['value']
 
     # 2. Embodied carbon calculation
     embodied_carbon_data = DB().fetch_all(
         'SELECT metric, value, unit FROM phase_stats WHERE phase = %s AND metric = %s',
         params=('004_[RUNTIME]', 'embodied_carbon_share_machine'), fetch_mode='dict'
     )
-    assert len(embodied_carbon_data) >= 1, "Embodied carbon should be calculated"
-    embodied_carbon_ug = sum(row['value'] for row in embodied_carbon_data)
+    assert len(embodied_carbon_data) == 1, "Embodied carbon should be calculated"
+    embodied_carbon_ug = embodied_carbon_data[0]['value']
 
     # 3. Network carbon calculation
     network_carbon_data = DB().fetch_all(
@@ -385,14 +384,14 @@ def test_sci_calculation():
     assert len(sci_data) == 1, "SCI should be calculated for the whole run"
     sci_entry = sci_data[0]
 
-    # Verify SCI unit format includes functional unit description
-    assert sci_entry['unit'] == f"ugCO2e/{test_sci_config['R_d']}", \
-        f"SCI unit should include functional unit description. Expected: ugCO2e/{test_sci_config['R_d']}, got: {sci_entry['unit']}"
+    # Verify SCI unit format includes functional unit description - fail if other unit occurs
+    expected_unit = f"ugCO2e/{test_sci_config['R_d']}"
+    assert sci_entry['unit'] == expected_unit, \
+        f"Test fails: Unexpected unit detected. Expected: {expected_unit}, got: {sci_entry['unit']}. This test is designed to fail when incorrect units are present."
 
     # Verify SCI value matches expected value: (machine_carbon + embodied_carbon + network_carbon) / R
     expected_sci_value = (machine_carbon_ug + embodied_carbon_ug + network_carbon_ug) / Decimal(test_sci_config['R'])
-    assert abs(sci_entry['value'] - expected_sci_value) < 1, \
-        f"SCI calculation should be correct. Expected: {expected_sci_value}, got: {sci_entry['value']}"
+    assert math.isclose(abs(sci_entry['value']), expected_sci_value, rel_tol=1e-5), f"SCI calculation should be correct. Expected: {expected_sci_value}, got: {sci_entry['value']}"
 
     # Verify SCI value is reasonable (positive and within expected range)
     assert sci_entry['value'] > 0, "SCI should be positive"
