@@ -90,7 +90,6 @@ measurement:
         sampling_rate: 99
     common:
       psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
-        sampling_rate: 99
         CPUChips: 1
         HW_CPUFreq: 3200
         CPUCores: 4
