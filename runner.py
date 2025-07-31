@@ -121,6 +121,11 @@ if __name__ == '__main__':
 
     filenames = list(set(filenames)) * args.iterations
 
+    # Validate that at least one file was found
+    if not filenames:
+        print(TerminalColors.FAIL, 'Error: No valid files found matching the specified patterns:', filename_patterns, TerminalColors.ENDC)
+        sys.exit(1)
+
     runner = None
 
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
