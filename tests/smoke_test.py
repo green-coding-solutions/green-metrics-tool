@@ -2,7 +2,6 @@ import io
 import os
 import subprocess
 import re
-import platform
 
 GMT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../')
 
@@ -130,9 +129,7 @@ def test_db_rows_are_written_and_presented():
     if not 'PowermetricsProvider' in metric_providers:
         assert len(metric_providers) == 0
 
-def test_run_is_not_invalidated():
-    if platform.system() == 'Darwin':
-        return
+def test_run_contains_warnings():
 
     run_id = utils.get_run_data(RUN_NAME)['id']
     query = """
@@ -141,4 +138,9 @@ def test_run_is_not_invalidated():
             WHERE run_id = %s
             """
     data = DB().fetch_all(query, (run_id,))
-    assert data == []
+    assert len(data) >= 1 # should at least contain the warning about the containers
+    found_warning = False
+    for warning in data:
+        if warning[0].startswith('You have other containers running on the system. This is usually what you want in local development'):
+            found_warning = True
+    assert found_warning is True, 'Did not find "You have other containers running on the system. This is usually what you want in local development" in warning strings'
