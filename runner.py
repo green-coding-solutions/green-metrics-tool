@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--uri', type=str, help='The URI to get the usage_scenario.yml from. Can be either a local directory starting  with / or a remote git repository starting with http(s)://')
     parser.add_argument('--branch', type=str, help='Optionally specify the git branch when targeting a git repository')
-    parser.add_argument('--filename', type=str, action='append', default=['usage_scenario.yml'], help='An optional alternative filename if you do not want to use "usage_scenario.yml". Multiple filenames can be provided (e.g. "--filename usage_scenario_1.yml --filename usage_scenario_2.yml"). Paths like ../usage_scenario.yml and wildcards like *.yml are supported.')
+    parser.add_argument('--filename', type=str, action='append', help='An optional alternative filename if you do not want to use "usage_scenario.yml". Multiple filenames can be provided (e.g. "--filename usage_scenario_1.yml --filename usage_scenario_2.yml"). Paths like ../usage_scenario.yml and wildcards like *.yml are supported.')
 
     parser.add_argument('--variables', nargs='+', help='Variables that will be replaced into the usage_scenario.yml file')
     parser.add_argument('--commit-hash-folder', help='Use a different folder than the repository root to determine the commit hash for the run')
@@ -111,8 +111,11 @@ if __name__ == '__main__':
             sys.exit(1)
         GlobalConfig(config_location=args.config_override)
 
+    # Use default filename if none provided
+    filename_patterns = args.filename if args.filename else ['usage_scenario.yml']
+
     filenames = []
-    for pattern in args.filename:
+    for pattern in filename_patterns:
         matches = glob.glob(pattern)
         filenames.extend(f for f in matches if os.path.isfile(f))
 
