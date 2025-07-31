@@ -10,3 +10,15 @@ CREATE TRIGGER warnings_moddatetime
     BEFORE UPDATE ON warnings
     FOR EACH ROW
     EXECUTE PROCEDURE moddatetime (updated_at);
+
+UPDATE users
+SET capabilities = jsonb_set(
+    capabilities,
+    '{api,routes}',
+    (
+        COALESCE(capabilities->'api'->'routes', '[]'::jsonb) ||
+        '["/v1/warnings/{run_id}"]'::jsonb
+    ),
+    true
+)
+WHERE id != 0
