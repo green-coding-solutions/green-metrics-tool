@@ -56,7 +56,7 @@ if __name__ == '__main__':
     parser.add_argument('--dev-no-optimizations', action='store_true', help='Disable analysis after run to find possible optimizations.')
     parser.add_argument('--print-phase-stats', type=str, help='Prints the stats for the given phase to the CLI for quick verification without the Dashboard. Try "[RUNTIME]" as argument.')
     parser.add_argument('--print-logs', action='store_true', help='Prints the container and process logs to stdout')
-    parser.add_argument('--iterations', type=int, default=1, help='Specify how many times the scenario should be run. Default is 1. Normally your setup should be good enough for this not to be needed.')
+    parser.add_argument('--iterations', type=int, default=1, help='Specify how many times each scenario should be run. Default is 1. With multiple files, all files are processed sequentially, then the entire sequence is repeated N times. Example: with files A.yml, B.yml and --iterations 2, the execution order is A, B, A, B.')
 
 
     args = parser.parse_args()
@@ -113,18 +113,24 @@ if __name__ == '__main__':
 
     # Use default filename if none provided
     filename_patterns = args.filename if args.filename else ['usage_scenario.yml']
+    using_default_filename = not args.filename
 
     filenames = []
     for pattern in filename_patterns:
         matches = glob.glob(pattern)
-        filenames.extend(f for f in matches if os.path.isfile(f))
+        valid_files = [f for f in matches if os.path.isfile(f)]
+
+        if not valid_files:
+            if using_default_filename:
+                print(TerminalColors.FAIL, f'Error: Default file not found: {pattern}', TerminalColors.ENDC)
+                print('Please create the file or specify a different file with --filename')
+            else:
+                print(TerminalColors.FAIL, f'Error: No valid files found for --filename pattern: {pattern}', TerminalColors.ENDC)
+            sys.exit(1)
+
+        filenames.extend(valid_files)
 
     filenames = list(set(filenames)) * args.iterations
-
-    # Validate that at least one file was found
-    if not filenames:
-        print(TerminalColors.FAIL, 'Error: No valid files found matching the specified patterns:', filename_patterns, TerminalColors.ENDC)
-        sys.exit(1)
 
     runner = None
 
