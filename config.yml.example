@@ -178,12 +178,10 @@ measurement:
 ##        host_ip: 192.168.1.2 # This only needs to be enabled if automatic detection fails
     #--- Model based - These providers estimate rather than measure. Helpful where measuring is not possible, like in VMs
 #      psu.energy.ac.sdia.machine.provider.PsuEnergyAcSdiaMachineProvider:
-#        sampling_rate: 99
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        TDP: 65
 #      psu.energy.ac.xgboost.machine.provider.PsuEnergyAcXgboostMachineProvider:
-#        sampling_rate: 99
       #-- This is a default configuration. Please change this to your system!
 #        CPUChips: 1
 #        HW_CPUFreq: 3200
