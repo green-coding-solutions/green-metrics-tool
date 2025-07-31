@@ -190,7 +190,8 @@ const getRunsTable = async (el, url, include_uri=true, include_button=true, sear
                 if(row[11] == true) el = `${el} <span class="ui red horizontal label">Failed</span>`;
                 else if(row[10] == null) el = `${el} (in progress 🔥)`;
 
-                if(row[5] != null) el = `${el} <span class="ui yellow horizontal label" title="${row[5]}">invalidated</span>`;
+
+                if(row[5] != 0) el = `${el} <span class="ui yellow horizontal label" title="${row[5]}">Warnings</span>`;
 
                 return `<a href="/stats.html?id=${row[0]}" target="_blank">${el}</a>`
             },
