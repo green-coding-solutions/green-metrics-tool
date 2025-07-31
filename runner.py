@@ -121,6 +121,8 @@ if __name__ == '__main__':
 
     filenames = list(set(filenames)) * args.iterations
 
+    runner = None
+
     # Using a very broad exception makes sense in this case as we have excepted all the specific ones before
     #pylint: disable=broad-except
     try:
@@ -168,15 +170,15 @@ if __name__ == '__main__':
                 print('')
 
     except FileNotFoundError as e:
-        error_helpers.log_error('File or executable not found', exception=e, previous_exception=e.__context__, run_id=runner._run_id)
+        error_helpers.log_error('File or executable not found', exception=e, previous_exception=e.__context__, run_id=runner._run_id if runner else None)
     except subprocess.CalledProcessError as e:
-        error_helpers.log_error('Command failed', stdout=e.stdout, stderr=e.stderr, previous_exception=e.__context__, run_id=runner._run_id)
+        error_helpers.log_error('Command failed', stdout=e.stdout, stderr=e.stderr, previous_exception=e.__context__, run_id=runner._run_id if runner else None)
     except RuntimeError as e:
-        error_helpers.log_error('RuntimeError occured in runner.py', exception=e, previous_exception=e.__context__, run_id=runner._run_id)
+        error_helpers.log_error('RuntimeError occured in runner.py', exception=e, previous_exception=e.__context__, run_id=runner._run_id if runner else None)
     except BaseException as e:
-        error_helpers.log_error('Base exception occured in runner.py', exception=e, previous_exception=e.__context__, run_id=runner._run_id)
+        error_helpers.log_error('Base exception occured in runner.py', exception=e, previous_exception=e.__context__, run_id=runner._run_id if runner else None)
     finally:
-        if args.print_logs:
+        if args.print_logs and runner:
             for container_id_outer, std_out in runner.get_logs().items():
                 print(f"Container logs of '{container_id_outer}':")
                 print(std_out)
