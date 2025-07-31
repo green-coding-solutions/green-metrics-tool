@@ -587,25 +587,24 @@ const fetchTimelineNotes = async (url_params) => {
     return notes?.data;
 }
 
-const fetchWarnings = async (url_params) => {
+const fetchAndFillWarnings = async (url_params) => {
     let warnings = null;
     try {
         warnings = await makeAPICall('/v1/warnings/' + url_params['id'])
+        if (!warnings || warnings?.data?.length === 0) return;
     } catch (err) {
         showNotification('Could not get warnings data from API', err);
+        return;
     }
-    return warnings?.data;
-}
 
-const fillWarnings = (warnings) => {
-    if (!warnings || warnings.length === 0) return;
     const container = document.querySelector('#run-warnings');
     const ul = container.querySelector('ul');
-    warnings.forEach(w => {
+    warnings.data.forEach(w => {
         ul.insertAdjacentHTML('beforeend', `<li>${w[1]}</li>`);
     });
     container.classList.remove('hidden');
 }
+
 
 
 /* Chart starting code*/
@@ -626,8 +625,7 @@ $(document).ready( (e) => {
         fetchAndFillNetworkIntercepts(url_params);
         fetchAndFillOptimizationsData(url_params);
         fetchAndFillAIData(url_params);
-        const warnings = await fetchWarnings(url_params);
-        fillWarnings(warnings);
+        fetchAndFillWarnings(url_params);
 
         (async () => { // since we need to wait for fetchAndFillPhaseStatsData we wrap in async so later calls cann already proceed
             const phase_stats = await fetchAndFillPhaseStatsData(url_params);

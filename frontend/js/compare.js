@@ -33,10 +33,13 @@ const fetchWarningsForRuns = async (ids) => {
 
 const fillWarnings = (warnings) => {
     if (!warnings || warnings.length === 0) return;
+    const warnings_texts = warnings.map(sub => sub[1]);
+    const unique_warnings = [...new Set(warnings_texts)];
+
     const container = document.querySelector('#run-warnings');
     const ul = container.querySelector('ul');
-    warnings.forEach(w => {
-        ul.insertAdjacentHTML('beforeend', `<li>${w[1]}</li>`);
+    unique_warnings.forEach(w => {
+        ul.insertAdjacentHTML('beforeend', `<li>${w}</li>`);
     });
     container.classList.remove('hidden');
 };
