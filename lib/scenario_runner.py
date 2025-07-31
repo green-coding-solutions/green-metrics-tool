@@ -151,6 +151,7 @@ class ScenarioRunner:
         self.__working_folder_rel = ''
         self.__image_sizes = {}
         self.__volume_sizes = {}
+        self.__warnings = []
 
         # we currently do not use this variable
         # self.__filename = self._original_filename # this can be changed later if working directory changes
@@ -228,7 +229,7 @@ class ScenarioRunner:
         if mode =='start':
             warnings = system_checks.check_start()
             for warn in warnings:
-                self.add_warning(warn)
+                self.__warnings.append(warn)
         else:
             raise RuntimeError('Unknown mode for system check:', mode)
 
@@ -1274,11 +1275,13 @@ class ScenarioRunner:
         if log_entry_name not in self.__stdout_logs:
             self.__stdout_logs[log_entry_name] = ''
         self.__stdout_logs[log_entry_name] = '\n'.join((self.__stdout_logs[log_entry_name], message))
-    def add_warning(self, message):
+
+    def save_warnings(self):
         if not self._run_id or self._dev_no_save:
             print("Skipping saving warning due to missing run id or --dev-no-save")
             return
-        DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (self._run_id, message))
+        for message in self.__warnings:
+            DB().query("INSERT INTO warnings (run_id, message) VALUES (%s, %s)", (self._run_id, message))
 
     def add_containers_to_metric_providers(self):
         for metric_provider in self.__metric_providers:
@@ -1762,7 +1765,7 @@ class ScenarioRunner:
             if not self._run_id or self._dev_no_save:
                 print(TerminalColors.WARNING, '\nSkipping saving identification if run is invalid due to missing run id or --dev-no-save', TerminalColors.ENDC)
             else:
-                self.add_warning(invalid_message)
+                self.__warnings.append(invalid_message)
 
         for argument in self._arguments:
             # dev no optimizations does not make the run invalid ... all others do
@@ -1773,7 +1776,7 @@ class ScenarioRunner:
                 if not self._run_id or self._dev_no_save:
                     print(TerminalColors.WARNING, '\nSkipping saving identification if run is invalid due to missing run id or --dev-no-save', TerminalColors.ENDC)
                 else:
-                    self.add_warning(invalid_message)
+                    self.__warnings.append(invalid_message)
                 break # one is enough
 
     def cleanup(self, continue_measurement=False):
@@ -1830,6 +1833,7 @@ class ScenarioRunner:
         self.__working_folder_rel = ''
         self.__image_sizes = {}
         self.__volume_sizes = {}
+        self.__warnings = []
 
 
         print(TerminalColors.OKBLUE, '-Cleanup gracefully completed', TerminalColors.ENDC)
@@ -1982,23 +1986,30 @@ class ScenarioRunner:
                                 raise exc
                             finally:
                                 try:
-                                    if self._run_id and self._dev_no_phase_stats is False and self._dev_no_save is False:
-                                        # After every run, even if it failed, we want to generate phase stats.
-                                        # They will not show the accurate data, but they are still neded to understand how
-                                        # much a failed run has accrued in total energy and carbon costs
-                                        print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
-
-                                        # get all the metrics from the measurements table grouped by metric
-                                        # loop over them issuing separate queries to the DB
-                                        from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
-                                        build_and_store_phase_stats(self._run_id, self._sci)
-
+                                    self.save_warnings()
                                 except BaseException as exc:
                                     self.add_to_log(exc.__class__.__name__, str(exc))
                                     self.set_run_failed()
                                     raise exc
                                 finally:
-                                    self.cleanup()  # always run cleanup automatically after each run
+                                    try:
+                                        if self._run_id and self._dev_no_phase_stats is False and self._dev_no_save is False:
+                                            # After every run, even if it failed, we want to generate phase stats.
+                                            # They will not show the accurate data, but they are still neded to understand how
+                                            # much a failed run has accrued in total energy and carbon costs
+                                            print(TerminalColors.HEADER, '\nCalculating and storing phases data. This can take a couple of seconds ...', TerminalColors.ENDC)
+
+                                            # get all the metrics from the measurements table grouped by metric
+                                            # loop over them issuing separate queries to the DB
+                                            from tools.phase_stats import build_and_store_phase_stats # pylint: disable=import-outside-toplevel
+                                            build_and_store_phase_stats(self._run_id, self._sci)
+
+                                    except BaseException as exc:
+                                        self.add_to_log(exc.__class__.__name__, str(exc))
+                                        self.set_run_failed()
+                                        raise exc
+                                    finally:
+                                        self.cleanup()  # always run cleanup automatically after each run
 
 
 
