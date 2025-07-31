@@ -119,7 +119,7 @@ const fetchAndFillRunData = async (url_params) => {
         } else if(item == 'name' || item == 'filename' || item == 'branch') {
             document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td>${run_data?.[item]}</td></tr>`)
         } else if(item == 'failed' && run_data?.[item] == true) {
-            document.querySelector('#run-data-top').insertAdjacentHTML('beforeend', `<tr><td><strong>Status</strong></td><td><span class="ui red horizontal label">This run has failed. Please see logs for details</span></td></tr>`)
+            document.querySelector('#run-failed').classList.remove('hidden');
         } else if(item == 'start_measurement' || item == 'end_measurement') {
             document.querySelector('#run-data-accordion').insertAdjacentHTML('beforeend', `<tr><td><strong>${item}</strong></td><td title="${run_data?.[item]}">${new Date(run_data?.[item] / 1e3)}</td></tr>`)
         } else if(item == 'created_at' ) {

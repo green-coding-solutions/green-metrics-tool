@@ -448,6 +448,19 @@ def determine_comparison_case(user, ids, force_mode=None):
 
     raise RuntimeError('Could not determine comparison case after checking all conditions')
 
+def check_run_failed(user, ids):
+    query = """
+            SELECT
+               COUNT(failed)
+            FROM runs
+            WHERE
+                (TRUE = %s OR user_id = ANY(%s::int[]))
+                AND id = ANY(%s::uuid[])
+                AND failed IS TRUE
+            """
+    params = (user.is_super_user(), user.visible_users(), ids)
+    return DB().fetch_one(query, params=params)[0]
+
 def get_phase_stats(user, ids):
     query = """
             SELECT

@@ -14,7 +14,7 @@ import anybadge
 from api.object_specifications import Software, JobChange
 from api.api_helpers import (ORJSONResponseObjKeep, add_phase_stats_statistics,
                          determine_comparison_case,get_comparison_details,
-                         html_escape_multi, get_phase_stats, get_phase_stats_object,
+                         html_escape_multi, get_phase_stats, get_phase_stats_object, check_run_failed,
                          is_valid_uuid, convert_value, get_timeline_query,
                          get_run_info, get_machine_list, get_artifact, store_artifact,
                          authenticate, check_int_field_api)
@@ -358,6 +358,12 @@ async def compare_in_repo(ids: str, force_mode:str | None = None, user: User = D
         raise RequestValidationError(str(exc)) from exc
 
     comparison_details = get_comparison_details(user, ids, comparison_db_key)
+
+    # check if a run failed
+
+    if check_run_failed(user, ids) >= 1:
+        raise RequestValidationError('At least one run in your runs to compare failed. Comparsion for failed runs is not supported.')
+
 
     if not (phase_stats := get_phase_stats(user, ids)):
         return Response(status_code=204) # No-Content
