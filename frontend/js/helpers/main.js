@@ -182,7 +182,7 @@ const replaceRepoIcon = (uri) => {
   return `<i class="icon ${iconClass}"></i>` + uri.substring(url.origin.length);
 };
 
-const showNotification = (message_title, message_text, type='warning') => {
+const showNotification = (message_title, message_text, type='error') => {
     if (typeof message_text === 'object') console.log(message_text); // this is most likey an error. We need it in the console
 
     const message = (typeof message_text === 'string' || typeof message_text === 'object') ? message_text : JSON.stringify(message_text);
@@ -194,9 +194,6 @@ const showNotification = (message_title, message_text, type='warning') => {
         displayTime: 5000,
         title: message_title,
         message: message,
-        className: {
-            toast: 'ui message'
-        }
     });
     return;
 }

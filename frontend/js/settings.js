@@ -5,13 +5,13 @@ const updateSetting = async (el) => {
         if (left_el.type == 'select-multiple') {
             const value = $(left_el).dropdown('get values');
             await makeAPICall('/v1/user/setting', {name: name, value: value}, null, true)
-            showNotification('Save success!', `${name} = ${value}`)
+            showNotification('Save success!', `${name} = ${value}`, 'success')
         } else if (left_el.type == 'checkbox') {
             await makeAPICall('/v1/user/setting', {name: name, value: left_el.checked}, null, true)
-            showNotification('Save success!', `${name} = ${left_el.checked}`)
+            showNotification('Save success!', `${name} = ${left_el.checked}`, 'success')
         } else {
             await makeAPICall('/v1/user/setting', {name: name, value: left_el.value}, null, true)
-            showNotification('Save success!', `${name} = ${left_el.value}`)
+            showNotification('Save success!', `${name} = ${left_el.value}`, 'success')
         }
     } catch (err) {
         showNotification('Could not save setting', err);
